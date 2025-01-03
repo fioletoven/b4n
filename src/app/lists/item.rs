@@ -1,5 +1,8 @@
 /// Contract for item with columns
 pub trait Row {
+    /// Returns `uid` of the item
+    fn uid(&self) -> Option<&str>;
+
     /// Returns `group` of the item
     fn group(&self) -> &str;
 

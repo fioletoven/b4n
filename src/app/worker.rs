@@ -94,7 +94,7 @@ impl BgWorker {
                 discovery
                     .iter()
                     .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                    .map(|(ar, _)| Kind::new(&ar.plural))
+                    .map(|(ar, _)| Kind::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
                     .collect::<Vec<Kind>>(),
             )
         } else {
@@ -148,8 +148,37 @@ impl BgWorker {
         self.list = discovery;
     }
 
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  
+    /// Name value can be in the form `name.group`.
     fn get_resource(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
+        if name.contains('.') {
+            let mut split = name.splitn(2, '.');
+            self.get_resource_with_group(split.next().unwrap(), split.next().unwrap())
+        } else {
+            self.get_resource_no_group(name)
+        }
+    }
+
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group
+    fn get_resource_with_group(&self, name: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
+        if group.is_empty() {
+            self.get_resource_no_group(name)
+        } else {
+            if let Some(list) = &self.list {
+                list.iter()
+                    .find(|(ar, _)| {
+                        group.eq_ignore_ascii_case(&ar.group)
+                            && (name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
+                    })
+                    .map(|(ar, cap)| (ar.clone(), cap.clone()))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group
+    fn get_resource_no_group(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
         if let Some(list) = &self.list {
             list.iter()
                 .filter(|(ar, _)| name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))

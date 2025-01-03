@@ -76,9 +76,15 @@ impl<T: Table> Selector<T> {
     }
 
     /// Marks selector as visible and selects item by name
-    pub fn show_selected(&mut self, selected_name: &str) {
+    pub fn show_selected(&mut self, selected_name: &str, selected_group: &str) {
         self.items.filter(None);
-        self.items.highlight_item_by_name(selected_name);
+        if selected_group.is_empty()
+            || !self
+                .items
+                .highlight_item_by_name(&format!("{}.{}", selected_name, selected_group))
+        {
+            self.items.highlight_item_by_name(selected_name);
+        }
         self.show();
     }
 

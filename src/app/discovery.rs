@@ -1,6 +1,5 @@
 use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
 use std::{
-    collections::HashSet,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -113,17 +112,8 @@ impl Drop for BgDiscovery {
     }
 }
 
+/// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`]
+#[inline]
 fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
-    let mut result = Vec::new();
-
-    for group in discovery.groups() {
-        result.append(&mut group.resources_by_stability());
-    }
-
-    // remove duplicates, leaving kinds with the smallest groups
-    result.sort_by(|a, b| a.0.group.cmp(&b.0.group));
-    let mut hs = HashSet::with_capacity(result.len());
-    result.retain(|(ar, _)| hs.insert(ar.plural.clone()));
-
-    result
+    discovery.groups().map(|g| g.resources_by_stability()).flatten().collect()
 }

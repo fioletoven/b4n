@@ -59,6 +59,12 @@ impl<T> FilterableList<T> {
         self.len
     }
 
+    /// Returns `true` if the filtered out list contains no elements.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.  
     /// __Note__: _clears the current filter_
     pub fn insert(&mut self, index: usize, element: T) {

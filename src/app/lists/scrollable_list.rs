@@ -65,7 +65,7 @@ impl<T: Row> ScrollableList<T> {
 
         if self.items.is_some() {
             self.apply_filter();
-            self.highlighted = self.items.as_ref().unwrap().iter().position(|i| i.is_active);
+            self.highlighted = self.recover_highlighted_item_index();
         } else {
             self.highlighted = None;
         }
@@ -128,11 +128,11 @@ impl<T: Row> ScrollableList<T> {
             self.page_start = highlighted_item - usize::from(self.page_height) + 1;
         }
 
-        if self.page_start > 0 {
-            if let Some(items) = &self.items {
-                if items.len() <= self.page_height.into() {
-                    self.page_start = 0;
-                }
+        if let Some(items) = &self.items {
+            if items.len() < usize::from(self.page_height) {
+                self.page_start = 0;
+            } else if items.len() < self.page_start + usize::from(self.page_height) {
+                self.page_start = items.len() - usize::from(self.page_height);
             }
         }
     }
@@ -238,14 +238,13 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Highlights element on list by its name
-    pub fn highlight_item_by_name(&mut self, name: &str) {
-        self.highlight_item_by(|i| i.data.name() == name);
+    pub fn highlight_item_by_name(&mut self, name: &str) -> bool {
+        self.highlight_item_by(|i| i.data.name() == name)
     }
 
-    /// Highlights first element on the list which name starts with `text`.  
-    /// Returns `true` if element was found and selected.
-    pub fn highlight_item_by_name_start(&mut self, text: &str) {
-        self.highlight_item_by(|i| i.data.name().starts_with(text));
+    /// Highlights first element on the list which name starts with `text`
+    pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
+        self.highlight_item_by(|i| i.data.name().starts_with(text))
     }
 
     /// Highlights first item on the list, returns `true` on success
@@ -253,7 +252,7 @@ impl<T: Row> ScrollableList<T> {
         let Some(items) = &mut self.items else {
             return false;
         };
-        if items.len() == 0 {
+        if items.is_empty() {
             return false;
         }
 
@@ -283,7 +282,7 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Tries to highlight item finding it by closure
-    fn highlight_item_by<F>(&mut self, f: F)
+    fn highlight_item_by<F>(&mut self, f: F) -> bool
     where
         F: Fn(&Item<T>) -> bool,
     {
@@ -298,14 +297,18 @@ impl<T: Row> ScrollableList<T> {
 
                 items[index].is_active = true;
                 self.highlighted = Some(index);
+
+                return true;
             }
         }
+
+        false
     }
 
     /// Adds `rows_to_move` to the currently highlighted item index
     fn move_highlighted(&mut self, rows_to_move: i32) {
         if let Some(items) = &mut self.items {
-            if items.len() == 0 || rows_to_move == 0 {
+            if items.is_empty() || rows_to_move == 0 {
                 return;
             }
 

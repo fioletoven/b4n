@@ -12,6 +12,7 @@ pub struct ResourcesInfo {
     pub version: String,
     pub kind: String,
     pub kind_plural: String,
+    pub group: String,
     pub scope: Scope,
     pub count: usize,
 }
@@ -24,6 +25,7 @@ impl Default for ResourcesInfo {
             version: Default::default(),
             kind: Default::default(),
             kind_plural: Default::default(),
+            group: Default::default(),
             scope: Scope::Cluster,
             count: Default::default(),
         }

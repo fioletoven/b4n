@@ -128,6 +128,7 @@ impl HomePage {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();
             data.current.kind_plural = self.list.items.kind_plural.clone();
+            data.current.group = self.list.items.group.clone();
             data.current.scope = self.list.items.scope.clone();
             data.current.count = self.list.items.list.len();
         } else {
@@ -175,11 +176,12 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
-            self.ns_selector.show_selected(&self.app_data.borrow().current.namespace);
+            self.ns_selector.show_selected(&self.app_data.borrow().current.namespace, "");
         }
 
         if key.code == KeyCode::Right {
-            self.res_selector.show_selected(&self.list.items.kind_plural);
+            self.res_selector
+                .show_selected(&self.list.items.kind_plural, &self.list.items.group);
         }
 
         if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {

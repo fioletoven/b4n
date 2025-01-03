@@ -79,6 +79,7 @@ impl BgObserver {
 
         let _kind = ar.kind.clone();
         let _kind_plural = ar.plural.to_lowercase();
+        let _group = ar.group.clone();
         self.scope = cap.scope.clone();
         let _scope = cap.scope.clone();
 
@@ -99,6 +100,7 @@ impl BgObserver {
                             .send(ObserverResult::new(
                                 _kind.clone(),
                                 _kind_plural.clone(),
+                                _group.clone(),
                                 _scope.clone(),
                                 objects,
                             ))
