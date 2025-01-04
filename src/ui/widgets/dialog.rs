@@ -21,10 +21,16 @@ pub struct Dialog {
     default_button: usize,
 }
 
+impl Default for Dialog {
+    fn default() -> Self {
+        Self::new(String::new(), vec![], 0, TextColors::default())
+    }
+}
+
 impl Dialog {
     /// Creates new [`Dialog`] instance
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
-        let default_button = if buttons.len() > 0 { buttons.len() - 1 } else { 0 };
+        let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
         let mut buttons = ButtonsGroup::new(buttons);
         buttons.focus(default_button);
 
@@ -95,12 +101,6 @@ impl Responsive for Dialog {
         }
 
         result
-    }
-}
-
-impl Default for Dialog {
-    fn default() -> Self {
-        Self::new(String::new(), vec![], 0, TextColors::default())
     }
 }
 

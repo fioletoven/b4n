@@ -1,5 +1,5 @@
-pub const ALL_NAMESPACES: &'static str = "all";
-pub const NAMESPACES: &'static str = "namespaces";
+pub const ALL_NAMESPACES: &str = "all";
+pub const NAMESPACES: &str = "namespaces";
 
 pub mod client;
 pub mod resources;

@@ -36,13 +36,13 @@ impl HomePage {
     /// Creates a new home page
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::new(), ViewType::Compact);
+        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
         let footer = FooterPane::new(Rc::clone(&app_data));
 
         let ns_selector = Selector::new(
             "NAMESPACE",
             Rc::clone(&app_data),
-            ResourcesList::new(),
+            ResourcesList::default(),
             SelectorPosition::Left,
             ResponseEvent::ChangeNamespace,
             30,
@@ -51,7 +51,7 @@ impl HomePage {
         let res_selector = Selector::new(
             "RESOURCE",
             Rc::clone(&app_data),
-            KindsList::new(),
+            KindsList::default(),
             SelectorPosition::Right,
             ResponseEvent::ChangeKind,
             35,
@@ -128,6 +128,7 @@ impl HomePage {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();
             data.current.kind_plural = self.list.items.kind_plural.clone();
+            data.current.group = self.list.items.group.clone();
             data.current.scope = self.list.items.scope.clone();
             data.current.count = self.list.items.list.len();
         } else {
@@ -175,11 +176,12 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
-            self.ns_selector.show_selected(&self.app_data.borrow().current.namespace);
+            self.ns_selector.show_selected(&self.app_data.borrow().current.namespace, "");
         }
 
         if key.code == KeyCode::Right {
-            self.res_selector.show_selected(&self.list.items.kind_plural);
+            self.res_selector
+                .show_selected(&self.list.items.kind_plural, &self.list.items.group);
         }
 
         if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {

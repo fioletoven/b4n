@@ -40,6 +40,11 @@ pub trait Table: Responsive {
     /// Returns the number of elements in the list.
     fn len(&self) -> usize;
 
+    /// Returns `true` if the list contains no elements.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns `true` if list is filtered
     fn is_filtered(&self) -> bool;
 
@@ -59,11 +64,11 @@ pub trait Table: Responsive {
     fn get_highlighted_item_name(&self) -> Option<&str>;
 
     /// Highlights element on list by its name
-    fn highlight_item_by_name(&mut self, name: &str);
+    fn highlight_item_by_name(&mut self, name: &str) -> bool;
 
     /// Highlights first element on list which name starts with `text`.  
     /// Returns `true` if element was found and selected.
-    fn highlight_item_by_name_start(&mut self, text: &str);
+    fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
 
     /// Highlights first item on list, returns `true` on success
     fn highlight_first_item(&mut self) -> bool;

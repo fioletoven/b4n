@@ -46,11 +46,10 @@ pub struct BgObserver {
     has_error: Arc<AtomicBool>,
 }
 
-impl BgObserver {
-    /// Creates new [`BgObserver`] instance
-    pub fn new() -> Self {
+impl Default for BgObserver {
+    fn default() -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
-        BgObserver {
+        Self {
             resource: String::new(),
             namespace: None,
             scope: Scope::Cluster,
@@ -61,7 +60,9 @@ impl BgObserver {
             has_error: Arc::new(AtomicBool::new(false)),
         }
     }
+}
 
+impl BgObserver {
     /// Starts new [`BgObserver`] task
     pub fn start(
         &mut self,
@@ -79,6 +80,7 @@ impl BgObserver {
 
         let _kind = ar.kind.clone();
         let _kind_plural = ar.plural.to_lowercase();
+        let _group = ar.group.clone();
         self.scope = cap.scope.clone();
         let _scope = cap.scope.clone();
 
@@ -99,6 +101,7 @@ impl BgObserver {
                             .send(ObserverResult::new(
                                 _kind.clone(),
                                 _kind_plural.clone(),
+                                _group.clone(),
                                 _scope.clone(),
                                 objects,
                             ))
@@ -207,7 +210,7 @@ impl BgObserver {
 
     /// Drains waiting [`ObserverResult`]s
     pub fn drain(&mut self) {
-        while let Ok(_) = self.context_rx.try_recv() {}
+        while self.context_rx.try_recv().is_ok() {}
     }
 
     /// Returns currently observed resource name

@@ -1,39 +1,32 @@
 use delegate::delegate;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     kubernetes::resources::Kind,
     ui::{colors::TextColors, theme::Theme, ResponseEvent, Responsive, Table, ViewType},
 };
 
-use super::{FilterableList, Item, ScrollableList};
+use super::{FilterableList, Item, Row, ScrollableList};
 
 /// Kubernetes kinds list
+#[derive(Default)]
 pub struct KindsList {
     pub list: ScrollableList<Kind>,
 }
 
 impl KindsList {
-    /// Creates new [`KindsList`] instance
-    pub fn new() -> Self {
-        KindsList {
-            list: ScrollableList::new(),
-        }
-    }
-
-    /// Updates [`KindsList`] with new data from [`Vec<Kind>`].  
-    /// Simplified version, takes care only about highlighted item.
+    /// Updates [`KindsList`] with new data from [`Vec<Kind>`]
     pub fn update(&mut self, kinds: Option<Vec<Kind>>, sort_by: usize, is_descending: bool) {
-        if let Some(list) = kinds {
-            let highlighted = self.list.get_highlighted_item_name().unwrap_or("").to_owned();
-            self.list.items = Some(FilterableList::from(list.into_iter().map(|i| Item::new(i)).collect()));
-            self.list.sort(sort_by, is_descending);
-            if !highlighted.is_empty() {
-                self.list.highlight_item_by_name(&highlighted);
+        if let Some(new_list) = kinds {
+            self.list.dirty(false);
+
+            if let Some(old_list) = &mut self.list.items {
+                update_old_list(old_list, new_list);
+            } else {
+                self.list.items = create_new_list(new_list);
             }
-        } else {
-            self.list.items = None;
-            self.list.highlighted = None;
+
+            self.list.sort(sort_by, is_descending);
         }
     }
 }
@@ -54,8 +47,8 @@ impl Table for KindsList {
             fn sort(&mut self, column_no: usize, is_descending: bool);
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
-            fn highlight_item_by_name(&mut self, name: &str);
-            fn highlight_item_by_name_start(&mut self, text: &str);
+            fn highlight_item_by_name(&mut self, name: &str) -> bool;
+            fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
@@ -75,5 +68,61 @@ impl Table for KindsList {
 
     fn get_header(&self, _view: ViewType, width: usize) -> String {
         format!("{1:<0$}", width, "KIND")
+    }
+}
+
+fn update_old_list(old_list: &mut FilterableList<Item<Kind>>, new_list: Vec<Kind>) {
+    let mut unique = HashSet::new();
+    let mut multiple = HashSet::new();
+
+    for new_item in new_list.into_iter() {
+        let name = new_item.name.clone();
+        if unique.contains(&name) {
+            multiple.insert(name);
+        } else {
+            unique.insert(name);
+        }
+
+        let old_item = old_list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
+        if let Some(old_item) = old_item {
+            old_item.data = new_item;
+            old_item.is_dirty = true;
+        } else {
+            old_list.push(Item::dirty(new_item));
+        }
+    }
+
+    old_list.full_retain(|i| i.is_dirty || i.is_fixed);
+
+    mark_multiple(old_list, &multiple);
+}
+
+fn create_new_list(new_list: Vec<Kind>) -> Option<FilterableList<Item<Kind>>> {
+    let mut unique = HashSet::new();
+    let mut multiple = HashSet::new();
+
+    let mut list = Vec::with_capacity(new_list.len());
+
+    for new_item in new_list.into_iter() {
+        let name = new_item.name.clone();
+        if unique.contains(&name) {
+            multiple.insert(name);
+        } else {
+            unique.insert(name);
+        }
+
+        list.push(Item::new(new_item));
+    }
+
+    let mut list = FilterableList::from(list);
+
+    mark_multiple(&mut list, &multiple);
+
+    Some(list)
+}
+
+fn mark_multiple(list: &mut FilterableList<Item<Kind>>, multiple: &HashSet<String>) {
+    for item in list.full_iter_mut() {
+        item.data.multiple = multiple.contains(item.data.name());
     }
 }

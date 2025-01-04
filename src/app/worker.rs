@@ -27,10 +27,10 @@ impl BgWorker {
     /// Creates new [`BgWorker`] instance
     pub fn new(client: KubernetesClient) -> Self {
         Self {
-            namespaces: BgObserver::new(),
-            resources: BgObserver::new(),
-            discovery: BgDiscovery::new(),
-            executor: BgExecutor::new(),
+            namespaces: BgObserver::default(),
+            resources: BgObserver::default(),
+            discovery: BgDiscovery::default(),
+            executor: BgExecutor::default(),
             client,
             list: None,
         }
@@ -66,7 +66,7 @@ impl BgWorker {
 
     /// Restarts (if needed) the resources observer to change observed namespace
     pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgObserverError> {
-        let discovery = self.get_resource(&self.resources.get_resource_name());
+        let discovery = self.get_resource(self.resources.get_resource_name());
         self.resources
             .restart_new_namespace(&self.client, resource_namespace, discovery)
     }
@@ -89,17 +89,13 @@ impl BgWorker {
 
     /// Returns list of discovered kubernetes kinds
     pub fn get_kinds_list(&self) -> Option<Vec<Kind>> {
-        if let Some(discovery) = &self.list {
-            Some(
-                discovery
-                    .iter()
-                    .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                    .map(|(ar, _)| Kind::new(&ar.plural))
-                    .collect::<Vec<Kind>>(),
-            )
-        } else {
-            None
-        }
+        self.list.as_ref().map(|discovery| {
+            discovery
+                .iter()
+                .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
+                .map(|(ar, _)| Kind::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
+                .collect::<Vec<Kind>>()
+        })
     }
 
     /// Checks and updates discovered resources list, returns `true` if discovery was updated
@@ -148,16 +144,43 @@ impl BgWorker {
         self.list = discovery;
     }
 
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  
+    /// Name value can be in the form `name.group`.
     fn get_resource(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
-        if let Some(list) = &self.list {
-            list.iter()
+        if name.contains('.') {
+            let mut split = name.splitn(2, '.');
+            self.get_resource_with_group(split.next().unwrap(), split.next().unwrap())
+        } else {
+            self.get_resource_no_group(name)
+        }
+    }
+
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group
+    fn get_resource_with_group(&self, name: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
+        if group.is_empty() {
+            self.get_resource_no_group(name)
+        } else {
+            self.list.as_ref().and_then(|discovery| {
+                discovery
+                    .iter()
+                    .find(|(ar, _)| {
+                        group.eq_ignore_ascii_case(&ar.group)
+                            && (name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
+                    })
+                    .map(|(ar, cap)| (ar.clone(), cap.clone()))
+            })
+        }
+    }
+
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group
+    fn get_resource_no_group(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
+        self.list.as_ref().and_then(|discovery| {
+            discovery
+                .iter()
                 .filter(|(ar, _)| name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
                 .min_by_key(|(ar, _)| &ar.group)
                 .map(|(ar, cap)| (ar.clone(), cap.clone()))
-        } else {
-            None
-        }
+        })
     }
 }
 

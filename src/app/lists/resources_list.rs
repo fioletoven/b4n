@@ -14,30 +14,34 @@ use super::{FilterableList, Header, Item, Row, ScrollableList};
 pub struct ResourcesList {
     pub kind: String,
     pub kind_plural: String,
+    pub group: String,
     pub scope: Scope,
     pub header: Header,
     pub list: ScrollableList<Resource>,
 }
 
-impl ResourcesList {
-    /// Creates new [`ResourcesList`] instance
-    pub fn new() -> Self {
+impl Default for ResourcesList {
+    fn default() -> Self {
         ResourcesList {
             kind: String::new(),
             kind_plural: String::new(),
+            group: String::new(),
             scope: Scope::Cluster,
-            header: Header::new(),
-            list: ScrollableList::new(),
+            header: Header::default(),
+            list: ScrollableList::default(),
         }
     }
+}
 
+impl ResourcesList {
     /// Creates new [`ResourcesList`] instance from [`ScrollableList`]
     pub fn from(list: ScrollableList<Resource>) -> Self {
         ResourcesList {
             kind: String::new(),
             kind_plural: String::new(),
+            group: String::new(),
             scope: Scope::Cluster,
-            header: Header::new(),
+            header: Header::default(),
             list,
         }
     }
@@ -46,7 +50,7 @@ impl ResourcesList {
     /// Returns `true` if the kind was also changed during the update.
     pub fn update(&mut self, result: Option<ObserverResult>, sort_by: usize, is_descending: bool) -> bool {
         if let Some(result) = result {
-            let updated = self.update_kind(result.kind, result.kind_plural, result.scope);
+            let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
             self.update_list(result.list.iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
 
@@ -66,13 +70,14 @@ impl ResourcesList {
     }
 
     /// Returns `true` if kind was changed
-    fn update_kind(&mut self, kind: String, kind_plural: String, scope: Scope) -> bool {
-        if self.kind == kind {
+    fn update_kind(&mut self, kind: String, kind_plural: String, group: String, scope: Scope) -> bool {
+        if self.kind == kind && self.group == group {
             return false;
         }
 
         self.kind = kind;
         self.kind_plural = kind_plural;
+        self.group = group;
         self.scope = scope.clone();
         self.header = Resource::header(&self.kind);
         self.list.remove_fixed();
@@ -93,7 +98,7 @@ impl ResourcesList {
 
         if let Some(old_list) = &mut self.list.items {
             for new_item in new_list.into_iter() {
-                let old_item = old_list.full_iter_mut().find(|i| i.data.get_uid() == new_item.get_uid());
+                let old_item = old_list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
                 if let Some(old_item) = old_item {
                     old_item.data = new_item;
                     old_item.is_dirty = true;
@@ -103,9 +108,8 @@ impl ResourcesList {
             }
 
             old_list.full_retain(|i| i.is_dirty || i.is_fixed);
-            self.list.recover_highlighted_item_index();
         } else {
-            self.list.items = Some(FilterableList::from(new_list.into_iter().map(|i| Item::new(i)).collect()));
+            self.list.items = Some(FilterableList::from(new_list.into_iter().map(Item::new).collect()));
         }
 
         self.update_data_lengths();
@@ -146,8 +150,8 @@ impl Table for ResourcesList {
             fn sort(&mut self, column_no: usize, is_descending: bool);
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
-            fn highlight_item_by_name(&mut self, name: &str);
-            fn highlight_item_by_name_start(&mut self, text: &str);
+            fn highlight_item_by_name(&mut self, name: &str) -> bool;
+            fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);

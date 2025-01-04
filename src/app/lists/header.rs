@@ -16,12 +16,13 @@ pub struct Header {
     extra_space: usize,
 }
 
-impl Header {
-    /// Creates new [`Header`] instance
-    pub fn new() -> Self {
+impl Default for Header {
+    fn default() -> Self {
         Self::from(Column::new("N/A"), None)
     }
+}
 
+impl Header {
     /// Creates new [`Header`] instance with provided columns
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns);

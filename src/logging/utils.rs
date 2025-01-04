@@ -17,7 +17,7 @@ pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(appender);
 
     let timer = time::format_description::parse("[year]-[month padding:zero]-[day padding:zero] [hour]:[minute]:[second]")?;
-    let time_offset = time::UtcOffset::current_local_offset().unwrap_or_else(|_| time::UtcOffset::UTC);
+    let time_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
     let timer = tracing_subscriber::fmt::time::OffsetTime::new(time_offset, timer);
 
     let env_filter = tracing_subscriber::filter::EnvFilter::try_from_default_env()

@@ -83,11 +83,6 @@ impl Resource {
         }
     }
 
-    /// Returns `UID` of this kubernetes resource
-    pub fn get_uid(&self) -> Option<&str> {
-        self.uid.as_deref()
-    }
-
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if let Some(data) = &self.data {
@@ -116,7 +111,7 @@ impl Resource {
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or_else(|| "n/a")
+                .unwrap_or("n/a")
         )
     }
 
@@ -132,7 +127,7 @@ impl Resource {
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or_else(|| "n/a")
+                .unwrap_or("n/a")
         )
     }
 
@@ -165,12 +160,16 @@ impl Resource {
         text
     }
 
-    fn get_extra_values(&self) -> Option<&Box<[Option<String>]>> {
-        self.data.as_ref().map(|data| &data.extra_values)
+    fn get_extra_values(&self) -> Option<&[Option<String>]> {
+        self.data.as_ref().map(|data| &*data.extra_values)
     }
 }
 
 impl Row for Resource {
+    fn uid(&self) -> Option<&str> {
+        self.uid.as_deref()
+    }
+
     fn group(&self) -> &str {
         self.namespace.as_deref().unwrap_or_default()
     }

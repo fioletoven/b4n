@@ -59,6 +59,12 @@ impl<T> FilterableList<T> {
         self.len
     }
 
+    /// Returns `true` if the filtered out list contains no elements.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.  
     /// __Note__: _clears the current filter_
     pub fn insert(&mut self, index: usize, element: T) {
@@ -171,7 +177,7 @@ impl<'a, T> Iterator for FilterableListIterator<'a, T> {
 
     fn next(&mut self) -> Option<&'a T> {
         if let Some(list) = &self.list.filtered {
-            if list.len() == 0 || self.index >= list.len() || list[self.index] >= self.list.items.len() {
+            if list.is_empty() || self.index >= list.len() || list[self.index] >= self.list.items.len() {
                 return None;
             }
 
@@ -180,7 +186,7 @@ impl<'a, T> Iterator for FilterableListIterator<'a, T> {
 
             Some(&self.list.items[index])
         } else {
-            if self.list.items.len() == 0 || self.index >= self.list.items.len() {
+            if self.list.items.is_empty() || self.index >= self.list.items.len() {
                 return None;
             }
 
@@ -203,7 +209,7 @@ impl<'a, T> Iterator for FilterableListIteratorMut<'a, T> {
 
     fn next(&mut self) -> Option<&'a mut T> {
         if let Some(list) = &mut self.list.filtered {
-            if list.len() == 0 || self.index >= list.len() || list[self.index] >= self.list.items.len() {
+            if list.is_empty() || self.index >= list.len() || list[self.index] >= self.list.items.len() {
                 return None;
             }
 
@@ -212,7 +218,7 @@ impl<'a, T> Iterator for FilterableListIteratorMut<'a, T> {
 
             Some(item)
         } else {
-            if self.list.items.len() == 0 || self.index >= self.list.items.len() {
+            if self.list.items.is_empty() || self.index >= self.list.items.len() {
                 return None;
             }
 

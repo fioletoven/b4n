@@ -14,9 +14,8 @@ pub struct ScrollableList<T: Row> {
     filter: Option<String>,
 }
 
-impl<T: Row> ScrollableList<T> {
-    /// Creates new [`ScrollableList`]
-    pub fn new() -> Self {
+impl<T: Row> Default for ScrollableList<T> {
+    fn default() -> Self {
         ScrollableList {
             items: None,
             highlighted: None,
@@ -25,7 +24,9 @@ impl<T: Row> ScrollableList<T> {
             filter: None,
         }
     }
+}
 
+impl<T: Row> ScrollableList<T> {
     /// Creates new [`ScrollableList`] with initial fixed items
     pub fn fixed(items: Vec<T>) -> Self {
         let list = items.into_iter().map(|item| Item::fixed(item)).collect::<Vec<_>>();
@@ -42,6 +43,11 @@ impl<T: Row> ScrollableList<T> {
     /// Returns the number of elements in the scrollable list.
     pub fn len(&self) -> usize {
         self.items.as_ref().map(|l| l.len()).unwrap_or_default()
+    }
+
+    /// Returns `true` if the scrollable list contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Sets value of the property `dirty` for all items in the list to `is_dirty`
@@ -65,7 +71,7 @@ impl<T: Row> ScrollableList<T> {
 
         if self.items.is_some() {
             self.apply_filter();
-            self.highlighted = self.items.as_ref().unwrap().iter().position(|i| i.is_active);
+            self.highlighted = self.recover_highlighted_item_index();
         } else {
             self.highlighted = None;
         }
@@ -82,10 +88,8 @@ impl<T: Row> ScrollableList<T> {
         if self.filter.is_some() {
             self.deselect_all();
             self.apply_filter();
-        } else {
-            if let Some(list) = &mut self.items {
-                list.filter_reset();
-            }
+        } else if let Some(list) = &mut self.items {
+            list.filter_reset();
         }
 
         self.highlighted = self.recover_highlighted_item_index();
@@ -107,7 +111,7 @@ impl<T: Row> ScrollableList<T> {
         match key.code {
             KeyCode::Home => self.move_highlighted(i32::MIN),
             KeyCode::Up => self.move_highlighted(-1),
-            KeyCode::PageUp => self.move_highlighted(i32::from(self.page_height) * -1),
+            KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
             KeyCode::Down => self.move_highlighted(1),
             KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
             KeyCode::End => self.move_highlighted(i32::MAX),
@@ -128,22 +132,20 @@ impl<T: Row> ScrollableList<T> {
             self.page_start = highlighted_item - usize::from(self.page_height) + 1;
         }
 
-        if self.page_start > 0 {
-            if let Some(items) = &self.items {
-                if items.len() <= self.page_height.into() {
-                    self.page_start = 0;
-                }
+        if let Some(items) = &self.items {
+            if items.len() < usize::from(self.page_height) {
+                self.page_start = 0;
+            } else if items.len() < self.page_start + usize::from(self.page_height) {
+                self.page_start = items.len() - usize::from(self.page_height);
             }
         }
     }
 
     /// Returns list items iterator for the current page
     pub fn get_page(&self) -> Option<impl Iterator<Item = &Item<T>>> {
-        if let Some(list) = &self.items {
-            Some(list.iter().skip(self.page_start).take(self.page_height.into()))
-        } else {
-            None
-        }
+        self.items
+            .as_ref()
+            .map(|list| list.iter().skip(self.page_start).take(self.page_height.into()))
     }
 
     /// Removes all fixed items from the list
@@ -220,7 +222,7 @@ impl<T: Row> ScrollableList<T> {
         if let Some(items) = &self.items {
             if let Some(highlighted) = self.highlighted {
                 if highlighted < items.len() {
-                    return Some(&items[highlighted].data.name());
+                    return Some(items[highlighted].data.name());
                 }
             }
         }
@@ -238,14 +240,13 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Highlights element on list by its name
-    pub fn highlight_item_by_name(&mut self, name: &str) {
-        self.highlight_item_by(|i| i.data.name() == name);
+    pub fn highlight_item_by_name(&mut self, name: &str) -> bool {
+        self.highlight_item_by(|i| i.data.name() == name)
     }
 
-    /// Highlights first element on the list which name starts with `text`.  
-    /// Returns `true` if element was found and selected.
-    pub fn highlight_item_by_name_start(&mut self, text: &str) {
-        self.highlight_item_by(|i| i.data.name().starts_with(text));
+    /// Highlights first element on the list which name starts with `text`
+    pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
+        self.highlight_item_by(|i| i.data.name().starts_with(text))
     }
 
     /// Highlights first item on the list, returns `true` on success
@@ -253,7 +254,7 @@ impl<T: Row> ScrollableList<T> {
         let Some(items) = &mut self.items else {
             return false;
         };
-        if items.len() == 0 {
+        if items.is_empty() {
             return false;
         }
 
@@ -283,7 +284,7 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Tries to highlight item finding it by closure
-    fn highlight_item_by<F>(&mut self, f: F)
+    fn highlight_item_by<F>(&mut self, f: F) -> bool
     where
         F: Fn(&Item<T>) -> bool,
     {
@@ -298,14 +299,18 @@ impl<T: Row> ScrollableList<T> {
 
                 items[index].is_active = true;
                 self.highlighted = Some(index);
+
+                return true;
             }
         }
+
+        false
     }
 
     /// Adds `rows_to_move` to the currently highlighted item index
     fn move_highlighted(&mut self, rows_to_move: i32) {
         if let Some(items) = &mut self.items {
-            if items.len() == 0 || rows_to_move == 0 {
+            if items.is_empty() || rows_to_move == 0 {
                 return;
             }
 
@@ -340,5 +345,5 @@ fn cmp(a: &Item<impl Row>, b: &Item<impl Row>, column: usize) -> Ordering {
         return Ordering::Equal;
     }
 
-    a.data.column_text(column).cmp(&b.data.column_text(column))
+    a.data.column_text(column).cmp(b.data.column_text(column))
 }
