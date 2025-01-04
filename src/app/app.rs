@@ -107,7 +107,7 @@ impl App {
 
     /// Process TUI event
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
-        let _ = match self.page.process_event(event) {
+        match self.page.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
             ResponseEvent::Change(kind, namespace) => self.change(kind, namespace)?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
@@ -122,14 +122,13 @@ impl App {
 
     /// Changes observed resources namespace and kind
     fn change(&mut self, kind: String, namespace: String) -> Result<(), BgObserverError> {
-        let scope;
-        if namespace == ALL_NAMESPACES {
+        let scope = if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
-            scope = self.worker.restart(kind, None)?;
+            self.worker.restart(kind, None)?
         } else {
             self.page.set_namespace(namespace.clone(), ViewType::Compact);
-            scope = self.worker.restart(kind, Some(namespace))?;
-        }
+            self.worker.restart(kind, Some(namespace))?
+        };
 
         self.set_page_view(scope);
 

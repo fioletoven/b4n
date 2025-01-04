@@ -40,6 +40,11 @@ pub trait Table: Responsive {
     /// Returns the number of elements in the list.
     fn len(&self) -> usize;
 
+    /// Returns `true` if the list contains no elements.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns `true` if list is filtered
     fn is_filtered(&self) -> bool;
 

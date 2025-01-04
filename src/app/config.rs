@@ -28,7 +28,7 @@ pub enum ConfigError {
 }
 
 /// Application configuration
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Config {
     pub theme: Theme,
 }
@@ -72,12 +72,6 @@ impl Config {
         }
 
         Ok(())
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self { theme: Theme::default() }
     }
 }
 

@@ -36,13 +36,13 @@ impl HomePage {
     /// Creates a new home page
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::new(), ViewType::Compact);
+        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
         let footer = FooterPane::new(Rc::clone(&app_data));
 
         let ns_selector = Selector::new(
             "NAMESPACE",
             Rc::clone(&app_data),
-            ResourcesList::new(),
+            ResourcesList::default(),
             SelectorPosition::Left,
             ResponseEvent::ChangeNamespace,
             30,
@@ -51,7 +51,7 @@ impl HomePage {
         let res_selector = Selector::new(
             "RESOURCE",
             Rc::clone(&app_data),
-            KindsList::new(),
+            KindsList::default(),
             SelectorPosition::Right,
             ResponseEvent::ChangeKind,
             35,

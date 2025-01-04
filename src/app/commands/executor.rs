@@ -9,6 +9,7 @@ use crate::{app::utils::wait_for_task, kubernetes::client::KubernetesClient};
 use super::Command;
 
 /// Background commands executor
+#[derive(Default)]
 pub struct BgExecutor {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
@@ -16,15 +17,6 @@ pub struct BgExecutor {
 }
 
 impl BgExecutor {
-    /// Creates new [`BgExecutor`] instance
-    pub fn new() -> Self {
-        BgExecutor {
-            task: None,
-            cancellation_token: None,
-            commands_tx: None,
-        }
-    }
-
     /// Starts background task for commands execution
     pub fn start(&mut self, client: &KubernetesClient) {
         if self.cancellation_token.is_some() {

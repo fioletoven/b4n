@@ -28,7 +28,7 @@ impl ButtonsGroup {
 
     /// Returns result for the button under provided index
     pub fn result(&self, index: usize) -> ResponseEvent {
-        if self.buttons.len() == 0 {
+        if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
         }
 
@@ -37,7 +37,7 @@ impl ButtonsGroup {
 
     /// Focus button under provided index
     pub fn focus(&mut self, index: usize) {
-        if self.buttons.len() > 0 {
+        if !self.buttons.is_empty() {
             self.buttons[self.focused].set_focus(false);
             self.focused = index.clamp(0, self.buttons.len() - 1);
             self.buttons[self.focused].set_focus(true);
@@ -46,7 +46,7 @@ impl ButtonsGroup {
 
     /// Draws [`ButtonsGroup`] on the provided frame area
     pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if self.buttons.len() == 0 {
+        if self.buttons.is_empty() {
             return;
         }
 
@@ -104,7 +104,7 @@ impl ButtonsGroup {
 
 impl Responsive for ButtonsGroup {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
-        if self.buttons.len() == 0 {
+        if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
         }
 

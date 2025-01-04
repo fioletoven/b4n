@@ -64,23 +64,20 @@ pub fn header() -> Header {
     )
 }
 
-fn get_restarts(containers: &Vec<Value>) -> u16 {
+fn get_restarts(containers: &[Value]) -> u16 {
     containers
         .iter()
         .map(|c| c["restartCount"].as_u64().unwrap_or(0))
         .sum::<u64>() as u16
 }
 
-fn get_ready(containers: &Vec<Value>) -> (String, bool) {
-    let ready = containers
-        .iter()
-        .filter(|c| c["ready"].as_bool().unwrap_or_default() == true)
-        .count();
+fn get_ready(containers: &[Value]) -> (String, bool) {
+    let ready = containers.iter().filter(|c| c["ready"].as_bool().unwrap_or_default()).count();
 
     (format!("{}/{}", ready, containers.len()), ready == containers.len())
 }
 
-fn any_terminated(containers: &Vec<Value>) -> bool {
+fn any_terminated(containers: &[Value]) -> bool {
     containers.iter().any(|c| c.get("terminated").is_some())
 }
 

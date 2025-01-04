@@ -11,19 +11,19 @@ pub struct TextColors {
     pub bg: Color,
 }
 
-impl TextColors {
-    /// Returns new [`TextColors`] instance
-    pub fn new(fg: Color, bg: Color) -> Self {
-        TextColors { fg, bg }
-    }
-}
-
 impl Default for TextColors {
     fn default() -> Self {
         Self {
             fg: Color::Black,
             bg: Color::Reset,
         }
+    }
+}
+
+impl TextColors {
+    /// Returns new [`TextColors`] instance
+    pub fn new(fg: Color, bg: Color) -> Self {
+        TextColors { fg, bg }
     }
 }
 
@@ -49,7 +49,7 @@ impl<'de> Deserialize<'de> for TextColors {
 /// Internal [`Visitor`] for deserializing [`TextColors`]
 struct TextColorsVisitor;
 
-impl<'de> Visitor<'de> for TextColorsVisitor {
+impl Visitor<'_> for TextColorsVisitor {
     type Value = TextColors;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -96,12 +96,10 @@ impl LineColors {
             } else {
                 self.selected
             }
+        } else if is_active {
+            self.normal_hl
         } else {
-            if is_active {
-                self.normal_hl
-            } else {
-                self.normal
-            }
+            self.normal
         }
     }
 }

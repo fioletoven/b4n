@@ -27,11 +27,10 @@ pub struct BgDiscovery {
     has_error: Arc<AtomicBool>,
 }
 
-impl BgDiscovery {
-    /// Creates new [`BgDiscovery`] instance
-    pub fn new() -> Self {
+impl Default for BgDiscovery {
+    fn default() -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
-        BgDiscovery {
+        Self {
             task: None,
             cancellation_token: None,
             context_tx,
@@ -39,7 +38,9 @@ impl BgDiscovery {
             has_error: Arc::new(AtomicBool::new(false)),
         }
     }
+}
 
+impl BgDiscovery {
     /// Starts new [`BgDiscovery`] task
     pub fn start(&mut self, client: &KubernetesClient) {
         let cancellation_token = CancellationToken::new();
@@ -115,5 +116,5 @@ impl Drop for BgDiscovery {
 /// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`]
 #[inline]
 fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
-    discovery.groups().map(|g| g.resources_by_stability()).flatten().collect()
+    discovery.groups().flat_map(|g| g.resources_by_stability()).collect()
 }

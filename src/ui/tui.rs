@@ -134,12 +134,9 @@ impl Drop for Tui {
 }
 
 fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>) {
-    match event {
-        Event::Key(key) => {
-            if key.kind == KeyEventKind::Press {
-                sender.send(TuiEvent::Key(key)).unwrap();
-            }
+    if let Event::Key(key) = event {
+        if key.kind == KeyEventKind::Press {
+            sender.send(TuiEvent::Key(key)).unwrap();
         }
-        _ => {}
     }
 }

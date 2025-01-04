@@ -20,19 +20,20 @@ pub struct ResourcesList {
     pub list: ScrollableList<Resource>,
 }
 
-impl ResourcesList {
-    /// Creates new [`ResourcesList`] instance
-    pub fn new() -> Self {
+impl Default for ResourcesList {
+    fn default() -> Self {
         ResourcesList {
             kind: String::new(),
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            header: Header::new(),
-            list: ScrollableList::new(),
+            header: Header::default(),
+            list: ScrollableList::default(),
         }
     }
+}
 
+impl ResourcesList {
     /// Creates new [`ResourcesList`] instance from [`ScrollableList`]
     pub fn from(list: ScrollableList<Resource>) -> Self {
         ResourcesList {
@@ -40,7 +41,7 @@ impl ResourcesList {
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            header: Header::new(),
+            header: Header::default(),
             list,
         }
     }
@@ -108,7 +109,7 @@ impl ResourcesList {
 
             old_list.full_retain(|i| i.is_dirty || i.is_fixed);
         } else {
-            self.list.items = Some(FilterableList::from(new_list.into_iter().map(|i| Item::new(i)).collect()));
+            self.list.items = Some(FilterableList::from(new_list.into_iter().map(Item::new).collect()));
         }
 
         self.update_data_lengths();

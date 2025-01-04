@@ -9,18 +9,12 @@ use crate::{
 use super::{FilterableList, Item, Row, ScrollableList};
 
 /// Kubernetes kinds list
+#[derive(Default)]
 pub struct KindsList {
     pub list: ScrollableList<Kind>,
 }
 
 impl KindsList {
-    /// Creates new [`KindsList`] instance
-    pub fn new() -> Self {
-        KindsList {
-            list: ScrollableList::new(),
-        }
-    }
-
     /// Updates [`KindsList`] with new data from [`Vec<Kind>`]
     pub fn update(&mut self, kinds: Option<Vec<Kind>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {

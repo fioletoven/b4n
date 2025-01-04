@@ -111,7 +111,7 @@ impl Resource {
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or_else(|| "n/a")
+                .unwrap_or("n/a")
         )
     }
 
@@ -127,7 +127,7 @@ impl Resource {
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or_else(|| "n/a")
+                .unwrap_or("n/a")
         )
     }
 
@@ -160,8 +160,8 @@ impl Resource {
         text
     }
 
-    fn get_extra_values(&self) -> Option<&Box<[Option<String>]>> {
-        self.data.as_ref().map(|data| &data.extra_values)
+    fn get_extra_values(&self) -> Option<&[Option<String>]> {
+        self.data.as_ref().map(|data| &*data.extra_values)
     }
 }
 
