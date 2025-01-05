@@ -9,8 +9,8 @@ use tokio::time::sleep;
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
 
 use super::{
-    commands::{BgExecutor, Command, DeleteResourcesCommand},
-    BgDiscovery, BgObserver, BgObserverError,
+    commands::{BgExecutor, Command, DeleteResourcesCommand, SaveConfigCommand},
+    BgDiscovery, BgObserver, BgObserverError, Config,
 };
 
 /// Keeps together all application background workers
@@ -107,6 +107,12 @@ impl BgWorker {
         } else {
             false
         }
+    }
+
+    /// Saves the provided configuration to a file
+    pub fn save_configuration(&self, config: Config) {
+        self.executor
+            .run_command(Command::SaveConfiguration(SaveConfigCommand::new(config)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  

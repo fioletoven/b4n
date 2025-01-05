@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     info!("{} v{} started", env!("CARGO_CRATE_NAME"), env!("CARGO_PKG_VERSION"));
 
     let args = cli::Args::parse();
-    let config = Config::load_or_create()?;
+    let config = Config::load_or_create().await?;
     let client = KubernetesClient::new(args.context.as_deref()).await?;
 
     let mut app = App::new(client, config)?;

@@ -1,77 +1,112 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::{self},
-    path::PathBuf,
+use std::path::PathBuf;
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncWriteExt},
 };
 
 use crate::ui::theme::Theme;
 
-/// Possible errors from [`Config`] manipulation
+use super::ResourcesInfo;
+
+/// Possible errors from [`Config`] manipulation.
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
-    /// Cannot read configuration file
-    #[error("cannot read configuration file")]
-    FileReadError,
+    /// Cannot read/write configuration file.
+    #[error("cannot read/write configuration file")]
+    IoError(#[from] std::io::Error),
 
-    /// Cannot write configuration file
-    #[error("cannot write configuration file")]
-    FileWriteError,
-
-    /// Cannot deserialize configuration
-    #[error("cannot deserialize configuration")]
-    DeserializeError,
-
-    /// Cannot serialize configuration
-    #[error("cannot serialize configuration")]
-    SerializeError,
+    /// Cannot serialize/deserialize configuration.
+    #[error("cannot serialize/deserialize configuration")]
+    SerializationError(#[from] serde_yaml::Error),
 }
 
-/// Application configuration
-#[derive(Serialize, Deserialize, Default)]
+/// Keeps context configuration.
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct ContextInfo {
+    pub name: String,
+    pub namespace: String,
+    pub kind: String,
+}
+
+impl ContextInfo {
+    /// Creates new [`ContextInfo`] instance.
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`ContextInfo`] instance from the [`ResourcesInfo`].
+    pub fn from(info: &ResourcesInfo) -> Self {
+        Self {
+            name: info.context.clone(),
+            namespace: info.namespace.clone(),
+            kind: info.kind.clone(),
+        }
+    }
+
+    /// Optionally updates `kind` and `namespace`.
+    pub fn update(&mut self, kind: Option<String>, namespace: Option<String>) {
+        if let Some(namespace) = namespace {
+            self.namespace = namespace;
+        }
+
+        if let Some(kind) = kind {
+            self.kind = kind;
+        }
+    }
+}
+
+/// Application configuration.
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Config {
+    pub contexts: Vec<ContextInfo>,
     pub theme: Theme,
 }
 
 impl Config {
     /// Loads configuration a from file or creates default one if the file does not exist.  
-    /// Default location for the configuration file is: `HOME/b4n/config.yaml`
-    pub fn load_or_create() -> Result<Self, ConfigError> {
-        let config = Self::load();
+    /// Default location for the configuration file is: `HOME/b4n/config.yaml`.
+    pub async fn load_or_create() -> Result<Self, ConfigError> {
+        let config = Self::load().await;
         match config {
             Ok(config) => Ok(config),
-            Err(ConfigError::DeserializeError) => Ok(Self::default()),
+            Err(ConfigError::SerializationError(_)) => Ok(Self::default()),
             Err(_) => {
                 let config = Self::default();
-                config.save()?;
+                config.save().await?;
                 Ok(config)
             }
         }
     }
 
-    /// Loads configuration from the default file located at `HOME/b4n/config.yaml`
-    pub fn load() -> Result<Self, ConfigError> {
-        let Ok(config_str) = fs::read_to_string(get_default_config_dir()) else {
-            return Err(ConfigError::FileReadError);
-        };
-        let Ok(config) = serde_yaml::from_str::<Config>(&config_str) else {
-            return Err(ConfigError::DeserializeError);
-        };
+    /// Loads configuration from the default file located at `HOME/b4n/config.yaml`.
+    pub async fn load() -> Result<Self, ConfigError> {
+        let mut file = File::open(get_default_config_dir()).await?;
 
-        Ok(config)
+        let mut config_str = String::new();
+        file.read_to_string(&mut config_str).await?;
+
+        Ok(serde_yaml::from_str::<Config>(&config_str)?)
     }
 
-    /// Saves configuration to the default file located at `HOME/b4n/config.yaml`
-    pub fn save(&self) -> Result<(), ConfigError> {
-        let Ok(config_str) = serde_yaml::to_string(self) else {
-            return Err(ConfigError::SerializeError);
-        };
+    /// Saves configuration to the default file located at `HOME/b4n/config.yaml`.
+    pub async fn save(&self) -> Result<(), ConfigError> {
+        let config_str = serde_yaml::to_string(self)?;
 
-        if fs::write(get_default_config_dir(), config_str).is_err() {
-            return Err(ConfigError::FileWriteError);
-        }
+        let mut file = File::create(get_default_config_dir()).await?;
+        file.write_all(config_str.as_bytes()).await?;
+        file.flush().await?;
 
         Ok(())
+    }
+
+    /// Searches for a context in a configuration, returning its index.
+    pub fn context_index(&self, context: &str) -> Option<usize> {
+        self.contexts.iter().position(|c| c.name == context)
     }
 }
 

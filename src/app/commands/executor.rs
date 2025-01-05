@@ -41,6 +41,7 @@ impl BgExecutor {
                 };
 
                 match command {
+                    Command::SaveConfiguration(command) => command.execute().await,
                     Command::DeleteResource(mut command) => command.execute(&_client).await,
                 };
             }

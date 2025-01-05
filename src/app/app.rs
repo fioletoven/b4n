@@ -7,7 +7,7 @@ use crate::{
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
-use super::{AppData, BgObserverError, BgWorker, Config, SharedAppData};
+use super::{AppData, BgObserverError, BgWorker, Config, ContextInfo, SharedAppData};
 
 /// Application execution flow
 #[derive(Clone, Debug, PartialEq)]
@@ -122,6 +122,7 @@ impl App {
 
     /// Changes observed resources namespace and kind
     fn change(&mut self, kind: String, namespace: String) -> Result<(), BgObserverError> {
+        self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
         let scope = if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
             self.worker.restart(kind, None)?
@@ -137,6 +138,7 @@ impl App {
 
     /// Changes observed resources kind, optionally selects one of them
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgObserverError> {
+        self.update_configuration(Some(kind.clone()), None);
         let scope = self.worker.restart_new_kind(kind)?;
         self.page.highlight_next(to_select);
         self.set_page_view(scope);
@@ -146,6 +148,7 @@ impl App {
 
     /// Changes namespace for observed resources
     fn change_namespace(&mut self, namespace: String) -> Result<(), BgObserverError> {
+        self.update_configuration(None, Some(namespace.clone()));
         if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
             self.worker.restart_new_namespace(None)?;
@@ -186,6 +189,21 @@ impl App {
         } else if self.data.borrow().current.namespace == ALL_NAMESPACES {
             self.page.set_view(ViewType::Full);
         }
+    }
+
+    /// Updates `kind` and `namespace` in the configuration and saves it to a file
+    fn update_configuration(&self, kind: Option<String>, namespace: Option<String>) {
+        let index = { self.data.borrow().config.context_index(&self.data.borrow().current.context) };
+        if let Some(index) = index {
+            let context = &mut self.data.borrow_mut().config.contexts[index];
+            context.update(kind, namespace);
+        } else {
+            let mut context = { ContextInfo::from(&self.data.borrow().current) };
+            context.update(kind, namespace);
+            self.data.borrow_mut().config.contexts.push(context);
+        }
+
+        self.worker.save_configuration(self.data.borrow().config.clone());
     }
 }
 
