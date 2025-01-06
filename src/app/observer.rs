@@ -90,7 +90,7 @@ impl BgObserver {
         let _context_tx = self.context_tx.clone();
 
         self.has_error.store(false, Ordering::Relaxed);
-        let _has_error = self.has_error.clone();
+        let _has_error = Arc::clone(&self.has_error);
 
         let task = tokio::spawn(async move {
             while !_cancellation_token.is_cancelled() {

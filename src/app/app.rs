@@ -7,7 +7,7 @@ use crate::{
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
-use super::{AppData, BgObserverError, BgWorker, Config, SharedAppData};
+use super::{AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData};
 
 /// Application execution flow
 #[derive(Clone, Debug, PartialEq)]
@@ -22,6 +22,7 @@ pub struct App {
     tui: Tui,
     page: HomePage,
     worker: BgWorker,
+    watcher: ConfigWatcher,
 }
 
 impl App {
@@ -35,19 +36,24 @@ impl App {
             tui: Tui::new()?,
             page,
             worker: BgWorker::new(client),
+            watcher: Config::watcher(),
         })
     }
 
     /// Starts app with initial resource data
     pub async fn start(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<()> {
         let namespace = resource_namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
+        let kind = resource_name.clone();
         let scope = self.worker.start(resource_name, resource_namespace).await?;
         self.page.set_resources_info(
             self.worker.context().to_owned(),
-            namespace,
+            namespace.clone(),
             self.worker.k8s_version().to_owned(),
             scope,
         );
+
+        self.watcher.start()?;
+        self.update_configuration(Some(kind), Some(namespace));
 
         // we need to force update kinds list here, as the worker.start() consumes the first event from BgDiscovery
         self.page.update_kinds_list(self.worker.get_kinds_list());
@@ -60,6 +66,7 @@ impl App {
     /// Stops app
     pub fn stop(&mut self) -> Result<()> {
         self.worker.stop();
+        self.watcher.stop();
         self.tui.exit_terminal()?;
 
         Ok(())
@@ -68,15 +75,20 @@ impl App {
     /// Cancels all app tasks
     pub fn cancel(&mut self) {
         self.worker.cancel();
+        self.watcher.cancel();
         self.tui.cancel();
     }
 
-    /// Process all waiting UI events
+    /// Process all waiting UI or file events
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
                 return Ok(ExecutionFlow::Stop);
             }
+        }
+
+        if let Some(config) = self.watcher.try_next() {
+            self.data.borrow_mut().config = config;
         }
 
         Ok(ExecutionFlow::Continue)
@@ -122,6 +134,7 @@ impl App {
 
     /// Changes observed resources namespace and kind
     fn change(&mut self, kind: String, namespace: String) -> Result<(), BgObserverError> {
+        self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
         let scope = if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
             self.worker.restart(kind, None)?
@@ -137,6 +150,7 @@ impl App {
 
     /// Changes observed resources kind, optionally selects one of them
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgObserverError> {
+        self.update_configuration(Some(kind.clone()), None);
         let scope = self.worker.restart_new_kind(kind)?;
         self.page.highlight_next(to_select);
         self.set_page_view(scope);
@@ -146,6 +160,7 @@ impl App {
 
     /// Changes namespace for observed resources
     fn change_namespace(&mut self, namespace: String) -> Result<(), BgObserverError> {
+        self.update_configuration(None, Some(namespace.clone()));
         if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
             self.worker.restart_new_namespace(None)?;
@@ -186,6 +201,26 @@ impl App {
         } else if self.data.borrow().current.namespace == ALL_NAMESPACES {
             self.page.set_view(ViewType::Full);
         }
+    }
+
+    /// Updates `kind` and `namespace` in the configuration and saves it to a file
+    fn update_configuration(&mut self, kind: Option<String>, namespace: Option<String>) {
+        let index = { self.data.borrow().config.context_index(&self.data.borrow().current.context) };
+        if let Some(index) = index {
+            let context = &mut self.data.borrow_mut().config.contexts[index];
+            context.update(kind, namespace);
+        } else {
+            let mut context = { ContextInfo::from(&self.data.borrow().current) };
+            context.update(kind, namespace);
+            self.data.borrow_mut().config.contexts.push(context);
+        }
+
+        {
+            self.data.borrow_mut().config.context = Some(self.worker.context().to_owned());
+        }
+
+        self.watcher.skip_next();
+        self.worker.save_configuration(self.data.borrow().config.clone());
     }
 }
 

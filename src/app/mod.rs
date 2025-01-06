@@ -1,5 +1,5 @@
 pub use self::app::*;
-pub use self::config::*;
+pub use self::configuration::*;
 pub use self::data::*;
 pub use self::discovery::*;
 pub use self::observer::*;
@@ -11,7 +11,7 @@ pub mod lists;
 pub mod utils;
 
 mod app;
-mod config;
+mod configuration;
 mod data;
 mod discovery;
 mod observer;

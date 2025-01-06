@@ -51,7 +51,7 @@ pub struct ThemeColors {
 }
 
 /// Theme used in the application
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Theme {
     pub colors: ThemeColors,
 }
