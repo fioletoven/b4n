@@ -14,7 +14,6 @@ use tokio::{
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::info;
 
 use crate::app::utils::wait_for_task;
 
@@ -63,6 +62,7 @@ impl ConfigWatcher {
         let _cancellation_token = cancellation_token.clone();
         let _config_tx = self.config_tx.clone();
         let _skip_next = Arc::clone(&self.skip_next);
+        self.skip_next.store(false, Ordering::Relaxed);
 
         let task = tokio::spawn(async move {
             while !_cancellation_token.is_cancelled() {
@@ -70,7 +70,6 @@ impl ConfigWatcher {
 
                 let mut configuration_modified = false;
                 while let Ok(res) = _rx.try_recv() {
-                    info!("got {:?}", res);
                     if let Ok(res) = res {
                         if let EventKind::Modify(_) = res.kind {
                             configuration_modified = true
@@ -79,7 +78,6 @@ impl ConfigWatcher {
                 }
 
                 if configuration_modified && !_skip_next.swap(false, Ordering::Relaxed) {
-                    info!("loading configuration because of change...");
                     if let Ok(config) = Config::load().await {
                         _config_tx.send(config).unwrap();
                     }

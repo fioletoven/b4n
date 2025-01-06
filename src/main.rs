@@ -20,10 +20,12 @@ async fn main() -> Result<()> {
 
     let args = cli::Args::parse();
     let config = Config::load_or_create().await?;
-    let client = KubernetesClient::new(args.context.as_deref()).await?;
+    let client = KubernetesClient::new(args.context(config.context.as_deref()), args.context.is_none()).await?;
+    let resource = args.kind(config.get_kind(client.context())).unwrap_or("pods").to_owned();
+    let namespace = args.namespace(config.get_namespace(client.context())).map(String::from);
 
     let mut app = App::new(client, config)?;
-    app.start(args.resource.clone(), args.namespace()).await?;
+    app.start(resource, namespace).await?;
 
     loop {
         sleep(Duration::from_millis(50)).await;

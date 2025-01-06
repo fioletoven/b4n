@@ -48,7 +48,7 @@ impl ContextInfo {
         }
     }
 
-    /// Optionally updates `kind` and `namespace`.
+    /// Optionally updates `kind` and / or `namespace`.
     pub fn update(&mut self, kind: Option<String>, namespace: Option<String>) {
         if let Some(namespace) = namespace {
             self.namespace = namespace;
@@ -63,12 +63,13 @@ impl ContextInfo {
 /// Application configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Config {
+    pub context: Option<String>,
     pub contexts: Vec<ContextInfo>,
     pub theme: Theme,
 }
 
 impl Config {
-    /// Returns watcher for configuration
+    /// Returns watcher for configuration.
     pub fn watcher() -> ConfigWatcher {
         ConfigWatcher::new(get_default_config_dir())
     }
@@ -112,6 +113,24 @@ impl Config {
     /// Searches for a context in a configuration, returning its index.
     pub fn context_index(&self, context: &str) -> Option<usize> {
         self.contexts.iter().position(|c| c.name == context)
+    }
+
+    /// Returns a kind stored in the configuration under a specific context name.
+    pub fn get_kind(&self, context: &str) -> Option<&str> {
+        if let Some(index) = self.context_index(context) {
+            Some(&self.contexts[index].kind)
+        } else {
+            None
+        }
+    }
+
+    /// Returns a namespace stored in the configuration under a specific context name.
+    pub fn get_namespace(&self, context: &str) -> Option<&str> {
+        if let Some(index) = self.context_index(context) {
+            Some(&self.contexts[index].namespace)
+        } else {
+            None
+        }
     }
 }
 

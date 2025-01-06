@@ -22,10 +22,10 @@ As the project is in its early stages, for this moment the only supported functi
 General planned features:
 
 - sorting and filtering the list of resources
-- changing the kube context
-- saving configurations for a context
-- describe for a resource
-- show YAML of a resource
+- changing the kube context from the UI
+- describe a resource
+- show resources YAML
+- edit resources YAML
 - show pod containers and their logs
 - port forwarding
 - shell

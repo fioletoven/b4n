@@ -43,20 +43,22 @@ impl App {
     /// Starts app with initial resource data
     pub async fn start(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<()> {
         let namespace = resource_namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
+        let kind = resource_name.clone();
         let scope = self.worker.start(resource_name, resource_namespace).await?;
         self.page.set_resources_info(
             self.worker.context().to_owned(),
-            namespace,
+            namespace.clone(),
             self.worker.k8s_version().to_owned(),
             scope,
         );
+
+        self.watcher.start()?;
+        self.update_configuration(Some(kind), Some(namespace));
 
         // we need to force update kinds list here, as the worker.start() consumes the first event from BgDiscovery
         self.page.update_kinds_list(self.worker.get_kinds_list());
 
         self.tui.enter_terminal()?;
-
-        self.watcher.start()?;
 
         Ok(())
     }
@@ -211,6 +213,10 @@ impl App {
             let mut context = { ContextInfo::from(&self.data.borrow().current) };
             context.update(kind, namespace);
             self.data.borrow_mut().config.contexts.push(context);
+        }
+
+        {
+            self.data.borrow_mut().config.context = Some(self.worker.context().to_owned());
         }
 
         self.watcher.skip_next();
