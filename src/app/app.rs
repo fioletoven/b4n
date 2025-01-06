@@ -7,7 +7,7 @@ use crate::{
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
-use super::{AppData, BgObserverError, BgWorker, Config, ContextInfo, SharedAppData};
+use super::{AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData};
 
 /// Application execution flow
 #[derive(Clone, Debug, PartialEq)]
@@ -22,6 +22,7 @@ pub struct App {
     tui: Tui,
     page: HomePage,
     worker: BgWorker,
+    watcher: ConfigWatcher,
 }
 
 impl App {
@@ -35,6 +36,7 @@ impl App {
             tui: Tui::new()?,
             page,
             worker: BgWorker::new(client),
+            watcher: Config::watcher(),
         })
     }
 
@@ -54,12 +56,15 @@ impl App {
 
         self.tui.enter_terminal()?;
 
+        self.watcher.start()?;
+
         Ok(())
     }
 
     /// Stops app
     pub fn stop(&mut self) -> Result<()> {
         self.worker.stop();
+        self.watcher.stop();
         self.tui.exit_terminal()?;
 
         Ok(())
@@ -68,15 +73,20 @@ impl App {
     /// Cancels all app tasks
     pub fn cancel(&mut self) {
         self.worker.cancel();
+        self.watcher.cancel();
         self.tui.cancel();
     }
 
-    /// Process all waiting UI events
+    /// Process all waiting UI or file events
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
                 return Ok(ExecutionFlow::Stop);
             }
+        }
+
+        if let Some(config) = self.watcher.try_next() {
+            self.data.borrow_mut().config = config;
         }
 
         Ok(ExecutionFlow::Continue)
@@ -192,7 +202,7 @@ impl App {
     }
 
     /// Updates `kind` and `namespace` in the configuration and saves it to a file
-    fn update_configuration(&self, kind: Option<String>, namespace: Option<String>) {
+    fn update_configuration(&mut self, kind: Option<String>, namespace: Option<String>) {
         let index = { self.data.borrow().config.context_index(&self.data.borrow().current.context) };
         if let Some(index) = index {
             let context = &mut self.data.borrow_mut().config.contexts[index];
@@ -203,6 +213,7 @@ impl App {
             self.data.borrow_mut().config.contexts.push(context);
         }
 
+        self.watcher.skip_next();
         self.worker.save_configuration(self.data.borrow().config.clone());
     }
 }

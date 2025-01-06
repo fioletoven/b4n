@@ -6,9 +6,9 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::ui::theme::Theme;
+use crate::{app::ResourcesInfo, ui::theme::Theme};
 
-use super::ResourcesInfo;
+use super::ConfigWatcher;
 
 /// Possible errors from [`Config`] manipulation.
 #[derive(thiserror::Error, Debug)]
@@ -68,6 +68,11 @@ pub struct Config {
 }
 
 impl Config {
+    /// Returns watcher for configuration
+    pub fn watcher() -> ConfigWatcher {
+        ConfigWatcher::new(get_default_config_dir())
+    }
+
     /// Loads configuration a from file or creates default one if the file does not exist.  
     /// Default location for the configuration file is: `HOME/b4n/config.yaml`.
     pub async fn load_or_create() -> Result<Self, ConfigError> {

@@ -2,7 +2,7 @@ use ratatui::{layout::Rect, style::Style, text::Line, widgets::Paragraph};
 
 use crate::ui::{colors::TextColors, theme::ButtonColors, ResponseEvent};
 
-/// UI Button
+/// UI Button.
 pub struct Button {
     is_focused: bool,
     caption: String,
@@ -12,7 +12,7 @@ pub struct Button {
 }
 
 impl Button {
-    /// Creates new [`Button`] instance
+    /// Creates new [`Button`] instance.
     pub fn new(caption: String, result: ResponseEvent, colors: ButtonColors) -> Self {
         Self {
             is_focused: false,
@@ -23,22 +23,27 @@ impl Button {
         }
     }
 
-    /// Returns length of the caption
+    /// Returns length of the caption.
     pub fn len(&self) -> u16 {
         (self.caption.len() + 3) as u16
     }
 
-    /// Returns button result
+    /// Returns `true` if this button has no caption, and false otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.caption.is_empty()
+    }
+
+    /// Returns button result.
     pub fn result(&self) -> ResponseEvent {
         self.result.clone()
     }
 
-    /// Activates or deactivates button
+    /// Activates or deactivates button.
     pub fn set_focus(&mut self, is_active: bool) {
         self.is_focused = is_active;
     }
 
-    /// Draws [`Button`] on the provided frame area
+    /// Draws [`Button`] on the provided frame area.
     pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let colors = if self.is_focused { self.focused } else { self.normal };
         let line = Line::styled(format!(" {} ", &self.caption), Style::new().fg(colors.fg).bg(colors.bg));
