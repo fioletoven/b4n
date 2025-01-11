@@ -17,7 +17,7 @@ pub struct Input {
 }
 
 impl Input {
-    /// Creates new [`Input`] instance
+    /// Creates new [`Input`] instance.
     pub fn new<S: Into<Style>>(style: S, show_cursor: bool) -> Self {
         Self {
             input: Default::default(),
@@ -26,23 +26,27 @@ impl Input {
         }
     }
 
-    /// Returns the input value
+    /// Returns the input value.
     pub fn value(&self) -> &str {
         self.input.value()
     }
 
-    /// Resets the input value
+    /// Resets the input value.
     pub fn reset(&mut self) {
         self.input.reset();
     }
 
-    /// Sets input style
-    pub fn style<S: Into<Style>>(&mut self, style: S, show_cursor: bool) {
+    /// Sets input style.
+    pub fn style<S: Into<Style>>(&mut self, style: S) {
         self.style = style.into();
+    }
+
+    /// Sets whether to show the cursor.
+    pub fn cursor(&mut self, show_cursor: bool) {
         self.show_cursor = show_cursor;
     }
 
-    /// Draws [`Input`] on the provided frame area
+    /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Horizontal)

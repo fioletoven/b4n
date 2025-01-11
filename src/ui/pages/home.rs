@@ -15,7 +15,7 @@ use crate::{
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Button, Dialog, Selector, SelectorPosition},
+        widgets::{Button, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
@@ -27,8 +27,8 @@ pub struct HomePage {
     list: ListPane<ResourcesList>,
     footer: FooterPane,
     modal: Dialog,
-    ns_selector: Selector<ResourcesList>,
-    res_selector: Selector<KindsList>,
+    ns_selector: SideSelect<ResourcesList>,
+    res_selector: SideSelect<KindsList>,
     highlight_next: Option<String>,
 }
 
@@ -39,20 +39,20 @@ impl HomePage {
         let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
         let footer = FooterPane::new(Rc::clone(&app_data));
 
-        let ns_selector = Selector::new(
+        let ns_selector = SideSelect::new(
             "NAMESPACE",
             Rc::clone(&app_data),
             ResourcesList::default(),
-            SelectorPosition::Left,
+            Position::Left,
             ResponseEvent::ChangeNamespace,
             30,
         );
 
-        let res_selector = Selector::new(
+        let res_selector = SideSelect::new(
             "RESOURCE",
             Rc::clone(&app_data),
             KindsList::default(),
-            SelectorPosition::Right,
+            Position::Right,
             ResponseEvent::ChangeKind,
             35,
         );
@@ -143,12 +143,12 @@ impl HomePage {
 
     /// Updates namespaces list with a new data from [`ObserverResult`]
     pub fn update_namespaces_list(&mut self, result: Option<ObserverResult>) {
-        self.ns_selector.items.update(result, 1, false);
+        self.ns_selector.select.items.update(result, 1, false);
     }
 
     /// Updates kinds list with a new data
     pub fn update_kinds_list(&mut self, kinds: Option<Vec<Kind>>) {
-        self.res_selector.items.update(kinds, 1, false);
+        self.res_selector.select.items.update(kinds, 1, false);
     }
 
     /// Process TUI event

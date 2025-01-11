@@ -29,10 +29,10 @@ pub struct ModalColors {
 
 /// Represents colors for selector widget
 #[derive(Serialize, Deserialize, Copy, Clone)]
-pub struct SelectorColors {
+pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub input: TextColors,
+    pub filter: TextColors,
 }
 
 /// All colors in theme
@@ -46,7 +46,7 @@ pub struct ThemeColors {
     pub disconnected: TextColors,
     pub header: TextColors,
     pub modal: ModalColors,
-    pub selector: SelectorColors,
+    pub side_select: SelectColors,
     pub line: ResourceColors,
 }
 
@@ -79,10 +79,10 @@ impl Default for Theme {
                         focused: TextColors::new(Color::White, Color::LightGreen),
                     },
                 },
-                selector: SelectorColors {
+                side_select: SelectColors {
                     normal: TextColors::new(Color::Gray, Color::DarkGray),
                     normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
-                    input: TextColors::new(Color::Blue, Color::DarkGray),
+                    filter: TextColors::new(Color::Blue, Color::DarkGray),
                 },
                 line: ResourceColors {
                     ready: LineColors {
