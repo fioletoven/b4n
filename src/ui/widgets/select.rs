@@ -34,6 +34,32 @@ impl<T: Table> Select<T> {
         }
     }
 
+    /// Adds prompt to the [`Select`] instance.
+    pub fn with_prompt(mut self, prompt: String) -> Self {
+        self.set_prompt(prompt);
+        self
+    }
+
+    /// Sets prompt for the filter input.
+    pub fn set_prompt(&mut self, prompt: String) {
+        self.filter.set_prompt(Some((
+            prompt,
+            Style::default().fg(self.colors.prompt.fg).bg(self.colors.prompt.bg),
+        )));
+    }
+
+    /// Sets colors for the filter input and list lines.
+    pub fn set_colors(&mut self, colors: SelectColors) {
+        self.filter
+            .set_style(Style::default().fg(colors.filter.fg).bg(colors.filter.bg));
+        self.colors = colors;
+    }
+
+    /// Sets whether to show the cursor in the filter input.
+    pub fn set_cursor(&mut self, show_cursor: bool) {
+        self.filter.set_cursor(show_cursor);
+    }
+
     /// Resets filter.
     pub fn reset(&mut self) {
         self.filter.reset();
@@ -50,17 +76,6 @@ impl<T: Table> Select<T> {
         {
             self.items.highlight_item_by_name(selected_name);
         }
-    }
-
-    /// Sets colors for the filter input and list lines.
-    pub fn set_colors(&mut self, colors: SelectColors) {
-        self.filter.style(Style::default().fg(colors.filter.fg).bg(colors.filter.bg));
-        self.colors = colors;
-    }
-
-    /// Sets whether to show the cursor in the filter input.
-    pub fn cursor(&mut self, show_cursor: bool) {
-        self.filter.cursor(show_cursor);
     }
 
     /// Draws [`Select`] on the provided frame area.

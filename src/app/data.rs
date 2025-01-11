@@ -5,7 +5,7 @@ use super::Config;
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 
-/// Kubernetes resources data
+/// Kubernetes resources data.
 pub struct ResourcesInfo {
     pub context: String,
     pub namespace: String,
@@ -33,7 +33,7 @@ impl Default for ResourcesInfo {
 }
 
 impl ResourcesInfo {
-    /// Creates new [`KubernetesInfo`] instance from provided values
+    /// Creates new [`ResourcesInfo`] instance from provided values.
     pub fn from(context: String, namespace: String, version: String, scope: Scope) -> Self {
         Self {
             context,
@@ -45,20 +45,20 @@ impl ResourcesInfo {
     }
 }
 
-/// Contains all data that can be shared in the application
+/// Contains all data that can be shared in the application.
 pub struct AppData {
-    /// Application configuration read from file
+    /// Application configuration read from file.
     pub config: Config,
 
-    /// Information about currently selected kubernetes resource
+    /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
-    /// Indicates if application is connected to the kubernetes api
+    /// Indicates if application is connected to the kubernetes api.
     pub is_connected: bool,
 }
 
 impl AppData {
-    /// Creates new [`AppData`] instance
+    /// Creates new [`AppData`] instance.
     pub fn new(config: Config) -> Self {
         Self {
             config,

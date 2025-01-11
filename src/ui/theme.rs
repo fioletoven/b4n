@@ -33,6 +33,7 @@ pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
     pub filter: TextColors,
+    pub prompt: TextColors,
 }
 
 /// All colors in theme
@@ -83,6 +84,7 @@ impl Default for Theme {
                     normal: TextColors::new(Color::Gray, Color::DarkGray),
                     normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
                     filter: TextColors::new(Color::Blue, Color::DarkGray),
+                    prompt: TextColors::new(Color::Blue, Color::DarkGray),
                 },
                 line: ResourceColors {
                     ready: LineColors {
