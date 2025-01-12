@@ -5,7 +5,7 @@ use crate::ui::ResponseEvent;
 
 use super::{FilterableList, Item, Row};
 
-/// Scrollable UI list
+/// Scrollable UI list.
 pub struct ScrollableList<T: Row> {
     pub items: Option<FilterableList<Item<T>>>,
     pub highlighted: Option<usize>,
@@ -27,16 +27,23 @@ impl<T: Row> Default for ScrollableList<T> {
 }
 
 impl<T: Row> ScrollableList<T> {
-    /// Creates new [`ScrollableList`] with initial fixed items
+    /// Creates new [`ScrollableList`] with initial fixed items.
     pub fn fixed(items: Vec<T>) -> Self {
-        let list = items.into_iter().map(|item| Item::fixed(item)).collect::<Vec<_>>();
+        let list = items.into_iter().map(Item::fixed).collect::<Vec<_>>();
 
         ScrollableList {
             items: Some(FilterableList::from(list)),
-            highlighted: None,
-            page_start: 0,
-            page_height: 0,
-            filter: None,
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`ScrollableList`] with initial items.
+    pub fn from(items: Vec<T>) -> Self {
+        let list = items.into_iter().map(Item::new).collect::<Vec<_>>();
+
+        ScrollableList {
+            items: Some(FilterableList::from(list)),
+            ..Default::default()
         }
     }
 
@@ -50,7 +57,7 @@ impl<T: Row> ScrollableList<T> {
         self.len() == 0
     }
 
-    /// Sets value of the property `dirty` for all items in the list to `is_dirty`
+    /// Sets value of the property `dirty` for all items in the list to `is_dirty`.
     pub fn dirty(&mut self, is_dirty: bool) {
         if let Some(list) = &mut self.items {
             for item in list.full_iter_mut() {
@@ -59,7 +66,7 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Sorts items in the list by column number
+    /// Sorts items in the list by column number.
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
         if let Some(items) = &mut self.items {
             if is_descending {
@@ -77,12 +84,12 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Returns `true` if list is filtered
+    /// Returns `true` if list is filtered.
     pub fn is_filtered(&self) -> bool {
         self.filter.is_some()
     }
 
-    /// Filters items in the list by name
+    /// Filters items in the list by name.
     pub fn filter(&mut self, filter: Option<String>) {
         self.filter = filter;
         if self.filter.is_some() {
@@ -101,12 +108,12 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Returns currently applied filter value
+    /// Returns currently applied filter value.
     pub fn get_filter(&self) -> Option<&str> {
         self.filter.as_deref()
     }
 
-    /// Process [`KeyEvent`] to move over the list
+    /// Process [`KeyEvent`] to move over the list.
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
         match key.code {
             KeyCode::Home => self.move_highlighted(i32::MIN),
@@ -121,7 +128,7 @@ impl<T: Row> ScrollableList<T> {
         ResponseEvent::Handled
     }
 
-    /// Updates page start for the current page size and highlighted resource item
+    /// Updates page start for the current page size and highlighted resource item.
     pub fn update_page(&mut self, new_height: u16) {
         self.page_height = new_height;
         let highlighted_item = self.highlighted.unwrap_or(0);
@@ -141,14 +148,14 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Returns list items iterator for the current page
+    /// Returns list items iterator for the current page.
     pub fn get_page(&self) -> Option<impl Iterator<Item = &Item<T>>> {
         self.items
             .as_ref()
             .map(|list| list.iter().skip(self.page_start).take(self.page_height.into()))
     }
 
-    /// Removes all fixed items from the list
+    /// Removes all fixed items from the list.
     pub fn remove_fixed(&mut self) {
         if let Some(items) = &mut self.items {
             items.full_retain(|item| !item.is_fixed);
@@ -156,21 +163,21 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Clears items selection
+    /// Clears items selection.
     pub fn deselect_all(&mut self) {
         if let Some(items) = &mut self.items {
             items.iter_mut().for_each(|item| item.is_selected = false);
         }
     }
 
-    /// Inverts selection of items in list
+    /// Inverts selection of items in list.
     pub fn invert_selection(&mut self) {
         if let Some(items) = &mut self.items {
             items.iter_mut().for_each(|item| item.is_selected = !item.is_selected);
         }
     }
 
-    /// Selects / deselects currently highlighted item
+    /// Selects / deselects currently highlighted item.
     pub fn select_highlighted_item(&mut self) {
         if let Some(items) = &mut self.items {
             if let Some(highlighted) = self.highlighted {
@@ -181,7 +188,7 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Returns selected item names grouped in [`HashMap`]
+    /// Returns selected item names grouped in [`HashMap`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         if let Some(items) = &self.items {
             let mut result: HashMap<&str, Vec<&str>> = HashMap::new();
@@ -203,7 +210,7 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Returns `true` if anything is selected
+    /// Returns `true` if anything is selected.
     pub fn is_anything_selected(&self) -> bool {
         if let Some(items) = &self.items {
             return items.iter().any(|i| i.is_selected);
@@ -212,12 +219,12 @@ impl<T: Row> ScrollableList<T> {
         false
     }
 
-    /// Gets highlighted element index
+    /// Gets highlighted element index.
     pub fn get_highlighted_item_index(&self) -> Option<usize> {
         self.highlighted
     }
 
-    /// Gets highlighted element name
+    /// Gets highlighted element name.
     pub fn get_highlighted_item_name(&self) -> Option<&str> {
         if let Some(items) = &self.items {
             if let Some(highlighted) = self.highlighted {
@@ -230,7 +237,7 @@ impl<T: Row> ScrollableList<T> {
         None
     }
 
-    /// Gets the highlighted item index from the `is_active` property
+    /// Gets the highlighted item index from the `is_active` property.
     pub fn recover_highlighted_item_index(&self) -> Option<usize> {
         if let Some(items) = &self.items {
             items.iter().position(|i| i.is_active)
@@ -239,17 +246,17 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Highlights element on list by its name
+    /// Highlights element on list by its name.
     pub fn highlight_item_by_name(&mut self, name: &str) -> bool {
         self.highlight_item_by(|i| i.data.name() == name)
     }
 
-    /// Highlights first element on the list which name starts with `text`
+    /// Highlights first element on the list which name starts with `text`.
     pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
         self.highlight_item_by(|i| i.data.name().starts_with(text))
     }
 
-    /// Highlights first item on the list, returns `true` on success
+    /// Highlights first item on the list, returns `true` on success.
     pub fn highlight_first_item(&mut self) -> bool {
         let Some(items) = &mut self.items else {
             return false;
@@ -269,7 +276,7 @@ impl<T: Row> ScrollableList<T> {
         true
     }
 
-    /// Returns item names from the current page together with indication if item is active
+    /// Returns item names from the current page together with indication if item is active.
     pub fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
         if let Some(list) = self.get_page() {
             let mut result = Vec::with_capacity(self.page_height.into());
@@ -283,7 +290,7 @@ impl<T: Row> ScrollableList<T> {
         None
     }
 
-    /// Tries to highlight item finding it by closure
+    /// Tries to highlight item finding it by closure.
     fn highlight_item_by<F>(&mut self, f: F) -> bool
     where
         F: Fn(&Item<T>) -> bool,
@@ -307,7 +314,7 @@ impl<T: Row> ScrollableList<T> {
         false
     }
 
-    /// Adds `rows_to_move` to the currently highlighted item index
+    /// Adds `rows_to_move` to the currently highlighted item index.
     fn move_highlighted(&mut self, rows_to_move: i32) {
         if let Some(items) = &mut self.items {
             if items.is_empty() || rows_to_move == 0 {
@@ -329,7 +336,7 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
-    /// Re-applies remembered text filter to the list
+    /// Re-applies remembered text filter to the list.
     fn apply_filter(&mut self) {
         if let Some(list) = &mut self.items {
             if let Some(filter) = &self.filter {
@@ -339,7 +346,7 @@ impl<T: Row> ScrollableList<T> {
     }
 }
 
-/// Compares two [`Item`]s by selected column values ignoring fixed items
+/// Compares two [`Item`]s by selected column values ignoring fixed items.
 fn cmp(a: &Item<impl Row>, b: &Item<impl Row>, column: usize) -> Ordering {
     if a.is_fixed || b.is_fixed {
         return Ordering::Equal;

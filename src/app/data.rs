@@ -46,6 +46,7 @@ impl ResourcesInfo {
 }
 
 /// Contains all data that can be shared in the application.
+#[derive(Default)]
 pub struct AppData {
     /// Application configuration read from file.
     pub config: Config,

@@ -11,7 +11,7 @@ use crate::ui::{colors::TextColors, ResponseEvent, Responsive};
 
 use super::{Button, ButtonsGroup};
 
-/// UI modal dialog
+/// UI modal dialog.
 pub struct Dialog {
     pub is_visible: bool,
     width: u16,
@@ -28,7 +28,7 @@ impl Default for Dialog {
 }
 
 impl Dialog {
-    /// Creates new [`Dialog`] instance
+    /// Creates new [`Dialog`] instance.
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
         let mut buttons = ButtonsGroup::new(buttons);
@@ -44,22 +44,18 @@ impl Dialog {
         }
     }
 
-    /// Mark [`Dialog`] as a visible
+    /// Marks [`Dialog`] as a visible.
     pub fn show(&mut self) {
         self.is_visible = true;
     }
 
-    /// Draws [`Dialog`] on the provided frame area
+    /// Draws [`Dialog`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if !self.is_visible {
             return;
         }
 
-        let mut width = std::cmp::min(area.width, self.width);
-        if width > 2 {
-            width -= 2
-        }
-
+        let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let text = textwrap::wrap(
             &self.message,
             Options::new(width.into()).initial_indent("  ").subsequent_indent("  "),

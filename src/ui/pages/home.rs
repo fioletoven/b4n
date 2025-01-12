@@ -8,14 +8,14 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{KindsList, ResourcesList},
+        lists::{CommandsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Button, Dialog, Position, SideSelect},
+        widgets::{Button, CommandPalette, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
@@ -27,6 +27,7 @@ pub struct HomePage {
     list: ListPane<ResourcesList>,
     footer: FooterPane,
     modal: Dialog,
+    command_palette: CommandPalette,
     ns_selector: SideSelect<ResourcesList>,
     res_selector: SideSelect<KindsList>,
     highlight_next: Option<String>,
@@ -63,6 +64,7 @@ impl HomePage {
             list,
             footer,
             modal: Dialog::default(),
+            command_palette: CommandPalette::default(),
             ns_selector,
             res_selector,
             highlight_next: None,
@@ -167,6 +169,10 @@ impl HomePage {
             return self.modal.process_key(key);
         }
 
+        if self.command_palette.is_visible {
+            return self.command_palette.process_key(key);
+        }
+
         if self.ns_selector.is_visible {
             return self.ns_selector.process_key(key);
         }
@@ -201,6 +207,15 @@ impl HomePage {
             }
         }
 
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            self.command_palette = CommandPalette::new(
+                Rc::clone(&self.app_data),
+                CommandsList::from(&self.res_selector.select.items.list),
+                60,
+            );
+            self.command_palette.show();
+        }
+
         self.list.process_key(key);
 
         ResponseEvent::Handled
@@ -217,6 +232,7 @@ impl HomePage {
         self.list.draw(frame, layout[1]);
         self.footer.draw(frame, layout[2]);
         self.modal.draw(frame, frame.area());
+        self.command_palette.draw(frame, frame.area());
 
         self.draw_selectors(frame, layout[0].union(layout[1]));
     }

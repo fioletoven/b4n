@@ -12,6 +12,7 @@ use crate::ui::{theme::SelectColors, ResponseEvent, Responsive, Table};
 use super::Input;
 
 /// Select widget for TUI.
+#[derive(Default)]
 pub struct Select<T: Table> {
     pub items: T,
     colors: SelectColors,
@@ -82,15 +83,14 @@ impl<T: Table> Select<T> {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let draw_filter = !self.filter_auto_hide || self.items.get_filter().is_some();
         let layout = get_layout(area, draw_filter);
-
-        if draw_filter {
-            self.filter.draw(frame, layout[0]);
-        }
-
         let list_area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(list_area.height);
         if let Some(list) = self.items.get_paged_names(usize::from(list_area.width.max(2) - 2)) {
             frame.render_widget(Paragraph::new(self.get_resource_names(list)), list_area);
+        }
+
+        if draw_filter {
+            self.filter.draw(frame, layout[0]);
         }
     }
 

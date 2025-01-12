@@ -65,7 +65,7 @@ impl Input {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Length(self.prompt.as_ref().map(|p| p.0.len() + 1).unwrap_or(1) as u16),
+                Constraint::Length(self.prompt.as_ref().map(|p| p.0.chars().count() + 1).unwrap_or(1) as u16),
                 Constraint::Fill(1),
                 Constraint::Length(1),
             ])
