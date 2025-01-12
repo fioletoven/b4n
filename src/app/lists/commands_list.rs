@@ -7,7 +7,7 @@ use crate::{
     ui::{colors::TextColors, theme::Theme, ResponseEvent, Responsive, Table, ViewType},
 };
 
-use super::{Command, Row, ScrollableList};
+use super::{Command, ScrollableList};
 
 /// Commands list.
 #[derive(Default)]
@@ -18,10 +18,16 @@ pub struct CommandsList {
 impl CommandsList {
     /// Creates new [`CommandList`] instance with the predefined list of commands.
     pub fn new(mut commands: Vec<Command>) -> Self {
-        commands.push(Command::new("command".to_owned(), "quit".to_owned(), None));
+        commands.push(Command::new(
+            "command".to_owned(),
+            "quit".to_owned(),
+            Some("exit the application".to_owned()),
+            None,
+        ));
         commands.push(Command::new(
             "command".to_owned(),
             "context".to_owned(),
+            Some("change current kube context".to_owned()),
             Some(vec!["ctx".to_owned()]),
         ));
 
@@ -34,12 +40,7 @@ impl CommandsList {
     /// Creates new [`CommandsList`] instance that will include provided kinds and predefined commands.
     pub fn from(kinds: &ScrollableList<Kind>) -> Self {
         if let Some(items) = &kinds.items {
-            CommandsList::new(
-                items
-                    .full_iter()
-                    .map(|i| Command::new("resource".to_owned(), i.data.name().to_owned(), None))
-                    .collect::<Vec<Command>>(),
-            )
+            CommandsList::new(items.full_iter().map(|i| Command::from(&i.data)).collect::<Vec<Command>>())
         } else {
             CommandsList::new(vec![])
         }

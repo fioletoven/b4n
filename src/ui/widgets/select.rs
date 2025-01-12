@@ -1,13 +1,13 @@
 use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
+    style::{Style, Stylize},
     text::{Line, Span},
     widgets::Paragraph,
 };
 use std::rc::Rc;
 
-use crate::ui::{theme::SelectColors, ResponseEvent, Responsive, Table};
+use crate::ui::{colors::TextColors, theme::SelectColors, ResponseEvent, Responsive, Table};
 
 use super::Input;
 
@@ -104,8 +104,8 @@ impl<T: Table> Select<T> {
             } else {
                 self.colors.normal
             };
-            let row = Span::styled(name, Style::new().fg(colors.fg).bg(colors.bg));
-            result.push(Line::from(vec![Span::raw(" "), row, Span::raw("\n")]));
+
+            result.push(Line::from(get_resource_row(name, colors)));
         }
 
         result
@@ -152,4 +152,34 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(area)
+}
+
+/// Dims part of the line text between `[` and `]`.  
+/// It removes these characters from the output.
+fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
+    if line.contains('[') {
+        let mut result = Vec::with_capacity(5);
+        result.push(Span::raw(" "));
+
+        let split = line.splitn(2, '[').collect::<Vec<&str>>();
+        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+
+        let split = split[1].rsplitn(2, ']').collect::<Vec<&str>>();
+        if split.len() == 2 {
+            result.push(Span::styled(
+                split[1].to_owned(),
+                Style::new().fg(colors.fg).bg(colors.bg).dim(),
+            ));
+        }
+        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+
+        result.push(Span::raw("\n"));
+        result
+    } else {
+        vec![
+            Span::raw(" "),
+            Span::styled(line, Style::new().fg(colors.fg).bg(colors.bg)),
+            Span::raw("\n"),
+        ]
+    }
 }
