@@ -8,51 +8,52 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{KindsList, ResourcesList},
+        lists::{CommandsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Button, Dialog, Selector, SelectorPosition},
+        widgets::{Button, CommandPalette, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
 
-/// Home page (main page) for B4N
+/// Home page (main page) for `b4n`.
 pub struct HomePage {
     app_data: SharedAppData,
     header: HeaderPane,
     list: ListPane<ResourcesList>,
     footer: FooterPane,
     modal: Dialog,
-    ns_selector: Selector<ResourcesList>,
-    res_selector: Selector<KindsList>,
+    command_palette: CommandPalette,
+    ns_selector: SideSelect<ResourcesList>,
+    res_selector: SideSelect<KindsList>,
     highlight_next: Option<String>,
 }
 
 impl HomePage {
-    /// Creates a new home page
+    /// Creates a new home page.
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
         let footer = FooterPane::new(Rc::clone(&app_data));
 
-        let ns_selector = Selector::new(
+        let ns_selector = SideSelect::new(
             "NAMESPACE",
             Rc::clone(&app_data),
             ResourcesList::default(),
-            SelectorPosition::Left,
+            Position::Left,
             ResponseEvent::ChangeNamespace,
             30,
         );
 
-        let res_selector = Selector::new(
+        let res_selector = SideSelect::new(
             "RESOURCE",
             Rc::clone(&app_data),
             KindsList::default(),
-            SelectorPosition::Right,
+            Position::Right,
             ResponseEvent::ChangeKind,
             35,
         );
@@ -63,13 +64,14 @@ impl HomePage {
             list,
             footer,
             modal: Dialog::default(),
+            command_palette: CommandPalette::default(),
             ns_selector,
             res_selector,
             highlight_next: None,
         }
     }
 
-    /// Sets initial kubernetes resources data for [`HomePage`]
+    /// Sets initial kubernetes resources data for [`HomePage`].
     pub fn set_resources_info(&mut self, context: String, namespace: String, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
         if scope == Scope::Cluster || namespace != ALL_NAMESPACES {
@@ -79,32 +81,32 @@ impl HomePage {
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
     }
 
-    /// Remembers resource name that will be highlighted for next background observer result
+    /// Remembers resource name that will be highlighted for next background observer result.
     pub fn highlight_next(&mut self, resource_to_select: Option<String>) {
         self.highlight_next = resource_to_select;
     }
 
-    /// Deselects all selected items for [`HomePage`]
+    /// Deselects all selected items for [`HomePage`].
     pub fn deselect_all(&mut self) {
         self.list.items.deselect_all();
     }
 
-    /// Gets current kind (plural) for resources listed in [`HomePage`]
+    /// Gets current kind (plural) for resources listed in [`HomePage`].
     pub fn kind_plural(&self) -> &str {
         &self.list.items.kind_plural
     }
 
-    /// Gets current scope for resources listed in [`HomePage`]
+    /// Gets current scope for resources listed in [`HomePage`].
     pub fn scope(&self) -> &Scope {
         &self.list.items.scope
     }
 
-    /// Gets currently selected item names (grouped in [`HashMap`]) on [`HomePage`]
+    /// Gets currently selected item names (grouped in [`HashMap`]) on [`HomePage`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         self.list.items.get_selected_items()
     }
 
-    /// Sets namespace and list view for [`HomePage`]
+    /// Sets namespace and list view for [`HomePage`].
     pub fn set_namespace(&mut self, namespace: String, view: ViewType) {
         self.list.view = view;
         if self.app_data.borrow().current.namespace != namespace {
@@ -113,12 +115,12 @@ impl HomePage {
         }
     }
 
-    /// Sets list view for [`HomePage`]
+    /// Sets list view for [`HomePage`].
     pub fn set_view(&mut self, view: ViewType) {
         self.list.view = view;
     }
 
-    /// Updates resources list with a new data from [`ObserverResult`]
+    /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: Option<ObserverResult>) {
         if result.is_none() {
             return;
@@ -141,17 +143,25 @@ impl HomePage {
         }
     }
 
-    /// Updates namespaces list with a new data from [`ObserverResult`]
+    /// Updates namespaces list with a new data from [`ObserverResult`].
     pub fn update_namespaces_list(&mut self, result: Option<ObserverResult>) {
-        self.ns_selector.items.update(result, 1, false);
+        self.ns_selector.select.items.update(result, 1, false);
     }
 
-    /// Updates kinds list with a new data
+    /// Updates kinds list with a new data.
     pub fn update_kinds_list(&mut self, kinds: Option<Vec<Kind>>) {
-        self.res_selector.items.update(kinds, 1, false);
+        self.res_selector.select.items.update(kinds, 1, false);
     }
 
-    /// Process TUI event
+    /// Shows delete resources dialog if anyting is selected.
+    pub fn ask_delete_resources(&mut self) {
+        if self.list.items.is_anything_selected() {
+            self.modal = self.new_delete_dialog();
+            self.modal.show();
+        }
+    }
+
+    /// Process TUI event.
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
@@ -165,6 +175,10 @@ impl HomePage {
 
         if self.modal.is_visible {
             return self.modal.process_key(key);
+        }
+
+        if self.command_palette.is_visible {
+            return self.command_palette.process_key(key);
         }
 
         if self.ns_selector.is_visible {
@@ -195,10 +209,16 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
-            if self.list.items.is_anything_selected() {
-                self.modal = self.new_delete_dialog();
-                self.modal.show();
-            }
+            self.ask_delete_resources();
+        }
+
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            self.command_palette = CommandPalette::new(
+                Rc::clone(&self.app_data),
+                CommandsList::from(&self.res_selector.select.items.list),
+                60,
+            );
+            self.command_palette.show();
         }
 
         self.list.process_key(key);
@@ -206,7 +226,7 @@ impl HomePage {
         ResponseEvent::Handled
     }
 
-    /// Draws [`HomePage`] on the provided frame
+    /// Draws [`HomePage`] on the provided frame.
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -217,6 +237,7 @@ impl HomePage {
         self.list.draw(frame, layout[1]);
         self.footer.draw(frame, layout[2]);
         self.modal.draw(frame, frame.area());
+        self.command_palette.draw(frame, frame.area());
 
         self.draw_selectors(frame, layout[0].union(layout[1]));
     }
@@ -234,7 +255,7 @@ impl HomePage {
         }
     }
 
-    /// Creates new delete dialog
+    /// Creates new delete dialog.
     fn new_delete_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().config.theme.colors;
 

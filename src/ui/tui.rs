@@ -26,9 +26,10 @@ pub enum TuiEvent {
     Key(KeyEvent),
 }
 
-/// Terminal UI Response Event
-#[derive(Clone, Debug, PartialEq)]
+/// Terminal UI Response Event.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum ResponseEvent {
+    #[default]
     NotHandled,
     Handled,
     Cancelled,
@@ -37,10 +38,11 @@ pub enum ResponseEvent {
     ChangeKind(String),
     ChangeNamespace(String),
     ViewNamespaces(String),
+    AskDeleteResources,
     DeleteResources,
 }
 
-/// Terminal UI
+/// Terminal UI.
 pub struct Tui {
     pub terminal: Terminal<CrosstermBackend<std::io::Stdout>>,
     pub events_ct: CancellationToken,
@@ -50,7 +52,7 @@ pub struct Tui {
 }
 
 impl Tui {
-    /// Creates new [`Tui`] instance
+    /// Creates new [`Tui`] instance.
     pub fn new() -> Result<Self> {
         init_panic_hook();
 
@@ -64,7 +66,7 @@ impl Tui {
         })
     }
 
-    /// Enters the alternate screen mode and starts terminal events loop
+    /// Enters the alternate screen mode and starts terminal events loop.
     pub fn enter_terminal(&mut self) -> Result<()> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
@@ -73,7 +75,7 @@ impl Tui {
         Ok(())
     }
 
-    /// Exits the alternate screen mode and stops terminal events loop
+    /// Exits the alternate screen mode and stops terminal events loop.
     pub fn exit_terminal(&mut self) -> Result<()> {
         self.stop_events_loop()?;
         if crossterm::terminal::is_raw_mode_enabled()? {
@@ -85,12 +87,12 @@ impl Tui {
         Ok(())
     }
 
-    /// Cancels terminal events loop
+    /// Cancels terminal events loop.
     pub fn cancel(&mut self) {
         self.events_ct.cancel();
     }
 
-    /// Starts terminal events loop
+    /// Starts terminal events loop.
     pub fn start_events_loop(&mut self) {
         self.events_ct.cancel();
         self.events_ct = CancellationToken::new();
@@ -118,7 +120,7 @@ impl Tui {
         self.events_task = Some(task);
     }
 
-    /// Stops terminal events loop
+    /// Stops terminal events loop.
     pub fn stop_events_loop(&mut self) -> Result<()> {
         self.events_ct.cancel();
         wait_for_task(self.events_task.take(), "events");

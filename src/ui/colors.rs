@@ -4,24 +4,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self};
 use std::str::FromStr;
 
-/// Represents foreground and background colors for text
-#[derive(Copy, Clone)]
+/// Represents foreground and background colors for text.
+#[derive(Default, Copy, Clone)]
 pub struct TextColors {
     pub fg: Color,
     pub bg: Color,
 }
 
-impl Default for TextColors {
-    fn default() -> Self {
-        Self {
-            fg: Color::Black,
-            bg: Color::Reset,
-        }
-    }
-}
-
 impl TextColors {
-    /// Returns new [`TextColors`] instance
+    /// Returns new [`TextColors`] instance.
     pub fn new(fg: Color, bg: Color) -> Self {
         TextColors { fg, bg }
     }
@@ -46,7 +37,7 @@ impl<'de> Deserialize<'de> for TextColors {
     }
 }
 
-/// Internal [`Visitor`] for deserializing [`TextColors`]
+/// Internal [`Visitor`] for deserializing [`TextColors`].
 struct TextColorsVisitor;
 
 impl Visitor<'_> for TextColorsVisitor {
@@ -78,8 +69,8 @@ impl Visitor<'_> for TextColorsVisitor {
     }
 }
 
-/// Represents colors for text line
-#[derive(Serialize, Deserialize, Copy, Clone)]
+/// Represents colors for text line.
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
 pub struct LineColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
@@ -88,7 +79,7 @@ pub struct LineColors {
 }
 
 impl LineColors {
-    /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected)
+    /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected).
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
             if is_active {

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use super::colors::{LineColors, TextColors};
 
-/// Represents kubernetes resource colors
-#[derive(Serialize, Deserialize, Copy, Clone)]
+/// Represents kubernetes resource colors.
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
 pub struct ResourceColors {
     pub ready: LineColors,
     pub in_progress: LineColors,
@@ -12,30 +12,31 @@ pub struct ResourceColors {
     pub completed: LineColors,
 }
 
-/// Represents colors for button
-#[derive(Serialize, Deserialize, Copy, Clone)]
+/// Represents colors for button.
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
 pub struct ButtonColors {
     pub normal: TextColors,
     pub focused: TextColors,
 }
 
-/// Represents colors for modal dialogs
-#[derive(Serialize, Deserialize, Copy, Clone)]
+/// Represents colors for modal dialogs.
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
 pub struct ModalColors {
     pub colors: TextColors,
     pub btn_delete: ButtonColors,
     pub btn_cancel: ButtonColors,
 }
 
-/// Represents colors for selector widget
-#[derive(Serialize, Deserialize, Copy, Clone)]
-pub struct SelectorColors {
+/// Represents colors for selector widget.
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub input: TextColors,
+    pub filter: TextColors,
+    pub prompt: TextColors,
 }
 
-/// All colors in theme
+/// All colors in theme.
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct ThemeColors {
     pub context: TextColors,
@@ -46,18 +47,19 @@ pub struct ThemeColors {
     pub disconnected: TextColors,
     pub header: TextColors,
     pub modal: ModalColors,
-    pub selector: SelectorColors,
+    pub command_palette: SelectColors,
+    pub side_select: SelectColors,
     pub line: ResourceColors,
 }
 
-/// Theme used in the application
+/// Theme used in the application.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Theme {
     pub colors: ThemeColors,
 }
 
 impl Default for Theme {
-    /// Returns TUI default theme for the application
+    /// Returns TUI default theme for the application.
     fn default() -> Self {
         Theme {
             colors: ThemeColors {
@@ -79,10 +81,17 @@ impl Default for Theme {
                         focused: TextColors::new(Color::White, Color::LightGreen),
                     },
                 },
-                selector: SelectorColors {
+                command_palette: SelectColors {
                     normal: TextColors::new(Color::Gray, Color::DarkGray),
                     normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
-                    input: TextColors::new(Color::Blue, Color::DarkGray),
+                    filter: TextColors::new(Color::Blue, Color::DarkGray),
+                    prompt: TextColors::new(Color::Blue, Color::DarkGray),
+                },
+                side_select: SelectColors {
+                    normal: TextColors::new(Color::Gray, Color::DarkGray),
+                    normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
+                    filter: TextColors::new(Color::Blue, Color::DarkGray),
+                    prompt: TextColors::new(Color::Blue, Color::DarkGray),
                 },
                 line: ResourceColors {
                     ready: LineColors {
