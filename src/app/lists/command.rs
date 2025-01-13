@@ -1,37 +1,29 @@
-use crate::{kubernetes::resources::Kind, utils::truncate};
+use crate::{kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
 
 use super::Row;
 
-/// Command type.
-pub enum CommandType {
-    None,
-    ChangeKind(String),
-    ChangeContext,
-    ExitApplication,
-}
-
-/// UI command.
+/// Command list item.
 pub struct Command {
     pub uid: Option<String>,
     pub group: String,
     pub name: String,
+    pub response: ResponseEvent,
     description: Option<String>,
     icon: Option<String>,
-    command: CommandType,
     aliases: Option<Vec<String>>,
 }
 
 impl Command {
     /// Creates new [`Command`] instance.
-    pub fn new(group: String, name: String, description: Option<String>, aliases: Option<Vec<String>>) -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_{}:{}_", group, name)),
-            group,
-            name,
-            description,
+            uid: Some(format!("_command:{}_", name)),
+            group: "command".to_owned(),
+            name: name.to_owned(),
+            description: None,
             icon: Some("".to_owned()),
-            command: CommandType::None,
-            aliases,
+            response: ResponseEvent::Handled,
+            aliases: None,
         }
     }
 
@@ -43,9 +35,27 @@ impl Command {
             name: kind.name().to_owned(),
             description: None,
             icon: None,
-            command: CommandType::ChangeKind(kind.name().to_owned()),
+            response: ResponseEvent::ChangeKind(kind.name().to_owned()),
             aliases: None,
         }
+    }
+
+    /// Sets the provided description.
+    pub fn with_description(mut self, description: &str) -> Self {
+        self.description = Some(description.to_owned());
+        self
+    }
+
+    /// Sets the provided aliases.
+    pub fn with_aliases(mut self, aliases: &[&str]) -> Self {
+        self.aliases = Some(aliases.iter().map(|a| (*a).to_owned()).collect());
+        self
+    }
+
+    /// Sets the provided response.
+    pub fn with_response(mut self, response: ResponseEvent) -> Self {
+        self.response = response;
+        self
     }
 
     fn get_text_width(&self, width: usize) -> usize {

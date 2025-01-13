@@ -16,22 +16,9 @@ pub struct CommandsList {
 }
 
 impl CommandsList {
-    /// Creates new [`CommandList`] instance with the predefined list of commands.
-    pub fn new(mut commands: Vec<Command>) -> Self {
-        commands.push(Command::new(
-            "command".to_owned(),
-            "quit".to_owned(),
-            Some("exit the application".to_owned()),
-            None,
-        ));
-        commands.push(Command::new(
-            "command".to_owned(),
-            "context".to_owned(),
-            Some("change current kube context".to_owned()),
-            Some(vec!["ctx".to_owned()]),
-        ));
-
-        let mut list = ScrollableList::from(commands);
+    /// Creates new [`CommandsList`] instance with the predefined list of commands.
+    pub fn new(commands: Vec<Command>) -> Self {
+        let mut list = ScrollableList::from(insert_predefined_commands(commands));
         list.sort(1, false);
 
         Self { list }
@@ -85,4 +72,26 @@ impl Table for CommandsList {
     fn get_header(&self, _view: ViewType, width: usize) -> String {
         format!("{1:<0$}", width, "KIND")
     }
+}
+
+fn insert_predefined_commands(mut commands: Vec<Command>) -> Vec<Command> {
+    commands.push(
+        Command::new("quit")
+            .with_description("exits the application")
+            .with_aliases(&vec!["q", "exit"])
+            .with_response(ResponseEvent::ExitApplication),
+    );
+    commands.push(
+        Command::new("delete")
+            .with_description("deletes selected resources")
+            .with_aliases(&vec!["del"])
+            .with_response(ResponseEvent::AskDeleteResources),
+    );
+    commands.push(
+        Command::new("context")
+            .with_description("changes the current kube context")
+            .with_aliases(&vec!["ctx"]),
+    );
+
+    commands
 }

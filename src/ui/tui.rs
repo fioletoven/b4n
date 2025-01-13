@@ -37,6 +37,7 @@ pub enum ResponseEvent {
     ChangeKind(String),
     ChangeNamespace(String),
     ViewNamespaces(String),
+    AskDeleteResources,
     DeleteResources,
 }
 

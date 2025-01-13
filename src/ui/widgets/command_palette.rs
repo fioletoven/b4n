@@ -64,6 +64,17 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Enter {
+            self.is_visible = false;
+            if let Some(index) = self.commands.items.list.get_highlighted_item_index() {
+                if let Some(items) = &self.commands.items.list.items {
+                    return items[index].data.response.clone();
+                }
+            }
+
+            return ResponseEvent::Handled;
+        }
+
         self.commands.process_key(key)
     }
 }
