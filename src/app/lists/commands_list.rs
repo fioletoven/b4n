@@ -76,21 +76,16 @@ impl Table for CommandsList {
 
 fn insert_predefined_commands(mut commands: Vec<Command>) -> Vec<Command> {
     commands.push(
-        Command::new("quit")
-            .with_description("exits the application")
-            .with_aliases(&vec!["q", "exit"])
-            .with_response(ResponseEvent::ExitApplication),
-    );
-    commands.push(
         Command::new("delete")
             .with_description("deletes selected resources")
             .with_aliases(&vec!["del"])
             .with_response(ResponseEvent::AskDeleteResources),
     );
     commands.push(
-        Command::new("context")
-            .with_description("changes the current kube context")
-            .with_aliases(&vec!["ctx"]),
+        Command::new("quit")
+            .with_description("exits the application")
+            .with_aliases(&vec!["q", "exit"])
+            .with_response(ResponseEvent::ExitApplication),
     );
 
     commands

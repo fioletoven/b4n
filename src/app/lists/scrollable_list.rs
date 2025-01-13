@@ -248,12 +248,12 @@ impl<T: Row> ScrollableList<T> {
 
     /// Highlights element on list by its name.
     pub fn highlight_item_by_name(&mut self, name: &str) -> bool {
-        self.highlight_item_by(|i| i.data.name() == name)
+        self.highlight_item_by(|i| i.data.is_equal(name))
     }
 
     /// Highlights first element on the list which name starts with `text`.
     pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
-        self.highlight_item_by(|i| i.data.name().starts_with(text))
+        self.highlight_item_by(|i| i.data.starts_with(text))
     }
 
     /// Highlights first item on the list, returns `true` on success.
@@ -340,7 +340,7 @@ impl<T: Row> ScrollableList<T> {
     fn apply_filter(&mut self) {
         if let Some(list) = &mut self.items {
             if let Some(filter) = &self.filter {
-                list.filter(|x| x.data.name().contains(filter));
+                list.filter(|x| x.data.contains(filter));
             }
         }
     }

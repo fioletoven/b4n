@@ -83,7 +83,11 @@ impl Responsive for CommandPalette {
 pub fn center(area: Rect, width: u16, max_height: usize) -> Rect {
     let [area] = Layout::horizontal([Constraint::Length(width)]).flex(Flex::Center).areas(area);
     let top = if area.height > 2 { (area.height - 2).min(3) } else { 0 };
-    let bottom = if area.height > 5 { (area.height - 5).min(6) } else { 0 };
+    let mut bottom = if area.height > 5 { (area.height - 5).min(6) } else { 0 };
+    if area.height >= 7 && area.height <= 14 {
+        bottom = area.height.saturating_sub(9).max(2);
+    }
+
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Length(top), Constraint::Fill(1), Constraint::Length(bottom)])

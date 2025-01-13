@@ -3,6 +3,7 @@ use crate::{kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
 use super::Row;
 
 /// Command list item.
+#[derive(Default)]
 pub struct Command {
     pub uid: Option<String>,
     pub group: String,
@@ -20,10 +21,8 @@ impl Command {
             uid: Some(format!("_command:{}_", name)),
             group: "command".to_owned(),
             name: name.to_owned(),
-            description: None,
             icon: Some("".to_owned()),
-            response: ResponseEvent::Handled,
-            aliases: None,
+            ..Default::default()
         }
     }
 
@@ -33,10 +32,8 @@ impl Command {
             uid: kind.uid().map(String::from),
             group: "resource".to_owned(),
             name: kind.name().to_owned(),
-            description: None,
-            icon: None,
             response: ResponseEvent::ChangeKind(kind.name().to_owned()),
-            aliases: None,
+            ..Default::default()
         }
     }
 
@@ -108,5 +105,44 @@ impl Row for Command {
             1 => &self.name,
             _ => "n/a",
         }
+    }
+
+    /// Returns `true` if the given `pattern` is found in the command name or its aliases.
+    fn contains(&self, pattern: &str) -> bool {
+        if self.name.contains(pattern) {
+            return true;
+        }
+
+        if let Some(aliases) = &self.aliases {
+            return aliases.iter().any(|a| a.contains(pattern));
+        }
+
+        false
+    }
+
+    /// Returns `true` if the command name or its aliases starts with the given `pattern`.
+    fn starts_with(&self, pattern: &str) -> bool {
+        if self.name.starts_with(pattern) {
+            return true;
+        }
+
+        if let Some(aliases) = &self.aliases {
+            return aliases.iter().any(|a| a.starts_with(pattern));
+        }
+
+        false
+    }
+
+    /// Returns `true` if the given `pattern` is equal to the command name or its aliases.
+    fn is_equal(&self, pattern: &str) -> bool {
+        if self.name == pattern {
+            return true;
+        }
+
+        if let Some(aliases) = &self.aliases {
+            return aliases.iter().any(|a| a == pattern);
+        }
+
+        false
     }
 }
