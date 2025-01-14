@@ -8,7 +8,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{CommandsList, KindsList, ResourcesList},
+        lists::{ActionsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
@@ -215,7 +215,7 @@ impl HomePage {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             self.command_palette = CommandPalette::new(
                 Rc::clone(&self.app_data),
-                CommandsList::from(&self.res_selector.select.items.list),
+                ActionsList::from(&self.res_selector.select.items.list),
                 60,
             );
             self.command_palette.show();

@@ -4,43 +4,43 @@ use delegate::delegate;
 
 use crate::{
     kubernetes::resources::Kind,
-    ui::{colors::TextColors, theme::Theme, ResponseEvent, Responsive, Table, ViewType},
+    ui::{colors::TextColors, theme::Theme, widgets::Action, ResponseEvent, Responsive, Table, ViewType},
 };
 
-use super::{Command, ScrollableList};
+use super::ScrollableList;
 
-/// Commands list.
+/// UI actions list.
 #[derive(Default)]
-pub struct CommandsList {
-    pub list: ScrollableList<Command>,
+pub struct ActionsList {
+    pub list: ScrollableList<Action>,
 }
 
-impl CommandsList {
-    /// Creates new [`CommandsList`] instance with the predefined list of commands.
-    pub fn new(commands: Vec<Command>) -> Self {
-        let mut list = ScrollableList::from(insert_predefined_commands(commands));
+impl ActionsList {
+    /// Creates new [`ActionsList`] instance with the predefined list of actions.
+    pub fn new(actions: Vec<Action>) -> Self {
+        let mut list = ScrollableList::from(insert_predefined_actions(actions));
         list.sort(1, false);
 
         Self { list }
     }
 
-    /// Creates new [`CommandsList`] instance that will include provided kinds and predefined commands.
+    /// Creates new [`ActionsList`] instance that will include provided kinds and predefined actions.
     pub fn from(kinds: &ScrollableList<Kind>) -> Self {
         if let Some(items) = &kinds.items {
-            CommandsList::new(items.full_iter().map(|i| Command::from(&i.data)).collect::<Vec<Command>>())
+            ActionsList::new(items.full_iter().map(|i| Action::from(&i.data)).collect::<Vec<Action>>())
         } else {
-            CommandsList::new(vec![])
+            ActionsList::new(vec![])
         }
     }
 }
 
-impl Responsive for CommandsList {
+impl Responsive for ActionsList {
     fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
         self.list.process_key(key)
     }
 }
 
-impl Table for CommandsList {
+impl Table for ActionsList {
     delegate! {
         to self.list {
             fn len(&self) -> usize;
@@ -64,29 +64,34 @@ impl Table for CommandsList {
     }
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.  
-    /// As commands are used only in selector, we don't care to implement this.
+    /// As actions are used only in selector, we don't care to implement this.
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }
 
     fn get_header(&self, _view: ViewType, width: usize) -> String {
-        format!("{1:<0$}", width, "KIND")
+        format!("{1:<0$}", width, "ACTION")
     }
 }
 
-fn insert_predefined_commands(mut commands: Vec<Command>) -> Vec<Command> {
-    commands.push(
-        Command::new("delete")
+fn insert_predefined_actions(mut actions: Vec<Action>) -> Vec<Action> {
+    actions.push(
+        Action::new("context")
+            .with_description("changes the current kube context")
+            .with_aliases(&vec!["ctx"]),
+    );
+    actions.push(
+        Action::new("delete")
             .with_description("deletes selected resources")
             .with_aliases(&vec!["del"])
             .with_response(ResponseEvent::AskDeleteResources),
     );
-    commands.push(
-        Command::new("quit")
+    actions.push(
+        Action::new("quit")
             .with_description("exits the application")
             .with_aliases(&vec!["q", "exit"])
             .with_response(ResponseEvent::ExitApplication),
     );
 
-    commands
+    actions
 }
