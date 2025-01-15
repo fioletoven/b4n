@@ -9,7 +9,7 @@ use tokio::time::sleep;
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
 
 use super::{
-    commands::{BgExecutor, Command, DeleteResourcesCommand, SaveConfigCommand},
+    commands::{BgExecutor, Command, DeleteResourcesCommand, SaveConfigurationCommand},
     BgDiscovery, BgObserver, BgObserverError, Config,
 };
 
@@ -112,7 +112,7 @@ impl BgWorker {
     /// Saves the provided configuration to a file
     pub fn save_configuration(&self, config: Config) {
         self.executor
-            .run_command(Command::SaveConfiguration(SaveConfigCommand::new(config)));
+            .run_command(Command::SaveConfiguration(SaveConfigurationCommand::new(config)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
@@ -120,6 +120,11 @@ impl BgWorker {
         let discovery = self.get_resource(kind);
         let command = DeleteResourcesCommand::new(resources, namespace, discovery);
         self.executor.run_command(Command::DeleteResource(command));
+    }
+
+    /// Sends the provided command to the background executor.
+    pub fn run_command(&self, command: Command) {
+        self.executor.run_command(command);
     }
 
     /// Returns `true` if there are connection problems

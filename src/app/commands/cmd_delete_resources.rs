@@ -6,7 +6,7 @@ use kube::{
 
 use crate::kubernetes;
 
-/// Command that deletes all named resources for provided namespace and discovery
+/// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
     pub names: Vec<String>,
     pub namespace: Option<String>,
@@ -14,7 +14,7 @@ pub struct DeleteResourcesCommand {
 }
 
 impl DeleteResourcesCommand {
-    /// Creates new [`DeleteResourcesCommand`] instance
+    /// Creates new [`DeleteResourcesCommand`] instance.
     pub fn new(names: Vec<String>, namespace: Option<String>, discovery: Option<(ApiResource, ApiCapabilities)>) -> Self {
         Self {
             names,
@@ -23,7 +23,7 @@ impl DeleteResourcesCommand {
         }
     }
 
-    /// Deletes all resources using provided client
+    /// Deletes all resources using provided client.
     pub async fn execute(&mut self, client: &Client) -> bool {
         let Some(discovery) = self.discovery.take() else {
             return false;

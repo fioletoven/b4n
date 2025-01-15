@@ -78,7 +78,8 @@ fn insert_predefined_actions(mut actions: Vec<Action>) -> Vec<Action> {
     actions.push(
         Action::new("context")
             .with_description("changes the current kube context")
-            .with_aliases(&vec!["ctx"]),
+            .with_aliases(&vec!["ctx"])
+            .with_response(ResponseEvent::ListKubeContexts),
     );
     actions.push(
         Action::new("delete")

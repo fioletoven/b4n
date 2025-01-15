@@ -6,7 +6,10 @@ use kube::{
 };
 use std::ops::{Deref, DerefMut};
 use thiserror;
+use tokio::{fs::File, io::AsyncReadExt};
 use tracing::error;
+
+use super::resources::Context;
 
 /// Possible errors from building kubernetes client.
 #[derive(thiserror::Error, Debug)]
@@ -14,6 +17,10 @@ pub enum ClientError {
     /// Failed to determine users home directory.
     #[error("failed to determine users home directory")]
     HomeDirNotFound,
+
+    /// Failed to read kube configuration.
+    #[error("failed to read kube configuration")]
+    IoError(#[from] std::io::Error),
 
     /// Failed to process kube configuration.
     #[error("failed to process kube configuration")]
@@ -95,6 +102,16 @@ impl DerefMut for KubernetesClient {
     }
 }
 
+/// Returns contexts from the kube config.
+pub async fn list_contexts() -> Result<Vec<Context>, ClientError> {
+    let kube_config = get_kube_config().await?;
+    Ok(kube_config
+        .contexts
+        .iter()
+        .map(|c| Context::new(c.name.clone(), c.context.as_ref().map(|c| c.cluster.clone())))
+        .collect())
+}
+
 /// Gets dynamic api client for given `resource` and `namespace`.
 pub fn get_dynamic_api(
     ar: ApiResource,
@@ -134,14 +151,14 @@ async fn get_client(kube_context: Option<&str>) -> Result<(Client, String), Clie
         Some(ctx) => Ok((get_client_for_context(ctx).await?, ctx.to_owned())),
         None => Ok((
             Client::try_default().await?,
-            get_kube_config()?.current_context.unwrap_or_default(),
+            get_kube_config().await?.current_context.unwrap_or_default(),
         )),
     }
 }
 
 /// Creates kubernetes client for the provided context.
 async fn get_client_for_context(kube_context: &str) -> Result<Client, ClientError> {
-    let kube_config = get_kube_config()?;
+    let kube_config = get_kube_config().await?;
     let kube_config_options = kube::config::KubeConfigOptions {
         context: Some(String::from(kube_context)),
         user: None,
@@ -153,9 +170,15 @@ async fn get_client_for_context(kube_context: &str) -> Result<Client, ClientErro
 }
 
 /// Returns kube config.
-fn get_kube_config() -> Result<Kubeconfig, ClientError> {
-    let mut kube_config_path = dirs::home_dir().ok_or(ClientError::HomeDirNotFound)?;
-    kube_config_path.push(".kube/config");
+async fn get_kube_config() -> Result<Kubeconfig, ClientError> {
+    let kube_config_path = dirs::home_dir()
+        .map(|h| h.join(".kube").join("config"))
+        .ok_or(ClientError::HomeDirNotFound)?;
 
-    Ok(Kubeconfig::read_from(kube_config_path)?)
+    let mut file = File::open(kube_config_path).await?;
+
+    let mut kube_config_str = String::new();
+    file.read_to_string(&mut kube_config_str).await?;
+
+    Ok(Kubeconfig::from_yaml(&kube_config_str)?)
 }

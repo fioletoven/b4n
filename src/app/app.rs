@@ -7,7 +7,10 @@ use crate::{
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
-use super::{AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData};
+use super::{
+    commands::{Command, ListKubeContextsCommand},
+    AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData,
+};
 
 /// Application execution flow
 #[derive(Clone, Debug, PartialEq)]
@@ -125,6 +128,7 @@ impl App {
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace)?,
             ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
+            ResponseEvent::ListKubeContexts => self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {})),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
             _ => (),

@@ -1,13 +1,16 @@
-pub use self::delete::*;
+pub use self::cmd_delete_resources::*;
+pub use self::cmd_list_contexts::*;
+pub use self::cmd_save_configuration::*;
 pub use self::executor::*;
-pub use self::save_config::*;
 
-mod delete;
+mod cmd_delete_resources;
+mod cmd_list_contexts;
+mod cmd_save_configuration;
 mod executor;
-mod save_config;
 
 /// List of all possible commands for [`BgExecutor`]
 pub enum Command {
-    SaveConfiguration(SaveConfigCommand),
+    ListKubeContexts(ListKubeContextsCommand),
+    SaveConfiguration(SaveConfigurationCommand),
     DeleteResource(DeleteResourcesCommand),
 }

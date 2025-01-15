@@ -33,11 +33,16 @@ pub enum ResponseEvent {
     NotHandled,
     Handled,
     Cancelled,
+
     ExitApplication,
+
     Change(String, String),
     ChangeKind(String),
     ChangeNamespace(String),
     ViewNamespaces(String),
+
+    ListKubeContexts,
+
     AskDeleteResources,
     DeleteResources,
 }
