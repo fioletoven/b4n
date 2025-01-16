@@ -1,4 +1,8 @@
+use tracing::error;
+
 use crate::app::Config;
+
+use super::ExecutorResult;
 
 /// Command that saves provided configuration to a file.
 pub struct SaveConfigurationCommand {
@@ -12,7 +16,11 @@ impl SaveConfigurationCommand {
     }
 
     /// Saves configuration to a file.
-    pub async fn execute(&self) -> bool {
-        self.config.save().await.is_ok()
+    pub async fn execute(&self) -> Option<ExecutorResult> {
+        if let Err(error) = self.config.save().await {
+            error!("The configuration cannot be saved to a file: {}", error);
+        }
+
+        None
     }
 }

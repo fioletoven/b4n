@@ -78,19 +78,19 @@ fn insert_predefined_actions(mut actions: Vec<Action>) -> Vec<Action> {
     actions.push(
         Action::new("context")
             .with_description("changes the current kube context")
-            .with_aliases(&vec!["ctx"])
+            .with_aliases(&["ctx"])
             .with_response(ResponseEvent::ListKubeContexts),
     );
     actions.push(
         Action::new("delete")
             .with_description("deletes selected resources")
-            .with_aliases(&vec!["del"])
+            .with_aliases(&["del"])
             .with_response(ResponseEvent::AskDeleteResources),
     );
     actions.push(
         Action::new("quit")
             .with_description("exits the application")
-            .with_aliases(&vec!["q", "exit"])
+            .with_aliases(&["q", "exit"])
             .with_response(ResponseEvent::ExitApplication),
     );
 

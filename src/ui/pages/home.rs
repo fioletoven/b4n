@@ -11,7 +11,10 @@ use crate::{
         lists::{ActionsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
-    kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
+    kubernetes::{
+        resources::{Context, Kind},
+        ALL_NAMESPACES, NAMESPACES,
+    },
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
@@ -153,12 +156,17 @@ impl HomePage {
         self.res_selector.select.items.update(kinds, 1, false);
     }
 
-    /// Shows delete resources dialog if anyting is selected.
+    /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
         if self.list.items.is_anything_selected() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
+    }
+
+    /// Displays a list of available contexts to choose from.
+    pub fn show_contexts_list(&self, list: Vec<Context>) {
+        todo!();
     }
 
     /// Process TUI event.

@@ -3,8 +3,11 @@ use kube::{
     discovery::{verbs, ApiCapabilities, Scope},
     Client,
 };
+use tracing::error;
 
 use crate::kubernetes;
+
+use super::ExecutorResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
@@ -24,13 +27,10 @@ impl DeleteResourcesCommand {
     }
 
     /// Deletes all resources using provided client.
-    pub async fn execute(&mut self, client: &Client) -> bool {
-        let Some(discovery) = self.discovery.take() else {
-            return false;
-        };
-
+    pub async fn execute(&mut self, client: &Client) -> Option<ExecutorResult> {
+        let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::DELETE) {
-            return false;
+            return None;
         }
 
         let namespace = if discovery.1.scope == Scope::Cluster {
@@ -46,14 +46,13 @@ impl DeleteResourcesCommand {
             namespace.is_none(),
         );
 
-        let mut result = true;
         for name in &self.names {
             let deleted = client.delete(name, &DeleteParams::default()).await;
-            if deleted.is_err() {
-                result = false;
+            if let Err(error) = deleted {
+                error!("Cannot delete resource {}: {}", name, error);
             }
         }
 
-        result
+        None
     }
 }

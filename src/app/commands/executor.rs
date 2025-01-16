@@ -1,19 +1,20 @@
 use tokio::{
-    sync::mpsc::{self, UnboundedSender},
+    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
 
 use crate::{app::utils::wait_for_task, kubernetes::client::KubernetesClient};
 
-use super::Command;
+use super::{ExecutorCommand, ExecutorResult};
 
 /// Background commands executor
 #[derive(Default)]
 pub struct BgExecutor {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    commands_tx: Option<UnboundedSender<Command>>,
+    commands_tx: Option<UnboundedSender<ExecutorCommand>>,
+    results_rx: Option<UnboundedReceiver<ExecutorResult>>,
 }
 
 impl BgExecutor {
@@ -27,6 +28,7 @@ impl BgExecutor {
         let _cancellation_token = cancellation_token.clone();
 
         let (commands_tx, mut _commands_rx) = mpsc::unbounded_channel();
+        let (_results_tx, results_rx) = mpsc::unbounded_channel();
         let _client = client.get_client();
 
         let task = tokio::spawn(async move {
@@ -40,16 +42,21 @@ impl BgExecutor {
                     break;
                 };
 
-                match command {
-                    Command::ListKubeContexts(command) => command.execute().await,
-                    Command::SaveConfiguration(command) => command.execute().await,
-                    Command::DeleteResource(mut command) => command.execute(&_client).await,
+                let result = match command {
+                    ExecutorCommand::ListKubeContexts(command) => command.execute().await,
+                    ExecutorCommand::SaveConfiguration(command) => command.execute().await,
+                    ExecutorCommand::DeleteResource(mut command) => command.execute(&_client).await,
                 };
+
+                if let Some(result) = result {
+                    _results_tx.send(result).unwrap();
+                }
             }
         });
 
         self.cancellation_token = Some(cancellation_token);
         self.commands_tx = Some(commands_tx);
+        self.results_rx = Some(results_rx);
         self.task = Some(task);
     }
 
@@ -64,14 +71,25 @@ impl BgExecutor {
     pub fn stop(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
+            self.commands_tx = None;
+            self.results_rx = None;
             wait_for_task(self.task.take(), "executor");
         }
     }
 
     /// Sends command to the [`BgExecutor`] to be executed in the background
-    pub fn run_command(&self, command: Command) {
+    pub fn run_command(&self, command: ExecutorCommand) {
         if let Some(commands_tx) = &self.commands_tx {
             commands_tx.send(command).unwrap();
+        }
+    }
+
+    /// Tries to get next [`ExecutorResult`].
+    pub fn try_next(&mut self) -> Option<ExecutorResult> {
+        if let Some(results_rx) = &mut self.results_rx {
+            results_rx.try_recv().ok()
+        } else {
+            None
         }
     }
 }

@@ -8,18 +8,18 @@ use crate::{
 };
 
 use super::{
-    commands::{Command, ListKubeContextsCommand},
+    commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand},
     AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
-/// Application execution flow
+/// Application execution flow.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExecutionFlow {
     Continue,
     Stop,
 }
 
-/// Main application object that orchestrates terminal, UI widgets and background workers
+/// Main application object that orchestrates terminal, UI widgets and background workers.
 pub struct App {
     data: SharedAppData,
     tui: Tui,
@@ -29,7 +29,7 @@ pub struct App {
 }
 
 impl App {
-    /// Creates new [`App`] instance
+    /// Creates new [`App`] instance.
     pub fn new(client: KubernetesClient, config: Config) -> Result<Self> {
         let data = Rc::new(RefCell::new(AppData::new(config)));
         let page = HomePage::new(Rc::clone(&data));
@@ -43,7 +43,7 @@ impl App {
         })
     }
 
-    /// Starts app with initial resource data
+    /// Starts app with initial resource data.
     pub async fn start(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<()> {
         let namespace = resource_namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
         let kind = resource_name.clone();
@@ -66,7 +66,7 @@ impl App {
         Ok(())
     }
 
-    /// Stops app
+    /// Stops app.
     pub fn stop(&mut self) -> Result<()> {
         self.worker.stop();
         self.watcher.stop();
@@ -75,14 +75,14 @@ impl App {
         Ok(())
     }
 
-    /// Cancels all app tasks
+    /// Cancels all app tasks.
     pub fn cancel(&mut self) {
         self.worker.cancel();
         self.watcher.cancel();
         self.tui.cancel();
     }
 
-    /// Process all waiting UI or file events
+    /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
@@ -94,10 +94,12 @@ impl App {
             self.data.borrow_mut().config = config;
         }
 
+        self.process_commands_results();
+
         Ok(ExecutionFlow::Continue)
     }
 
-    /// Draws UI page on terminal frame
+    /// Draws UI page on terminal frame.
     pub fn draw_frame(&mut self) -> Result<()> {
         self.update_lists();
 
@@ -108,7 +110,7 @@ impl App {
         Ok(())
     }
 
-    /// Updates page lists with observed resources
+    /// Updates page lists with observed resources.
     fn update_lists(&mut self) {
         if self.worker.update_discovery_list() {
             self.page.update_kinds_list(self.worker.get_kinds_list());
@@ -120,7 +122,7 @@ impl App {
         self.data.borrow_mut().is_connected = !self.worker.has_errors();
     }
 
-    /// Process TUI event
+    /// Process TUI event.
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
         match self.page.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
@@ -128,7 +130,9 @@ impl App {
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace)?,
             ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
-            ResponseEvent::ListKubeContexts => self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {})),
+            ResponseEvent::ListKubeContexts => self
+                .worker
+                .run_command(ExecutorCommand::ListKubeContexts(ListKubeContextsCommand {})),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
             _ => (),
@@ -137,7 +141,16 @@ impl App {
         Ok(ResponseEvent::Handled)
     }
 
-    /// Changes observed resources namespace and kind
+    /// Process results from commands execution.
+    fn process_commands_results(&mut self) {
+        if let Some(result) = self.worker.check_command_result() {
+            match result {
+                ExecutorResult::ContextsList(list) => self.page.show_contexts_list(list),
+            }
+        }
+    }
+
+    /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: String) -> Result<(), BgObserverError> {
         self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
         let scope = if namespace == ALL_NAMESPACES {
@@ -153,7 +166,7 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind, optionally selects one of them
+    /// Changes observed resources kind, optionally selects one of them.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgObserverError> {
         self.update_configuration(Some(kind.clone()), None);
         let scope = self.worker.restart_new_kind(kind)?;
@@ -163,7 +176,7 @@ impl App {
         Ok(())
     }
 
-    /// Changes namespace for observed resources
+    /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: String) -> Result<(), BgObserverError> {
         self.update_configuration(None, Some(namespace.clone()));
         if namespace == ALL_NAMESPACES {
@@ -177,13 +190,13 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind to `namespaces` and selects provided namespace
+    /// Changes observed resources kind to `namespaces` and selects provided namespace.
     fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgObserverError> {
         self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
         Ok(())
     }
 
-    /// Deletes resources that are currently selected on [`HomePage`]
+    /// Deletes resources that are currently selected on [`HomePage`].
     fn delete_resources(&mut self) {
         let list = self.page.get_selected_items();
         for key in list.keys() {
@@ -199,7 +212,7 @@ impl App {
         self.page.deselect_all();
     }
 
-    /// Sets page view from resource scope
+    /// Sets page view from resource scope.
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
             self.page.set_view(ViewType::Compact);
@@ -208,7 +221,7 @@ impl App {
         }
     }
 
-    /// Updates `kind` and `namespace` in the configuration and saves it to a file
+    /// Updates `kind` and `namespace` in the configuration and saves it to a file.
     fn update_configuration(&mut self, kind: Option<String>, namespace: Option<String>) {
         let index = { self.data.borrow().config.context_index(&self.data.borrow().current.context) };
         if let Some(index) = index {

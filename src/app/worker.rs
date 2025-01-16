@@ -9,7 +9,7 @@ use tokio::time::sleep;
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
 
 use super::{
-    commands::{BgExecutor, Command, DeleteResourcesCommand, SaveConfigurationCommand},
+    commands::{BgExecutor, DeleteResourcesCommand, ExecutorCommand, ExecutorResult, SaveConfigurationCommand},
     BgDiscovery, BgObserver, BgObserverError, Config,
 };
 
@@ -112,19 +112,24 @@ impl BgWorker {
     /// Saves the provided configuration to a file
     pub fn save_configuration(&self, config: Config) {
         self.executor
-            .run_command(Command::SaveConfiguration(SaveConfigurationCommand::new(config)));
+            .run_command(ExecutorCommand::SaveConfiguration(SaveConfigurationCommand::new(config)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
     pub fn delete_resources(&self, resources: Vec<String>, namespace: Option<String>, kind: &str) {
         let discovery = self.get_resource(kind);
         let command = DeleteResourcesCommand::new(resources, namespace, discovery);
-        self.executor.run_command(Command::DeleteResource(command));
+        self.executor.run_command(ExecutorCommand::DeleteResource(command));
     }
 
     /// Sends the provided command to the background executor.
-    pub fn run_command(&self, command: Command) {
+    pub fn run_command(&self, command: ExecutorCommand) {
         self.executor.run_command(command);
+    }
+
+    /// Returns first waiting command result from the background executor.
+    pub fn check_command_result(&mut self) -> Option<ExecutorResult> {
+        self.executor.try_next()
     }
 
     /// Returns `true` if there are connection problems
