@@ -165,8 +165,11 @@ impl HomePage {
     }
 
     /// Displays a list of available contexts to choose from.
-    pub fn show_contexts_list(&self, list: Vec<Context>) {
-        todo!();
+    pub fn show_contexts_list(&mut self, list: Vec<Context>) {
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), ActionsList::from_contexts(&list), 60);
+        self.command_palette.set_prompt("context");
+        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette.show();
     }
 
     /// Process TUI event.
@@ -223,7 +226,7 @@ impl HomePage {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             self.command_palette = CommandPalette::new(
                 Rc::clone(&self.app_data),
-                ActionsList::from(&self.res_selector.select.items.list),
+                ActionsList::from_kinds(&self.res_selector.select.items.list),
                 60,
             );
             self.command_palette.show();

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use delegate::delegate;
 
 use crate::{
-    kubernetes::resources::Kind,
+    kubernetes::resources::{Context, Kind},
     ui::{colors::TextColors, theme::Theme, widgets::Action, ResponseEvent, Responsive, Table, ViewType},
 };
 
@@ -16,21 +16,33 @@ pub struct ActionsList {
 }
 
 impl ActionsList {
-    /// Creates new [`ActionsList`] instance with the predefined list of actions.
-    pub fn new(actions: Vec<Action>) -> Self {
-        let mut list = ScrollableList::from(insert_predefined_actions(actions));
+    /// Creates new [`ActionsList`] instance that can also include predefined list of actions.
+    pub fn new(actions: Vec<Action>, include_predefined: bool) -> Self {
+        let mut list = ScrollableList::from(if include_predefined {
+            insert_predefined_actions(actions)
+        } else {
+            actions
+        });
         list.sort(1, false);
 
         Self { list }
     }
 
     /// Creates new [`ActionsList`] instance that will include provided kinds and predefined actions.
-    pub fn from(kinds: &ScrollableList<Kind>) -> Self {
+    pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
         if let Some(items) = &kinds.items {
-            ActionsList::new(items.full_iter().map(|i| Action::from(&i.data)).collect::<Vec<Action>>())
+            ActionsList::new(
+                items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>(),
+                true,
+            )
         } else {
-            ActionsList::new(vec![])
+            ActionsList::new(vec![], true)
         }
+    }
+
+    /// Creates new [`ActionsList`] instance from the list of [`Context`]s.
+    pub fn from_contexts(contexts: &[Context]) -> Self {
+        ActionsList::new(contexts.iter().map(Action::from_context).collect::<Vec<Action>>(), false)
     }
 }
 

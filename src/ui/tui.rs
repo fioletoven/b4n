@@ -40,6 +40,7 @@ pub enum ResponseEvent {
     ChangeKind(String),
     ChangeNamespace(String),
     ViewNamespaces(String),
+    ChangeContext(String),
 
     ListKubeContexts,
 

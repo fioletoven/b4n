@@ -1,4 +1,9 @@
-use crate::{app::lists::Row, kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
+use crate::{
+    app::lists::Row,
+    kubernetes::resources::{Context, Kind},
+    ui::ResponseEvent,
+    utils::truncate,
+};
 
 /// Command palette action.
 #[derive(Default)]
@@ -25,12 +30,24 @@ impl Action {
     }
 
     /// Creates new [`Action`] instance from [`Kind`].
-    pub fn from(kind: &Kind) -> Self {
+    pub fn from_kind(kind: &Kind) -> Self {
         Self {
             uid: kind.uid().map(String::from),
             group: "resource".to_owned(),
             name: kind.name().to_owned(),
             response: ResponseEvent::ChangeKind(kind.name().to_owned()),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`Action`] instance from [`Context`].
+    pub fn from_context(context: &Context) -> Self {
+        Self {
+            uid: context.uid().map(String::from),
+            group: "context".to_owned(),
+            name: context.name.clone(),
+            response: ResponseEvent::ChangeContext(context.name.clone()),
+            description: context.cluster.clone(),
             ..Default::default()
         }
     }

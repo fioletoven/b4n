@@ -44,6 +44,7 @@ impl BgExecutor {
 
                 let result = match command {
                     ExecutorCommand::ListKubeContexts(command) => command.execute().await,
+                    ExecutorCommand::NewKubernetesClient(command) => command.execute().await,
                     ExecutorCommand::SaveConfiguration(command) => command.execute().await,
                     ExecutorCommand::DeleteResource(mut command) => command.execute(&_client).await,
                 };

@@ -32,6 +32,16 @@ impl CommandPalette {
         }
     }
 
+    /// Sets command palette prompt.
+    pub fn set_prompt(&mut self, prompt: &str) {
+        self.actions.set_prompt(format!("{}", prompt));
+    }
+
+    /// Selects one of the command palette actions by its name.
+    pub fn select(&mut self, name: &str) {
+        self.actions.select(name, "");
+    }
+
     /// Marks [`CommandPalette`] as a visible.
     pub fn show(&mut self) {
         self.is_visible = true;

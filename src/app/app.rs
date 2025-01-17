@@ -1,6 +1,7 @@
 use anyhow::Result;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
+use tracing::info;
 
 use crate::{
     kubernetes::{client::KubernetesClient, ALL_NAMESPACES, NAMESPACES},
@@ -8,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand},
+    commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand, NewKubernetesClientCommand},
     AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
@@ -133,6 +134,7 @@ impl App {
             ResponseEvent::ListKubeContexts => self
                 .worker
                 .run_command(ExecutorCommand::ListKubeContexts(ListKubeContextsCommand {})),
+            ResponseEvent::ChangeContext(context) => self.ask_for_new_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
             _ => (),
@@ -143,9 +145,10 @@ impl App {
 
     /// Process results from commands execution.
     fn process_commands_results(&mut self) {
-        if let Some(result) = self.worker.check_command_result() {
+        while let Some(result) = self.worker.check_command_result() {
             match result {
                 ExecutorResult::ContextsList(list) => self.page.show_contexts_list(list),
+                ExecutorResult::KubernetesClient(client, context) => self.change_kubernetes_client(client, context),
             }
         }
     }
@@ -239,6 +242,22 @@ impl App {
 
         self.watcher.skip_next();
         self.worker.save_configuration(self.data.borrow().config.clone());
+    }
+
+    /// Sends command to create new kubernetes client to the background executor.
+    fn ask_for_new_kubernetes_client(&self, context: String) {
+        if self.data.borrow().current.context == context {
+            return;
+        }
+
+        self.worker
+            .run_command(ExecutorCommand::NewKubernetesClient(NewKubernetesClientCommand::new(context)));
+    }
+
+    /// Changes kubernetes client to the received one.
+    fn change_kubernetes_client(&self, client: KubernetesClient, context: String) {
+        info!("got new kubernetes client {}, {}", client.k8s_version(), context);
+        // TODO: update actual client
     }
 }
 
