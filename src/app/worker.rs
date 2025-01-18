@@ -3,9 +3,7 @@ use kube::{
     api::ApiResource,
     discovery::{verbs, ApiCapabilities, Scope},
 };
-use std::time::Duration;
 use thiserror;
-use tokio::time::sleep;
 
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
 
@@ -26,14 +24,8 @@ pub enum BgWorkerError {
     BgObserverError(#[from] BgObserverError),
 }
 
-/// Result that is returned after the background worker is started.
-pub struct StartResult {
-    pub context: String,
-    pub k8s_version: String,
-    pub scope: Scope,
-}
-
 /// Keeps together all application background workers
+#[derive(Default)]
 pub struct BgWorker {
     pub namespaces: BgObserver,
     pub resources: BgObserver,
@@ -44,44 +36,32 @@ pub struct BgWorker {
 }
 
 impl BgWorker {
-    /// Creates new [`BgWorker`] instance
-    pub fn new(client: KubernetesClient) -> Self {
-        Self {
-            namespaces: BgObserver::default(),
-            resources: BgObserver::default(),
-            discovery: BgDiscovery::default(),
-            executor: BgExecutor::default(),
-            client: Some(client),
-            list: None,
-        }
+    /// Starts the background executor task.
+    pub fn start_executor(&mut self) {
+        self.executor.start();
     }
 
-    /// Starts all background observers that application requires to work.  
-    /// **Note** that it consumes the first event from [`BgDiscovery`] as it waits to populate list of resources.
-    pub async fn start(
+    /// Starts (or restarts) all background tasks that application requires to work.  
+    /// **Note** that this will not start the executor task (it must be run separately).
+    pub fn start(
         &mut self,
+        client: KubernetesClient,
+        initial_discovery_list: Vec<(ApiResource, ApiCapabilities)>,
         resource_name: String,
         resource_namespace: Option<String>,
-    ) -> Result<StartResult, BgWorkerError> {
-        self.start_discovery().await?;
-
-        let Some(client) = &self.client else {
-            return Err(BgWorkerError::NoKubernetesClient);
-        };
-
-        self.executor.start(client);
+    ) -> Result<Scope, BgWorkerError> {
+        self.list = Some(initial_discovery_list);
+        self.discovery.start(&client);
 
         let discovery = self.get_resource(NAMESPACES);
-        self.namespaces.start(client, NAMESPACES.to_owned(), None, discovery)?;
+        self.namespaces.start(&client, NAMESPACES.to_owned(), None, discovery)?;
 
         let discovery = self.get_resource(&resource_name);
-        let scope = self.resources.start(client, resource_name, resource_namespace, discovery)?;
+        let scope = self.resources.start(&client, resource_name, resource_namespace, discovery)?;
 
-        Ok(StartResult {
-            context: client.context().to_owned(),
-            k8s_version: client.k8s_version().to_owned(),
-            scope,
-        })
+        self.client = Some(client);
+
+        Ok(scope)
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind and namespace
@@ -117,8 +97,15 @@ impl BgWorker {
         }
     }
 
-    /// Stops all background tasks running in the application
+    /// Stops all background tasks except the executor one.
     pub fn stop(&mut self) {
+        self.namespaces.stop();
+        self.resources.stop();
+        self.discovery.stop();
+    }
+
+    /// Stops all background tasks running in the application
+    pub fn stop_all(&mut self) {
         self.namespaces.stop();
         self.resources.stop();
         self.executor.stop();
@@ -126,7 +113,7 @@ impl BgWorker {
     }
 
     /// Cancels all background tasks running in the application
-    pub fn cancel(&mut self) {
+    pub fn cancel_all(&mut self) {
         self.namespaces.cancel();
         self.resources.cancel();
         self.executor.cancel();
@@ -164,8 +151,10 @@ impl BgWorker {
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
     pub fn delete_resources(&self, resources: Vec<String>, namespace: Option<String>, kind: &str) {
         let discovery = self.get_resource(kind);
-        let command = DeleteResourcesCommand::new(resources, namespace, discovery);
-        self.executor.run_command(ExecutorCommand::DeleteResource(command));
+        if let Some(client) = &self.client {
+            let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
+            self.executor.run_command(ExecutorCommand::DeleteResource(command));
+        }
     }
 
     /// Sends the provided command to the background executor.
@@ -181,24 +170,6 @@ impl BgWorker {
     /// Returns `true` if there are connection problems
     pub fn has_errors(&self) -> bool {
         self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
-    }
-
-    /// Starts kubernetes resources discovery and waits for the first result
-    async fn start_discovery(&mut self) -> Result<(), BgWorkerError> {
-        let Some(client) = &self.client else {
-            return Err(BgWorkerError::NoKubernetesClient);
-        };
-
-        self.discovery.start(client);
-
-        let mut discovery = self.discovery.try_next();
-        while discovery.is_none() {
-            sleep(Duration::from_millis(50)).await;
-            discovery = self.discovery.try_next();
-        }
-
-        self.list = discovery;
-        Ok(())
     }
 
     /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  
@@ -243,6 +214,6 @@ impl BgWorker {
 
 impl Drop for BgWorker {
     fn drop(&mut self) {
-        self.cancel();
+        self.cancel_all();
     }
 }

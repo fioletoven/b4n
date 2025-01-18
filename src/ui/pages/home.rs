@@ -71,6 +71,13 @@ impl HomePage {
         }
     }
 
+    /// Resets all data on a home page.
+    pub fn reset(&mut self) {
+        self.list.items.clear();
+        self.ns_selector.select.items.clear();
+        self.res_selector.select.items.clear();
+    }
+
     /// Sets initial kubernetes resources data for [`HomePage`].
     pub fn set_resources_info(&mut self, context: String, namespace: String, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
@@ -177,16 +184,17 @@ impl HomePage {
             return ResponseEvent::ExitApplication;
         }
 
-        if !self.app_data.borrow().is_connected {
-            return ResponseEvent::Handled;
-        }
-
         if self.modal.is_visible {
             return self.modal.process_key(key);
         }
 
         if self.command_palette.is_visible {
             return self.command_palette.process_key(key);
+        }
+
+        if !self.app_data.borrow().is_connected {
+            self.process_command_palette_events(key);
+            return ResponseEvent::Handled;
         }
 
         if self.ns_selector.is_visible {
@@ -220,18 +228,23 @@ impl HomePage {
             self.ask_delete_resources();
         }
 
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            self.command_palette = CommandPalette::new(
-                Rc::clone(&self.app_data),
-                ActionsList::from_kinds(&self.res_selector.select.items.list),
-                60,
-            );
-            self.command_palette.show();
-        }
+        self.process_command_palette_events(key);
 
         self.list.process_key(key);
 
         ResponseEvent::Handled
+    }
+
+    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            let actions = if self.app_data.borrow().is_connected {
+                ActionsList::from_kinds(&self.res_selector.select.items.list)
+            } else {
+                ActionsList::predefined(true)
+            };
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
+        }
     }
 
     /// Draws [`HomePage`] on the provided frame.

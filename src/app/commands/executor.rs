@@ -4,7 +4,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{app::utils::wait_for_task, kubernetes::client::KubernetesClient};
+use crate::app::utils::wait_for_task;
 
 use super::{ExecutorCommand, ExecutorResult};
 
@@ -19,7 +19,7 @@ pub struct BgExecutor {
 
 impl BgExecutor {
     /// Starts background task for commands execution
-    pub fn start(&mut self, client: &KubernetesClient) {
+    pub fn start(&mut self) {
         if self.cancellation_token.is_some() {
             return;
         }
@@ -29,7 +29,6 @@ impl BgExecutor {
 
         let (commands_tx, mut _commands_rx) = mpsc::unbounded_channel();
         let (_results_tx, results_rx) = mpsc::unbounded_channel();
-        let _client = client.get_client();
 
         let task = tokio::spawn(async move {
             while !_cancellation_token.is_cancelled() {
@@ -46,7 +45,7 @@ impl BgExecutor {
                     ExecutorCommand::ListKubeContexts(command) => command.execute().await,
                     ExecutorCommand::NewKubernetesClient(command) => command.execute().await,
                     ExecutorCommand::SaveConfiguration(command) => command.execute().await,
-                    ExecutorCommand::DeleteResource(mut command) => command.execute(&_client).await,
+                    ExecutorCommand::DeleteResource(mut command) => command.execute().await,
                 };
 
                 if let Some(result) = result {

@@ -29,6 +29,12 @@ impl<T> FilterableList<T> {
         }
     }
 
+    /// Clears the [`FilterableList<T>`], removing all values.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// Filters out the underneath list.  
     /// **Note** that the filter is cleared out every time the underneath array is modified.
     pub fn filter<F>(&mut self, f: F)

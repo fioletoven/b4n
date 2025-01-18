@@ -35,7 +35,7 @@ impl Default for BgDiscovery {
             cancellation_token: None,
             context_tx,
             context_rx,
-            has_error: Arc::new(AtomicBool::new(false)),
+            has_error: Arc::new(AtomicBool::new(true)),
         }
     }
 }
@@ -43,6 +43,10 @@ impl Default for BgDiscovery {
 impl BgDiscovery {
     /// Starts new [`BgDiscovery`] task
     pub fn start(&mut self, client: &KubernetesClient) {
+        if self.cancellation_token.is_some() {
+            self.stop();
+        }
+
         let cancellation_token = CancellationToken::new();
 
         let _cancellation_token = cancellation_token.clone();
@@ -115,6 +119,6 @@ impl Drop for BgDiscovery {
 
 /// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`]
 #[inline]
-fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
+pub fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
     discovery.groups().flat_map(|g| g.resources_by_stability()).collect()
 }

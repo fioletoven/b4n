@@ -17,9 +17,9 @@ pub struct ActionsList {
 
 impl ActionsList {
     /// Creates new [`ActionsList`] instance that can also include predefined list of actions.
-    pub fn new(actions: Vec<Action>, include_predefined: bool) -> Self {
+    pub fn new(actions: Vec<Action>, include_predefined: bool, is_disconnected: bool) -> Self {
         let mut list = ScrollableList::from(if include_predefined {
-            insert_predefined_actions(actions)
+            insert_predefined_actions(actions, is_disconnected)
         } else {
             actions
         });
@@ -28,21 +28,31 @@ impl ActionsList {
         Self { list }
     }
 
+    /// Creates new [`ActionsList`] instance with predefined actions only.
+    pub fn predefined(is_disconnected: bool) -> Self {
+        ActionsList::new(vec![], true, is_disconnected)
+    }
+
     /// Creates new [`ActionsList`] instance that will include provided kinds and predefined actions.
     pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
         if let Some(items) = &kinds.items {
             ActionsList::new(
                 items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>(),
                 true,
+                false,
             )
         } else {
-            ActionsList::new(vec![], true)
+            ActionsList::new(vec![], true, false)
         }
     }
 
     /// Creates new [`ActionsList`] instance from the list of [`NamedContext`]s.
     pub fn from_contexts(contexts: &[NamedContext]) -> Self {
-        ActionsList::new(contexts.iter().map(Action::from_context).collect::<Vec<Action>>(), false)
+        ActionsList::new(
+            contexts.iter().map(Action::from_context).collect::<Vec<Action>>(),
+            false,
+            false,
+        )
     }
 }
 
@@ -55,6 +65,7 @@ impl Responsive for ActionsList {
 impl Table for ActionsList {
     delegate! {
         to self.list {
+            fn clear(&mut self);
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
             fn filter(&mut self, filter: Option<String>);
@@ -86,7 +97,7 @@ impl Table for ActionsList {
     }
 }
 
-fn insert_predefined_actions(mut actions: Vec<Action>) -> Vec<Action> {
+fn insert_predefined_actions(mut actions: Vec<Action>, is_disconnected: bool) -> Vec<Action> {
     actions.push(
         Action::new("context")
             .with_description("changes the current kube context")
@@ -94,17 +105,20 @@ fn insert_predefined_actions(mut actions: Vec<Action>) -> Vec<Action> {
             .with_response(ResponseEvent::ListKubeContexts),
     );
     actions.push(
-        Action::new("delete")
-            .with_description("deletes selected resources")
-            .with_aliases(&["del"])
-            .with_response(ResponseEvent::AskDeleteResources),
-    );
-    actions.push(
         Action::new("quit")
             .with_description("exits the application")
             .with_aliases(&["q", "exit"])
             .with_response(ResponseEvent::ExitApplication),
     );
+
+    if !is_disconnected {
+        actions.push(
+            Action::new("delete")
+                .with_description("deletes selected resources")
+                .with_aliases(&["del"])
+                .with_response(ResponseEvent::AskDeleteResources),
+        );
+    }
 
     actions
 }

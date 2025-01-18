@@ -22,19 +22,15 @@ use crate::kubernetes::client::KubernetesClient;
 
 use super::{utils::wait_for_task, ObserverResult};
 
-/// Possible errors from [`BgObserver`]
+/// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
 pub enum BgObserverError {
-    /// [`BgObserver`] is already started.
-    #[error("observer is already started")]
-    AlreadyStarted,
-
     /// Resource was not found in k8s cluster
     #[error("kubernetes resource not found")]
     ResourceNotFound,
 }
 
-/// Background k8s resource observer
+/// Background k8s resource observer.
 pub struct BgObserver {
     resource: String,
     namespace: Option<String>,
@@ -57,13 +53,14 @@ impl Default for BgObserver {
             cancellation_token: None,
             context_tx,
             context_rx,
-            has_error: Arc::new(AtomicBool::new(false)),
+            has_error: Arc::new(AtomicBool::new(true)),
         }
     }
 }
 
 impl BgObserver {
-    /// Starts new [`BgObserver`] task
+    /// Starts new [`BgObserver`] task.  
+    /// **Note** that it stops the old task if it is running.
     pub fn start(
         &mut self,
         client: &KubernetesClient,
@@ -72,7 +69,8 @@ impl BgObserver {
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.cancellation_token.is_some() {
-            return Err(BgObserverError::AlreadyStarted);
+            self.stop();
+            self.drain();
         }
 
         let cancellation_token = CancellationToken::new();
@@ -129,7 +127,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource_name` or `new_namespace` is different than the current one
+    /// Restarts [`BgObserver`] task if `new_resource_name` or `new_namespace` is different than the current one.
     pub fn restart(
         &mut self,
         client: &KubernetesClient,
@@ -138,8 +136,6 @@ impl BgObserver {
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource_name || self.namespace != new_namespace {
-            self.stop();
-            self.drain();
             self.start(client, new_resource_name, new_namespace, discovery)?;
         }
 
@@ -161,8 +157,6 @@ impl BgObserver {
                 }
             }
 
-            self.stop();
-            self.drain();
             self.start(client, new_resource_name, namespace, discovery)?;
         }
 
@@ -177,10 +171,7 @@ impl BgObserver {
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.namespace != new_namespace {
-            let resource = self.resource.clone();
-            self.stop();
-            self.drain();
-            self.start(client, resource, new_namespace, discovery)?;
+            self.start(client, self.resource.clone(), new_namespace, discovery)?;
         }
 
         Ok(self.scope.clone())

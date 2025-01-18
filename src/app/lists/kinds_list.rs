@@ -40,6 +40,7 @@ impl Responsive for KindsList {
 impl Table for KindsList {
     delegate! {
         to self.list {
+            fn clear(&mut self);
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
             fn filter(&mut self, filter: Option<String>);

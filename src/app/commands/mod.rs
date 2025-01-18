@@ -1,7 +1,5 @@
 use kube::config::NamedContext;
 
-use crate::kubernetes::client::KubernetesClient;
-
 pub use self::cmd_delete_resources::*;
 pub use self::cmd_list_contexts::*;
 pub use self::cmd_new_kubernetes_client::*;
@@ -25,5 +23,5 @@ pub enum ExecutorCommand {
 /// List of all possible results from commands executed in the executor.
 pub enum ExecutorResult {
     ContextsList(Vec<NamedContext>),
-    KubernetesClient(KubernetesClient, String),
+    KubernetesClient(KubernetesCilentResult),
 }

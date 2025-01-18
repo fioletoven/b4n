@@ -14,20 +14,27 @@ pub struct DeleteResourcesCommand {
     pub names: Vec<String>,
     pub namespace: Option<String>,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
+    pub client: Client,
 }
 
 impl DeleteResourcesCommand {
     /// Creates new [`DeleteResourcesCommand`] instance.
-    pub fn new(names: Vec<String>, namespace: Option<String>, discovery: Option<(ApiResource, ApiCapabilities)>) -> Self {
+    pub fn new(
+        names: Vec<String>,
+        namespace: Option<String>,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        client: Client,
+    ) -> Self {
         Self {
             names,
             namespace,
             discovery,
+            client,
         }
     }
 
     /// Deletes all resources using provided client.
-    pub async fn execute(&mut self, client: &Client) -> Option<ExecutorResult> {
+    pub async fn execute(&mut self) -> Option<ExecutorResult> {
         let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::DELETE) {
             return None;
@@ -41,7 +48,7 @@ impl DeleteResourcesCommand {
         let client = kubernetes::client::get_dynamic_api(
             discovery.0.clone(),
             discovery.1.clone(),
-            client.clone(),
+            self.client.clone(),
             namespace,
             namespace.is_none(),
         );

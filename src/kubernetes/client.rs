@@ -100,6 +100,24 @@ impl DerefMut for KubernetesClient {
     }
 }
 
+/// Returns matching context from the kube config for the provided one.  
+/// **Note** that it can `fallback_to_default` if the provided contex is not found in kube config.
+pub async fn get_context(kube_context: Option<&str>, fallback_to_default: bool) -> Result<Option<String>, ClientError> {
+    let config = get_kube_config().await?;
+    let Some(context) = kube_context else {
+        return Ok(config.current_context);
+    };
+
+    let context = config.contexts.into_iter().find(|c| c.name == context);
+    if let Some(context) = context {
+        Ok(Some(context.name))
+    } else if fallback_to_default {
+        Ok(config.current_context)
+    } else {
+        Ok(None)
+    }
+}
+
 /// Returns contexts from the kube config.
 pub async fn list_contexts() -> Result<Vec<NamedContext>, ClientError> {
     Ok(get_kube_config().await?.contexts)
