@@ -190,7 +190,8 @@ impl App {
     /// Changes observed resources kind, optionally selects one of them.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
-        let scope = self.worker.restart_new_kind(kind)?;
+        let namespace = self.data.borrow().current.namespace.clone();
+        let scope = self.worker.restart_new_kind(kind, namespace)?;
         self.page.highlight_next(to_select);
         self.set_page_view(scope);
 

@@ -142,18 +142,20 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource_name` is different than the current one
+    /// Restarts [`BgObserver`] task if `new_resource_name` is different than the current one.  
+    /// **Note** that it uses `new_namespace` if resource is namespaced.
     pub fn restart_new_kind(
         &mut self,
         client: &KubernetesClient,
         new_resource_name: String,
+        new_namespace: String,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource_name {
             let mut namespace = None;
             if let Some((_, cap)) = &discovery {
                 if cap.scope == Scope::Namespaced {
-                    namespace = self.namespace.clone();
+                    namespace = Some(new_namespace);
                 }
             }
 

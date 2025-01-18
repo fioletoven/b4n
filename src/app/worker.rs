@@ -19,8 +19,8 @@ pub enum BgWorkerError {
     #[error("kubernetes client is not provided")]
     NoKubernetesClient,
 
-    /// The observer underneath returned an error.
-    #[error("underneath observer error")]
+    /// The background observer returned an error.
+    #[error("background observer error")]
     BgObserverError(#[from] BgObserverError),
 }
 
@@ -66,9 +66,8 @@ impl BgWorker {
 
     /// Restarts (if needed) the resources observer to change observed resource kind and namespace
     pub fn restart(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
-        let discovery = self.get_resource(&resource_name);
-
         if let Some(client) = &self.client {
+            let discovery = self.get_resource(&resource_name);
             Ok(self.resources.restart(client, resource_name, resource_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -76,11 +75,12 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind
-    pub fn restart_new_kind(&mut self, resource_name: String) -> Result<Scope, BgWorkerError> {
-        let discovery = self.get_resource(&resource_name);
-
+    pub fn restart_new_kind(&mut self, resource_name: String, last_namespace: String) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            Ok(self.resources.restart_new_kind(client, resource_name, discovery)?)
+            let discovery = self.get_resource(&resource_name);
+            Ok(self
+                .resources
+                .restart_new_kind(client, resource_name, last_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -88,9 +88,8 @@ impl BgWorker {
 
     /// Restarts (if needed) the resources observer to change observed namespace
     pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
-        let discovery = self.get_resource(self.resources.get_resource_name());
-
         if let Some(client) = &self.client {
+            let discovery = self.get_resource(self.resources.get_resource_name());
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
