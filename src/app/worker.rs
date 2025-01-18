@@ -4,6 +4,7 @@ use kube::{
     discovery::{verbs, ApiCapabilities, Scope},
 };
 use std::time::Duration;
+use thiserror;
 use tokio::time::sleep;
 
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
@@ -13,13 +14,32 @@ use super::{
     BgDiscovery, BgObserver, BgObserverError, Config,
 };
 
+/// Possible errors from [`BgWorkerError`]
+#[derive(thiserror::Error, Debug)]
+pub enum BgWorkerError {
+    /// There is no kubernetes client to use.
+    #[error("kubernetes client is not provided")]
+    NoKubernetesClient,
+
+    /// The observer underneath returned an error.
+    #[error("underneath observer error")]
+    BgObserverError(#[from] BgObserverError),
+}
+
+/// Result that is returned after the background worker is started.
+pub struct StartResult {
+    pub context: String,
+    pub k8s_version: String,
+    pub scope: Scope,
+}
+
 /// Keeps together all application background workers
 pub struct BgWorker {
     pub namespaces: BgObserver,
     pub resources: BgObserver,
     discovery: BgDiscovery,
     executor: BgExecutor,
-    client: KubernetesClient,
+    client: Option<KubernetesClient>,
     list: Option<Vec<(ApiResource, ApiCapabilities)>>,
 }
 
@@ -31,44 +51,70 @@ impl BgWorker {
             resources: BgObserver::default(),
             discovery: BgDiscovery::default(),
             executor: BgExecutor::default(),
-            client,
+            client: Some(client),
             list: None,
         }
     }
 
     /// Starts all background observers that application requires to work.  
-    /// Consumes the first event from [`BgDiscovery`] as it waits to populate list of resources.
-    pub async fn start(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgObserverError> {
-        self.start_discovery().await;
+    /// **Note** that it consumes the first event from [`BgDiscovery`] as it waits to populate list of resources.
+    pub async fn start(
+        &mut self,
+        resource_name: String,
+        resource_namespace: Option<String>,
+    ) -> Result<StartResult, BgWorkerError> {
+        self.start_discovery().await?;
 
-        self.executor.start(&self.client);
+        let Some(client) = &self.client else {
+            return Err(BgWorkerError::NoKubernetesClient);
+        };
+
+        self.executor.start(client);
 
         let discovery = self.get_resource(NAMESPACES);
-        self.namespaces.start(&self.client, NAMESPACES.to_owned(), None, discovery)?;
+        self.namespaces.start(client, NAMESPACES.to_owned(), None, discovery)?;
 
         let discovery = self.get_resource(&resource_name);
-        self.resources
-            .start(&self.client, resource_name, resource_namespace, discovery)
+        let scope = self.resources.start(client, resource_name, resource_namespace, discovery)?;
+
+        Ok(StartResult {
+            context: client.context().to_owned(),
+            k8s_version: client.k8s_version().to_owned(),
+            scope,
+        })
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind and namespace
-    pub fn restart(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgObserverError> {
+    pub fn restart(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
         let discovery = self.get_resource(&resource_name);
-        self.resources
-            .restart(&self.client, resource_name, resource_namespace, discovery)
+
+        if let Some(client) = &self.client {
+            Ok(self.resources.restart(client, resource_name, resource_namespace, discovery)?)
+        } else {
+            Err(BgWorkerError::NoKubernetesClient)
+        }
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind
-    pub fn restart_new_kind(&mut self, resource_name: String) -> Result<Scope, BgObserverError> {
+    pub fn restart_new_kind(&mut self, resource_name: String) -> Result<Scope, BgWorkerError> {
         let discovery = self.get_resource(&resource_name);
-        self.resources.restart_new_kind(&self.client, resource_name, discovery)
+
+        if let Some(client) = &self.client {
+            Ok(self.resources.restart_new_kind(client, resource_name, discovery)?)
+        } else {
+            Err(BgWorkerError::NoKubernetesClient)
+        }
     }
 
     /// Restarts (if needed) the resources observer to change observed namespace
-    pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgObserverError> {
+    pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
         let discovery = self.get_resource(self.resources.get_resource_name());
-        self.resources
-            .restart_new_namespace(&self.client, resource_namespace, discovery)
+
+        if let Some(client) = &self.client {
+            Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
+        } else {
+            Err(BgWorkerError::NoKubernetesClient)
+        }
     }
 
     /// Stops all background tasks running in the application
@@ -137,19 +183,13 @@ impl BgWorker {
         self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 
-    /// Returns kube context name
-    pub fn context(&self) -> &str {
-        self.client.context()
-    }
-
-    /// Returns kubernetes API version
-    pub fn k8s_version(&self) -> &str {
-        self.client.k8s_version()
-    }
-
     /// Starts kubernetes resources discovery and waits for the first result
-    async fn start_discovery(&mut self) {
-        self.discovery.start(&self.client);
+    async fn start_discovery(&mut self) -> Result<(), BgWorkerError> {
+        let Some(client) = &self.client else {
+            return Err(BgWorkerError::NoKubernetesClient);
+        };
+
+        self.discovery.start(client);
 
         let mut discovery = self.discovery.try_next();
         while discovery.is_none() {
@@ -158,6 +198,7 @@ impl BgWorker {
         }
 
         self.list = discovery;
+        Ok(())
     }
 
     /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  

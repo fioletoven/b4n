@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand, NewKubernetesClientCommand},
-    AppData, BgObserverError, BgWorker, Config, ConfigWatcher, ContextInfo, SharedAppData,
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
 /// Application execution flow.
@@ -48,13 +48,9 @@ impl App {
     pub async fn start(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<()> {
         let namespace = resource_namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
         let kind = resource_name.clone();
-        let scope = self.worker.start(resource_name, resource_namespace).await?;
-        self.page.set_resources_info(
-            self.worker.context().to_owned(),
-            namespace.clone(),
-            self.worker.k8s_version().to_owned(),
-            scope,
-        );
+        let result = self.worker.start(resource_name, resource_namespace).await?;
+        self.page
+            .set_resources_info(result.context, namespace.clone(), result.k8s_version, result.scope);
 
         self.watcher.start()?;
         self.update_configuration(Some(kind), Some(namespace));
@@ -154,7 +150,7 @@ impl App {
     }
 
     /// Changes observed resources namespace and kind.
-    fn change(&mut self, kind: String, namespace: String) -> Result<(), BgObserverError> {
+    fn change(&mut self, kind: String, namespace: String) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
         let scope = if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
@@ -170,7 +166,7 @@ impl App {
     }
 
     /// Changes observed resources kind, optionally selects one of them.
-    fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgObserverError> {
+    fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
         let scope = self.worker.restart_new_kind(kind)?;
         self.page.highlight_next(to_select);
@@ -180,7 +176,7 @@ impl App {
     }
 
     /// Changes namespace for observed resources.
-    fn change_namespace(&mut self, namespace: String) -> Result<(), BgObserverError> {
+    fn change_namespace(&mut self, namespace: String) -> Result<(), BgWorkerError> {
         self.update_configuration(None, Some(namespace.clone()));
         if namespace == ALL_NAMESPACES {
             self.page.set_namespace(namespace, ViewType::Full);
@@ -194,7 +190,7 @@ impl App {
     }
 
     /// Changes observed resources kind to `namespaces` and selects provided namespace.
-    fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgObserverError> {
+    fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgWorkerError> {
         self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
         Ok(())
     }
@@ -237,7 +233,8 @@ impl App {
         }
 
         {
-            self.data.borrow_mut().config.context = Some(self.worker.context().to_owned());
+            let context = { self.data.borrow().current.context.clone() };
+            self.data.borrow_mut().config.current_context = Some(context);
         }
 
         self.watcher.skip_next();

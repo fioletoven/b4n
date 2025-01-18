@@ -63,7 +63,7 @@ impl ContextInfo {
 /// Application configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Config {
-    pub context: Option<String>,
+    pub current_context: Option<String>,
     pub contexts: Vec<ContextInfo>,
     pub theme: Theme,
 }

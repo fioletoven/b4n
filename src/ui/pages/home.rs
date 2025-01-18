@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use kube::discovery::Scope;
+use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame,
@@ -11,10 +11,7 @@ use crate::{
         lists::{ActionsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
-    kubernetes::{
-        resources::{Context, Kind},
-        ALL_NAMESPACES, NAMESPACES,
-    },
+    kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
@@ -165,7 +162,7 @@ impl HomePage {
     }
 
     /// Displays a list of available contexts to choose from.
-    pub fn show_contexts_list(&mut self, list: Vec<Context>) {
+    pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), ActionsList::from_contexts(&list), 60);
         self.command_palette.set_prompt("context");
         self.command_palette.select(&self.app_data.borrow().current.context);

@@ -1,9 +1,6 @@
-use crate::{
-    app::lists::Row,
-    kubernetes::resources::{Context, Kind},
-    ui::ResponseEvent,
-    utils::truncate,
-};
+use kube::config::NamedContext;
+
+use crate::{app::lists::Row, kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
 
 /// Command palette action.
 #[derive(Default)]
@@ -40,14 +37,18 @@ impl Action {
         }
     }
 
-    /// Creates new [`Action`] instance from [`Context`].
-    pub fn from_context(context: &Context) -> Self {
+    /// Creates new [`Action`] instance from [`NamedContext`].
+    pub fn from_context(context: &NamedContext) -> Self {
         Self {
-            uid: context.uid().map(String::from),
+            uid: Some(format!(
+                "_{}:{}_",
+                context.name,
+                context.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default()
+            )),
             group: "context".to_owned(),
             name: context.name.clone(),
             response: ResponseEvent::ChangeContext(context.name.clone()),
-            description: context.cluster.clone(),
+            description: context.context.as_ref().map(|c| c.cluster.clone()),
             ..Default::default()
         }
     }

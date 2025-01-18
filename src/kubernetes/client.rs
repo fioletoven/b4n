@@ -1,6 +1,6 @@
 use kube::{
     api::{ApiResource, DynamicObject},
-    config::Kubeconfig,
+    config::{Kubeconfig, NamedContext},
     discovery::{ApiCapabilities, Scope},
     Api, Client, Config,
 };
@@ -8,8 +8,6 @@ use std::ops::{Deref, DerefMut};
 use thiserror;
 use tokio::{fs::File, io::AsyncReadExt};
 use tracing::error;
-
-use super::resources::Context;
 
 /// Possible errors from building kubernetes client.
 #[derive(thiserror::Error, Debug)]
@@ -103,13 +101,8 @@ impl DerefMut for KubernetesClient {
 }
 
 /// Returns contexts from the kube config.
-pub async fn list_contexts() -> Result<Vec<Context>, ClientError> {
-    let kube_config = get_kube_config().await?;
-    Ok(kube_config
-        .contexts
-        .iter()
-        .map(|c| Context::new(c.name.clone(), c.context.as_ref().map(|c| c.cluster.clone())))
-        .collect())
+pub async fn list_contexts() -> Result<Vec<NamedContext>, ClientError> {
+    Ok(get_kube_config().await?.contexts)
 }
 
 /// Gets dynamic api client for given `resource` and `namespace`.

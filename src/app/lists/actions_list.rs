@@ -1,9 +1,9 @@
+use delegate::delegate;
+use kube::config::NamedContext;
 use std::collections::HashMap;
 
-use delegate::delegate;
-
 use crate::{
-    kubernetes::resources::{Context, Kind},
+    kubernetes::resources::Kind,
     ui::{colors::TextColors, theme::Theme, widgets::Action, ResponseEvent, Responsive, Table, ViewType},
 };
 
@@ -40,8 +40,8 @@ impl ActionsList {
         }
     }
 
-    /// Creates new [`ActionsList`] instance from the list of [`Context`]s.
-    pub fn from_contexts(contexts: &[Context]) -> Self {
+    /// Creates new [`ActionsList`] instance from the list of [`NamedContext`]s.
+    pub fn from_contexts(contexts: &[NamedContext]) -> Self {
         ActionsList::new(contexts.iter().map(Action::from_context).collect::<Vec<Action>>(), false)
     }
 }

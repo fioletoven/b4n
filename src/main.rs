@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     let args = cli::Args::parse();
     let config = Config::load_or_create().await?;
-    let client = KubernetesClient::new(args.context(config.context.as_deref()), args.context.is_none()).await?;
+    let client = KubernetesClient::new(args.context(config.current_context.as_deref()), args.context.is_none()).await?;
     let resource = args.kind(config.get_kind(client.context())).unwrap_or("pods").to_owned();
     let namespace = args.namespace(config.get_namespace(client.context())).map(String::from);
 
