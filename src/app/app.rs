@@ -300,6 +300,10 @@ impl App {
             namespace = Some(&data.current.namespace);
         }
 
+        if namespace.is_some_and(|n| n == ALL_NAMESPACES) {
+            namespace = None;
+        }
+
         (kind.unwrap_or_default().to_owned(), namespace.map(String::from))
     }
 }
