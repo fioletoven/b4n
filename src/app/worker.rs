@@ -75,12 +75,10 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind.
-    pub fn restart_new_kind(&mut self, resource_name: String, last_namespace: String) -> Result<Scope, BgWorkerError> {
+    pub fn restart_new_kind(&mut self, kind: String, last_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = self.get_resource(&resource_name);
-            Ok(self
-                .resources
-                .restart_new_kind(client, resource_name, last_namespace, discovery)?)
+            let discovery = self.get_resource(&kind);
+            Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }

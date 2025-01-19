@@ -191,6 +191,7 @@ impl App {
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
         let namespace = self.data.borrow().current.namespace.clone();
+        let namespace = if namespace == ALL_NAMESPACES { None } else { Some(namespace) };
         let scope = self.worker.restart_new_kind(kind, namespace)?;
         self.page.highlight_next(to_select);
         self.set_page_view(scope);

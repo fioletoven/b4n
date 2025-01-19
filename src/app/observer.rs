@@ -147,19 +147,19 @@ impl BgObserver {
     pub fn restart_new_kind(
         &mut self,
         client: &KubernetesClient,
-        new_resource_name: String,
-        new_namespace: String,
+        new_kind: String,
+        new_namespace: Option<String>,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource != new_resource_name {
+        if self.resource != new_kind {
             let mut namespace = None;
             if let Some((_, cap)) = &discovery {
                 if cap.scope == Scope::Namespaced {
-                    namespace = Some(new_namespace);
+                    namespace = new_namespace;
                 }
             }
 
-            self.start(client, new_resource_name, namespace, discovery)?;
+            self.start(client, new_kind, namespace, discovery)?;
         }
 
         Ok(self.scope.clone())
