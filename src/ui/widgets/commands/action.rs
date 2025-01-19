@@ -1,10 +1,10 @@
-use crate::{kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
+use kube::config::NamedContext;
 
-use super::Row;
+use crate::{app::lists::Row, kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
 
-/// Command list item.
+/// Command palette action.
 #[derive(Default)]
-pub struct Command {
+pub struct Action {
     pub uid: Option<String>,
     pub group: String,
     pub name: String,
@@ -14,25 +14,41 @@ pub struct Command {
     aliases: Option<Vec<String>>,
 }
 
-impl Command {
-    /// Creates new [`Command`] instance.
+impl Action {
+    /// Creates new [`Action`] instance.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_command:{}_", name)),
-            group: "command".to_owned(),
+            uid: Some(format!("_action:{}_", name)),
+            group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some("".to_owned()),
             ..Default::default()
         }
     }
 
-    /// Creates new [`Command`] instance from [`Kind`].
-    pub fn from(kind: &Kind) -> Self {
+    /// Creates new [`Action`] instance from [`Kind`].
+    pub fn from_kind(kind: &Kind) -> Self {
         Self {
             uid: kind.uid().map(String::from),
             group: "resource".to_owned(),
             name: kind.name().to_owned(),
             response: ResponseEvent::ChangeKind(kind.name().to_owned()),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`Action`] instance from [`NamedContext`].
+    pub fn from_context(context: &NamedContext) -> Self {
+        Self {
+            uid: Some(format!(
+                "_{}:{}_",
+                context.name,
+                context.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default()
+            )),
+            group: "context".to_owned(),
+            name: context.name.clone(),
+            response: ResponseEvent::ChangeContext(context.name.clone()),
+            description: context.context.as_ref().map(|c| c.cluster.clone()),
             ..Default::default()
         }
     }
@@ -71,7 +87,7 @@ impl Command {
     }
 }
 
-impl Row for Command {
+impl Row for Action {
     fn uid(&self) -> Option<&str> {
         self.uid.as_deref()
     }
@@ -107,7 +123,7 @@ impl Row for Command {
         }
     }
 
-    /// Returns `true` if the given `pattern` is found in the command name or its aliases.
+    /// Returns `true` if the given `pattern` is found in the action name or its aliases.
     fn contains(&self, pattern: &str) -> bool {
         if self.name.contains(pattern) {
             return true;
@@ -120,7 +136,7 @@ impl Row for Command {
         false
     }
 
-    /// Returns `true` if the command name or its aliases starts with the given `pattern`.
+    /// Returns `true` if the action name or its aliases starts with the given `pattern`.
     fn starts_with(&self, pattern: &str) -> bool {
         if self.name.starts_with(pattern) {
             return true;
@@ -133,7 +149,7 @@ impl Row for Command {
         false
     }
 
-    /// Returns `true` if the given `pattern` is equal to the command name or its aliases.
+    /// Returns `true` if the given `pattern` is equal to the action name or its aliases.
     fn is_equal(&self, pattern: &str) -> bool {
         if self.name == pattern {
             return true;

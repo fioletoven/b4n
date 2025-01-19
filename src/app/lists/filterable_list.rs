@@ -29,8 +29,14 @@ impl<T> FilterableList<T> {
         }
     }
 
+    /// Clears the [`FilterableList<T>`], removing all values.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// Filters out the underneath list.  
-    /// __Note__: _the filter is cleared out every time the underneath array is modified_
+    /// **Note** that the filter is cleared out every time the underneath array is modified.
     pub fn filter<F>(&mut self, f: F)
     where
         F: Fn(&T) -> bool,
@@ -66,14 +72,14 @@ impl<T> FilterableList<T> {
     }
 
     /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.  
-    /// __Note__: _clears the current filter_
+    /// **Note** that this clears the current filter.
     pub fn insert(&mut self, index: usize, element: T) {
         self.items.insert(index, element);
         self.filter_reset();
     }
 
     /// Appends an element to the back of a collection.  
-    /// __Note__: _clears the current filter_
+    /// **Note** that this clears the current filter.
     pub fn push(&mut self, value: T) {
         self.items.push(value);
         self.filter_reset();
@@ -96,7 +102,7 @@ impl<T> FilterableList<T> {
     }
 
     /// Sorts the underneath collection with a comparison function, preserving initial order of equal elements.  
-    /// __Note__: _clears the current filter_
+    /// **Note** that this clears the current filter.
     pub fn full_sort_by<F>(&mut self, compare: F)
     where
         F: FnMut(&T, &T) -> Ordering,
@@ -106,7 +112,7 @@ impl<T> FilterableList<T> {
     }
 
     /// Retains only the elements specified by the predicate in the underneath collection.  
-    /// __Note__: _clears the current filter_
+    /// **Note** that this clears the current filter.
     pub fn full_retain<F>(&mut self, f: F)
     where
         F: FnMut(&T) -> bool,

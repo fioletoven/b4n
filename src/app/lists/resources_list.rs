@@ -163,6 +163,13 @@ impl Table for ResourcesList {
         }
     }
 
+    fn clear(&mut self) {
+        self.list.clear();
+        self.kind = String::new();
+        self.kind_plural = String::new();
+        self.group = String::new();
+    }
+
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
             let (namespace_width, name_width, name_extra_width) = self.get_widths(view, width);

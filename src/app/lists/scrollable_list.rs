@@ -47,6 +47,13 @@ impl<T: Row> ScrollableList<T> {
         }
     }
 
+    /// Clears the [`ScrollableList`], removing all values.
+    pub fn clear(&mut self) {
+        if let Some(items) = &mut self.items {
+            items.clear();
+        }
+    }
+
     /// Returns the number of elements in the scrollable list.
     pub fn len(&self) -> usize {
         self.items.as_ref().map(|l| l.len()).unwrap_or_default()

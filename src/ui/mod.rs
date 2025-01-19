@@ -37,6 +37,9 @@ pub trait Responsive {
 
 /// UI object that behaves like table
 pub trait Table: Responsive {
+    /// Clears the list, removing all values.
+    fn clear(&mut self);
+
     /// Returns the number of elements in the list.
     fn len(&self) -> usize;
 

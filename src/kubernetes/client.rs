@@ -1,11 +1,12 @@
 use kube::{
     api::{ApiResource, DynamicObject},
-    config::Kubeconfig,
+    config::{Kubeconfig, NamedContext},
     discovery::{ApiCapabilities, Scope},
     Api, Client, Config,
 };
 use std::ops::{Deref, DerefMut};
 use thiserror;
+use tokio::{fs::File, io::AsyncReadExt};
 use tracing::error;
 
 /// Possible errors from building kubernetes client.
@@ -14,6 +15,10 @@ pub enum ClientError {
     /// Failed to determine users home directory.
     #[error("failed to determine users home directory")]
     HomeDirNotFound,
+
+    /// Failed to read kube configuration.
+    #[error("failed to read kube configuration")]
+    IoError(#[from] std::io::Error),
 
     /// Failed to process kube configuration.
     #[error("failed to process kube configuration")]
@@ -95,6 +100,29 @@ impl DerefMut for KubernetesClient {
     }
 }
 
+/// Returns matching context from the kube config for the provided one.  
+/// **Note** that it can `fallback_to_default` if the provided contex is not found in kube config.
+pub async fn get_context(kube_context: Option<&str>, fallback_to_default: bool) -> Result<Option<String>, ClientError> {
+    let config = get_kube_config().await?;
+    let Some(context) = kube_context else {
+        return Ok(config.current_context);
+    };
+
+    let context = config.contexts.into_iter().find(|c| c.name == context);
+    if let Some(context) = context {
+        Ok(Some(context.name))
+    } else if fallback_to_default {
+        Ok(config.current_context)
+    } else {
+        Ok(None)
+    }
+}
+
+/// Returns contexts from the kube config.
+pub async fn list_contexts() -> Result<Vec<NamedContext>, ClientError> {
+    Ok(get_kube_config().await?.contexts)
+}
+
 /// Gets dynamic api client for given `resource` and `namespace`.
 pub fn get_dynamic_api(
     ar: ApiResource,
@@ -134,14 +162,14 @@ async fn get_client(kube_context: Option<&str>) -> Result<(Client, String), Clie
         Some(ctx) => Ok((get_client_for_context(ctx).await?, ctx.to_owned())),
         None => Ok((
             Client::try_default().await?,
-            get_kube_config()?.current_context.unwrap_or_default(),
+            get_kube_config().await?.current_context.unwrap_or_default(),
         )),
     }
 }
 
 /// Creates kubernetes client for the provided context.
 async fn get_client_for_context(kube_context: &str) -> Result<Client, ClientError> {
-    let kube_config = get_kube_config()?;
+    let kube_config = get_kube_config().await?;
     let kube_config_options = kube::config::KubeConfigOptions {
         context: Some(String::from(kube_context)),
         user: None,
@@ -153,9 +181,15 @@ async fn get_client_for_context(kube_context: &str) -> Result<Client, ClientErro
 }
 
 /// Returns kube config.
-fn get_kube_config() -> Result<Kubeconfig, ClientError> {
-    let mut kube_config_path = dirs::home_dir().ok_or(ClientError::HomeDirNotFound)?;
-    kube_config_path.push(".kube/config");
+async fn get_kube_config() -> Result<Kubeconfig, ClientError> {
+    let kube_config_path = dirs::home_dir()
+        .map(|h| h.join(".kube").join("config"))
+        .ok_or(ClientError::HomeDirNotFound)?;
 
-    Ok(Kubeconfig::read_from(kube_config_path)?)
+    let mut file = File::open(kube_config_path).await?;
+
+    let mut kube_config_str = String::new();
+    file.read_to_string(&mut kube_config_str).await?;
+
+    Ok(Kubeconfig::from_yaml(&kube_config_str)?)
 }

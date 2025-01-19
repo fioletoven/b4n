@@ -3,34 +3,41 @@ use kube::{
     discovery::{verbs, ApiCapabilities, Scope},
     Client,
 };
+use tracing::error;
 
 use crate::kubernetes;
 
-/// Command that deletes all named resources for provided namespace and discovery
+use super::ExecutorResult;
+
+/// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
     pub names: Vec<String>,
     pub namespace: Option<String>,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
+    pub client: Client,
 }
 
 impl DeleteResourcesCommand {
-    /// Creates new [`DeleteResourcesCommand`] instance
-    pub fn new(names: Vec<String>, namespace: Option<String>, discovery: Option<(ApiResource, ApiCapabilities)>) -> Self {
+    /// Creates new [`DeleteResourcesCommand`] instance.
+    pub fn new(
+        names: Vec<String>,
+        namespace: Option<String>,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        client: Client,
+    ) -> Self {
         Self {
             names,
             namespace,
             discovery,
+            client,
         }
     }
 
-    /// Deletes all resources using provided client
-    pub async fn execute(&mut self, client: &Client) -> bool {
-        let Some(discovery) = self.discovery.take() else {
-            return false;
-        };
-
+    /// Deletes all resources using provided client.
+    pub async fn execute(&mut self) -> Option<ExecutorResult> {
+        let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::DELETE) {
-            return false;
+            return None;
         }
 
         let namespace = if discovery.1.scope == Scope::Cluster {
@@ -41,19 +48,18 @@ impl DeleteResourcesCommand {
         let client = kubernetes::client::get_dynamic_api(
             discovery.0.clone(),
             discovery.1.clone(),
-            client.clone(),
+            self.client.clone(),
             namespace,
             namespace.is_none(),
         );
 
-        let mut result = true;
         for name in &self.names {
             let deleted = client.delete(name, &DeleteParams::default()).await;
-            if deleted.is_err() {
-                result = false;
+            if let Err(error) = deleted {
+                error!("Cannot delete resource {}: {}", name, error);
             }
         }
 
-        result
+        None
     }
 }

@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use kube::discovery::Scope;
+use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame,
@@ -8,7 +8,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{CommandsList, KindsList, ResourcesList},
+        lists::{ActionsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
@@ -69,6 +69,13 @@ impl HomePage {
             res_selector,
             highlight_next: None,
         }
+    }
+
+    /// Resets all data on a home page.
+    pub fn reset(&mut self) {
+        self.list.items.clear();
+        self.ns_selector.select.items.clear();
+        self.res_selector.select.items.clear();
     }
 
     /// Sets initial kubernetes resources data for [`HomePage`].
@@ -153,12 +160,20 @@ impl HomePage {
         self.res_selector.select.items.update(kinds, 1, false);
     }
 
-    /// Shows delete resources dialog if anyting is selected.
+    /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
         if self.list.items.is_anything_selected() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
+    }
+
+    /// Displays a list of available contexts to choose from.
+    pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), ActionsList::from_contexts(&list), 60);
+        self.command_palette.set_prompt("context");
+        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette.show();
     }
 
     /// Process TUI event.
@@ -169,16 +184,17 @@ impl HomePage {
             return ResponseEvent::ExitApplication;
         }
 
-        if !self.app_data.borrow().is_connected {
-            return ResponseEvent::Handled;
-        }
-
         if self.modal.is_visible {
             return self.modal.process_key(key);
         }
 
         if self.command_palette.is_visible {
             return self.command_palette.process_key(key);
+        }
+
+        if !self.app_data.borrow().is_connected {
+            self.process_command_palette_events(key);
+            return ResponseEvent::Handled;
         }
 
         if self.ns_selector.is_visible {
@@ -212,18 +228,23 @@ impl HomePage {
             self.ask_delete_resources();
         }
 
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            self.command_palette = CommandPalette::new(
-                Rc::clone(&self.app_data),
-                CommandsList::from(&self.res_selector.select.items.list),
-                60,
-            );
-            self.command_palette.show();
-        }
+        self.process_command_palette_events(key);
 
         self.list.process_key(key);
 
         ResponseEvent::Handled
+    }
+
+    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            let actions = if self.app_data.borrow().is_connected {
+                ActionsList::from_kinds(&self.res_selector.select.items.list)
+            } else {
+                ActionsList::predefined(true)
+            };
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
+        }
     }
 
     /// Draws [`HomePage`] on the provided frame.

@@ -63,7 +63,7 @@ impl ContextInfo {
 /// Application configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Config {
-    pub context: Option<String>,
+    pub current_context: Option<String>,
     pub contexts: Vec<ContextInfo>,
     pub theme: Theme,
 }
@@ -136,10 +136,7 @@ impl Config {
 
 fn get_default_config_dir() -> PathBuf {
     match home::home_dir() {
-        Some(mut path) => {
-            path.push(format!(".{}/config.yaml", env!("CARGO_CRATE_NAME")));
-            path
-        }
+        Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("config.yaml"),
         None => PathBuf::from("config.yaml"),
     }
 }
