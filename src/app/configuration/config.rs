@@ -136,10 +136,7 @@ impl Config {
 
 fn get_default_config_dir() -> PathBuf {
     match home::home_dir() {
-        Some(mut path) => {
-            path.push(format!(".{}/config.yaml", env!("CARGO_CRATE_NAME")));
-            path
-        }
+        Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("config.yaml"),
         None => PathBuf::from("config.yaml"),
     }
 }

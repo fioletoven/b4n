@@ -142,7 +142,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource_name` is different than the current one.  
+    /// Restarts [`BgObserver`] task if `new_resource_name` is different from the current one.
     /// **Note** that it uses `new_namespace` if resource is namespaced.
     pub fn restart_new_kind(
         &mut self,
@@ -165,7 +165,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_namespace` is different than the current one
+    /// Restarts [`BgObserver`] task if `new_namespace` is different than the current one.
     pub fn restart_new_namespace(
         &mut self,
         client: &KubernetesClient,
@@ -179,39 +179,38 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Cancels [`BgObserver`] task
+    /// Cancels [`BgObserver`] task.
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
-        }
-    }
-
-    /// Cancels [`BgObserver`] task and waits until it is finished
-    pub fn stop(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-            wait_for_task(self.task.take(), "discovery");
             self.resource = String::new();
             self.namespace = None;
+            self.has_error.store(true, Ordering::Relaxed);
         }
     }
 
-    /// Tries to get next [`ObserverResult`]
+    /// Cancels [`BgObserver`] task and waits until it is finished.
+    pub fn stop(&mut self) {
+        self.cancel();
+        wait_for_task(self.task.take(), "discovery");
+    }
+
+    /// Tries to get next [`ObserverResult`].
     pub fn try_next(&mut self) -> Option<ObserverResult> {
         self.context_rx.try_recv().ok()
     }
 
-    /// Drains waiting [`ObserverResult`]s
+    /// Drains waiting [`ObserverResult`]s.
     pub fn drain(&mut self) {
         while self.context_rx.try_recv().is_ok() {}
     }
 
-    /// Returns currently observed resource name
+    /// Returns currently observed resource name.
     pub fn get_resource_name(&self) -> &str {
         &self.resource
     }
 
-    /// Returns `true` if observer is in an error state
+    /// Returns `true` if observer is not running or is in an error state.
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }

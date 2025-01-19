@@ -100,10 +100,8 @@ impl ConfigWatcher {
 
     /// Cancels [`ConfigWatcher`] task and waits until it is finished.
     pub fn stop(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-            wait_for_task(self.task.take(), "configuration watcher");
-        }
+        self.cancel();
+        wait_for_task(self.task.take(), "configuration watcher");
     }
 
     /// Sets watcher to skip the next modification event.

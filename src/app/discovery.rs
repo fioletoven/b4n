@@ -89,15 +89,14 @@ impl BgDiscovery {
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
+            self.has_error.store(true, Ordering::Relaxed);
         }
     }
 
     /// Cancels [`BgDiscovery`] task and waits until it is finished
     pub fn stop(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-            wait_for_task(self.task.take(), "discovery");
-        }
+        self.cancel();
+        wait_for_task(self.task.take(), "discovery");
     }
 
     /// Tries to get next discovery result
@@ -105,7 +104,7 @@ impl BgDiscovery {
         self.context_rx.try_recv().ok()
     }
 
-    /// Returns `true` if discovery is in an error state
+    /// Returns `true` if discovery is not running or is in an error state.
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }

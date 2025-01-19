@@ -5,7 +5,7 @@ use crate::{app::discovery::convert_to_vector, kubernetes::client::KubernetesCli
 use super::ExecutorResult;
 
 /// Result for the [`NewKubernetesClientCommand`].
-pub struct KubernetesCilentResult {
+pub struct KubernetesClientResult {
     pub client: KubernetesClient,
     pub kind: String,
     pub namespace: Option<String>,
@@ -33,7 +33,7 @@ impl NewKubernetesClientCommand {
     pub async fn execute(&self) -> Option<ExecutorResult> {
         if let Ok(client) = KubernetesClient::new(Some(&self.context), false).await {
             if let Ok(discovery) = Discovery::new(client.get_client()).run().await {
-                return Some(ExecutorResult::KubernetesClient(KubernetesCilentResult {
+                return Some(ExecutorResult::KubernetesClient(KubernetesClientResult {
                     client,
                     kind: self.kind.clone(),
                     namespace: self.namespace.clone(),

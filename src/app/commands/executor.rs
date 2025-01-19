@@ -8,7 +8,7 @@ use crate::app::utils::wait_for_task;
 
 use super::{ExecutorCommand, ExecutorResult};
 
-/// Background commands executor
+/// Background commands executor.
 #[derive(Default)]
 pub struct BgExecutor {
     task: Option<JoinHandle<()>>,
@@ -18,7 +18,7 @@ pub struct BgExecutor {
 }
 
 impl BgExecutor {
-    /// Starts background task for commands execution
+    /// Starts background task for commands execution.
     pub fn start(&mut self) {
         if self.cancellation_token.is_some() {
             return;
@@ -60,24 +60,22 @@ impl BgExecutor {
         self.task = Some(task);
     }
 
-    /// Cancels [`BgExecutor`] task
+    /// Cancels [`BgExecutor`] task.
     pub fn cancel(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-        }
-    }
-
-    /// Cancels [`BgExecutor`] task and waits until it is finished
-    pub fn stop(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
             self.commands_tx = None;
             self.results_rx = None;
-            wait_for_task(self.task.take(), "executor");
         }
     }
 
-    /// Sends command to the [`BgExecutor`] to be executed in the background
+    /// Cancels [`BgExecutor`] task and waits until it is finished.
+    pub fn stop(&mut self) {
+        self.cancel();
+        wait_for_task(self.task.take(), "executor");
+    }
+
+    /// Sends command to the [`BgExecutor`] to be executed in the background.
     pub fn run_command(&self, command: ExecutorCommand) {
         if let Some(commands_tx) = &self.commands_tx {
             commands_tx.send(command).unwrap();

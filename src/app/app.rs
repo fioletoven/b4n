@@ -53,7 +53,7 @@ impl App {
 
         let namespace = namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
         self.page
-            .set_resources_info(context, namespace, "connecting…".to_owned(), Scope::Cluster);
+            .set_resources_info(context, namespace, String::default(), Scope::Cluster);
 
         self.watcher.start()?;
 
@@ -270,19 +270,36 @@ impl App {
         self.worker.run_command(ExecutorCommand::NewKubernetesClient(cmd));
     }
 
-    /// Sends command to create new kubernetes client with current kind and namespace.
+    /// Sends command to create new kubernetes client with configured kind and namespace.
     fn ask_new_kubernetes_client(&mut self, context: String) {
         if self.data.borrow().current.context == context {
             return;
         }
 
-        self.page.reset();
+        let (kind, namespace) = self.get_namespaced_resoruce_from_config(&context);
         self.worker.stop();
-        self.get_new_kubernetes_client(
-            context,
-            self.data.borrow().current.kind_plural.to_owned(),
-            Some(self.data.borrow().current.namespace.to_owned()),
+        self.page.reset();
+        self.page.set_resources_info(
+            context.clone(),
+            namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned(),
+            String::default(),
+            Scope::Cluster,
         );
+        self.get_new_kubernetes_client(context, kind, namespace);
+    }
+
+    /// Returns resource's `kind` and `namespace` from the configuration file.  
+    /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
+    fn get_namespaced_resoruce_from_config(&self, context: &str) -> (String, Option<String>) {
+        let data = self.data.borrow();
+        let mut kind = data.config.get_kind(context);
+        let mut namespace = data.config.get_namespace(context);
+        if kind.is_none() {
+            kind = Some(&data.current.kind_plural);
+            namespace = Some(&data.current.namespace);
+        }
+
+        (kind.unwrap_or_default().to_owned(), namespace.map(String::from))
     }
 }
 

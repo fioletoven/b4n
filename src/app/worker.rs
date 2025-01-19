@@ -12,7 +12,7 @@ use super::{
     BgDiscovery, BgObserver, BgObserverError, Config,
 };
 
-/// Possible errors from [`BgWorkerError`]
+/// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]
 pub enum BgWorkerError {
     /// There is no kubernetes client to use.
@@ -24,7 +24,7 @@ pub enum BgWorkerError {
     BgObserverError(#[from] BgObserverError),
 }
 
-/// Keeps together all application background workers
+/// Keeps together all application background workers.
 #[derive(Default)]
 pub struct BgWorker {
     pub namespaces: BgObserver,
@@ -64,7 +64,7 @@ impl BgWorker {
         Ok(scope)
     }
 
-    /// Restarts (if needed) the resources observer to change observed resource kind and namespace
+    /// Restarts (if needed) the resources observer to change observed resource kind and namespace.
     pub fn restart(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(&resource_name);
@@ -74,7 +74,7 @@ impl BgWorker {
         }
     }
 
-    /// Restarts (if needed) the resources observer to change observed resource kind
+    /// Restarts (if needed) the resources observer to change observed resource kind.
     pub fn restart_new_kind(&mut self, resource_name: String, last_namespace: String) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(&resource_name);
@@ -86,7 +86,7 @@ impl BgWorker {
         }
     }
 
-    /// Restarts (if needed) the resources observer to change observed namespace
+    /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(self.resources.get_resource_name());
@@ -103,7 +103,7 @@ impl BgWorker {
         self.discovery.stop();
     }
 
-    /// Stops all background tasks running in the application
+    /// Stops all background tasks running in the application.
     pub fn stop_all(&mut self) {
         self.namespaces.stop();
         self.resources.stop();
@@ -111,7 +111,7 @@ impl BgWorker {
         self.discovery.stop();
     }
 
-    /// Cancels all background tasks running in the application
+    /// Cancels all background tasks running in the application.
     pub fn cancel_all(&mut self) {
         self.namespaces.cancel();
         self.resources.cancel();
@@ -119,7 +119,7 @@ impl BgWorker {
         self.discovery.cancel();
     }
 
-    /// Returns list of discovered kubernetes kinds
+    /// Returns list of discovered kubernetes kinds.
     pub fn get_kinds_list(&self) -> Option<Vec<Kind>> {
         self.list.as_ref().map(|discovery| {
             discovery
@@ -130,7 +130,7 @@ impl BgWorker {
         })
     }
 
-    /// Checks and updates discovered resources list, returns `true` if discovery was updated
+    /// Checks and updates discovered resources list, returns `true` if discovery was updated.
     pub fn update_discovery_list(&mut self) -> bool {
         let discovery = self.discovery.try_next();
         if discovery.is_some() {
@@ -141,7 +141,7 @@ impl BgWorker {
         }
     }
 
-    /// Saves the provided configuration to a file
+    /// Saves the provided configuration to a file.
     pub fn save_configuration(&self, config: Config) {
         self.executor
             .run_command(ExecutorCommand::SaveConfiguration(SaveConfigurationCommand::new(config)));
@@ -166,7 +166,7 @@ impl BgWorker {
         self.executor.try_next()
     }
 
-    /// Returns `true` if there are connection problems
+    /// Returns `true` if there are connection problems.
     pub fn has_errors(&self) -> bool {
         self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
@@ -182,7 +182,7 @@ impl BgWorker {
         }
     }
 
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group.
     fn get_resource_with_group(&self, name: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
         if group.is_empty() {
             self.get_resource_no_group(name)
@@ -199,7 +199,7 @@ impl BgWorker {
         }
     }
 
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group
+    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group.
     fn get_resource_no_group(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
         self.list.as_ref().and_then(|discovery| {
             discovery

@@ -8,18 +8,18 @@ use ratatui::{
 
 use crate::app::SharedAppData;
 
-/// Header pane that shows resource path and version information as breadcrumbs
+/// Header pane that shows resource path and version information as breadcrumbs.
 pub struct HeaderPane {
     app_data: SharedAppData,
 }
 
 impl HeaderPane {
-    /// Creates new UI header pane
+    /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData) -> Self {
         Self { app_data }
     }
 
-    /// Draws [`HeaderPane`] on the provided frame area
+    /// Draws [`HeaderPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let data = &self.app_data.borrow().current;
         let path = self.get_path(
@@ -88,7 +88,7 @@ impl HeaderPane {
             text = format!(" {} ", version);
         } else {
             colors = self.app_data.borrow().config.theme.colors.disconnected;
-            text = format!("  {} ", version);
+            text = format!("  {} ", if version.is_empty() { "connecting…" } else { version });
         };
 
         Line::from(vec![
