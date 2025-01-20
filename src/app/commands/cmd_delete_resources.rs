@@ -5,14 +5,14 @@ use kube::{
 };
 use tracing::error;
 
-use crate::kubernetes;
+use crate::kubernetes::{self, Namespace};
 
 use super::ExecutorResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
     pub names: Vec<String>,
-    pub namespace: Option<String>,
+    pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
 }
@@ -21,7 +21,7 @@ impl DeleteResourcesCommand {
     /// Creates new [`DeleteResourcesCommand`] instance.
     pub fn new(
         names: Vec<String>,
-        namespace: Option<String>,
+        namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
     ) -> Self {
@@ -43,7 +43,7 @@ impl DeleteResourcesCommand {
         let namespace = if discovery.1.scope == Scope::Cluster {
             None
         } else {
-            self.namespace.as_deref()
+            self.namespace.as_option()
         };
         let client = kubernetes::client::get_dynamic_api(
             discovery.0.clone(),

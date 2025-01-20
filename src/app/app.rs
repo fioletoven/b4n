@@ -6,7 +6,7 @@ use kube::{
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    kubernetes::{client::KubernetesClient, ALL_NAMESPACES, NAMESPACES},
+    kubernetes::{client::KubernetesClient, Namespace, NAMESPACES},
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
@@ -47,11 +47,10 @@ impl App {
     }
 
     /// Starts app with initial data.
-    pub async fn start(&mut self, context: String, kind: String, namespace: Option<String>) -> Result<()> {
+    pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
         self.worker.start_executor();
         self.get_new_kubernetes_client(context.clone(), kind, namespace.clone());
 
-        let namespace = namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
         self.page
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
 
@@ -68,16 +67,15 @@ impl App {
         client: KubernetesClient,
         discovery: Vec<(ApiResource, ApiCapabilities)>,
         kind: String,
-        namespace: Option<String>,
+        namespace: Namespace,
     ) {
         let context = client.context().to_owned();
         let version = client.k8s_version().to_owned();
 
         if let Ok(scope) = self.worker.start(client, discovery, kind.clone(), namespace.clone()) {
-            let namespace = namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
             self.page
                 .set_resources_info(context, namespace.clone(), version, scope.clone());
-            self.update_configuration(Some(kind), Some(namespace));
+            self.update_configuration(Some(kind), Some(namespace.into()));
 
             self.set_page_view(scope);
         }
@@ -143,9 +141,9 @@ impl App {
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
         match self.page.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind, namespace)?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace)?,
+            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
             ResponseEvent::ListKubeContexts => self
                 .worker
@@ -172,16 +170,15 @@ impl App {
     }
 
     /// Changes observed resources namespace and kind.
-    fn change(&mut self, kind: String, namespace: String) -> Result<(), BgWorkerError> {
-        self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
-        let scope = if namespace == ALL_NAMESPACES {
-            self.page.set_namespace(namespace, ViewType::Full);
-            self.worker.restart(kind, None)?
+    fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.update_configuration(Some(kind.clone()), Some(namespace.clone().into()));
+        if namespace.is_all() {
+            self.page.set_namespace(namespace.clone(), ViewType::Full);
         } else {
             self.page.set_namespace(namespace.clone(), ViewType::Compact);
-            self.worker.restart(kind, Some(namespace))?
-        };
+        }
 
+        let scope = self.worker.restart(kind, namespace)?;
         self.set_page_view(scope);
 
         Ok(())
@@ -191,7 +188,6 @@ impl App {
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
         let namespace = self.data.borrow().current.namespace.clone();
-        let namespace = if namespace == ALL_NAMESPACES { None } else { Some(namespace) };
         let scope = self.worker.restart_new_kind(kind, namespace)?;
         self.page.highlight_next(to_select);
         self.set_page_view(scope);
@@ -200,16 +196,15 @@ impl App {
     }
 
     /// Changes namespace for observed resources.
-    fn change_namespace(&mut self, namespace: String) -> Result<(), BgWorkerError> {
-        self.update_configuration(None, Some(namespace.clone()));
-        if namespace == ALL_NAMESPACES {
-            self.page.set_namespace(namespace, ViewType::Full);
-            self.worker.restart_new_namespace(None)?;
+    fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.update_configuration(None, Some(namespace.clone().into()));
+        if namespace.is_all() {
+            self.page.set_namespace(namespace.clone(), ViewType::Full);
         } else {
             self.page.set_namespace(namespace.clone(), ViewType::Compact);
-            self.worker.restart_new_namespace(Some(namespace))?;
         }
 
+        self.worker.restart_new_namespace(namespace)?;
         Ok(())
     }
 
@@ -225,9 +220,9 @@ impl App {
         for key in list.keys() {
             let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
             let namespace = if self.page.scope() == &Scope::Cluster {
-                None
+                Namespace::all()
             } else {
-                Some((*key).to_owned())
+                Namespace::from((*key).to_owned())
             };
             self.worker.delete_resources(resources, namespace, self.page.kind_plural());
         }
@@ -239,7 +234,7 @@ impl App {
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
             self.page.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.namespace == ALL_NAMESPACES {
+        } else if self.data.borrow().current.namespace.is_all() {
             self.page.set_view(ViewType::Full);
         }
     }
@@ -266,7 +261,7 @@ impl App {
     }
 
     /// Sends command to create new kubernetes client to the background executor.
-    fn get_new_kubernetes_client(&self, context: String, kind: String, namespace: Option<String>) {
+    fn get_new_kubernetes_client(&self, context: String, kind: String, namespace: Namespace) {
         let cmd = NewKubernetesClientCommand::new(context, kind, namespace);
         self.worker.run_command(ExecutorCommand::NewKubernetesClient(cmd));
     }
@@ -280,31 +275,22 @@ impl App {
         let (kind, namespace) = self.get_namespaced_resoruce_from_config(&context);
         self.worker.stop();
         self.page.reset();
-        self.page.set_resources_info(
-            context.clone(),
-            namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned(),
-            String::default(),
-            Scope::Cluster,
-        );
+        self.page
+            .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
         self.get_new_kubernetes_client(context, kind, namespace);
     }
 
     /// Returns resource's `kind` and `namespace` from the configuration file.  
     /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
-    fn get_namespaced_resoruce_from_config(&self, context: &str) -> (String, Option<String>) {
+    fn get_namespaced_resoruce_from_config(&self, context: &str) -> (String, Namespace) {
         let data = self.data.borrow();
-        let mut kind = data.config.get_kind(context);
-        let mut namespace = data.config.get_namespace(context);
+        let kind = data.config.get_kind(context);
         if kind.is_none() {
-            kind = Some(&data.current.kind_plural);
-            namespace = Some(&data.current.namespace);
+            (data.current.kind_plural.clone(), data.current.namespace.clone())
+        } else {
+            let namespace = data.config.get_namespace(context).unwrap_or_default();
+            (kind.unwrap_or_default().to_owned(), namespace.into())
         }
-
-        if namespace.is_some_and(|n| n == ALL_NAMESPACES) {
-            namespace = None;
-        }
-
-        (kind.unwrap_or_default().to_owned(), namespace.map(String::from))
     }
 }
 

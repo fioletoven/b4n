@@ -46,7 +46,7 @@ async fn run_application() -> Result<()> {
     let namespace = args.namespace(config.get_namespace(&context)).map(String::from);
 
     let mut app = App::new(config)?;
-    app.start(context, resource, namespace).await?;
+    app.start(context, resource, namespace.into()).await?;
 
     loop {
         sleep(Duration::from_millis(50)).await;

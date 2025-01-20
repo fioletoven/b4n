@@ -11,7 +11,7 @@ use crate::{
         lists::{ActionsList, KindsList, ResourcesList},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
-    kubernetes::{resources::Kind, ALL_NAMESPACES, NAMESPACES},
+    kubernetes::{resources::Kind, Namespace, NAMESPACES},
     ui::{
         panes::{FooterPane, HeaderPane, ListPane},
         tui::{ResponseEvent, TuiEvent},
@@ -79,9 +79,9 @@ impl HomePage {
     }
 
     /// Sets initial kubernetes resources data for [`HomePage`].
-    pub fn set_resources_info(&mut self, context: String, namespace: String, version: String, scope: Scope) {
+    pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
-        if scope == Scope::Cluster || namespace != ALL_NAMESPACES {
+        if scope == Scope::Cluster || namespace.is_all() {
             self.list.view = ViewType::Compact;
         }
 
@@ -114,7 +114,7 @@ impl HomePage {
     }
 
     /// Sets namespace and list view for [`HomePage`].
-    pub fn set_namespace(&mut self, namespace: String, view: ViewType) {
+    pub fn set_namespace(&mut self, namespace: Namespace, view: ViewType) {
         self.list.view = view;
         if self.app_data.borrow().current.namespace != namespace {
             self.app_data.borrow_mut().current.namespace = namespace;
@@ -206,7 +206,8 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
-            self.ns_selector.show_selected(&self.app_data.borrow().current.namespace, "");
+            self.ns_selector
+                .show_selected(&self.app_data.borrow().current.namespace.as_str(), "");
         }
 
         if key.code == KeyCode::Right {
@@ -215,7 +216,7 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {
-            return ResponseEvent::ViewNamespaces(self.app_data.borrow().current.namespace.clone());
+            return ResponseEvent::ViewNamespaces(self.app_data.borrow().current.namespace.as_str().into());
         }
 
         if key.code == KeyCode::Enter && self.list.items.kind_plural == NAMESPACES {

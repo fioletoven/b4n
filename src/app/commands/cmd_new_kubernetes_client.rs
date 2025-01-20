@@ -1,6 +1,9 @@
 use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
 
-use crate::{app::discovery::convert_to_vector, kubernetes::client::KubernetesClient};
+use crate::{
+    app::discovery::convert_to_vector,
+    kubernetes::{client::KubernetesClient, Namespace},
+};
 
 use super::ExecutorResult;
 
@@ -8,7 +11,7 @@ use super::ExecutorResult;
 pub struct KubernetesClientResult {
     pub client: KubernetesClient,
     pub kind: String,
-    pub namespace: Option<String>,
+    pub namespace: Namespace,
     pub discovery: Vec<(ApiResource, ApiCapabilities)>,
 }
 
@@ -16,12 +19,12 @@ pub struct KubernetesClientResult {
 pub struct NewKubernetesClientCommand {
     pub context: String,
     pub kind: String,
-    pub namespace: Option<String>,
+    pub namespace: Namespace,
 }
 
 impl NewKubernetesClientCommand {
     /// Creates new [`NewKubernetesClientCommand`] instance.
-    pub fn new(context: String, kind: String, namespace: Option<String>) -> Self {
+    pub fn new(context: String, kind: String, namespace: Namespace) -> Self {
         Self {
             context,
             kind,

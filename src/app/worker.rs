@@ -5,7 +5,7 @@ use kube::{
 };
 use thiserror;
 
-use crate::kubernetes::{client::KubernetesClient, resources::Kind, NAMESPACES};
+use crate::kubernetes::{client::KubernetesClient, resources::Kind, Namespace, NAMESPACES};
 
 use super::{
     commands::{BgExecutor, DeleteResourcesCommand, ExecutorCommand, ExecutorResult, SaveConfigurationCommand},
@@ -48,13 +48,14 @@ impl BgWorker {
         client: KubernetesClient,
         initial_discovery_list: Vec<(ApiResource, ApiCapabilities)>,
         resource_name: String,
-        resource_namespace: Option<String>,
+        resource_namespace: Namespace,
     ) -> Result<Scope, BgWorkerError> {
         self.list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
         let discovery = self.get_resource(NAMESPACES);
-        self.namespaces.start(&client, NAMESPACES.to_owned(), None, discovery)?;
+        self.namespaces
+            .start(&client, NAMESPACES.to_owned(), Namespace::default(), discovery)?;
 
         let discovery = self.get_resource(&resource_name);
         let scope = self.resources.start(&client, resource_name, resource_namespace, discovery)?;
@@ -65,7 +66,7 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind and namespace.
-    pub fn restart(&mut self, resource_name: String, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
+    pub fn restart(&mut self, resource_name: String, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(&resource_name);
             Ok(self.resources.restart(client, resource_name, resource_namespace, discovery)?)
@@ -75,7 +76,7 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind.
-    pub fn restart_new_kind(&mut self, kind: String, last_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
+    pub fn restart_new_kind(&mut self, kind: String, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(&kind);
             Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
@@ -85,7 +86,7 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed namespace.
-    pub fn restart_new_namespace(&mut self, resource_namespace: Option<String>) -> Result<Scope, BgWorkerError> {
+    pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = self.get_resource(self.resources.get_resource_name());
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
@@ -146,7 +147,7 @@ impl BgWorker {
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
-    pub fn delete_resources(&self, resources: Vec<String>, namespace: Option<String>, kind: &str) {
+    pub fn delete_resources(&self, resources: Vec<String>, namespace: Namespace, kind: &str) {
         let discovery = self.get_resource(kind);
         if let Some(client) = &self.client {
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());

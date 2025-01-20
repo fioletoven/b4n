@@ -21,13 +21,13 @@ use crate::app::utils::wait_for_task;
 use super::utils::init_panic_hook;
 
 /// Terminal UI Event
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum TuiEvent {
     Key(KeyEvent),
 }
 
 /// Terminal UI Response Event.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub enum ResponseEvent {
     #[default]
     NotHandled,

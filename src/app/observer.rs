@@ -18,7 +18,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
-use crate::kubernetes::client::KubernetesClient;
+use crate::kubernetes::{client::KubernetesClient, Namespace};
 
 use super::{utils::wait_for_task, ObserverResult};
 
@@ -33,7 +33,7 @@ pub enum BgObserverError {
 /// Background k8s resource observer.
 pub struct BgObserver {
     resource: String,
-    namespace: Option<String>,
+    namespace: Namespace,
     scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
@@ -47,7 +47,7 @@ impl Default for BgObserver {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: String::new(),
-            namespace: None,
+            namespace: Namespace::default(),
             scope: Scope::Cluster,
             task: None,
             cancellation_token: None,
@@ -65,7 +65,7 @@ impl BgObserver {
         &mut self,
         client: &KubernetesClient,
         resource_name: String,
-        resource_namespace: Option<String>,
+        resource_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.cancellation_token.is_some() {
@@ -82,7 +82,7 @@ impl BgObserver {
         self.scope = cap.scope.clone();
         let _scope = cap.scope.clone();
 
-        let _api_client = client.get_api(ar, cap, resource_namespace.as_deref(), resource_namespace.is_none());
+        let _api_client = client.get_api(ar, cap, resource_namespace.as_option(), resource_namespace.is_all());
 
         let _cancellation_token = cancellation_token.clone();
         let _context_tx = self.context_tx.clone();
@@ -132,7 +132,7 @@ impl BgObserver {
         &mut self,
         client: &KubernetesClient,
         new_resource_name: String,
-        new_namespace: Option<String>,
+        new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource_name || self.namespace != new_namespace {
@@ -148,11 +148,11 @@ impl BgObserver {
         &mut self,
         client: &KubernetesClient,
         new_kind: String,
-        new_namespace: Option<String>,
+        new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_kind {
-            let mut namespace = None;
+            let mut namespace = Namespace::all();
             if let Some((_, cap)) = &discovery {
                 if cap.scope == Scope::Namespaced {
                     namespace = new_namespace;
@@ -169,7 +169,7 @@ impl BgObserver {
     pub fn restart_new_namespace(
         &mut self,
         client: &KubernetesClient,
-        new_namespace: Option<String>,
+        new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.namespace != new_namespace {
@@ -184,7 +184,7 @@ impl BgObserver {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
             self.resource = String::new();
-            self.namespace = None;
+            self.namespace = Namespace::default();
             self.has_error.store(true, Ordering::Relaxed);
         }
     }

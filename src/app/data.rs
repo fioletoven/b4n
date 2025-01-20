@@ -1,6 +1,8 @@
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
 
+use crate::kubernetes::Namespace;
+
 use super::Config;
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
@@ -8,7 +10,7 @@ pub type SharedAppData = Rc<RefCell<AppData>>;
 /// Kubernetes resources data.
 pub struct ResourcesInfo {
     pub context: String,
-    pub namespace: String,
+    pub namespace: Namespace,
     pub version: String,
     pub kind: String,
     pub kind_plural: String,
@@ -34,7 +36,7 @@ impl Default for ResourcesInfo {
 
 impl ResourcesInfo {
     /// Creates new [`ResourcesInfo`] instance from provided values.
-    pub fn from(context: String, namespace: String, version: String, scope: Scope) -> Self {
+    pub fn from(context: String, namespace: Namespace, version: String, scope: Scope) -> Self {
         Self {
             context,
             namespace,
