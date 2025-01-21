@@ -48,7 +48,6 @@ impl App {
 
     /// Starts app with initial data.
     pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
-        self.worker.start_executor();
         self.get_new_kubernetes_client(context.clone(), kind, namespace.clone());
 
         self.page
@@ -261,7 +260,7 @@ impl App {
     }
 
     /// Sends command to create new kubernetes client to the background executor.
-    fn get_new_kubernetes_client(&self, context: String, kind: String, namespace: Namespace) {
+    fn get_new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) {
         let cmd = NewKubernetesClientCommand::new(context, kind, namespace);
         self.worker.run_command(ExecutorCommand::NewKubernetesClient(cmd));
     }

@@ -36,13 +36,7 @@ pub struct BgWorker {
 }
 
 impl BgWorker {
-    /// Starts the background executor task.
-    pub fn start_executor(&mut self) {
-        self.executor.start();
-    }
-
-    /// Starts (or restarts) all background tasks that application requires to work.  
-    /// **Note** that this will not start the executor task (it must be run separately).
+    /// Starts (or restarts) all background tasks that application requires to work.
     pub fn start(
         &mut self,
         client: KubernetesClient,
@@ -106,7 +100,7 @@ impl BgWorker {
     pub fn stop_all(&mut self) {
         self.namespaces.stop();
         self.resources.stop();
-        self.executor.stop();
+        self.executor.stop_all();
         self.discovery.stop();
     }
 
@@ -114,7 +108,7 @@ impl BgWorker {
     pub fn cancel_all(&mut self) {
         self.namespaces.cancel();
         self.resources.cancel();
-        self.executor.cancel();
+        self.executor.cancel_all();
         self.discovery.cancel();
     }
 
@@ -141,23 +135,23 @@ impl BgWorker {
     }
 
     /// Saves the provided configuration to a file.
-    pub fn save_configuration(&self, config: Config) {
+    pub fn save_configuration(&mut self, config: Config) {
         self.executor
-            .run_command(ExecutorCommand::SaveConfiguration(SaveConfigurationCommand::new(config)));
+            .run_task(ExecutorCommand::SaveConfiguration(SaveConfigurationCommand::new(config)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
-    pub fn delete_resources(&self, resources: Vec<String>, namespace: Namespace, kind: &str) {
+    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &str) {
         let discovery = self.get_resource(kind);
         if let Some(client) = &self.client {
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
-            self.executor.run_command(ExecutorCommand::DeleteResource(command));
+            self.executor.run_task(ExecutorCommand::DeleteResource(command));
         }
     }
 
     /// Sends the provided command to the background executor.
-    pub fn run_command(&self, command: ExecutorCommand) {
-        self.executor.run_command(command);
+    pub fn run_command(&mut self, command: ExecutorCommand) {
+        self.executor.run_task(command);
     }
 
     /// Returns first waiting command result from the background executor.

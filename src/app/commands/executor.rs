@@ -1,99 +1,84 @@
-use tokio::{
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-};
-use tokio_util::sync::CancellationToken;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-use crate::app::utils::wait_for_task;
-
-use super::{ExecutorCommand, ExecutorResult};
+use super::{task::BgTask, ExecutorCommand, ExecutorResult};
 
 /// Background commands executor.
-#[derive(Default)]
 pub struct BgExecutor {
-    task: Option<JoinHandle<()>>,
-    cancellation_token: Option<CancellationToken>,
-    commands_tx: Option<UnboundedSender<ExecutorCommand>>,
-    results_rx: Option<UnboundedReceiver<ExecutorResult>>,
+    tasks: Vec<BgTask>,
+    results_tx: UnboundedSender<ExecutorResult>,
+    results_rx: UnboundedReceiver<ExecutorResult>,
+}
+
+impl Default for BgExecutor {
+    fn default() -> Self {
+        let (results_tx, results_rx) = unbounded_channel();
+        Self {
+            tasks: Vec::new(),
+            results_tx,
+            results_rx,
+        }
+    }
 }
 
 impl BgExecutor {
-    /// Starts background task for commands execution.
-    pub fn start(&mut self) {
-        if self.cancellation_token.is_some() {
-            return;
+    /// Creates a task with the specified command and runs it.  
+    /// **Note** that it returns a unique task ID by which the task can be cancelled.
+    pub fn run_task(&mut self, command: ExecutorCommand) -> String {
+        let mut task = BgTask::new(command);
+        task.run(self.results_tx.clone());
+        let id = task.id().to_owned();
+        self.tasks.push(task);
+        self.cleanup_finished();
+
+        id
+    }
+
+    /// Cancels the task specified by its unique ID.
+    pub fn cancel_task(&mut self, id: &str) -> bool {
+        let Some(index) = self.tasks.iter().position(|t| t.id() == id) else {
+            return false;
+        };
+
+        let mut task = self.tasks.remove(index);
+        let is_running = task.is_running();
+        task.cancel();
+        self.cleanup_finished();
+
+        is_running
+    }
+
+    /// Removes from the internal list of tasks all finished tasks.
+    pub fn cleanup_finished(&mut self) {
+        self.tasks.retain(|t| !t.is_finished());
+    }
+
+    /// Cancels all currently running tasks.
+    pub fn cancel_all(&mut self) {
+        for task in &mut self.tasks {
+            task.cancel();
         }
 
-        let cancellation_token = CancellationToken::new();
-        let _cancellation_token = cancellation_token.clone();
-
-        let (commands_tx, mut _commands_rx) = mpsc::unbounded_channel();
-        let (_results_tx, results_rx) = mpsc::unbounded_channel();
-
-        let task = tokio::spawn(async move {
-            while !_cancellation_token.is_cancelled() {
-                let command = tokio::select! {
-                    _ = _cancellation_token.cancelled() => break,
-                    v = _commands_rx.recv() => v,
-                };
-
-                let Some(command) = command else {
-                    break;
-                };
-
-                let result = match command {
-                    ExecutorCommand::ListKubeContexts(command) => command.execute().await,
-                    ExecutorCommand::NewKubernetesClient(command) => command.execute().await,
-                    ExecutorCommand::SaveConfiguration(command) => command.execute().await,
-                    ExecutorCommand::DeleteResource(mut command) => command.execute().await,
-                };
-
-                if let Some(result) = result {
-                    _results_tx.send(result).unwrap();
-                }
-            }
-        });
-
-        self.cancellation_token = Some(cancellation_token);
-        self.commands_tx = Some(commands_tx);
-        self.results_rx = Some(results_rx);
-        self.task = Some(task);
+        self.tasks.clear();
     }
 
-    /// Cancels [`BgExecutor`] task.
-    pub fn cancel(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-            self.commands_tx = None;
-            self.results_rx = None;
+    /// Cancels all currently running tasks and waits for them to finish.  
+    /// **Note** that it can be a slow operation. It stops tasks one by one.
+    pub fn stop_all(&mut self) {
+        for task in &mut self.tasks {
+            task.stop();
         }
+
+        self.tasks.clear();
     }
 
-    /// Cancels [`BgExecutor`] task and waits until it is finished.
-    pub fn stop(&mut self) {
-        self.cancel();
-        wait_for_task(self.task.take(), "executor");
-    }
-
-    /// Sends command to the [`BgExecutor`] to be executed in the background.
-    pub fn run_command(&self, command: ExecutorCommand) {
-        if let Some(commands_tx) = &self.commands_tx {
-            commands_tx.send(command).unwrap();
-        }
-    }
-
-    /// Tries to get next [`ExecutorResult`].
+    /// Tries to get the next [`ExecutorResult`].
     pub fn try_next(&mut self) -> Option<ExecutorResult> {
-        if let Some(results_rx) = &mut self.results_rx {
-            results_rx.try_recv().ok()
-        } else {
-            None
-        }
+        self.results_rx.try_recv().ok()
     }
 }
 
 impl Drop for BgExecutor {
     fn drop(&mut self) {
-        self.cancel();
+        self.cancel_all();
     }
 }

@@ -11,6 +11,7 @@ mod cmd_list_contexts;
 mod cmd_new_kubernetes_client;
 mod cmd_save_configuration;
 mod executor;
+mod task;
 
 /// List of all possible commands for [`BgExecutor`].
 pub enum ExecutorCommand {

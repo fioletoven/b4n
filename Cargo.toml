@@ -31,7 +31,8 @@ tracing-subscriber = { version = "0.3", features = [
     "time",
     "env-filter",
 ] }
-tui-input = "0.11"
+tui-input = { version = "0.11" }
+uuid = { version = "1", features = ["v4"] }
 
 [profile.release]
 codegen-units = 1 # Reduce number of codegen units to increase optimizations
