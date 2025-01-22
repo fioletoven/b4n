@@ -8,8 +8,8 @@ use thiserror;
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, Namespace, NAMESPACES};
 
 use super::{
-    commands::{BgExecutor, DeleteResourcesCommand, ExecutorCommand, ExecutorResult, SaveConfigurationCommand},
-    BgDiscovery, BgObserver, BgObserverError, Config,
+    commands::{Command, DeleteResourcesCommand, SaveConfigurationCommand},
+    BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, TaskResult,
 };
 
 /// Possible errors from [`BgWorkerError`].
@@ -137,7 +137,7 @@ impl BgWorker {
     /// Saves the provided configuration to a file.
     pub fn save_configuration(&mut self, config: Config) {
         self.executor
-            .run_task(ExecutorCommand::SaveConfiguration(SaveConfigurationCommand::new(config)));
+            .run_task(Command::SaveConfiguration(SaveConfigurationCommand::new(config)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
@@ -145,17 +145,24 @@ impl BgWorker {
         let discovery = self.get_resource(kind);
         if let Some(client) = &self.client {
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
-            self.executor.run_task(ExecutorCommand::DeleteResource(command));
+            self.executor.run_task(Command::DeleteResource(command));
         }
     }
 
     /// Sends the provided command to the background executor.
-    pub fn run_command(&mut self, command: ExecutorCommand) {
-        self.executor.run_task(command);
+    pub fn run_command(&mut self, command: Command) -> String {
+        self.executor.run_task(command)
+    }
+
+    /// Cancels command with the specific ID.
+    pub fn cancel_command(&mut self, command_id: Option<&str>) {
+        if let Some(id) = command_id {
+            self.executor.cancel_task(&id);
+        }
     }
 
     /// Returns first waiting command result from the background executor.
-    pub fn check_command_result(&mut self) -> Option<ExecutorResult> {
+    pub fn check_command_result(&mut self) -> Option<TaskResult> {
         self.executor.try_next()
     }
 

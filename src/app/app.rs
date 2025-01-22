@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand, NewKubernetesClientCommand},
+    commands::{Command, CommandResult, KubernetesClientResult, ListKubeContextsCommand, NewKubernetesClientCommand},
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
@@ -29,6 +29,7 @@ pub struct App {
     page: HomePage,
     worker: BgWorker,
     watcher: ConfigWatcher,
+    expected_client_id: Option<String>,
 }
 
 impl App {
@@ -43,12 +44,13 @@ impl App {
             page,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
+            expected_client_id: None,
         })
     }
 
     /// Starts app with initial data.
     pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
-        self.get_new_kubernetes_client(context.clone(), kind, namespace.clone());
+        self.expected_client_id = Some(self.get_new_kubernetes_client(context.clone(), kind, namespace.clone()));
 
         self.page
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
@@ -144,9 +146,9 @@ impl App {
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
-            ResponseEvent::ListKubeContexts => self
-                .worker
-                .run_command(ExecutorCommand::ListKubeContexts(ListKubeContextsCommand {})),
+            ResponseEvent::ListKubeContexts => {
+                self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {}));
+            }
             ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
@@ -158,12 +160,10 @@ impl App {
 
     /// Process results from commands execution.
     fn process_commands_results(&mut self) {
-        while let Some(result) = self.worker.check_command_result() {
-            match result {
-                ExecutorResult::ContextsList(list) => self.page.show_contexts_list(list),
-                ExecutorResult::KubernetesClient(result) => {
-                    self.restart(result.client, result.discovery, result.kind, result.namespace)
-                }
+        while let Some(command) = self.worker.check_command_result() {
+            match command.result {
+                CommandResult::ContextsList(list) => self.page.show_contexts_list(list),
+                CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
             }
         }
     }
@@ -213,6 +213,14 @@ impl App {
         Ok(())
     }
 
+    /// Changes kubernetes client to the new one.
+    fn change_client(&mut self, client_id: String, result: KubernetesClientResult) {
+        if self.expected_client_id.as_deref().is_some_and(|id| id == client_id) {
+            self.expected_client_id = None;
+            self.restart(result.client, result.discovery, result.kind, result.namespace);
+        }
+    }
+
     /// Deletes resources that are currently selected on [`HomePage`].
     fn delete_resources(&mut self) {
         let list = self.page.get_selected_items();
@@ -260,9 +268,9 @@ impl App {
     }
 
     /// Sends command to create new kubernetes client to the background executor.
-    fn get_new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) {
+    fn get_new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> String {
         let cmd = NewKubernetesClientCommand::new(context, kind, namespace);
-        self.worker.run_command(ExecutorCommand::NewKubernetesClient(cmd));
+        self.worker.run_command(Command::NewKubernetesClient(cmd))
     }
 
     /// Sends command to create new kubernetes client with configured kind and namespace.
@@ -272,11 +280,14 @@ impl App {
         }
 
         let (kind, namespace) = self.get_namespaced_resoruce_from_config(&context);
+
+        self.worker.cancel_command(self.expected_client_id.as_deref());
         self.worker.stop();
         self.page.reset();
         self.page
             .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
-        self.get_new_kubernetes_client(context, kind, namespace);
+
+        self.expected_client_id = Some(self.get_new_kubernetes_client(context, kind, namespace));
     }
 
     /// Returns resource's `kind` and `namespace` from the configuration file.  

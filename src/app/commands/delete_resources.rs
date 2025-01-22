@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::kubernetes::{self, Namespace};
 
-use super::ExecutorResult;
+use super::CommandResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
@@ -34,7 +34,7 @@ impl DeleteResourcesCommand {
     }
 
     /// Deletes all resources using provided client.
-    pub async fn execute(&mut self) -> Option<ExecutorResult> {
+    pub async fn execute(&mut self) -> Option<CommandResult> {
         let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::DELETE) {
             return None;

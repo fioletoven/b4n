@@ -5,7 +5,7 @@ use crate::{
     kubernetes::{client::KubernetesClient, Namespace},
 };
 
-use super::ExecutorResult;
+use super::CommandResult;
 
 /// Result for the [`NewKubernetesClientCommand`].
 pub struct KubernetesClientResult {
@@ -33,10 +33,10 @@ impl NewKubernetesClientCommand {
     }
 
     /// Creates new kubernetes client and returns it.
-    pub async fn execute(&self) -> Option<ExecutorResult> {
+    pub async fn execute(&self) -> Option<CommandResult> {
         if let Ok(client) = KubernetesClient::new(Some(&self.context), false).await {
             if let Ok(discovery) = Discovery::new(client.get_client()).run().await {
-                return Some(ExecutorResult::KubernetesClient(KubernetesClientResult {
+                return Some(CommandResult::KubernetesClient(KubernetesClientResult {
                     client,
                     kind: self.kind.clone(),
                     namespace: self.namespace.clone(),

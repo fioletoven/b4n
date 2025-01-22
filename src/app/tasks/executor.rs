@@ -1,12 +1,14 @@
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-use super::{task::BgTask, ExecutorCommand, ExecutorResult};
+use crate::app::commands::Command;
+
+use super::{BgTask, TaskResult};
 
 /// Background commands executor.
 pub struct BgExecutor {
     tasks: Vec<BgTask>,
-    results_tx: UnboundedSender<ExecutorResult>,
-    results_rx: UnboundedReceiver<ExecutorResult>,
+    results_tx: UnboundedSender<TaskResult>,
+    results_rx: UnboundedReceiver<TaskResult>,
 }
 
 impl Default for BgExecutor {
@@ -23,7 +25,7 @@ impl Default for BgExecutor {
 impl BgExecutor {
     /// Creates a task with the specified command and runs it.  
     /// **Note** that it returns a unique task ID by which the task can be cancelled.
-    pub fn run_task(&mut self, command: ExecutorCommand) -> String {
+    pub fn run_task(&mut self, command: Command) -> String {
         let mut task = BgTask::new(command);
         task.run(self.results_tx.clone());
         let id = task.id().to_owned();
@@ -72,7 +74,7 @@ impl BgExecutor {
     }
 
     /// Tries to get the next [`ExecutorResult`].
-    pub fn try_next(&mut self) -> Option<ExecutorResult> {
+    pub fn try_next(&mut self) -> Option<TaskResult> {
         self.results_rx.try_recv().ok()
     }
 }
