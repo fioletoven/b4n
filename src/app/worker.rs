@@ -154,7 +154,7 @@ impl BgWorker {
         self.executor.run_task(command)
     }
 
-    /// Cancels command with the specific ID.
+    /// Cancels command with the specified ID.
     pub fn cancel_command(&mut self, command_id: Option<&str>) {
         if let Some(id) = command_id {
             self.executor.cancel_task(&id);

@@ -49,17 +49,17 @@ impl NewKubernetesClientCommand {
     pub async fn execute(&self) -> Option<CommandResult> {
         if let Ok(client) = KubernetesClient::new(Some(&self.context), false).await {
             if let Ok(discovery) = Discovery::new(client.get_client()).run().await {
-                return Some(CommandResult::KubernetesClient(Ok(KubernetesClientResult {
+                Some(CommandResult::KubernetesClient(Ok(KubernetesClientResult {
                     client,
                     kind: self.kind.clone(),
                     namespace: self.namespace.clone(),
                     discovery: convert_to_vector(&discovery),
-                })));
+                })))
             } else {
-                return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryError)));
+                Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryError)))
             }
         } else {
-            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)));
+            Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)))
         }
     }
 }
