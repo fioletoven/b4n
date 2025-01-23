@@ -103,10 +103,7 @@ impl From<&str> for Namespace {
 
 impl From<Namespace> for String {
     fn from(value: Namespace) -> Self {
-        match value.value {
-            Some(value) => value,
-            None => ALL_NAMESPACES.to_owned(),
-        }
+        value.value.unwrap_or_else(|| ALL_NAMESPACES.to_owned())
     }
 }
 

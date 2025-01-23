@@ -1,17 +1,17 @@
 use anyhow::Result;
-use kube::{
-    api::ApiResource,
-    discovery::{ApiCapabilities, Scope},
-};
+use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    kubernetes::{client::KubernetesClient, Namespace, NAMESPACES},
+    kubernetes::{Namespace, NAMESPACES},
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
 use super::{
-    commands::{Command, CommandResult, KubernetesClientResult, ListKubeContextsCommand, NewKubernetesClientCommand},
+    commands::{
+        Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand,
+        NewKubernetesClientCommand,
+    },
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
@@ -29,7 +29,7 @@ pub struct App {
     page: HomePage,
     worker: BgWorker,
     watcher: ConfigWatcher,
-    expected_client_id: Option<String>,
+    next_client_id: Option<String>,
 }
 
 impl App {
@@ -44,49 +44,17 @@ impl App {
             page,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
-            expected_client_id: None,
+            next_client_id: None,
         })
     }
 
     /// Starts app with initial data.
     pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
-        self.expected_client_id = Some(self.get_new_kubernetes_client(context.clone(), kind, namespace.clone()));
-
+        self.next_client_id = Some(self.new_kubernetes_client(context.clone(), kind, namespace.clone()));
         self.page
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
-
         self.watcher.start()?;
-
         self.tui.enter_terminal()?;
-
-        Ok(())
-    }
-
-    /// Changes kubernetes client to the received one and restarts all required background processes.
-    fn restart(
-        &mut self,
-        client: KubernetesClient,
-        discovery: Vec<(ApiResource, ApiCapabilities)>,
-        kind: String,
-        namespace: Namespace,
-    ) {
-        let context = client.context().to_owned();
-        let version = client.k8s_version().to_owned();
-
-        if let Ok(scope) = self.worker.start(client, discovery, kind.clone(), namespace.clone()) {
-            self.page
-                .set_resources_info(context, namespace.clone(), version, scope.clone());
-            self.update_configuration(Some(kind), Some(namespace.into()));
-
-            self.set_page_view(scope);
-        }
-    }
-
-    /// Stops app.
-    pub fn stop(&mut self) -> Result<()> {
-        self.worker.stop_all();
-        self.watcher.stop();
-        self.tui.exit_terminal()?;
 
         Ok(())
     }
@@ -96,6 +64,15 @@ impl App {
         self.worker.cancel_all();
         self.watcher.cancel();
         self.tui.cancel();
+    }
+
+    /// Stops app.
+    pub fn stop(&mut self) -> Result<()> {
+        self.worker.stop_all();
+        self.watcher.stop();
+        self.tui.exit_terminal()?;
+
+        Ok(())
     }
 
     /// Process all waiting events.
@@ -171,12 +148,7 @@ impl App {
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), Some(namespace.clone().into()));
-        if namespace.is_all() {
-            self.page.set_namespace(namespace.clone(), ViewType::Full);
-        } else {
-            self.page.set_namespace(namespace.clone(), ViewType::Compact);
-        }
-
+        self.page.set_namespace(namespace.clone());
         let scope = self.worker.restart(kind, namespace)?;
         self.set_page_view(scope);
 
@@ -197,27 +169,40 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         self.update_configuration(None, Some(namespace.clone().into()));
-        if namespace.is_all() {
-            self.page.set_namespace(namespace.clone(), ViewType::Full);
-        } else {
-            self.page.set_namespace(namespace.clone(), ViewType::Compact);
-        }
-
+        self.page.set_namespace(namespace.clone());
         self.worker.restart_new_namespace(namespace)?;
+
         Ok(())
     }
 
     /// Changes observed resources kind to `namespaces` and selects provided namespace.
     fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgWorkerError> {
         self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
+
         Ok(())
     }
 
     /// Changes kubernetes client to the new one.
-    fn change_client(&mut self, client_id: String, result: KubernetesClientResult) {
-        if self.expected_client_id.as_deref().is_some_and(|id| id == client_id) {
-            self.expected_client_id = None;
-            self.restart(result.client, result.discovery, result.kind, result.namespace);
+    fn change_client(&mut self, command_id: String, result: Result<KubernetesClientResult, KubernetesClientError>) {
+        if self.next_client_id.as_deref().is_some_and(|id| id == command_id) {
+            self.next_client_id = None;
+
+            if let Ok(result) = result {
+                let context = result.client.context().to_owned();
+                let version = result.client.k8s_version().to_owned();
+
+                let scope = self
+                    .worker
+                    .start(result.client, result.discovery, result.kind.clone(), result.namespace.clone());
+
+                if let Ok(scope) = scope {
+                    self.page
+                        .set_resources_info(context, result.namespace.clone(), version, scope.clone());
+                    self.update_configuration(Some(result.kind), Some(result.namespace.into()));
+
+                    self.set_page_view(scope);
+                }
+            }
         }
     }
 
@@ -268,7 +253,7 @@ impl App {
     }
 
     /// Sends command to create new kubernetes client to the background executor.
-    fn get_new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> String {
+    fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> String {
         let cmd = NewKubernetesClientCommand::new(context, kind, namespace);
         self.worker.run_command(Command::NewKubernetesClient(cmd))
     }
@@ -279,28 +264,16 @@ impl App {
             return;
         }
 
-        let (kind, namespace) = self.get_namespaced_resoruce_from_config(&context);
+        let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
 
-        self.worker.cancel_command(self.expected_client_id.as_deref());
+        self.worker.cancel_command(self.next_client_id.as_deref());
         self.worker.stop();
+
         self.page.reset();
         self.page
             .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
 
-        self.expected_client_id = Some(self.get_new_kubernetes_client(context, kind, namespace));
-    }
-
-    /// Returns resource's `kind` and `namespace` from the configuration file.  
-    /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
-    fn get_namespaced_resoruce_from_config(&self, context: &str) -> (String, Namespace) {
-        let data = self.data.borrow();
-        let kind = data.config.get_kind(context);
-        if kind.is_none() {
-            (data.current.kind_plural.clone(), data.current.namespace.clone())
-        } else {
-            let namespace = data.config.get_namespace(context).unwrap_or_default();
-            (kind.unwrap_or_default().to_owned(), namespace.into())
-        }
+        self.next_client_id = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 }
 

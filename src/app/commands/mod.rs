@@ -21,5 +21,5 @@ pub enum Command {
 /// List of all possible results from commands executed in the executor.
 pub enum CommandResult {
     ContextsList(Vec<NamedContext>),
-    KubernetesClient(KubernetesClientResult),
+    KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
 }

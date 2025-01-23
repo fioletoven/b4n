@@ -113,9 +113,14 @@ impl HomePage {
         self.list.items.get_selected_items()
     }
 
-    /// Sets namespace and list view for [`HomePage`].
-    pub fn set_namespace(&mut self, namespace: Namespace, view: ViewType) {
-        self.list.view = view;
+    /// Sets namespace for [`HomePage`].
+    pub fn set_namespace(&mut self, namespace: Namespace) {
+        self.list.view = if namespace.is_all() {
+            ViewType::Full
+        } else {
+            ViewType::Compact
+        };
+
         if self.app_data.borrow().current.namespace != namespace {
             self.app_data.borrow_mut().current.namespace = namespace;
             self.list.items.deselect_all();

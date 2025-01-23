@@ -69,4 +69,16 @@ impl AppData {
             is_connected: false,
         }
     }
+
+    /// Returns resource's `kind` and `namespace` from the configuration.  
+    /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
+    pub fn get_namespaced_resource_from_config(&self, context: &str) -> (String, Namespace) {
+        let kind = self.config.get_kind(context);
+        if kind.is_none() {
+            (self.current.kind_plural.clone(), self.current.namespace.clone())
+        } else {
+            let namespace = self.config.get_namespace(context).unwrap_or_default();
+            (kind.unwrap_or_default().to_owned(), namespace.into())
+        }
+    }
 }
