@@ -43,7 +43,7 @@ impl ContextInfo {
     pub fn from(info: &ResourcesInfo) -> Self {
         Self {
             name: info.context.clone(),
-            namespace: info.namespace.clone(),
+            namespace: info.namespace.as_str().into(),
             kind: info.kind.clone(),
         }
     }

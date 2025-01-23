@@ -1,14 +1,30 @@
 use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
+use thiserror;
 
-use crate::{app::discovery::convert_to_vector, kubernetes::client::KubernetesClient};
+use crate::{
+    app::discovery::convert_to_vector,
+    kubernetes::{client::KubernetesClient, Namespace},
+};
 
-use super::ExecutorResult;
+use super::CommandResult;
+
+/// Possible errors when creating kubernetes client.
+#[derive(thiserror::Error, Debug)]
+pub enum KubernetesClientError {
+    /// Kubernetes client creation error
+    #[error("kubernetes client creation error")]
+    ClientError,
+
+    /// Discovery run error
+    #[error("discovery run error")]
+    DiscoveryError,
+}
 
 /// Result for the [`NewKubernetesClientCommand`].
 pub struct KubernetesClientResult {
     pub client: KubernetesClient,
     pub kind: String,
-    pub namespace: Option<String>,
+    pub namespace: Namespace,
     pub discovery: Vec<(ApiResource, ApiCapabilities)>,
 }
 
@@ -16,12 +32,12 @@ pub struct KubernetesClientResult {
 pub struct NewKubernetesClientCommand {
     pub context: String,
     pub kind: String,
-    pub namespace: Option<String>,
+    pub namespace: Namespace,
 }
 
 impl NewKubernetesClientCommand {
     /// Creates new [`NewKubernetesClientCommand`] instance.
-    pub fn new(context: String, kind: String, namespace: Option<String>) -> Self {
+    pub fn new(context: String, kind: String, namespace: Namespace) -> Self {
         Self {
             context,
             kind,
@@ -30,18 +46,20 @@ impl NewKubernetesClientCommand {
     }
 
     /// Creates new kubernetes client and returns it.
-    pub async fn execute(&self) -> Option<ExecutorResult> {
+    pub async fn execute(&self) -> Option<CommandResult> {
         if let Ok(client) = KubernetesClient::new(Some(&self.context), false).await {
             if let Ok(discovery) = Discovery::new(client.get_client()).run().await {
-                return Some(ExecutorResult::KubernetesClient(KubernetesClientResult {
+                Some(CommandResult::KubernetesClient(Ok(KubernetesClientResult {
                     client,
                     kind: self.kind.clone(),
                     namespace: self.namespace.clone(),
                     discovery: convert_to_vector(&discovery),
-                }));
+                })))
+            } else {
+                Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryError)))
             }
+        } else {
+            Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)))
         }
-
-        None
     }
 }

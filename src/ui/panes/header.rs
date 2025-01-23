@@ -24,7 +24,7 @@ impl HeaderPane {
         let data = &self.app_data.borrow().current;
         let path = self.get_path(
             &data.context,
-            &data.namespace,
+            data.namespace.as_str(),
             &data.kind_plural,
             data.count,
             data.scope.clone(),

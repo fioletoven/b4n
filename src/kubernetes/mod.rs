@@ -1,6 +1,7 @@
-pub const ALL_NAMESPACES: &str = "all";
-pub const NAMESPACES: &str = "namespaces";
+pub use self::namespace::*;
 
 pub mod client;
 pub mod resources;
 pub mod utils;
+
+mod namespace;

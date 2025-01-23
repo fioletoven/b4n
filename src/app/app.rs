@@ -1,17 +1,17 @@
 use anyhow::Result;
-use kube::{
-    api::ApiResource,
-    discovery::{ApiCapabilities, Scope},
-};
-use std::{cell::RefCell, rc::Rc};
+use kube::discovery::Scope;
+use std::{cell::RefCell, rc::Rc, time::Instant};
 
 use crate::{
-    kubernetes::{client::KubernetesClient, ALL_NAMESPACES, NAMESPACES},
+    kubernetes::{Namespace, NAMESPACES},
     ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
 use super::{
-    commands::{ExecutorCommand, ExecutorResult, ListKubeContextsCommand, NewKubernetesClientCommand},
+    commands::{
+        Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand,
+        NewKubernetesClientCommand,
+    },
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, ContextInfo, SharedAppData,
 };
 
@@ -22,6 +22,27 @@ pub enum ExecutionFlow {
     Stop,
 }
 
+/// Application connecting info.
+pub struct AppConnectingInfo {
+    pub request_time: Instant,
+    pub request_id: Option<String>,
+    pub context: String,
+    pub kind: String,
+    pub namespace: Namespace,
+}
+
+impl AppConnectingInfo {
+    /// Returns `true` if request match the specified ID.
+    pub fn request_match(&self, request_id: &str) -> bool {
+        self.request_id.as_deref().is_some_and(|id| id == request_id)
+    }
+
+    /// Returns `true` if there is no request pending and last request was more than 30 seconds ago.
+    pub fn is_overdue(&self) -> bool {
+        self.request_id.is_none() && self.request_time.elapsed().as_secs() > 30
+    }
+}
+
 /// Main application object that orchestrates terminal, UI widgets and background workers.
 pub struct App {
     data: SharedAppData,
@@ -29,6 +50,7 @@ pub struct App {
     page: HomePage,
     worker: BgWorker,
     watcher: ConfigWatcher,
+    connecting: Option<AppConnectingInfo>,
 }
 
 impl App {
@@ -43,51 +65,17 @@ impl App {
             page,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
+            connecting: None,
         })
     }
 
     /// Starts app with initial data.
-    pub async fn start(&mut self, context: String, kind: String, namespace: Option<String>) -> Result<()> {
-        self.worker.start_executor();
-        self.get_new_kubernetes_client(context.clone(), kind, namespace.clone());
-
-        let namespace = namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
+    pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
+        self.connecting = Some(self.new_kubernetes_client(context.clone(), kind, namespace.clone()));
         self.page
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
-
         self.watcher.start()?;
-
         self.tui.enter_terminal()?;
-
-        Ok(())
-    }
-
-    /// Changes kubernetes client to the received one and restarts all required background processes.
-    fn restart(
-        &mut self,
-        client: KubernetesClient,
-        discovery: Vec<(ApiResource, ApiCapabilities)>,
-        kind: String,
-        namespace: Option<String>,
-    ) {
-        let context = client.context().to_owned();
-        let version = client.k8s_version().to_owned();
-
-        if let Ok(scope) = self.worker.start(client, discovery, kind.clone(), namespace.clone()) {
-            let namespace = namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned();
-            self.page
-                .set_resources_info(context, namespace.clone(), version, scope.clone());
-            self.update_configuration(Some(kind), Some(namespace));
-
-            self.set_page_view(scope);
-        }
-    }
-
-    /// Stops app.
-    pub fn stop(&mut self) -> Result<()> {
-        self.worker.stop_all();
-        self.watcher.stop();
-        self.tui.exit_terminal()?;
 
         Ok(())
     }
@@ -97,6 +85,15 @@ impl App {
         self.worker.cancel_all();
         self.watcher.cancel();
         self.tui.cancel();
+    }
+
+    /// Stops app.
+    pub fn stop(&mut self) -> Result<()> {
+        self.worker.stop_all();
+        self.watcher.stop();
+        self.tui.exit_terminal()?;
+
+        Ok(())
     }
 
     /// Process all waiting events.
@@ -112,6 +109,8 @@ impl App {
         }
 
         self.process_commands_results();
+
+        self.process_reconnect();
 
         Ok(ExecutionFlow::Continue)
     }
@@ -143,13 +142,13 @@ impl App {
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
         match self.page.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind, namespace)?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace)?,
+            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
-            ResponseEvent::ListKubeContexts => self
-                .worker
-                .run_command(ExecutorCommand::ListKubeContexts(ListKubeContextsCommand {})),
+            ResponseEvent::ListKubeContexts => {
+                self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {}));
+            }
             ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
@@ -161,27 +160,28 @@ impl App {
 
     /// Process results from commands execution.
     fn process_commands_results(&mut self) {
-        while let Some(result) = self.worker.check_command_result() {
-            match result {
-                ExecutorResult::ContextsList(list) => self.page.show_contexts_list(list),
-                ExecutorResult::KubernetesClient(result) => {
-                    self.restart(result.client, result.discovery, result.kind, result.namespace)
-                }
+        while let Some(command) = self.worker.check_command_result() {
+            match command.result {
+                CommandResult::ContextsList(list) => self.page.show_contexts_list(list),
+                CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
+            }
+        }
+    }
+
+    /// Process reconnect if needed.
+    fn process_reconnect(&mut self) {
+        if self.connecting.as_ref().is_some_and(|c| c.is_overdue()) {
+            if let Some(connecting) = self.connecting.take() {
+                self.connecting = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
         }
     }
 
     /// Changes observed resources namespace and kind.
-    fn change(&mut self, kind: String, namespace: String) -> Result<(), BgWorkerError> {
-        self.update_configuration(Some(kind.clone()), Some(namespace.clone()));
-        let scope = if namespace == ALL_NAMESPACES {
-            self.page.set_namespace(namespace, ViewType::Full);
-            self.worker.restart(kind, None)?
-        } else {
-            self.page.set_namespace(namespace.clone(), ViewType::Compact);
-            self.worker.restart(kind, Some(namespace))?
-        };
-
+    fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.update_configuration(Some(kind.clone()), Some(namespace.clone().into()));
+        self.page.set_namespace(namespace.clone());
+        let scope = self.worker.restart(kind, namespace)?;
         self.set_page_view(scope);
 
         Ok(())
@@ -199,15 +199,10 @@ impl App {
     }
 
     /// Changes namespace for observed resources.
-    fn change_namespace(&mut self, namespace: String) -> Result<(), BgWorkerError> {
-        self.update_configuration(None, Some(namespace.clone()));
-        if namespace == ALL_NAMESPACES {
-            self.page.set_namespace(namespace, ViewType::Full);
-            self.worker.restart_new_namespace(None)?;
-        } else {
-            self.page.set_namespace(namespace.clone(), ViewType::Compact);
-            self.worker.restart_new_namespace(Some(namespace))?;
-        }
+    fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.update_configuration(None, Some(namespace.clone().into()));
+        self.page.set_namespace(namespace.clone());
+        self.worker.restart_new_namespace(namespace)?;
 
         Ok(())
     }
@@ -215,7 +210,33 @@ impl App {
     /// Changes observed resources kind to `namespaces` and selects provided namespace.
     fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgWorkerError> {
         self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
+
         Ok(())
+    }
+
+    /// Changes kubernetes client to the new one.
+    fn change_client(&mut self, command_id: String, result: Result<KubernetesClientResult, KubernetesClientError>) {
+        if self.connecting.as_ref().is_some_and(|c| c.request_match(&command_id)) {
+            if let Ok(result) = result {
+                self.connecting = None;
+                let context = result.client.context().to_owned();
+                let version = result.client.k8s_version().to_owned();
+
+                let scope = self
+                    .worker
+                    .start(result.client, result.discovery, result.kind.clone(), result.namespace.clone());
+
+                if let Ok(scope) = scope {
+                    self.page
+                        .set_resources_info(context, result.namespace.clone(), version, scope.clone());
+                    self.update_configuration(Some(result.kind), Some(result.namespace.into()));
+
+                    self.set_page_view(scope);
+                }
+            } else if let Some(connecting) = &mut self.connecting {
+                connecting.request_id = None;
+            }
+        }
     }
 
     /// Deletes resources that are currently selected on [`HomePage`].
@@ -224,9 +245,9 @@ impl App {
         for key in list.keys() {
             let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
             let namespace = if self.page.scope() == &Scope::Cluster {
-                None
+                Namespace::all()
             } else {
-                Some((*key).to_owned())
+                Namespace::from((*key).to_owned())
             };
             self.worker.delete_resources(resources, namespace, self.page.kind_plural());
         }
@@ -238,7 +259,7 @@ impl App {
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
             self.page.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.namespace == ALL_NAMESPACES {
+        } else if self.data.borrow().current.namespace.is_all() {
             self.page.set_view(ViewType::Full);
         }
     }
@@ -265,9 +286,15 @@ impl App {
     }
 
     /// Sends command to create new kubernetes client to the background executor.
-    fn get_new_kubernetes_client(&self, context: String, kind: String, namespace: Option<String>) {
-        let cmd = NewKubernetesClientCommand::new(context, kind, namespace);
-        self.worker.run_command(ExecutorCommand::NewKubernetesClient(cmd));
+    fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> AppConnectingInfo {
+        let cmd = NewKubernetesClientCommand::new(context.clone(), kind.clone(), namespace.clone());
+        AppConnectingInfo {
+            request_id: Some(self.worker.run_command(Command::NewKubernetesClient(cmd))),
+            request_time: Instant::now(),
+            context,
+            kind,
+            namespace,
+        }
     }
 
     /// Sends command to create new kubernetes client with configured kind and namespace.
@@ -276,30 +303,18 @@ impl App {
             return;
         }
 
-        let (kind, namespace) = self.get_namespaced_resoruce_from_config(&context);
-        self.worker.stop();
-        self.page.reset();
-        self.page.set_resources_info(
-            context.clone(),
-            namespace.as_deref().unwrap_or(ALL_NAMESPACES).to_owned(),
-            String::default(),
-            Scope::Cluster,
-        );
-        self.get_new_kubernetes_client(context, kind, namespace);
-    }
-
-    /// Returns resource's `kind` and `namespace` from the configuration file.  
-    /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
-    fn get_namespaced_resoruce_from_config(&self, context: &str) -> (String, Option<String>) {
-        let data = self.data.borrow();
-        let mut kind = data.config.get_kind(context);
-        let mut namespace = data.config.get_namespace(context);
-        if kind.is_none() {
-            kind = Some(&data.current.kind_plural);
-            namespace = Some(&data.current.namespace);
+        if let Some(connecting) = &self.connecting {
+            self.worker.cancel_command(connecting.request_id.as_deref());
         }
 
-        (kind.unwrap_or_default().to_owned(), namespace.map(String::from))
+        self.worker.stop();
+
+        let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
+        self.page.reset();
+        self.page
+            .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
+
+        self.connecting = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 }
 
