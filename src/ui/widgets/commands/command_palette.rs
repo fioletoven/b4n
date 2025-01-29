@@ -47,6 +47,11 @@ impl CommandPalette {
         self.is_visible = true;
     }
 
+    /// Marks [`CommandPalette`] as a hidden.
+    pub fn hide(&mut self) {
+        self.is_visible = false;
+    }
+
     /// Draws [`CommandPalette`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if !self.is_visible {

@@ -76,6 +76,11 @@ impl<T: Table> SideSelect<T> {
         self.show();
     }
 
+    /// Marks [`SideSelect`] as hidden.
+    pub fn hide(&mut self) {
+        self.is_visible = false;
+    }
+
     /// Draws [`SideSelect`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if !self.is_visible {

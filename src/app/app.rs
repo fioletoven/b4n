@@ -23,12 +23,12 @@ pub enum ExecutionFlow {
 }
 
 /// Application connecting info.
-pub struct AppConnectingInfo {
-    pub request_time: Instant,
-    pub request_id: Option<String>,
-    pub context: String,
-    pub kind: String,
-    pub namespace: Namespace,
+struct AppConnectingInfo {
+    request_time: Instant,
+    request_id: Option<String>,
+    context: String,
+    kind: String,
+    namespace: Namespace,
 }
 
 impl AppConnectingInfo {
@@ -51,6 +51,7 @@ pub struct App {
     worker: BgWorker,
     watcher: ConfigWatcher,
     connecting: Option<AppConnectingInfo>,
+    disconnect_processed: bool,
 }
 
 impl App {
@@ -66,6 +67,7 @@ impl App {
             worker: BgWorker::default(),
             watcher: Config::watcher(),
             connecting: None,
+            disconnect_processed: false,
         })
     }
 
@@ -98,19 +100,19 @@ impl App {
 
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
-        while let Ok(event) = self.tui.event_rx.try_recv() {
-            if self.process_event(event)? == ResponseEvent::ExitApplication {
-                return Ok(ExecutionFlow::Stop);
-            }
-        }
-
         if let Some(config) = self.watcher.try_next() {
             self.data.borrow_mut().config = config;
         }
 
         self.process_commands_results();
 
-        self.process_reconnect();
+        self.process_connection_events();
+
+        while let Ok(event) = self.tui.event_rx.try_recv() {
+            if self.process_event(event)? == ResponseEvent::ExitApplication {
+                return Ok(ExecutionFlow::Stop);
+            }
+        }
 
         Ok(ExecutionFlow::Continue)
     }
@@ -168,12 +170,21 @@ impl App {
         }
     }
 
-    /// Process reconnect if needed.
-    fn process_reconnect(&mut self) {
+    /// Processes connection events.
+    fn process_connection_events(&mut self) {
         if self.connecting.as_ref().is_some_and(|c| c.is_overdue()) {
             if let Some(connecting) = self.connecting.take() {
                 self.connecting = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
+        }
+
+        if !self.data.borrow().is_connected || self.connecting.is_some() {
+            if !self.disconnect_processed {
+                self.disconnect_processed = true;
+                self.page.process_disconnection();
+            }
+        } else {
+            self.disconnect_processed = false;
         }
     }
 

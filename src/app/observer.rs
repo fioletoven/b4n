@@ -68,10 +68,7 @@ impl BgObserver {
         resource_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.cancellation_token.is_some() {
-            self.stop();
-            self.drain();
-        }
+        self.stop();
 
         let cancellation_token = CancellationToken::new();
         let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
@@ -193,6 +190,7 @@ impl BgObserver {
     pub fn stop(&mut self) {
         self.cancel();
         wait_for_task(self.task.take(), "discovery");
+        self.drain();
     }
 
     /// Tries to get next [`ObserverResult`].

@@ -49,12 +49,13 @@ async fn run_application() -> Result<()> {
     app.start(context, resource, namespace.into()).await?;
 
     loop {
-        sleep(Duration::from_millis(50)).await;
-
-        app.draw_frame()?;
         if app.process_events()? == ExecutionFlow::Stop {
             break;
         }
+
+        app.draw_frame()?;
+
+        sleep(Duration::from_millis(50)).await;
     }
 
     app.stop()?;

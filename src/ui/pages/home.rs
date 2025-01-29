@@ -75,7 +75,9 @@ impl HomePage {
     pub fn reset(&mut self) {
         self.list.items.clear();
         self.ns_selector.select.items.clear();
+        self.ns_selector.hide();
         self.res_selector.select.items.clear();
+        self.res_selector.hide();
     }
 
     /// Sets initial kubernetes resources data for [`HomePage`].
@@ -241,16 +243,11 @@ impl HomePage {
         ResponseEvent::Handled
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let actions = if self.app_data.borrow().is_connected {
-                ActionsList::from_kinds(&self.res_selector.select.items.list)
-            } else {
-                ActionsList::predefined(true)
-            };
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
-            self.command_palette.show();
-        }
+    /// Processes disconnection state.
+    pub fn process_disconnection(&mut self) {
+        self.ns_selector.hide();
+        self.res_selector.hide();
+        self.command_palette.hide();
     }
 
     /// Draws [`HomePage`] on the provided frame.
@@ -279,6 +276,18 @@ impl HomePage {
 
             self.ns_selector.draw(frame, bottom[1]);
             self.res_selector.draw(frame, bottom[1]);
+        }
+    }
+
+    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            let actions = if self.app_data.borrow().is_connected {
+                ActionsList::from_kinds(&self.res_selector.select.items.list)
+            } else {
+                ActionsList::predefined(true)
+            };
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
         }
     }
 
