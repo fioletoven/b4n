@@ -5,7 +5,7 @@ use kube::{
 };
 use thiserror;
 
-use crate::kubernetes::{client::KubernetesClient, resources::Kind, Namespace, NAMESPACES};
+use crate::kubernetes::{client::KubernetesClient, resources::Kind, utils::get_resource, Namespace, NAMESPACES};
 
 use super::{
     commands::{Command, DeleteResourcesCommand, SaveConfigurationCommand},
@@ -47,11 +47,11 @@ impl BgWorker {
         self.list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
-        let discovery = self.get_resource(NAMESPACES);
+        let discovery = get_resource(self.list.as_ref(), NAMESPACES);
         self.namespaces
             .start(&client, NAMESPACES.to_owned(), Namespace::default(), discovery)?;
 
-        let discovery = self.get_resource(&resource_name);
+        let discovery = get_resource(self.list.as_ref(), &resource_name);
         let scope = self.resources.start(&client, resource_name, resource_namespace, discovery)?;
 
         self.client = Some(client);
@@ -62,7 +62,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource kind and namespace.
     pub fn restart(&mut self, resource_name: String, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = self.get_resource(&resource_name);
+            let discovery = get_resource(self.list.as_ref(), &resource_name);
             Ok(self.resources.restart(client, resource_name, resource_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -72,7 +72,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource kind.
     pub fn restart_new_kind(&mut self, kind: String, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = self.get_resource(&kind);
+            let discovery = get_resource(self.list.as_ref(), &kind);
             Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -82,7 +82,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = self.get_resource(self.resources.get_resource_name());
+            let discovery = get_resource(self.list.as_ref(), self.resources.get_resource_name());
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -142,7 +142,7 @@ impl BgWorker {
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
     pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &str) {
-        let discovery = self.get_resource(kind);
+        let discovery = get_resource(self.list.as_ref(), kind);
         if let Some(client) = &self.client {
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
             self.executor.run_task(Command::DeleteResource(command));
@@ -169,45 +169,6 @@ impl BgWorker {
     /// Returns `true` if there are connection problems.
     pub fn has_errors(&self) -> bool {
         self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
-    }
-
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  
-    /// Name value can be in the form `name.group`.
-    fn get_resource(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
-        if name.contains('.') {
-            let mut split = name.splitn(2, '.');
-            self.get_resource_with_group(split.next().unwrap(), split.next().unwrap())
-        } else {
-            self.get_resource_no_group(name)
-        }
-    }
-
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group.
-    fn get_resource_with_group(&self, name: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
-        if group.is_empty() {
-            self.get_resource_no_group(name)
-        } else {
-            self.list.as_ref().and_then(|discovery| {
-                discovery
-                    .iter()
-                    .find(|(ar, _)| {
-                        group.eq_ignore_ascii_case(&ar.group)
-                            && (name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
-                    })
-                    .map(|(ar, cap)| (ar.clone(), cap.clone()))
-            })
-        }
-    }
-
-    /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group.
-    fn get_resource_no_group(&self, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
-        self.list.as_ref().and_then(|discovery| {
-            discovery
-                .iter()
-                .filter(|(ar, _)| name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
-                .min_by_key(|(ar, _)| &ar.group)
-                .map(|(ar, cap)| (ar.clone(), cap.clone()))
-        })
     }
 }
 
