@@ -47,7 +47,7 @@ impl BgTask {
 
         let task = tokio::spawn(async move {
             tokio::select! {
-                _ = _cancellation_token.cancelled() => return,
+                _ = _cancellation_token.cancelled() => (),
                 result = run_command(_command) => {
                     if let Some(result) = result {
                         results_tx.send(TaskResult { id: _task_id, result }).unwrap();

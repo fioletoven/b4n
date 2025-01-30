@@ -300,7 +300,7 @@ impl App {
     fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> AppConnectingInfo {
         let cmd = NewKubernetesClientCommand::new(context.clone(), kind.clone(), namespace.clone());
         AppConnectingInfo {
-            request_id: Some(self.worker.run_command(Command::NewKubernetesClient(cmd))),
+            request_id: Some(self.worker.run_command(Command::NewKubernetesClient(Box::new(cmd)))),
             request_time: Instant::now(),
             context,
             kind,

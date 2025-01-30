@@ -83,7 +83,7 @@ impl HomePage {
     /// Sets initial kubernetes resources data for [`HomePage`].
     pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
-        if scope == Scope::Cluster || namespace.is_all() {
+        if scope == Scope::Cluster || !namespace.is_all() {
             self.list.view = ViewType::Compact;
         }
 
@@ -214,7 +214,7 @@ impl HomePage {
 
         if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
             self.ns_selector
-                .show_selected(&self.app_data.borrow().current.namespace.as_str(), "");
+                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }
 
         if key.code == KeyCode::Right {

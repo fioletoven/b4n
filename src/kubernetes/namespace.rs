@@ -53,7 +53,7 @@ impl Namespace {
     /// Returns `true` if the [`Namespace`] instance represents all namespaces.
     #[inline]
     pub fn is_all(&self) -> bool {
-        !self.value.is_some()
+        self.value.is_none()
     }
 
     /// Returns `true` if the [`Namespace`] instance is equal to the specified option.

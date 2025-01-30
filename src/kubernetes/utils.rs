@@ -44,7 +44,7 @@ fn get_resource_with_group(
     if group.is_empty() {
         get_resource_no_group(list, name)
     } else {
-        list.as_ref().and_then(|discovery| {
+        list.and_then(|discovery| {
             discovery
                 .iter()
                 .find(|(ar, _)| {
@@ -61,7 +61,7 @@ fn get_resource_no_group(
     list: Option<&Vec<(ApiResource, ApiCapabilities)>>,
     name: &str,
 ) -> Option<(ApiResource, ApiCapabilities)> {
-    list.as_ref().and_then(|discovery| {
+    list.and_then(|discovery| {
         discovery
             .iter()
             .filter(|(ar, _)| name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))

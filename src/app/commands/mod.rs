@@ -13,9 +13,9 @@ mod save_configuration;
 /// List of all possible commands for [BgExecutor](super::BgExecutor).
 pub enum Command {
     ListKubeContexts(ListKubeContextsCommand),
-    NewKubernetesClient(NewKubernetesClientCommand),
-    SaveConfiguration(SaveConfigurationCommand),
-    DeleteResource(DeleteResourcesCommand),
+    NewKubernetesClient(Box<NewKubernetesClientCommand>),
+    SaveConfiguration(Box<SaveConfigurationCommand>),
+    DeleteResource(Box<DeleteResourcesCommand>),
 }
 
 /// List of all possible results from commands executed in the executor.

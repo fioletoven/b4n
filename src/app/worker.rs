@@ -137,7 +137,7 @@ impl BgWorker {
     /// Saves the provided configuration to a file.
     pub fn save_configuration(&mut self, config: Config) {
         self.executor
-            .run_task(Command::SaveConfiguration(SaveConfigurationCommand::new(config)));
+            .run_task(Command::SaveConfiguration(Box::new(SaveConfigurationCommand::new(config))));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
@@ -145,7 +145,7 @@ impl BgWorker {
         let discovery = get_resource(self.list.as_ref(), kind);
         if let Some(client) = &self.client {
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
-            self.executor.run_task(Command::DeleteResource(command));
+            self.executor.run_task(Command::DeleteResource(Box::new(command)));
         }
     }
 
@@ -157,7 +157,7 @@ impl BgWorker {
     /// Cancels command with the specified ID.
     pub fn cancel_command(&mut self, command_id: Option<&str>) {
         if let Some(id) = command_id {
-            self.executor.cancel_task(&id);
+            self.executor.cancel_task(id);
         }
     }
 
