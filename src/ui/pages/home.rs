@@ -223,7 +223,7 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {
-            return ResponseEvent::ViewNamespaces(self.app_data.borrow().current.namespace.as_str().into());
+            return ResponseEvent::ViewNamespaces;
         }
 
         if key.code == KeyCode::Enter && self.list.items.kind_plural == NAMESPACES {

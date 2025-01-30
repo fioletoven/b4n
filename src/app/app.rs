@@ -147,7 +147,7 @@ impl App {
             ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
-            ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
+            ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => {
                 self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {}));
             }
@@ -198,12 +198,19 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind, optionally selects one of them.
+    /// Changes observed resources kind, optionally selects one of them.  
+    /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
         let namespace = self.data.borrow().current.namespace.clone();
+        let showing_namespaces = to_select.is_none() && kind == NAMESPACES;
         let scope = self.worker.restart_new_kind(kind, namespace)?;
-        self.page.highlight_next(to_select);
+        if showing_namespaces {
+            let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
+            self.page.highlight_next(to_select);
+        } else {
+            self.page.highlight_next(to_select);
+        }
         self.set_page_view(scope);
 
         Ok(())
@@ -218,9 +225,9 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind to `namespaces` and selects provided namespace.
-    fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgWorkerError> {
-        self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
+    /// Changes observed resources kind to `namespaces`.
+    fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
+        self.change_kind(NAMESPACES.to_owned(), None)?;
 
         Ok(())
     }
