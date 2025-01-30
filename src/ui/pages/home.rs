@@ -75,13 +75,15 @@ impl HomePage {
     pub fn reset(&mut self) {
         self.list.items.clear();
         self.ns_selector.select.items.clear();
+        self.ns_selector.hide();
         self.res_selector.select.items.clear();
+        self.res_selector.hide();
     }
 
     /// Sets initial kubernetes resources data for [`HomePage`].
     pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
-        if scope == Scope::Cluster || namespace.is_all() {
+        if scope == Scope::Cluster || !namespace.is_all() {
             self.list.view = ViewType::Compact;
         }
 
@@ -212,7 +214,7 @@ impl HomePage {
 
         if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
             self.ns_selector
-                .show_selected(&self.app_data.borrow().current.namespace.as_str(), "");
+                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }
 
         if key.code == KeyCode::Right {
@@ -221,7 +223,7 @@ impl HomePage {
         }
 
         if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {
-            return ResponseEvent::ViewNamespaces(self.app_data.borrow().current.namespace.as_str().into());
+            return ResponseEvent::ViewNamespaces;
         }
 
         if key.code == KeyCode::Enter && self.list.items.kind_plural == NAMESPACES {
@@ -241,16 +243,11 @@ impl HomePage {
         ResponseEvent::Handled
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let actions = if self.app_data.borrow().is_connected {
-                ActionsList::from_kinds(&self.res_selector.select.items.list)
-            } else {
-                ActionsList::predefined(true)
-            };
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
-            self.command_palette.show();
-        }
+    /// Processes disconnection state.
+    pub fn process_disconnection(&mut self) {
+        self.ns_selector.hide();
+        self.res_selector.hide();
+        self.command_palette.hide();
     }
 
     /// Draws [`HomePage`] on the provided frame.
@@ -279,6 +276,18 @@ impl HomePage {
 
             self.ns_selector.draw(frame, bottom[1]);
             self.res_selector.draw(frame, bottom[1]);
+        }
+    }
+
+    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            let actions = if self.app_data.borrow().is_connected {
+                ActionsList::from_kinds(&self.res_selector.select.items.list)
+            } else {
+                ActionsList::predefined(true)
+            };
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
         }
     }
 

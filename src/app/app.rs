@@ -23,12 +23,12 @@ pub enum ExecutionFlow {
 }
 
 /// Application connecting info.
-pub struct AppConnectingInfo {
-    pub request_time: Instant,
-    pub request_id: Option<String>,
-    pub context: String,
-    pub kind: String,
-    pub namespace: Namespace,
+struct AppConnectingInfo {
+    request_time: Instant,
+    request_id: Option<String>,
+    context: String,
+    kind: String,
+    namespace: Namespace,
 }
 
 impl AppConnectingInfo {
@@ -51,6 +51,7 @@ pub struct App {
     worker: BgWorker,
     watcher: ConfigWatcher,
     connecting: Option<AppConnectingInfo>,
+    disconnect_processed: bool,
 }
 
 impl App {
@@ -66,6 +67,7 @@ impl App {
             worker: BgWorker::default(),
             watcher: Config::watcher(),
             connecting: None,
+            disconnect_processed: false,
         })
     }
 
@@ -98,19 +100,19 @@ impl App {
 
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
-        while let Ok(event) = self.tui.event_rx.try_recv() {
-            if self.process_event(event)? == ResponseEvent::ExitApplication {
-                return Ok(ExecutionFlow::Stop);
-            }
-        }
-
         if let Some(config) = self.watcher.try_next() {
             self.data.borrow_mut().config = config;
         }
 
         self.process_commands_results();
 
-        self.process_reconnect();
+        self.process_connection_events();
+
+        while let Ok(event) = self.tui.event_rx.try_recv() {
+            if self.process_event(event)? == ResponseEvent::ExitApplication {
+                return Ok(ExecutionFlow::Stop);
+            }
+        }
 
         Ok(ExecutionFlow::Continue)
     }
@@ -145,7 +147,7 @@ impl App {
             ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
-            ResponseEvent::ViewNamespaces(selected_namespace) => self.view_namespaces(selected_namespace)?,
+            ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => {
                 self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {}));
             }
@@ -168,12 +170,21 @@ impl App {
         }
     }
 
-    /// Process reconnect if needed.
-    fn process_reconnect(&mut self) {
+    /// Processes connection events.
+    fn process_connection_events(&mut self) {
         if self.connecting.as_ref().is_some_and(|c| c.is_overdue()) {
             if let Some(connecting) = self.connecting.take() {
                 self.connecting = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
+        }
+
+        if !self.data.borrow().is_connected || self.connecting.is_some() {
+            if !self.disconnect_processed {
+                self.disconnect_processed = true;
+                self.page.process_disconnection();
+            }
+        } else {
+            self.disconnect_processed = false;
         }
     }
 
@@ -187,12 +198,19 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind, optionally selects one of them.
+    /// Changes observed resources kind, optionally selects one of them.  
+    /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), None);
         let namespace = self.data.borrow().current.namespace.clone();
+        let showing_namespaces = to_select.is_none() && kind == NAMESPACES;
         let scope = self.worker.restart_new_kind(kind, namespace)?;
-        self.page.highlight_next(to_select);
+        if showing_namespaces {
+            let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
+            self.page.highlight_next(to_select);
+        } else {
+            self.page.highlight_next(to_select);
+        }
         self.set_page_view(scope);
 
         Ok(())
@@ -207,9 +225,9 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind to `namespaces` and selects provided namespace.
-    fn view_namespaces(&mut self, namespace_to_select: String) -> Result<(), BgWorkerError> {
-        self.change_kind(NAMESPACES.to_owned(), Some(namespace_to_select))?;
+    /// Changes observed resources kind to `namespaces`.
+    fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
+        self.change_kind(NAMESPACES.to_owned(), None)?;
 
         Ok(())
     }
@@ -289,7 +307,7 @@ impl App {
     fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> AppConnectingInfo {
         let cmd = NewKubernetesClientCommand::new(context.clone(), kind.clone(), namespace.clone());
         AppConnectingInfo {
-            request_id: Some(self.worker.run_command(Command::NewKubernetesClient(cmd))),
+            request_id: Some(self.worker.run_command(Command::NewKubernetesClient(Box::new(cmd)))),
             request_time: Instant::now(),
             context,
             kind,

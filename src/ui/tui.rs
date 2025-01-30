@@ -39,7 +39,7 @@ pub enum ResponseEvent {
     Change(String, String),
     ChangeKind(String),
     ChangeNamespace(String),
-    ViewNamespaces(String),
+    ViewNamespaces,
     ChangeContext(String),
 
     ListKubeContexts,
