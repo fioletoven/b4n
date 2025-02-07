@@ -6,6 +6,10 @@ use crate::kubernetes::ALL_NAMESPACES;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
+    /// Path to the kube config file.
+    #[arg(long)]
+    pub kube_config: Option<String>,
+
     /// Context to use, defined in kube config
     #[arg(long)]
     pub context: Option<String>,

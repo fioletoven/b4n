@@ -34,6 +34,7 @@ pub struct KubernetesClientResult {
 
 /// Command that creates new kubernetes client.
 pub struct NewKubernetesClientCommand {
+    pub kube_config_path: Option<String>,
     pub context: String,
     pub kind: String,
     pub namespace: Namespace,
@@ -41,8 +42,9 @@ pub struct NewKubernetesClientCommand {
 
 impl NewKubernetesClientCommand {
     /// Creates new [`NewKubernetesClientCommand`] instance.
-    pub fn new(context: String, kind: String, namespace: Namespace) -> Self {
+    pub fn new(kube_config_path: Option<String>, context: String, kind: String, namespace: Namespace) -> Self {
         Self {
+            kube_config_path,
             context,
             kind,
             namespace,
@@ -51,7 +53,7 @@ impl NewKubernetesClientCommand {
 
     /// Creates new kubernetes client and returns it.
     pub async fn execute(&self) -> Option<CommandResult> {
-        let Ok(client) = KubernetesClient::new(Some(&self.context), false).await else {
+        let Ok(client) = KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), false).await else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)));
         };
         let Ok(discovery) = Discovery::new(client.get_client()).run().await else {

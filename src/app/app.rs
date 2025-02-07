@@ -12,7 +12,7 @@ use super::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand,
         NewKubernetesClientCommand,
     },
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, ContextInfo, SharedAppData,
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, SharedAppData,
 };
 
 /// Application execution flow.
@@ -149,7 +149,9 @@ impl App {
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => {
-                self.worker.run_command(Command::ListKubeContexts(ListKubeContextsCommand {}));
+                let kube_config_path = self.data.borrow().config.kube_config_path().map(String::from);
+                self.worker
+                    .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
             }
             ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
@@ -284,20 +286,11 @@ impl App {
 
     /// Updates `kind` and `namespace` in the configuration and saves it to a file.
     fn update_configuration(&mut self, kind: Option<String>, namespace: Option<String>) {
-        let index = { self.data.borrow().config.context_index(&self.data.borrow().current.context) };
-        if let Some(index) = index {
-            let context = &mut self.data.borrow_mut().config.contexts[index];
-            context.update(kind, namespace);
-        } else {
-            let mut context = { ContextInfo::from(&self.data.borrow().current) };
-            context.update(kind, namespace);
-            self.data.borrow_mut().config.contexts.push(context);
-        }
-
-        {
-            let context = { self.data.borrow().current.context.clone() };
-            self.data.borrow_mut().config.current_context = Some(context);
-        }
+        let context = { self.data.borrow().current.context.clone() };
+        self.data
+            .borrow_mut()
+            .config
+            .create_or_update_context(context, kind, namespace);
 
         self.watcher.skip_next();
         self.worker.save_configuration(self.data.borrow().config.clone());
@@ -305,7 +298,8 @@ impl App {
 
     /// Sends command to create new kubernetes client to the background executor.
     fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> AppConnectingInfo {
-        let cmd = NewKubernetesClientCommand::new(context.clone(), kind.clone(), namespace.clone());
+        let kube_config_path = self.data.borrow().config.kube_config_path().map(String::from);
+        let cmd = NewKubernetesClientCommand::new(kube_config_path, context.clone(), kind.clone(), namespace.clone());
         AppConnectingInfo {
             request_id: Some(self.worker.run_command(Command::NewKubernetesClient(Box::new(cmd)))),
             request_time: Instant::now(),
