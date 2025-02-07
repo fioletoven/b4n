@@ -34,14 +34,22 @@ async fn main() -> Result<()> {
 
 async fn run_application() -> Result<()> {
     let args = cli::Args::parse();
-    let config = Config::load_or_create().await?;
-    let context = get_context(args.context(config.current_context.as_deref()), args.context.is_none()).await?;
+
+    let mut config = Config::load_or_create().await?;
+    let (context, kube_config_path) = get_context(
+        args.kube_config.as_deref(),
+        args.context(config.current_context()),
+        args.context.is_none(),
+    )
+    .await?;
     let Some(context) = context else {
         return Err(anyhow::anyhow!(format!(
             "Kube context '{}' not found in configuration.",
-            args.context(config.current_context.as_deref()).unwrap_or("default")
+            args.context(config.current_context()).unwrap_or("default")
         )));
     };
+    config.set_kube_config_path(kube_config_path);
+
     let resource = args.kind(config.get_kind(&context)).unwrap_or("pods").to_owned();
     let namespace = args.namespace(config.get_namespace(&context)).map(String::from);
 
