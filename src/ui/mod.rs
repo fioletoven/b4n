@@ -8,9 +8,9 @@ pub use self::tui::*;
 
 pub mod colors;
 pub mod pages;
-pub mod panes;
 pub mod theme;
 pub mod utils;
+pub mod views;
 pub mod widgets;
 
 mod tui;

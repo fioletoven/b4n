@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 
 use crate::{
     kubernetes::{Namespace, NAMESPACES},
-    ui::{pages::HomePage, ResponseEvent, Tui, TuiEvent, ViewType},
+    ui::{views::ResourcesView, ResponseEvent, Tui, TuiEvent, ViewType},
 };
 
 use super::{
@@ -47,7 +47,7 @@ impl AppConnectingInfo {
 pub struct App {
     data: SharedAppData,
     tui: Tui,
-    page: HomePage,
+    resources: ResourcesView,
     worker: BgWorker,
     watcher: ConfigWatcher,
     connecting: Option<AppConnectingInfo>,
@@ -58,12 +58,12 @@ impl App {
     /// Creates new [`App`] instance.
     pub fn new(config: Config) -> Result<Self> {
         let data = Rc::new(RefCell::new(AppData::new(config)));
-        let page = HomePage::new(Rc::clone(&data));
+        let resources = ResourcesView::new(Rc::clone(&data));
 
         Ok(Self {
             data,
             tui: Tui::new()?,
-            page,
+            resources,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
             connecting: None,
@@ -74,7 +74,7 @@ impl App {
     /// Starts app with initial data.
     pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
         self.connecting = Some(self.new_kubernetes_client(context.clone(), kind, namespace.clone()));
-        self.page
+        self.resources
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
         self.watcher.start()?;
         self.tui.enter_terminal()?;
@@ -122,7 +122,7 @@ impl App {
         self.update_lists();
 
         self.tui.terminal.draw(|frame| {
-            self.page.draw(frame);
+            self.resources.draw(frame);
         })?;
 
         Ok(())
@@ -131,18 +131,18 @@ impl App {
     /// Updates page lists with observed resources.
     fn update_lists(&mut self) {
         if self.worker.update_discovery_list() {
-            self.page.update_kinds_list(self.worker.get_kinds_list());
+            self.resources.update_kinds_list(self.worker.get_kinds_list());
         }
 
-        self.page.update_namespaces_list(self.worker.namespaces.try_next());
-        self.page.update_resources_list(self.worker.resources.try_next());
+        self.resources.update_namespaces_list(self.worker.namespaces.try_next());
+        self.resources.update_resources_list(self.worker.resources.try_next());
 
         self.data.borrow_mut().is_connected = !self.worker.has_errors();
     }
 
     /// Process TUI event.
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
-        match self.page.process_event(event) {
+        match self.resources.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
             ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
@@ -154,7 +154,7 @@ impl App {
                     .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
             }
             ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
-            ResponseEvent::AskDeleteResources => self.page.ask_delete_resources(),
+            ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
             _ => (),
         };
@@ -166,7 +166,7 @@ impl App {
     fn process_commands_results(&mut self) {
         while let Some(command) = self.worker.check_command_result() {
             match command.result {
-                CommandResult::ContextsList(list) => self.page.show_contexts_list(list),
+                CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
             }
         }
@@ -183,7 +183,7 @@ impl App {
         if !self.data.borrow().is_connected || self.connecting.is_some() {
             if !self.disconnect_processed {
                 self.disconnect_processed = true;
-                self.page.process_disconnection();
+                self.resources.process_disconnection();
             }
         } else {
             self.disconnect_processed = false;
@@ -193,7 +193,7 @@ impl App {
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
         self.update_configuration(Some(kind.clone()), Some(namespace.clone().into()));
-        self.page.set_namespace(namespace.clone());
+        self.resources.set_namespace(namespace.clone());
         let scope = self.worker.restart(kind, namespace)?;
         self.set_page_view(scope);
 
@@ -209,9 +209,9 @@ impl App {
         let scope = self.worker.restart_new_kind(kind, namespace)?;
         if showing_namespaces {
             let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
-            self.page.highlight_next(to_select);
+            self.resources.highlight_next(to_select);
         } else {
-            self.page.highlight_next(to_select);
+            self.resources.highlight_next(to_select);
         }
         self.set_page_view(scope);
 
@@ -221,7 +221,7 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         self.update_configuration(None, Some(namespace.clone().into()));
-        self.page.set_namespace(namespace.clone());
+        self.resources.set_namespace(namespace.clone());
         self.worker.restart_new_namespace(namespace)?;
 
         Ok(())
@@ -247,7 +247,7 @@ impl App {
                     .start(result.client, result.discovery, result.kind.clone(), result.namespace.clone());
 
                 if let Ok(scope) = scope {
-                    self.page
+                    self.resources
                         .set_resources_info(context, result.namespace.clone(), version, scope.clone());
                     self.update_configuration(Some(result.kind), Some(result.namespace.into()));
 
@@ -261,26 +261,27 @@ impl App {
 
     /// Deletes resources that are currently selected on [`HomePage`].
     fn delete_resources(&mut self) {
-        let list = self.page.get_selected_items();
+        let list = self.resources.get_selected_items();
         for key in list.keys() {
             let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
-            let namespace = if self.page.scope() == &Scope::Cluster {
+            let namespace = if self.resources.scope() == &Scope::Cluster {
                 Namespace::all()
             } else {
                 Namespace::from((*key).to_owned())
             };
-            self.worker.delete_resources(resources, namespace, self.page.kind_plural());
+            self.worker
+                .delete_resources(resources, namespace, self.resources.kind_plural());
         }
 
-        self.page.deselect_all();
+        self.resources.deselect_all();
     }
 
     /// Sets page view from resource scope.
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
-            self.page.set_view(ViewType::Compact);
+            self.resources.set_view(ViewType::Compact);
         } else if self.data.borrow().current.namespace.is_all() {
-            self.page.set_view(ViewType::Full);
+            self.resources.set_view(ViewType::Full);
         }
     }
 
@@ -322,8 +323,8 @@ impl App {
         self.worker.stop();
 
         let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
-        self.page.reset();
-        self.page
+        self.resources.reset();
+        self.resources
             .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
 
         self.connecting = Some(self.new_kubernetes_client(context, kind, namespace));

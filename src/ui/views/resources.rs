@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyModifiers};
+use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -9,36 +10,31 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{
         lists::{ActionsList, KindsList, ResourcesList},
-        ObserverResult, ResourcesInfo, SharedAppData,
+        ObserverResult, SharedAppData,
     },
-    kubernetes::{resources::Kind, Namespace, NAMESPACES},
+    kubernetes::{resources::Kind, Namespace},
     ui::{
-        panes::{FooterPane, HeaderPane, ListPane},
+        pages::ResourcesPage,
         tui::{ResponseEvent, TuiEvent},
         widgets::{Button, CommandPalette, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
 
-/// Home page (main page) for `b4n`.
-pub struct HomePage {
+/// Resources view (main view) for `b4n`.
+pub struct ResourcesView {
     app_data: SharedAppData,
-    header: HeaderPane,
-    list: ListPane<ResourcesList>,
-    footer: FooterPane,
+    page: ResourcesPage,
     modal: Dialog,
     command_palette: CommandPalette,
     ns_selector: SideSelect<ResourcesList>,
     res_selector: SideSelect<KindsList>,
-    highlight_next: Option<String>,
 }
 
-impl HomePage {
-    /// Creates a new home page.
+impl ResourcesView {
+    /// Creates a new resources view.
     pub fn new(app_data: SharedAppData) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
-        let footer = FooterPane::new(Rc::clone(&app_data));
+        let page = ResourcesPage::new(Rc::clone(&app_data));
 
         let ns_selector = SideSelect::new(
             "NAMESPACE",
@@ -60,101 +56,35 @@ impl HomePage {
 
         Self {
             app_data,
-            header,
-            list,
-            footer,
+            page,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             ns_selector,
             res_selector,
-            highlight_next: None,
         }
     }
 
-    /// Resets all data on a home page.
+    delegate! {
+        to self.page {
+            pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
+            pub fn highlight_next(&mut self, resource_to_select: Option<String>);
+            pub fn deselect_all(&mut self);
+            pub fn kind_plural(&self) -> &str;
+            pub fn scope(&self) -> &Scope;
+            pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
+            pub fn set_namespace(&mut self, namespace: Namespace);
+            pub fn set_view(&mut self, view: ViewType);
+            pub fn update_resources_list(&mut self, result: Option<ObserverResult>);
+        }
+    }
+
+    /// Resets all data for a resources view.
     pub fn reset(&mut self) {
-        self.list.items.clear();
+        self.page.reset();
         self.ns_selector.select.items.clear();
         self.ns_selector.hide();
         self.res_selector.select.items.clear();
         self.res_selector.hide();
-    }
-
-    /// Sets initial kubernetes resources data for [`HomePage`].
-    pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
-        self.list.view = ViewType::Full;
-        if scope == Scope::Cluster || !namespace.is_all() {
-            self.list.view = ViewType::Compact;
-        }
-
-        self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
-    }
-
-    /// Remembers resource name that will be highlighted for next background observer result.
-    pub fn highlight_next(&mut self, resource_to_select: Option<String>) {
-        self.highlight_next = resource_to_select;
-    }
-
-    /// Deselects all selected items for [`HomePage`].
-    pub fn deselect_all(&mut self) {
-        self.list.items.deselect_all();
-    }
-
-    /// Gets current kind (plural) for resources listed in [`HomePage`].
-    pub fn kind_plural(&self) -> &str {
-        &self.list.items.kind_plural
-    }
-
-    /// Gets current scope for resources listed in [`HomePage`].
-    pub fn scope(&self) -> &Scope {
-        &self.list.items.scope
-    }
-
-    /// Gets currently selected item names (grouped in [`HashMap`]) on [`HomePage`].
-    pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
-        self.list.items.get_selected_items()
-    }
-
-    /// Sets namespace for [`HomePage`].
-    pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.list.view = if namespace.is_all() {
-            ViewType::Full
-        } else {
-            ViewType::Compact
-        };
-
-        if self.app_data.borrow().current.namespace != namespace {
-            self.app_data.borrow_mut().current.namespace = namespace;
-            self.list.items.deselect_all();
-        }
-    }
-
-    /// Sets list view for [`HomePage`].
-    pub fn set_view(&mut self, view: ViewType) {
-        self.list.view = view;
-    }
-
-    /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: Option<ObserverResult>) {
-        if result.is_none() {
-            return;
-        }
-
-        if self.list.items.update(result, 1, false) {
-            let mut data = self.app_data.borrow_mut();
-            data.current.kind = self.list.items.kind.clone();
-            data.current.kind_plural = self.list.items.kind_plural.clone();
-            data.current.group = self.list.items.group.clone();
-            data.current.scope = self.list.items.scope.clone();
-            data.current.count = self.list.items.list.len();
-        } else {
-            self.app_data.borrow_mut().current.count = self.list.items.list.len();
-        }
-
-        if let Some(name) = self.highlight_next.as_deref() {
-            self.list.items.highlight_item_by_name(name);
-            self.highlight_next = None;
-        }
     }
 
     /// Updates namespaces list with a new data from [`ObserverResult`].
@@ -169,7 +99,7 @@ impl HomePage {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.list.items.is_anything_selected() {
+        if self.page.list.items.is_anything_selected() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
@@ -212,24 +142,13 @@ impl HomePage {
             return self.res_selector.process_key(key);
         }
 
-        if key.code == KeyCode::Left && self.list.items.scope == Scope::Namespaced {
+        if key.code == KeyCode::Left && self.page.scope() == &Scope::Namespaced {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }
 
         if key.code == KeyCode::Right {
-            self.res_selector
-                .show_selected(&self.list.items.kind_plural, &self.list.items.group);
-        }
-
-        if key.code == KeyCode::Esc && self.list.items.kind_plural != NAMESPACES {
-            return ResponseEvent::ViewNamespaces;
-        }
-
-        if key.code == KeyCode::Enter && self.list.items.kind_plural == NAMESPACES {
-            if let Some(selected_namespace) = self.list.items.get_highlighted_item_name() {
-                return ResponseEvent::Change("pods".to_owned(), selected_namespace.to_owned());
-            }
+            self.res_selector.show_selected(self.page.kind_plural(), self.page.group());
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
@@ -238,9 +157,7 @@ impl HomePage {
 
         self.process_command_palette_events(key);
 
-        self.list.process_key(key);
-
-        ResponseEvent::Handled
+        self.page.process_key(key)
     }
 
     /// Processes disconnection state.
@@ -250,20 +167,18 @@ impl HomePage {
         self.command_palette.hide();
     }
 
-    /// Draws [`HomePage`] on the provided frame.
+    /// Draws [`ResourcesView`] on the provided frame.
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)])
+            .constraints(vec![Constraint::Fill(1), Constraint::Length(1)])
             .split(frame.area());
 
-        self.header.draw(frame, layout[0]);
-        self.list.draw(frame, layout[1]);
-        self.footer.draw(frame, layout[2]);
+        self.page.draw(frame, frame.area());
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
 
-        self.draw_selectors(frame, layout[0].union(layout[1]));
+        self.draw_selectors(frame, layout[0]);
     }
 
     /// Draws namespace / resource selector located on the left / right of the resources list
