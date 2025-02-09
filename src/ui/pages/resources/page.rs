@@ -7,7 +7,10 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{lists::ResourcesList, ObserverResult, ResourcesInfo, SharedAppData},
+    app::{
+        lists::{ResourcesList, Row},
+        ObserverResult, ResourcesInfo, SharedAppData,
+    },
     kubernetes::{Namespace, NAMESPACES},
     ui::{
         pages::{FooterPane, HeaderPane, ListPane},
@@ -16,7 +19,7 @@ use crate::{
     },
 };
 
-/// Resources page for `b4n`.
+/// Resources page.
 pub struct ResourcesPage {
     pub header: HeaderPane,
     pub list: ListPane<ResourcesList>,
@@ -76,6 +79,7 @@ impl ResourcesPage {
         &self.list.items.scope
     }
 
+    /// Gets resources group.
     pub fn group(&self) -> &str {
         &self.list.items.group
     }
@@ -137,6 +141,12 @@ impl ResourcesPage {
 
         if key.code == KeyCode::Esc && self.kind_plural() != NAMESPACES {
             return ResponseEvent::ViewNamespaces;
+        }
+
+        if key.code == KeyCode::Char('y') {
+            if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
+                return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+            }
         }
 
         self.list.process_key(key)

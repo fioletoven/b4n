@@ -46,6 +46,8 @@ pub enum ResponseEvent {
 
     AskDeleteResources,
     DeleteResources,
+
+    ViewYaml(String, String),
 }
 
 /// Terminal UI.

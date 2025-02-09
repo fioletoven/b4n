@@ -233,10 +233,15 @@ impl<T: Row> ScrollableList<T> {
 
     /// Gets highlighted element name.
     pub fn get_highlighted_item_name(&self) -> Option<&str> {
+        self.get_highlighted_item().map(|i| i.data.name())
+    }
+
+    /// Gets highlighted element.
+    pub fn get_highlighted_item(&self) -> Option<&Item<T>> {
         if let Some(items) = &self.items {
             if let Some(highlighted) = self.highlighted {
                 if highlighted < items.len() {
-                    return Some(items[highlighted].data.name());
+                    return Some(&items[highlighted]);
                 }
             }
         }

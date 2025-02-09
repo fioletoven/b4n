@@ -1,6 +1,7 @@
 use anyhow::Result;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc, time::Instant};
+use tracing::info;
 
 use crate::{
     kubernetes::{Namespace, NAMESPACES},
@@ -148,14 +149,13 @@ impl App {
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
-            ResponseEvent::ListKubeContexts => {
-                let kube_config_path = self.data.borrow().config.kube_config_path().map(String::from);
-                self.worker
-                    .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
-            }
+            ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.delete_resources(),
+            ResponseEvent::ViewYaml(resource, namespace) => {
+                self.worker.get_yaml(resource, namespace.into(), self.resources.kind_plural())
+            }
             _ => (),
         };
 
@@ -168,6 +168,7 @@ impl App {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
+                CommandResult::Yaml(result) => info!("YAML to show:\n{}", result),
             }
         }
     }
@@ -232,6 +233,13 @@ impl App {
         self.change_kind(NAMESPACES.to_owned(), None)?;
 
         Ok(())
+    }
+
+    /// Runs command to list kube contexts from the current config.
+    fn list_kube_contexts(&mut self) {
+        let kube_config_path = self.data.borrow().config.kube_config_path().map(String::from);
+        self.worker
+            .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
     }
 
     /// Changes kubernetes client to the new one.

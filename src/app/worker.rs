@@ -8,7 +8,7 @@ use thiserror;
 use crate::kubernetes::{client::KubernetesClient, resources::Kind, utils::get_resource, Namespace, NAMESPACES};
 
 use super::{
-    commands::{Command, DeleteResourcesCommand, SaveConfigurationCommand},
+    commands::{Command, DeleteResourcesCommand, GetYamlCommand, SaveConfigurationCommand},
     BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, TaskResult,
 };
 
@@ -142,10 +142,19 @@ impl BgWorker {
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
     pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &str) {
-        let discovery = get_resource(self.list.as_ref(), kind);
         if let Some(client) = &self.client {
+            let discovery = get_resource(self.list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
+        }
+    }
+
+    /// Sends [`GetYamlCommand`] to the background executor.
+    pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &str) {
+        if let Some(client) = &self.client {
+            let discovery = get_resource(self.list.as_ref(), kind);
+            let command = GetYamlCommand::new(name, namespace, discovery, client.get_client());
+            self.executor.run_task(Command::GetYaml(Box::new(command)));
         }
     }
 

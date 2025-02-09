@@ -71,6 +71,7 @@ impl ResourcesView {
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
             pub fn scope(&self) -> &Scope;
+            pub fn group(&self) -> &str;
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn set_namespace(&mut self, namespace: Namespace);
             pub fn set_view(&mut self, view: ViewType);

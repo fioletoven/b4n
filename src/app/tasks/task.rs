@@ -96,5 +96,6 @@ async fn run_command(command: Command) -> Option<CommandResult> {
         Command::NewKubernetesClient(command) => command.execute().await,
         Command::SaveConfiguration(command) => command.execute().await,
         Command::DeleteResource(mut command) => command.execute().await,
+        Command::GetYaml(mut command) => command.execute().await,
     }
 }
