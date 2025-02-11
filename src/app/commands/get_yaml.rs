@@ -49,7 +49,7 @@ impl GetYamlCommand {
                     resource.replace_range(index + 1..index + 21, "");
                 }
 
-                return Some(CommandResult::Yaml(resource));
+                return Some(CommandResult::ResourceYaml(resource));
             }
         }
 

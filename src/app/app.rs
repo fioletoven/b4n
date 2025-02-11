@@ -1,11 +1,13 @@
 use anyhow::Result;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc, time::Instant};
-use tracing::info;
 
 use crate::{
     kubernetes::{Namespace, NAMESPACES},
-    ui::{views::ResourcesView, ResponseEvent, Tui, TuiEvent, ViewType},
+    ui::{
+        views::{ResourcesView, View, YamlView},
+        ResponseEvent, Tui, TuiEvent, ViewType,
+    },
 };
 
 use super::{
@@ -49,6 +51,7 @@ pub struct App {
     data: SharedAppData,
     tui: Tui,
     resources: ResourcesView,
+    view: Option<Box<dyn View>>,
     worker: BgWorker,
     watcher: ConfigWatcher,
     connecting: Option<AppConnectingInfo>,
@@ -65,6 +68,7 @@ impl App {
             data,
             tui: Tui::new()?,
             resources,
+            view: None,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
             connecting: None,
@@ -123,7 +127,11 @@ impl App {
         self.update_lists();
 
         self.tui.terminal.draw(|frame| {
-            self.resources.draw(frame);
+            if let Some(view) = &mut self.view {
+                view.draw(frame);
+            } else {
+                self.resources.draw(frame);
+            }
         })?;
 
         Ok(())
@@ -143,21 +151,29 @@ impl App {
 
     /// Process TUI event.
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
-        match self.resources.process_event(event) {
-            ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
-            ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
-            ResponseEvent::ViewNamespaces => self.view_namespaces()?,
-            ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
-            ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
-            ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
-            ResponseEvent::DeleteResources => self.delete_resources(),
-            ResponseEvent::ViewYaml(resource, namespace) => {
-                self.worker.get_yaml(resource, namespace.into(), self.resources.kind_plural())
-            }
-            _ => (),
-        };
+        if let Some(view) = &mut self.view {
+            match view.process_event(event) {
+                ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
+                ResponseEvent::Cancelled => self.view = None,
+                _ => (),
+            };
+        } else {
+            match self.resources.process_event(event) {
+                ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
+                ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
+                ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
+                ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
+                ResponseEvent::ViewNamespaces => self.view_namespaces()?,
+                ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
+                ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
+                ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
+                ResponseEvent::DeleteResources => self.delete_resources(),
+                ResponseEvent::ViewYaml(resource, namespace) => {
+                    self.worker.get_yaml(resource, namespace.into(), self.resources.kind_plural())
+                }
+                _ => (),
+            };
+        }
 
         Ok(ResponseEvent::Handled)
     }
@@ -168,7 +184,7 @@ impl App {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
-                CommandResult::Yaml(result) => info!("YAML to show:\n{}", result),
+                CommandResult::ResourceYaml(result) => self.view = Some(Box::new(YamlView::new(result))),
             }
         }
     }
