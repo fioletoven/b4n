@@ -94,3 +94,60 @@ impl LineColors {
         }
     }
 }
+
+/// Converts syntect color to ratatui color.
+pub fn from_syntect_color(syntect_color: syntect::highlighting::Color) -> Color {
+    match syntect_color {
+        syntect::highlighting::Color { r, g, b, a } if a > 2 => Color::Rgb(r, g, b),
+        syntect::highlighting::Color { r, g: _, b: _, a } if a == 2 => Color::Indexed(r),
+        syntect::highlighting::Color { r, g: _, b: _, a } if a == 1 => from_int_color(r),
+        _ => Color::Reset,
+    }
+}
+
+/// Converts ratatui color to syntect color.
+pub fn to_syntect_color(ratatui_color: Color) -> syntect::highlighting::Color {
+    match ratatui_color {
+        Color::Reset => syntect::highlighting::Color { r: 0, g: 0, b: 0, a: 0 },
+        Color::Black => syntect::highlighting::Color { r: 1, g: 0, b: 0, a: 1 },
+        Color::Red => syntect::highlighting::Color { r: 2, g: 0, b: 0, a: 1 },
+        Color::Green => syntect::highlighting::Color { r: 3, g: 0, b: 0, a: 1 },
+        Color::Yellow => syntect::highlighting::Color { r: 4, g: 0, b: 0, a: 1 },
+        Color::Blue => syntect::highlighting::Color { r: 5, g: 0, b: 0, a: 1 },
+        Color::Magenta => syntect::highlighting::Color { r: 6, g: 0, b: 0, a: 1 },
+        Color::Cyan => syntect::highlighting::Color { r: 7, g: 0, b: 0, a: 1 },
+        Color::Gray => syntect::highlighting::Color { r: 8, g: 0, b: 0, a: 1 },
+        Color::DarkGray => syntect::highlighting::Color { r: 9, g: 0, b: 0, a: 1 },
+        Color::LightRed => syntect::highlighting::Color { r: 10, g: 0, b: 0, a: 1 },
+        Color::LightGreen => syntect::highlighting::Color { r: 11, g: 0, b: 0, a: 1 },
+        Color::LightYellow => syntect::highlighting::Color { r: 12, g: 0, b: 0, a: 1 },
+        Color::LightBlue => syntect::highlighting::Color { r: 13, g: 0, b: 0, a: 1 },
+        Color::LightMagenta => syntect::highlighting::Color { r: 14, g: 0, b: 0, a: 1 },
+        Color::LightCyan => syntect::highlighting::Color { r: 15, g: 0, b: 0, a: 1 },
+        Color::White => syntect::highlighting::Color { r: 16, g: 0, b: 0, a: 1 },
+        Color::Rgb(r, g, b) => syntect::highlighting::Color { r, g, b, a: 255 },
+        Color::Indexed(i) => syntect::highlighting::Color { r: i, g: 0, b: 0, a: 2 },
+    }
+}
+
+fn from_int_color(color: u8) -> Color {
+    match color {
+        1 => Color::Black,
+        2 => Color::Red,
+        3 => Color::Green,
+        4 => Color::Yellow,
+        5 => Color::Blue,
+        6 => Color::Magenta,
+        7 => Color::Cyan,
+        8 => Color::Gray,
+        9 => Color::DarkGray,
+        10 => Color::LightRed,
+        11 => Color::LightGreen,
+        12 => Color::LightYellow,
+        13 => Color::LightBlue,
+        14 => Color::LightMagenta,
+        15 => Color::LightCyan,
+        16 => Color::White,
+        _ => Color::Reset,
+    }
+}

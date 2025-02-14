@@ -49,7 +49,8 @@ impl GetYamlCommand {
                     resource.replace_range(index + 1..index + 21, "");
                 }
 
-                return Some(CommandResult::ResourceYaml(resource));
+                let lines = resource.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
+                return Some(CommandResult::ResourceYaml(lines));
             }
         }
 

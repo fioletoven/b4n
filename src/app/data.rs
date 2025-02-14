@@ -1,5 +1,6 @@
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
+use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::kubernetes::Namespace;
 
@@ -56,6 +57,9 @@ pub struct AppData {
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
+    /// Syntax set to highlight YAML syntax.
+    pub syntax_set: SyntaxSet,
+
     /// Indicates if application is connected to the kubernetes api.
     pub is_connected: bool,
 }
@@ -66,6 +70,7 @@ impl AppData {
         Self {
             config,
             current: ResourcesInfo::default(),
+            syntax_set: from_uncompressed_data::<SyntaxSet>(include_bytes!("../../assets/syntaxes/syntaxes.packdump")).unwrap(),
             is_connected: false,
         }
     }

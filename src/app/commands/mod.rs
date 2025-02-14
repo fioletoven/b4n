@@ -25,5 +25,5 @@ pub enum Command {
 pub enum CommandResult {
     ContextsList(Vec<NamedContext>),
     KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
-    ResourceYaml(String),
+    ResourceYaml(Vec<String>),
 }

@@ -184,7 +184,7 @@ impl App {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
-                CommandResult::ResourceYaml(result) => self.view = Some(Box::new(YamlView::new(result))),
+                CommandResult::ResourceYaml(result) => self.view = Some(Box::new(YamlView::new(&self.data.borrow(), result))),
             }
         }
     }
