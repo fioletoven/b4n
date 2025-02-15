@@ -150,11 +150,13 @@ impl BgWorker {
     }
 
     /// Sends [`GetYamlCommand`] to the background executor.
-    pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &str, syntax: SyntaxData) {
+    pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &str, syntax: SyntaxData) -> Option<String> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
             let command = GetResourceYamlCommand::new(name, namespace, discovery, client.get_client(), syntax);
-            self.executor.run_task(Command::GetYaml(Box::new(command)));
+            Some(self.executor.run_task(Command::GetYaml(Box::new(command))))
+        } else {
+            None
         }
     }
 

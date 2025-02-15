@@ -7,22 +7,24 @@ use ratatui::{
 };
 
 use crate::{
-    app::commands::ResourceYamlResult,
+    app::commands::CommandResult,
     ui::{ResponseEvent, TuiEvent},
 };
 
 use super::View;
 
 pub struct YamlView {
+    command_id: Option<String>,
     lines: Vec<Vec<(Style, String)>>,
     page_start: usize,
     page_height: usize,
 }
 
 impl YamlView {
-    pub fn new(yaml: ResourceYamlResult) -> Self {
+    pub fn new(command_id: Option<String>) -> Self {
         Self {
-            lines: yaml.styled,
+            command_id,
+            lines: Vec::new(),
             page_start: 0,
             page_height: 0,
         }
@@ -38,6 +40,19 @@ impl YamlView {
 }
 
 impl View for YamlView {
+    fn command_id(&self) -> Option<&str> {
+        self.command_id.as_deref()
+    }
+
+    fn process_command_result(&mut self, result: CommandResult) {
+        match result {
+            CommandResult::ResourceYaml(Ok(result)) => {
+                self.lines = result.styled;
+            }
+            _ => (),
+        }
+    }
+
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 

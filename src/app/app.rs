@@ -168,12 +168,7 @@ impl App {
                 ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, namespace) => self.worker.get_yaml(
-                    resource,
-                    namespace.into(),
-                    self.resources.kind_plural(),
-                    self.data.borrow().get_syntax_data(),
-                ),
+                ResponseEvent::ViewYaml(resource, namespace) => self.get_resources_yaml(resource, namespace),
                 _ => (),
             };
         }
@@ -187,7 +182,7 @@ impl App {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
-                CommandResult::ResourceYaml(result) => self.show_yaml(result),
+                CommandResult::ResourceYaml(result) => self.show_yaml(command.id, result),
             }
         }
     }
@@ -357,10 +352,30 @@ impl App {
         self.connecting = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 
+    /// Sends command to fetch resources YAML to the background executor.
+    fn get_resources_yaml(&mut self, resource: String, namespace: String) {
+        let command_id = self.worker.get_yaml(
+            resource,
+            namespace.into(),
+            self.resources.kind_plural(),
+            self.data.borrow().get_syntax_data(),
+        );
+        self.view = Some(Box::new(YamlView::new(command_id)));
+    }
+
     /// Shows returned resources YAML in separate view.
-    fn show_yaml(&mut self, result: Result<ResourceYamlResult, ResourceYamlError>) {
-        if let Ok(result) = result {
-            self.view = Some(Box::new(YamlView::new(result)));
+    fn show_yaml(&mut self, command_id: String, result: Result<ResourceYamlResult, ResourceYamlError>) {
+        if self.view.as_ref().is_some_and(|v| !v.command_id_match(&command_id)) {
+            return;
+        }
+
+        if result.is_err() {
+            self.view = None;
+            return;
+        }
+
+        if let Some(view) = &mut self.view {
+            view.process_command_result(CommandResult::ResourceYaml(result));
         }
     }
 }
