@@ -56,6 +56,7 @@ pub struct YamlSyntaxColors {
 /// All colors in theme.
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct ThemeColors {
+    pub text: TextColors,
     pub context: TextColors,
     pub namespace: TextColors,
     pub resource: TextColors,
@@ -81,6 +82,7 @@ impl Default for Theme {
     fn default() -> Self {
         Theme {
             colors: ThemeColors {
+                text: TextColors::new(Color::DarkGray, Color::Reset),
                 context: TextColors::new(Color::White, Color::Rgb(216, 0, 96)),
                 namespace: TextColors::new(Color::DarkGray, Color::Rgb(253, 202, 79)),
                 resource: TextColors::new(Color::DarkGray, Color::Rgb(92, 166, 227)),

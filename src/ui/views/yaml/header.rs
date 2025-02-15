@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::Paragraph,
@@ -13,6 +13,8 @@ pub struct HeaderPane {
     pub namespace: Namespace,
     pub kind_plural: String,
     app_data: SharedAppData,
+    position_x: usize,
+    position_y: usize,
 }
 
 impl HeaderPane {
@@ -23,6 +25,8 @@ impl HeaderPane {
             namespace,
             kind_plural,
             app_data,
+            position_x: 0,
+            position_y: 0,
         }
     }
 
@@ -33,9 +37,26 @@ impl HeaderPane {
         self.kind_plural = kind_plural;
     }
 
+    /// Sets header coordinates.
+    pub fn set_coordinates(&mut self, x: usize, y: usize) {
+        self.position_x = x;
+        self.position_y = y;
+    }
+
     /// Draws [`HeaderPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        frame.render_widget(Paragraph::new(self.get_path()), area);
+        let coordinates = format!("  x: {}, y: {} ", self.position_x, self.position_y);
+
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Fill(1),
+                Constraint::Length(coordinates.chars().count() as u16 + 2),
+            ])
+            .split(area);
+
+        frame.render_widget(Paragraph::new(self.get_path()), layout[0]);
+        frame.render_widget(Paragraph::new(self.get_right_text(coordinates)), layout[1]);
     }
 
     /// Returns formatted YAML resource path as breadcrumbs:  
@@ -64,5 +85,18 @@ impl HeaderPane {
         ];
 
         Line::from(path)
+    }
+
+    /// Returns formatted text as right breadcrumbs:
+    /// < `text` <
+    fn get_right_text(&self, text: String) -> Line {
+        let colors = self.app_data.borrow().config.theme.colors.header;
+
+        Line::from(vec![
+            Span::styled("", Style::new().fg(colors.bg)),
+            Span::styled(text, Style::new().fg(colors.fg).bg(colors.bg)),
+            Span::styled("", Style::new().fg(colors.bg)),
+        ])
+        .right_aligned()
     }
 }

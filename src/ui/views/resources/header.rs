@@ -78,8 +78,8 @@ impl HeaderPane {
         Line::from(path)
     }
 
-    /// Returns formatted k8s version info as breadcrumbs:
-    /// < `k8s version` <
+    /// Returns formatted k8s version info as breadcrumbs:  
+    /// \< `k8s version` \<
     fn get_version(&self, version: &str) -> Line {
         let colors;
         let text;

@@ -1,12 +1,22 @@
 use anyhow::Result;
-use ratatui::crossterm::{
-    terminal::{disable_raw_mode, LeaveAlternateScreen},
-    ExecutableCommand,
+use ratatui::{
+    crossterm::{
+        terminal::{disable_raw_mode, LeaveAlternateScreen},
+        ExecutableCommand,
+    },
+    layout::{Constraint, Flex, Layout, Rect},
 };
 use std::{
     io::stdout,
     panic::{set_hook, take_hook},
 };
+
+/// Centers a [`Rect`] within another [`Rect`] using the provided [`Constraint`]s.
+pub fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
+    let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
+    let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
+    area
+}
 
 /// Sets panic hook that additionally leaves alternate screen mode on panic
 pub fn init_panic_hook() {

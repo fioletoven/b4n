@@ -1,6 +1,6 @@
-use std::rc::Rc;
+use std::{rc::Rc, time::Instant};
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
@@ -12,7 +12,7 @@ use ratatui::{
 use crate::{
     app::SharedAppData,
     kubernetes::Namespace,
-    ui::{widgets::Footer, ResponseEvent},
+    ui::{utils::center, widgets::Footer, ResponseEvent},
 };
 
 use super::HeaderPane;
@@ -21,9 +21,18 @@ use super::HeaderPane;
 pub struct YamlViewer {
     pub header: HeaderPane,
     pub footer: Footer,
+    app_data: SharedAppData,
+
     lines: Vec<Vec<(Style, String)>>,
-    page_start: usize,
+    lines_width: usize,
+
     page_height: usize,
+    page_width: usize,
+    page_vstart: usize,
+    page_hstart: usize,
+
+    has_content: bool,
+    creation_time: Instant,
 }
 
 impl YamlViewer {
@@ -35,9 +44,15 @@ impl YamlViewer {
         Self {
             header,
             footer,
+            app_data,
             lines: Vec::new(),
-            page_start: 0,
+            lines_width: 0,
             page_height: 0,
+            page_width: 0,
+            page_vstart: 0,
+            page_hstart: 0,
+            has_content: false,
+            creation_time: Instant::now(),
         }
     }
 
@@ -47,52 +62,61 @@ impl YamlViewer {
     }
 
     /// Sets styled YAML content to view.
-    pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>) {
+    pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>, max_width: usize) {
         self.lines = styled_lines;
+        self.lines_width = max_width;
+        self.has_content = true;
     }
 
     /// Updates page height.
-    pub fn update_page(&mut self, new_height: u16) {
+    pub fn update_page(&mut self, new_height: u16, hew_width: u16) {
         self.page_height = usize::from(new_height);
+        self.page_width = usize::from(hew_width);
     }
 
-    /// Returns max start value.
-    fn max_start(&self) -> usize {
+    /// Returns max vertical start of the page.
+    fn max_vstart(&self) -> usize {
         self.lines.len().saturating_sub(self.page_height)
+    }
+
+    /// Returns max horizontal start of the page.
+    fn max_hstart(&self) -> usize {
+        self.lines_width.saturating_sub(self.page_width)
     }
 
     /// Process UI key event.
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
-        if key.code == KeyCode::Home {
-            self.page_start = 0;
-        }
-
-        if key.code == KeyCode::PageUp {
-            self.page_start = self.page_start.saturating_sub(self.page_height);
-        }
-
-        if key.code == KeyCode::Up {
-            if self.page_start > 0 {
-                self.page_start -= 1;
+        match key {
+            // horizontal scroll
+            x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
+            x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
+                self.page_hstart = self.page_hstart.saturating_sub(self.page_width)
             }
+            x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
+            x if x.code == KeyCode::Right => self.page_hstart += 1,
+            x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
+            x if x.code == KeyCode::End && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = self.max_hstart(),
+
+            // vertical scroll
+            x if x.code == KeyCode::Home => self.page_vstart = 0,
+            x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
+            x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
+            x if x.code == KeyCode::Down => self.page_vstart += 1,
+            x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
+            x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
+
+            _ => (),
         }
 
-        if key.code == KeyCode::Down {
-            if self.page_start < self.max_start() {
-                self.page_start += 1;
-            }
+        if self.page_vstart > self.max_vstart() {
+            self.page_vstart = self.max_vstart();
         }
 
-        if key.code == KeyCode::PageDown {
-            self.page_start += self.page_height;
-            if self.page_start > self.max_start() {
-                self.page_start = self.max_start();
-            }
+        if self.page_hstart > self.max_hstart() {
+            self.page_hstart = self.max_hstart();
         }
 
-        if key.code == KeyCode::End {
-            self.page_start = self.max_start();
-        }
+        self.header.set_coordinates(self.page_hstart, self.page_vstart);
 
         ResponseEvent::Handled
     }
@@ -104,19 +128,28 @@ impl YamlViewer {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)])
             .split(area);
 
-        self.update_page(layout[1].height);
-
-        let start = self.page_start.clamp(0, self.max_start());
-        let lines = self
-            .lines
-            .iter()
-            .skip(start)
-            .take(usize::from(layout[1].height))
-            .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
-
         self.header.draw(frame, layout[0]);
-        frame.render_widget(Paragraph::new(lines), layout[1]);
+
+        if self.has_content {
+            self.update_page(layout[1].height, layout[1].width);
+
+            let start = self.page_vstart.clamp(0, self.max_vstart());
+            let lines = self
+                .lines
+                .iter()
+                .skip(start)
+                .take(usize::from(layout[1].height))
+                .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
+                .collect::<Vec<_>>();
+
+            frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), layout[1]);
+        } else if self.creation_time.elapsed().as_millis() > 80 {
+            let colors = self.app_data.borrow().config.theme.colors;
+            let line = Line::styled(" waiting for data…", Style::default().fg(colors.text.fg).bg(colors.text.bg));
+            let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+            frame.render_widget(line, area);
+        }
+
         self.footer.draw(frame, layout[2]);
     }
 }

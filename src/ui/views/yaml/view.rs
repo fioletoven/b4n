@@ -43,7 +43,10 @@ impl View for YamlView {
         match result {
             CommandResult::ResourceYaml(Ok(result)) => {
                 self.yaml.set_header(result.name, result.namespace, result.kind_plural);
-                self.yaml.set_content(result.styled);
+                self.yaml.set_content(
+                    result.styled,
+                    result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
+                );
             }
             _ => (),
         }
