@@ -1,12 +1,14 @@
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
-use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
+use syntect::{dumps::from_uncompressed_data, highlighting::Theme, parsing::SyntaxSet};
 
 use crate::kubernetes::Namespace;
 
 use super::Config;
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
+
+pub const SYNTAX_SET_DATA: &[u8] = include_bytes!("../../assets/syntaxes/syntaxes.packdump");
 
 /// Kubernetes resources data.
 pub struct ResourcesInfo {
@@ -48,6 +50,12 @@ impl ResourcesInfo {
     }
 }
 
+/// Keeps data required for syntax highlighting.
+pub struct SyntaxData {
+    pub syntax_set: SyntaxSet,
+    pub yaml_theme: Theme,
+}
+
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
@@ -57,7 +65,7 @@ pub struct AppData {
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
-    /// Syntax set to highlight YAML syntax.
+    /// Syntax set for syntax higlighting.
     pub syntax_set: SyntaxSet,
 
     /// Indicates if application is connected to the kubernetes api.
@@ -70,7 +78,7 @@ impl AppData {
         Self {
             config,
             current: ResourcesInfo::default(),
-            syntax_set: from_uncompressed_data::<SyntaxSet>(include_bytes!("../../assets/syntaxes/syntaxes.packdump")).unwrap(),
+            syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             is_connected: false,
         }
     }
@@ -84,6 +92,15 @@ impl AppData {
         } else {
             let namespace = self.config.get_namespace(context).unwrap_or_default();
             (kind.unwrap_or_default().to_owned(), namespace.into())
+        }
+    }
+
+    /// Returns new [`SyntaxData`] instance.  
+    /// **Note** that all elements are cloned/build every time you call this method.
+    pub fn get_syntax_data(&self) -> SyntaxData {
+        SyntaxData {
+            syntax_set: self.syntax_set.clone(),
+            yaml_theme: self.config.theme.build_syntect_yaml_theme(),
         }
     }
 }

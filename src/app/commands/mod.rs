@@ -18,12 +18,12 @@ pub enum Command {
     NewKubernetesClient(Box<NewKubernetesClientCommand>),
     SaveConfiguration(Box<SaveConfigurationCommand>),
     DeleteResource(Box<DeleteResourcesCommand>),
-    GetYaml(Box<GetYamlCommand>),
+    GetYaml(Box<GetResourceYamlCommand>),
 }
 
 /// List of all possible results from commands executed in the executor.
 pub enum CommandResult {
     ContextsList(Vec<NamedContext>),
     KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
-    ResourceYaml(Vec<String>),
+    ResourceYaml(Result<ResourceYamlResult, ResourceYamlError>),
 }

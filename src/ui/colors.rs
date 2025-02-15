@@ -99,8 +99,8 @@ impl LineColors {
 pub fn from_syntect_color(syntect_color: syntect::highlighting::Color) -> Color {
     match syntect_color {
         syntect::highlighting::Color { r, g, b, a } if a > 2 => Color::Rgb(r, g, b),
-        syntect::highlighting::Color { r, g: _, b: _, a } if a == 2 => Color::Indexed(r),
-        syntect::highlighting::Color { r, g: _, b: _, a } if a == 1 => from_int_color(r),
+        syntect::highlighting::Color { r, g: _, b: _, a: 2 } => Color::Indexed(r),
+        syntect::highlighting::Color { r, g: _, b: _, a: 1 } => from_int_color(r),
         _ => Color::Reset,
     }
 }

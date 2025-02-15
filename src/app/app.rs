@@ -13,7 +13,7 @@ use crate::{
 use super::{
     commands::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand,
-        NewKubernetesClientCommand,
+        NewKubernetesClientCommand, ResourceYamlError, ResourceYamlResult,
     },
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, SharedAppData,
 };
@@ -168,9 +168,12 @@ impl App {
                 ResponseEvent::ChangeContext(context) => self.ask_new_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, namespace) => {
-                    self.worker.get_yaml(resource, namespace.into(), self.resources.kind_plural())
-                }
+                ResponseEvent::ViewYaml(resource, namespace) => self.worker.get_yaml(
+                    resource,
+                    namespace.into(),
+                    self.resources.kind_plural(),
+                    self.data.borrow().get_syntax_data(),
+                ),
                 _ => (),
             };
         }
@@ -184,7 +187,7 @@ impl App {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
-                CommandResult::ResourceYaml(result) => self.view = Some(Box::new(YamlView::new(&self.data.borrow(), result))),
+                CommandResult::ResourceYaml(result) => self.show_yaml(result),
             }
         }
     }
@@ -352,6 +355,13 @@ impl App {
             .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
 
         self.connecting = Some(self.new_kubernetes_client(context, kind, namespace));
+    }
+
+    /// Shows returned resources YAML in separate view.
+    fn show_yaml(&mut self, result: Result<ResourceYamlResult, ResourceYamlError>) {
+        if let Ok(result) = result {
+            self.view = Some(Box::new(YamlView::new(result)));
+        }
     }
 }
 

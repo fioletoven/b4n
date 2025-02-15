@@ -52,7 +52,7 @@ impl NewKubernetesClientCommand {
     }
 
     /// Creates new kubernetes client and returns it.
-    pub async fn execute(&self) -> Option<CommandResult> {
+    pub async fn execute(self) -> Option<CommandResult> {
         let Ok(client) = KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), false).await else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)));
         };
@@ -61,7 +61,7 @@ impl NewKubernetesClientCommand {
         };
         let discovery = convert_to_vector(&discovery);
         let kind = if get_resource(Some(&discovery), &self.kind).is_some() {
-            self.kind.clone()
+            self.kind
         } else {
             "pods".to_owned()
         };
@@ -73,7 +73,7 @@ impl NewKubernetesClientCommand {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
         };
         let namespace = if namespaces.iter().any(|n| self.namespace.is_equal(n.metadata.name.as_deref())) {
-            self.namespace.clone()
+            self.namespace
         } else {
             Namespace::default()
         };

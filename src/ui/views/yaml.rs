@@ -5,11 +5,10 @@ use ratatui::{
     widgets::Paragraph,
     Frame,
 };
-use syntect::easy::HighlightLines;
 
 use crate::{
-    app::AppData,
-    ui::{colors::from_syntect_color, ResponseEvent, TuiEvent},
+    app::commands::ResourceYamlResult,
+    ui::{ResponseEvent, TuiEvent},
 };
 
 use super::View;
@@ -21,11 +20,9 @@ pub struct YamlView {
 }
 
 impl YamlView {
-    pub fn new(app_data: &AppData, yaml: Vec<String>) -> Self {
-        let lines = highlight_lines(app_data, &yaml);
-
+    pub fn new(yaml: ResourceYamlResult) -> Self {
         Self {
-            lines,
+            lines: yaml.styled,
             page_start: 0,
             page_height: 0,
         }
@@ -100,27 +97,4 @@ impl View for YamlView {
 
         frame.render_widget(Paragraph::new(lines), frame.area());
     }
-}
-
-fn highlight_lines(data: &AppData, lines: &Vec<String>) -> Vec<Vec<(Style, String)>> {
-    let syntax = data.syntax_set.find_syntax_by_extension("yaml").unwrap();
-    let theme = data.config.theme.build_syntect_yaml_theme();
-    let mut h = HighlightLines::new(syntax, &theme);
-
-    lines
-        .iter()
-        .map(|line| {
-            h.highlight_line(line, &data.syntax_set)
-                .unwrap()
-                .into_iter()
-                .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-}
-
-fn convert_style(style: syntect::highlighting::Style) -> Style {
-    Style::default()
-        .fg(from_syntect_color(style.foreground))
-        .bg(from_syntect_color(style.background))
 }

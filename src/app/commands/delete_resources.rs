@@ -34,7 +34,7 @@ impl DeleteResourcesCommand {
     }
 
     /// Deletes all resources using provided client.
-    pub async fn execute(&mut self) -> Option<CommandResult> {
+    pub async fn execute(mut self) -> Option<CommandResult> {
         let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::DELETE) {
             return None;
@@ -45,13 +45,7 @@ impl DeleteResourcesCommand {
         } else {
             self.namespace.as_option()
         };
-        let client = kubernetes::client::get_dynamic_api(
-            discovery.0.clone(),
-            discovery.1.clone(),
-            self.client.clone(),
-            namespace,
-            namespace.is_none(),
-        );
+        let client = kubernetes::client::get_dynamic_api(discovery.0, discovery.1, self.client, namespace, namespace.is_none());
 
         for name in &self.names {
             let deleted = client.delete(name, &DeleteParams::default()).await;

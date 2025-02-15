@@ -139,9 +139,9 @@ impl Default for Theme {
                 },
                 syntax: SyntaxColors {
                     yaml: YamlSyntaxColors {
-                        normal: TextColors::new(Color::Gray, Color::Reset),
+                        normal: TextColors::new(Color::DarkGray, Color::Reset),
                         property: TextColors::new(Color::Green, Color::Reset),
-                        string: TextColors::new(Color::Black, Color::Reset),
+                        string: TextColors::new(Color::Gray, Color::Reset),
                         numeric: TextColors::new(Color::Blue, Color::Reset),
                         language: TextColors::new(Color::LightBlue, Color::Reset),
                         timestamp: TextColors::new(Color::Magenta, Color::Reset),
