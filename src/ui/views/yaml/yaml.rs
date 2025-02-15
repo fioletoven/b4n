@@ -15,11 +15,12 @@ use crate::{
     ui::{widgets::Footer, ResponseEvent},
 };
 
+use super::HeaderPane;
+
 /// YAML viewer with header and footer.
 pub struct YamlViewer {
+    pub header: HeaderPane,
     pub footer: Footer,
-    name: String,
-    namespace: Namespace,
     lines: Vec<Vec<(Style, String)>>,
     page_start: usize,
     page_height: usize,
@@ -27,13 +28,13 @@ pub struct YamlViewer {
 
 impl YamlViewer {
     /// Creates a new YAML viewer page.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace) -> Self {
+    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String) -> Self {
+        let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural);
         let footer = Footer::new(Rc::clone(&app_data));
 
         Self {
+            header,
             footer,
-            name,
-            namespace,
             lines: Vec::new(),
             page_start: 0,
             page_height: 0,
@@ -41,9 +42,8 @@ impl YamlViewer {
     }
 
     /// Sets header data.
-    pub fn set_header(&mut self, name: String, namespace: Namespace) {
-        self.name = name;
-        self.namespace = namespace;
+    pub fn set_header(&mut self, name: String, namespace: Namespace, kind_plural: String) {
+        self.header.set_data(name, namespace, kind_plural);
     }
 
     /// Sets styled YAML content to view.
@@ -115,6 +115,7 @@ impl YamlViewer {
             .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
+        self.header.draw(frame, layout[0]);
         frame.render_widget(Paragraph::new(lines), layout[1]);
         self.footer.draw(frame, layout[2]);
     }

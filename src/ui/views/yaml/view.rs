@@ -19,8 +19,14 @@ pub struct YamlView {
 
 impl YamlView {
     /// Creates new [`YamlView`] instance.
-    pub fn new(app_data: SharedAppData, command_id: Option<String>, name: String, namespace: Namespace) -> Self {
-        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace);
+    pub fn new(
+        app_data: SharedAppData,
+        command_id: Option<String>,
+        name: String,
+        namespace: Namespace,
+        kind_plural: String,
+    ) -> Self {
+        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural);
         Self {
             yaml: viewer,
             command_id,
@@ -36,7 +42,7 @@ impl View for YamlView {
     fn process_command_result(&mut self, result: CommandResult) {
         match result {
             CommandResult::ResourceYaml(Ok(result)) => {
-                self.yaml.set_header(result.name, result.namespace);
+                self.yaml.set_header(result.name, result.namespace, result.kind_plural);
                 self.yaml.set_content(result.styled);
             }
             _ => (),

@@ -365,6 +365,7 @@ impl App {
             command_id,
             resource,
             namespace.into(),
+            self.resources.kind_plural().to_owned(),
         )));
     }
 

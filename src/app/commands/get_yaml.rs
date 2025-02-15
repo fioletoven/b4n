@@ -46,6 +46,7 @@ pub enum ResourceYamlError {
 pub struct ResourceYamlResult {
     pub name: String,
     pub namespace: Namespace,
+    pub kind_plural: String,
     pub yaml: Vec<String>,
     pub styled: Vec<Vec<(Style, String)>>,
 }
@@ -84,56 +85,65 @@ impl GetResourceYamlCommand {
             return Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetNotSupported)));
         }
 
+        let plural = discovery.0.plural.clone();
         let client = kubernetes::client::get_dynamic_api(
-            discovery.0.clone(),
-            discovery.1.clone(),
-            self.client.clone(),
+            discovery.0,
+            discovery.1,
+            self.client,
             self.namespace.as_option(),
             self.namespace.is_all(),
         );
 
         match client.get(&self.name).await {
-            Ok(resource) => Some(CommandResult::ResourceYaml(self.style_resources_yaml(resource).await)),
+            Ok(resource) => Some(CommandResult::ResourceYaml(
+                style_resources_yaml(resource, self.syntax, self.name, self.namespace, plural).await,
+            )),
             Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
     }
+}
 
-    async fn style_resources_yaml(self, mut resource: DynamicObject) -> Result<ResourceYamlResult, ResourceYamlError> {
-        tokio::task::spawn_blocking(move || {
-            resource.managed_fields_mut().clear();
-            let mut resource = serde_yaml::to_string(&resource)?;
+async fn style_resources_yaml(
+    mut resource: DynamicObject,
+    data: SyntaxData,
+    name: String,
+    namespace: Namespace,
+    kind_plural: String,
+) -> Result<ResourceYamlResult, ResourceYamlError> {
+    tokio::task::spawn_blocking(move || {
+        resource.managed_fields_mut().clear();
+        let mut yaml = serde_yaml::to_string(&resource)?;
 
-            if let Some(index) = resource.find("\n  managedFields: []\n") {
-                resource.replace_range(index + 1..index + 21, "");
-            }
+        if let Some(index) = yaml.find("\n  managedFields: []\n") {
+            yaml.replace_range(index + 1..index + 21, "");
+        }
 
-            let lines = resource.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
-            let syntax = self
-                .syntax
-                .syntax_set
-                .find_syntax_by_extension("yaml")
-                .ok_or(ResourceYamlError::SyntaxNotFound)?;
-            let mut h = HighlightLines::new(syntax, &self.syntax.yaml_theme);
+        let lines = yaml.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
+        let syntax = data
+            .syntax_set
+            .find_syntax_by_extension("yaml")
+            .ok_or(ResourceYamlError::SyntaxNotFound)?;
+        let mut h = HighlightLines::new(syntax, &data.yaml_theme);
 
-            let styled = lines
-                .iter()
-                .map(|line| {
-                    Ok(h.highlight_line(line, &self.syntax.syntax_set)?
-                        .into_iter()
-                        .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
-                        .collect::<Vec<_>>())
-                })
-                .collect::<Result<Vec<_>, syntect::Error>>()?;
-
-            Ok(ResourceYamlResult {
-                name: self.name,
-                namespace: self.namespace,
-                yaml: lines,
-                styled,
+        let styled = lines
+            .iter()
+            .map(|line| {
+                Ok(h.highlight_line(line, &data.syntax_set)?
+                    .into_iter()
+                    .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
+                    .collect::<Vec<_>>())
             })
+            .collect::<Result<Vec<_>, syntect::Error>>()?;
+
+        Ok(ResourceYamlResult {
+            name,
+            namespace,
+            kind_plural,
+            yaml: lines,
+            styled,
         })
-        .await?
-    }
+    })
+    .await?
 }
 
 fn convert_style(style: syntect::highlighting::Style) -> Style {

@@ -4,8 +4,8 @@ use crate::app::commands::CommandResult;
 
 use super::{ResponseEvent, TuiEvent};
 
-pub use self::resources::*;
-pub use self::yaml::*;
+pub use self::resources::ResourcesView;
+pub use self::yaml::YamlView;
 
 mod resources;
 mod yaml;
