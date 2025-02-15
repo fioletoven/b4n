@@ -12,28 +12,26 @@ use crate::{
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{Namespace, NAMESPACES},
-    ui::{
-        pages::{FooterPane, HeaderPane, ListPane},
-        tui::ResponseEvent,
-        Responsive, Table, ViewType,
-    },
+    ui::{tui::ResponseEvent, widgets::Footer, Responsive, Table, ViewType},
 };
 
-/// Resources page.
-pub struct ResourcesPage {
+use super::{HeaderPane, ListPane};
+
+/// Resources table.
+pub struct ResourcesTable {
     pub header: HeaderPane,
     pub list: ListPane<ResourcesList>,
-    pub footer: FooterPane,
+    pub footer: Footer,
     app_data: SharedAppData,
     highlight_next: Option<String>,
 }
 
-impl ResourcesPage {
-    /// Creates a new resources page.
+impl ResourcesTable {
+    /// Creates a new resources table.
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
-        let footer = FooterPane::new(Rc::clone(&app_data));
+        let footer = Footer::new(Rc::clone(&app_data));
 
         Self {
             header,
@@ -44,12 +42,12 @@ impl ResourcesPage {
         }
     }
 
-    /// Resets all page data.
+    /// Resets all table data.
     pub fn reset(&mut self) {
         self.list.items.clear();
     }
 
-    /// Sets initial kubernetes resources data for [`ResourcesPage`].
+    /// Sets initial kubernetes resources data for [`ResourcesTable`].
     pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.list.view = ViewType::Full;
         if scope == Scope::Cluster || !namespace.is_all() {
@@ -64,17 +62,17 @@ impl ResourcesPage {
         self.highlight_next = resource_to_select;
     }
 
-    /// Deselects all selected items for [`ResourcesPage`].
+    /// Deselects all selected items for [`ResourcesTable`].
     pub fn deselect_all(&mut self) {
         self.list.items.deselect_all();
     }
 
-    /// Gets current kind (plural) for resources listed in [`ResourcesPage`].
+    /// Gets current kind (plural) for resources listed in [`ResourcesTable`].
     pub fn kind_plural(&self) -> &str {
         &self.list.items.kind_plural
     }
 
-    /// Gets current scope for resources listed in [`ResourcesPage`].
+    /// Gets current scope for resources listed in [`ResourcesTable`].
     pub fn scope(&self) -> &Scope {
         &self.list.items.scope
     }
@@ -84,12 +82,12 @@ impl ResourcesPage {
         &self.list.items.group
     }
 
-    /// Gets currently selected item names (grouped in [`HashMap`]) on [`ResourcesPage`].
+    /// Gets currently selected item names (grouped in [`HashMap`]) on [`ResourcesTable`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         self.list.items.get_selected_items()
     }
 
-    /// Sets namespace for [`ResourcesPage`].
+    /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
         self.list.view = if namespace.is_all() {
             ViewType::Full
@@ -103,7 +101,7 @@ impl ResourcesPage {
         }
     }
 
-    /// Sets list view for [`ResourcesPage`].
+    /// Sets list view for [`ResourcesTable`].
     pub fn set_view(&mut self, view: ViewType) {
         self.list.view = view;
     }
@@ -152,7 +150,7 @@ impl ResourcesPage {
         self.list.process_key(key)
     }
 
-    /// Draws [`ResourcesPage`] on the provided frame and area.
+    /// Draws [`ResourcesTable`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)

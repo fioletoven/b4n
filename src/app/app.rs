@@ -355,12 +355,17 @@ impl App {
     /// Sends command to fetch resources YAML to the background executor.
     fn get_resources_yaml(&mut self, resource: String, namespace: String) {
         let command_id = self.worker.get_yaml(
-            resource,
-            namespace.into(),
+            resource.clone(),
+            namespace.clone().into(),
             self.resources.kind_plural(),
             self.data.borrow().get_syntax_data(),
         );
-        self.view = Some(Box::new(YamlView::new(command_id)));
+        self.view = Some(Box::new(YamlView::new(
+            Rc::clone(&self.data),
+            command_id,
+            resource,
+            namespace.into(),
+        )));
     }
 
     /// Shows returned resources YAML in separate view.

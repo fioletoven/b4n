@@ -14,17 +14,18 @@ use crate::{
     },
     kubernetes::{resources::Kind, Namespace},
     ui::{
-        pages::ResourcesPage,
         tui::{ResponseEvent, TuiEvent},
         widgets::{Button, CommandPalette, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
 
+use super::ResourcesTable;
+
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
     app_data: SharedAppData,
-    page: ResourcesPage,
+    table: ResourcesTable,
     modal: Dialog,
     command_palette: CommandPalette,
     ns_selector: SideSelect<ResourcesList>,
@@ -34,7 +35,7 @@ pub struct ResourcesView {
 impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData) -> Self {
-        let page = ResourcesPage::new(Rc::clone(&app_data));
+        let table = ResourcesTable::new(Rc::clone(&app_data));
 
         let ns_selector = SideSelect::new(
             "NAMESPACE",
@@ -56,7 +57,7 @@ impl ResourcesView {
 
         Self {
             app_data,
-            page,
+            table,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             ns_selector,
@@ -65,7 +66,7 @@ impl ResourcesView {
     }
 
     delegate! {
-        to self.page {
+        to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
             pub fn highlight_next(&mut self, resource_to_select: Option<String>);
             pub fn deselect_all(&mut self);
@@ -81,7 +82,7 @@ impl ResourcesView {
 
     /// Resets all data for a resources view.
     pub fn reset(&mut self) {
-        self.page.reset();
+        self.table.reset();
         self.ns_selector.select.items.clear();
         self.ns_selector.hide();
         self.res_selector.select.items.clear();
@@ -100,7 +101,7 @@ impl ResourcesView {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.page.list.items.is_anything_selected() {
+        if self.table.list.items.is_anything_selected() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
@@ -143,13 +144,13 @@ impl ResourcesView {
             return self.res_selector.process_key(key);
         }
 
-        if key.code == KeyCode::Left && self.page.scope() == &Scope::Namespaced {
+        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }
 
         if key.code == KeyCode::Right {
-            self.res_selector.show_selected(self.page.kind_plural(), self.page.group());
+            self.res_selector.show_selected(self.table.kind_plural(), self.table.group());
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
@@ -158,7 +159,7 @@ impl ResourcesView {
 
         self.process_command_palette_events(key);
 
-        self.page.process_key(key)
+        self.table.process_key(key)
     }
 
     /// Processes disconnection state.
@@ -175,7 +176,7 @@ impl ResourcesView {
             .constraints(vec![Constraint::Fill(1), Constraint::Length(1)])
             .split(frame.area());
 
-        self.page.draw(frame, frame.area());
+        self.table.draw(frame, frame.area());
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
 

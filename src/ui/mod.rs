@@ -7,7 +7,6 @@ use theme::Theme;
 pub use self::tui::*;
 
 pub mod colors;
-pub mod pages;
 pub mod theme;
 pub mod utils;
 pub mod views;
