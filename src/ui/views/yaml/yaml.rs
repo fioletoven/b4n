@@ -72,6 +72,7 @@ impl YamlViewer {
     pub fn update_page(&mut self, new_height: u16, hew_width: u16) {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
+        self.update_page_starts();
     }
 
     /// Returns max vertical start of the page.
@@ -108,16 +109,7 @@ impl YamlViewer {
             _ => (),
         }
 
-        if self.page_vstart > self.max_vstart() {
-            self.page_vstart = self.max_vstart();
-        }
-
-        if self.page_hstart > self.max_hstart() {
-            self.page_hstart = self.max_hstart();
-        }
-
-        self.header.set_coordinates(self.page_hstart, self.page_vstart);
-
+        self.update_page_starts();
         ResponseEvent::Handled
     }
 
@@ -151,5 +143,17 @@ impl YamlViewer {
         }
 
         self.footer.draw(frame, layout[2]);
+    }
+
+    fn update_page_starts(&mut self) {
+        if self.page_vstart > self.max_vstart() {
+            self.page_vstart = self.max_vstart();
+        }
+
+        if self.page_hstart > self.max_hstart() {
+            self.page_hstart = self.max_hstart();
+        }
+
+        self.header.set_coordinates(self.page_hstart, self.page_vstart);
     }
 }

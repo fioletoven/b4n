@@ -45,7 +45,7 @@ impl HeaderPane {
 
     /// Draws [`HeaderPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let coordinates = format!("  x: {}, y: {} ", self.position_x, self.position_y);
+        let coordinates = format!("  Ln {}, Col {} ", self.position_y, self.position_x);
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)

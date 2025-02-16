@@ -1,12 +1,17 @@
 use std::rc::Rc;
 
+use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
 
 use crate::{
-    app::{commands::CommandResult, SharedAppData},
+    app::{commands::CommandResult, lists::ActionsListBuilder, SharedAppData},
     kubernetes::Namespace,
-    ui::{views::View, ResponseEvent, TuiEvent},
+    ui::{
+        views::View,
+        widgets::{Action, CommandPalette},
+        ResponseEvent, Responsive, TuiEvent,
+    },
 };
 
 use super::YamlViewer;
@@ -14,7 +19,10 @@ use super::YamlViewer;
 /// YAML view.
 pub struct YamlView {
     pub yaml: YamlViewer,
+    app_data: SharedAppData,
+    lines: Vec<String>,
     command_id: Option<String>,
+    command_palette: CommandPalette,
 }
 
 impl YamlView {
@@ -29,7 +37,40 @@ impl YamlView {
         let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural);
         Self {
             yaml: viewer,
+            app_data,
+            lines: Vec::new(),
             command_id,
+            command_palette: CommandPalette::default(),
+        }
+    }
+
+    fn copy_yaml_to_clipboard(&mut self) {
+        let result: Result<ClipboardContext, _> = ClipboardProvider::new();
+        if let Ok(mut ctx) = result {
+            if ctx.set_contents(self.lines.join("")).is_ok() {
+                self.yaml
+                    .footer
+                    .show_message(" YAML content copied to the clipboard…".to_owned(), 1_500);
+            }
+        }
+    }
+
+    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
+        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+            let actions = ActionsListBuilder::default()
+                .with_close()
+                .with_quit()
+                .with_action(
+                    Action::new("copy")
+                        .with_description("copies YAML to the clipboard")
+                        .with_response(ResponseEvent::Action("copy".to_owned())),
+                )
+                .build();
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
+            true
+        } else {
+            false
         }
     }
 }
@@ -40,15 +81,13 @@ impl View for YamlView {
     }
 
     fn process_command_result(&mut self, result: CommandResult) {
-        match result {
-            CommandResult::ResourceYaml(Ok(result)) => {
-                self.yaml.set_header(result.name, result.namespace, result.kind_plural);
-                self.yaml.set_content(
-                    result.styled,
-                    result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
-                );
-            }
-            _ => (),
+        if let CommandResult::ResourceYaml(Ok(result)) = result {
+            self.yaml.set_header(result.name, result.namespace, result.kind_plural);
+            self.yaml.set_content(
+                result.styled,
+                result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
+            );
+            self.lines = result.yaml;
         }
     }
 
@@ -57,6 +96,25 @@ impl View for YamlView {
 
         if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
             return ResponseEvent::ExitApplication;
+        }
+
+        if self.command_palette.is_visible {
+            let response = self.command_palette.process_key(key);
+            if response.is_action("copy") {
+                self.copy_yaml_to_clipboard();
+                return ResponseEvent::Handled;
+            }
+
+            return response;
+        }
+
+        if self.process_command_palette_events(key) {
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('c') {
+            self.copy_yaml_to_clipboard();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Esc {
@@ -68,5 +126,6 @@ impl View for YamlView {
 
     fn draw(&mut self, frame: &mut Frame<'_>) {
         self.yaml.draw(frame, frame.area());
+        self.command_palette.draw(frame, frame.area());
     }
 }

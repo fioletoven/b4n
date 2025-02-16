@@ -23,7 +23,7 @@ pub struct Dialog {
 
 impl Default for Dialog {
     fn default() -> Self {
-        Self::new(String::new(), vec![], 0, TextColors::default())
+        Self::new(String::new(), Vec::new(), 0, TextColors::default())
     }
 }
 

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0" }
 clap = { version = "4.5", features = ["derive"] }
+clipboard = { version = "0.5" }
 crossterm = { version = "0.28", features = ["event-stream"] }
 delegate = { version = "0.13" }
 dirs = { version = "6.0" }

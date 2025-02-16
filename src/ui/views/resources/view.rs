@@ -9,7 +9,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{ActionsList, KindsList, ResourcesList},
+        lists::{ActionsListBuilder, KindsList, ResourcesList},
         ObserverResult, SharedAppData,
     },
     kubernetes::{resources::Kind, Namespace},
@@ -109,7 +109,8 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), ActionsList::from_contexts(&list), 60);
+        let actions_list = ActionsListBuilder::from_contexts(&list).build();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
         self.command_palette.set_prompt("context");
         self.command_palette.select(&self.app_data.borrow().current.context);
         self.command_palette.show();
@@ -199,9 +200,11 @@ impl ResourcesView {
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let actions = if self.app_data.borrow().is_connected {
-                ActionsList::from_kinds(&self.res_selector.select.items.list)
+                ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
+                    .with_resources_actions(false)
+                    .build()
             } else {
-                ActionsList::predefined(true)
+                ActionsListBuilder::default().with_resources_actions(true).build()
             };
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
             self.command_palette.show();

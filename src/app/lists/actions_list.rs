@@ -15,47 +15,6 @@ pub struct ActionsList {
     pub list: ScrollableList<Action>,
 }
 
-impl ActionsList {
-    /// Creates new [`ActionsList`] instance that can also include predefined list of actions.
-    pub fn new(actions: Vec<Action>, include_predefined: bool, is_disconnected: bool) -> Self {
-        let mut list = ScrollableList::from(if include_predefined {
-            insert_predefined_actions(actions, is_disconnected)
-        } else {
-            actions
-        });
-        list.sort(1, false);
-
-        Self { list }
-    }
-
-    /// Creates new [`ActionsList`] instance with predefined actions only.
-    pub fn predefined(is_disconnected: bool) -> Self {
-        ActionsList::new(vec![], true, is_disconnected)
-    }
-
-    /// Creates new [`ActionsList`] instance that will include provided kinds and predefined actions.
-    pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
-        if let Some(items) = &kinds.items {
-            ActionsList::new(
-                items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>(),
-                true,
-                false,
-            )
-        } else {
-            ActionsList::new(vec![], true, false)
-        }
-    }
-
-    /// Creates new [`ActionsList`] instance from the list of [`NamedContext`]s.
-    pub fn from_contexts(contexts: &[NamedContext]) -> Self {
-        ActionsList::new(
-            contexts.iter().map(Action::from_context).collect::<Vec<Action>>(),
-            false,
-            false,
-        )
-    }
-}
-
 impl Responsive for ActionsList {
     fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
         self.list.process_key(key)
@@ -97,28 +56,96 @@ impl Table for ActionsList {
     }
 }
 
-fn insert_predefined_actions(mut actions: Vec<Action>, is_disconnected: bool) -> Vec<Action> {
-    actions.push(
-        Action::new("context")
-            .with_description("changes the current kube context")
-            .with_aliases(&["ctx"])
-            .with_response(ResponseEvent::ListKubeContexts),
-    );
-    actions.push(
-        Action::new("quit")
-            .with_description("exits the application")
-            .with_aliases(&["q", "exit"])
-            .with_response(ResponseEvent::ExitApplication),
-    );
+/// Helper to build [`ActionsList`].
+#[derive(Default)]
+pub struct ActionsListBuilder {
+    actions: Vec<Action>,
+}
 
-    if !is_disconnected {
-        actions.push(
+impl ActionsListBuilder {
+    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
+    pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
+        ActionsListBuilder {
+            actions: if let Some(items) = &kinds.items {
+                items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>()
+            } else {
+                Vec::new()
+            },
+        }
+    }
+
+    /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.
+    pub fn from_contexts(contexts: &[NamedContext]) -> Self {
+        ActionsListBuilder {
+            actions: contexts.iter().map(Action::from_context).collect::<Vec<Action>>(),
+        }
+    }
+
+    /// Builds the [`ActionsList`] instance.
+    pub fn build(self) -> ActionsList {
+        let mut list = ScrollableList::from(self.actions);
+        list.sort(1, false);
+
+        ActionsList { list }
+    }
+
+    /// Adds custom action.
+    pub fn with_action(mut self, action: Action) -> Self {
+        self.actions.push(action);
+        self
+    }
+
+    /// Adds actions relevant to resources view.
+    pub fn with_resources_actions(self, is_disconnected: bool) -> Self {
+        let builder = self.with_context().with_quit();
+        if !is_disconnected {
+            builder.with_delete()
+        } else {
+            builder
+        }
+    }
+
+    /// Adds `quit` action.
+    pub fn with_quit(mut self) -> Self {
+        self.actions.push(
+            Action::new("quit")
+                .with_description("exits the application")
+                .with_aliases(&["q", "exit"])
+                .with_response(ResponseEvent::ExitApplication),
+        );
+        self
+    }
+
+    /// Adds `close` action.
+    pub fn with_close(mut self) -> Self {
+        self.actions.push(
+            Action::new("close")
+                .with_description("closes the current view")
+                .with_aliases(&["cancel"])
+                .with_response(ResponseEvent::Cancelled),
+        );
+        self
+    }
+
+    /// Adds `context` action.
+    pub fn with_context(mut self) -> Self {
+        self.actions.push(
+            Action::new("context")
+                .with_description("changes the current kube context")
+                .with_aliases(&["ctx"])
+                .with_response(ResponseEvent::ListKubeContexts),
+        );
+        self
+    }
+
+    /// Adds `delete` action.
+    pub fn with_delete(mut self) -> Self {
+        self.actions.push(
             Action::new("delete")
                 .with_description("deletes selected resources")
                 .with_aliases(&["del"])
                 .with_response(ResponseEvent::AskDeleteResources),
         );
+        self
     }
-
-    actions
 }

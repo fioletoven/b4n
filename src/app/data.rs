@@ -65,7 +65,7 @@ pub struct AppData {
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
-    /// Syntax set for syntax higlighting.
+    /// Syntax set for syntax highlighting.
     pub syntax_set: SyntaxSet,
 
     /// Indicates if application is connected to the kubernetes api.
