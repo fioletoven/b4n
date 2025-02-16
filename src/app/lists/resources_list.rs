@@ -60,6 +60,11 @@ impl ResourcesList {
         }
     }
 
+    /// Gets highlighted resource.
+    pub fn get_highlighted_resource(&self) -> Option<&Resource> {
+        self.list.get_highlighted_item().map(|i| &i.data)
+    }
+
     /// Gets the widths for namespace and name columns together with extra space for the name column
     fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
         if view == ViewType::Full {

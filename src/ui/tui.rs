@@ -33,6 +33,7 @@ pub enum ResponseEvent {
     NotHandled,
     Handled,
     Cancelled,
+    Action(String),
 
     ExitApplication,
 
@@ -46,6 +47,19 @@ pub enum ResponseEvent {
 
     AskDeleteResources,
     DeleteResources,
+
+    ViewYaml(String, String),
+}
+
+impl ResponseEvent {
+    /// Returns `true` if [`ResponseEvent`] is an action with the provided name.
+    pub fn is_action(&self, action_name: &str) -> bool {
+        if let ResponseEvent::Action(name) = self {
+            name == action_name
+        } else {
+            false
+        }
+    }
 }
 
 /// Terminal UI.

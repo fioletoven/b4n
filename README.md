@@ -14,18 +14,18 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 
 As the project is in its early stages, for this moment the only supported functions are:
 
-- listing of any kubernetes resources
-- deletion of selected resources
+- viewing a list of kubernetes resources
+- displaying YAML of the selected resource
+- deleting selected resources
 
 ### Planned
 
 General planned features:
 
 - sorting and filtering the list of resources
-- describe a resource
-- show resources YAML
-- edit resources YAML
-- show pod containers and their logs
+- describing resources
+- editing resources (YAML)
+- showing pod containers and their logs
 - port forwarding
 - shell
 

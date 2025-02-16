@@ -1,13 +1,13 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::{Constraint, Direction, Flex, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     text::Line,
     widgets::{Block, Clear, Paragraph},
 };
 use textwrap::Options;
 
-use crate::ui::{colors::TextColors, ResponseEvent, Responsive};
+use crate::ui::{colors::TextColors, utils::center, ResponseEvent, Responsive};
 
 use super::{Button, ButtonsGroup};
 
@@ -23,7 +23,7 @@ pub struct Dialog {
 
 impl Default for Dialog {
     fn default() -> Self {
-        Self::new(String::new(), vec![], 0, TextColors::default())
+        Self::new(String::new(), Vec::new(), 0, TextColors::default())
     }
 }
 
@@ -98,11 +98,4 @@ impl Responsive for Dialog {
 
         result
     }
-}
-
-/// Centers a [`Rect`] within another [`Rect`] using the provided [`Constraint`]s.
-fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
-    let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
-    let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
-    area
 }

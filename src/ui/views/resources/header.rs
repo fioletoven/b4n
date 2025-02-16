@@ -40,8 +40,8 @@ impl HeaderPane {
         frame.render_widget(Paragraph::new(version), layout[1]);
     }
 
-    /// Returns formatted kubernetes resource path as breadcrumbs:
-    /// > `context name` [ > `namespace` > ] `resource` > `resources count` >
+    /// Returns formatted kubernetes resource path as breadcrumbs:  
+    /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
     fn get_path(&self, context: &str, namespace: &str, resource: &str, count: usize, scope: Scope) -> Line {
         let colors = &self.app_data.borrow().config.theme.colors;
         let mut path = vec![
@@ -78,8 +78,8 @@ impl HeaderPane {
         Line::from(path)
     }
 
-    /// Returns formatted k8s version info as breadcrumbs:
-    /// < `k8s version` <
+    /// Returns formatted k8s version info as breadcrumbs:  
+    /// \< `k8s version` \<
     fn get_version(&self, version: &str) -> Line {
         let colors;
         let text;
