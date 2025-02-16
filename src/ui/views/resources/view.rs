@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{
@@ -15,7 +15,7 @@ use crate::{
     kubernetes::{resources::Kind, Namespace},
     ui::{
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Button, CommandPalette, Dialog, Position, SideSelect},
+        widgets::{Action, Button, CommandPalette, Dialog, Position, SideSelect},
         Responsive, Table, ViewType,
     },
 };
@@ -129,7 +129,10 @@ impl ResourcesView {
         }
 
         if self.command_palette.is_visible {
-            return self.command_palette.process_key(key);
+            return self
+                .command_palette
+                .process_key(key)
+                .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -202,6 +205,12 @@ impl ResourcesView {
             let actions = if self.app_data.borrow().is_connected {
                 ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
                     .with_resources_actions(false)
+                    .with_action(
+                        Action::new("show YAML")
+                            .with_description("shows YAML of the selected resource")
+                            .with_aliases(&["show", "yaml"])
+                            .with_response(ResponseEvent::Action("show_yaml".to_owned())),
+                    )
                     .build()
             } else {
                 ActionsListBuilder::default().with_resources_actions(true).build()
