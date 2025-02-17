@@ -59,16 +59,16 @@ impl Footer {
         let colors = &self.app_data.borrow().config.theme.colors;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.header.bg)),
-            Span::styled(footer, Style::new().fg(colors.header.fg).bg(colors.header.bg)),
-            Span::styled("", Style::new().fg(colors.header.bg)),
+            Span::styled("", Style::new().fg(colors.footer.bg)),
+            Span::styled(footer, Style::new().fg(colors.footer.fg).bg(colors.footer.bg)),
+            Span::styled("", Style::new().fg(colors.footer.bg)),
         ])
     }
 
     /// Returns formatted message to show.
     fn get_message<'a>(&self, message: &'a str) -> Line<'a> {
         let colors = &self.app_data.borrow().config.theme.colors;
-        Line::styled(message, Style::new().fg(colors.header.fg).bg(colors.header.bg))
+        Line::styled(message, Style::new().fg(colors.footer.dim).bg(colors.footer.bg))
     }
 
     /// Returns `true` if there is a message to show.

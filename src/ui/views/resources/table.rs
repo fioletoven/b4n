@@ -11,7 +11,7 @@ use crate::{
         lists::{ResourcesList, Row},
         ObserverResult, ResourcesInfo, SharedAppData,
     },
-    kubernetes::{Namespace, NAMESPACES},
+    kubernetes::{Namespace, ALL_NAMESPACES, NAMESPACES},
     ui::{tui::ResponseEvent, widgets::Footer, Responsive, Table, ViewType},
 };
 
@@ -143,7 +143,9 @@ impl ResourcesTable {
 
         if key.code == KeyCode::Char('y') {
             if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
-                return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+                if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
+                    return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+                }
             }
         }
 

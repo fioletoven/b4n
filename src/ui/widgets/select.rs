@@ -1,7 +1,7 @@
 use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
+    style::Style,
     text::{Line, Span},
     widgets::Paragraph,
 };
@@ -166,10 +166,7 @@ fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
 
         let split = split[1].rsplitn(2, ']').collect::<Vec<&str>>();
         if split.len() == 2 {
-            result.push(Span::styled(
-                split[1].to_owned(),
-                Style::new().fg(colors.fg).bg(colors.bg).dim(),
-            ));
+            result.push(Span::styled(split[1].to_owned(), Style::new().fg(colors.dim).bg(colors.bg)));
         }
         result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
 
