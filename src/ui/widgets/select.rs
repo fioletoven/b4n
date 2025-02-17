@@ -162,21 +162,17 @@ fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
         result.push(Span::raw(" "));
 
         let split = line.splitn(2, '[').collect::<Vec<&str>>();
-        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+        result.push(Span::styled(split[0].to_owned(), &colors));
 
         let split = split[1].rsplitn(2, ']').collect::<Vec<&str>>();
         if split.len() == 2 {
             result.push(Span::styled(split[1].to_owned(), Style::new().fg(colors.dim).bg(colors.bg)));
         }
-        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+        result.push(Span::styled(split[0].to_owned(), &colors));
 
         result.push(Span::raw("\n"));
         result
     } else {
-        vec![
-            Span::raw(" "),
-            Span::styled(line, Style::new().fg(colors.fg).bg(colors.bg)),
-            Span::raw("\n"),
-        ]
+        vec![Span::raw(" "), Span::styled(line, &colors), Span::raw("\n")]
     }
 }

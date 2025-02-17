@@ -22,12 +22,12 @@ pub struct CommandPalette {
 impl CommandPalette {
     /// Creates new [`CommandPalette`] instance.
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
-        let colors = app_data.borrow().config.theme.colors;
+        let colors = app_data.borrow().config.theme.colors.command_palette.clone();
 
         Self {
             is_visible: false,
             app_data,
-            actions: Select::new(actions, colors.command_palette, false, true).with_prompt("".to_owned()),
+            actions: Select::new(actions, colors, false, true).with_prompt("".to_owned()),
             width,
         }
     }
@@ -58,7 +58,7 @@ impl CommandPalette {
             return;
         }
 
-        let colors = self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().config.theme.colors;
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center(area, width, self.actions.items.list.len() + 1);
         let block = Block::new().style(Style::default().bg(colors.command_palette.normal.bg));

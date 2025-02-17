@@ -3,8 +3,29 @@ use serde::{Deserialize, Serialize};
 
 use super::colors::{to_syntect_color, LineColors, TextColors};
 
+/// Represents header colors.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct HeaderColors {
+    pub text: TextColors,
+    pub context: TextColors,
+    pub namespace: TextColors,
+    pub resource: TextColors,
+    pub count: TextColors,
+    pub info: TextColors,
+    pub disconnected: TextColors,
+}
+
+/// Represents footer colors.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FooterColors {
+    pub text: TextColors,
+    pub info: TextColors,
+    pub error: TextColors,
+    pub input: TextColors,
+}
+
 /// Represents kubernetes resource colors.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ResourceColors {
     pub ready: LineColors,
     pub in_progress: LineColors,
@@ -13,22 +34,22 @@ pub struct ResourceColors {
 }
 
 /// Represents colors for button.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ButtonColors {
     pub normal: TextColors,
     pub focused: TextColors,
 }
 
 /// Represents colors for modal dialogs.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ModalColors {
-    pub colors: TextColors,
+    pub text: TextColors,
     pub btn_delete: ButtonColors,
     pub btn_cancel: ButtonColors,
 }
 
 /// Represents colors for selector widget.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
@@ -37,13 +58,13 @@ pub struct SelectColors {
 }
 
 /// Represents colors for syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
     pub yaml: YamlSyntaxColors,
 }
 
 /// Represents colors for YAML syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct YamlSyntaxColors {
     pub normal: TextColors,
     pub property: TextColors,
@@ -54,17 +75,11 @@ pub struct YamlSyntaxColors {
 }
 
 /// All colors in theme.
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ThemeColors {
     pub text: TextColors,
-    pub context: TextColors,
-    pub namespace: TextColors,
-    pub resource: TextColors,
-    pub count: TextColors,
-    pub info: TextColors,
-    pub disconnected: TextColors,
-    pub header: TextColors,
-    pub footer: TextColors,
+    pub header: HeaderColors,
+    pub footer: FooterColors,
     pub modal: ModalColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
@@ -84,16 +99,23 @@ impl Default for Theme {
         Theme {
             colors: ThemeColors {
                 text: TextColors::new(Color::DarkGray),
-                context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
-                namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
-                resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
-                count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
-                info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
-                disconnected: TextColors::bg(Color::White, Color::LightRed),
-                header: TextColors::bg(Color::Gray, Color::DarkGray),
-                footer: TextColors::dim(Color::Gray, Color::LightGreen, Color::DarkGray),
+                header: HeaderColors {
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
+                    namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
+                    resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
+                    count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
+                    info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
+                    disconnected: TextColors::bg(Color::White, Color::LightRed),
+                },
+                footer: FooterColors {
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    info: TextColors::bg(Color::LightGreen, Color::DarkGray),
+                    error: TextColors::bg(Color::LightRed, Color::DarkGray),
+                    input: TextColors::bg(Color::Blue, Color::DarkGray),
+                },
                 modal: ModalColors {
-                    colors: TextColors::bg(Color::Gray, Color::DarkGray),
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
                     btn_delete: ButtonColors {
                         normal: TextColors::bg(Color::White, Color::DarkGray),
                         focused: TextColors::bg(Color::White, Color::LightRed),

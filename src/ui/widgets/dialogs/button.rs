@@ -1,4 +1,4 @@
-use ratatui::{layout::Rect, style::Style, text::Line, widgets::Paragraph};
+use ratatui::{layout::Rect, text::Line, widgets::Paragraph};
 
 use crate::ui::{colors::TextColors, theme::ButtonColors, ResponseEvent};
 
@@ -46,7 +46,7 @@ impl Button {
     /// Draws [`Button`] on the provided frame area.
     pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let line = Line::styled(format!(" {} ", &self.caption), Style::new().fg(colors.fg).bg(colors.bg));
+        let line = Line::styled(format!(" {} ", &self.caption), &colors);
         frame.render_widget(Paragraph::new(line), area);
     }
 }

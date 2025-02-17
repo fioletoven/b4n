@@ -227,11 +227,15 @@ impl ResourcesView {
         Dialog::new(
             "Are you sure you want to delete the selected resources?".to_owned(),
             vec![
-                Button::new("Delete".to_owned(), ResponseEvent::DeleteResources, colors.modal.btn_delete),
-                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_cancel),
+                Button::new(
+                    "Delete".to_owned(),
+                    ResponseEvent::DeleteResources,
+                    colors.modal.btn_delete.clone(),
+                ),
+                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
             ],
             60,
-            colors.modal.colors,
+            colors.modal.text,
         )
     }
 }

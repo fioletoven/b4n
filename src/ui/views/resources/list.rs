@@ -56,9 +56,9 @@ impl<T: Table> ListPane<T> {
         let colors = &self.app_data.borrow().config.theme.colors;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.header.bg)),
-            Span::styled(header, Style::new().fg(colors.header.fg).bg(colors.header.bg)),
-            Span::styled("", Style::new().fg(colors.header.bg)),
+            Span::styled("", Style::new().fg(colors.header.text.bg)),
+            Span::styled(header, &colors.header.text),
+            Span::styled("", Style::new().fg(colors.header.text.bg)),
         ])
     }
 
@@ -67,7 +67,7 @@ impl<T: Table> ListPane<T> {
         let mut result = Vec::with_capacity(resources.len());
 
         for (text, colors) in resources {
-            let row = Span::styled(text, Style::new().fg(colors.fg).bg(colors.bg));
+            let row = Span::styled(text, &colors);
             result.push(Line::from(vec![Span::raw(" "), row, Span::raw("\n")]));
         }
 

@@ -43,22 +43,16 @@ impl HeaderPane {
     /// Returns formatted kubernetes resource path as breadcrumbs:  
     /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
     fn get_path(&self, context: &str, namespace: &str, resource: &str, count: usize, scope: Scope) -> Line {
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().config.theme.colors.header;
         let mut path = vec![
             Span::styled("", Style::new().fg(colors.context.bg)),
-            Span::styled(
-                format!(" {} ", context.to_lowercase()),
-                Style::default().fg(colors.context.fg).bg(colors.context.bg),
-            ),
+            Span::styled(format!(" {} ", context.to_lowercase()), &colors.context),
         ];
 
         if scope == Scope::Namespaced {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-                Span::styled(
-                    format!(" {} ", namespace.to_lowercase()),
-                    Style::new().fg(colors.namespace.fg).bg(colors.namespace.bg),
-                ),
+                Span::styled(format!(" {} ", namespace.to_lowercase()), &colors.namespace),
                 Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             ]);
         } else {
@@ -66,12 +60,9 @@ impl HeaderPane {
         }
 
         path.append(&mut vec![
-            Span::styled(
-                format!(" {} ", resource.to_lowercase()),
-                Style::new().fg(colors.resource.fg).bg(colors.resource.bg),
-            ),
+            Span::styled(format!(" {} ", resource.to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
-            Span::styled(format!(" {} ", count), Style::new().fg(colors.count.fg).bg(colors.count.bg)),
+            Span::styled(format!(" {} ", count), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),
         ]);
 
@@ -84,16 +75,16 @@ impl HeaderPane {
         let colors;
         let text;
         if self.app_data.borrow().is_connected {
-            colors = self.app_data.borrow().config.theme.colors.info;
+            colors = self.app_data.borrow().config.theme.colors.header.info;
             text = format!(" {} ", version);
         } else {
-            colors = self.app_data.borrow().config.theme.colors.disconnected;
+            colors = self.app_data.borrow().config.theme.colors.header.disconnected;
             text = format!("  {} ", if version.is_empty() { "connecting…" } else { version });
         };
 
         Line::from(vec![
             Span::styled("", Style::new().fg(colors.bg)),
-            Span::styled(text, Style::new().fg(colors.fg).bg(colors.bg)),
+            Span::styled(text, &colors),
             Span::styled("", Style::new().fg(colors.bg)),
         ])
         .right_aligned()

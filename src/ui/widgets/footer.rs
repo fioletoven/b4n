@@ -14,6 +14,7 @@ pub struct Footer {
     app_data: SharedAppData,
     version: String,
     message: Option<String>,
+    is_error: bool,
     duration: u16,
     start: Instant,
 }
@@ -26,6 +27,7 @@ impl Footer {
             app_data,
             version,
             message: None,
+            is_error: false,
             duration: 0,
             start: Instant::now(),
         }
@@ -34,6 +36,15 @@ impl Footer {
     /// Shows `message` for the `duration` of milliseconds.
     pub fn show_message(&mut self, message: String, duration: u16) {
         self.message = Some(message);
+        self.is_error = false;
+        self.duration = duration;
+        self.start = Instant::now();
+    }
+
+    /// Shows `error` for the `duration` of milliseconds.
+    pub fn show_error(&mut self, error: String, duration: u16) {
+        self.message = Some(error);
+        self.is_error = true;
         self.duration = duration;
         self.start = Instant::now();
     }
@@ -59,16 +70,23 @@ impl Footer {
         let colors = &self.app_data.borrow().config.theme.colors;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.footer.bg)),
-            Span::styled(footer, Style::new().fg(colors.footer.fg).bg(colors.footer.bg)),
-            Span::styled("", Style::new().fg(colors.footer.bg)),
+            Span::styled("", Style::new().fg(colors.footer.text.bg)),
+            Span::styled(footer, &colors.footer.text),
+            Span::styled("", Style::new().fg(colors.footer.text.bg)),
         ])
     }
 
     /// Returns formatted message to show.
     fn get_message<'a>(&self, message: &'a str) -> Line<'a> {
         let colors = &self.app_data.borrow().config.theme.colors;
-        Line::styled(message, Style::new().fg(colors.footer.dim).bg(colors.footer.bg))
+        Line::styled(
+            message,
+            if self.is_error {
+                &colors.footer.error
+            } else {
+                &colors.footer.info
+            },
+        )
     }
 
     /// Returns `true` if there is a message to show.

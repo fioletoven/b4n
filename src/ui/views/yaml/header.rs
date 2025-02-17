@@ -62,26 +62,17 @@ impl HeaderPane {
     /// Returns formatted YAML resource path as breadcrumbs:  
     /// \> `YAML` \> `namespace` \> `kind` \> `name` \>
     fn get_path(&self) -> Line {
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let header = &self.app_data.borrow().config.theme.colors.header;
         let path = vec![
-            Span::styled("", Style::new().fg(colors.header.bg)),
-            Span::styled(" YAML  ", Style::new().fg(colors.header.fg).bg(colors.header.bg)),
-            Span::styled("", Style::new().fg(colors.header.bg).bg(colors.namespace.bg)),
-            Span::styled(
-                format!(" {} ", self.namespace.as_str().to_lowercase()),
-                Style::new().fg(colors.namespace.fg).bg(colors.namespace.bg),
-            ),
-            Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
-            Span::styled(
-                format!(" {} ", self.kind_plural.to_lowercase()),
-                Style::new().fg(colors.resource.fg).bg(colors.resource.bg),
-            ),
-            Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
-            Span::styled(
-                format!(" {} ", self.name.to_lowercase()),
-                Style::new().fg(colors.count.fg).bg(colors.count.bg),
-            ),
-            Span::styled("", Style::new().fg(colors.count.bg)),
+            Span::styled("", Style::new().fg(header.text.bg)),
+            Span::styled(" YAML  ", &header.text),
+            Span::styled("", Style::new().fg(header.text.bg).bg(header.namespace.bg)),
+            Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &header.namespace),
+            Span::styled("", Style::new().fg(header.namespace.bg).bg(header.resource.bg)),
+            Span::styled(format!(" {} ", self.kind_plural.to_lowercase()), &header.resource),
+            Span::styled("", Style::new().fg(header.resource.bg).bg(header.count.bg)),
+            Span::styled(format!(" {} ", self.name.to_lowercase()), &header.count),
+            Span::styled("", Style::new().fg(header.count.bg)),
         ];
 
         Line::from(path)
@@ -90,12 +81,12 @@ impl HeaderPane {
     /// Returns formatted text as right breadcrumbs:
     /// < `text` <
     fn get_right_text(&self, text: String) -> Line {
-        let colors = self.app_data.borrow().config.theme.colors.header;
+        let header = &self.app_data.borrow().config.theme.colors.header;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.bg)),
-            Span::styled(text, Style::new().fg(colors.fg).bg(colors.bg)),
-            Span::styled("", Style::new().fg(colors.bg)),
+            Span::styled("", Style::new().fg(header.text.bg)),
+            Span::styled(text, &header.text),
+            Span::styled("", Style::new().fg(header.text.bg)),
         ])
         .right_aligned()
     }

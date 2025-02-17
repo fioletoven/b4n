@@ -1,10 +1,10 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self};
 use std::str::FromStr;
 
-/// Represents foreground and background colors for text.
+/// Represents foreground, dim foreground and background colors for UI text.
 #[derive(Default, Copy, Clone)]
 pub struct TextColors {
     pub fg: Color,
@@ -23,9 +23,15 @@ impl TextColors {
         TextColors::dim(fg, Color::Reset, bg)
     }
 
-    /// Returns new [`TextColors`] instance with `bg` and `dim` color set.
+    /// Returns new [`TextColors`] instance with `bg` and `dim` colors set.
     pub fn dim(fg: Color, dim: Color, bg: Color) -> Self {
         Self { fg, dim, bg }
+    }
+}
+
+impl From<&TextColors> for Style {
+    fn from(value: &TextColors) -> Self {
+        Style::default().fg(value.fg).bg(value.bg)
     }
 }
 
@@ -99,7 +105,7 @@ impl Visitor<'_> for TextColorsVisitor {
 }
 
 /// Represents colors for text line.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LineColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
