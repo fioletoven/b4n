@@ -10,6 +10,10 @@ use crate::{
 
 use super::{pod, service};
 
+#[cfg(test)]
+#[path = "./resource.tests.rs"]
+mod resource_tests;
+
 /// Extra data for the kubernetes resource
 pub struct ResourceData {
     pub is_job: bool,
@@ -94,10 +98,16 @@ impl Resource {
 
     /// Builds and returns the whole row of values for this kubernetes resource
     pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
-        match view {
+        let text = match view {
             ViewType::Name => self.get_name(width),
             ViewType::Compact => self.get_compact_text(&self.get_inner_text(header), name_width),
             ViewType::Full => self.get_full_text(&self.get_inner_text(header), namespace_width, name_width),
+        };
+
+        if text.chars().count() > width {
+            truncate(text.as_str(), width).to_owned()
+        } else {
+            text
         }
     }
 

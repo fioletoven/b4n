@@ -5,6 +5,10 @@ use crate::{
 
 use super::{Column, NAME};
 
+#[cfg(test)]
+#[path = "./header.tests.rs"]
+mod header_tests;
+
 /// Header for the list
 pub struct Header {
     group: Column,                        // column: 0, optional
@@ -126,7 +130,7 @@ impl Header {
     /// If `force_width` is 0 it may exceed the desired width.
     pub fn get_text(&self, view: ViewType, group_width: usize, name_width: usize, force_width: usize) -> String {
         let header = match view {
-            ViewType::Name => format!(" {} ", self.name.name),
+            ViewType::Name => format!(" {1:<0$} ", name_width.saturating_sub(1), self.name.name),
             ViewType::Compact => self.get_compact_text(name_width),
             ViewType::Full => self.get_full_text(group_width, name_width),
         };
@@ -166,7 +170,7 @@ impl Header {
             } else {
                 let avail_width = terminal_width - min_width_for_all;
                 let group_width = std::cmp::min(self.group.min_len + avail_width / 2, max_group_width);
-                let name_width = terminal_width - group_width - self.all_extra_width;
+                let name_width = terminal_width - group_width - self.all_extra_width - 1;
 
                 (group_width, name_width, self.extra_space)
             }
@@ -177,7 +181,7 @@ impl Header {
     fn get_compact_text(&self, name_width: usize) -> String {
         format!(
             " {1:<0$} {2} {3:>6} ",
-            name_width - 1,
+            name_width.saturating_sub(1),
             self.name.name,
             self.extra_columns_text,
             self.age.name
@@ -188,7 +192,7 @@ impl Header {
     fn get_full_text(&self, group_width: usize, name_width: usize) -> String {
         format!(
             " {1:<0$} {3:<2$} {4} {5:>6} ",
-            group_width - 1,
+            group_width.saturating_sub(1),
             self.group.name,
             name_width,
             self.name.name,

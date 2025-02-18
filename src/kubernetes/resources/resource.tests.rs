@@ -1,0 +1,129 @@
+use rstest::rstest;
+
+use super::*;
+
+#[rstest]
+#[case("", "test", 0)]
+#[case("tes", "test", 3)]
+#[case("test  ", "test", 6)]
+#[case("test           ", "test", 15)]
+#[case("really long nam", "really long name", 15)]
+fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
+    let header = Header::default();
+    let resource = Resource::new(resource);
+
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+
+    assert_eq!(
+        expected,
+        resource.get_text(
+            ViewType::Name,
+            &header,
+            terminal_width,
+            namespace_width,
+            name_width + name_extra_width
+        )
+    );
+}
+
+#[rstest]
+#[case("", "test", 0)]
+#[case("test ", "test", 5)]
+#[case("test        n/", "test", 14)]
+#[case("test        n/a", "test", 15)]
+#[case("test         n/a", "test", 16)]
+fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
+    let header = Header::default();
+    let resource = Resource::new(resource);
+
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+
+    assert_eq!(
+        expected,
+        resource.get_text(
+            ViewType::Compact,
+            &header,
+            terminal_width,
+            namespace_width,
+            name_width + name_extra_width
+        )
+    );
+}
+
+#[rstest]
+#[case("", "test", 0)]
+#[case("n/a  ", "test", 5)]
+#[case("n/a  tes", "test", 8)]
+#[case("n/a  test       ", "test", 16)]
+#[case("n/a  test        n", "test", 18)]
+#[case("n/a  test        n/a", "test", 20)]
+#[case("n/a  test             n/a", "test", 25)]
+fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
+    let header = Header::default();
+    let resource = Resource::new(resource);
+
+    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+
+    assert_eq!(
+        expected,
+        resource.get_text(
+            ViewType::Full,
+            &header,
+            terminal_width,
+            namespace_width,
+            name_width + name_extra_width
+        )
+    );
+}
+
+#[test]
+fn get_text_pod_test() {
+    // " NAMESPACE  NAME                                   RESTARTS READY   STATUS       IP             AGE "
+    // "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a"
+
+    let terminal_width = 100;
+
+    let mut header = pod::header();
+    header.set_data_length(0, 11);
+    header.set_data_length(1, 39);
+    header.set_data_length(2, 3);
+    header.set_data_length(3, 7);
+    header.set_data_length(4, 12);
+    header.set_data_length(5, 11);
+    header.set_data_length(6, 6);
+    header.recalculate_extra_columns();
+
+    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+
+    let mut resource = Resource::new("local-path-provisioner-84db5d44d9-kjjp5");
+    resource.namespace = Some("kube-system".to_owned());
+    resource.data = Some(ResourceData {
+        extra_values: vec![
+            Some("5".to_owned()),
+            Some("1/1".to_owned()),
+            Some("Running".to_owned()),
+            Some("10.42.1.201".to_owned()),
+        ]
+        .into_boxed_slice(),
+        is_job: false,
+        is_completed: false,
+        is_ready: false,
+        is_terminating: false,
+    });
+
+    assert_eq!(
+        " NAMESPACE  NAME                                   RESTARTS READY   STATUS       IP             AGE ",
+        header.get_text(ViewType::Full, namespace_width, name_width, terminal_width)
+    );
+
+    assert_eq!(
+        "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a",
+        resource.get_text(
+            ViewType::Full,
+            &header,
+            terminal_width,
+            namespace_width,
+            name_width + name_extra_width
+        )
+    );
+}
