@@ -24,10 +24,12 @@ impl Default for Header {
 
 impl Header {
     /// Creates new [`Header`] instance with provided columns
-    pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>) -> Self {
+    pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns);
         let extra_width = extra_columns_text.len() + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(&extra_columns);
+
+        group_column.set_as_first_column();
 
         Self {
             group: group_column,

@@ -2,7 +2,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{api::DynamicObject, ResourceExt};
 
 use crate::{
-    app::lists::{Column, Header, Row},
+    app::lists::{Header, Row, NAMESPACE},
     kubernetes,
     ui::{colors::TextColors, theme::Theme, ViewType},
     utils::{add_padding, truncate},
@@ -79,7 +79,7 @@ impl Resource {
         match kind {
             "Pod" => pod::header(),
             "Service" => service::header(),
-            _ => Header::from(Column::new("NAMESPACE"), None),
+            _ => Header::from(NAMESPACE.clone(), None),
         }
     }
 

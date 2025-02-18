@@ -67,4 +67,15 @@ impl Column {
             data_len: len,
         }
     }
+
+    /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.  
+    /// **Note** that first column has one extra space in front of the header name.
+    pub fn set_as_first_column(&mut self) {
+        if self.name.len() == self.min_len {
+            self.min_len += 1;
+            if self.min_len > self.max_len {
+                self.max_len = self.min_len
+            }
+        }
+    }
 }
