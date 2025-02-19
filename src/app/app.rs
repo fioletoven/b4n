@@ -6,6 +6,7 @@ use crate::{
     kubernetes::{Namespace, NAMESPACES},
     ui::{
         views::{ResourcesView, View, YamlView},
+        widgets::Footer,
         ResponseEvent, Tui, TuiEvent, ViewType,
     },
 };
@@ -15,6 +16,7 @@ use super::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand,
         NewKubernetesClientCommand, ResourceYamlError, ResourceYamlResult,
     },
+    utils::StateChangeTracker,
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, SharedAppData,
 };
 
@@ -52,16 +54,18 @@ pub struct App {
     tui: Tui,
     resources: ResourcesView,
     view: Option<Box<dyn View>>,
+    footer: Footer,
     worker: BgWorker,
     watcher: ConfigWatcher,
     connecting: Option<AppConnectingInfo>,
-    disconnect_processed: bool,
+    is_connected: StateChangeTracker<bool>,
 }
 
 impl App {
     /// Creates new [`App`] instance.
     pub fn new(config: Config) -> Result<Self> {
         let data = Rc::new(RefCell::new(AppData::new(config)));
+        let footer = Footer::new(Rc::clone(&data));
         let resources = ResourcesView::new(Rc::clone(&data));
 
         Ok(Self {
@@ -69,10 +73,11 @@ impl App {
             tui: Tui::new()?,
             resources,
             view: None,
+            footer,
             worker: BgWorker::default(),
             watcher: Config::watcher(),
             connecting: None,
-            disconnect_processed: false,
+            is_connected: StateChangeTracker::new(false),
         })
     }
 
@@ -127,11 +132,14 @@ impl App {
         self.update_lists();
 
         self.tui.terminal.draw(|frame| {
+            let layout = Footer::get_layout(frame.area());
             if let Some(view) = &mut self.view {
-                view.draw(frame);
+                view.draw(frame, layout[0]);
             } else {
-                self.resources.draw(frame);
+                self.resources.draw(frame, layout[0]);
             }
+
+            self.footer.draw(frame, layout[1]);
         })?;
 
         Ok(())
@@ -195,13 +203,11 @@ impl App {
             }
         }
 
-        if !self.data.borrow().is_connected || self.connecting.is_some() {
-            if !self.disconnect_processed {
-                self.disconnect_processed = true;
-                self.resources.process_disconnection();
-            }
-        } else {
-            self.disconnect_processed = false;
+        if self
+            .is_connected
+            .changed_to(self.data.borrow().is_connected && self.connecting.is_none(), false)
+        {
+            self.resources.process_disconnection();
         }
     }
 
@@ -366,6 +372,7 @@ impl App {
             resource,
             namespace.into(),
             self.resources.kind_plural().to_owned(),
+            self.footer.get_messages_sender(),
         )));
     }
 

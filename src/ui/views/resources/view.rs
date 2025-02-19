@@ -173,18 +173,13 @@ impl ResourcesView {
         self.command_palette.hide();
     }
 
-    /// Draws [`ResourcesView`] on the provided frame.
-    pub fn draw(&mut self, frame: &mut Frame<'_>) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Fill(1), Constraint::Length(1)])
-            .split(frame.area());
-
-        self.table.draw(frame, frame.area());
+    /// Draws [`ResourcesView`] on the provided frame and area.
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.table.draw(frame, area);
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
 
-        self.draw_selectors(frame, layout[0]);
+        self.draw_selectors(frame, area);
     }
 
     /// Draws namespace / resource selector located on the left / right of the resources list

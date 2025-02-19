@@ -12,7 +12,7 @@ use crate::{
         ObserverResult, ResourcesInfo, SharedAppData,
     },
     kubernetes::{Namespace, ALL_NAMESPACES, NAMESPACES},
-    ui::{tui::ResponseEvent, widgets::Footer, Responsive, Table, ViewType},
+    ui::{tui::ResponseEvent, Responsive, Table, ViewType},
 };
 
 use super::{HeaderPane, ListPane};
@@ -21,7 +21,6 @@ use super::{HeaderPane, ListPane};
 pub struct ResourcesTable {
     pub header: HeaderPane,
     pub list: ListPane<ResourcesList>,
-    pub footer: Footer,
     app_data: SharedAppData,
     highlight_next: Option<String>,
 }
@@ -31,12 +30,10 @@ impl ResourcesTable {
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
-        let footer = Footer::new(Rc::clone(&app_data));
 
         Self {
             header,
             list,
-            footer,
             app_data,
             highlight_next: None,
         }
@@ -156,11 +153,10 @@ impl ResourcesTable {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)])
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
         self.header.draw(frame, layout[0]);
         self.list.draw(frame, layout[1]);
-        self.footer.draw(frame, layout[2]);
     }
 }
