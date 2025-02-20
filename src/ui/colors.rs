@@ -76,7 +76,7 @@ impl Visitor<'_> for TextColorsVisitor {
     {
         let parts: Vec<&str> = value.split(':').collect();
 
-        if parts.len() < 1 && parts.len() > 3 {
+        if parts.is_empty() || parts.len() > 3 {
             return Err(de::Error::invalid_length(parts.len(), &self));
         }
 

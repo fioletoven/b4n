@@ -15,8 +15,8 @@ use tracing::error;
 /// Possible errors from building kubernetes client.
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
-    /// Failed to determine users home directory.
-    #[error("failed to determine users home directory")]
+    /// Failed to determine user's home directory.
+    #[error("failed to determine user's home directory")]
     HomeDirNotFound,
 
     /// Kube config file not found.
@@ -28,15 +28,15 @@ pub enum ClientError {
     ContextNotFound,
 
     /// Failed to read kube configuration.
-    #[error("failed to read kube configuration")]
+    #[error("cannot read kube config: {0}")]
     IoError(#[from] std::io::Error),
 
     /// Failed to process kube configuration.
-    #[error("failed to process kube configuration")]
+    #[error("cannot build kube config: {0}")]
     KubeconfigError(#[from] kube::config::KubeconfigError),
 
     /// Failed to build kubernetes client.
-    #[error("failed to build kubernetes client")]
+    #[error("cannot create client: {0}")]
     KubeError(#[from] kube::Error),
 }
 

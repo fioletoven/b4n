@@ -195,7 +195,7 @@ impl ResourcesView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) {
+    fn process_command_palette_events(&mut self, key: KeyEvent) {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let actions = if self.app_data.borrow().is_connected {
                 ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
