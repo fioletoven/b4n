@@ -3,19 +3,19 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     kubernetes::resources::Kind,
-    ui::{colors::TextColors, theme::Theme, ResponseEvent, Responsive, Table, ViewType},
+    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
 use super::{FilterableList, Item, Row, ScrollableList};
 
-/// Kubernetes kinds list
+/// Kubernetes kinds list.
 #[derive(Default)]
 pub struct KindsList {
     pub list: ScrollableList<Kind>,
 }
 
 impl KindsList {
-    /// Updates [`KindsList`] with new data from [`Vec<Kind>`]
+    /// Updates [`KindsList`] with new data from [`Vec<Kind>`].
     pub fn update(&mut self, kinds: Option<Vec<Kind>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {
             self.list.dirty(false);

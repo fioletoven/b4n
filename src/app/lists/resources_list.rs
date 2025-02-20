@@ -4,13 +4,13 @@ use std::collections::HashMap;
 
 use crate::{
     app::ObserverResult,
-    kubernetes::{resources::Resource, ALL_NAMESPACES, NAMESPACES},
-    ui::{colors::TextColors, theme::Theme, ResponseEvent, Responsive, Table, ViewType},
+    kubernetes::{ALL_NAMESPACES, NAMESPACES, resources::Resource},
+    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
 use super::{FilterableList, Header, Item, Row, ScrollableList};
 
-/// Kubernetes resources list
+/// Kubernetes resources list.
 pub struct ResourcesList {
     pub kind: String,
     pub kind_plural: String,
@@ -65,7 +65,7 @@ impl ResourcesList {
         self.list.get_highlighted_item().map(|i| &i.data)
     }
 
-    /// Gets the widths for namespace and name columns together with extra space for the name column
+    /// Gets the widths for namespace and name columns together with extra space for the name column.
     fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
         if view == ViewType::Full {
             self.header.get_full_widths(width)
@@ -74,7 +74,7 @@ impl ResourcesList {
         }
     }
 
-    /// Returns `true` if kind was changed
+    /// Returns `true` if kind was changed.
     fn update_kind(&mut self, kind: String, kind_plural: String, group: String, scope: Scope) -> bool {
         if self.kind == kind && self.group == group {
             return false;
@@ -97,7 +97,7 @@ impl ResourcesList {
         true
     }
 
-    /// Updates or adds list items from the `new_list`
+    /// Updates or adds list items from the `new_list`.
     fn update_list(&mut self, new_list: Vec<Resource>) {
         self.list.dirty(false);
 
@@ -120,7 +120,7 @@ impl ResourcesList {
         self.update_data_lengths();
     }
 
-    /// Updates max widths for all columns basing on current data in the list
+    /// Updates max widths for all columns basing on current data in the list.
     fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
         let Some(list) = &self.list.items else {

@@ -1,10 +1,10 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use kube::{api::DynamicObject, ResourceExt};
+use kube::{ResourceExt, api::DynamicObject};
 
 use crate::{
-    app::lists::{Header, Row, NAMESPACE},
+    app::lists::{Header, NAMESPACE, Row},
     kubernetes,
-    ui::{colors::TextColors, theme::Theme, ViewType},
+    ui::{ViewType, colors::TextColors, theme::Theme},
     utils::{add_padding, truncate},
 };
 
@@ -14,7 +14,7 @@ use super::{pod, service};
 #[path = "./resource.tests.rs"]
 mod resource_tests;
 
-/// Extra data for the kubernetes resource
+/// Extra data for the kubernetes resource.
 pub struct ResourceData {
     pub is_job: bool,
     pub is_completed: bool,
@@ -24,7 +24,7 @@ pub struct ResourceData {
 }
 
 impl ResourceData {
-    /// Returns [`TextColors`] for the current resource state
+    /// Returns [`TextColors`] for the current resource state.
     fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {
             theme.colors.line.completed.get_specific(is_active, is_selected)
@@ -38,7 +38,7 @@ impl ResourceData {
     }
 }
 
-/// Represents kubernetes resource of any kind
+/// Represents kubernetes resource of any kind.
 pub struct Resource {
     pub uid: Option<String>,
     pub name: String,
@@ -49,7 +49,7 @@ pub struct Resource {
 }
 
 impl Resource {
-    /// Creates light [`Resource`] version just with name
+    /// Creates light [`Resource`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
             uid: Some(format!("_{}_", name)),
@@ -61,7 +61,7 @@ impl Resource {
         }
     }
 
-    /// Creates [`Resource`] from kubernetes [`DynamicObject`]
+    /// Creates [`Resource`] from kubernetes [`DynamicObject`].
     pub fn from(kind: &str, object: &DynamicObject) -> Self {
         let data = match kind {
             "Pod" => Some(pod::data(object)),
@@ -78,7 +78,7 @@ impl Resource {
         }
     }
 
-    /// Returns [`Header`] for provided Kubernetes resource kind
+    /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str) -> Header {
         match kind {
             "Pod" => pod::header(),
@@ -87,7 +87,7 @@ impl Resource {
         }
     }
 
-    /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data
+    /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if let Some(data) = &self.data {
             data.get_colors(theme, is_active, is_selected)
@@ -96,7 +96,7 @@ impl Resource {
         }
     }
 
-    /// Builds and returns the whole row of values for this kubernetes resource
+    /// Builds and returns the whole row of values for this kubernetes resource.
     pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
         let text = match view {
             ViewType::Name => self.get_name(width),

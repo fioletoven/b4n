@@ -7,7 +7,7 @@ use ratatui::{
 };
 use std::rc::Rc;
 
-use crate::ui::{colors::TextColors, theme::SelectColors, ResponseEvent, Responsive, Table};
+use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors};
 
 use super::Input;
 

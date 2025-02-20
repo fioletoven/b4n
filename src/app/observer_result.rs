@@ -3,7 +3,7 @@ use kube::{
     discovery::Scope,
 };
 
-/// Background observer result
+/// Background observer result.
 pub struct ObserverResult {
     pub kind: String,
     pub kind_plural: String,
@@ -13,7 +13,7 @@ pub struct ObserverResult {
 }
 
 impl ObserverResult {
-    /// Creates new background observer result
+    /// Creates new background observer result.
     pub fn new(kind: String, kind_plural: String, group: String, scope: Scope, list: ObjectList<DynamicObject>) -> Self {
         ObserverResult {
             kind,

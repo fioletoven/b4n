@@ -1,13 +1,13 @@
 use anyhow::Result;
 use futures::{FutureExt, StreamExt};
 use ratatui::{
+    Terminal,
     crossterm::{
         self, cursor,
         event::{Event, KeyEvent, KeyEventKind},
         terminal::{EnterAlternateScreen, LeaveAlternateScreen},
     },
     prelude::CrosstermBackend,
-    Terminal,
 };
 use std::io::stdout;
 use tokio::{
@@ -20,7 +20,7 @@ use crate::app::utils::wait_for_task;
 
 use super::utils::init_panic_hook;
 
-/// Terminal UI Event
+/// Terminal UI Event.
 #[derive(Clone)]
 pub enum TuiEvent {
     Key(KeyEvent),
@@ -67,11 +67,7 @@ impl ResponseEvent {
     where
         F: FnOnce() -> Self,
     {
-        if self.is_action(name) {
-            f()
-        } else {
-            self
-        }
+        if self.is_action(name) { f() } else { self }
     }
 }
 

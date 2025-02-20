@@ -2,7 +2,7 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::error;
 
-/// Synchronously waits for task to end (e.g. after cancellation)
+/// Synchronously waits for task to end (e.g. after cancellation).
 pub fn wait_for_task<T>(task: Option<JoinHandle<T>>, task_name: &str) {
     let Some(task) = task else {
         return;

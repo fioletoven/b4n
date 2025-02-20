@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     app::SharedAppData,
-    ui::{colors::TextColors, ResponseEvent, Responsive, Table, ViewType},
+    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
 /// Resources list pane

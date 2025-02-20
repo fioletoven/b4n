@@ -1,6 +1,6 @@
 use ratatui::{layout::Rect, text::Line, widgets::Paragraph};
 
-use crate::ui::{colors::TextColors, theme::ButtonColors, ResponseEvent};
+use crate::ui::{ResponseEvent, colors::TextColors, theme::ButtonColors};
 
 /// UI Button.
 pub struct Button {

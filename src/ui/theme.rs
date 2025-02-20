@@ -1,7 +1,7 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-use super::colors::{to_syntect_color, LineColors, TextColors};
+use super::colors::{LineColors, TextColors, to_syntect_color};
 
 /// Represents header colors.
 #[derive(Serialize, Deserialize, Clone)]

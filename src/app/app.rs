@@ -3,20 +3,20 @@ use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    kubernetes::{Namespace, NAMESPACES},
+    kubernetes::{NAMESPACES, Namespace},
     ui::{
+        ResponseEvent, Tui, TuiEvent, ViewType,
         views::{ResourcesView, View, YamlView},
         widgets::Footer,
-        ResponseEvent, Tui, TuiEvent, ViewType,
     },
 };
 
 use super::{
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, KubernetesClientManager, SharedAppData, SharedBgWorker,
     commands::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ResourceYamlError,
         ResourceYamlResult,
     },
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, KubernetesClientManager, SharedAppData, SharedBgWorker,
 };
 
 /// Application execution flow.

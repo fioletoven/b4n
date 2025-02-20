@@ -1,18 +1,18 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use kube::discovery::Scope;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
     Frame,
+    layout::{Constraint, Direction, Layout, Rect},
 };
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{ResourcesList, Row},
         ObserverResult, ResourcesInfo, SharedAppData,
+        lists::{ResourcesList, Row},
     },
-    kubernetes::{Namespace, ALL_NAMESPACES, NAMESPACES},
-    ui::{tui::ResponseEvent, Responsive, Table, ViewType},
+    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace},
+    ui::{Responsive, Table, ViewType, tui::ResponseEvent},
 };
 
 use super::{HeaderPane, ListPane};

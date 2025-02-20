@@ -1,9 +1,9 @@
-use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
+use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use thiserror;
 
 use crate::{
     app::discovery::convert_to_vector,
-    kubernetes::{client::KubernetesClient, utils::get_resource, Namespace, NAMESPACES},
+    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, utils::get_resource},
 };
 
 use super::CommandResult;

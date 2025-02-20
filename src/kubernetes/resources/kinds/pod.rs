@@ -6,7 +6,7 @@ use crate::{
     kubernetes::resources::ResourceData,
 };
 
-/// Returns [`ResourceData`] for the `pod` kubernetes resource
+/// Returns [`ResourceData`] for the `pod` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let status = &object.data["status"];
     let ready = status["containerStatuses"].as_array().map(|c| get_ready(c));
@@ -51,7 +51,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     }
 }
 
-/// Returns [`Header`] for the `pod` kubernetes resource
+/// Returns [`Header`] for the `pod` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
         NAMESPACE.clone(),

@@ -1,7 +1,7 @@
 use kube::{
-    api::{ApiResource, DynamicObject},
-    discovery::{verbs, ApiCapabilities},
     Client, ResourceExt,
+    api::{ApiResource, DynamicObject},
+    discovery::{ApiCapabilities, verbs},
 };
 use ratatui::style::Style;
 use syntect::easy::HighlightLines;

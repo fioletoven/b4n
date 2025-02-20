@@ -117,11 +117,7 @@ impl LineColors {
     /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected).
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
-            if is_active {
-                self.selected_hl
-            } else {
-                self.selected
-            }
+            if is_active { self.selected_hl } else { self.selected }
         } else if is_active {
             self.normal_hl
         } else {

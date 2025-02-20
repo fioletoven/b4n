@@ -2,21 +2,21 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
     Frame,
+    layout::{Constraint, Direction, Layout, Rect},
 };
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{ActionsListBuilder, KindsList, ResourcesList},
         ObserverResult, SharedAppData,
+        lists::{ActionsListBuilder, KindsList, ResourcesList},
     },
-    kubernetes::{resources::Kind, Namespace},
+    kubernetes::{Namespace, resources::Kind},
     ui::{
+        Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{Action, Button, CommandPalette, Dialog, Position, SideSelect},
-        Responsive, Table, ViewType,
     },
 };
 

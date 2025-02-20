@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use tracing_error::ErrorLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Initializes new logging to file and returns worker guard that will flush logs on drop
+/// Initializes new logging to file and returns worker guard that will flush logs on drop.
 pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let home_dir = match home::home_dir() {
         Some(mut path) => {

@@ -1,8 +1,8 @@
 use kube::{
+    Api, Client, Config,
     api::{ApiResource, DynamicObject},
     config::{Kubeconfig, NamedContext},
     discovery::{ApiCapabilities, Scope},
-    Api, Client, Config,
 };
 use std::{
     ops::{Deref, DerefMut},

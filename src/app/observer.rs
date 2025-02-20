@@ -4,8 +4,8 @@ use kube::{
 };
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Duration,
 };
@@ -18,9 +18,9 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
-use crate::kubernetes::{client::KubernetesClient, Namespace};
+use crate::kubernetes::{Namespace, client::KubernetesClient};
 
-use super::{utils::wait_for_task, ObserverResult};
+use super::{ObserverResult, utils::wait_for_task};
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]

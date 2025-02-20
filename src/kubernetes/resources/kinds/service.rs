@@ -5,7 +5,7 @@ use crate::{
     kubernetes::resources::ResourceData,
 };
 
-/// Returns [`ResourceData`] for the `service` kubernetes resource
+/// Returns [`ResourceData`] for the `service` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let spec = &object.data["spec"];
     let service_type = spec["type"].as_str().map(|t| t.to_owned());
@@ -22,7 +22,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     }
 }
 
-/// Returns [`Header`] for the `service` kubernetes resource
+/// Returns [`Header`] for the `service` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
         NAMESPACE.clone(),

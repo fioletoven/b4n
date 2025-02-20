@@ -6,8 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{lists::ActionsList, SharedAppData},
-    ui::{widgets::Select, ResponseEvent, Responsive},
+    app::{SharedAppData, lists::ActionsList},
+    ui::{ResponseEvent, Responsive, widgets::Select},
 };
 
 /// Command Palette widget for TUI.

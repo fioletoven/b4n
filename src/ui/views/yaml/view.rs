@@ -1,16 +1,16 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{commands::CommandResult, lists::ActionsListBuilder, SharedAppData},
+    app::{SharedAppData, commands::CommandResult, lists::ActionsListBuilder},
     kubernetes::Namespace,
     ui::{
+        ResponseEvent, Responsive, TuiEvent,
         views::View,
         widgets::{Action, CommandPalette, FooterMessage},
-        ResponseEvent, Responsive, TuiEvent,
     },
 };
 

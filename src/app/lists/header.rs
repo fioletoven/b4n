@@ -9,7 +9,7 @@ use super::{Column, NAME};
 #[path = "./header.tests.rs"]
 mod header_tests;
 
-/// Header for the list
+/// Header for the list.
 pub struct Header {
     group: Column,                        // column: 0, optional
     name: Column,                         // column: 1
@@ -27,7 +27,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Creates new [`Header`] instance with provided columns
+    /// Creates new [`Header`] instance with provided columns.
     pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns);
         let extra_width = extra_columns_text.len() + 9; // AGE + all spaces = 9
@@ -46,7 +46,7 @@ impl Header {
         }
     }
 
-    /// Returns number of columns in the header
+    /// Returns number of columns in the header.
     pub fn get_columns_count(&self) -> usize {
         if let Some(extra_columns) = &self.extra_columns {
             extra_columns.len() + 3
@@ -55,14 +55,14 @@ impl Header {
         }
     }
 
-    /// Recalculates extra columns text and width
+    /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.extra_columns_text = get_extra_columns_text(&self.extra_columns);
         self.all_extra_width = self.extra_columns_text.len() + 9; // AGE + all spaces = 9
         self.extra_space = get_extra_space(&self.extra_columns);
     }
 
-    /// Resets `data_len` in each not fixed column
+    /// Resets `data_len` in each not fixed column.
     pub fn reset_data_lengths(&mut self) {
         self.group.data_len = 0;
         self.name.data_len = 0;
@@ -75,7 +75,7 @@ impl Header {
         }
     }
 
-    /// Returns current data length of the provided column
+    /// Returns current data length of the provided column.
     pub fn get_data_length(&self, column: usize) -> usize {
         let Some(columns) = &self.extra_columns else {
             return match column {
@@ -99,7 +99,7 @@ impl Header {
         }
     }
 
-    /// Sets data length for the provided column
+    /// Sets data length for the provided column.
     pub fn set_data_length(&mut self, column: usize, new_data_len: usize) {
         let Some(columns) = &mut self.extra_columns else {
             match column {
@@ -121,12 +121,12 @@ impl Header {
         }
     }
 
-    /// Returns extra columns
+    /// Returns extra columns.
     pub fn get_extra_columns(&self) -> Option<&[Column]> {
         self.extra_columns.as_deref()
     }
 
-    /// Gets header text for the provided `group_width` and `name_width`.
+    /// Gets header text for the provided `group_width` and `name_width`.  
     /// If `force_width` is 0 it may exceed the desired width.
     pub fn get_text(&self, view: ViewType, group_width: usize, name_width: usize, force_width: usize) -> String {
         let header = match view {
@@ -144,7 +144,7 @@ impl Header {
         header
     }
 
-    /// Returns dynamic widths for name column together with extra space for it
+    /// Returns dynamic widths for name column together with extra space for it.
     pub fn get_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
         if terminal_width <= self.name.min_len + self.all_extra_width {
             (0, self.name.min_len, self.extra_space)
@@ -153,7 +153,7 @@ impl Header {
         }
     }
 
-    /// Returns dynamic widths for group and name columns together with extra space for name column
+    /// Returns dynamic widths for group and name columns together with extra space for name column.
     pub fn get_full_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
         let min_width_for_all = self.group.min_len + 1 + self.name.min_len + self.all_extra_width;
 
@@ -177,7 +177,7 @@ impl Header {
         }
     }
 
-    /// Gets header text without group column
+    /// Gets header text without group column.
     fn get_compact_text(&self, name_width: usize) -> String {
         format!(
             " {1:<0$} {2} {3:>6} ",
@@ -188,7 +188,7 @@ impl Header {
         )
     }
 
-    /// Gets header text with group column
+    /// Gets header text with group column.
     fn get_full_text(&self, group_width: usize, name_width: usize) -> String {
         format!(
             " {1:<0$} {3:<2$} {4} {5:>6} ",
@@ -202,7 +202,7 @@ impl Header {
     }
 }
 
-/// Builds extra columns text
+/// Builds extra columns text.
 fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>) -> String {
     let Some(columns) = &extra_columns else {
         return String::new();

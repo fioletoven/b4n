@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     kubernetes::resources::Kind,
-    ui::{colors::TextColors, theme::Theme, widgets::Action, ResponseEvent, Responsive, Table, ViewType},
+    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme, widgets::Action},
 };
 
 use super::ScrollableList;
@@ -98,11 +98,7 @@ impl ActionsListBuilder {
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_disconnected: bool) -> Self {
         let builder = self.with_context().with_quit();
-        if !is_disconnected {
-            builder.with_delete()
-        } else {
-            builder
-        }
+        if !is_disconnected { builder.with_delete() } else { builder }
     }
 
     /// Adds `quit` action.

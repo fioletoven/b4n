@@ -1,17 +1,17 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::Paragraph,
-    Frame,
 };
 use std::{rc::Rc, time::Instant};
 
 use crate::{
     app::SharedAppData,
     kubernetes::Namespace,
-    ui::{utils::center, ResponseEvent},
+    ui::{ResponseEvent, utils::center},
 };
 
 use super::HeaderPane;

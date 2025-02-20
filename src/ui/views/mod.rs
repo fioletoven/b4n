@@ -1,5 +1,5 @@
-use ratatui::layout::Rect;
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 use crate::app::commands::CommandResult;
 

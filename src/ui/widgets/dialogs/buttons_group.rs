@@ -5,7 +5,7 @@ use crate::ui::{ResponseEvent, Responsive};
 
 use super::Button;
 
-/// Events used to handle press and focus actions
+/// Events used to handle press and focus actions.
 #[derive(PartialEq)]
 enum ButtonEvent {
     None,
@@ -14,19 +14,19 @@ enum ButtonEvent {
     Pressed,
 }
 
-/// Represents group of the buttons in UI
+/// Represents group of the buttons in UI.
 pub struct ButtonsGroup {
     pub buttons: Vec<Button>,
     focused: usize,
 }
 
 impl ButtonsGroup {
-    /// Creates new [`ButtonGroup`] instance
+    /// Creates new [`ButtonGroup`] instance.
     pub fn new(buttons: Vec<Button>) -> Self {
         Self { buttons, focused: 0 }
     }
 
-    /// Returns result for the button under provided index
+    /// Returns result for the button under provided index.
     pub fn result(&self, index: usize) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
@@ -35,7 +35,7 @@ impl ButtonsGroup {
         self.buttons[index].result()
     }
 
-    /// Focus button under provided index
+    /// Focus button under provided index.
     pub fn focus(&mut self, index: usize) {
         if !self.buttons.is_empty() {
             self.buttons[self.focused].set_focus(false);
@@ -44,7 +44,7 @@ impl ButtonsGroup {
         }
     }
 
-    /// Draws [`ButtonsGroup`] on the provided frame area
+    /// Draws [`ButtonsGroup`] on the provided frame area.
     pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if self.buttons.is_empty() {
             return;

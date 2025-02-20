@@ -1,16 +1,16 @@
 use anyhow::Result;
 use kube::{
     api::ApiResource,
-    discovery::{verbs, ApiCapabilities, Scope},
+    discovery::{ApiCapabilities, Scope, verbs},
 };
 use std::{cell::RefCell, rc::Rc};
 use thiserror;
 
-use crate::kubernetes::{client::KubernetesClient, resources::Kind, utils::get_resource, Namespace, NAMESPACES};
+use crate::kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource};
 
 use super::{
-    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
     BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, SyntaxData, TaskResult,
+    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;

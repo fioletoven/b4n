@@ -1,12 +1,11 @@
 use std::time::Instant;
-
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::{
+        SharedAppData, SharedBgWorker,
         commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
         utils::StateChangeTracker,
-        SharedAppData, SharedBgWorker,
     },
     kubernetes::Namespace,
     ui::widgets::FooterMessage,
