@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{ResourceExt, api::DynamicObject};
 
@@ -45,6 +47,8 @@ pub struct Resource {
     pub namespace: Option<String>,
     pub age: Option<String>,
     pub creation_timestamp: Option<Time>,
+    pub labels: Option<BTreeMap<String, String>>,
+    pub annotations: Option<BTreeMap<String, String>>,
     pub data: Option<ResourceData>,
 }
 
@@ -57,23 +61,28 @@ impl Resource {
             namespace: None,
             age: None,
             creation_timestamp: None,
+            labels: None,
+            annotations: None,
             data: None,
         }
     }
 
     /// Creates [`Resource`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, object: &DynamicObject) -> Self {
+    pub fn from(kind: &str, object: DynamicObject) -> Self {
         let data = match kind {
-            "Pod" => Some(pod::data(object)),
-            "Service" => Some(service::data(object)),
+            "Pod" => Some(pod::data(&object)),
+            "Service" => Some(service::data(&object)),
             _ => None,
         };
+
         Self {
-            uid: object.metadata.uid.clone(),
-            name: object.name_any(),
-            namespace: object.namespace(),
-            creation_timestamp: object.creation_timestamp(),
             age: object.creation_timestamp().as_ref().map(kubernetes::utils::format_timestamp),
+            name: object.name_any(),
+            namespace: object.metadata.namespace,
+            uid: object.metadata.uid,
+            creation_timestamp: object.metadata.creation_timestamp,
+            labels: object.metadata.labels,
+            annotations: object.metadata.annotations,
             data,
         }
     }
@@ -214,4 +223,16 @@ impl Row for Resource {
             "n/a"
         }
     }
+
+    fn wide_contains(&self, pattern: &str) -> bool {
+        self.name.contains(pattern) || any(self.labels.as_ref(), pattern) || any(self.annotations.as_ref(), pattern)
+    }
+}
+
+fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
+    let Some(tree) = tree else {
+        return false;
+    };
+
+    tree.keys().any(|k| k.contains(pattern)) || tree.values().any(|v| v.contains(pattern))
 }

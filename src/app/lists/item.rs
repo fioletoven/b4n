@@ -20,6 +20,11 @@ pub trait Row {
         self.name().contains(pattern)
     }
 
+    /// Returns `true` if the given `pattern` is found in the [`Row`] item in a wider range.
+    fn wide_contains(&self, pattern: &str) -> bool {
+        self.name().contains(pattern) || self.group().contains(pattern)
+    }
+
     /// Returns `true` if the [`Row`] item starts with the given `pattern`.
     fn starts_with(&self, pattern: &str) -> bool {
         self.name().starts_with(pattern)

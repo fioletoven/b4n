@@ -11,7 +11,7 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
-/// Resources list pane
+/// Resources list pane.
 pub struct ListPane<T: Table> {
     pub items: T,
     pub view: ViewType,
@@ -19,7 +19,7 @@ pub struct ListPane<T: Table> {
 }
 
 impl<T: Table> ListPane<T> {
-    /// Creates new resource list pane
+    /// Creates new resource list pane.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
         ListPane {
             items: list,
@@ -50,7 +50,7 @@ impl<T: Table> ListPane<T> {
         }
     }
 
-    /// Returns formatted header for resources rows
+    /// Returns formatted header for resources rows.
     fn get_header(&self, width: usize) -> Line {
         let header = self.items.get_header(self.view, width);
         let colors = &self.app_data.borrow().config.theme.colors;
@@ -62,7 +62,7 @@ impl<T: Table> ListPane<T> {
         ])
     }
 
-    /// Returns formatted resources rows
+    /// Returns formatted resources rows.
     fn get_resources(&self, resources: Vec<(String, TextColors)>) -> Vec<Line> {
         let mut result = Vec::with_capacity(resources.len());
 

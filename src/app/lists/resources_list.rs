@@ -34,16 +34,10 @@ impl Default for ResourcesList {
 }
 
 impl ResourcesList {
-    /// Creates new [`ResourcesList`] instance from [`ScrollableList`]
-    pub fn from(list: ScrollableList<Resource>) -> Self {
-        ResourcesList {
-            kind: String::new(),
-            kind_plural: String::new(),
-            group: String::new(),
-            scope: Scope::Cluster,
-            header: Header::default(),
-            list,
-        }
+    /// Sets if [`ResourcesList`] should search in `labels` and `annotations` when filtering resources.
+    pub fn with_wide_filter(mut self) -> Self {
+        self.list.set_wide_filter(true);
+        self
     }
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
@@ -51,7 +45,7 @@ impl ResourcesList {
     pub fn update(&mut self, result: Option<ObserverResult>, sort_by: usize, is_descending: bool) -> bool {
         if let Some(result) = result {
             let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
-            self.update_list(result.list.iter().map(|r| Resource::from(&self.kind, r)).collect());
+            self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
 
             updated

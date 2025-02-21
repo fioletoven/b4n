@@ -12,6 +12,7 @@ pub struct ScrollableList<T: Row> {
     pub page_start: usize,
     pub page_height: u16,
     filter: Option<String>,
+    is_wide_filter_enabled: bool,
 }
 
 impl<T: Row> Default for ScrollableList<T> {
@@ -22,6 +23,7 @@ impl<T: Row> Default for ScrollableList<T> {
             page_start: 0,
             page_height: 0,
             filter: None,
+            is_wide_filter_enabled: false,
         }
     }
 }
@@ -96,7 +98,7 @@ impl<T: Row> ScrollableList<T> {
         self.filter.is_some()
     }
 
-    /// Filters items in the list by name.
+    /// Filters items in the list by calling `contains` on each [`Row`].
     pub fn filter(&mut self, filter: Option<String>) {
         self.filter = filter;
         if self.filter.is_some() {
@@ -118,6 +120,11 @@ impl<T: Row> ScrollableList<T> {
     /// Returns currently applied filter value.
     pub fn get_filter(&self) -> Option<&str> {
         self.filter.as_deref()
+    }
+
+    /// Sets wide filter to `is_enabled`.
+    pub fn set_wide_filter(&mut self, is_enabled: bool) {
+        self.is_wide_filter_enabled = is_enabled;
     }
 
     /// Process [`KeyEvent`] to move over the list.
@@ -352,7 +359,11 @@ impl<T: Row> ScrollableList<T> {
     fn apply_filter(&mut self) {
         if let Some(list) = &mut self.items {
             if let Some(filter) = &self.filter {
-                list.filter(|x| x.data.contains(filter));
+                if self.is_wide_filter_enabled {
+                    list.filter(|x| x.data.wide_contains(filter));
+                } else {
+                    list.filter(|x| x.data.contains(filter));
+                }
             }
         }
     }

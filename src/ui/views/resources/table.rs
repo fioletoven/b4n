@@ -29,7 +29,11 @@ impl ResourcesTable {
     /// Creates a new resources table.
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
+        let list = ListPane::new(
+            Rc::clone(&app_data),
+            ResourcesList::default().with_wide_filter(),
+            ViewType::Compact,
+        );
 
         Self {
             header,
