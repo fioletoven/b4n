@@ -1,16 +1,19 @@
 use anyhow::Result;
 use kube::{
     api::ApiResource,
-    discovery::{verbs, ApiCapabilities, Scope},
+    discovery::{ApiCapabilities, Scope, verbs},
 };
+use std::{cell::RefCell, rc::Rc};
 use thiserror;
 
-use crate::kubernetes::{client::KubernetesClient, resources::Kind, utils::get_resource, Namespace, NAMESPACES};
+use crate::kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource};
 
 use super::{
-    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
     BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, SyntaxData, TaskResult,
+    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
 };
+
+pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
 
 /// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]
@@ -175,6 +178,15 @@ impl BgWorker {
     /// Returns first waiting command result from the background executor.
     pub fn check_command_result(&mut self) -> Option<TaskResult> {
         self.executor.try_next()
+    }
+
+    /// Returns all waiting command results from the background executor.
+    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
+        let mut commands = Vec::new();
+        while let Some(command) = self.check_command_result() {
+            commands.push(command);
+        }
+        commands
     }
 
     /// Returns `true` if there are connection problems.

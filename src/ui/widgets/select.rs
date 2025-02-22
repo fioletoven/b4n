@@ -1,13 +1,13 @@
 use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
+    style::Style,
     text::{Line, Span},
     widgets::Paragraph,
 };
 use std::rc::Rc;
 
-use crate::ui::{colors::TextColors, theme::SelectColors, ResponseEvent, Responsive, Table};
+use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors};
 
 use super::Input;
 
@@ -25,7 +25,7 @@ impl<T: Table> Select<T> {
     /// * `filter_auto_hide` - hides filter input when no filter is present.
     /// * `filter_show_cursor` - indicates if filter input should show cursor.
     pub fn new(list: T, colors: SelectColors, filter_auto_hide: bool, filter_show_cursor: bool) -> Self {
-        let filter = Input::new(Style::default().fg(colors.filter.fg).bg(colors.filter.bg), filter_show_cursor);
+        let filter = Input::new(&colors.filter.input, filter_show_cursor);
 
         Select {
             items: list,
@@ -36,23 +36,19 @@ impl<T: Table> Select<T> {
     }
 
     /// Adds prompt to the [`Select`] instance.
-    pub fn with_prompt(mut self, prompt: String) -> Self {
+    pub fn with_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.set_prompt(prompt);
         self
     }
 
     /// Sets prompt for the filter input.
-    pub fn set_prompt(&mut self, prompt: String) {
-        self.filter.set_prompt(Some((
-            prompt,
-            Style::default().fg(self.colors.prompt.fg).bg(self.colors.prompt.bg),
-        )));
+    pub fn set_prompt(&mut self, prompt: impl Into<String>) {
+        self.filter.set_prompt(Some((prompt, &self.colors.filter.prompt)));
     }
 
     /// Sets colors for the filter input and list lines.
     pub fn set_colors(&mut self, colors: SelectColors) {
-        self.filter
-            .set_style(Style::default().fg(colors.filter.fg).bg(colors.filter.bg));
+        self.filter.set_style(&colors.filter.input);
         self.colors = colors;
     }
 
@@ -162,24 +158,17 @@ fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
         result.push(Span::raw(" "));
 
         let split = line.splitn(2, '[').collect::<Vec<&str>>();
-        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+        result.push(Span::styled(split[0].to_owned(), &colors));
 
         let split = split[1].rsplitn(2, ']').collect::<Vec<&str>>();
         if split.len() == 2 {
-            result.push(Span::styled(
-                split[1].to_owned(),
-                Style::new().fg(colors.fg).bg(colors.bg).dim(),
-            ));
+            result.push(Span::styled(split[1].to_owned(), Style::new().fg(colors.dim).bg(colors.bg)));
         }
-        result.push(Span::styled(split[0].to_owned(), Style::new().fg(colors.fg).bg(colors.bg)));
+        result.push(Span::styled(split[0].to_owned(), &colors));
 
         result.push(Span::raw("\n"));
         result
     } else {
-        vec![
-            Span::raw(" "),
-            Span::styled(line, Style::new().fg(colors.fg).bg(colors.bg)),
-            Span::raw("\n"),
-        ]
+        vec![Span::raw(" "), Span::styled(line, &colors), Span::raw("\n")]
     }
 }

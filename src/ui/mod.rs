@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use colors::TextColors;
 use crossterm::event::KeyEvent;
+use std::collections::HashMap;
 use theme::Theme;
 
 pub use self::tui::*;
@@ -14,7 +13,7 @@ pub mod widgets;
 
 mod tui;
 
-/// Indicates which columns in the list should be displayed
+/// Indicates which columns in the list should be displayed.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ViewType {
     /// Render rows with just the `name` column
@@ -28,13 +27,13 @@ pub enum ViewType {
     Full,
 }
 
-/// UI object that is responsive and can process key events
+/// UI object that is responsive and can process key events.
 pub trait Responsive {
-    /// Process UI key event
+    /// Process UI key event.
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent;
 }
 
-/// UI object that behaves like table
+/// UI object that behaves like table.
 pub trait Table: Responsive {
     /// Clears the list, removing all values.
     fn clear(&mut self);
@@ -47,58 +46,58 @@ pub trait Table: Responsive {
         self.len() == 0
     }
 
-    /// Returns `true` if list is filtered
+    /// Returns `true` if list is filtered.
     fn is_filtered(&self) -> bool;
 
-    /// Filters list
+    /// Filters list.
     fn filter(&mut self, filter: Option<String>);
 
-    /// Returns filter value
+    /// Returns filter value.
     fn get_filter(&self) -> Option<&str>;
 
-    /// Sorts items in the list by column number
+    /// Sorts items in the list by column number.
     fn sort(&mut self, column_no: usize, is_descending: bool);
 
-    /// Gets highlighted element index
+    /// Gets highlighted element index.
     fn get_highlighted_item_index(&self) -> Option<usize>;
 
-    /// Gets highlighted element name
+    /// Gets highlighted element name.
     fn get_highlighted_item_name(&self) -> Option<&str>;
 
-    /// Highlights element on list by its name
+    /// Highlights element on list by its name.
     fn highlight_item_by_name(&mut self, name: &str) -> bool;
 
     /// Highlights first element on list which name starts with `text`.  
     /// Returns `true` if element was found and selected.
     fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
 
-    /// Highlights first item on list, returns `true` on success
+    /// Highlights first item on list, returns `true` on success.
     fn highlight_first_item(&mut self) -> bool;
 
-    /// Clears selection of items
+    /// Clears selection of items.
     fn deselect_all(&mut self);
 
-    /// Inverts selection of items
+    /// Inverts selection of items.
     fn invert_selection(&mut self);
 
-    /// Selects / deselects currently highlighted item
+    /// Selects / deselects currently highlighted item.
     fn select_highlighted_item(&mut self);
 
-    /// Returns selected item names grouped in a [`HashMap`]
+    /// Returns selected item names grouped in a [`HashMap`].
     fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
 
-    /// Returns `true` if any item in the list is selected
+    /// Returns `true` if any item in the list is selected.
     fn is_anything_selected(&self) -> bool;
 
-    /// Updates page start for the current page size and highlighted list item
+    /// Updates page start for the current page size and highlighted list item.
     fn update_page(&mut self, new_height: u16);
 
-    /// Returns item names from the current page and indications if item is active
+    /// Returns item names from the current page and indications if item is active.
     fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines
+    /// Returns items from the current page in a form of text lines to display and colors for that lines.
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>>;
 
-    /// Returns header text for the list
+    /// Returns header text for the list.
     fn get_header(&self, view: ViewType, width: usize) -> String;
 }

@@ -1,7 +1,7 @@
 use kube::{
-    api::{ApiResource, DeleteParams},
-    discovery::{verbs, ApiCapabilities, Scope},
     Client,
+    api::{ApiResource, DeleteParams},
+    discovery::{ApiCapabilities, Scope, verbs},
 };
 use tracing::error;
 

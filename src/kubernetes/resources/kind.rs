@@ -1,6 +1,6 @@
 use crate::{app::lists::Row, utils::truncate};
 
-/// Represents kubernetes kind
+/// Represents kubernetes kind.
 pub struct Kind {
     pub uid: Option<String>,
     pub group: String,
@@ -11,7 +11,7 @@ pub struct Kind {
 }
 
 impl Kind {
-    /// Creates new [`Kind`] instance
+    /// Creates new [`Kind`] instance.
     pub fn new(group: String, name: String, version: String) -> Self {
         let full_name = if group.is_empty() {
             name.clone()
@@ -40,11 +40,7 @@ impl Row for Kind {
     }
 
     fn name(&self) -> &str {
-        if self.multiple {
-            &self.full_name
-        } else {
-            &self.name
-        }
+        if self.multiple { &self.full_name } else { &self.name }
     }
 
     fn get_name(&self, width: usize) -> String {

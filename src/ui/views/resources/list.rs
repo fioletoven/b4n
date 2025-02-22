@@ -8,10 +8,10 @@ use ratatui::{
 
 use crate::{
     app::SharedAppData,
-    ui::{colors::TextColors, ResponseEvent, Responsive, Table, ViewType},
+    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
-/// Resources list pane
+/// Resources list pane.
 pub struct ListPane<T: Table> {
     pub items: T,
     pub view: ViewType,
@@ -19,7 +19,7 @@ pub struct ListPane<T: Table> {
 }
 
 impl<T: Table> ListPane<T> {
-    /// Creates new resource list pane
+    /// Creates new resource list pane.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
         ListPane {
             items: list,
@@ -50,24 +50,24 @@ impl<T: Table> ListPane<T> {
         }
     }
 
-    /// Returns formatted header for resources rows
+    /// Returns formatted header for resources rows.
     fn get_header(&self, width: usize) -> Line {
         let header = self.items.get_header(self.view, width);
         let colors = &self.app_data.borrow().config.theme.colors;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.header.bg)),
-            Span::styled(header, Style::new().fg(colors.header.fg).bg(colors.header.bg)),
-            Span::styled("", Style::new().fg(colors.header.bg)),
+            Span::styled("", Style::new().fg(colors.header.text.bg)),
+            Span::styled(header, &colors.header.text),
+            Span::styled("", Style::new().fg(colors.header.text.bg)),
         ])
     }
 
-    /// Returns formatted resources rows
+    /// Returns formatted resources rows.
     fn get_resources(&self, resources: Vec<(String, TextColors)>) -> Vec<Line> {
         let mut result = Vec::with_capacity(resources.len());
 
         for (text, colors) in resources {
-            let row = Span::styled(text, Style::new().fg(colors.fg).bg(colors.bg));
+            let row = Span::styled(text, &colors);
             result.push(Line::from(vec![Span::raw(" "), row, Span::raw("\n")]));
         }
 

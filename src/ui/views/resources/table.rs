@@ -1,18 +1,18 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use kube::discovery::Scope;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
     Frame,
+    layout::{Constraint, Direction, Layout, Rect},
 };
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        lists::{ResourcesList, Row},
         ObserverResult, ResourcesInfo, SharedAppData,
+        lists::{ResourcesList, Row},
     },
-    kubernetes::{Namespace, NAMESPACES},
-    ui::{tui::ResponseEvent, widgets::Footer, Responsive, Table, ViewType},
+    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace},
+    ui::{Responsive, Table, ViewType, tui::ResponseEvent},
 };
 
 use super::{HeaderPane, ListPane};
@@ -21,7 +21,6 @@ use super::{HeaderPane, ListPane};
 pub struct ResourcesTable {
     pub header: HeaderPane,
     pub list: ListPane<ResourcesList>,
-    pub footer: Footer,
     app_data: SharedAppData,
     highlight_next: Option<String>,
 }
@@ -30,13 +29,15 @@ impl ResourcesTable {
     /// Creates a new resources table.
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact);
-        let footer = Footer::new(Rc::clone(&app_data));
+        let list = ListPane::new(
+            Rc::clone(&app_data),
+            ResourcesList::default().with_wide_filter(),
+            ViewType::Compact,
+        );
 
         Self {
             header,
             list,
-            footer,
             app_data,
             highlight_next: None,
         }
@@ -45,6 +46,7 @@ impl ResourcesTable {
     /// Resets all table data.
     pub fn reset(&mut self) {
         self.list.items.clear();
+        self.header.show_filtered_icon(false);
     }
 
     /// Sets initial kubernetes resources data for [`ResourcesTable`].
@@ -106,6 +108,20 @@ impl ResourcesTable {
         self.list.view = view;
     }
 
+    /// Sets filter on the resources list.
+    pub fn set_filter(&mut self, value: &str) {
+        self.header.show_filtered_icon(!value.is_empty());
+        if value.is_empty() {
+            if self.list.items.is_filtered() {
+                self.list.items.filter(None);
+                self.app_data.borrow_mut().current.count = self.list.items.len();
+            }
+        } else if !self.list.items.is_filtered() || self.list.items.get_filter().is_some_and(|f| f != value) {
+            self.list.items.filter(Some(value.to_owned()));
+            self.app_data.borrow_mut().current.count = self.list.items.len();
+        }
+    }
+
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: Option<ObserverResult>) {
         if result.is_none() {
@@ -143,7 +159,9 @@ impl ResourcesTable {
 
         if key.code == KeyCode::Char('y') {
             if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
-                return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+                if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
+                    return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+                }
             }
         }
 
@@ -154,11 +172,10 @@ impl ResourcesTable {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)])
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
         self.header.draw(frame, layout[0]);
         self.list.draw(frame, layout[1]);
-        self.footer.draw(frame, layout[2]);
     }
 }

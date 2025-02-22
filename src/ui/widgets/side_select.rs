@@ -46,11 +46,11 @@ impl<T: Table> SideSelect<T> {
         width: u16,
     ) -> Self {
         let header = format!(" SELECT {}: ", name);
-        let colors = app_data.borrow().config.theme.colors;
+        let select = Select::new(list, app_data.borrow().config.theme.colors.side_select.clone(), true, false);
 
         SideSelect {
             is_visible: false,
-            select: Select::new(list, colors.side_select, true, false),
+            select,
             app_data,
             header,
             position,
@@ -66,7 +66,8 @@ impl<T: Table> SideSelect<T> {
         self.is_key_pressed = false;
         self.is_visible = true;
         self.select.reset();
-        self.select.set_colors(self.app_data.borrow().config.theme.colors.side_select);
+        self.select
+            .set_colors(self.app_data.borrow().config.theme.colors.side_select.clone());
         self.showup_time = Instant::now();
     }
 

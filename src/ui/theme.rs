@@ -1,10 +1,37 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-use super::colors::{to_syntect_color, LineColors, TextColors};
+use super::colors::{LineColors, TextColors, to_syntect_color};
+
+/// Represents header colors.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct HeaderColors {
+    pub text: TextColors,
+    pub context: TextColors,
+    pub namespace: TextColors,
+    pub resource: TextColors,
+    pub count: TextColors,
+    pub info: TextColors,
+    pub disconnected: TextColors,
+}
+
+/// Represents footer colors.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct FooterColors {
+    pub text: TextColors,
+    pub info: TextColors,
+    pub error: TextColors,
+}
+
+/// Represents filter colors.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct FilterColors {
+    pub input: TextColors,
+    pub prompt: TextColors,
+}
 
 /// Represents kubernetes resource colors.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ResourceColors {
     pub ready: LineColors,
     pub in_progress: LineColors,
@@ -13,37 +40,36 @@ pub struct ResourceColors {
 }
 
 /// Represents colors for button.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ButtonColors {
     pub normal: TextColors,
     pub focused: TextColors,
 }
 
 /// Represents colors for modal dialogs.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ModalColors {
-    pub colors: TextColors,
+    pub text: TextColors,
     pub btn_delete: ButtonColors,
     pub btn_cancel: ButtonColors,
 }
 
 /// Represents colors for selector widget.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub filter: TextColors,
-    pub prompt: TextColors,
+    pub filter: FilterColors,
 }
 
 /// Represents colors for syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
     pub yaml: YamlSyntaxColors,
 }
 
 /// Represents colors for YAML syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct YamlSyntaxColors {
     pub normal: TextColors,
     pub property: TextColors,
@@ -54,16 +80,12 @@ pub struct YamlSyntaxColors {
 }
 
 /// All colors in theme.
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ThemeColors {
     pub text: TextColors,
-    pub context: TextColors,
-    pub namespace: TextColors,
-    pub resource: TextColors,
-    pub count: TextColors,
-    pub info: TextColors,
-    pub disconnected: TextColors,
-    pub header: TextColors,
+    pub header: HeaderColors,
+    pub footer: FooterColors,
+    pub filter: FilterColors,
     pub modal: ModalColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
@@ -82,71 +104,86 @@ impl Default for Theme {
     fn default() -> Self {
         Theme {
             colors: ThemeColors {
-                text: TextColors::new(Color::DarkGray, Color::Reset),
-                context: TextColors::new(Color::White, Color::Rgb(216, 0, 96)),
-                namespace: TextColors::new(Color::DarkGray, Color::Rgb(253, 202, 79)),
-                resource: TextColors::new(Color::DarkGray, Color::Rgb(92, 166, 227)),
-                count: TextColors::new(Color::DarkGray, Color::Rgb(170, 217, 46)),
-                info: TextColors::new(Color::White, Color::Rgb(153, 113, 195)),
-                disconnected: TextColors::new(Color::White, Color::LightRed),
-                header: TextColors::new(Color::Gray, Color::DarkGray),
+                text: TextColors::new(Color::DarkGray),
+                header: HeaderColors {
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
+                    namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
+                    resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
+                    count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
+                    info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
+                    disconnected: TextColors::bg(Color::White, Color::LightRed),
+                },
+                footer: FooterColors {
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    info: TextColors::bg(Color::LightGreen, Color::DarkGray),
+                    error: TextColors::bg(Color::LightRed, Color::DarkGray),
+                },
+                filter: FilterColors {
+                    input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                },
                 modal: ModalColors {
-                    colors: TextColors::new(Color::Gray, Color::DarkGray),
+                    text: TextColors::bg(Color::Gray, Color::DarkGray),
                     btn_delete: ButtonColors {
-                        normal: TextColors::new(Color::White, Color::DarkGray),
-                        focused: TextColors::new(Color::White, Color::LightRed),
+                        normal: TextColors::bg(Color::White, Color::DarkGray),
+                        focused: TextColors::bg(Color::White, Color::LightRed),
                     },
                     btn_cancel: ButtonColors {
-                        normal: TextColors::new(Color::White, Color::DarkGray),
-                        focused: TextColors::new(Color::White, Color::LightGreen),
+                        normal: TextColors::bg(Color::White, Color::DarkGray),
+                        focused: TextColors::bg(Color::White, Color::LightGreen),
                     },
                 },
                 command_palette: SelectColors {
-                    normal: TextColors::new(Color::Gray, Color::DarkGray),
-                    normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
-                    filter: TextColors::new(Color::Blue, Color::DarkGray),
-                    prompt: TextColors::new(Color::Blue, Color::DarkGray),
+                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    filter: FilterColors {
+                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    },
                 },
                 side_select: SelectColors {
-                    normal: TextColors::new(Color::Gray, Color::DarkGray),
-                    normal_hl: TextColors::new(Color::DarkGray, Color::Gray),
-                    filter: TextColors::new(Color::Blue, Color::DarkGray),
-                    prompt: TextColors::new(Color::Blue, Color::DarkGray),
+                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    filter: FilterColors {
+                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    },
                 },
                 line: ResourceColors {
                     ready: LineColors {
-                        normal: TextColors::new(Color::LightBlue, Color::Reset),
-                        normal_hl: TextColors::new(Color::DarkGray, Color::LightBlue),
-                        selected: TextColors::new(Color::LightGreen, Color::Reset),
-                        selected_hl: TextColors::new(Color::DarkGray, Color::LightGreen),
+                        normal: TextColors::new(Color::LightBlue),
+                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightBlue),
+                        selected: TextColors::new(Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
                     },
                     in_progress: LineColors {
-                        normal: TextColors::new(Color::Red, Color::Reset),
-                        normal_hl: TextColors::new(Color::DarkGray, Color::LightRed),
-                        selected: TextColors::new(Color::LightGreen, Color::Reset),
-                        selected_hl: TextColors::new(Color::DarkGray, Color::LightGreen),
+                        normal: TextColors::new(Color::Red),
+                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightRed),
+                        selected: TextColors::new(Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
                     },
                     terminating: LineColors {
-                        normal: TextColors::new(Color::Magenta, Color::Reset),
-                        normal_hl: TextColors::new(Color::DarkGray, Color::LightMagenta),
-                        selected: TextColors::new(Color::LightGreen, Color::Reset),
-                        selected_hl: TextColors::new(Color::DarkGray, Color::LightGreen),
+                        normal: TextColors::new(Color::Magenta),
+                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightMagenta),
+                        selected: TextColors::new(Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
                     },
                     completed: LineColors {
-                        normal: TextColors::new(Color::Gray, Color::Reset),
-                        normal_hl: TextColors::new(Color::Gray, Color::DarkGray),
-                        selected: TextColors::new(Color::LightGreen, Color::Reset),
-                        selected_hl: TextColors::new(Color::DarkGray, Color::LightGreen),
+                        normal: TextColors::new(Color::Gray),
+                        normal_hl: TextColors::bg(Color::Gray, Color::DarkGray),
+                        selected: TextColors::new(Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
                     },
                 },
                 syntax: SyntaxColors {
                     yaml: YamlSyntaxColors {
-                        normal: TextColors::new(Color::DarkGray, Color::Reset),
-                        property: TextColors::new(Color::Green, Color::Reset),
-                        string: TextColors::new(Color::Gray, Color::Reset),
-                        numeric: TextColors::new(Color::Blue, Color::Reset),
-                        language: TextColors::new(Color::LightBlue, Color::Reset),
-                        timestamp: TextColors::new(Color::Magenta, Color::Reset),
+                        normal: TextColors::new(Color::DarkGray),
+                        property: TextColors::new(Color::Green),
+                        string: TextColors::new(Color::Gray),
+                        numeric: TextColors::new(Color::Blue),
+                        language: TextColors::new(Color::LightBlue),
+                        timestamp: TextColors::new(Color::Magenta),
                     },
                 },
             },

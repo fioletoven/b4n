@@ -1,8 +1,8 @@
 use anyhow::Result;
 use ratatui::{
     crossterm::{
-        terminal::{disable_raw_mode, LeaveAlternateScreen},
         ExecutableCommand,
+        terminal::{LeaveAlternateScreen, disable_raw_mode},
     },
     layout::{Constraint, Flex, Layout, Rect},
 };
@@ -18,7 +18,7 @@ pub fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect 
     area
 }
 
-/// Sets panic hook that additionally leaves alternate screen mode on panic
+/// Sets panic hook that additionally leaves alternate screen mode on panic.
 pub fn init_panic_hook() {
     let original_hook = take_hook();
     set_hook(Box::new(move |panic_info| {
@@ -27,7 +27,7 @@ pub fn init_panic_hook() {
     }));
 }
 
-/// Leaves alternate screen mode
+/// Leaves alternate screen mode.
 fn restore_terminal() -> Result<()> {
     stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;

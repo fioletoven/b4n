@@ -1,13 +1,13 @@
 use anyhow::Result;
 use futures::{FutureExt, StreamExt};
 use ratatui::{
+    Terminal,
     crossterm::{
         self, cursor,
         event::{Event, KeyEvent, KeyEventKind},
         terminal::{EnterAlternateScreen, LeaveAlternateScreen},
     },
     prelude::CrosstermBackend,
-    Terminal,
 };
 use std::io::stdout;
 use tokio::{
@@ -20,7 +20,7 @@ use crate::app::utils::wait_for_task;
 
 use super::utils::init_panic_hook;
 
-/// Terminal UI Event
+/// Terminal UI Event.
 #[derive(Clone)]
 pub enum TuiEvent {
     Key(KeyEvent),
@@ -33,6 +33,7 @@ pub enum ResponseEvent {
     NotHandled,
     Handled,
     Cancelled,
+    Accepted,
     Action(String),
 
     ExitApplication,
@@ -52,13 +53,22 @@ pub enum ResponseEvent {
 }
 
 impl ResponseEvent {
-    /// Returns `true` if [`ResponseEvent`] is an action with the provided name.
-    pub fn is_action(&self, action_name: &str) -> bool {
-        if let ResponseEvent::Action(name) = self {
-            name == action_name
+    /// Returns `true` if [`ResponseEvent`] is an action matching the provided name.
+    pub fn is_action(&self, name: &str) -> bool {
+        if let ResponseEvent::Action(action) = self {
+            action == name
         } else {
             false
         }
+    }
+
+    /// Conditionally converts [`ResponseEvent`] to a different [`ResponseEvent`] consuming it.  
+    /// **Note** that the new instance is returned by the `f` closure executed only if it is an action matching the provided name.
+    pub fn if_action_then<F>(self, name: &str, f: F) -> Self
+    where
+        F: FnOnce() -> Self,
+    {
+        if self.is_action(name) { f() } else { self }
     }
 }
 

@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-/// Default `NAMESPACE` column
+/// Default `NAMESPACE` column.
 pub const NAMESPACE: Column = Column {
     name: "NAMESPACE",
     is_fixed: false,
@@ -10,7 +10,7 @@ pub const NAMESPACE: Column = Column {
     data_len: 11,
 };
 
-/// Default `NAME` column
+/// Default `NAME` column.
 pub const NAME: Column = Column {
     name: "NAME",
     is_fixed: false,
@@ -20,7 +20,7 @@ pub const NAME: Column = Column {
     data_len: 6,
 };
 
-/// Column for the list header
+/// Column for the list header.
 #[derive(Clone)]
 pub struct Column {
     pub name: &'static str,
@@ -32,7 +32,7 @@ pub struct Column {
 }
 
 impl Column {
-    /// Creates new [`Column`] instance
+    /// Creates new [`Column`] instance.
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -44,7 +44,7 @@ impl Column {
         }
     }
 
-    /// Creates new [`Column`] instance bound with provided lengths
+    /// Creates new [`Column`] instance bound with provided lengths.
     pub fn bound(name: &'static str, min_len: usize, max_len: usize, to_right: bool) -> Self {
         Self {
             name,
@@ -56,7 +56,7 @@ impl Column {
         }
     }
 
-    /// Creates new fixed size [`Column`] instance
+    /// Creates new fixed size [`Column`] instance.
     pub fn fixed(name: &'static str, len: usize, to_right: bool) -> Self {
         Self {
             name,
@@ -65,6 +65,17 @@ impl Column {
             min_len: max(name.len(), len),
             max_len: max(name.len(), len),
             data_len: len,
+        }
+    }
+
+    /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.  
+    /// **Note** that first column has one extra space in front of the header name.
+    pub fn set_as_first_column(&mut self) {
+        if self.name.len() == self.min_len {
+            self.min_len += 1;
+            if self.min_len > self.max_len {
+                self.max_len = self.min_len
+            }
         }
     }
 }

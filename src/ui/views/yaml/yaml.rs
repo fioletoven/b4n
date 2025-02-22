@@ -1,18 +1,17 @@
-use std::{rc::Rc, time::Instant};
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::Paragraph,
-    Frame,
 };
+use std::{rc::Rc, time::Instant};
 
 use crate::{
     app::SharedAppData,
     kubernetes::Namespace,
-    ui::{utils::center, widgets::Footer, ResponseEvent},
+    ui::{ResponseEvent, utils::center},
 };
 
 use super::HeaderPane;
@@ -20,7 +19,6 @@ use super::HeaderPane;
 /// YAML viewer with header and footer.
 pub struct YamlViewer {
     pub header: HeaderPane,
-    pub footer: Footer,
     app_data: SharedAppData,
 
     lines: Vec<Vec<(Style, String)>>,
@@ -39,11 +37,9 @@ impl YamlViewer {
     /// Creates a new YAML viewer page.
     pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural);
-        let footer = Footer::new(Rc::clone(&app_data));
 
         Self {
             header,
-            footer,
             app_data,
             lines: Vec::new(),
             lines_width: 0,
@@ -117,7 +113,7 @@ impl YamlViewer {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)])
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
         self.header.draw(frame, layout[0]);
@@ -136,13 +132,11 @@ impl YamlViewer {
 
             frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), layout[1]);
         } else if self.creation_time.elapsed().as_millis() > 80 {
-            let colors = self.app_data.borrow().config.theme.colors;
-            let line = Line::styled(" waiting for data…", Style::default().fg(colors.text.fg).bg(colors.text.bg));
+            let colors = &self.app_data.borrow().config.theme.colors;
+            let line = Line::styled(" waiting for data…", &colors.text);
             let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
             frame.render_widget(line, area);
         }
-
-        self.footer.draw(frame, layout[2]);
     }
 
     fn update_page_starts(&mut self) {

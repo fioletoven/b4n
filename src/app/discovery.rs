@@ -1,8 +1,8 @@
-use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
+use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Duration,
 };
@@ -18,7 +18,7 @@ use crate::kubernetes::client::KubernetesClient;
 
 use super::utils::wait_for_task;
 
-/// Background Kubernetes API discovery
+/// Background Kubernetes API discovery.
 pub struct BgDiscovery {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
@@ -41,7 +41,7 @@ impl Default for BgDiscovery {
 }
 
 impl BgDiscovery {
-    /// Starts new [`BgDiscovery`] task
+    /// Starts new [`BgDiscovery`] task.
     pub fn start(&mut self, client: &KubernetesClient) {
         if self.cancellation_token.is_some() {
             self.stop();
@@ -85,7 +85,7 @@ impl BgDiscovery {
         self.task = Some(task);
     }
 
-    /// Cancels [`BgDiscovery`] task
+    /// Cancels [`BgDiscovery`] task.
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
@@ -93,13 +93,13 @@ impl BgDiscovery {
         }
     }
 
-    /// Cancels [`BgDiscovery`] task and waits until it is finished
+    /// Cancels [`BgDiscovery`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
         wait_for_task(self.task.take(), "discovery");
     }
 
-    /// Tries to get next discovery result
+    /// Tries to get next discovery result.
     pub fn try_next(&mut self) -> Option<Vec<(ApiResource, ApiCapabilities)>> {
         self.context_rx.try_recv().ok()
     }
@@ -116,7 +116,7 @@ impl Drop for BgDiscovery {
     }
 }
 
-/// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`]
+/// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`].
 #[inline]
 pub fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
     discovery.groups().flat_map(|g| g.resources_by_stability()).collect()

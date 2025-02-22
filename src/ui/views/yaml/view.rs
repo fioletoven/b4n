@@ -1,16 +1,16 @@
-use std::rc::Rc;
-
 use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::Frame;
+use ratatui::{Frame, layout::Rect};
+use std::rc::Rc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{commands::CommandResult, lists::ActionsListBuilder, SharedAppData},
+    app::{SharedAppData, commands::CommandResult, lists::ActionsListBuilder},
     kubernetes::Namespace,
     ui::{
-        views::View,
-        widgets::{Action, CommandPalette},
         ResponseEvent, Responsive, TuiEvent,
+        views::View,
+        widgets::{Action, CommandPalette, FooterMessage},
     },
 };
 
@@ -23,6 +23,7 @@ pub struct YamlView {
     lines: Vec<String>,
     command_id: Option<String>,
     command_palette: CommandPalette,
+    messages_tx: UnboundedSender<FooterMessage>,
 }
 
 impl YamlView {
@@ -33,14 +34,17 @@ impl YamlView {
         name: String,
         namespace: Namespace,
         kind_plural: String,
+        messages_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
         let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural);
+
         Self {
             yaml: viewer,
             app_data,
             lines: Vec::new(),
             command_id,
             command_palette: CommandPalette::default(),
+            messages_tx,
         }
     }
 
@@ -48,9 +52,12 @@ impl YamlView {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
         if let Ok(mut ctx) = result {
             if ctx.set_contents(self.lines.join("")).is_ok() {
-                self.yaml
-                    .footer
-                    .show_message(" YAML content copied to the clipboard…".to_owned(), 1_500);
+                self.messages_tx
+                    .send(FooterMessage::info(
+                        " YAML content copied to the clipboard…".to_owned(),
+                        1_500,
+                    ))
+                    .unwrap();
             }
         }
     }
@@ -124,8 +131,8 @@ impl View for YamlView {
         self.yaml.process_key(key)
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>) {
-        self.yaml.draw(frame, frame.area());
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.yaml.draw(frame, area);
         self.command_palette.draw(frame, frame.area());
     }
 }

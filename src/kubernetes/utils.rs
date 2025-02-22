@@ -1,7 +1,7 @@
 use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
 use kube::{api::ApiResource, discovery::ApiCapabilities};
 
-/// Formats kubernetes timestamp to a human-readable string
+/// Formats kubernetes timestamp to a human-readable string.
 pub fn format_timestamp(time: &Time) -> String {
     let duration = Utc::now().signed_duration_since(time.0);
     let days = duration.num_days();

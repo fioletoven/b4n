@@ -1,20 +1,37 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self};
 use std::str::FromStr;
 
-/// Represents foreground and background colors for text.
+/// Represents foreground, dim foreground and background colors for UI text.
 #[derive(Default, Copy, Clone)]
 pub struct TextColors {
     pub fg: Color,
+    pub dim: Color,
     pub bg: Color,
 }
 
 impl TextColors {
     /// Returns new [`TextColors`] instance.
-    pub fn new(fg: Color, bg: Color) -> Self {
-        TextColors { fg, bg }
+    pub fn new(fg: Color) -> Self {
+        TextColors::dim(fg, Color::Reset, Color::Reset)
+    }
+
+    /// Returns new [`TextColors`] instance with `bg` color set.
+    pub fn bg(fg: Color, bg: Color) -> Self {
+        TextColors::dim(fg, Color::Reset, bg)
+    }
+
+    /// Returns new [`TextColors`] instance with `bg` and `dim` colors set.
+    pub fn dim(fg: Color, dim: Color, bg: Color) -> Self {
+        Self { fg, dim, bg }
+    }
+}
+
+impl From<&TextColors> for Style {
+    fn from(value: &TextColors) -> Self {
+        Style::default().fg(value.fg).bg(value.bg)
     }
 }
 
@@ -23,7 +40,13 @@ impl Serialize for TextColors {
     where
         S: Serializer,
     {
-        let text_colors = format!("{}:{}", self.fg, self.bg);
+        let text_colors = if self.bg == Color::Reset && self.dim == Color::Reset {
+            format!("{}", self.fg)
+        } else if self.dim == Color::Reset {
+            format!("{}:{}", self.fg, self.bg)
+        } else {
+            format!("{}:{}:{}", self.fg, self.dim, self.bg)
+        };
         serializer.serialize_str(&text_colors)
     }
 }
@@ -44,7 +67,7 @@ impl Visitor<'_> for TextColorsVisitor {
     type Value = TextColors;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string containing two colors separated by a comma")
+        formatter.write_str("a string containing 1-3 colors each separated by a comma")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<TextColors, E>
@@ -53,24 +76,36 @@ impl Visitor<'_> for TextColorsVisitor {
     {
         let parts: Vec<&str> = value.split(':').collect();
 
-        if parts.len() != 2 {
+        if parts.is_empty() || parts.len() > 3 {
             return Err(de::Error::invalid_length(parts.len(), &self));
         }
 
-        let Ok(fg) = Color::from_str(parts[0].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value: {}", parts[0])));
+        let Ok(col1) = Color::from_str(parts[0].trim()) else {
+            return Err(de::Error::custom(format_args!("invalid color value on pos 1: {}", parts[0])));
         };
 
-        let Ok(bg) = Color::from_str(parts[1].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value: {}", parts[1])));
+        if parts.len() == 1 {
+            return Ok(TextColors::new(col1));
+        }
+
+        let Ok(col2) = Color::from_str(parts[1].trim()) else {
+            return Err(de::Error::custom(format_args!("invalid color value on pos 2: {}", parts[1])));
         };
 
-        Ok(TextColors { fg, bg })
+        if parts.len() == 2 {
+            return Ok(TextColors::bg(col1, col2));
+        }
+
+        let Ok(col3) = Color::from_str(parts[2].trim()) else {
+            return Err(de::Error::custom(format_args!("invalid color value on pos 3: {}", parts[3])));
+        };
+
+        Ok(TextColors::dim(col1, col2, col3))
     }
 }
 
 /// Represents colors for text line.
-#[derive(Default, Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LineColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
@@ -82,11 +117,7 @@ impl LineColors {
     /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected).
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
-            if is_active {
-                self.selected_hl
-            } else {
-                self.selected
-            }
+            if is_active { self.selected_hl } else { self.selected }
         } else if is_active {
             self.normal_hl
         } else {

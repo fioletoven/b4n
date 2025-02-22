@@ -1,4 +1,5 @@
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 use crate::app::commands::CommandResult;
 
@@ -26,6 +27,6 @@ pub trait View {
     /// Process single TUI event.
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent;
 
-    /// Draw [`View`] on the provided frame.
-    fn draw(&mut self, frame: &mut Frame<'_>);
+    /// Draw [`View`] on the provided frame and area.
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect);
 }

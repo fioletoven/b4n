@@ -1,16 +1,22 @@
+use std::collections::BTreeMap;
+
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use kube::{api::DynamicObject, ResourceExt};
+use kube::{ResourceExt, api::DynamicObject};
 
 use crate::{
-    app::lists::{Column, Header, Row},
+    app::lists::{Header, NAMESPACE, Row},
     kubernetes,
-    ui::{colors::TextColors, theme::Theme, ViewType},
+    ui::{ViewType, colors::TextColors, theme::Theme},
     utils::{add_padding, truncate},
 };
 
 use super::{pod, service};
 
-/// Extra data for the kubernetes resource
+#[cfg(test)]
+#[path = "./resource.tests.rs"]
+mod resource_tests;
+
+/// Extra data for the kubernetes resource.
 pub struct ResourceData {
     pub is_job: bool,
     pub is_completed: bool,
@@ -20,7 +26,7 @@ pub struct ResourceData {
 }
 
 impl ResourceData {
-    /// Returns [`TextColors`] for the current resource state
+    /// Returns [`TextColors`] for the current resource state.
     fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {
             theme.colors.line.completed.get_specific(is_active, is_selected)
@@ -34,18 +40,20 @@ impl ResourceData {
     }
 }
 
-/// Represents kubernetes resource of any kind
+/// Represents kubernetes resource of any kind.
 pub struct Resource {
     pub uid: Option<String>,
     pub name: String,
     pub namespace: Option<String>,
     pub age: Option<String>,
     pub creation_timestamp: Option<Time>,
+    pub labels: Option<BTreeMap<String, String>>,
+    pub annotations: Option<BTreeMap<String, String>>,
     pub data: Option<ResourceData>,
 }
 
 impl Resource {
-    /// Creates light [`Resource`] version just with name
+    /// Creates light [`Resource`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
             uid: Some(format!("_{}_", name)),
@@ -53,37 +61,42 @@ impl Resource {
             namespace: None,
             age: None,
             creation_timestamp: None,
+            labels: None,
+            annotations: None,
             data: None,
         }
     }
 
-    /// Creates [`Resource`] from kubernetes [`DynamicObject`]
-    pub fn from(kind: &str, object: &DynamicObject) -> Self {
+    /// Creates [`Resource`] from kubernetes [`DynamicObject`].
+    pub fn from(kind: &str, object: DynamicObject) -> Self {
         let data = match kind {
-            "Pod" => Some(pod::data(object)),
-            "Service" => Some(service::data(object)),
+            "Pod" => Some(pod::data(&object)),
+            "Service" => Some(service::data(&object)),
             _ => None,
         };
+
         Self {
-            uid: object.metadata.uid.clone(),
-            name: object.name_any(),
-            namespace: object.namespace(),
-            creation_timestamp: object.creation_timestamp(),
             age: object.creation_timestamp().as_ref().map(kubernetes::utils::format_timestamp),
+            name: object.name_any(),
+            namespace: object.metadata.namespace,
+            uid: object.metadata.uid,
+            creation_timestamp: object.metadata.creation_timestamp,
+            labels: object.metadata.labels,
+            annotations: object.metadata.annotations,
             data,
         }
     }
 
-    /// Returns [`Header`] for provided Kubernetes resource kind
+    /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str) -> Header {
         match kind {
             "Pod" => pod::header(),
             "Service" => service::header(),
-            _ => Header::from(Column::new("NAMESPACE"), None),
+            _ => Header::from(NAMESPACE.clone(), None),
         }
     }
 
-    /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data
+    /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if let Some(data) = &self.data {
             data.get_colors(theme, is_active, is_selected)
@@ -92,12 +105,18 @@ impl Resource {
         }
     }
 
-    /// Builds and returns the whole row of values for this kubernetes resource
+    /// Builds and returns the whole row of values for this kubernetes resource.
     pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
-        match view {
+        let text = match view {
             ViewType::Name => self.get_name(width),
             ViewType::Compact => self.get_compact_text(&self.get_inner_text(header), name_width),
             ViewType::Full => self.get_full_text(&self.get_inner_text(header), namespace_width, name_width),
+        };
+
+        if text.chars().count() > width {
+            truncate(text.as_str(), width).to_owned()
+        } else {
+            text
         }
     }
 
@@ -204,4 +223,16 @@ impl Row for Resource {
             "n/a"
         }
     }
+
+    fn wide_contains(&self, pattern: &str) -> bool {
+        self.name.contains(pattern) || any(self.labels.as_ref(), pattern) || any(self.annotations.as_ref(), pattern)
+    }
+}
+
+fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
+    let Some(tree) = tree else {
+        return false;
+    };
+
+    tree.keys().any(|k| k.contains(pattern)) || tree.values().any(|v| v.contains(pattern))
 }

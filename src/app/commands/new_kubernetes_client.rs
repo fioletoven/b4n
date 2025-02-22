@@ -1,9 +1,9 @@
-use kube::{api::ApiResource, discovery::ApiCapabilities, Discovery};
+use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use thiserror;
 
 use crate::{
     app::discovery::convert_to_vector,
-    kubernetes::{client::KubernetesClient, utils::get_resource, Namespace, NAMESPACES},
+    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, utils::get_resource},
 };
 
 use super::CommandResult;
@@ -12,8 +12,8 @@ use super::CommandResult;
 #[derive(thiserror::Error, Debug)]
 pub enum KubernetesClientError {
     /// Kubernetes client creation error.
-    #[error("kubernetes client creation error")]
-    ClientError,
+    #[error(transparent)]
+    ClientError(#[from] crate::kubernetes::client::ClientError),
 
     /// Discovery run error.
     #[error("discovery run error")]
@@ -53,8 +53,9 @@ impl NewKubernetesClientCommand {
 
     /// Creates new kubernetes client and returns it.
     pub async fn execute(self) -> Option<CommandResult> {
-        let Ok(client) = KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), false).await else {
-            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::ClientError)));
+        let client = match KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), false).await {
+            Ok(client) => client,
+            Err(err) => return Some(CommandResult::KubernetesClient(Err(err.into()))),
         };
         let Ok(discovery) = Discovery::new(client.get_client()).run().await else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryError)));

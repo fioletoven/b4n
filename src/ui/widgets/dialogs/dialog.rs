@@ -7,7 +7,7 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{colors::TextColors, utils::center, ResponseEvent, Responsive};
+use crate::ui::{ResponseEvent, Responsive, colors::TextColors, utils::center};
 
 use super::{Button, ButtonsGroup};
 
