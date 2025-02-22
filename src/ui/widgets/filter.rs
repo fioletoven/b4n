@@ -31,7 +31,7 @@ impl Filter {
     /// Creates new [`Filter`] instance.
     pub fn new(app_data: SharedAppData, width: u16) -> Self {
         let input = Input::new(&app_data.borrow().config.theme.colors.filter.input, true)
-            .with_prompt(" ", &app_data.borrow().config.theme.colors.filter.prompt);
+            .with_prompt(" ", &app_data.borrow().config.theme.colors.filter.prompt);
 
         Self {
             is_visible: false,

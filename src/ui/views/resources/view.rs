@@ -91,6 +91,12 @@ impl ResourcesView {
         self.res_selector.hide();
     }
 
+    /// Clears data in the list.
+    pub fn clear_list_data(&mut self) {
+        self.table.reset();
+        self.filter.reset();
+    }
+
     /// Updates namespaces list with a new data from [`ObserverResult`].
     pub fn update_namespaces_list(&mut self, result: Option<ObserverResult>) {
         self.ns_selector.select.items.update(result, 1, false);

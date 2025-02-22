@@ -7,7 +7,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         views::{ResourcesView, View, YamlView},
-        widgets::Footer,
+        widgets::{Footer, FooterMessage},
     },
 };
 
@@ -154,7 +154,7 @@ impl App {
                 ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, namespace) => self.get_resources_yaml(resource, namespace),
+                ResponseEvent::ViewYaml(resource, namespace) => self.request_yaml(resource, namespace),
                 _ => (),
             };
         }
@@ -184,10 +184,9 @@ impl App {
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.update_configuration(Some(kind.clone()), Some(namespace.clone().into()));
         self.resources.set_namespace(namespace.clone());
-        let scope = self.worker.borrow_mut().restart(kind, namespace)?;
-        self.set_page_view(scope);
+        let scope = self.worker.borrow_mut().restart(kind.clone(), namespace.clone())?;
+        self.process_resources_change(Some(kind), Some(namespace.into()), Some(scope));
 
         Ok(())
     }
@@ -195,24 +194,23 @@ impl App {
     /// Changes observed resources kind, optionally selects one of them.  
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        self.update_configuration(Some(kind.clone()), None);
         let namespace = self.data.borrow().current.namespace.clone();
         let showing_namespaces = to_select.is_none() && kind == NAMESPACES;
-        let scope = self.worker.borrow_mut().restart_new_kind(kind, namespace)?;
+        let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
         if showing_namespaces {
             let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
             self.resources.highlight_next(to_select);
         } else {
             self.resources.highlight_next(to_select);
         }
-        self.set_page_view(scope);
+        self.process_resources_change(Some(kind), None, Some(scope));
 
         Ok(())
     }
 
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.update_configuration(None, Some(namespace.clone().into()));
+        self.process_resources_change(None, Some(namespace.clone().into()), None);
         self.resources.set_namespace(namespace.clone());
         self.worker.borrow_mut().restart_new_namespace(namespace)?;
 
@@ -248,14 +246,12 @@ impl App {
             if let Ok(scope) = scope {
                 self.resources
                     .set_resources_info(context, result.namespace.clone(), version, scope.clone());
-                self.update_configuration(Some(result.kind), Some(result.namespace.into()));
-
-                self.set_page_view(scope);
+                self.process_resources_change(Some(result.kind), Some(result.namespace.into()), Some(scope));
             }
         }
     }
 
-    /// Deletes resources that are currently selected on [`HomePage`].
+    /// Deletes resources that are currently selected on [`ResourcesView`].
     fn delete_resources(&mut self) {
         let list = self.resources.get_selected_items();
         for key in list.keys() {
@@ -271,14 +267,19 @@ impl App {
         }
 
         self.resources.deselect_all();
+        self.footer.send_message(FooterMessage::info(
+            " Selected resources marked for deletion…".to_owned(),
+            1_500,
+        ));
     }
 
-    /// Sets page view from resource scope.
-    fn set_page_view(&mut self, result: Scope) {
-        if result == Scope::Cluster {
-            self.resources.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.namespace.is_all() {
-            self.resources.set_view(ViewType::Full);
+    /// Performs all necessary actions needed when resources view changes.  
+    /// **Note** that this means the resource list will change soon.
+    fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>) {
+        self.resources.clear_list_data();
+        self.update_configuration(kind, namespace);
+        if let Some(scope) = scope {
+            self.set_page_view(scope);
         }
     }
 
@@ -292,6 +293,15 @@ impl App {
 
         self.watcher.skip_next();
         self.worker.borrow_mut().save_configuration(self.data.borrow().config.clone());
+    }
+
+    /// Sets page view from resource scope.
+    fn set_page_view(&mut self, result: Scope) {
+        if result == Scope::Cluster {
+            self.resources.set_view(ViewType::Compact);
+        } else if self.data.borrow().current.namespace.is_all() {
+            self.resources.set_view(ViewType::Full);
+        }
     }
 
     /// Requests new kubernetes client with configured kind and namespace.
@@ -311,8 +321,8 @@ impl App {
         self.client_manager.request_new_client(context, kind, namespace);
     }
 
-    /// Sends command to fetch resources YAML to the background executor.
-    fn get_resources_yaml(&mut self, resource: String, namespace: String) {
+    /// Sends command to fetch resource's YAML to the background executor.
+    fn request_yaml(&mut self, resource: String, namespace: String) {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.clone(),
             namespace.clone().into(),
@@ -329,7 +339,7 @@ impl App {
         )));
     }
 
-    /// Shows returned resources YAML in separate view.
+    /// Shows returned resource's YAML in a separate view.
     fn show_yaml(&mut self, command_id: String, result: Result<ResourceYamlResult, ResourceYamlError>) {
         if self.view.as_ref().is_some_and(|v| !v.command_id_match(&command_id)) {
             return;

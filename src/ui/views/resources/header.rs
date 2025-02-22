@@ -11,12 +11,16 @@ use crate::app::SharedAppData;
 /// Header pane that shows resource path and version information as breadcrumbs.
 pub struct HeaderPane {
     app_data: SharedAppData,
+    is_filtered: bool,
 }
 
 impl HeaderPane {
     /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData) -> Self {
-        Self { app_data }
+        Self {
+            app_data,
+            is_filtered: false,
+        }
     }
 
     /// Draws [`HeaderPane`] on the provided frame area.
@@ -40,6 +44,11 @@ impl HeaderPane {
         frame.render_widget(Paragraph::new(version), layout[1]);
     }
 
+    /// Sets if header should show icon that indicates data is filtered.
+    pub fn show_filtered_icon(&mut self, is_filtered: bool) {
+        self.is_filtered = is_filtered;
+    }
+
     /// Returns formatted kubernetes resource path as breadcrumbs:  
     /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
     fn get_path(&self, context: &str, namespace: &str, resource: &str, count: usize, scope: Scope) -> Line {
@@ -59,10 +68,11 @@ impl HeaderPane {
             path.push(Span::styled("", Style::new().fg(colors.context.bg).bg(colors.resource.bg)));
         }
 
+        let count_icon = if self.is_filtered { "" } else { "" };
         path.append(&mut vec![
             Span::styled(format!(" {} ", resource.to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
-            Span::styled(format!(" {} ", count), &colors.count),
+            Span::styled(format!(" {}{} ", count_icon, count), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),
         ]);
 

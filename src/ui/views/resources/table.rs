@@ -46,6 +46,7 @@ impl ResourcesTable {
     /// Resets all table data.
     pub fn reset(&mut self) {
         self.list.items.clear();
+        self.header.show_filtered_icon(false);
     }
 
     /// Sets initial kubernetes resources data for [`ResourcesTable`].
@@ -109,16 +110,15 @@ impl ResourcesTable {
 
     /// Sets filter on the resources list.
     pub fn set_filter(&mut self, value: &str) {
+        self.header.show_filtered_icon(!value.is_empty());
         if value.is_empty() {
             if self.list.items.is_filtered() {
                 self.list.items.filter(None);
                 self.app_data.borrow_mut().current.count = self.list.items.len();
             }
-        } else {
-            if !self.list.items.is_filtered() || self.list.items.get_filter().is_some_and(|f| f != value) {
-                self.list.items.filter(Some(value.to_owned()));
-                self.app_data.borrow_mut().current.count = self.list.items.len();
-            }
+        } else if !self.list.items.is_filtered() || self.list.items.get_filter().is_some_and(|f| f != value) {
+            self.list.items.filter(Some(value.to_owned()));
+            self.app_data.borrow_mut().current.count = self.list.items.len();
         }
     }
 

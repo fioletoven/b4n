@@ -127,7 +127,7 @@ impl DerefMut for KubernetesClient {
 }
 
 /// Returns matching context from the kube config for the provided one.  
-/// **Note** that it can `fallback_to_default` if the provided contex is not found in kube config.
+/// **Note** that it can `fallback_to_default` if the provided context is not found in kube config.
 pub async fn get_context(
     kube_config_path: Option<&str>,
     kube_context: Option<&str>,
