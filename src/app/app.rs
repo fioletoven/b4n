@@ -184,9 +184,11 @@ impl App {
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.resources.set_namespace(namespace.clone());
-        let scope = self.worker.borrow_mut().restart(kind.clone(), namespace.clone())?;
-        self.process_resources_change(Some(kind), Some(namespace.into()), Some(scope));
+        if self.data.borrow().current.namespace != namespace || !self.data.borrow().current.is_kind_equal(&kind) {
+            self.resources.set_namespace(namespace.clone());
+            let scope = self.worker.borrow_mut().restart(kind.clone(), namespace.clone())?;
+            self.process_resources_change(Some(kind), Some(namespace.into()), Some(scope));
+        }
 
         Ok(())
     }
@@ -194,25 +196,28 @@ impl App {
     /// Changes observed resources kind, optionally selects one of them.  
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        let namespace = self.data.borrow().current.namespace.clone();
-        let showing_namespaces = to_select.is_none() && kind == NAMESPACES;
-        let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
-        if showing_namespaces {
-            let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
-            self.resources.highlight_next(to_select);
-        } else {
-            self.resources.highlight_next(to_select);
+        if !self.data.borrow().current.is_kind_equal(&kind) {
+            let namespace = self.data.borrow().current.namespace.clone();
+            let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
+            if to_select.is_none() && kind == NAMESPACES {
+                let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
+                self.resources.highlight_next(to_select);
+            } else {
+                self.resources.highlight_next(to_select);
+            }
+            self.process_resources_change(Some(kind), None, Some(scope));
         }
-        self.process_resources_change(Some(kind), None, Some(scope));
 
         Ok(())
     }
 
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.process_resources_change(None, Some(namespace.clone().into()), None);
-        self.resources.set_namespace(namespace.clone());
-        self.worker.borrow_mut().restart_new_namespace(namespace)?;
+        if self.data.borrow().current.namespace != namespace {
+            self.process_resources_change(None, Some(namespace.clone().into()), None);
+            self.resources.set_namespace(namespace.clone());
+            self.worker.borrow_mut().restart_new_namespace(namespace)?;
+        }
 
         Ok(())
     }
