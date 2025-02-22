@@ -1,4 +1,4 @@
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
@@ -20,7 +20,7 @@ pub struct Input {
 
 impl Input {
     /// Creates new [`Input`] instance.
-    pub fn new<S: Into<Style>>(style: S, show_cursor: bool) -> Self {
+    pub fn new(style: impl Into<Style>, show_cursor: bool) -> Self {
         Self {
             input: Default::default(),
             style: style.into(),
@@ -30,18 +30,34 @@ impl Input {
     }
 
     /// Adds a prompt to the [`Input`] instance.
-    pub fn with_prompt<S: Into<Style>>(mut self, prompt: String, style: S) -> Self {
-        self.prompt = Some((prompt, style.into()));
+    pub fn with_prompt(mut self, prompt: impl Into<String>, style: impl Into<Style>) -> Self {
+        self.prompt = Some((prompt.into(), style.into()));
         self
     }
 
     /// Sets the prompt and its style.
-    pub fn set_prompt<S: Into<Style>>(&mut self, prompt: Option<(String, S)>) {
-        self.prompt = prompt.map(|p| (p.0, p.1.into()));
+    pub fn set_prompt<Str: Into<String>, Sty: Into<Style>>(&mut self, prompt: Option<(Str, Sty)>) {
+        self.prompt = prompt.map(|p| (p.0.into(), p.1.into()));
+    }
+
+    /// Sets the prompt style.  
+    /// **Note** that it takes effect only if the prompt was already set.
+    pub fn set_prompt_style(&mut self, style: impl Into<Style>) {
+        if let Some(prompt) = &mut self.prompt {
+            prompt.1 = style.into();
+        }
+    }
+
+    /// Sets the prompt text.  
+    /// **Note** that it takes effect only if the prompt was already set.
+    pub fn set_prompt_text(&mut self, text: impl Into<String>) {
+        if let Some(prompt) = &mut self.prompt {
+            prompt.0 = text.into();
+        }
     }
 
     /// Sets the input style.
-    pub fn set_style<S: Into<Style>>(&mut self, style: S) {
+    pub fn set_style(&mut self, style: impl Into<Style>) {
         self.style = style.into();
     }
 
@@ -53,6 +69,11 @@ impl Input {
     /// Returns the input value.
     pub fn value(&self) -> &str {
         self.input.value()
+    }
+
+    /// Sets the input value.
+    pub fn set_value(&mut self, value: impl Into<String>) {
+        self.input = tui_input::Input::new(value.into());
     }
 
     /// Resets the input value.
@@ -98,7 +119,21 @@ impl Input {
 
 impl Responsive for Input {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        if key.code == KeyCode::Esc {
+            return ResponseEvent::Cancelled;
+        }
+
+        if key.code == KeyCode::Enter {
+            return ResponseEvent::Accepted;
+        }
+
+        if key.code == KeyCode::Delete && key.modifiers == KeyModifiers::CONTROL {
+            self.reset();
+            return ResponseEvent::Handled;
+        }
+
         self.input.handle_event(&Event::Key(key));
+
         ResponseEvent::Handled
     }
 }

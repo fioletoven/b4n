@@ -110,13 +110,13 @@ impl App {
     pub fn draw_frame(&mut self) -> Result<()> {
         self.tui.terminal.draw(|frame| {
             let layout = Footer::get_layout(frame.area());
+            self.footer.draw(frame, layout[1]);
+
             if let Some(view) = &mut self.view {
                 view.draw(frame, layout[0]);
             } else {
                 self.resources.draw(frame, layout[0]);
             }
-
-            self.footer.draw(frame, layout[1]);
         })?;
 
         Ok(())

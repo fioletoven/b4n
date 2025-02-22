@@ -33,6 +33,7 @@ pub enum ResponseEvent {
     NotHandled,
     Handled,
     Cancelled,
+    Accepted,
     Action(String),
 
     ExitApplication,

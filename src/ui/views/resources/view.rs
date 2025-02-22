@@ -16,7 +16,7 @@ use crate::{
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Action, Button, CommandPalette, Dialog, Position, SideSelect},
+        widgets::{Action, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
     },
 };
 
@@ -30,13 +30,13 @@ pub struct ResourcesView {
     command_palette: CommandPalette,
     ns_selector: SideSelect<ResourcesList>,
     res_selector: SideSelect<KindsList>,
+    filter: Filter,
 }
 
 impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData) -> Self {
         let table = ResourcesTable::new(Rc::clone(&app_data));
-
         let ns_selector = SideSelect::new(
             "NAMESPACE",
             Rc::clone(&app_data),
@@ -45,7 +45,6 @@ impl ResourcesView {
             ResponseEvent::ChangeNamespace,
             30,
         );
-
         let res_selector = SideSelect::new(
             "RESOURCE",
             Rc::clone(&app_data),
@@ -54,6 +53,7 @@ impl ResourcesView {
             ResponseEvent::ChangeKind,
             35,
         );
+        let filter = Filter::new(Rc::clone(&app_data), 60);
 
         Self {
             app_data,
@@ -62,6 +62,7 @@ impl ResourcesView {
             command_palette: CommandPalette::default(),
             ns_selector,
             res_selector,
+            filter,
         }
     }
 
@@ -83,6 +84,7 @@ impl ResourcesView {
     /// Resets all data for a resources view.
     pub fn reset(&mut self) {
         self.table.reset();
+        self.filter.reset();
         self.ns_selector.select.items.clear();
         self.ns_selector.hide();
         self.res_selector.select.items.clear();
@@ -148,6 +150,10 @@ impl ResourcesView {
             return self.res_selector.process_key(key);
         }
 
+        if self.filter.is_visible {
+            return self.filter.process_key(key);
+        }
+
         if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
@@ -159,6 +165,10 @@ impl ResourcesView {
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
             self.ask_delete_resources();
+        }
+
+        if key.code == KeyCode::Char('/') {
+            self.filter.show();
         }
 
         self.process_command_palette_events(key);
@@ -175,14 +185,17 @@ impl ResourcesView {
 
     /// Draws [`ResourcesView`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.table.set_filter(self.filter.value());
         self.table.draw(frame, area);
+
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
+        self.filter.draw(frame, frame.area());
 
         self.draw_selectors(frame, area);
     }
 
-    /// Draws namespace / resource selector located on the left / right of the resources list
+    /// Draws namespace / resource selector located on the left / right of the resources list.
     fn draw_selectors(&mut self, frame: &mut Frame<'_>, area: Rect) {
         if self.ns_selector.is_visible || self.res_selector.is_visible {
             let bottom = Layout::default()

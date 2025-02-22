@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::colors::{LineColors, TextColors, to_syntect_color};
 
 /// Represents header colors.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct HeaderColors {
     pub text: TextColors,
     pub context: TextColors,
@@ -16,12 +16,18 @@ pub struct HeaderColors {
 }
 
 /// Represents footer colors.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct FooterColors {
     pub text: TextColors,
     pub info: TextColors,
     pub error: TextColors,
+}
+
+/// Represents filter colors.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct FilterColors {
     pub input: TextColors,
+    pub prompt: TextColors,
 }
 
 /// Represents kubernetes resource colors.
@@ -53,8 +59,7 @@ pub struct ModalColors {
 pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub filter: TextColors,
-    pub prompt: TextColors,
+    pub filter: FilterColors,
 }
 
 /// Represents colors for syntax highlighting.
@@ -80,6 +85,7 @@ pub struct ThemeColors {
     pub text: TextColors,
     pub header: HeaderColors,
     pub footer: FooterColors,
+    pub filter: FilterColors,
     pub modal: ModalColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
@@ -112,7 +118,10 @@ impl Default for Theme {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
                     info: TextColors::bg(Color::LightGreen, Color::DarkGray),
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
-                    input: TextColors::bg(Color::Blue, Color::DarkGray),
+                },
+                filter: FilterColors {
+                    input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
@@ -128,14 +137,18 @@ impl Default for Theme {
                 command_palette: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-                    filter: TextColors::bg(Color::Blue, Color::DarkGray),
-                    prompt: TextColors::bg(Color::Blue, Color::DarkGray),
+                    filter: FilterColors {
+                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    },
                 },
                 side_select: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-                    filter: TextColors::bg(Color::Blue, Color::DarkGray),
-                    prompt: TextColors::bg(Color::Blue, Color::DarkGray),
+                    filter: FilterColors {
+                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    },
                 },
                 line: ResourceColors {
                     ready: LineColors {

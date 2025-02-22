@@ -107,6 +107,21 @@ impl ResourcesTable {
         self.list.view = view;
     }
 
+    /// Sets filter on the resources list.
+    pub fn set_filter(&mut self, value: &str) {
+        if value.is_empty() {
+            if self.list.items.is_filtered() {
+                self.list.items.filter(None);
+                self.app_data.borrow_mut().current.count = self.list.items.len();
+            }
+        } else {
+            if !self.list.items.is_filtered() || self.list.items.get_filter().is_some_and(|f| f != value) {
+                self.list.items.filter(Some(value.to_owned()));
+                self.app_data.borrow_mut().current.count = self.list.items.len();
+            }
+        }
+    }
+
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: Option<ObserverResult>) {
         if result.is_none() {

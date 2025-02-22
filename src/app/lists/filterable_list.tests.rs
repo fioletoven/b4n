@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn len() {
+fn len_test() {
     let mut list = FilterableList::from(vec![1, 2, 3, 4, 5]);
     assert_eq!(5, list.len());
 
@@ -10,7 +10,7 @@ fn len() {
 }
 
 #[test]
-fn iterators() {
+fn iterators_test() {
     let mut list = FilterableList::from(vec!["abc", "bcd", "cde"]);
 
     let mut iter = list.iter();
@@ -34,7 +34,7 @@ fn iterators() {
 }
 
 #[test]
-fn mutable_iterators() {
+fn mutable_iterators_test() {
     let mut list = FilterableList::from(vec!["abc", "bcd", "cde"]);
 
     list.filter(|i| i.contains("bc"));

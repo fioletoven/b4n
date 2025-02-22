@@ -27,14 +27,14 @@ impl CommandPalette {
         Self {
             is_visible: false,
             app_data,
-            actions: Select::new(actions, colors, false, true).with_prompt("".to_owned()),
+            actions: Select::new(actions, colors, false, true).with_prompt(" "),
             width,
         }
     }
 
     /// Sets command palette prompt.
     pub fn set_prompt(&mut self, prompt: &str) {
-        self.actions.set_prompt(format!("{}", prompt));
+        self.actions.set_prompt(format!("{} ", prompt));
     }
 
     /// Selects one of the command palette actions by its name.
