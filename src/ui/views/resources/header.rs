@@ -68,7 +68,7 @@ impl HeaderPane {
             path.push(Span::styled("", Style::new().fg(colors.context.bg).bg(colors.resource.bg)));
         }
 
-        let count_icon = if self.is_filtered { "" } else { "" };
+        let count_icon = if self.is_filtered { "" } else { "" };
         path.append(&mut vec![
             Span::styled(format!(" {} ", resource.to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
