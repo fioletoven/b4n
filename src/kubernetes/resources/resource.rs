@@ -4,7 +4,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{ResourceExt, api::DynamicObject};
 
 use crate::{
-    app::lists::{Header, NAMESPACE, Row},
+    app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
     utils::{add_padding, truncate},
@@ -223,9 +223,39 @@ impl Row for Resource {
             "n/a"
         }
     }
+}
 
-    fn wide_contains(&self, pattern: &str) -> bool {
-        self.name.contains(pattern) || any(self.labels.as_ref(), pattern) || any(self.annotations.as_ref(), pattern)
+/// Filtering context for [`Resource`].
+pub struct ResourceFilterContext {
+    pattern: String,
+    is_extended: bool,
+}
+
+impl FilterContext for ResourceFilterContext {
+    fn restart(&mut self) {
+        // Empty implementation.
+    }
+}
+
+impl Filterable<ResourceFilterContext> for Resource {
+    fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
+        ResourceFilterContext {
+            pattern: pattern.to_owned(),
+            is_extended: settings.is_some(),
+        }
+    }
+
+    /// Checks if an item match a filter using the provided context.  
+    /// **Note** that currently it has only a switch for normal/extended filtering.
+    /// Extended filtering is when [`Some`] is provided in settings.
+    fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
+        if context.is_extended {
+            self.name.contains(&context.pattern)
+                || any(self.labels.as_ref(), &context.pattern)
+                || any(self.annotations.as_ref(), &context.pattern)
+        } else {
+            self.name.contains(&context.pattern)
+        }
     }
 }
 

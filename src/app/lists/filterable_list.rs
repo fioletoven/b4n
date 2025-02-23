@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    marker::PhantomData,
     ops::{Index, IndexMut},
     slice::{Iter, IterMut},
 };
@@ -8,44 +9,75 @@ use std::{
 #[path = "./filterable_list.tests.rs"]
 mod filterable_list_tests;
 
+/// Represents context for items filtering.
+pub trait FilterContext {
+    /// Resets context data for new filtering.
+    fn restart(&mut self);
+}
+
+/// Basic context that implements [`FilterContext`].
+pub struct BasicFilterContext {
+    pub pattern: String,
+}
+
+impl FilterContext for BasicFilterContext {
+    fn restart(&mut self) {
+        // Empty implementation.
+    }
+}
+
+impl From<String> for BasicFilterContext {
+    fn from(value: String) -> Self {
+        BasicFilterContext { pattern: value }
+    }
+}
+
+/// Contract for items that allow filtering.
+pub trait Filterable<Fc: FilterContext> {
+    /// Builds [`FilterContext`] object that can be used to filter an item.
+    fn get_context(pattern: &str, settings: Option<&str>) -> Fc;
+
+    /// Checks if an item match a filter using the provided context.
+    fn is_matching(&self, context: &mut Fc) -> bool;
+}
+
 /// Wrapper for the [`Vec`] type that provides filtered iterators.  
 /// It remembers the original list so the filter can be re-applied anytime with different conditions.  
 /// Also it can be more efficient for cases where filtering is CPU bound and the filtered iterator is
 /// frequently requested (e.g. drawing a fame on the terminal).
-pub struct FilterableList<T> {
+pub struct FilterableList<T: Filterable<Fc>, Fc: FilterContext> {
     items: Vec<T>,
     filtered: Option<Vec<usize>>,
     len: usize,
+    _marker: PhantomData<Fc>,
 }
 
-impl<T> FilterableList<T> {
-    /// Creates new [`FilterableList<T>`] instance from the [`Vec`] object.
+impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
+    /// Creates new [`FilterableList<T, Fc>`] instance from the [`Vec`] object.
     pub fn from(items: Vec<T>) -> Self {
         let len = items.len();
         Self {
             items,
             filtered: None,
             len,
+            _marker: PhantomData,
         }
     }
 
-    /// Clears the [`FilterableList<T>`], removing all values.
+    /// Clears the [`FilterableList<T, Fc>`], removing all values.
     #[inline]
     pub fn clear(&mut self) {
         self.items.clear();
     }
 
-    /// Filters out the underneath list.  
+    /// Filters out the underneath list using `context` for that.  
     /// **Note** that the filter is cleared out every time the underneath array is modified.
-    pub fn filter<F>(&mut self, f: F)
-    where
-        F: Fn(&T) -> bool,
-    {
+    pub fn filter(&mut self, context: &mut Fc) {
         let filtered: Vec<usize> = self
             .items
             .iter()
             .enumerate()
-            .filter(|(_i, x)| f(x))
+            .filter(|(_i, x)| x.is_matching(context))
             .map(|(i, _x)| i)
             .collect();
         self.len = filtered.len();
@@ -86,12 +118,12 @@ impl<T> FilterableList<T> {
     }
 
     /// Returns an iterator over the filtered collection.
-    pub fn iter(&self) -> FilterableListIterator<'_, T> {
+    pub fn iter(&self) -> FilterableListIterator<'_, T, Fc> {
         FilterableListIterator { list: self, index: 0 }
     }
 
     /// Returns an iterator, over the filtered collection, that allows modifying each value.
-    pub fn iter_mut(&mut self) -> FilterableListIteratorMut<'_, T> {
+    pub fn iter_mut(&mut self) -> FilterableListIteratorMut<'_, T, Fc> {
         FilterableListIteratorMut { list: self, index: 0 }
     }
 
@@ -132,7 +164,7 @@ impl<T> FilterableList<T> {
     }
 }
 
-impl<T> Index<usize> for FilterableList<T> {
+impl<T: Filterable<Fc>, Fc: FilterContext> Index<usize> for FilterableList<T, Fc> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -144,7 +176,7 @@ impl<T> Index<usize> for FilterableList<T> {
     }
 }
 
-impl<T> IndexMut<usize> for FilterableList<T> {
+impl<T: Filterable<Fc>, Fc: FilterContext> IndexMut<usize> for FilterableList<T, Fc> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         if let Some(list) = &mut self.filtered {
             &mut self.items[list[index]]
@@ -154,31 +186,31 @@ impl<T> IndexMut<usize> for FilterableList<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a FilterableList<T> {
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> IntoIterator for &'a FilterableList<T, Fc> {
     type Item = &'a T;
-    type IntoIter = FilterableListIterator<'a, T>;
+    type IntoIter = FilterableListIterator<'a, T, Fc>;
 
     fn into_iter(self) -> Self::IntoIter {
         FilterableListIterator { list: self, index: 0 }
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut FilterableList<T> {
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> IntoIterator for &'a mut FilterableList<T, Fc> {
     type Item = &'a mut T;
-    type IntoIter = FilterableListIteratorMut<'a, T>;
+    type IntoIter = FilterableListIteratorMut<'a, T, Fc>;
 
     fn into_iter(self) -> Self::IntoIter {
         FilterableListIteratorMut { list: self, index: 0 }
     }
 }
 
-/// Iterator struct for the [`FilterableList<T>`]
-pub struct FilterableListIterator<'a, T> {
-    list: &'a FilterableList<T>,
+/// Iterator struct for the [`FilterableList<T, Fc>`]
+pub struct FilterableListIterator<'a, T: Filterable<Fc>, Fc: FilterContext> {
+    list: &'a FilterableList<T, Fc>,
     index: usize,
 }
 
-impl<'a, T> Iterator for FilterableListIterator<'a, T> {
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterator<'a, T, Fc> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<&'a T> {
@@ -204,13 +236,13 @@ impl<'a, T> Iterator for FilterableListIterator<'a, T> {
     }
 }
 
-/// Mutable iterator struct for the [`FilterableList<T>`]
-pub struct FilterableListIteratorMut<'a, T> {
-    list: &'a mut FilterableList<T>,
+/// Mutable iterator struct for the [`FilterableList<T, Fc>`]
+pub struct FilterableListIteratorMut<'a, T: Filterable<Fc>, Fc: FilterContext> {
+    list: &'a mut FilterableList<T, Fc>,
     index: usize,
 }
 
-impl<'a, T> Iterator for FilterableListIteratorMut<'a, T> {
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIteratorMut<'a, T, Fc> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<&'a mut T> {

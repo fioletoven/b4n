@@ -1,6 +1,11 @@
 use kube::config::NamedContext;
 
-use crate::{app::lists::Row, kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
+use crate::{
+    app::lists::{BasicFilterContext, Filterable, Row},
+    kubernetes::resources::Kind,
+    ui::ResponseEvent,
+    utils::truncate,
+};
 
 /// Command palette action.
 #[derive(Default)]
@@ -160,5 +165,15 @@ impl Row for Action {
         }
 
         false
+    }
+}
+
+impl Filterable<BasicFilterContext> for Action {
+    fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
+        pattern.to_owned().into()
+    }
+
+    fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
+        self.contains(&context.pattern)
     }
 }

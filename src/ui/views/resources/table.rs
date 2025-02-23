@@ -31,7 +31,7 @@ impl ResourcesTable {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(
             Rc::clone(&app_data),
-            ResourcesList::default().with_wide_filter(),
+            ResourcesList::default().with_filter_settings(Some("")),
             ViewType::Compact,
         );
 

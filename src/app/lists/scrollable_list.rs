@@ -3,19 +3,20 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use crate::ui::ResponseEvent;
 
-use super::{FilterableList, Item, Row};
+use super::{FilterContext, Filterable, FilterableList, Item, Row};
 
 /// Scrollable UI list.
-pub struct ScrollableList<T: Row> {
-    pub items: Option<FilterableList<Item<T>>>,
+pub struct ScrollableList<T: Row + Filterable<Fc>, Fc: FilterContext> {
+    pub items: Option<FilterableList<Item<T, Fc>, Fc>>,
     pub highlighted: Option<usize>,
     pub page_start: usize,
     pub page_height: u16,
     filter: Option<String>,
-    is_wide_filter_enabled: bool,
+    filter_settings: Option<String>,
+    filter_context: Option<Fc>,
 }
 
-impl<T: Row> Default for ScrollableList<T> {
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for ScrollableList<T, Fc> {
     fn default() -> Self {
         ScrollableList {
             items: None,
@@ -23,12 +24,13 @@ impl<T: Row> Default for ScrollableList<T> {
             page_start: 0,
             page_height: 0,
             filter: None,
-            is_wide_filter_enabled: false,
+            filter_settings: None,
+            filter_context: None,
         }
     }
 }
 
-impl<T: Row> ScrollableList<T> {
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Creates new [`ScrollableList`] with initial fixed items.
     pub fn fixed(items: Vec<T>) -> Self {
         let list = items.into_iter().map(Item::fixed).collect::<Vec<_>>();
@@ -98,9 +100,15 @@ impl<T: Row> ScrollableList<T> {
         self.filter.is_some()
     }
 
-    /// Filters items in the list by calling `contains` on each [`Row`].
+    /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.
     pub fn filter(&mut self, filter: Option<String>) {
+        if self.filter == filter {
+            return;
+        }
+
         self.filter = filter;
+        self.filter_context = None;
+
         if self.filter.is_some() {
             self.deselect_all();
             self.apply_filter();
@@ -122,9 +130,13 @@ impl<T: Row> ScrollableList<T> {
         self.filter.as_deref()
     }
 
-    /// Sets wide filter to `is_enabled`.
-    pub fn set_wide_filter(&mut self, is_enabled: bool) {
-        self.is_wide_filter_enabled = is_enabled;
+    /// Sets filter settings for the list.
+    pub fn set_filter_settings(&mut self, settings: Option<impl Into<String>>) {
+        let new_settings = settings.map(|o| o.into());
+        if self.filter_settings != new_settings {
+            self.filter_settings = new_settings.map(|o| o.into());
+            self.filter_context = None;
+        }
     }
 
     /// Process [`KeyEvent`] to move over the list.
@@ -163,7 +175,7 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Returns list items iterator for the current page.
-    pub fn get_page(&self) -> Option<impl Iterator<Item = &Item<T>>> {
+    pub fn get_page(&self) -> Option<impl Iterator<Item = &Item<T, Fc>>> {
         self.items
             .as_ref()
             .map(|list| list.iter().skip(self.page_start).take(self.page_height.into()))
@@ -244,7 +256,7 @@ impl<T: Row> ScrollableList<T> {
     }
 
     /// Gets highlighted element.
-    pub fn get_highlighted_item(&self) -> Option<&Item<T>> {
+    pub fn get_highlighted_item(&self) -> Option<&Item<T, Fc>> {
         if let Some(items) = &self.items {
             if let Some(highlighted) = self.highlighted {
                 if highlighted < items.len() {
@@ -312,7 +324,7 @@ impl<T: Row> ScrollableList<T> {
     /// Tries to highlight item finding it by closure.
     fn highlight_item_by<F>(&mut self, f: F) -> bool
     where
-        F: Fn(&Item<T>) -> bool,
+        F: Fn(&Item<T, Fc>) -> bool,
     {
         if let Some(items) = &mut self.items {
             let maybe_index = items.iter().position(f);
@@ -359,10 +371,13 @@ impl<T: Row> ScrollableList<T> {
     fn apply_filter(&mut self) {
         if let Some(list) = &mut self.items {
             if let Some(filter) = &self.filter {
-                if self.is_wide_filter_enabled {
-                    list.filter(|x| x.data.wide_contains(filter));
+                if let Some(context) = &mut self.filter_context {
+                    context.restart();
+                    list.filter(context);
                 } else {
-                    list.filter(|x| x.data.contains(filter));
+                    let mut context = T::get_context(filter, self.filter_settings.as_deref());
+                    list.filter(&mut context);
+                    self.filter_context = Some(context);
                 }
             }
         }
@@ -370,7 +385,7 @@ impl<T: Row> ScrollableList<T> {
 }
 
 /// Compares two [`Item`]s by selected column values ignoring fixed items.
-fn cmp(a: &Item<impl Row>, b: &Item<impl Row>, column: usize) -> Ordering {
+fn cmp<T: Row + Filterable<Fc>, Fc: FilterContext>(a: &Item<T, Fc>, b: &Item<T, Fc>, column: usize) -> Ordering {
     if a.is_fixed || b.is_fixed {
         return Ordering::Equal;
     }

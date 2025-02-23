@@ -4,7 +4,10 @@ use std::collections::HashMap;
 
 use crate::{
     app::ObserverResult,
-    kubernetes::{ALL_NAMESPACES, NAMESPACES, resources::Resource},
+    kubernetes::{
+        ALL_NAMESPACES, NAMESPACES,
+        resources::{Resource, ResourceFilterContext},
+    },
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
@@ -17,7 +20,7 @@ pub struct ResourcesList {
     pub group: String,
     pub scope: Scope,
     pub header: Header,
-    pub list: ScrollableList<Resource>,
+    pub list: ScrollableList<Resource, ResourceFilterContext>,
 }
 
 impl Default for ResourcesList {
@@ -35,8 +38,8 @@ impl Default for ResourcesList {
 
 impl ResourcesList {
     /// Sets if [`ResourcesList`] should search in `labels` and `annotations` when filtering resources.
-    pub fn with_wide_filter(mut self) -> Self {
-        self.list.set_wide_filter(true);
+    pub fn with_filter_settings(mut self, settings: Option<impl Into<String>>) -> Self {
+        self.list.set_filter_settings(settings);
         self
     }
 

@@ -7,12 +7,12 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme, widgets::Action},
 };
 
-use super::ScrollableList;
+use super::{BasicFilterContext, ScrollableList};
 
 /// UI actions list.
 #[derive(Default)]
 pub struct ActionsList {
-    pub list: ScrollableList<Action>,
+    pub list: ScrollableList<Action, BasicFilterContext>,
 }
 
 impl Responsive for ActionsList {
@@ -64,7 +64,7 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
+    pub fn from_kinds(kinds: &ScrollableList<Kind, BasicFilterContext>) -> Self {
         ActionsListBuilder {
             actions: if let Some(items) = &kinds.items {
                 items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>()
