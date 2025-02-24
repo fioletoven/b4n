@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use crate::ui::ResponseEvent;
 
-use super::{FilterContext, Filterable, FilterableList, Item, Row};
+use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
 /// Scrollable UI list.
 pub struct ScrollableList<T: Row + Filterable<Fc>, Fc: FilterContext> {
@@ -11,9 +11,7 @@ pub struct ScrollableList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub highlighted: Option<usize>,
     pub page_start: usize,
     pub page_height: u16,
-    filter: Option<String>,
-    filter_settings: Option<String>,
-    filter_context: Option<Fc>,
+    filter: FilterData<Fc>,
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for ScrollableList<T, Fc> {
@@ -23,9 +21,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for ScrollableList<T, F
             highlighted: None,
             page_start: 0,
             page_height: 0,
-            filter: None,
-            filter_settings: None,
-            filter_context: None,
+            filter: FilterData::default(),
         }
     }
 }
@@ -97,19 +93,16 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns `true` if list is filtered.
     pub fn is_filtered(&self) -> bool {
-        self.filter.is_some()
+        self.filter.has_pattern()
     }
 
     /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.
     pub fn filter(&mut self, filter: Option<String>) {
-        if self.filter == filter {
+        if !self.filter.set_pattern(filter) {
             return;
         }
 
-        self.filter = filter;
-        self.filter_context = None;
-
-        if self.filter.is_some() {
+        if self.filter.has_pattern() {
             self.deselect_all();
             self.apply_filter();
         } else if let Some(list) = &mut self.items {
@@ -127,16 +120,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns currently applied filter value.
     pub fn get_filter(&self) -> Option<&str> {
-        self.filter.as_deref()
+        self.filter.pattern()
     }
 
     /// Sets filter settings for the list.
     pub fn set_filter_settings(&mut self, settings: Option<impl Into<String>>) {
-        let new_settings = settings.map(|o| o.into());
-        if self.filter_settings != new_settings {
-            self.filter_settings = new_settings.map(|o| o.into());
-            self.filter_context = None;
-        }
+        self.filter.set_settings(settings);
     }
 
     /// Process [`KeyEvent`] to move over the list.
@@ -370,15 +359,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Re-applies remembered text filter to the list.
     fn apply_filter(&mut self) {
         if let Some(list) = &mut self.items {
-            if let Some(filter) = &self.filter {
-                if let Some(context) = &mut self.filter_context {
+            if self.filter.has_context() {
+                if let Some(context) = self.filter.context_mut() {
                     context.restart();
                     list.filter(context);
-                } else {
-                    let mut context = T::get_context(filter, self.filter_settings.as_deref());
-                    list.filter(&mut context);
-                    self.filter_context = Some(context);
                 }
+            } else if let Some(filter) = self.filter.pattern() {
+                let mut context = T::get_context(filter, self.filter.settings());
+                list.filter(&mut context);
+                self.filter.set_context(Some(context));
             }
         }
     }

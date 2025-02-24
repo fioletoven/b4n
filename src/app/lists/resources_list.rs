@@ -37,7 +37,7 @@ impl Default for ResourcesList {
 }
 
 impl ResourcesList {
-    /// Sets if [`ResourcesList`] should search in `labels` and `annotations` when filtering resources.
+    /// Sets filter settings for [`ResourcesList`].
     pub fn with_filter_settings(mut self, settings: Option<impl Into<String>>) -> Self {
         self.list.set_filter_settings(settings);
         self

@@ -5,41 +5,11 @@ use std::{
     slice::{Iter, IterMut},
 };
 
+use super::{FilterContext, Filterable};
+
 #[cfg(test)]
 #[path = "./filterable_list.tests.rs"]
 mod filterable_list_tests;
-
-/// Represents context for items filtering.
-pub trait FilterContext {
-    /// Resets context data for new filtering.
-    fn restart(&mut self);
-}
-
-/// Basic context that implements [`FilterContext`].
-pub struct BasicFilterContext {
-    pub pattern: String,
-}
-
-impl FilterContext for BasicFilterContext {
-    fn restart(&mut self) {
-        // Empty implementation.
-    }
-}
-
-impl From<String> for BasicFilterContext {
-    fn from(value: String) -> Self {
-        BasicFilterContext { pattern: value }
-    }
-}
-
-/// Contract for items that allow filtering.
-pub trait Filterable<Fc: FilterContext> {
-    /// Builds [`FilterContext`] object that can be used to filter an item.
-    fn get_context(pattern: &str, settings: Option<&str>) -> Fc;
-
-    /// Checks if an item match a filter using the provided context.
-    fn is_matching(&self, context: &mut Fc) -> bool;
-}
 
 /// Wrapper for the [`Vec`] type that provides filtered iterators.  
 /// It remembers the original list so the filter can be re-applied anytime with different conditions.  
