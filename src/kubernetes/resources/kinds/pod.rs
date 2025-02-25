@@ -1,5 +1,6 @@
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
+use std::rc::Rc;
 
 use crate::{
     app::lists::{Column, Header, NAMESPACE},
@@ -61,6 +62,7 @@ pub fn header() -> Header {
             Column::fixed("STATUS", 12, false),
             Column::bound("IP", 11, 16, false),
         ])),
+        Rc::new([' ', 'N', 'R', 'E', 'S', 'I', 'A']),
     )
 }
 

@@ -1,6 +1,6 @@
 use delegate::delegate;
 use kube::discovery::Scope;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::ObserverResult,
@@ -194,5 +194,9 @@ impl Table for ResourcesList {
     fn get_header(&self, view: ViewType, width: usize) -> String {
         let (namespace_width, name_width, _) = self.get_widths(view, width);
         self.header.get_text(view, namespace_width, name_width, width)
+    }
+
+    fn get_sort_symbols(&self) -> Rc<[char]> {
+        self.header.get_sort_symbols()
     }
 }

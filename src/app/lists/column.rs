@@ -32,7 +32,8 @@ pub struct Column {
 }
 
 impl Column {
-    /// Creates new [`Column`] instance.
+    /// Creates new [`Column`] instance.  
+    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -44,7 +45,8 @@ impl Column {
         }
     }
 
-    /// Creates new [`Column`] instance bound with provided lengths.
+    /// Creates new [`Column`] instance bound with provided lengths.  
+    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
     pub fn bound(name: &'static str, min_len: usize, max_len: usize, to_right: bool) -> Self {
         Self {
             name,
@@ -56,7 +58,8 @@ impl Column {
         }
     }
 
-    /// Creates new fixed size [`Column`] instance.
+    /// Creates new fixed size [`Column`] instance.  
+    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
     pub fn fixed(name: &'static str, len: usize, to_right: bool) -> Self {
         Self {
             name,

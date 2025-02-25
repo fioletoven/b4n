@@ -1,4 +1,5 @@
 use kube::api::DynamicObject;
+use std::rc::Rc;
 
 use crate::{
     app::lists::{Column, Header, NAMESPACE},
@@ -30,5 +31,6 @@ pub fn header() -> Header {
             Column::bound("TYPE", 8, 12, false),
             Column::bound("CLUSTER-IP", 11, 16, false),
         ])),
+        Rc::new([' ', 'N', 'T', 'C', 'A']),
     )
 }

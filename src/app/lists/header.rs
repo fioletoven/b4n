@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     ui::ViewType,
     utils::{add_padding, try_truncate},
@@ -18,17 +20,18 @@ pub struct Header {
     extra_columns_text: String,
     all_extra_width: usize,
     extra_space: usize,
+    sort_symbols: Rc<[char]>,
 }
 
 impl Default for Header {
     fn default() -> Self {
-        Self::from(Column::new("N/A"), None)
+        Self::from(Column::new("N/A"), None, Rc::new([' ', 'N', 'A']))
     }
 }
 
 impl Header {
     /// Creates new [`Header`] instance with provided columns.
-    pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>) -> Self {
+    pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns);
         let extra_width = extra_columns_text.len() + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(&extra_columns);
@@ -43,6 +46,7 @@ impl Header {
             extra_columns_text,
             all_extra_width: extra_width,
             extra_space,
+            sort_symbols,
         }
     }
 
@@ -53,6 +57,16 @@ impl Header {
         } else {
             3
         }
+    }
+
+    /// Returns sorting symbols for columns.
+    pub fn sort_symbols(&self) -> &[char] {
+        &self.sort_symbols
+    }
+
+    /// Returns sorting symbols for columns.
+    pub fn get_sort_symbols(&self) -> Rc<[char]> {
+        Rc::clone(&self.sort_symbols)
     }
 
     /// Recalculates extra columns text and width.

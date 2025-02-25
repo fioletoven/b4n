@@ -86,6 +86,7 @@ fn get_text_extra_columns_test() {
     let header = Header::from(
         Column::new("TEST"),
         Some(vec![Column::new("FIRST"), Column::new("SECOND")].into_boxed_slice()),
+        Rc::new([]),
     );
 
     for (expected, view, group, name, forced) in test_cases {
@@ -106,6 +107,7 @@ fn get_text_extra_columns_sized_test() {
     let header = Header::from(
         NAMESPACE.clone(),
         Some(vec![Column::fixed("FIRST", 10, false), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
+        Rc::new([]),
     );
 
     for (expected, view, group, name, forced) in test_cases {
@@ -126,6 +128,7 @@ fn get_text_extra_columns_to_right_test() {
     let header = Header::from(
         NAMESPACE.clone(),
         Some(vec![Column::fixed("FIRST", 10, true), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
+        Rc::new([]),
     );
 
     for (expected, view, group, name, forced) in test_cases {

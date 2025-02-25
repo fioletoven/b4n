@@ -1,6 +1,6 @@
 use colors::TextColors;
 use crossterm::event::KeyEvent;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 use theme::Theme;
 
 pub use self::tui::*;
@@ -57,6 +57,11 @@ pub trait Table: Responsive {
 
     /// Sorts items in the list by column number.
     fn sort(&mut self, column_no: usize, is_descending: bool);
+
+    /// Returns sorting symbols for the list.
+    fn get_sort_symbols(&self) -> Rc<[char]> {
+        Rc::new([])
+    }
 
     /// Gets highlighted element index.
     fn get_highlighted_item_index(&self) -> Option<usize>;

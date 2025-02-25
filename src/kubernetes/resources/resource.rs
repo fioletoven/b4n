@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
-
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{ResourceExt, api::DynamicObject};
+use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
     app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
@@ -92,7 +91,7 @@ impl Resource {
         match kind {
             "Pod" => pod::header(),
             "Service" => service::header(),
-            _ => Header::from(NAMESPACE.clone(), None),
+            _ => Header::from(NAMESPACE.clone(), None, Rc::new([' ', 'N', 'A'])),
         }
     }
 
