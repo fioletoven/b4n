@@ -26,8 +26,6 @@ fn get_full_widths_test() {
 #[test]
 fn get_text_name_test() {
     let test_cases = vec![
-        (" NAME ", 0, 0, 0),
-        (" NAME ", 0, 3, 0),
         (" NAME ", 0, 5, 0),
         (" NAME ", 99, 5, 0),
         (" NAME      ", 0, 10, 0),
@@ -44,9 +42,8 @@ fn get_text_name_test() {
 #[test]
 fn get_text_compact_test() {
     let test_cases = vec![
-        (" NAME     AGE ", 0, 0, 0),
-        (" NAME     AGE ", 0, 3, 0),
         (" NAME     AGE ", 0, 5, 0),
+        (" NAME     AGE ", 0, 5, 14),
         (" NAME     AGE ", 99, 5, 0),
         (" NAME          AGE ", 0, 10, 0),
         (" NAME          A", 0, 10, 16),
@@ -61,7 +58,7 @@ fn get_text_compact_test() {
 #[test]
 fn get_text_full_test() {
     let test_cases = vec![
-        (" N/A NAME     AGE ", 0, 0, 0),
+        (" N/A NAME     AGE ", 4, 4, 0),
         (" N/A  NAME      AGE ", 5, 5, 0),
         (" N/A   NAME      AGE ", 6, 5, 0),
         (" N/A  NAME       AGE ", 5, 6, 0),
@@ -78,8 +75,8 @@ fn get_text_full_test() {
 #[test]
 fn get_text_extra_columns_test() {
     let test_cases = vec![
-        (" NAME FIRST SECOND    AGE ", ViewType::Compact, 0, 0, 0),
-        (" TEST NAME FIRST SECOND    AGE ", ViewType::Full, 0, 0, 0),
+        (" NAME FIRST SECOND    AGE ", ViewType::Compact, 0, 5, 0),
+        (" TEST NAME FIRST SECOND    AGE ", ViewType::Full, 5, 4, 0),
         (" TEST    NAME     FIRST SECOND    AGE ", ViewType::Full, 8, 8, 0),
     ];
 
@@ -97,9 +94,9 @@ fn get_text_extra_columns_test() {
 #[test]
 fn get_text_extra_columns_sized_test() {
     let test_cases = vec![
-        (" NAME FIRST      SECOND     AGE ", ViewType::Compact, 0, 0, 0),
-        (" NAMESPACE NAME FIRST      SECOND     AGE ", ViewType::Full, 0, 0, 0),
-        (" NAMESPACE NAME     FIRST      SECOND     AGE ", ViewType::Full, 8, 8, 0),
+        (" NAME FIRST      SECOND     AGE ", ViewType::Compact, 0, 5, 32),
+        (" NAMESPACE NAME FIRST      SECOND     AGE ", ViewType::Full, 10, 4, 0),
+        (" NAMESPACE NAME     FIRST      SECOND     AGE ", ViewType::Full, 10, 8, 0),
         (" NAMESPACE   NAME     FIRST      SECOND     AGE ", ViewType::Full, 12, 8, 0),
         (" NAMESPACE      NAME", ViewType::Full, 15, 8, 20),
     ];
@@ -118,9 +115,9 @@ fn get_text_extra_columns_sized_test() {
 #[test]
 fn get_text_extra_columns_to_right_test() {
     let test_cases = vec![
-        (" NAME      FIRST SECOND     AGE ", ViewType::Compact, 0, 0, 0),
-        (" NAMESPACE NAME      FIRST SECOND     AGE ", ViewType::Full, 0, 0, 0),
-        (" NAMESPACE NAME          FIRST SECOND     AGE ", ViewType::Full, 8, 8, 0),
+        (" NAME      FIRST SECOND     AGE ", ViewType::Compact, 0, 5, 0),
+        (" NAMESPACE NAME      FIRST SECOND     AGE ", ViewType::Full, 10, 4, 0),
+        (" NAMESPACE NAME          FIRST SECOND     AGE ", ViewType::Full, 10, 8, 0),
         (" NAMESPACE   NAME          FIRST SECOND     AGE ", ViewType::Full, 12, 8, 0),
         (" NAMESPACE      NAME", ViewType::Full, 15, 8, 20),
     ];

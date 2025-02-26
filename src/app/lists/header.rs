@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     ui::ViewType,
-    utils::{add_padding, try_truncate},
+    utils::{truncate, try_truncate},
 };
 
 use super::{Column, NAME};
@@ -21,6 +21,7 @@ pub struct Header {
     all_extra_width: usize,
     extra_space: usize,
     sort_symbols: Rc<[char]>,
+    is_sorted_descending: bool,
 }
 
 impl Default for Header {
@@ -32,7 +33,7 @@ impl Default for Header {
 impl Header {
     /// Creates new [`Header`] instance with provided columns.
     pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
-        let extra_columns_text = get_extra_columns_text(&extra_columns);
+        let extra_columns_text = get_extra_columns_text(&extra_columns, false);
         let extra_width = extra_columns_text.len() + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(&extra_columns);
 
@@ -47,6 +48,7 @@ impl Header {
             all_extra_width: extra_width,
             extra_space,
             sort_symbols,
+            is_sorted_descending: false,
         }
     }
 
@@ -69,9 +71,31 @@ impl Header {
         Rc::clone(&self.sort_symbols)
     }
 
+    /// Sets information required for sorting.
+    pub fn set_sort_info(&mut self, column_no: Option<usize>, is_descending: bool) {
+        self.is_sorted_descending = is_descending;
+
+        self.group.is_sorted = false;
+        self.name.is_sorted = false;
+        self.age.is_sorted = false;
+        if let Some(columns) = &mut self.extra_columns {
+            for column in columns.iter_mut() {
+                column.is_sorted = false;
+            }
+        }
+
+        if let Some(column) = column_no {
+            if let Some(column) = self.column_mut(column) {
+                column.is_sorted = true;
+            }
+        }
+
+        self.recalculate_extra_columns();
+    }
+
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
-        self.extra_columns_text = get_extra_columns_text(&self.extra_columns);
+        self.extra_columns_text = get_extra_columns_text(&self.extra_columns, self.is_sorted_descending);
         self.all_extra_width = self.extra_columns_text.len() + 9; // AGE + all spaces = 9
         self.extra_space = get_extra_space(&self.extra_columns);
     }
@@ -91,46 +115,14 @@ impl Header {
 
     /// Returns current data length of the provided column.
     pub fn get_data_length(&self, column: usize) -> usize {
-        let Some(columns) = &self.extra_columns else {
-            return match column {
-                0 => self.group.data_len,
-                1 => self.name.data_len,
-                2 => self.age.data_len,
-                _ => 3, // "n/a" length
-            };
-        };
-
-        if column == 0 {
-            self.group.data_len
-        } else if column == 1 {
-            self.name.data_len
-        } else if column >= 2 && column <= columns.len() + 1 {
-            columns[column - 2].data_len
-        } else if column == columns.len() + 2 {
-            self.age.data_len
-        } else {
-            3 // "n/a" length
-        }
+        self.column(column).map(|c| c.data_len).unwrap_or(3) // 3: "n/a" length
     }
 
     /// Sets data length for the provided column.
     pub fn set_data_length(&mut self, column: usize, new_data_len: usize) {
-        let Some(columns) = &mut self.extra_columns else {
-            match column {
-                0 => self.group.data_len = new_data_len,
-                1 => self.name.data_len = new_data_len,
-                _ => (),
-            };
-            return;
-        };
-
-        if column == 0 {
-            self.group.data_len = new_data_len;
-        } else if column == 1 {
-            self.name.data_len = new_data_len;
-        } else if column >= 2 && column <= columns.len() + 1 {
-            if !columns[column - 2].is_fixed {
-                columns[column - 2].data_len = new_data_len;
+        if let Some(column) = self.column_mut(column) {
+            if !column.is_fixed {
+                column.data_len = new_data_len;
             }
         }
     }
@@ -140,17 +132,16 @@ impl Header {
         self.extra_columns.as_deref()
     }
 
-    /// Gets header text for the provided `group_width` and `name_width`.  
-    /// If `force_width` is 0 it may exceed the desired width.
-    pub fn get_text(&self, view: ViewType, group_width: usize, name_width: usize, force_width: usize) -> String {
+    /// Gets header text for the provided `group_width` and `name_width`.
+    pub fn get_text(&self, view: ViewType, group_width: usize, name_width: usize, terminal_width: usize) -> String {
         let header = match view {
-            ViewType::Name => format!(" {1:<0$} ", name_width.saturating_sub(1), self.name.name),
-            ViewType::Compact => self.get_compact_text(name_width),
-            ViewType::Full => self.get_full_text(group_width, name_width),
+            ViewType::Name => self.get_name_text(name_width),
+            ViewType::Compact => self.get_compact_text(name_width, terminal_width),
+            ViewType::Full => self.get_full_text(group_width, name_width, terminal_width),
         };
 
-        if force_width > 0 {
-            if let Some(truncated) = try_truncate(header.as_str(), force_width) {
+        if terminal_width > 0 && header.len() > terminal_width {
+            if let Some(truncated) = try_truncate(header.as_str(), terminal_width) {
                 return truncated.to_owned();
             }
         }
@@ -160,8 +151,8 @@ impl Header {
 
     /// Returns dynamic widths for name column together with extra space for it.
     pub fn get_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
-        if terminal_width <= self.name.min_len + self.all_extra_width {
-            (0, self.name.min_len, self.extra_space)
+        if terminal_width <= self.name.min_len() + self.all_extra_width {
+            (0, self.name.min_len(), self.extra_space)
         } else {
             (0, terminal_width - self.all_extra_width, self.extra_space)
         }
@@ -169,12 +160,12 @@ impl Header {
 
     /// Returns dynamic widths for group and name columns together with extra space for name column.
     pub fn get_full_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
-        let min_width_for_all = self.group.min_len + 1 + self.name.min_len + self.all_extra_width;
+        let min_width_for_all = self.group.min_len() + 1 + self.name.min_len() + self.all_extra_width;
 
         if terminal_width <= min_width_for_all {
-            (self.group.min_len, self.name.min_len, self.extra_space)
+            (self.group.min_len(), self.name.min_len(), self.extra_space)
         } else {
-            let max_group_width = std::cmp::max(self.group.data_len, self.group.min_len);
+            let max_group_width = std::cmp::max(self.group.data_len, self.group.min_len());
             let min_width_for_full_size = max_group_width + 1 + self.name.data_len;
 
             if terminal_width >= min_width_for_full_size + self.all_extra_width {
@@ -183,7 +174,7 @@ impl Header {
                 (max_group_width, self.name.data_len + avail_width, self.extra_space)
             } else {
                 let avail_width = terminal_width - min_width_for_all;
-                let group_width = std::cmp::min(self.group.min_len + avail_width / 2, max_group_width);
+                let group_width = std::cmp::min(self.group.min_len() + avail_width / 2, max_group_width);
                 let name_width = terminal_width - group_width - self.all_extra_width - 1;
 
                 (group_width, name_width, self.extra_space)
@@ -191,49 +182,116 @@ impl Header {
         }
     }
 
-    /// Gets header text without group column.
-    fn get_compact_text(&self, name_width: usize) -> String {
-        format!(
-            " {1:<0$} {2} {3:>6} ",
+    /// Gets only name text.
+    fn get_name_text(&self, name_width: usize) -> String {
+        let mut header = String::with_capacity(name_width + 2);
+
+        header.push(' ');
+        add_column(
+            &mut header,
+            &self.name,
             name_width.saturating_sub(1),
-            self.name.name,
-            self.extra_columns_text,
-            self.age.name
-        )
+            self.is_sorted_descending,
+        );
+        header.push(' ');
+
+        header
+    }
+
+    /// Gets header text without group column.
+    fn get_compact_text(&self, name_width: usize, terminal_width: usize) -> String {
+        self.get_text_inner(0, name_width.saturating_sub(1), terminal_width, false)
     }
 
     /// Gets header text with group column.
-    fn get_full_text(&self, group_width: usize, name_width: usize) -> String {
-        format!(
-            " {1:<0$} {3:<2$} {4} {5:>6} ",
-            group_width.saturating_sub(1),
-            self.group.name,
-            name_width,
-            self.name.name,
-            self.extra_columns_text,
-            self.age.name
-        )
+    fn get_full_text(&self, group_width: usize, name_width: usize, terminal_width: usize) -> String {
+        self.get_text_inner(group_width.saturating_sub(1), name_width, terminal_width, true)
+    }
+
+    fn get_text_inner(&self, group_width: usize, name_width: usize, terminal_width: usize, full: bool) -> String {
+        let mut header = String::with_capacity(terminal_width + 2);
+
+        if full {
+            header.push(' ');
+            add_column(&mut header, &self.group, group_width, self.is_sorted_descending);
+        }
+        header.push(' ');
+        add_column(&mut header, &self.name, name_width, self.is_sorted_descending);
+        header.push(' ');
+        header.push_str(&self.extra_columns_text);
+        header.push(' ');
+        add_column(&mut header, &self.age, self.age.max_len(), self.is_sorted_descending);
+        header.push(' ');
+
+        header
+    }
+
+    fn column(&self, column_no: usize) -> Option<&Column> {
+        let Some(columns) = &self.extra_columns else {
+            return match column_no {
+                0 => Some(&self.group),
+                1 => Some(&self.name),
+                2 => Some(&self.age),
+                _ => None,
+            };
+        };
+
+        if column_no == 0 {
+            Some(&self.group)
+        } else if column_no == 1 {
+            Some(&self.name)
+        } else if column_no >= 2 && column_no <= columns.len() + 1 {
+            Some(&columns[column_no - 2])
+        } else if column_no == columns.len() + 2 {
+            Some(&self.age)
+        } else {
+            None
+        }
+    }
+
+    fn column_mut(&mut self, column_no: usize) -> Option<&mut Column> {
+        let Some(columns) = &mut self.extra_columns else {
+            return match column_no {
+                0 => Some(&mut self.group),
+                1 => Some(&mut self.name),
+                2 => Some(&mut self.age),
+                _ => None,
+            };
+        };
+
+        if column_no == 0 {
+            Some(&mut self.group)
+        } else if column_no == 1 {
+            Some(&mut self.name)
+        } else if column_no >= 2 && column_no <= columns.len() + 1 {
+            Some(&mut columns[column_no - 2])
+        } else if column_no == columns.len() + 2 {
+            Some(&mut self.age)
+        } else {
+            None
+        }
     }
 }
 
 /// Builds extra columns text.
-fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>) -> String {
+fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>, is_descending: bool) -> String {
     let Some(columns) = &extra_columns else {
         return String::new();
     };
 
-    let header_len = columns.iter().map(|c| c.max_len + 2).sum::<usize>();
+    let header_len = columns.iter().map(|c| c.max_len() + 2).sum::<usize>() + 1;
     let mut header_text = String::with_capacity(header_len);
     for (i, column) in columns.iter().enumerate() {
         if i > 0 {
             header_text.push(' ');
         }
 
-        header_text.push_str(&add_padding(
-            column.name,
-            column.data_len.clamp(column.min_len, column.max_len),
-            column.to_right,
-        ));
+        add_column(
+            &mut header_text,
+            column,
+            column.data_len.clamp(column.min_len(), column.max_len()),
+            is_descending,
+        );
     }
 
     header_text
@@ -251,9 +309,30 @@ fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
         return 0;
     };
 
-    if columns.len() > 0 && columns[0].to_right && columns[0].min_len > columns[0].data_len {
-        columns[0].min_len - columns[0].data_len
+    if columns.len() > 0 && columns[0].to_right && columns[0].min_len() > columns[0].data_len {
+        columns[0].min_len() - columns[0].data_len
     } else {
         0
+    }
+}
+
+/// Adds the column text to the specified header string along with a sort indicator.
+pub fn add_column(header: &mut String, column: &Column, len: usize, is_descending: bool) {
+    if len == 0 || column.name.is_empty() {
+        return;
+    }
+
+    let padding_len = len.saturating_sub(column.name.len() + if column.is_sorted { 1 } else { 0 });
+    if column.to_right && padding_len > 0 {
+        (0..padding_len).for_each(|_| header.push(' '));
+    }
+
+    header.push_str(truncate(column.name, len - if column.is_sorted { 1 } else { 0 }));
+    if column.is_sorted {
+        header.push(if is_descending { '%' } else { '^' });
+    }
+
+    if !column.to_right && padding_len > 0 {
+        (0..padding_len).for_each(|_| header.push(' '));
     }
 }

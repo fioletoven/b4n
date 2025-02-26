@@ -50,6 +50,7 @@ impl ResourcesList {
             let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
             self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
+            self.header.set_sort_info(Some(sort_by), is_descending);
 
             updated
         } else {

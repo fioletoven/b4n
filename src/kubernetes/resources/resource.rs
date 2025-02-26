@@ -6,7 +6,7 @@ use crate::{
     app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
-    utils::{add_padding, truncate},
+    utils::{add_cell, truncate},
 };
 
 use super::{pod, service};
@@ -160,7 +160,7 @@ impl Resource {
             return String::new();
         }
 
-        let text_len = columns.iter().map(|c| c.max_len + 1).sum::<usize>();
+        let text_len = columns.iter().map(|c| c.max_len() + 1).sum::<usize>();
         let mut text = String::with_capacity(text_len * 2);
         for i in 0..columns.len() {
             if i > 0 {
@@ -169,10 +169,10 @@ impl Resource {
 
             let mut len = columns[i].data_len;
             if !columns[i].is_fixed {
-                len = columns[i].data_len.clamp(columns[i].min_len, columns[i].max_len);
+                len = columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len());
             }
 
-            text.push_str(&add_padding(values[i].as_deref().unwrap_or("n/a"), len, columns[i].to_right));
+            add_cell(&mut text, values[i].as_deref().unwrap_or("n/a"), len, columns[i].to_right);
         }
 
         text

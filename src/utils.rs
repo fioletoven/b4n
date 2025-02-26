@@ -16,16 +16,21 @@ pub fn try_truncate(s: &str, max_chars: usize) -> Option<&str> {
     }
 }
 
-/// Creates a new string with leading/trailing spaces.
-pub fn add_padding(s: &str, len: usize, to_right: bool) -> String {
-    if s.len() >= len {
-        return s.to_owned();
+/// Adds `s` to the specified `text` with padding spaces.
+pub fn add_cell(text: &mut String, s: &str, len: usize, to_right: bool) {
+    if len == 0 || s.is_empty() {
+        return;
     }
 
-    if to_right {
-        format!("{0:>1$}", s, len)
-    } else {
-        format!("{0:<1$}", s, len)
+    let padding_len = len.saturating_sub(s.len());
+    if to_right && padding_len > 0 {
+        (0..padding_len).for_each(|_| text.push(' '));
+    }
+
+    text.push_str(truncate(s, len));
+
+    if !to_right && padding_len > 0 {
+        (0..padding_len).for_each(|_| text.push(' '));
     }
 }
 

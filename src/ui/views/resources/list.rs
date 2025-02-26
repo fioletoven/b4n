@@ -144,10 +144,17 @@ impl Widget for &mut HeaderWidget {
                 }
             }
 
-            buf[Position::new(x, y)]
-                .set_char(char)
-                .set_fg(self.colors.fg)
-                .set_bg(self.colors.bg);
+            if char == '^' || char == '%' {
+                buf[Position::new(x, y)]
+                    .set_char(if char == '^' { '↑' } else { '↓' })
+                    .set_fg(self.colors.dim)
+                    .set_bg(self.colors.bg);
+            } else {
+                buf[Position::new(x, y)]
+                    .set_char(char)
+                    .set_fg(self.colors.fg)
+                    .set_bg(self.colors.bg);
+            }
         }
     }
 }

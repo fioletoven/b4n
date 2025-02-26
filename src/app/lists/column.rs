@@ -5,6 +5,7 @@ pub const NAMESPACE: Column = Column {
     name: "NAMESPACE",
     is_fixed: false,
     to_right: false,
+    is_sorted: false,
     min_len: 11,
     max_len: 11,
     data_len: 11,
@@ -15,6 +16,7 @@ pub const NAME: Column = Column {
     name: "NAME",
     is_fixed: false,
     to_right: false,
+    is_sorted: false,
     min_len: 6,
     max_len: 6,
     data_len: 6,
@@ -26,9 +28,10 @@ pub struct Column {
     pub name: &'static str,
     pub is_fixed: bool,
     pub to_right: bool,
-    pub min_len: usize,
-    pub max_len: usize,
+    pub is_sorted: bool,
     pub data_len: usize,
+    min_len: usize,
+    max_len: usize,
 }
 
 impl Column {
@@ -39,9 +42,10 @@ impl Column {
             name,
             is_fixed: false,
             to_right: false,
+            is_sorted: false,
+            data_len: name.len(),
             min_len: name.len(),
             max_len: name.len(),
-            data_len: name.len(),
         }
     }
 
@@ -52,9 +56,10 @@ impl Column {
             name,
             is_fixed: false,
             to_right,
+            is_sorted: false,
+            data_len: name.len(),
             min_len: max(name.len(), min_len),
             max_len: max(name.len(), max_len),
-            data_len: name.len(),
         }
     }
 
@@ -65,9 +70,10 @@ impl Column {
             name,
             is_fixed: true,
             to_right,
+            is_sorted: false,
+            data_len: len,
             min_len: max(name.len(), len),
             max_len: max(name.len(), len),
-            data_len: len,
         }
     }
 
@@ -79,6 +85,24 @@ impl Column {
             if self.min_len > self.max_len {
                 self.max_len = self.min_len
             }
+        }
+    }
+
+    #[inline]
+    pub fn min_len(&self) -> usize {
+        if self.is_sorted && self.name.len() + 1 > self.min_len {
+            self.min_len + 1
+        } else {
+            self.min_len
+        }
+    }
+
+    #[inline]
+    pub fn max_len(&self) -> usize {
+        if self.is_sorted && self.min_len() > self.max_len {
+            self.max_len + 1
+        } else {
+            self.max_len
         }
     }
 }
