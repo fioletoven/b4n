@@ -22,7 +22,7 @@ pub fn add_cell(text: &mut String, s: &str, len: usize, to_right: bool) {
         return;
     }
 
-    let padding_len = len.saturating_sub(s.len());
+    let padding_len = len.saturating_sub(s.chars().count());
     if to_right && padding_len > 0 {
         (0..padding_len).for_each(|_| text.push(' '));
     }

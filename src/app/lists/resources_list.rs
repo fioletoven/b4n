@@ -19,8 +19,9 @@ pub struct ResourcesList {
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
-    pub header: Header,
     pub list: ScrollableList<Resource, ResourceFilterContext>,
+    header: Header,
+    header_cache: HeaderCache,
 }
 
 impl Default for ResourcesList {
@@ -30,8 +31,9 @@ impl Default for ResourcesList {
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            header: Header::default(),
             list: ScrollableList::default(),
+            header: Header::default(),
+            header_cache: HeaderCache::default(),
         }
     }
 }
@@ -51,6 +53,7 @@ impl ResourcesList {
             self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
             self.header.set_sort_info(Some(sort_by), is_descending);
+            self.header_cache.invalidate();
 
             updated
         } else {
@@ -83,6 +86,7 @@ impl ResourcesList {
         self.group = group;
         self.scope = scope.clone();
         self.header = Resource::header(&self.kind);
+        self.header_cache.invalidate();
         self.list.remove_fixed();
         if self.kind_plural == NAMESPACES {
             if let Some(items) = &mut self.list.items {
@@ -121,6 +125,8 @@ impl ResourcesList {
     /// Updates max widths for all columns basing on current data in the list.
     fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
+        self.header_cache.invalidate();
+
         let Some(list) = &self.list.items else {
             return;
         };
@@ -128,7 +134,10 @@ impl ResourcesList {
         let columns_no = self.header.get_columns_count();
         for item in list {
             for column in 0..columns_no {
-                let column_width = std::cmp::max(self.header.get_data_length(column), item.data.column_text(column).len());
+                let column_width = std::cmp::max(
+                    self.header.get_data_length(column),
+                    item.data.column_text(column).chars().count(),
+                );
                 self.header.set_data_length(column, column_width);
             }
         }
@@ -192,12 +201,35 @@ impl Table for ResourcesList {
         None
     }
 
-    fn get_header(&self, view: ViewType, width: usize) -> String {
+    fn get_header(&mut self, view: ViewType, width: usize) -> &str {
+        if self.header_cache.width == width && self.header_cache.view == view {
+            return &self.header_cache.text;
+        }
+
         let (namespace_width, name_width, _) = self.get_widths(view, width);
-        self.header.get_text(view, namespace_width, name_width, width)
+        self.header_cache.text = self.header.get_text(view, namespace_width, name_width, width);
+        self.header_cache.view = view;
+        self.header_cache.width = width;
+
+        &self.header_cache.text
     }
 
     fn get_sort_symbols(&self) -> Rc<[char]> {
         self.header.get_sort_symbols()
+    }
+}
+
+/// Keeps cached header text.
+#[derive(Default)]
+struct HeaderCache {
+    pub text: String,
+    pub width: usize,
+    pub view: ViewType,
+}
+
+impl HeaderCache {
+    /// Invalidates cache data.
+    pub fn invalidate(&mut self) {
+        self.width = 0;
     }
 }

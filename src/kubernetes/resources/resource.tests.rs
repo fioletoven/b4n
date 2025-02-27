@@ -78,7 +78,7 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
 
 #[test]
 fn get_text_pod_test() {
-    // " NAMESPACE  NAME                                  RESTARTS^ READY   STATUS       IP             AGE "
+    // " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE "
     // "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a"
 
     let terminal_width = 100;
@@ -112,7 +112,7 @@ fn get_text_pod_test() {
     });
 
     assert_eq!(
-        " NAMESPACE  NAME                                  RESTARTS^ READY   STATUS       IP             AGE ",
+        " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE ",
         header.get_text(ViewType::Full, namespace_width, name_width, terminal_width)
     );
 

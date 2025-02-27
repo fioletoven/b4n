@@ -14,6 +14,8 @@ type KindFilterableList = FilterableList<Item<Kind, BasicFilterContext>, BasicFi
 #[derive(Default)]
 pub struct KindsList {
     pub list: ScrollableList<Kind, BasicFilterContext>,
+    header: String,
+    width: usize,
 }
 
 impl KindsList {
@@ -69,8 +71,15 @@ impl Table for KindsList {
         None
     }
 
-    fn get_header(&self, _view: ViewType, width: usize) -> String {
-        format!("{1:<0$}", width, "KIND")
+    fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
+        if self.width == width {
+            return &self.header;
+        }
+
+        self.header = format!("{1:<0$}", width, "KIND");
+        self.width = width;
+
+        &self.header
     }
 }
 

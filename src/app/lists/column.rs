@@ -43,9 +43,9 @@ impl Column {
             is_fixed: false,
             to_right: false,
             is_sorted: false,
-            data_len: name.len(),
-            min_len: name.len(),
-            max_len: name.len(),
+            data_len: name.chars().count(),
+            min_len: name.chars().count(),
+            max_len: name.chars().count(),
         }
     }
 
@@ -57,9 +57,9 @@ impl Column {
             is_fixed: false,
             to_right,
             is_sorted: false,
-            data_len: name.len(),
-            min_len: max(name.len(), min_len),
-            max_len: max(name.len(), max_len),
+            data_len: name.chars().count(),
+            min_len: max(name.chars().count(), min_len),
+            max_len: max(name.chars().count(), max_len),
         }
     }
 
@@ -72,15 +72,15 @@ impl Column {
             to_right,
             is_sorted: false,
             data_len: len,
-            min_len: max(name.len(), len),
-            max_len: max(name.len(), len),
+            min_len: max(name.chars().count(), len),
+            max_len: max(name.chars().count(), len),
         }
     }
 
     /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.  
     /// **Note** that first column has one extra space in front of the header name.
     pub fn set_as_first_column(&mut self) {
-        if self.name.len() == self.min_len {
+        if self.name.chars().count() == self.min_len {
             self.min_len += 1;
             if self.min_len > self.max_len {
                 self.max_len = self.min_len
@@ -90,7 +90,7 @@ impl Column {
 
     #[inline]
     pub fn min_len(&self) -> usize {
-        if self.is_sorted && self.name.len() + 1 > self.min_len {
+        if self.is_sorted && self.name.chars().count() + 1 > self.min_len {
             self.min_len + 1
         } else {
             self.min_len

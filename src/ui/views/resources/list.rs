@@ -5,7 +5,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
-use std::rc::Rc;
 
 use crate::{
     app::SharedAppData,
@@ -38,7 +37,17 @@ impl<T: Table> ListPane<T> {
             .split(area);
 
         let list_width = if area.width > 2 { usize::from(area.width) - 2 } else { 2 };
-        frame.render_widget(&mut self.get_header(list_width), layout[0]);
+
+        {
+            let sort_symbols = self.items.get_sort_symbols();
+            let mut header = HeaderWidget {
+                header: self.items.get_header(self.view, list_width),
+                colors: &self.app_data.borrow().config.theme.colors.header.text,
+                view: self.view,
+                sort_symbols: &sort_symbols,
+            };
+            frame.render_widget(&mut header, layout[0]);
+        }
 
         self.items.update_page(layout[1].height);
         if let Some(list) = self
@@ -46,16 +55,6 @@ impl<T: Table> ListPane<T> {
             .get_paged_items(&self.app_data.borrow().config.theme, self.view, list_width)
         {
             frame.render_widget(Paragraph::new(self.get_resources(list)), layout[1]);
-        }
-    }
-
-    /// Returns header widget for resources rows.
-    fn get_header(&self, width: usize) -> HeaderWidget {
-        HeaderWidget {
-            header: self.items.get_header(self.view, width),
-            colors: self.app_data.borrow().config.theme.colors.header.text,
-            view: self.view,
-            sort_symbols: self.items.get_sort_symbols(),
         }
     }
 
@@ -94,14 +93,14 @@ impl<T: Table> Responsive for ListPane<T> {
 
 /// Widget that renders header for the resources list pane.  
 /// It underlines sort symbol inside each column name.
-struct HeaderWidget {
-    pub header: String,
-    pub colors: TextColors,
+struct HeaderWidget<'a> {
+    pub header: &'a str,
+    pub colors: &'a TextColors,
     pub view: ViewType,
-    pub sort_symbols: Rc<[char]>,
+    pub sort_symbols: &'a [char],
 }
 
-impl Widget for &mut HeaderWidget {
+impl Widget for &mut HeaderWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
@@ -144,9 +143,9 @@ impl Widget for &mut HeaderWidget {
                 }
             }
 
-            if char == '^' || char == '%' {
+            if char == '↑' || char == '↓' {
                 buf[Position::new(x, y)]
-                    .set_char(if char == '^' { '↑' } else { '↓' })
+                    .set_char(char)
                     .set_fg(self.colors.dim)
                     .set_bg(self.colors.bg);
             } else {

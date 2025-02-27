@@ -14,7 +14,7 @@ pub mod widgets;
 mod tui;
 
 /// Indicates which columns in the list should be displayed.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum ViewType {
     /// Render rows with just the `name` column
     Name,
@@ -24,6 +24,7 @@ pub enum ViewType {
     Compact,
 
     /// Render rows with all columns
+    #[default]
     Full,
 }
 
@@ -104,5 +105,5 @@ pub trait Table: Responsive {
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>>;
 
     /// Returns header text for the list.
-    fn get_header(&self, view: ViewType, width: usize) -> String;
+    fn get_header(&mut self, view: ViewType, width: usize) -> &str;
 }

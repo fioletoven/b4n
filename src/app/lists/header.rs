@@ -15,7 +15,7 @@ mod header_tests;
 pub struct Header {
     group: Column,                        // column: 0, optional
     name: Column,                         // column: 1
-    age: Column,                          // column: extra_columns.len() + 2 (last column)
+    age: Column,                          // column: extra_columns len + 2 (last column)
     extra_columns: Option<Box<[Column]>>, // columns: 2 .. n
     extra_columns_text: String,
     all_extra_width: usize,
@@ -34,7 +34,7 @@ impl Header {
     /// Creates new [`Header`] instance with provided columns.
     pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns, false);
-        let extra_width = extra_columns_text.len() + 9; // AGE + all spaces = 9
+        let extra_width = extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(&extra_columns);
 
         group_column.set_as_first_column();
@@ -59,11 +59,6 @@ impl Header {
         } else {
             3
         }
-    }
-
-    /// Returns sorting symbols for columns.
-    pub fn sort_symbols(&self) -> &[char] {
-        &self.sort_symbols
     }
 
     /// Returns sorting symbols for columns.
@@ -96,7 +91,7 @@ impl Header {
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.extra_columns_text = get_extra_columns_text(&self.extra_columns, self.is_sorted_descending);
-        self.all_extra_width = self.extra_columns_text.len() + 9; // AGE + all spaces = 9
+        self.all_extra_width = self.extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
         self.extra_space = get_extra_space(&self.extra_columns);
     }
 
@@ -140,7 +135,7 @@ impl Header {
             ViewType::Full => self.get_full_text(group_width, name_width, terminal_width),
         };
 
-        if terminal_width > 0 && header.len() > terminal_width {
+        if terminal_width > 0 && header.chars().count() > terminal_width {
             if let Some(truncated) = try_truncate(header.as_str(), terminal_width) {
                 return truncated.to_owned();
             }
@@ -187,12 +182,7 @@ impl Header {
         let mut header = String::with_capacity(name_width + 2);
 
         header.push(' ');
-        add_column(
-            &mut header,
-            &self.name,
-            name_width.saturating_sub(1),
-            self.is_sorted_descending,
-        );
+        header.push_column(&self.name, name_width.saturating_sub(1), self.is_sorted_descending);
         header.push(' ');
 
         header
@@ -213,14 +203,14 @@ impl Header {
 
         if full {
             header.push(' ');
-            add_column(&mut header, &self.group, group_width, self.is_sorted_descending);
+            header.push_column(&self.group, group_width, self.is_sorted_descending);
         }
         header.push(' ');
-        add_column(&mut header, &self.name, name_width, self.is_sorted_descending);
+        header.push_column(&self.name, name_width, self.is_sorted_descending);
         header.push(' ');
         header.push_str(&self.extra_columns_text);
         header.push(' ');
-        add_column(&mut header, &self.age, self.age.max_len(), self.is_sorted_descending);
+        header.push_column(&self.age, self.age.max_len(), self.is_sorted_descending);
         header.push(' ');
 
         header
@@ -286,8 +276,7 @@ fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>, is_descending: 
             header_text.push(' ');
         }
 
-        add_column(
-            &mut header_text,
+        header_text.push_column(
             column,
             column.data_len.clamp(column.min_len(), column.max_len()),
             is_descending,
@@ -316,23 +305,30 @@ fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
     }
 }
 
-/// Adds the column text to the specified header string along with a sort indicator.
-pub fn add_column(header: &mut String, column: &Column, len: usize, is_descending: bool) {
-    if len == 0 || column.name.is_empty() {
-        return;
-    }
+/// Extension methods for string.
+trait StringExtensions {
+    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool);
+}
 
-    let padding_len = len.saturating_sub(column.name.len() + if column.is_sorted { 1 } else { 0 });
-    if column.to_right && padding_len > 0 {
-        (0..padding_len).for_each(|_| header.push(' '));
-    }
+impl StringExtensions for String {
+    /// Appends a given column onto the end of this `String`.
+    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool) {
+        if len == 0 || column.name.is_empty() {
+            return;
+        }
 
-    header.push_str(truncate(column.name, len - if column.is_sorted { 1 } else { 0 }));
-    if column.is_sorted {
-        header.push(if is_descending { '%' } else { '^' });
-    }
+        let padding_len = len.saturating_sub(column.name.chars().count() + if column.is_sorted { 1 } else { 0 });
+        if column.to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
+        }
 
-    if !column.to_right && padding_len > 0 {
-        (0..padding_len).for_each(|_| header.push(' '));
+        self.push_str(truncate(column.name, len - if column.is_sorted { 1 } else { 0 }));
+        if column.is_sorted {
+            self.push(if is_descending { '↓' } else { '↑' });
+        }
+
+        if !column.to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
+        }
     }
 }

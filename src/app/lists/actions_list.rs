@@ -13,6 +13,8 @@ use super::{BasicFilterContext, ScrollableList};
 #[derive(Default)]
 pub struct ActionsList {
     pub list: ScrollableList<Action, BasicFilterContext>,
+    header: String,
+    width: usize,
 }
 
 impl Responsive for ActionsList {
@@ -51,8 +53,15 @@ impl Table for ActionsList {
         None
     }
 
-    fn get_header(&self, _view: ViewType, width: usize) -> String {
-        format!("{1:<0$}", width, "ACTION")
+    fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
+        if self.width == width {
+            return &self.header;
+        }
+
+        self.header = format!("{1:<0$}", width, "ACTION");
+        self.width = width;
+
+        &self.header
     }
 }
 
@@ -86,7 +95,10 @@ impl ActionsListBuilder {
         let mut list = ScrollableList::from(self.actions);
         list.sort(1, false);
 
-        ActionsList { list }
+        ActionsList {
+            list,
+            ..Default::default()
+        }
     }
 
     /// Adds custom action.
