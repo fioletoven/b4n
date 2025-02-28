@@ -212,6 +212,10 @@ impl Table for ResourcesList {
         }
     }
 
+    fn get_sort_symbols(&self) -> Rc<[char]> {
+        self.header.get_sort_symbols()
+    }
+
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
             let (namespace_width, name_width, name_extra_width) = self.get_widths(view, width);
@@ -242,10 +246,6 @@ impl Table for ResourcesList {
         self.header_cache.width = width;
 
         &self.header_cache.text
-    }
-
-    fn get_sort_symbols(&self) -> Rc<[char]> {
-        self.header.get_sort_symbols()
     }
 }
 

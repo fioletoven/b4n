@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn len_test() {
     let mut list = FilterableList::from(
-        vec![1, 2, 3, 4, 5, 10, 11]
+        [1, 2, 3, 4, 5, 10, 11]
             .iter()
             .map(|i| Kind::new(String::new(), i.to_string(), i.to_string()))
             .collect::<Vec<_>>(),
@@ -20,7 +20,7 @@ fn len_test() {
 #[test]
 fn iterators_test() {
     let mut list = FilterableList::from(
-        vec!["abc", "bcd", "cde"]
+        ["abc", "bcd", "cde"]
             .iter()
             .map(|i| Kind::new(String::new(), i.to_string(), i.to_string()))
             .collect::<Vec<_>>(),
@@ -50,7 +50,7 @@ fn iterators_test() {
 #[test]
 fn mutable_iterators_test() {
     let mut list = FilterableList::from(
-        vec!["abc", "bcd", "cde"]
+        ["abc", "bcd", "cde"]
             .iter()
             .map(|i| Kind::new(String::new(), i.to_string(), i.to_string()))
             .collect::<Vec<_>>(),

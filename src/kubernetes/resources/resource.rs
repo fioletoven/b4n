@@ -38,7 +38,7 @@ impl ResourceValue {
 impl From<Option<String>> for ResourceValue {
     fn from(value: Option<String>) -> Self {
         ResourceValue {
-            text: value.map(|v| v.into()),
+            text: value,
             number: None,
             is_numeric: false,
         }

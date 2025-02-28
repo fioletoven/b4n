@@ -19,7 +19,7 @@ pub trait Row {
     /// Returns text value for the specified column number.
     fn column_text(&self, column: usize) -> &str;
 
-    /// Returns text value for the specified column number that can be properly sotred.
+    /// Returns text value for the specified column number that can be properly sorted.
     fn column_sort_text(&self, column: usize) -> &str;
 
     /// Returns `true` if the given `pattern` is found in the [`Row`] item.
