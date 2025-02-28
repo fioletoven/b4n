@@ -1,4 +1,7 @@
-use crate::{app::lists::Row, utils::truncate};
+use crate::{
+    app::lists::{BasicFilterContext, Filterable, Row},
+    utils::truncate,
+};
 
 /// Represents kubernetes kind.
 pub struct Kind {
@@ -58,5 +61,19 @@ impl Row for Kind {
             2 => &self.version,
             _ => "n/a",
         }
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
+        self.column_text(column)
+    }
+}
+
+impl Filterable<BasicFilterContext> for Kind {
+    fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
+        pattern.to_owned().into()
+    }
+
+    fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
+        self.name.contains(&context.pattern)
     }
 }

@@ -7,12 +7,14 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme, widgets::Action},
 };
 
-use super::ScrollableList;
+use super::{BasicFilterContext, ScrollableList};
 
 /// UI actions list.
 #[derive(Default)]
 pub struct ActionsList {
-    pub list: ScrollableList<Action>,
+    pub list: ScrollableList<Action, BasicFilterContext>,
+    header: String,
+    width: usize,
 }
 
 impl Responsive for ActionsList {
@@ -51,8 +53,15 @@ impl Table for ActionsList {
         None
     }
 
-    fn get_header(&self, _view: ViewType, width: usize) -> String {
-        format!("{1:<0$}", width, "ACTION")
+    fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
+        if self.width == width {
+            return &self.header;
+        }
+
+        self.header = format!("{1:<0$}", width, "ACTION");
+        self.width = width;
+
+        &self.header
     }
 }
 
@@ -64,7 +73,7 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: &ScrollableList<Kind>) -> Self {
+    pub fn from_kinds(kinds: &ScrollableList<Kind, BasicFilterContext>) -> Self {
         ActionsListBuilder {
             actions: if let Some(items) = &kinds.items {
                 items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>()
@@ -86,7 +95,10 @@ impl ActionsListBuilder {
         let mut list = ScrollableList::from(self.actions);
         list.sort(1, false);
 
-        ActionsList { list }
+        ActionsList {
+            list,
+            ..Default::default()
+        }
     }
 
     /// Adds custom action.

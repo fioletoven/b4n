@@ -1,6 +1,11 @@
 use kube::config::NamedContext;
 
-use crate::{app::lists::Row, kubernetes::resources::Kind, ui::ResponseEvent, utils::truncate};
+use crate::{
+    app::lists::{BasicFilterContext, Filterable, Row},
+    kubernetes::resources::Kind,
+    ui::ResponseEvent,
+    utils::truncate,
+};
 
 /// Command palette action.
 #[derive(Default)]
@@ -123,6 +128,10 @@ impl Row for Action {
         }
     }
 
+    fn column_sort_text(&self, column: usize) -> &str {
+        self.column_text(column)
+    }
+
     /// Returns `true` if the given `pattern` is found in the action name or its aliases.
     fn contains(&self, pattern: &str) -> bool {
         if self.name.contains(pattern) {
@@ -160,5 +169,15 @@ impl Row for Action {
         }
 
         false
+    }
+}
+
+impl Filterable<BasicFilterContext> for Action {
+    fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
+        pattern.to_owned().into()
+    }
+
+    fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
+        self.contains(&context.pattern)
     }
 }

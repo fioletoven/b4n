@@ -16,19 +16,6 @@ pub fn try_truncate(s: &str, max_chars: usize) -> Option<&str> {
     }
 }
 
-/// Creates a new string with leading/trailing spaces.
-pub fn add_padding(s: &str, len: usize, to_right: bool) -> String {
-    if s.len() >= len {
-        return s.to_owned();
-    }
-
-    if to_right {
-        format!("{0:>1$}", s, len)
-    } else {
-        format!("{0:<1$}", s, len)
-    }
-}
-
 /// Calculates SHA1 for specified string and sets the length to `len`.
 pub fn calculate_hash(t: &str, len: usize) -> String {
     let mut hasher = Sha1::new();

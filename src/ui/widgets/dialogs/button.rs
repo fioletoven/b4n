@@ -25,7 +25,7 @@ impl Button {
 
     /// Returns length of the caption.
     pub fn len(&self) -> u16 {
-        (self.caption.len() + 3) as u16
+        (self.caption.chars().count() + 3) as u16
     }
 
     /// Returns `true` if this button has no caption, and false otherwise.

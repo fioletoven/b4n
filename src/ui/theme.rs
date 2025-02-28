@@ -106,7 +106,7 @@ impl Default for Theme {
             colors: ThemeColors {
                 text: TextColors::new(Color::DarkGray),
                 header: HeaderColors {
-                    text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
                     context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
                     namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
                     resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),

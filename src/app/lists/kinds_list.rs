@@ -6,12 +6,16 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
-use super::{FilterableList, Item, Row, ScrollableList};
+use super::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
+
+type KindFilterableList = FilterableList<Item<Kind, BasicFilterContext>, BasicFilterContext>;
 
 /// Kubernetes kinds list.
 #[derive(Default)]
 pub struct KindsList {
-    pub list: ScrollableList<Kind>,
+    pub list: ScrollableList<Kind, BasicFilterContext>,
+    header: String,
+    width: usize,
 }
 
 impl KindsList {
@@ -67,12 +71,19 @@ impl Table for KindsList {
         None
     }
 
-    fn get_header(&self, _view: ViewType, width: usize) -> String {
-        format!("{1:<0$}", width, "KIND")
+    fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
+        if self.width == width {
+            return &self.header;
+        }
+
+        self.header = format!("{1:<0$}", width, "KIND");
+        self.width = width;
+
+        &self.header
     }
 }
 
-fn update_old_list(old_list: &mut FilterableList<Item<Kind>>, new_list: Vec<Kind>) {
+fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<Kind>) {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 
@@ -98,7 +109,7 @@ fn update_old_list(old_list: &mut FilterableList<Item<Kind>>, new_list: Vec<Kind
     mark_multiple(old_list, &multiple);
 }
 
-fn create_new_list(new_list: Vec<Kind>) -> Option<FilterableList<Item<Kind>>> {
+fn create_new_list(new_list: Vec<Kind>) -> Option<KindFilterableList> {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 
@@ -122,7 +133,7 @@ fn create_new_list(new_list: Vec<Kind>) -> Option<FilterableList<Item<Kind>>> {
     Some(list)
 }
 
-fn mark_multiple(list: &mut FilterableList<Item<Kind>>, multiple: &HashSet<String>) {
+fn mark_multiple(list: &mut KindFilterableList, multiple: &HashSet<String>) {
     for item in list.full_iter_mut() {
         item.data.multiple = multiple.contains(item.data.name());
     }

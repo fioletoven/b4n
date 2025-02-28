@@ -31,7 +31,7 @@ impl ResourcesTable {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(
             Rc::clone(&app_data),
-            ResourcesList::default().with_wide_filter(),
+            ResourcesList::default().with_filter_settings(Some("")),
             ViewType::Compact,
         );
 
@@ -128,7 +128,7 @@ impl ResourcesTable {
             return;
         }
 
-        if self.list.items.update(result, 1, false) {
+        if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();
             data.current.kind_plural = self.list.items.kind_plural.clone();

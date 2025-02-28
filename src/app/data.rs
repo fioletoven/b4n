@@ -48,6 +48,15 @@ impl ResourcesInfo {
             ..Default::default()
         }
     }
+
+    /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
+    pub fn is_kind_equal(&self, kind: &str) -> bool {
+        if self.kind_plural == kind || self.kind.to_lowercase() == kind {
+            return true;
+        }
+
+        kind.contains('.') && format!("{}.{}", self.kind_plural, self.group) == kind
+    }
 }
 
 /// Keeps data required for syntax highlighting.

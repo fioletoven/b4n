@@ -1,10 +1,14 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::discovery::Scope;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::ObserverResult,
-    kubernetes::{ALL_NAMESPACES, NAMESPACES, resources::Resource},
+    kubernetes::{
+        ALL_NAMESPACES, NAMESPACES,
+        resources::{Resource, ResourceFilterContext},
+    },
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
@@ -16,8 +20,9 @@ pub struct ResourcesList {
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
-    pub header: Header,
-    pub list: ScrollableList<Resource>,
+    pub list: ScrollableList<Resource, ResourceFilterContext>,
+    header: Header,
+    header_cache: HeaderCache,
 }
 
 impl Default for ResourcesList {
@@ -27,26 +32,32 @@ impl Default for ResourcesList {
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            header: Header::default(),
             list: ScrollableList::default(),
+            header: Header::default(),
+            header_cache: HeaderCache::default(),
         }
     }
 }
 
 impl ResourcesList {
-    /// Sets if [`ResourcesList`] should search in `labels` and `annotations` when filtering resources.
-    pub fn with_wide_filter(mut self) -> Self {
-        self.list.set_wide_filter(true);
+    /// Sets filter settings for [`ResourcesList`].
+    pub fn with_filter_settings(mut self, settings: Option<impl Into<String>>) -> Self {
+        self.list.set_filter_settings(settings);
         self
     }
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
     /// Returns `true` if the kind was also changed during the update.
-    pub fn update(&mut self, result: Option<ObserverResult>, sort_by: usize, is_descending: bool) -> bool {
+    pub fn update(&mut self, result: Option<ObserverResult>) -> bool {
         if let Some(result) = result {
+            let (sort_by, is_descending) = self.header.sort_info();
             let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
             self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
+            if updated {
+                self.header.set_sort_info(sort_by, is_descending);
+                self.header_cache.invalidate();
+            }
 
             updated
         } else {
@@ -79,6 +90,7 @@ impl ResourcesList {
         self.group = group;
         self.scope = scope.clone();
         self.header = Resource::header(&self.kind);
+        self.header_cache.invalidate();
         self.list.remove_fixed();
         if self.kind_plural == NAMESPACES {
             if let Some(items) = &mut self.list.items {
@@ -117,24 +129,48 @@ impl ResourcesList {
     /// Updates max widths for all columns basing on current data in the list.
     fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
+
         let Some(list) = &self.list.items else {
+            self.header_cache.invalidate();
             return;
         };
 
         let columns_no = self.header.get_columns_count();
         for item in list {
             for column in 0..columns_no {
-                let column_width = std::cmp::max(self.header.get_data_length(column), item.data.column_text(column).len());
+                let column_width = std::cmp::max(
+                    self.header.get_data_length(column),
+                    item.data.column_text(column).chars().count(),
+                );
                 self.header.set_data_length(column, column_width);
             }
         }
 
         self.header.recalculate_extra_columns();
+        self.header_cache.invalidate();
     }
 }
 
 impl Responsive for ResourcesList {
-    fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        if key.modifiers == KeyModifiers::ALT && key.code != KeyCode::Char(' ') {
+            if let KeyCode::Char(code) = key.code {
+                let sort_symbols = self.header.get_sort_symbols();
+                let uppercase = code.to_uppercase().next().unwrap();
+                let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
+                if let Some(sort_by) = sort_by {
+                    let (column_no, is_descending) = self.header.sort_info();
+                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                    return ResponseEvent::Handled;
+                } else if code.is_numeric() {
+                    let (column_no, is_descending) = self.header.sort_info();
+                    let sort_by = code.to_digit(10).unwrap() as usize;
+                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                    return ResponseEvent::Handled;
+                }
+            }
+        }
+
         self.list.process_key(key)
     }
 }
@@ -146,7 +182,6 @@ impl Table for ResourcesList {
             fn is_filtered(&self) -> bool;
             fn filter(&mut self, filter: Option<String>);
             fn get_filter(&self) -> Option<&str>;
-            fn sort(&mut self, column_no: usize, is_descending: bool);
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
@@ -169,6 +204,18 @@ impl Table for ResourcesList {
         self.group = String::new();
     }
 
+    fn sort(&mut self, column_no: usize, is_descending: bool) {
+        if column_no < self.header.get_columns_count() {
+            self.header.set_sort_info(column_no, is_descending);
+            self.header_cache.invalidate();
+            self.list.sort(column_no, is_descending);
+        }
+    }
+
+    fn get_sort_symbols(&self) -> Rc<[char]> {
+        self.header.get_sort_symbols()
+    }
+
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
             let (namespace_width, name_width, name_extra_width) = self.get_widths(view, width);
@@ -188,8 +235,31 @@ impl Table for ResourcesList {
         None
     }
 
-    fn get_header(&self, view: ViewType, width: usize) -> String {
+    fn get_header(&mut self, view: ViewType, width: usize) -> &str {
+        if self.header_cache.width == width && self.header_cache.view == view {
+            return &self.header_cache.text;
+        }
+
         let (namespace_width, name_width, _) = self.get_widths(view, width);
-        self.header.get_text(view, namespace_width, name_width, width)
+        self.header_cache.text = self.header.get_text(view, namespace_width, name_width, width);
+        self.header_cache.view = view;
+        self.header_cache.width = width;
+
+        &self.header_cache.text
+    }
+}
+
+/// Keeps cached header text.
+#[derive(Default)]
+struct HeaderCache {
+    pub text: String,
+    pub width: usize,
+    pub view: ViewType,
+}
+
+impl HeaderCache {
+    /// Invalidates cache data.
+    pub fn invalidate(&mut self) {
+        self.width = 0;
     }
 }
