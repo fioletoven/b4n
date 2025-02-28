@@ -73,6 +73,10 @@ impl<T: Table> ListPane<T> {
 
 impl<T: Table> Responsive for ListPane<T> {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
+            return ResponseEvent::Handled;
+        }
+
         if self.items.process_key(key) == ResponseEvent::Handled {
             return ResponseEvent::Handled;
         }

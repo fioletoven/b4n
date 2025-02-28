@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::discovery::Scope;
 use std::{collections::HashMap, rc::Rc};
@@ -47,13 +48,16 @@ impl ResourcesList {
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
     /// Returns `true` if the kind was also changed during the update.
-    pub fn update(&mut self, result: Option<ObserverResult>, sort_by: usize, is_descending: bool) -> bool {
+    pub fn update(&mut self, result: Option<ObserverResult>) -> bool {
         if let Some(result) = result {
+            let (sort_by, is_descending) = self.header.sort_info();
             let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
             self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
             self.list.sort(sort_by, is_descending);
-            self.header.set_sort_info(Some(sort_by), is_descending);
-            self.header_cache.invalidate();
+            if updated {
+                self.header.set_sort_info(sort_by, is_descending);
+                self.header_cache.invalidate();
+            }
 
             updated
         } else {
@@ -125,9 +129,9 @@ impl ResourcesList {
     /// Updates max widths for all columns basing on current data in the list.
     fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
-        self.header_cache.invalidate();
 
         let Some(list) = &self.list.items else {
+            self.header_cache.invalidate();
             return;
         };
 
@@ -143,11 +147,30 @@ impl ResourcesList {
         }
 
         self.header.recalculate_extra_columns();
+        self.header_cache.invalidate();
     }
 }
 
 impl Responsive for ResourcesList {
-    fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        if key.modifiers == KeyModifiers::ALT && key.code != KeyCode::Char(' ') {
+            if let KeyCode::Char(code) = key.code {
+                let sort_symbols = self.header.get_sort_symbols();
+                let uppercase = code.to_uppercase().next().unwrap();
+                let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
+                if let Some(sort_by) = sort_by {
+                    let (column_no, is_descending) = self.header.sort_info();
+                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                    return ResponseEvent::Handled;
+                } else if code.is_numeric() {
+                    let (column_no, is_descending) = self.header.sort_info();
+                    let sort_by = code.to_digit(10).unwrap() as usize;
+                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                    return ResponseEvent::Handled;
+                }
+            }
+        }
+
         self.list.process_key(key)
     }
 }
@@ -159,7 +182,6 @@ impl Table for ResourcesList {
             fn is_filtered(&self) -> bool;
             fn filter(&mut self, filter: Option<String>);
             fn get_filter(&self) -> Option<&str>;
-            fn sort(&mut self, column_no: usize, is_descending: bool);
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
@@ -180,6 +202,14 @@ impl Table for ResourcesList {
         self.kind = String::new();
         self.kind_plural = String::new();
         self.group = String::new();
+    }
+
+    fn sort(&mut self, column_no: usize, is_descending: bool) {
+        if column_no < self.header.get_columns_count() {
+            self.header.set_sort_info(column_no, is_descending);
+            self.header_cache.invalidate();
+            self.list.sort(column_no, is_descending);
+        }
     }
 
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {

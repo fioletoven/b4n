@@ -21,6 +21,7 @@ pub struct Header {
     all_extra_width: usize,
     extra_space: usize,
     sort_symbols: Rc<[char]>,
+    sorted_column_no: usize,
     is_sorted_descending: bool,
 }
 
@@ -48,6 +49,7 @@ impl Header {
             all_extra_width: extra_width,
             extra_space,
             sort_symbols,
+            sorted_column_no: 1,
             is_sorted_descending: false,
         }
     }
@@ -66,8 +68,14 @@ impl Header {
         Rc::clone(&self.sort_symbols)
     }
 
+    /// Returns information required for sorting.
+    pub fn sort_info(&self) -> (usize, bool) {
+        (self.sorted_column_no, self.is_sorted_descending)
+    }
+
     /// Sets information required for sorting.
-    pub fn set_sort_info(&mut self, column_no: Option<usize>, is_descending: bool) {
+    pub fn set_sort_info(&mut self, column_no: usize, is_descending: bool) {
+        self.sorted_column_no = column_no;
         self.is_sorted_descending = is_descending;
 
         self.group.is_sorted = false;
@@ -79,10 +87,8 @@ impl Header {
             }
         }
 
-        if let Some(column) = column_no {
-            if let Some(column) = self.column_mut(column) {
-                column.is_sorted = true;
-            }
+        if let Some(column) = self.column_mut(column_no) {
+            column.is_sorted = true;
         }
 
         self.recalculate_extra_columns();

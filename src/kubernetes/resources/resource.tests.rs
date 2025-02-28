@@ -91,7 +91,7 @@ fn get_text_pod_test() {
     header.set_data_length(4, 12);
     header.set_data_length(5, 11);
     header.set_data_length(6, 6);
-    header.set_sort_info(Some(2), false);
+    header.set_sort_info(2, false);
 
     let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
 

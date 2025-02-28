@@ -16,7 +16,7 @@ pub const NAME: Column = Column {
     name: "NAME",
     is_fixed: false,
     to_right: false,
-    is_sorted: false,
+    is_sorted: true,
     min_len: 6,
     max_len: 6,
     data_len: 6,

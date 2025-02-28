@@ -99,7 +99,7 @@ impl ResourcesView {
 
     /// Updates namespaces list with a new data from [`ObserverResult`].
     pub fn update_namespaces_list(&mut self, result: Option<ObserverResult>) {
-        self.ns_selector.select.items.update(result, 1, false);
+        self.ns_selector.select.items.update(result);
     }
 
     /// Updates kinds list with a new data.

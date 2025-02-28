@@ -128,7 +128,7 @@ impl ResourcesTable {
             return;
         }
 
-        if self.list.items.update(result, 1, false) {
+        if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();
             data.current.kind_plural = self.list.items.kind_plural.clone();
