@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     app::lists::{Column, Header, NAMESPACE},
-    kubernetes::resources::ResourceData,
+    kubernetes::resources::{ResourceData, ResourceValue},
 };
 
 /// Returns [`ResourceData`] for the `service` kubernetes resource.
@@ -12,7 +12,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let service_type = spec["type"].as_str().map(|t| t.to_owned());
     let cluster_ip = spec["clusterIP"].as_str().map(|t| t.to_owned());
 
-    let values = [service_type, cluster_ip];
+    let values: [ResourceValue; 2] = [service_type.into(), cluster_ip.into()];
 
     ResourceData {
         extra_values: Box::new(values),

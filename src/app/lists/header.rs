@@ -313,11 +313,11 @@ fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
 
 /// Extension methods for string.
 trait StringExtensions {
+    /// Appends a given column onto the end of this `String`.
     fn push_column(&mut self, column: &Column, len: usize, is_descending: bool);
 }
 
 impl StringExtensions for String {
-    /// Appends a given column onto the end of this `String`.
     fn push_column(&mut self, column: &Column, len: usize, is_descending: bool) {
         if len == 0 || column.name.is_empty() {
             return;

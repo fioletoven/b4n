@@ -1,4 +1,4 @@
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
@@ -118,6 +118,10 @@ impl<T: Table> Select<T> {
 
 impl<T: Table> Responsive for Select<T> {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        if key.modifiers == KeyModifiers::ALT {
+            return ResponseEvent::Handled;
+        }
+
         if self.items.process_key(key) == ResponseEvent::NotHandled {
             self.filter.process_key(key);
             if self.filter.value().is_empty() {

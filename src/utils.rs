@@ -16,24 +16,6 @@ pub fn try_truncate(s: &str, max_chars: usize) -> Option<&str> {
     }
 }
 
-/// Adds `s` to the specified `text` with padding spaces.
-pub fn add_cell(text: &mut String, s: &str, len: usize, to_right: bool) {
-    if len == 0 || s.is_empty() {
-        return;
-    }
-
-    let padding_len = len.saturating_sub(s.chars().count());
-    if to_right && padding_len > 0 {
-        (0..padding_len).for_each(|_| text.push(' '));
-    }
-
-    text.push_str(truncate(s, len));
-
-    if !to_right && padding_len > 0 {
-        (0..padding_len).for_each(|_| text.push(' '));
-    }
-}
-
 /// Calculates SHA1 for specified string and sets the length to `len`.
 pub fn calculate_hash(t: &str, len: usize) -> String {
     let mut hasher = Sha1::new();

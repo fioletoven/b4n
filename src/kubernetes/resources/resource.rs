@@ -6,7 +6,7 @@ use crate::{
     app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
-    utils::{add_cell, truncate},
+    utils::truncate,
 };
 
 use super::{pod, service};
@@ -15,13 +15,43 @@ use super::{pod, service};
 #[path = "./resource.tests.rs"]
 mod resource_tests;
 
+/// Value for the resource extra data.
+pub struct ResourceValue {
+    pub text: Option<String>,
+    pub number: Option<String>,
+    pub is_numeric: bool,
+}
+
+impl ResourceValue {
+    /// Creates new [`ResourceValue`] instance as a numeric value.
+    pub fn numeric(value: Option<impl Into<String>>, len: usize) -> ResourceValue {
+        let text = value.map(|v| v.into());
+        let numeric = text.as_deref().map(|v| format!("{0:0>1$}", v, len));
+        ResourceValue {
+            text,
+            number: numeric,
+            is_numeric: true,
+        }
+    }
+}
+
+impl From<Option<String>> for ResourceValue {
+    fn from(value: Option<String>) -> Self {
+        ResourceValue {
+            text: value.map(|v| v.into()),
+            number: None,
+            is_numeric: false,
+        }
+    }
+}
+
 /// Extra data for the kubernetes resource.
 pub struct ResourceData {
     pub is_job: bool,
     pub is_completed: bool,
     pub is_ready: bool,
     pub is_terminating: bool,
-    pub extra_values: Box<[Option<String>]>,
+    pub extra_values: Box<[ResourceValue]>,
 }
 
 impl ResourceData {
@@ -75,7 +105,7 @@ impl Resource {
         };
 
         Self {
-            age: object.creation_timestamp().as_ref().map(kubernetes::utils::format_timestamp),
+            age: object.creation_timestamp().as_ref().map(|t| t.0.timestamp().to_string()),
             name: object.name_any(),
             namespace: object.metadata.namespace,
             uid: object.metadata.uid,
@@ -172,13 +202,13 @@ impl Resource {
                 len = columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len());
             }
 
-            add_cell(&mut text, values[i].as_deref().unwrap_or("n/a"), len, columns[i].to_right);
+            text.push_row(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
         }
 
         text
     }
 
-    fn get_extra_values(&self) -> Option<&[Option<String>]> {
+    fn get_extra_values(&self) -> Option<&[ResourceValue]> {
         self.data.as_ref().map(|data| &*data.extra_values)
     }
 }
@@ -215,12 +245,26 @@ impl Row for Resource {
         } else if column == 1 {
             self.name.as_str()
         } else if column >= 2 && column <= values.len() + 1 {
-            values[column - 2].as_deref().unwrap_or("n/a")
+            values[column - 2].text.as_deref().unwrap_or("n/a")
         } else if column == values.len() + 2 {
             self.age.as_deref().unwrap_or("n/a")
         } else {
             "n/a"
         }
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
+        if let Some(values) = self.get_extra_values() {
+            if column >= 2 && column <= values.len() + 1 {
+                if values[column - 2].is_numeric {
+                    return values[column - 2].number.as_deref().unwrap_or("n/a");
+                } else {
+                    return values[column - 2].text.as_deref().unwrap_or("n/a");
+                }
+            }
+        }
+
+        self.column_text(column)
     }
 }
 
@@ -264,4 +308,29 @@ fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
     };
 
     tree.keys().any(|k| k.contains(pattern)) || tree.values().any(|v| v.contains(pattern))
+}
+
+/// Extension methods for string.
+pub trait StringExtensions {
+    /// Appends a given row text onto the end of this `String`.
+    fn push_row(&mut self, s: &str, len: usize, to_right: bool);
+}
+
+impl StringExtensions for String {
+    fn push_row(&mut self, s: &str, len: usize, to_right: bool) {
+        if len == 0 || s.is_empty() {
+            return;
+        }
+
+        let padding_len = len.saturating_sub(s.chars().count());
+        if to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
+        }
+
+        self.push_str(truncate(s, len));
+
+        if !to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
+        }
+    }
 }

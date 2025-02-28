@@ -59,7 +59,7 @@ impl KubernetesClientManager {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
         }
 
-        let msg = format!("Requesting new kubernetes client for '{}'.", context);
+        let msg = format!("Requested kubernetes client for '{}'.", context);
         self.messages_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
         self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }

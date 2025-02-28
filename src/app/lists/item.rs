@@ -19,6 +19,9 @@ pub trait Row {
     /// Returns text value for the specified column number.
     fn column_text(&self, column: usize) -> &str;
 
+    /// Returns text value for the specified column number that can be properly sotred.
+    fn column_sort_text(&self, column: usize) -> &str;
+
     /// Returns `true` if the given `pattern` is found in the [`Row`] item.
     fn contains(&self, pattern: &str) -> bool {
         self.name().contains(pattern)

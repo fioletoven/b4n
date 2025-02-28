@@ -379,5 +379,5 @@ fn cmp<T: Row + Filterable<Fc>, Fc: FilterContext>(a: &Item<T, Fc>, b: &Item<T, 
         return Ordering::Equal;
     }
 
-    a.data.column_text(column).cmp(b.data.column_text(column))
+    a.data.column_sort_text(column).cmp(b.data.column_sort_text(column))
 }

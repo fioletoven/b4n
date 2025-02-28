@@ -128,6 +128,10 @@ impl Row for Action {
         }
     }
 
+    fn column_sort_text(&self, column: usize) -> &str {
+        self.column_text(column)
+    }
+
     /// Returns `true` if the given `pattern` is found in the action name or its aliases.
     fn contains(&self, pattern: &str) -> bool {
         if self.name.contains(pattern) {

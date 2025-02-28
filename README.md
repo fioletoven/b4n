@@ -22,10 +22,9 @@ As the project is in its early stages, for this moment the only supported functi
 
 General planned features:
 
-- sorting and filtering the list of resources
 - describing resources
-- editing resources (YAML)
 - showing pod containers and their logs
+- editing resources (YAML)
 - port forwarding
 - shell
 

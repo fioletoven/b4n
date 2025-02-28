@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::{
     app::lists::{Column, Header, NAMESPACE},
-    kubernetes::resources::ResourceData,
+    kubernetes::resources::{ResourceData, ResourceValue},
 };
 
 /// Returns [`ResourceData`] for the `pod` kubernetes resource.
@@ -33,14 +33,14 @@ pub fn data(object: &DynamicObject) -> ResourceData {
             .unwrap_or(false);
 
     let values = [
-        restarts.map(|r| r.to_string()),
-        ready_str,
+        ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
+        ready_str.into(),
         if is_terminating {
-            Some("Terminating".to_owned())
+            Some("Terminating".to_owned()).into()
         } else {
-            phase
+            phase.into()
         },
-        status["podIP"].as_str().map(|s| s.to_owned()),
+        status["podIP"].as_str().map(|s| s.to_owned()).into(),
     ];
 
     ResourceData {

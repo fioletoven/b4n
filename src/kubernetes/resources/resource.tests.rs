@@ -99,10 +99,10 @@ fn get_text_pod_test() {
     resource.namespace = Some("kube-system".to_owned());
     resource.data = Some(ResourceData {
         extra_values: vec![
-            Some("5".to_owned()),
-            Some("1/1".to_owned()),
-            Some("Running".to_owned()),
-            Some("10.42.1.201".to_owned()),
+            Some("5".to_owned()).into(),
+            Some("1/1".to_owned()).into(),
+            Some("Running".to_owned()).into(),
+            Some("10.42.1.201".to_owned()).into(),
         ]
         .into_boxed_slice(),
         is_job: false,

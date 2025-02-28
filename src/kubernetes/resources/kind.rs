@@ -62,6 +62,10 @@ impl Row for Kind {
             _ => "n/a",
         }
     }
+
+    fn column_sort_text(&self, column: usize) -> &str {
+        self.column_text(column)
+    }
 }
 
 impl Filterable<BasicFilterContext> for Kind {
