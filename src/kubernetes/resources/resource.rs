@@ -3,7 +3,7 @@ use kube::{ResourceExt, api::DynamicObject};
 use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
-    app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
+    app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, NAMESPACE, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
     utils::truncate,
@@ -136,76 +136,66 @@ impl Resource {
 
     /// Builds and returns the whole row of values for this kubernetes resource.
     pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
-        let text = match view {
-            ViewType::Name => self.get_name(width),
-            ViewType::Compact => self.get_compact_text(&self.get_inner_text(header), name_width),
-            ViewType::Full => self.get_full_text(&self.get_inner_text(header), namespace_width, name_width),
+        let mut row = String::with_capacity(width + 2);
+        match view {
+            ViewType::Name => row.push_cell(&self.name, width, false),
+            ViewType::Compact => self.get_compact_text(&mut row, header, name_width),
+            ViewType::Full => self.get_full_text(&mut row, header, namespace_width, name_width),
         };
 
-        if text.chars().count() > width {
-            truncate(text.as_str(), width).to_owned()
+        if row.chars().count() > width {
+            truncate(row.as_str(), width).to_owned()
         } else {
-            text
+            row
         }
     }
 
-    fn get_compact_text(&self, inner_text: &str, name_width: usize) -> String {
-        format!(
-            "{1:<0$} {2} {3:>7}",
-            name_width,
-            truncate(self.name.as_str(), name_width),
-            inner_text,
+    fn get_compact_text(&self, row: &mut String, header: &Header, name_width: usize) {
+        row.push_cell(&self.name, name_width, false);
+        row.push(' ');
+        self.push_inner_text(row, header);
+        row.push(' ');
+        row.push_cell(
             self.creation_timestamp
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or("n/a")
-        )
+                .unwrap_or("n/a"),
+            AGE_COLUMN_WIDTH + 1,
+            true,
+        );
     }
 
-    fn get_full_text(&self, inner_text: &str, namespace_width: usize, name_width: usize) -> String {
-        format!(
-            "{1:<0$} {3:<2$} {4} {5:>7}",
-            namespace_width,
-            truncate(self.namespace.as_deref().unwrap_or("n/a"), namespace_width),
-            name_width,
-            truncate(self.name.as_str(), name_width),
-            inner_text,
-            self.creation_timestamp
-                .as_ref()
-                .map(kubernetes::utils::format_timestamp)
-                .as_deref()
-                .unwrap_or("n/a")
-        )
+    fn get_full_text(&self, row: &mut String, header: &Header, namespace_width: usize, name_width: usize) {
+        row.push_cell(self.namespace.as_deref().unwrap_or("n/a"), namespace_width, false);
+        row.push(' ');
+        self.get_compact_text(row, header, name_width);
     }
 
-    fn get_inner_text(&self, header: &Header) -> String {
+    fn push_inner_text(&self, row: &mut String, header: &Header) {
         let Some(values) = self.get_extra_values() else {
-            return String::new();
+            return;
         };
         let Some(columns) = header.get_extra_columns() else {
-            return String::new();
+            return;
         };
         if values.len() != columns.len() {
-            return String::new();
+            return;
         }
 
-        let text_len = columns.iter().map(|c| c.max_len() + 1).sum::<usize>();
-        let mut text = String::with_capacity(text_len * 2);
         for i in 0..columns.len() {
             if i > 0 {
-                text.push(' ');
+                row.push(' ');
             }
 
-            let mut len = columns[i].data_len;
-            if !columns[i].is_fixed {
-                len = columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len());
-            }
+            let len = if columns[i].is_fixed {
+                columns[i].data_len
+            } else {
+                columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len())
+            };
 
-            text.push_row(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
+            row.push_cell(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
         }
-
-        text
     }
 
     fn get_extra_values(&self) -> Option<&[ResourceValue]> {
@@ -312,12 +302,12 @@ fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
 
 /// Extension methods for string.
 pub trait StringExtensions {
-    /// Appends a given row text onto the end of this `String`.
-    fn push_row(&mut self, s: &str, len: usize, to_right: bool);
+    /// Appends a given cell text onto the end of this `String`.
+    fn push_cell(&mut self, s: &str, len: usize, to_right: bool);
 }
 
 impl StringExtensions for String {
-    fn push_row(&mut self, s: &str, len: usize, to_right: bool) {
+    fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
         if len == 0 || s.is_empty() {
             return;
         }

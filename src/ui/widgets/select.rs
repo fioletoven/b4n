@@ -155,7 +155,7 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
 }
 
 /// Dims part of the line text between `[` and `]`.  
-/// It removes these characters from the output.
+/// **Note** that it removes these characters from the output.
 fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
     if line.contains('[') {
         let mut result = Vec::with_capacity(5);

@@ -50,14 +50,16 @@ impl ResourcesList {
     /// Returns `true` if the kind was also changed during the update.
     pub fn update(&mut self, result: Option<ObserverResult>) -> bool {
         if let Some(result) = result {
-            let (sort_by, is_descending) = self.header.sort_info();
+            let (mut sort_by, mut is_descending) = self.header.sort_info();
             let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
-            self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
-            self.list.sort(sort_by, is_descending);
             if updated {
+                (sort_by, is_descending) = self.header.sort_info();
                 self.header.set_sort_info(sort_by, is_descending);
                 self.header_cache.invalidate();
             }
+
+            self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
+            self.list.sort(sort_by, is_descending);
 
             updated
         } else {
