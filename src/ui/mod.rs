@@ -61,7 +61,7 @@ pub trait Table: Responsive {
 
     /// Returns sorting symbols for the list.
     fn get_sort_symbols(&self) -> Rc<[char]> {
-        Rc::new([])
+        Rc::default()
     }
 
     /// Gets highlighted element index.

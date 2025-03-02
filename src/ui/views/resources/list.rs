@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Position, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{Paragraph, Widget},
@@ -113,14 +113,8 @@ impl Widget for &mut HeaderWidget<'_> {
         let y = area.top();
         let width = buf.area.width - 1;
 
-        buf[Position::new(x - 1, y)]
-            .set_char('')
-            .set_fg(self.colors.bg)
-            .set_bg(Color::Reset);
-        buf[Position::new(width, y)]
-            .set_char('')
-            .set_fg(self.colors.bg)
-            .set_bg(Color::Reset);
+        buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
+        buf[(width, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;
@@ -143,20 +137,14 @@ impl Widget for &mut HeaderWidget<'_> {
             if in_column && !highlighted && column_no < self.sort_symbols.len() {
                 if self.sort_symbols[column_no] != ' ' && char == self.sort_symbols[column_no] {
                     highlighted = true;
-                    buf[Position::new(x, y)].set_style(Style::default().underlined());
+                    buf[(x, y)].set_style(Style::default().underlined());
                 }
             }
 
             if char == '↑' || char == '↓' {
-                buf[Position::new(x, y)]
-                    .set_char(char)
-                    .set_fg(self.colors.dim)
-                    .set_bg(self.colors.bg);
+                buf[(x, y)].set_char(char).set_fg(self.colors.dim).set_bg(self.colors.bg);
             } else {
-                buf[Position::new(x, y)]
-                    .set_char(char)
-                    .set_fg(self.colors.fg)
-                    .set_bg(self.colors.bg);
+                buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
             }
         }
     }

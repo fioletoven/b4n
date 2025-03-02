@@ -59,7 +59,7 @@ impl ResourcesList {
             }
 
             self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
-            self.list.sort(sort_by, is_descending);
+            self.sort_internal_list(sort_by, is_descending);
 
             updated
         } else {
@@ -151,24 +151,33 @@ impl ResourcesList {
         self.header.recalculate_extra_columns();
         self.header_cache.invalidate();
     }
+
+    /// Sorts internal resources list.
+    fn sort_internal_list(&mut self, column_no: usize, is_descending: bool) {
+        let reverse = self.header.has_reversed_order(column_no);
+        self.list
+            .sort(column_no, if reverse { !is_descending } else { is_descending });
+    }
 }
 
 impl Responsive for ResourcesList {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
         if key.modifiers == KeyModifiers::ALT && key.code != KeyCode::Char(' ') {
             if let KeyCode::Char(code) = key.code {
-                let sort_symbols = self.header.get_sort_symbols();
-                let uppercase = code.to_uppercase().next().unwrap();
-                let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
-                if let Some(sort_by) = sort_by {
-                    let (column_no, is_descending) = self.header.sort_info();
-                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
-                    return ResponseEvent::Handled;
-                } else if code.is_numeric() {
+                if code.is_numeric() {
                     let (column_no, is_descending) = self.header.sort_info();
                     let sort_by = code.to_digit(10).unwrap() as usize;
                     self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
                     return ResponseEvent::Handled;
+                } else {
+                    let sort_symbols = self.header.get_sort_symbols();
+                    let uppercase = code.to_ascii_uppercase();
+                    let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
+                    if let Some(sort_by) = sort_by {
+                        let (column_no, is_descending) = self.header.sort_info();
+                        self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                        return ResponseEvent::Handled;
+                    }
                 }
             }
         }
@@ -210,7 +219,7 @@ impl Table for ResourcesList {
         if column_no < self.header.get_columns_count() {
             self.header.set_sort_info(column_no, is_descending);
             self.header_cache.invalidate();
-            self.list.sort(column_no, is_descending);
+            self.sort_internal_list(column_no, is_descending);
         }
     }
 

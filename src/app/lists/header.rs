@@ -2,13 +2,11 @@ use std::rc::Rc;
 
 use crate::{ui::ViewType, utils::try_truncate};
 
-use super::{Column, NAME, StringExtensions};
+use super::{AGE, Column, NAME, StringExtensions};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]
 mod header_tests;
-
-pub const AGE_COLUMN_WIDTH: usize = 6;
 
 /// Header for the list.
 pub struct Header {
@@ -31,7 +29,8 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Creates new [`Header`] instance with provided columns.
+    /// Creates new [`Header`] instance with provided columns.  
+    /// **Note** that `sort_symbols` must be uppercase ASCII characters.
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns, false);
         let extra_width = extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
@@ -40,7 +39,7 @@ impl Header {
         Self {
             group: group_column.ensure_can_be_first_column(),
             name: NAME.clone(),
-            age: Column::fixed("AGE", AGE_COLUMN_WIDTH, true),
+            age: AGE.clone(),
             extra_columns,
             extra_columns_text,
             all_extra_width: extra_width,
@@ -89,6 +88,15 @@ impl Header {
         }
 
         self.recalculate_extra_columns();
+    }
+
+    /// Returns `true` if column has reversed sort order.
+    pub fn has_reversed_order(&self, column_no: usize) -> bool {
+        if let Some(column) = self.column(column_no) {
+            column.has_reversed_order
+        } else {
+            false
+        }
     }
 
     /// Recalculates extra columns text and width.
