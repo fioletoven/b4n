@@ -129,8 +129,13 @@ impl App {
             self.resources.update_kinds_list(worker.get_kinds_list());
         }
 
-        self.resources.update_namespaces_list(worker.namespaces.try_next());
-        self.resources.update_resources_list(worker.resources.try_next());
+        while let Some(update_result) = worker.namespaces.try_next() {
+            self.resources.update_namespaces_list(update_result);
+        }
+
+        while let Some(update_result) = worker.resources.try_next() {
+            self.resources.update_resources_list(update_result);
+        }
 
         self.data.borrow_mut().is_connected = !worker.has_errors();
     }

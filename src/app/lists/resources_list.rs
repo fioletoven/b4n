@@ -4,7 +4,7 @@ use kube::discovery::Scope;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::ObserverResult,
+    app::{ObserverInitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES,
         resources::{Resource, ResourceFilterContext},
@@ -48,21 +48,18 @@ impl ResourcesList {
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
     /// Returns `true` if the kind was also changed during the update.
-    pub fn update(&mut self, result: Option<ObserverResult>) -> bool {
-        if let Some(result) = result {
-            let (mut sort_by, mut is_descending) = self.header.sort_info();
-            let updated = self.update_kind(result.kind, result.kind_plural, result.group, result.scope);
-            if updated {
-                (sort_by, is_descending) = self.header.sort_info();
-                self.header.set_sort_info(sort_by, is_descending);
-                self.header_cache.invalidate();
-            }
-
-            self.update_list(result.list.into_iter().map(|r| Resource::from(&self.kind, r)).collect());
-            self.sort_internal_list(sort_by, is_descending);
-
-            updated
+    pub fn update(&mut self, result: ObserverResult) -> bool {
+        let (mut sort_by, mut is_descending) = self.header.sort_info();
+        if self.update_kind(result.init) {
+            (sort_by, is_descending) = self.header.sort_info();
+            self.header.set_sort_info(sort_by, is_descending);
+            self.header_cache.invalidate();
+            true
         } else {
+            if let Some(resource) = result.object {
+                self.update_list(Resource::from(&self.kind, resource), result.is_delete);
+            }
+            self.sort_internal_list(sort_by, is_descending);
             false
         }
     }
@@ -82,47 +79,40 @@ impl ResourcesList {
     }
 
     /// Returns `true` if kind was changed.
-    fn update_kind(&mut self, kind: String, kind_plural: String, group: String, scope: Scope) -> bool {
-        if self.kind == kind && self.group == group {
+    fn update_kind(&mut self, init: Option<ObserverInitData>) -> bool {
+        let Some(init) = init else {
             return false;
-        }
+        };
 
-        self.kind = kind;
-        self.kind_plural = kind_plural;
-        self.group = group;
-        self.scope = scope.clone();
+        self.kind = init.kind;
+        self.kind_plural = init.kind_plural;
+        self.group = init.group;
+        self.scope = init.scope;
         self.header = Resource::header(&self.kind);
         self.header_cache.invalidate();
-        self.list.remove_fixed();
+        self.list.clear();
         if self.kind_plural == NAMESPACES {
-            if let Some(items) = &mut self.list.items {
-                items.insert(0, Item::fixed(Resource::new(ALL_NAMESPACES)));
-            } else {
-                self.list.items = Some(FilterableList::from(vec![Item::fixed(Resource::new(ALL_NAMESPACES))]));
-            }
+            self.list.items = Some(FilterableList::from(vec![Item::fixed(Resource::new(ALL_NAMESPACES))]));
         }
 
         true
     }
 
-    /// Updates or adds list items from the `new_list`.
-    fn update_list(&mut self, new_list: Vec<Resource>) {
-        self.list.dirty(false);
-
-        if let Some(old_list) = &mut self.list.items {
-            for new_item in new_list.into_iter() {
-                let old_item = old_list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
-                if let Some(old_item) = old_item {
-                    old_item.data = new_item;
-                    old_item.is_dirty = true;
-                } else {
-                    old_list.push(Item::dirty(new_item));
+    /// Adds, updates or deletes `new_item` from the resources list.
+    fn update_list(&mut self, new_item: Resource, is_delete: bool) {
+        if let Some(items) = &mut self.list.items {
+            if is_delete {
+                if let Some(index) = items.full_iter().position(|i| i.data.uid() == new_item.uid()) {
+                    items.full_remove(index);
                 }
+            } else if let Some(old_item) = items.full_iter_mut().find(|i| i.data.uid() == new_item.uid()) {
+                old_item.data = new_item;
+                old_item.is_dirty = true;
+            } else {
+                items.push(Item::dirty(new_item));
             }
-
-            old_list.full_retain(|i| i.is_dirty || i.is_fixed);
-        } else {
-            self.list.items = Some(FilterableList::from(new_list.into_iter().map(Item::new).collect()));
+        } else if !is_delete {
+            self.list.items = Some(FilterableList::from(vec![Item::new(new_item)]));
         }
 
         self.update_data_lengths();

@@ -38,6 +38,20 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     #[inline]
     pub fn clear(&mut self) {
         self.items.clear();
+        self.filter_reset();
+    }
+
+    /// Removes and returns the element at position `index` within the filtered out list.  
+    /// **Note** that this clears the current filter.
+    pub fn remove(&mut self, index: usize) -> T {
+        if let Some(list) = &self.filtered {
+            let index = list[index];
+            self.filter_reset();
+            self.items.remove(index)
+        } else {
+            self.filter_reset();
+            self.items.remove(index)
+        }
     }
 
     /// Filters out the underneath list using `context` for that.  
@@ -121,6 +135,13 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     {
         self.items.retain(f);
         self.filter_reset();
+    }
+
+    /// Removes and returns the element at position `index` within the underneath collection.  
+    /// **Note** that this clears the current filter.
+    pub fn full_remove(&mut self, index: usize) -> T {
+        self.filter_reset();
+        self.items.remove(index)
     }
 
     /// Returns an iterator over the underneath collection.

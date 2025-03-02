@@ -1,26 +1,30 @@
+use futures::TryStreamExt;
 use kube::{
-    api::ApiResource,
+    api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
+    runtime::{
+        WatchStreamExt,
+        watcher::{self, Error, Event, watcher},
+    },
 };
 use std::{
+    pin::pin,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::Duration,
 };
 use thiserror;
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
-    time::sleep,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
 use crate::kubernetes::{Namespace, client::KubernetesClient};
 
-use super::{ObserverResult, utils::wait_for_task};
+use super::utils::wait_for_task;
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -28,6 +32,33 @@ pub enum BgObserverError {
     /// Resource was not found in k8s cluster
     #[error("kubernetes resource not found")]
     ResourceNotFound,
+}
+
+/// Background observer result.
+pub struct ObserverResult {
+    pub init: Option<ObserverInitData>,
+    pub object: Option<DynamicObject>,
+    pub is_delete: bool,
+}
+
+/// Data that is returned when [`BgObserver`] starts watching resource.
+pub struct ObserverInitData {
+    pub kind: String,
+    pub kind_plural: String,
+    pub group: String,
+    pub scope: Scope,
+}
+
+impl ObserverInitData {
+    /// Creates new [`ObserverResult`] initial data.
+    pub fn new(kind: String, kind_plural: String, group: String, scope: Scope) -> Self {
+        ObserverInitData {
+            kind,
+            kind_plural,
+            group,
+            scope,
+        }
+    }
 }
 
 /// Background k8s resource observer.
@@ -88,30 +119,39 @@ impl BgObserver {
         let _has_error = Arc::clone(&self.has_error);
 
         let task = tokio::spawn(async move {
-            while !_cancellation_token.is_cancelled() {
-                let resources = _api_client.list(&Default::default()).await;
-                match resources {
-                    Ok(objects) => {
-                        _context_tx
-                            .send(ObserverResult::new(
-                                _kind.clone(),
-                                _kind_plural.clone(),
-                                _group.clone(),
-                                _scope.clone(),
-                                objects,
-                            ))
-                            .unwrap();
-                        _has_error.store(false, Ordering::Relaxed);
-                    }
-                    Err(error) => {
-                        warn!("Cannot observe resource {}: {:?}", _kind_plural, error);
-                        _has_error.store(true, Ordering::Relaxed);
-                    }
-                }
+            let watch = watcher(_api_client, watcher::Config::default()).default_backoff();
+            let mut watch = pin!(watch);
 
+            while !_cancellation_token.is_cancelled() {
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(Duration::from_millis(2_000)) => (),
+                    result = watch.try_next() => {
+                        match result {
+                            Ok(event) => {
+                                if let Some(result) = match event {
+                                    Some(Event::Init) => Some(get_init_result(
+                                        _kind.clone(),
+                                        _kind_plural.clone(),
+                                        _group.clone(),
+                                        _scope.clone())),
+                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(o, false)),
+                                    Some(Event::Delete(o)) => Some(get_result(o, true)),
+                                    _ => None,
+                                } {
+                                    _context_tx.send(result).unwrap();
+                                }
+                                _has_error.store(false, Ordering::Relaxed);
+                            },
+                            Err(error) => {
+                                if let Error::WatchFailed(error) = error {
+                                    warn!("Watch '{}' failed: {:?}", _kind_plural, error);
+                                } else {
+                                    warn!("Watch '{}' error: {:?}", _kind_plural, error);
+                                    _has_error.store(true, Ordering::Relaxed);
+                                }
+                            }
+                        };
+                    },
                 }
             }
         });
@@ -217,5 +257,21 @@ impl BgObserver {
 impl Drop for BgObserver {
     fn drop(&mut self) {
         self.cancel();
+    }
+}
+
+fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> ObserverResult {
+    ObserverResult {
+        init: Some(ObserverInitData::new(kind, kind_plural, group, scope)),
+        object: None,
+        is_delete: false,
+    }
+}
+
+fn get_result(object: DynamicObject, is_delete: bool) -> ObserverResult {
+    ObserverResult {
+        init: None,
+        object: Some(object),
+        is_delete,
     }
 }
