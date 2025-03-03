@@ -15,7 +15,7 @@ pub mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _logging_guard = logging::utils::initialize()?;
+    let _logging_guard = logging::initialize()?;
     info!("{} v{} started", env!("CARGO_CRATE_NAME"), env!("CARGO_PKG_VERSION"));
 
     if let Err(error) = run_application().await {

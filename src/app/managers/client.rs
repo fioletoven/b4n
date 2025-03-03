@@ -1,5 +1,6 @@
 use std::time::Instant;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::warn;
 
 use crate::{
     app::{
@@ -37,18 +38,18 @@ pub struct KubernetesClientManager {
     app_data: SharedAppData,
     worker: SharedBgWorker,
     request: Option<RequestInfo>,
-    messages_tx: UnboundedSender<FooterMessage>,
+    footer_tx: UnboundedSender<FooterMessage>,
     connection_state: StateChangeTracker<bool>,
 }
 
 impl KubernetesClientManager {
     /// Creates new [`KubernetesClientManager`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, messages_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
         Self {
             app_data,
             worker,
             request: None,
-            messages_tx,
+            footer_tx,
             connection_state: StateChangeTracker::new(false),
         }
     }
@@ -60,7 +61,7 @@ impl KubernetesClientManager {
         }
 
         let msg = format!("Requested kubernetes client for '{}'.", context);
-        self.messages_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
+        self.footer_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
         self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 
@@ -91,7 +92,8 @@ impl KubernetesClientManager {
                 self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
 
                 let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
-                self.messages_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
+                warn!("{}", msg);
+                self.footer_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
                 self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
         }
@@ -106,14 +108,16 @@ impl KubernetesClientManager {
         if self.request_match(command_id) {
             match result {
                 Ok(result) => {
+                    self.request = None;
                     let msg = format!("Connected to '{}'.", result.client.context());
-                    self.messages_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
+                    self.footer_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
                     Some(result)
                 }
                 Err(err) => {
                     self.set_request_as_faulty();
                     let msg = format!("Requested client error: {}.", err);
-                    self.messages_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
+                    warn!("{}", msg);
+                    self.footer_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
                     None
                 }
             }

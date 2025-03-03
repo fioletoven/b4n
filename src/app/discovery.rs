@@ -14,7 +14,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::kubernetes::client::KubernetesClient;
+use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterMessage};
 
 use super::utils::wait_for_task;
 
@@ -24,23 +24,24 @@ pub struct BgDiscovery {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<Vec<(ApiResource, ApiCapabilities)>>,
     context_rx: UnboundedReceiver<Vec<(ApiResource, ApiCapabilities)>>,
+    footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
 
-impl Default for BgDiscovery {
-    fn default() -> Self {
+impl BgDiscovery {
+    /// Creates new [`BgDiscovery`] instance.
+    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             task: None,
             cancellation_token: None,
             context_tx,
             context_rx,
+            footer_tx,
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
-}
 
-impl BgDiscovery {
     /// Starts new [`BgDiscovery`] task.
     pub fn start(&mut self, client: &KubernetesClient) {
         if self.cancellation_token.is_some() {
@@ -54,25 +55,36 @@ impl BgDiscovery {
 
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
+        let _footer_tx = self.footer_tx.clone();
 
         let _client = client.get_client();
 
         let task = tokio::spawn(async move {
-            let mut discovery = Discovery::new(_client.clone());
-
+            let mut maybe_discovery = Some(Discovery::new(_client.clone()));
             while !_cancellation_token.is_cancelled() {
-                match discovery.run().await {
-                    Ok(new_discovery) => {
-                        discovery = new_discovery;
-                        _has_error.store(false, Ordering::Relaxed);
-                        _context_tx.send(convert_to_vector(&discovery)).unwrap();
+                if let Some(discovery) = maybe_discovery.take() {
+                    tokio::select! {
+                        _ = _cancellation_token.cancelled() => (),
+                        result = discovery.run() => match result {
+                        Ok(new_discovery) => {
+                            _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
+                            _has_error.store(false, Ordering::Relaxed);
+                            maybe_discovery = Some(new_discovery);
+                        }
+                        Err(error) => {
+                            let msg = format!("Discovery error: {}", error);
+                            warn!("{}", msg);
+                            _footer_tx.send(FooterMessage::error(msg, 5_000)).unwrap();
+                            _has_error.store(true, Ordering::Relaxed);
+                            maybe_discovery = Some(Discovery::new(_client.clone()));
+                        }
+                    },
                     }
-                    Err(error) => {
-                        warn!("Cannot run discovery: {:?}", error);
-                        _has_error.store(true, Ordering::Relaxed);
-                        discovery = Discovery::new(_client.clone());
-                    }
-                };
+                }
+
+                if maybe_discovery.is_none() {
+                    break;
+                }
 
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),

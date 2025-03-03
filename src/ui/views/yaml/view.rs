@@ -23,7 +23,7 @@ pub struct YamlView {
     lines: Vec<String>,
     command_id: Option<String>,
     command_palette: CommandPalette,
-    messages_tx: UnboundedSender<FooterMessage>,
+    footer_tx: UnboundedSender<FooterMessage>,
 }
 
 impl YamlView {
@@ -34,7 +34,7 @@ impl YamlView {
         name: String,
         namespace: Namespace,
         kind_plural: String,
-        messages_tx: UnboundedSender<FooterMessage>,
+        footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
         let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural);
 
@@ -44,7 +44,7 @@ impl YamlView {
             lines: Vec::new(),
             command_id,
             command_palette: CommandPalette::default(),
-            messages_tx,
+            footer_tx,
         }
     }
 
@@ -52,7 +52,7 @@ impl YamlView {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
         if let Ok(mut ctx) = result {
             if ctx.set_contents(self.lines.join("")).is_ok() {
-                self.messages_tx
+                self.footer_tx
                     .send(FooterMessage::info(
                         " YAML content copied to the clipboard…".to_owned(),
                         1_500,

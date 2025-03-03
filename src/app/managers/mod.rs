@@ -1,3 +1,3 @@
-pub use self::client_manager::*;
+pub use self::client::*;
 
-mod client_manager;
+mod client;

@@ -22,7 +22,10 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
-use crate::kubernetes::{Namespace, client::KubernetesClient};
+use crate::{
+    kubernetes::{Namespace, client::KubernetesClient},
+    ui::widgets::FooterMessage,
+};
 
 use super::utils::wait_for_task;
 
@@ -70,11 +73,13 @@ pub struct BgObserver {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<ObserverResult>,
     context_rx: UnboundedReceiver<ObserverResult>,
+    footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
 
-impl Default for BgObserver {
-    fn default() -> Self {
+impl BgObserver {
+    /// Creates new [`BgObserver`] instance.
+    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: String::new(),
@@ -84,6 +89,7 @@ impl Default for BgObserver {
             cancellation_token: None,
             context_tx,
             context_rx,
+            footer_tx,
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -117,6 +123,7 @@ impl BgObserver {
 
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
+        let _footer_tx = self.footer_tx.clone();
 
         let task = tokio::spawn(async move {
             let watch = watcher(_api_client, watcher::Config::default()).default_backoff();
@@ -143,11 +150,12 @@ impl BgObserver {
                                 _has_error.store(false, Ordering::Relaxed);
                             },
                             Err(error) => {
-                                if let Error::WatchFailed(error) = error {
-                                    warn!("Watch '{}' failed: {:?}", _kind_plural, error);
-                                } else {
-                                    warn!("Watch '{}' error: {:?}", _kind_plural, error);
-                                    _has_error.store(true, Ordering::Relaxed);
+                                let msg = format!("Watch {}: {}", _kind_plural, error);
+                                warn!("{}", msg);
+                                _footer_tx.send(FooterMessage::error(msg, 5_000)).unwrap();
+                                match error {
+                                    Error::WatchFailed(_) => (), // WatchFailed do not trigger Init, so we do not set _has_error.
+                                    _ =>_has_error.store(true, Ordering::Relaxed),
                                 }
                             }
                         };
