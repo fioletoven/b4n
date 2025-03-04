@@ -152,7 +152,7 @@ impl BgObserver {
                             Err(error) => {
                                 let msg = format!("Watch {}: {}", _kind_plural, error);
                                 warn!("{}", msg);
-                                _footer_tx.send(FooterMessage::error(msg, 5_000)).unwrap();
+                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
                                 match error {
                                     Error::WatchFailed(_) => (), // WatchFailed do not trigger Init, so we do not set _has_error.
                                     _ =>_has_error.store(true, Ordering::Relaxed),

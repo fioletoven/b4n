@@ -9,6 +9,8 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use crate::app::SharedAppData;
 
+const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
+
 /// Footer message to show.
 pub struct FooterMessage {
     pub text: String,
@@ -22,7 +24,7 @@ impl FooterMessage {
         Self {
             text,
             is_error: false,
-            duration,
+            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
         }
     }
 
@@ -31,7 +33,7 @@ impl FooterMessage {
         Self {
             text,
             is_error: true,
-            duration,
+            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
         }
     }
 }

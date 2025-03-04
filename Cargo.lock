@@ -157,6 +157,7 @@ name = "b4n"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "backoff",
  "clap",
  "clipboard",
  "crossterm",

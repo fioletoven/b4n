@@ -12,6 +12,8 @@ use crate::{
     ui::widgets::FooterMessage,
 };
 
+const ERROR_DURATION: u16 = 10_000;
+
 /// Kubernetes client request data.
 struct RequestInfo {
     request_time: Instant,
@@ -93,7 +95,7 @@ impl KubernetesClientManager {
 
                 let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
                 warn!("{}", msg);
-                self.footer_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
+                self.footer_tx.send(FooterMessage::error(msg, ERROR_DURATION)).unwrap();
                 self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
         }
@@ -117,7 +119,7 @@ impl KubernetesClientManager {
                     self.set_request_as_faulty();
                     let msg = format!("Requested client error: {}.", err);
                     warn!("{}", msg);
-                    self.footer_tx.send(FooterMessage::error(msg, 10_000)).unwrap();
+                    self.footer_tx.send(FooterMessage::error(msg, ERROR_DURATION)).unwrap();
                     None
                 }
             }

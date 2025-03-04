@@ -1,3 +1,4 @@
+use backoff::{ExponentialBackoffBuilder, backoff::Backoff};
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::{
     sync::{
@@ -17,6 +18,8 @@ use tracing::warn;
 use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterMessage};
 
 use super::utils::wait_for_task;
+
+const DISCOVERY_INTERVAL: u64 = 6_000;
 
 /// Background Kubernetes API discovery.
 pub struct BgDiscovery {
@@ -60,25 +63,38 @@ impl BgDiscovery {
         let _client = client.get_client();
 
         let task = tokio::spawn(async move {
+            let mut backoff = ExponentialBackoffBuilder::new()
+                .with_initial_interval(Duration::from_millis(800))
+                .with_max_interval(Duration::from_secs(30))
+                .with_randomization_factor(1.0)
+                .with_multiplier(2.0)
+                .with_max_elapsed_time(None)
+                .build();
+            let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
+
             let mut maybe_discovery = Some(Discovery::new(_client.clone()));
             while !_cancellation_token.is_cancelled() {
                 if let Some(discovery) = maybe_discovery.take() {
                     tokio::select! {
                         _ = _cancellation_token.cancelled() => (),
                         result = discovery.run() => match result {
-                        Ok(new_discovery) => {
-                            _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
-                            _has_error.store(false, Ordering::Relaxed);
-                            maybe_discovery = Some(new_discovery);
-                        }
-                        Err(error) => {
-                            let msg = format!("Discovery error: {}", error);
-                            warn!("{}", msg);
-                            _footer_tx.send(FooterMessage::error(msg, 5_000)).unwrap();
-                            _has_error.store(true, Ordering::Relaxed);
-                            maybe_discovery = Some(Discovery::new(_client.clone()));
-                        }
-                    },
+                            Ok(new_discovery) => {
+                                _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
+                                _has_error.store(false, Ordering::Relaxed);
+                                maybe_discovery = Some(new_discovery);
+                                next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
+                            }
+                            Err(error) => {
+                                let msg = format!("Discovery error: {}", error);
+                                warn!("{}", msg);
+                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+                                if !_has_error.swap(true, Ordering::Relaxed) || backoff.start_time.elapsed().as_secs() > 120 {
+                                    backoff.reset();
+                                }
+                                maybe_discovery = Some(Discovery::new(_client.clone()));
+                                next_interval = backoff.next_backoff().unwrap_or(Duration::from_millis(DISCOVERY_INTERVAL));
+                            }
+                        },
                     }
                 }
 
@@ -88,7 +104,7 @@ impl BgDiscovery {
 
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(Duration::from_millis(6_000)) => (),
+                    _ = sleep(next_interval) => (),
                 }
             }
         });

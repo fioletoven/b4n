@@ -1,6 +1,7 @@
 use anyhow::Result;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
+use tracing::warn;
 
 use crate::{
     kubernetes::{NAMESPACES, Namespace},
@@ -355,12 +356,12 @@ impl App {
             return;
         }
 
-        if result.is_err() {
+        if let Err(error) = result {
             self.view = None;
-            return;
-        }
-
-        if let Some(view) = &mut self.view {
+            let msg = format!("View YAML error: {}", error);
+            warn!("{}", msg);
+            self.footer.send_message(FooterMessage::error(msg, 0));
+        } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::ResourceYaml(result));
         }
     }
