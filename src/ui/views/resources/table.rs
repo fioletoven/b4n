@@ -123,7 +123,7 @@ impl ResourcesTable {
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: ObserverResult) {
+    pub fn update_resources_list(&mut self, result: Box<ObserverResult>) {
         if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();

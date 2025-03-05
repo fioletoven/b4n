@@ -23,7 +23,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
 use crate::{
-    kubernetes::{Namespace, client::KubernetesClient},
+    kubernetes::{Namespace, client::KubernetesClient, resources::Resource},
     ui::widgets::FooterMessage,
 };
 
@@ -40,7 +40,7 @@ pub enum BgObserverError {
 /// Background observer result.
 pub struct ObserverResult {
     pub init: Option<ObserverInitData>,
-    pub object: Option<DynamicObject>,
+    pub object: Option<Resource>,
     pub is_delete: bool,
 }
 
@@ -71,8 +71,8 @@ pub struct BgObserver {
     scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<ObserverResult>,
-    context_rx: UnboundedReceiver<ObserverResult>,
+    context_tx: UnboundedSender<Box<ObserverResult>>,
+    context_rx: UnboundedReceiver<Box<ObserverResult>>,
     footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
@@ -141,8 +141,8 @@ impl BgObserver {
                                         _kind_plural.clone(),
                                         _group.clone(),
                                         _scope.clone())),
-                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(o, false)),
-                                    Some(Event::Delete(o)) => Some(get_result(o, true)),
+                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(&_kind, o, false)),
+                                    Some(Event::Delete(o)) => Some(get_result(&_kind, o, true)),
                                     _ => None,
                                 } {
                                     _context_tx.send(result).unwrap();
@@ -242,7 +242,7 @@ impl BgObserver {
     }
 
     /// Tries to get next [`ObserverResult`].
-    pub fn try_next(&mut self) -> Option<ObserverResult> {
+    pub fn try_next(&mut self) -> Option<Box<ObserverResult>> {
         self.context_rx.try_recv().ok()
     }
 
@@ -268,18 +268,18 @@ impl Drop for BgObserver {
     }
 }
 
-fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> ObserverResult {
-    ObserverResult {
+fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> Box<ObserverResult> {
+    Box::new(ObserverResult {
         init: Some(ObserverInitData::new(kind, kind_plural, group, scope)),
         object: None,
         is_delete: false,
-    }
+    })
 }
 
-fn get_result(object: DynamicObject, is_delete: bool) -> ObserverResult {
-    ObserverResult {
+fn get_result(kind: &str, object: DynamicObject, is_delete: bool) -> Box<ObserverResult> {
+    Box::new(ObserverResult {
         init: None,
-        object: Some(object),
+        object: Some(Resource::from(kind, object)),
         is_delete,
-    }
+    })
 }

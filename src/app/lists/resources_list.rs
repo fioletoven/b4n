@@ -48,7 +48,7 @@ impl ResourcesList {
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
     /// Returns `true` if the kind was also changed during the update.
-    pub fn update(&mut self, result: ObserverResult) -> bool {
+    pub fn update(&mut self, result: Box<ObserverResult>) -> bool {
         let (mut sort_by, mut is_descending) = self.header.sort_info();
         if self.update_kind(result.init) {
             (sort_by, is_descending) = self.header.sort_info();
@@ -57,7 +57,7 @@ impl ResourcesList {
             true
         } else {
             if let Some(resource) = result.object {
-                self.update_list(Resource::from(&self.kind, resource), result.is_delete);
+                self.update_list(resource, result.is_delete);
             }
             self.sort_internal_list(sort_by, is_descending);
             false
