@@ -1,5 +1,7 @@
 use rstest::rstest;
 
+use crate::kubernetes::resources::data;
+
 use super::*;
 
 #[rstest]
@@ -83,7 +85,7 @@ fn get_text_pod_test() {
 
     let terminal_width = 100;
 
-    let mut header = pod::header();
+    let mut header = data::pod::header();
     header.set_data_length(0, 11);
     header.set_data_length(1, 39);
     header.set_data_length(2, 3);

@@ -9,65 +9,11 @@ use crate::{
     utils::truncate,
 };
 
-use super::{default, pod, service};
+use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
 mod resource_tests;
-
-/// Value for the resource extra data.
-pub struct ResourceValue {
-    pub text: Option<String>,
-    pub number: Option<String>,
-    pub is_numeric: bool,
-}
-
-impl ResourceValue {
-    /// Creates new [`ResourceValue`] instance as a numeric value.
-    pub fn numeric(value: Option<impl Into<String>>, len: usize) -> ResourceValue {
-        let text = value.map(|v| v.into());
-        let numeric = text.as_deref().map(|v| format!("{0:0>1$}", v, len));
-        ResourceValue {
-            text,
-            number: numeric,
-            is_numeric: true,
-        }
-    }
-}
-
-impl From<Option<String>> for ResourceValue {
-    fn from(value: Option<String>) -> Self {
-        ResourceValue {
-            text: value,
-            number: None,
-            is_numeric: false,
-        }
-    }
-}
-
-/// Extra data for the kubernetes resource.
-pub struct ResourceData {
-    pub is_job: bool,
-    pub is_completed: bool,
-    pub is_ready: bool,
-    pub is_terminating: bool,
-    pub extra_values: Box<[ResourceValue]>,
-}
-
-impl ResourceData {
-    /// Returns [`TextColors`] for the current resource state.
-    fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
-        if self.is_completed {
-            theme.colors.line.completed.get_specific(is_active, is_selected)
-        } else if self.is_terminating {
-            theme.colors.line.terminating.get_specific(is_active, is_selected)
-        } else if self.is_ready {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
-        } else {
-            theme.colors.line.in_progress.get_specific(is_active, is_selected)
-        }
-    }
-}
 
 /// Represents kubernetes resource of any kind.
 pub struct Resource {
@@ -98,11 +44,7 @@ impl Resource {
 
     /// Creates [`Resource`] from kubernetes [`DynamicObject`].
     pub fn from(kind: &str, object: DynamicObject) -> Self {
-        let data = match kind {
-            "Pod" => Some(pod::data(&object)),
-            "Service" => Some(service::data(&object)),
-            _ => Some(default::data(&object)),
-        };
+        let data = Some(get_resource_data(kind, &object));
 
         Self {
             age: object.creation_timestamp().as_ref().map(|t| t.0.timestamp().to_string()),
@@ -118,11 +60,7 @@ impl Resource {
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str) -> Header {
-        match kind {
-            "Pod" => pod::header(),
-            "Service" => service::header(),
-            _ => default::header(),
-        }
+        get_header_data(kind)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
