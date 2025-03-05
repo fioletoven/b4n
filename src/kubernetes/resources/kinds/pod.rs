@@ -14,6 +14,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let phase = status["phase"].as_str().map(|s| s.to_owned());
     let restarts = status["containerStatuses"].as_array().map(|c| get_restarts(c));
     let is_completed = if let Some(ph) = &phase { ph == "Succeeded" } else { false };
+    let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let ready_str;
     let is_ready;
@@ -24,13 +25,6 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         ready_str = None;
         is_ready = false;
     }
-
-    let is_terminating = !is_ready
-        && !is_completed
-        && status["containerStatuses"]
-            .as_array()
-            .map(|c| any_terminated(c))
-            .unwrap_or(false);
 
     let values = [
         ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
@@ -47,7 +41,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         extra_values: Box::new(values),
         is_job: has_job_reference(object),
         is_completed,
-        is_ready,
+        is_ready: if is_terminating { false } else { is_ready },
         is_terminating,
     }
 }
@@ -77,10 +71,6 @@ fn get_ready(containers: &[Value]) -> (String, bool) {
     let ready = containers.iter().filter(|c| c["ready"].as_bool().unwrap_or_default()).count();
 
     (format!("{}/{}", ready, containers.len()), ready == containers.len())
-}
-
-fn any_terminated(containers: &[Value]) -> bool {
-    containers.iter().any(|c| c.get("terminated").is_some())
 }
 
 fn has_job_reference(object: &DynamicObject) -> bool {

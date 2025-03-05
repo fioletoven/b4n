@@ -1,15 +1,15 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{ResourceExt, api::DynamicObject};
-use std::{collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use crate::{
-    app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, NAMESPACE, Row},
+    app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
     utils::truncate,
 };
 
-use super::{pod, service};
+use super::{default, pod, service};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -59,10 +59,10 @@ impl ResourceData {
     fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {
             theme.colors.line.completed.get_specific(is_active, is_selected)
-        } else if self.is_ready {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
         } else if self.is_terminating {
             theme.colors.line.terminating.get_specific(is_active, is_selected)
+        } else if self.is_ready {
+            theme.colors.line.ready.get_specific(is_active, is_selected)
         } else {
             theme.colors.line.in_progress.get_specific(is_active, is_selected)
         }
@@ -101,7 +101,7 @@ impl Resource {
         let data = match kind {
             "Pod" => Some(pod::data(&object)),
             "Service" => Some(service::data(&object)),
-            _ => None,
+            _ => Some(default::data(&object)),
         };
 
         Self {
@@ -121,7 +121,7 @@ impl Resource {
         match kind {
             "Pod" => pod::header(),
             "Service" => service::header(),
-            _ => Header::from(NAMESPACE.clone(), None, Rc::new([' ', 'N', 'A'])),
+            _ => default::header(),
         }
     }
 
