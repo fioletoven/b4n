@@ -340,6 +340,7 @@ impl App {
             self.resources.kind_plural(),
             self.data.borrow().get_syntax_data(),
         );
+
         self.view = Some(Box::new(YamlView::new(
             Rc::clone(&self.data),
             command_id,

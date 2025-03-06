@@ -1,5 +1,21 @@
 use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
-use kube::{api::ApiResource, discovery::ApiCapabilities};
+use kube::{
+    ResourceExt,
+    api::{ApiResource, DynamicObject},
+    discovery::ApiCapabilities,
+};
+
+/// Serializes kubernetes resource to YAML.
+pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_yaml::Error> {
+    resource.managed_fields_mut().clear();
+    let mut yaml = serde_yaml::to_string(resource)?;
+
+    if let Some(index) = yaml.find("\n  managedFields: []\n") {
+        yaml.replace_range(index + 1..index + 21, "");
+    }
+
+    Ok(yaml)
+}
 
 /// Formats kubernetes timestamp to a human-readable string.
 pub fn format_timestamp(time: &Time) -> String {

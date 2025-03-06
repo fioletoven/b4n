@@ -16,6 +16,7 @@ use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
 mod resource_tests;
 
 /// Represents kubernetes resource of any kind.
+#[derive(Default)]
 pub struct Resource {
     pub uid: Option<String>,
     pub name: String,
@@ -33,12 +34,7 @@ impl Resource {
         Self {
             uid: Some(format!("_{}_", name)),
             name: name.to_owned(),
-            namespace: None,
-            age: None,
-            creation_timestamp: None,
-            labels: None,
-            annotations: None,
-            data: None,
+            ..Default::default()
         }
     }
 

@@ -1,5 +1,5 @@
 use kube::{
-    Client, ResourceExt,
+    Client,
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, verbs},
 };
@@ -8,13 +8,13 @@ use syntect::easy::HighlightLines;
 
 use crate::{
     app::SyntaxData,
-    kubernetes::{self, Namespace},
+    kubernetes::{self, Namespace, utils},
     ui::colors::from_syntect_color,
 };
 
 use super::CommandResult;
 
-/// Possible errors when fetching resources YAML.
+/// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]
 pub enum ResourceYamlError {
     /// Get is not supported for the specified resource.
@@ -42,7 +42,7 @@ pub enum ResourceYamlError {
     HighlightingTaskError(#[from] tokio::task::JoinError),
 }
 
-/// Result for the [`GetYamlCommand`].
+/// Result for the [`GetResourceYamlCommand`] command.
 pub struct ResourceYamlResult {
     pub name: String,
     pub namespace: Namespace,
@@ -51,7 +51,7 @@ pub struct ResourceYamlResult {
     pub styled: Vec<Vec<(Style, String)>>,
 }
 
-/// Command that returns YAML representation of a specified kubernetes resource.
+/// Command that gets a specified resource from the kubernetes API and then styles it.  
 pub struct GetResourceYamlCommand {
     pub name: String,
     pub namespace: Namespace,
@@ -61,7 +61,7 @@ pub struct GetResourceYamlCommand {
 }
 
 impl GetResourceYamlCommand {
-    /// Creates new [`GetYamlCommand`] instance.
+    /// Creates new [`GetResourceYamlCommand`] instance.
     pub fn new(
         name: String,
         namespace: Namespace,
@@ -96,14 +96,14 @@ impl GetResourceYamlCommand {
 
         match client.get(&self.name).await {
             Ok(resource) => Some(CommandResult::ResourceYaml(
-                style_resources_yaml(resource, self.syntax, self.name, self.namespace, plural).await,
+                style_resource(resource, self.syntax, self.name, self.namespace, plural).await,
             )),
             Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
     }
 }
 
-async fn style_resources_yaml(
+async fn style_resource(
     mut resource: DynamicObject,
     data: SyntaxData,
     name: String,
@@ -111,18 +111,13 @@ async fn style_resources_yaml(
     kind_plural: String,
 ) -> Result<ResourceYamlResult, ResourceYamlError> {
     tokio::task::spawn_blocking(move || {
-        resource.managed_fields_mut().clear();
-        let mut yaml = serde_yaml::to_string(&resource)?;
-
-        if let Some(index) = yaml.find("\n  managedFields: []\n") {
-            yaml.replace_range(index + 1..index + 21, "");
-        }
-
+        let yaml = utils::serialize_resource(&mut resource)?;
         let lines = yaml.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
         let syntax = data
             .syntax_set
             .find_syntax_by_extension("yaml")
             .ok_or(ResourceYamlError::SyntaxNotFound)?;
+
         let mut h = HighlightLines::new(syntax, &data.yaml_theme);
 
         let styled = lines
@@ -146,6 +141,7 @@ async fn style_resources_yaml(
     .await?
 }
 
+#[inline]
 fn convert_style(style: syntect::highlighting::Style) -> Style {
     Style::default()
         .fg(from_syntect_color(style.foreground))

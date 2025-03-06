@@ -6,7 +6,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{ObserverInitData, ObserverResult},
     kubernetes::{
-        ALL_NAMESPACES, NAMESPACES,
+        ALL_NAMESPACES, NAMESPACES, Namespace,
         resources::{Resource, ResourceFilterContext},
     },
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
@@ -67,6 +67,16 @@ impl ResourcesList {
     /// Gets highlighted resource.
     pub fn get_highlighted_resource(&self) -> Option<&Resource> {
         self.list.get_highlighted_item().map(|i| &i.data)
+    }
+
+    /// Gets specific resource.
+    pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource> {
+        self.list.items.as_ref().and_then(|items| {
+            items
+                .full_iter()
+                .find(|i| i.data.name == name && i.data.namespace.as_deref() == namespace.as_option())
+                .map(|i| &i.data)
+        })
     }
 
     /// Gets the widths for namespace and name columns together with extra space for the name column.

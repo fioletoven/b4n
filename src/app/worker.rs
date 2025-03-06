@@ -167,7 +167,7 @@ impl BgWorker {
         }
     }
 
-    /// Sends [`GetYamlCommand`] to the background executor.
+    /// Sends [`GetResourceYamlCommand`] to the background executor.
     pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &str, syntax: SyntaxData) -> Option<String> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
@@ -191,12 +191,12 @@ impl BgWorker {
     }
 
     /// Returns first waiting command result from the background executor.
-    pub fn check_command_result(&mut self) -> Option<TaskResult> {
+    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
         self.executor.try_next()
     }
 
     /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
+    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
         let mut commands = Vec::new();
         while let Some(command) = self.check_command_result() {
             commands.push(command);
