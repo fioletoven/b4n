@@ -1,3 +1,5 @@
+pub mod logical_expressions;
+
 use sha1::{Digest, Sha1};
 
 /// Truncates a string slice to the new length.
