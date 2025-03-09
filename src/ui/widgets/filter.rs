@@ -1,5 +1,4 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use delegate::delegate;
 use ratatui::{
     layout::{Constraint, Direction, Flex, Layout, Rect},
     style::Style,
@@ -27,14 +26,15 @@ pub struct Filter {
     current: String,
     width: u16,
     last_validated: String,
-    error_index: Option<usize>,
 }
 
 impl Filter {
     /// Creates new [`Filter`] instance.
     pub fn new(app_data: SharedAppData, width: u16) -> Self {
-        let input = Input::new(&app_data.borrow().config.theme.colors.filter.input, true)
-            .with_prompt(" ", &app_data.borrow().config.theme.colors.filter.prompt);
+        let input = Input::new(app_data.borrow().config.theme.colors.filter.input, true)
+            .with_prompt(" ", app_data.borrow().config.theme.colors.filter.prompt)
+            .with_error_colors(app_data.borrow().config.theme.colors.filter.error)
+            .with_accent_characters("|+&()");
 
         Self {
             app_data,
@@ -44,22 +44,18 @@ impl Filter {
         }
     }
 
-    delegate! {
-        to self.input {
-            pub fn set_prompt<Str: Into<String>, Sty: Into<Style>>(&mut self, prompt: Option<(Str, Sty)>);
-            pub fn set_prompt_style(&mut self, style: impl Into<Style>);
-            pub fn set_prompt_text(&mut self, text: impl Into<String>);
-            pub fn set_style(&mut self, style: impl Into<Style>);
-            pub fn set_cursor(&mut self, show_cursor: bool);
-            pub fn value(&self) -> &str;
-        }
+    /// Returns the filter value.
+    pub fn value(&self) -> &str {
+        self.input.value()
     }
 
     /// Marks [`Filter`] as a visible.
     pub fn show(&mut self) {
-        self.input.set_style(&self.app_data.borrow().config.theme.colors.filter.input);
+        self.input.set_colors(self.app_data.borrow().config.theme.colors.filter.input);
         self.input
-            .set_prompt_style(&self.app_data.borrow().config.theme.colors.filter.prompt);
+            .set_prompt_colors(self.app_data.borrow().config.theme.colors.filter.prompt);
+        self.input
+            .set_error_colors(self.app_data.borrow().config.theme.colors.filter.error);
         self.is_visible = true;
     }
 
@@ -94,11 +90,13 @@ impl Filter {
 
         if let Err(error) = validate(self.input.value()) {
             match error {
-                ParserError::ExpectedOperator(index) => self.error_index = Some(index),
-                ParserError::ExpectedValue(index) => self.error_index = Some(index),
-                ParserError::UnexpectedClosingBracket(index) => self.error_index = Some(index),
-                ParserError::ExpectedClosingBracket(index) => self.error_index = Some(index),
+                ParserError::ExpectedOperator(index) => self.input.set_error(Some(index)),
+                ParserError::ExpectedValue(index) => self.input.set_error(Some(index)),
+                ParserError::UnexpectedClosingBracket(index) => self.input.set_error(Some(index)),
+                ParserError::ExpectedClosingBracket(index) => self.input.set_error(Some(index)),
             }
+        } else {
+            self.input.set_error(None);
         }
 
         self.last_validated = self.input.value().to_owned();

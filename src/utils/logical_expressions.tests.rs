@@ -46,6 +46,12 @@ fn expected_operator_test() {
 }
 
 #[test]
+#[should_panic(expected = "ExpectedOperator(14)")]
+fn expected_operator_2_test() {
+    expand("a + ( b + c ) d").unwrap();
+}
+
+#[test]
 #[should_panic(expected = "UnexpectedClosingBracket(2)")]
 fn no_opening_bracket_test() {
     expand("a ) ( b + c )").unwrap();

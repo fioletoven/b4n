@@ -111,10 +111,10 @@ impl Widget for &mut HeaderWidget<'_> {
     {
         let x = area.left() + 1;
         let y = area.top();
-        let width = buf.area.width - 1;
+        let max_x = area.left() + buf.area.width - 1;
 
         buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
-        buf[(width, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
+        buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;
@@ -122,7 +122,7 @@ impl Widget for &mut HeaderWidget<'_> {
 
         for (i, char) in self.header.chars().enumerate() {
             let x = x + i as u16;
-            if x >= width {
+            if x >= max_x {
                 break;
             }
 

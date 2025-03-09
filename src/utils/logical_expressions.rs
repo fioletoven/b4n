@@ -229,6 +229,10 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, ParserError> {
             ')' => Some(Token::Close),
             ' ' => None,
             _ => {
+                if has_close {
+                    return Err(ParserError::ExpectedOperator(index));
+                }
+
                 has_value = true;
                 None
             }

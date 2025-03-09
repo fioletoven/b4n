@@ -39,7 +39,7 @@ tui-input = { version = "0.11" }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
-rstest = { version = "0.24" }
+rstest = { version = "0.25" }
 
 [build-dependencies]
 syntect = { version = "5.2" }
