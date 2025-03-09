@@ -1,75 +1,25 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use kube::{ResourceExt, api::DynamicObject};
-use std::{collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use crate::{
-    app::lists::{FilterContext, Filterable, Header, NAMESPACE, Row},
+    app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
-    utils::truncate,
+    utils::{
+        logical_expressions::{MatchExtensions, expand},
+        truncate,
+    },
 };
 
-use super::{pod, service};
+use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
 mod resource_tests;
 
-/// Value for the resource extra data.
-pub struct ResourceValue {
-    pub text: Option<String>,
-    pub number: Option<String>,
-    pub is_numeric: bool,
-}
-
-impl ResourceValue {
-    /// Creates new [`ResourceValue`] instance as a numeric value.
-    pub fn numeric(value: Option<impl Into<String>>, len: usize) -> ResourceValue {
-        let text = value.map(|v| v.into());
-        let numeric = text.as_deref().map(|v| format!("{0:0>1$}", v, len));
-        ResourceValue {
-            text,
-            number: numeric,
-            is_numeric: true,
-        }
-    }
-}
-
-impl From<Option<String>> for ResourceValue {
-    fn from(value: Option<String>) -> Self {
-        ResourceValue {
-            text: value,
-            number: None,
-            is_numeric: false,
-        }
-    }
-}
-
-/// Extra data for the kubernetes resource.
-pub struct ResourceData {
-    pub is_job: bool,
-    pub is_completed: bool,
-    pub is_ready: bool,
-    pub is_terminating: bool,
-    pub extra_values: Box<[ResourceValue]>,
-}
-
-impl ResourceData {
-    /// Returns [`TextColors`] for the current resource state.
-    fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
-        if self.is_completed {
-            theme.colors.line.completed.get_specific(is_active, is_selected)
-        } else if self.is_ready {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
-        } else if self.is_terminating {
-            theme.colors.line.terminating.get_specific(is_active, is_selected)
-        } else {
-            theme.colors.line.in_progress.get_specific(is_active, is_selected)
-        }
-    }
-}
-
 /// Represents kubernetes resource of any kind.
+#[derive(Default)]
 pub struct Resource {
     pub uid: Option<String>,
     pub name: String,
@@ -87,22 +37,13 @@ impl Resource {
         Self {
             uid: Some(format!("_{}_", name)),
             name: name.to_owned(),
-            namespace: None,
-            age: None,
-            creation_timestamp: None,
-            labels: None,
-            annotations: None,
-            data: None,
+            ..Default::default()
         }
     }
 
     /// Creates [`Resource`] from kubernetes [`DynamicObject`].
     pub fn from(kind: &str, object: DynamicObject) -> Self {
-        let data = match kind {
-            "Pod" => Some(pod::data(&object)),
-            "Service" => Some(service::data(&object)),
-            _ => None,
-        };
+        let data = Some(get_resource_data(kind, &object));
 
         Self {
             age: object.creation_timestamp().as_ref().map(|t| t.0.timestamp().to_string()),
@@ -118,11 +59,7 @@ impl Resource {
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str) -> Header {
-        match kind {
-            "Pod" => pod::header(),
-            "Service" => service::header(),
-            _ => Header::from(NAMESPACE.clone(), None, Rc::new([' ', 'N', 'A'])),
-        }
+        get_header_data(kind)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
@@ -136,76 +73,66 @@ impl Resource {
 
     /// Builds and returns the whole row of values for this kubernetes resource.
     pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
-        let text = match view {
-            ViewType::Name => self.get_name(width),
-            ViewType::Compact => self.get_compact_text(&self.get_inner_text(header), name_width),
-            ViewType::Full => self.get_full_text(&self.get_inner_text(header), namespace_width, name_width),
+        let mut row = String::with_capacity(width + 2);
+        match view {
+            ViewType::Name => row.push_cell(&self.name, width, false),
+            ViewType::Compact => self.get_compact_text(&mut row, header, name_width),
+            ViewType::Full => self.get_full_text(&mut row, header, namespace_width, name_width),
         };
 
-        if text.chars().count() > width {
-            truncate(text.as_str(), width).to_owned()
+        if row.chars().count() > width {
+            truncate(row.as_str(), width).to_owned()
         } else {
-            text
+            row
         }
     }
 
-    fn get_compact_text(&self, inner_text: &str, name_width: usize) -> String {
-        format!(
-            "{1:<0$} {2} {3:>7}",
-            name_width,
-            truncate(self.name.as_str(), name_width),
-            inner_text,
+    fn get_compact_text(&self, row: &mut String, header: &Header, name_width: usize) {
+        row.push_cell(&self.name, name_width, false);
+        row.push(' ');
+        self.push_inner_text(row, header);
+        row.push(' ');
+        row.push_cell(
             self.creation_timestamp
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or("n/a")
-        )
+                .unwrap_or("n/a"),
+            AGE_COLUMN_WIDTH + 1,
+            true,
+        );
     }
 
-    fn get_full_text(&self, inner_text: &str, namespace_width: usize, name_width: usize) -> String {
-        format!(
-            "{1:<0$} {3:<2$} {4} {5:>7}",
-            namespace_width,
-            truncate(self.namespace.as_deref().unwrap_or("n/a"), namespace_width),
-            name_width,
-            truncate(self.name.as_str(), name_width),
-            inner_text,
-            self.creation_timestamp
-                .as_ref()
-                .map(kubernetes::utils::format_timestamp)
-                .as_deref()
-                .unwrap_or("n/a")
-        )
+    fn get_full_text(&self, row: &mut String, header: &Header, namespace_width: usize, name_width: usize) {
+        row.push_cell(self.namespace.as_deref().unwrap_or("n/a"), namespace_width, false);
+        row.push(' ');
+        self.get_compact_text(row, header, name_width);
     }
 
-    fn get_inner_text(&self, header: &Header) -> String {
+    fn push_inner_text(&self, row: &mut String, header: &Header) {
         let Some(values) = self.get_extra_values() else {
-            return String::new();
+            return;
         };
         let Some(columns) = header.get_extra_columns() else {
-            return String::new();
+            return;
         };
         if values.len() != columns.len() {
-            return String::new();
+            return;
         }
 
-        let text_len = columns.iter().map(|c| c.max_len() + 1).sum::<usize>();
-        let mut text = String::with_capacity(text_len * 2);
         for i in 0..columns.len() {
             if i > 0 {
-                text.push(' ');
+                row.push(' ');
             }
 
-            let mut len = columns[i].data_len;
-            if !columns[i].is_fixed {
-                len = columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len());
-            }
+            let len = if columns[i].is_fixed {
+                columns[i].data_len
+            } else {
+                columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len())
+            };
 
-            text.push_row(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
+            row.push_cell(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
         }
-
-        text
     }
 
     fn get_extra_values(&self) -> Option<&[ResourceValue]> {
@@ -271,7 +198,7 @@ impl Row for Resource {
 /// Filtering context for [`Resource`].
 pub struct ResourceFilterContext {
     pattern: String,
-    is_extended: bool,
+    extended: Option<Vec<Vec<String>>>,
 }
 
 impl FilterContext for ResourceFilterContext {
@@ -282,9 +209,22 @@ impl FilterContext for ResourceFilterContext {
 
 impl Filterable<ResourceFilterContext> for Resource {
     fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
+        let extended = if let Some(settings) = settings {
+            if settings.contains('e') {
+                match expand(pattern) {
+                    Ok(expanded) => Some(expanded),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         ResourceFilterContext {
             pattern: pattern.to_owned(),
-            is_extended: settings.is_some(),
+            extended,
         }
     }
 
@@ -292,32 +232,30 @@ impl Filterable<ResourceFilterContext> for Resource {
     /// **Note** that currently it has only a switch for normal/extended filtering.
     /// Extended filtering is when [`Some`] is provided in settings.
     fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
-        if context.is_extended {
-            self.name.contains(&context.pattern)
-                || any(self.labels.as_ref(), &context.pattern)
-                || any(self.annotations.as_ref(), &context.pattern)
+        if let Some(extended) = &context.extended {
+            self.name.is_matching(extended) || any(self.labels.as_ref(), extended) || any(self.annotations.as_ref(), extended)
         } else {
             self.name.contains(&context.pattern)
         }
     }
 }
 
-fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
+fn any(tree: Option<&BTreeMap<String, String>>, expression: &[Vec<String>]) -> bool {
     let Some(tree) = tree else {
         return false;
     };
 
-    tree.keys().any(|k| k.contains(pattern)) || tree.values().any(|v| v.contains(pattern))
+    tree.keys().any(|k| k.is_matching(expression)) || tree.values().any(|v| v.is_matching(expression))
 }
 
 /// Extension methods for string.
 pub trait StringExtensions {
-    /// Appends a given row text onto the end of this `String`.
-    fn push_row(&mut self, s: &str, len: usize, to_right: bool);
+    /// Appends a given cell text onto the end of this `String`.
+    fn push_cell(&mut self, s: &str, len: usize, to_right: bool);
 }
 
 impl StringExtensions for String {
-    fn push_row(&mut self, s: &str, len: usize, to_right: bool) {
+    fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
         if len == 0 || s.is_empty() {
             return;
         }

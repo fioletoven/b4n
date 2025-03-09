@@ -28,6 +28,8 @@ pub struct FooterColors {
 pub struct FilterColors {
     pub input: TextColors,
     pub prompt: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<TextColors>,
 }
 
 /// Represents kubernetes resource colors.
@@ -120,8 +122,9 @@ impl Default for Theme {
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
                 },
                 filter: FilterColors {
-                    input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    input: TextColors::dim(Color::LightBlue, Color::LightYellow, Color::DarkGray),
                     prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                    error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
@@ -140,6 +143,7 @@ impl Default for Theme {
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        ..Default::default()
                     },
                 },
                 side_select: SelectColors {
@@ -148,6 +152,7 @@ impl Default for Theme {
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        ..Default::default()
                     },
                 },
                 line: ResourceColors {
@@ -203,8 +208,8 @@ impl Theme {
                 ..Default::default()
             },
             scopes: vec![
-                get_theme_item("entity.name", self.colors.syntax.yaml.property),
-                get_theme_item("string.quoted, string.unquoted", self.colors.syntax.yaml.string),
+                get_theme_item("meta.mapping.key", self.colors.syntax.yaml.property),
+                get_theme_item("string -meta.mapping.key, constant.character", self.colors.syntax.yaml.string),
                 get_theme_item("constant.numeric", self.colors.syntax.yaml.numeric),
                 get_theme_item("constant.language", self.colors.syntax.yaml.language),
                 get_theme_item("constant.other.timestamp", self.colors.syntax.yaml.timestamp),

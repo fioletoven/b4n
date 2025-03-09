@@ -1,3 +1,4 @@
+use backoff::{ExponentialBackoffBuilder, backoff::Backoff};
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::{
     sync::{
@@ -14,9 +15,11 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::kubernetes::client::KubernetesClient;
+use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterMessage};
 
 use super::utils::wait_for_task;
+
+const DISCOVERY_INTERVAL: u64 = 6_000;
 
 /// Background Kubernetes API discovery.
 pub struct BgDiscovery {
@@ -24,23 +27,24 @@ pub struct BgDiscovery {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<Vec<(ApiResource, ApiCapabilities)>>,
     context_rx: UnboundedReceiver<Vec<(ApiResource, ApiCapabilities)>>,
+    footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
 
-impl Default for BgDiscovery {
-    fn default() -> Self {
+impl BgDiscovery {
+    /// Creates new [`BgDiscovery`] instance.
+    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             task: None,
             cancellation_token: None,
             context_tx,
             context_rx,
+            footer_tx,
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
-}
 
-impl BgDiscovery {
     /// Starts new [`BgDiscovery`] task.
     pub fn start(&mut self, client: &KubernetesClient) {
         if self.cancellation_token.is_some() {
@@ -54,29 +58,53 @@ impl BgDiscovery {
 
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
+        let _footer_tx = self.footer_tx.clone();
 
         let _client = client.get_client();
 
         let task = tokio::spawn(async move {
-            let mut discovery = Discovery::new(_client.clone());
+            let mut backoff = ExponentialBackoffBuilder::new()
+                .with_initial_interval(Duration::from_millis(800))
+                .with_max_interval(Duration::from_secs(30))
+                .with_randomization_factor(1.0)
+                .with_multiplier(2.0)
+                .with_max_elapsed_time(None)
+                .build();
+            let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 
+            let mut maybe_discovery = Some(Discovery::new(_client.clone()));
             while !_cancellation_token.is_cancelled() {
-                match discovery.run().await {
-                    Ok(new_discovery) => {
-                        discovery = new_discovery;
-                        _has_error.store(false, Ordering::Relaxed);
-                        _context_tx.send(convert_to_vector(&discovery)).unwrap();
+                if let Some(discovery) = maybe_discovery.take() {
+                    tokio::select! {
+                        _ = _cancellation_token.cancelled() => (),
+                        result = discovery.run() => match result {
+                            Ok(new_discovery) => {
+                                _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
+                                _has_error.store(false, Ordering::Relaxed);
+                                maybe_discovery = Some(new_discovery);
+                                next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
+                            }
+                            Err(error) => {
+                                let msg = format!("Discovery error: {}", error);
+                                warn!("{}", msg);
+                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+                                if !_has_error.swap(true, Ordering::Relaxed) || backoff.start_time.elapsed().as_secs() > 120 {
+                                    backoff.reset();
+                                }
+                                maybe_discovery = Some(Discovery::new(_client.clone()));
+                                next_interval = backoff.next_backoff().unwrap_or(Duration::from_millis(DISCOVERY_INTERVAL));
+                            }
+                        },
                     }
-                    Err(error) => {
-                        warn!("Cannot run discovery: {:?}", error);
-                        _has_error.store(true, Ordering::Relaxed);
-                        discovery = Discovery::new(_client.clone());
-                    }
-                };
+                }
+
+                if maybe_discovery.is_none() {
+                    break;
+                }
 
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(Duration::from_millis(6_000)) => (),
+                    _ = sleep(next_interval) => (),
                 }
             }
         });

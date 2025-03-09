@@ -83,11 +83,10 @@ impl Action {
             .unwrap_or(width)
     }
 
-    fn add_icon(&self, text: String) -> String {
+    fn add_icon(&self, text: &mut String) {
         if let Some(icon) = &self.icon {
-            format!("{} {}", text, icon)
-        } else {
-            text
+            text.push(' ');
+            text.push_str(icon);
         }
     }
 }
@@ -107,17 +106,31 @@ impl Row for Action {
 
     fn get_name(&self, width: usize) -> String {
         let text_width = self.get_text_width(width);
+        let name_width = self.name.chars().count();
+
+        let mut text = String::with_capacity(text_width + 2);
+        text.push_str(&self.name);
+
         if let Some(descr) = &self.description {
-            if self.name.chars().count() + descr.chars().count() + 1 > text_width {
-                let text = format!("{} [{}", self.name, descr);
-                self.add_icon(format!("{}]", truncate(&text, text_width + 1)))
+            let descr_width = descr.chars().count();
+            if name_width + descr_width + 1 > text_width {
+                text.push_str(" [");
+                text.push_str(truncate(descr, text_width - text.len() + 1));
+                text.push(']');
             } else {
-                let remaining_len = text_width - descr.chars().count() - 1;
-                self.add_icon(format!("{1:<0$} [{2}]", remaining_len, self.name, descr))
+                let padding_len = text_width - name_width - descr_width;
+                (0..padding_len).for_each(|_| text.push(' '));
+                text.push('[');
+                text.push_str(descr);
+                text.push(']');
             }
         } else {
-            self.add_icon(format!("{1:<0$}", text_width, self.name))
+            let padding_len = text_width - name_width;
+            (0..padding_len).for_each(|_| text.push(' '));
         }
+
+        self.add_icon(&mut text);
+        text
     }
 
     fn column_text(&self, column: usize) -> &str {

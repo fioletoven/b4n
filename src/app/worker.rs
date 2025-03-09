@@ -5,8 +5,12 @@ use kube::{
 };
 use std::{cell::RefCell, rc::Rc};
 use thiserror;
+use tokio::sync::mpsc::UnboundedSender;
 
-use crate::kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource};
+use crate::{
+    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource},
+    ui::widgets::FooterMessage,
+};
 
 use super::{
     BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, SyntaxData, TaskResult,
@@ -28,7 +32,6 @@ pub enum BgWorkerError {
 }
 
 /// Keeps together all application background workers.
-#[derive(Default)]
 pub struct BgWorker {
     pub namespaces: BgObserver,
     pub resources: BgObserver,
@@ -39,6 +42,18 @@ pub struct BgWorker {
 }
 
 impl BgWorker {
+    /// Creates new [`BgWorker`] instance.
+    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+        Self {
+            namespaces: BgObserver::new(footer_tx.clone()),
+            resources: BgObserver::new(footer_tx.clone()),
+            discovery: BgDiscovery::new(footer_tx),
+            executor: BgExecutor::default(),
+            client: None,
+            list: None,
+        }
+    }
+
     /// Starts (or restarts) all background tasks that application requires to work.
     pub fn start(
         &mut self,
@@ -152,7 +167,7 @@ impl BgWorker {
         }
     }
 
-    /// Sends [`GetYamlCommand`] to the background executor.
+    /// Sends [`GetResourceYamlCommand`] to the background executor.
     pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &str, syntax: SyntaxData) -> Option<String> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
@@ -176,12 +191,12 @@ impl BgWorker {
     }
 
     /// Returns first waiting command result from the background executor.
-    pub fn check_command_result(&mut self) -> Option<TaskResult> {
+    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
         self.executor.try_next()
     }
 
     /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
+    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
         let mut commands = Vec::new();
         while let Some(command) = self.check_command_result() {
             commands.push(command);

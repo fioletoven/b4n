@@ -12,7 +12,10 @@ use crate::{
         ObserverResult, SharedAppData,
         lists::{ActionsListBuilder, KindsList, ResourcesList},
     },
-    kubernetes::{Namespace, resources::Kind},
+    kubernetes::{
+        Namespace,
+        resources::{Kind, Resource},
+    },
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
@@ -75,9 +78,10 @@ impl ResourcesView {
             pub fn scope(&self) -> &Scope;
             pub fn group(&self) -> &str;
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
+            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
             pub fn set_namespace(&mut self, namespace: Namespace);
             pub fn set_view(&mut self, view: ViewType);
-            pub fn update_resources_list(&mut self, result: Option<ObserverResult>);
+            pub fn update_resources_list(&mut self, result: Box<ObserverResult>);
         }
     }
 
@@ -98,7 +102,7 @@ impl ResourcesView {
     }
 
     /// Updates namespaces list with a new data from [`ObserverResult`].
-    pub fn update_namespaces_list(&mut self, result: Option<ObserverResult>) {
+    pub fn update_namespaces_list(&mut self, result: Box<ObserverResult>) {
         self.ns_selector.select.items.update(result);
     }
 

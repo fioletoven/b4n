@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
     Frame,
@@ -11,7 +12,7 @@ use crate::{
         ObserverResult, ResourcesInfo, SharedAppData,
         lists::{ResourcesList, Row},
     },
-    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace},
+    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace, resources::Resource},
     ui::{Responsive, Table, ViewType, tui::ResponseEvent},
 };
 
@@ -31,7 +32,7 @@ impl ResourcesTable {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(
             Rc::clone(&app_data),
-            ResourcesList::default().with_filter_settings(Some("")),
+            ResourcesList::default().with_filter_settings(Some("e")),
             ViewType::Compact,
         );
 
@@ -64,9 +65,12 @@ impl ResourcesTable {
         self.highlight_next = resource_to_select;
     }
 
-    /// Deselects all selected items for [`ResourcesTable`].
-    pub fn deselect_all(&mut self) {
-        self.list.items.deselect_all();
+    delegate! {
+        to self.list.items {
+            pub fn deselect_all(&mut self);
+            pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
+            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
+        }
     }
 
     /// Gets current kind (plural) for resources listed in [`ResourcesTable`].
@@ -82,11 +86,6 @@ impl ResourcesTable {
     /// Gets resources group.
     pub fn group(&self) -> &str {
         &self.list.items.group
-    }
-
-    /// Gets currently selected item names (grouped in [`HashMap`]) on [`ResourcesTable`].
-    pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
-        self.list.items.get_selected_items()
     }
 
     /// Sets namespace for [`ResourcesTable`].
@@ -123,11 +122,7 @@ impl ResourcesTable {
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: Option<ObserverResult>) {
-        if result.is_none() {
-            return;
-        }
-
+    pub fn update_resources_list(&mut self, result: Box<ObserverResult>) {
         if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
             data.current.kind = self.list.items.kind.clone();

@@ -1,26 +1,33 @@
+use futures::TryStreamExt;
 use kube::{
-    api::ApiResource,
+    api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
+    runtime::{
+        WatchStreamExt,
+        watcher::{self, Error, Event, watcher},
+    },
 };
 use std::{
+    pin::pin,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::Duration,
 };
 use thiserror;
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
-    time::sleep,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
-use crate::kubernetes::{Namespace, client::KubernetesClient};
+use crate::{
+    kubernetes::{Namespace, client::KubernetesClient, resources::Resource},
+    ui::widgets::FooterMessage,
+};
 
-use super::{ObserverResult, utils::wait_for_task};
+use super::utils::wait_for_task;
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -30,6 +37,33 @@ pub enum BgObserverError {
     ResourceNotFound,
 }
 
+/// Background observer result.
+pub struct ObserverResult {
+    pub init: Option<ObserverInitData>,
+    pub object: Option<Resource>,
+    pub is_delete: bool,
+}
+
+/// Data that is returned when [`BgObserver`] starts watching resource.
+pub struct ObserverInitData {
+    pub kind: String,
+    pub kind_plural: String,
+    pub group: String,
+    pub scope: Scope,
+}
+
+impl ObserverInitData {
+    /// Creates new [`ObserverResult`] initial data.
+    pub fn new(kind: String, kind_plural: String, group: String, scope: Scope) -> Self {
+        ObserverInitData {
+            kind,
+            kind_plural,
+            group,
+            scope,
+        }
+    }
+}
+
 /// Background k8s resource observer.
 pub struct BgObserver {
     resource: String,
@@ -37,13 +71,15 @@ pub struct BgObserver {
     scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<ObserverResult>,
-    context_rx: UnboundedReceiver<ObserverResult>,
+    context_tx: UnboundedSender<Box<ObserverResult>>,
+    context_rx: UnboundedReceiver<Box<ObserverResult>>,
+    footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
 
-impl Default for BgObserver {
-    fn default() -> Self {
+impl BgObserver {
+    /// Creates new [`BgObserver`] instance.
+    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: String::new(),
@@ -53,6 +89,7 @@ impl Default for BgObserver {
             cancellation_token: None,
             context_tx,
             context_rx,
+            footer_tx,
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -86,32 +123,43 @@ impl BgObserver {
 
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
+        let _footer_tx = self.footer_tx.clone();
 
         let task = tokio::spawn(async move {
-            while !_cancellation_token.is_cancelled() {
-                let resources = _api_client.list(&Default::default()).await;
-                match resources {
-                    Ok(objects) => {
-                        _context_tx
-                            .send(ObserverResult::new(
-                                _kind.clone(),
-                                _kind_plural.clone(),
-                                _group.clone(),
-                                _scope.clone(),
-                                objects,
-                            ))
-                            .unwrap();
-                        _has_error.store(false, Ordering::Relaxed);
-                    }
-                    Err(error) => {
-                        warn!("Cannot observe resource {}: {:?}", _kind_plural, error);
-                        _has_error.store(true, Ordering::Relaxed);
-                    }
-                }
+            let watch = watcher(_api_client, watcher::Config::default()).default_backoff();
+            let mut watch = pin!(watch);
 
+            while !_cancellation_token.is_cancelled() {
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(Duration::from_millis(2_000)) => (),
+                    result = watch.try_next() => {
+                        match result {
+                            Ok(event) => {
+                                if let Some(result) = match event {
+                                    Some(Event::Init) => Some(get_init_result(
+                                        _kind.clone(),
+                                        _kind_plural.clone(),
+                                        _group.clone(),
+                                        _scope.clone())),
+                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(&_kind, o, false)),
+                                    Some(Event::Delete(o)) => Some(get_result(&_kind, o, true)),
+                                    _ => None,
+                                } {
+                                    _context_tx.send(result).unwrap();
+                                }
+                                _has_error.store(false, Ordering::Relaxed);
+                            },
+                            Err(error) => {
+                                let msg = format!("Watch {}: {}", _kind_plural, error);
+                                warn!("{}", msg);
+                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+                                match error {
+                                    Error::WatchFailed(_) => (), // WatchFailed do not trigger Init, so we do not set _has_error.
+                                    _ =>_has_error.store(true, Ordering::Relaxed),
+                                }
+                            }
+                        };
+                    },
                 }
             }
         });
@@ -194,7 +242,7 @@ impl BgObserver {
     }
 
     /// Tries to get next [`ObserverResult`].
-    pub fn try_next(&mut self) -> Option<ObserverResult> {
+    pub fn try_next(&mut self) -> Option<Box<ObserverResult>> {
         self.context_rx.try_recv().ok()
     }
 
@@ -218,4 +266,20 @@ impl Drop for BgObserver {
     fn drop(&mut self) {
         self.cancel();
     }
+}
+
+fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> Box<ObserverResult> {
+    Box::new(ObserverResult {
+        init: Some(ObserverInitData::new(kind, kind_plural, group, scope)),
+        object: None,
+        is_delete: false,
+    })
+}
+
+fn get_result(kind: &str, object: DynamicObject, is_delete: bool) -> Box<ObserverResult> {
+    Box::new(ObserverResult {
+        init: None,
+        object: Some(Resource::from(kind, object)),
+        is_delete,
+    })
 }

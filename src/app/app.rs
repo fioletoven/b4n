@@ -1,6 +1,7 @@
 use anyhow::Result;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
+use tracing::warn;
 
 use crate::{
     kubernetes::{NAMESPACES, Namespace},
@@ -42,8 +43,8 @@ impl App {
     /// Creates new [`App`] instance.
     pub fn new(config: Config) -> Result<Self> {
         let data = Rc::new(RefCell::new(AppData::new(config)));
-        let worker = Rc::new(RefCell::new(BgWorker::default()));
         let footer = Footer::new(Rc::clone(&data));
+        let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
         let resources = ResourcesView::new(Rc::clone(&data));
         let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_messages_sender());
 
@@ -129,8 +130,13 @@ impl App {
             self.resources.update_kinds_list(worker.get_kinds_list());
         }
 
-        self.resources.update_namespaces_list(worker.namespaces.try_next());
-        self.resources.update_resources_list(worker.resources.try_next());
+        while let Some(update_result) = worker.namespaces.try_next() {
+            self.resources.update_namespaces_list(update_result);
+        }
+
+        while let Some(update_result) = worker.resources.try_next() {
+            self.resources.update_resources_list(update_result);
+        }
 
         self.data.borrow_mut().is_connected = !worker.has_errors();
     }
@@ -334,6 +340,7 @@ impl App {
             self.resources.kind_plural(),
             self.data.borrow().get_syntax_data(),
         );
+
         self.view = Some(Box::new(YamlView::new(
             Rc::clone(&self.data),
             command_id,
@@ -350,12 +357,12 @@ impl App {
             return;
         }
 
-        if result.is_err() {
+        if let Err(error) = result {
             self.view = None;
-            return;
-        }
-
-        if let Some(view) = &mut self.view {
+            let msg = format!("View YAML error: {}", error);
+            warn!("{}", msg);
+            self.footer.send_message(FooterMessage::error(msg, 0));
+        } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::ResourceYaml(result));
         }
     }

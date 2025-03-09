@@ -1,11 +1,8 @@
 use std::rc::Rc;
 
-use crate::{
-    ui::ViewType,
-    utils::{truncate, try_truncate},
-};
+use crate::{ui::ViewType, utils::try_truncate};
 
-use super::{Column, NAME};
+use super::{AGE, Column, NAME, StringExtensions};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]
@@ -32,18 +29,17 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Creates new [`Header`] instance with provided columns.
-    pub fn from(mut group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
+    /// Creates new [`Header`] instance with provided columns.  
+    /// **Note** that `sort_symbols` must be uppercase ASCII characters.
+    pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns, false);
         let extra_width = extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(&extra_columns);
 
-        group_column.set_as_first_column();
-
         Self {
-            group: group_column,
+            group: group_column.ensure_can_be_first_column(),
             name: NAME.clone(),
-            age: Column::fixed("AGE", 6, true),
+            age: AGE.clone(),
             extra_columns,
             extra_columns_text,
             all_extra_width: extra_width,
@@ -94,6 +90,15 @@ impl Header {
         self.recalculate_extra_columns();
     }
 
+    /// Returns `true` if column has reversed sort order.
+    pub fn has_reversed_order(&self, column_no: usize) -> bool {
+        if let Some(column) = self.column(column_no) {
+            column.has_reversed_order
+        } else {
+            false
+        }
+    }
+
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.extra_columns_text = get_extra_columns_text(&self.extra_columns, self.is_sorted_descending);
@@ -115,13 +120,13 @@ impl Header {
     }
 
     /// Returns current data length of the provided column.
-    pub fn get_data_length(&self, column: usize) -> usize {
-        self.column(column).map(|c| c.data_len).unwrap_or(3) // 3: "n/a" length
+    pub fn get_data_length(&self, column_no: usize) -> usize {
+        self.column(column_no).map(|c| c.data_len).unwrap_or(3) // 3: "n/a" length
     }
 
     /// Sets data length for the provided column.
-    pub fn set_data_length(&mut self, column: usize, new_data_len: usize) {
-        if let Some(column) = self.column_mut(column) {
+    pub fn set_data_length(&mut self, column_no: usize, new_data_len: usize) {
+        if let Some(column) = self.column_mut(column_no) {
             if !column.is_fixed {
                 column.data_len = new_data_len;
             }
@@ -308,33 +313,5 @@ fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
         columns[0].min_len() - columns[0].data_len
     } else {
         0
-    }
-}
-
-/// Extension methods for string.
-trait StringExtensions {
-    /// Appends a given column onto the end of this `String`.
-    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool);
-}
-
-impl StringExtensions for String {
-    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool) {
-        if len == 0 || column.name.is_empty() {
-            return;
-        }
-
-        let padding_len = len.saturating_sub(column.name.chars().count() + if column.is_sorted { 1 } else { 0 });
-        if column.to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
-        }
-
-        self.push_str(truncate(column.name, len - if column.is_sorted { 1 } else { 0 }));
-        if column.is_sorted {
-            self.push(if is_descending { '↓' } else { '↑' });
-        }
-
-        if !column.to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
-        }
     }
 }

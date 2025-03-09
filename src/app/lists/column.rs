@@ -1,11 +1,20 @@
 use std::cmp::max;
 
+use crate::utils::truncate;
+
+#[cfg(test)]
+#[path = "./column.tests.rs"]
+mod column_tests;
+
+pub const AGE_COLUMN_WIDTH: usize = 6;
+
 /// Default `NAMESPACE` column.
 pub const NAMESPACE: Column = Column {
     name: "NAMESPACE",
     is_fixed: false,
     to_right: false,
     is_sorted: false,
+    has_reversed_order: false,
     min_len: 11,
     max_len: 11,
     data_len: 11,
@@ -17,9 +26,22 @@ pub const NAME: Column = Column {
     is_fixed: false,
     to_right: false,
     is_sorted: true,
+    has_reversed_order: false,
     min_len: 6,
     max_len: 6,
     data_len: 6,
+};
+
+/// Default `AGE` column.
+pub const AGE: Column = Column {
+    name: "AGE",
+    is_fixed: true,
+    to_right: true,
+    is_sorted: false,
+    has_reversed_order: true,
+    min_len: AGE_COLUMN_WIDTH,
+    max_len: AGE_COLUMN_WIDTH,
+    data_len: AGE_COLUMN_WIDTH,
 };
 
 /// Column for the list header.
@@ -29,48 +51,49 @@ pub struct Column {
     pub is_fixed: bool,
     pub to_right: bool,
     pub is_sorted: bool,
+    pub has_reversed_order: bool,
     pub data_len: usize,
     min_len: usize,
     max_len: usize,
 }
 
 impl Column {
-    /// Creates new [`Column`] instance.  
-    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
+    /// Creates new [`Column`] instance.
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
             is_fixed: false,
             to_right: false,
             is_sorted: false,
+            has_reversed_order: false,
             data_len: name.chars().count(),
             min_len: name.chars().count(),
             max_len: name.chars().count(),
         }
     }
 
-    /// Creates new [`Column`] instance bound with provided lengths.  
-    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
+    /// Creates new [`Column`] instance bound with provided lengths.
     pub fn bound(name: &'static str, min_len: usize, max_len: usize, to_right: bool) -> Self {
         Self {
             name,
             is_fixed: false,
             to_right,
             is_sorted: false,
+            has_reversed_order: false,
             data_len: name.chars().count(),
             min_len: max(name.chars().count(), min_len),
             max_len: max(name.chars().count(), max_len),
         }
     }
 
-    /// Creates new fixed size [`Column`] instance.  
-    /// **Note**, if a column has a space in its name, it must be a *non-breaking* space.
+    /// Creates new fixed size [`Column`] instance.
     pub fn fixed(name: &'static str, len: usize, to_right: bool) -> Self {
         Self {
             name,
             is_fixed: true,
             to_right,
             is_sorted: false,
+            has_reversed_order: false,
             data_len: len,
             min_len: max(name.chars().count(), len),
             max_len: max(name.chars().count(), len),
@@ -79,13 +102,15 @@ impl Column {
 
     /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.  
     /// **Note** that first column has one extra space in front of the header name.
-    pub fn set_as_first_column(&mut self) {
+    pub fn ensure_can_be_first_column(mut self) -> Self {
         if self.name.chars().count() == self.min_len {
             self.min_len += 1;
             if self.min_len > self.max_len {
                 self.max_len = self.min_len
             }
         }
+
+        self
     }
 
     #[inline]
@@ -103,6 +128,37 @@ impl Column {
             self.max_len + 1
         } else {
             self.max_len
+        }
+    }
+}
+
+/// Extension methods for string.
+pub trait StringExtensions {
+    /// Appends a given column onto the end of this `String`.
+    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool);
+}
+
+impl StringExtensions for String {
+    fn push_column(&mut self, column: &Column, len: usize, is_descending: bool) {
+        if len == 0 || (column.name.is_empty() && !column.is_sorted) {
+            return;
+        }
+
+        let padding_len = len.saturating_sub(column.name.chars().count() + if column.is_sorted { 1 } else { 0 });
+        if column.to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
+        }
+
+        for ch in truncate(column.name, len - if column.is_sorted { 1 } else { 0 }).chars() {
+            self.push(if ch == ' ' { ' ' } else { ch })
+        }
+
+        if column.is_sorted {
+            self.push(if is_descending { '↓' } else { '↑' });
+        }
+
+        if !column.to_right && padding_len > 0 {
+            (0..padding_len).for_each(|_| self.push(' '));
         }
     }
 }

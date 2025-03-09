@@ -1,9 +1,7 @@
 use crossterm::event::{KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
-    text::{Line, Span},
-    widgets::Paragraph,
+    widgets::Widget,
 };
 use std::rc::Rc;
 
@@ -25,7 +23,7 @@ impl<T: Table> Select<T> {
     /// * `filter_auto_hide` - hides filter input when no filter is present.
     /// * `filter_show_cursor` - indicates if filter input should show cursor.
     pub fn new(list: T, colors: SelectColors, filter_auto_hide: bool, filter_show_cursor: bool) -> Self {
-        let filter = Input::new(&colors.filter.input, filter_show_cursor);
+        let filter = Input::new(colors.filter.input, filter_show_cursor);
 
         Select {
             items: list,
@@ -43,12 +41,12 @@ impl<T: Table> Select<T> {
 
     /// Sets prompt for the filter input.
     pub fn set_prompt(&mut self, prompt: impl Into<String>) {
-        self.filter.set_prompt(Some((prompt, &self.colors.filter.prompt)));
+        self.filter.set_prompt(Some((prompt, self.colors.filter.prompt)));
     }
 
     /// Sets colors for the filter input and list lines.
     pub fn set_colors(&mut self, colors: SelectColors) {
-        self.filter.set_style(&colors.filter.input);
+        self.filter.set_colors(colors.filter.input);
         self.colors = colors;
     }
 
@@ -82,29 +80,19 @@ impl<T: Table> Select<T> {
         let list_area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(list_area.height);
         if let Some(list) = self.items.get_paged_names(usize::from(list_area.width.max(2) - 2)) {
-            frame.render_widget(Paragraph::new(self.get_resource_names(list)), list_area);
+            frame.render_widget(
+                &mut ListWidget {
+                    list,
+                    normal: &self.colors.normal,
+                    highlighted: &self.colors.normal_hl,
+                },
+                list_area,
+            );
         }
 
         if draw_filter {
             self.filter.draw(frame, layout[0]);
         }
-    }
-
-    /// Returns resource names as formatted rows.
-    fn get_resource_names<'a>(&self, resources: Vec<(String, bool)>) -> Vec<Line<'a>> {
-        let mut result = Vec::with_capacity(resources.len());
-
-        for (name, is_active) in resources {
-            let colors = if is_active {
-                self.colors.normal_hl
-            } else {
-                self.colors.normal
-            };
-
-            result.push(Line::from(get_resource_row(name, colors)));
-        }
-
-        result
     }
 
     fn filter_and_highlight(&mut self) {
@@ -126,14 +114,12 @@ impl<T: Table> Responsive for Select<T> {
             self.filter.process_key(key);
             if self.filter.value().is_empty() {
                 self.items.filter(None);
-            } else {
-                if let Some(filter) = self.items.get_filter() {
-                    if self.filter.value() != filter {
-                        self.filter_and_highlight();
-                    }
-                } else {
+            } else if let Some(filter) = self.items.get_filter() {
+                if self.filter.value() != filter {
                     self.filter_and_highlight();
                 }
+            } else {
+                self.filter_and_highlight();
             }
         }
 
@@ -154,25 +140,43 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
         .split(area)
 }
 
-/// Dims part of the line text between `[` and `]`.  
-/// It removes these characters from the output.
-fn get_resource_row<'a>(line: String, colors: TextColors) -> Vec<Span<'a>> {
-    if line.contains('[') {
-        let mut result = Vec::with_capacity(5);
-        result.push(Span::raw(" "));
+/// Widget that renders all visible rows in select.  
+/// **Note** that it removes `[` and `]` characters from the output dimming the inside text.
+struct ListWidget<'a> {
+    pub list: Vec<(String, bool)>,
+    pub normal: &'a TextColors,
+    pub highlighted: &'a TextColors,
+}
 
-        let split = line.splitn(2, '[').collect::<Vec<&str>>();
-        result.push(Span::styled(split[0].to_owned(), &colors));
+impl Widget for &mut ListWidget<'_> {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        let x = area.left() + 1;
+        let y = area.top();
+        for (i, row) in self.list.iter().enumerate() {
+            let mut is_dimmed = false;
+            let mut skipped = 0;
+            for (j, char) in row.0.chars().enumerate() {
+                if !is_dimmed && char == '[' {
+                    is_dimmed = true;
+                    skipped += 1;
+                    continue;
+                } else if is_dimmed && char == ']' {
+                    is_dimmed = false;
+                    skipped += 1;
+                    continue;
+                }
 
-        let split = split[1].rsplitn(2, ']').collect::<Vec<&str>>();
-        if split.len() == 2 {
-            result.push(Span::styled(split[1].to_owned(), Style::new().fg(colors.dim).bg(colors.bg)));
+                let colors = if row.1 { self.highlighted } else { self.normal };
+                let buf = &mut buf[(x + j as u16 - skipped, y + i as u16)];
+                if is_dimmed {
+                    buf.set_char(char).set_fg(colors.dim).set_bg(colors.bg);
+                } else {
+                    buf.set_char(char).set_style(colors);
+                }
+            }
         }
-        result.push(Span::styled(split[0].to_owned(), &colors));
-
-        result.push(Span::raw("\n"));
-        result
-    } else {
-        vec![Span::raw(" "), Span::styled(line, &colors), Span::raw("\n")]
     }
 }

@@ -7,8 +7,8 @@ use super::{BgTask, TaskResult};
 /// Background commands executor.
 pub struct BgExecutor {
     tasks: Vec<BgTask>,
-    results_tx: UnboundedSender<TaskResult>,
-    results_rx: UnboundedReceiver<TaskResult>,
+    results_tx: UnboundedSender<Box<TaskResult>>,
+    results_rx: UnboundedReceiver<Box<TaskResult>>,
 }
 
 impl Default for BgExecutor {
@@ -73,8 +73,8 @@ impl BgExecutor {
         self.tasks.clear();
     }
 
-    /// Tries to get the next [`ExecutorResult`].
-    pub fn try_next(&mut self) -> Option<TaskResult> {
+    /// Tries to get the next [`TaskResult`].
+    pub fn try_next(&mut self) -> Option<Box<TaskResult>> {
         self.results_rx.try_recv().ok()
     }
 }

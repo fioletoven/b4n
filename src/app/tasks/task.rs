@@ -36,7 +36,7 @@ impl BgTask {
     }
 
     /// Starts executing an associated command.
-    pub fn run(&mut self, results_tx: UnboundedSender<TaskResult>) {
+    pub fn run(&mut self, results_tx: UnboundedSender<Box<TaskResult>>) {
         let Some(_command) = self.command.take() else {
             return;
         };
@@ -50,7 +50,7 @@ impl BgTask {
                 _ = _cancellation_token.cancelled() => (),
                 result = run_command(_command) => {
                     if let Some(result) = result {
-                        results_tx.send(TaskResult { id: _task_id, result }).unwrap();
+                        results_tx.send(Box::new(TaskResult { id: _task_id, result })).unwrap();
                     }
                 },
             }

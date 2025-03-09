@@ -1,50 +1,63 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
-    text::Line,
-    widgets::Paragraph,
+    layout::{Position, Rect},
+    widgets::Widget,
 };
 use tui_input::backend::crossterm::EventHandler;
 
-use crate::ui::{ResponseEvent, Responsive};
+use crate::ui::{ResponseEvent, Responsive, colors::TextColors};
 
 /// Input widget for TUI.
 #[derive(Default)]
 pub struct Input {
     input: tui_input::Input,
-    style: Style,
-    prompt: Option<(String, Style)>,
+    colors: TextColors,
+    prompt: Option<(String, TextColors)>,
+    error: Option<TextColors>,
+    error_index: Option<usize>,
+    accent_chars: Option<String>,
     show_cursor: bool,
+    position: Position,
 }
 
 impl Input {
     /// Creates new [`Input`] instance.
-    pub fn new(style: impl Into<Style>, show_cursor: bool) -> Self {
+    pub fn new(colors: TextColors, show_cursor: bool) -> Self {
         Self {
-            input: Default::default(),
-            style: style.into(),
-            prompt: None,
+            colors,
             show_cursor,
+            ..Default::default()
         }
     }
 
     /// Adds a prompt to the [`Input`] instance.
-    pub fn with_prompt(mut self, prompt: impl Into<String>, style: impl Into<Style>) -> Self {
-        self.prompt = Some((prompt.into(), style.into()));
+    pub fn with_prompt(mut self, prompt: impl Into<String>, colors: TextColors) -> Self {
+        self.prompt = Some((prompt.into(), colors));
         self
     }
 
-    /// Sets the prompt and its style.
-    pub fn set_prompt<Str: Into<String>, Sty: Into<Style>>(&mut self, prompt: Option<(Str, Sty)>) {
-        self.prompt = prompt.map(|p| (p.0.into(), p.1.into()));
+    /// Adds error colors to the [`Input`] instance.
+    pub fn with_error_colors(mut self, colors: Option<TextColors>) -> Self {
+        self.error = colors;
+        self
     }
 
-    /// Sets the prompt style.  
+    /// Adds a set of characters that should be accented by the [`Input`] instance.
+    pub fn with_accent_characters(mut self, highlight: impl Into<String>) -> Self {
+        self.accent_chars = Some(highlight.into());
+        self
+    }
+
+    /// Sets the prompt and its colors.
+    pub fn set_prompt<S: Into<String>>(&mut self, prompt: Option<(S, TextColors)>) {
+        self.prompt = prompt.map(|p| (p.0.into(), p.1));
+    }
+
+    /// Sets prompt colors.  
     /// **Note** that it takes effect only if the prompt was already set.
-    pub fn set_prompt_style(&mut self, style: impl Into<Style>) {
+    pub fn set_prompt_colors(&mut self, colors: TextColors) {
         if let Some(prompt) = &mut self.prompt {
-            prompt.1 = style.into();
+            prompt.1 = colors;
         }
     }
 
@@ -56,14 +69,24 @@ impl Input {
         }
     }
 
-    /// Sets the input style.
-    pub fn set_style(&mut self, style: impl Into<Style>) {
-        self.style = style.into();
+    /// Sets input colors.
+    pub fn set_colors(&mut self, colors: TextColors) {
+        self.colors = colors;
     }
 
     /// Sets whether to show the cursor.
     pub fn set_cursor(&mut self, show_cursor: bool) {
         self.show_cursor = show_cursor;
+    }
+
+    /// Sets error position.
+    pub fn set_error(&mut self, error_index: Option<usize>) {
+        self.error_index = error_index;
+    }
+
+    /// Sets error colors.
+    pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
+        self.error = colors;
     }
 
     /// Returns the input value.
@@ -83,36 +106,61 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Length(self.prompt.as_ref().map(|p| p.0.chars().count() + 1).unwrap_or(1) as u16),
-                Constraint::Fill(1),
-                Constraint::Length(1),
-            ])
-            .split(area);
-        let width = if self.show_cursor {
-            layout[1].width.max(1) - 1
-        } else {
-            layout[1].width
-        };
-
-        let scroll = self.input.visual_scroll(width as usize);
-        let input = Paragraph::new(self.input.value())
-            .style(self.style)
-            .scroll((0, scroll as u16));
-
-        if let Some((prompt, style)) = &self.prompt {
-            frame.render_widget(Line::from(format!(" {}", prompt)).style(*style), layout[0]);
-        }
-
-        frame.render_widget(input, layout[1]);
+        frame.render_widget(&mut *self, area);
 
         if self.show_cursor {
-            frame.set_cursor_position((
-                layout[1].x + (self.input.visual_cursor().max(scroll) - scroll) as u16,
-                layout[1].y,
-            ));
+            frame.set_cursor_position((self.position.x, self.position.y));
+        }
+    }
+
+    fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut ratatui::prelude::Buffer) -> u16 {
+        let mut count = 0;
+        if let Some(prompt) = &self.prompt {
+            for (i, char) in prompt.0.chars().enumerate() {
+                let x = x + i as u16;
+                if x >= max_x {
+                    break;
+                }
+
+                count = i as u16 + 1;
+
+                if self.error_index.is_some() {
+                    if let Some(colors) = self.error {
+                        buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
+                        continue;
+                    }
+                }
+
+                buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
+            }
+        }
+
+        count
+    }
+
+    fn render_input(&self, x: u16, y: u16, max_x: u16, scroll: usize, buf: &mut ratatui::prelude::Buffer) {
+        if max_x == 0 {
+            return;
+        }
+
+        for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
+            let x = x + i as u16;
+            if x >= max_x {
+                return;
+            }
+
+            if self.error_index.is_some_and(|p| p - scroll == i) {
+                if let Some(colors) = self.error {
+                    buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
+                    continue;
+                }
+            }
+
+            if self.accent_chars.as_deref().is_some_and(|a| a.contains(char)) {
+                buf[(x, y)].set_char(char).set_fg(self.colors.dim).set_bg(self.colors.bg);
+            } else {
+                buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
+            }
         }
     }
 }
@@ -135,5 +183,32 @@ impl Responsive for Input {
         self.input.handle_event(&Event::Key(key));
 
         ResponseEvent::Handled
+    }
+}
+
+impl Widget for &mut Input {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        if area.width <= 2 {
+            return;
+        }
+
+        let x = area.left();
+        let y = area.top();
+
+        buf[(x, y)].set_char(' ').set_fg(self.colors.fg).set_bg(self.colors.bg);
+
+        let max_x = area.left() + area.width - if self.show_cursor { 2 } else { 1 };
+
+        let x = x + 1 + self.render_prompt(x + 1, y, max_x, buf);
+        if x >= max_x {
+            return;
+        }
+
+        let scroll = self.input.visual_scroll(usize::from(max_x - x));
+        self.position = Position::new(x + (self.input.visual_cursor().max(scroll) - scroll) as u16, y);
+        self.render_input(x, y, max_x, scroll, buf);
     }
 }

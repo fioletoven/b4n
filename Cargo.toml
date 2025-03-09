@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = { version = "1.0" }
+backoff = { version = "0.4" }
 clap = { version = "4.5", features = ["derive"] }
 clipboard = { version = "0.5" }
 crossterm = { version = "0.28", features = ["event-stream"] }
@@ -38,7 +39,7 @@ tui-input = { version = "0.11" }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
-rstest = { version = "0.24" }
+rstest = { version = "0.25" }
 
 [build-dependencies]
 syntect = { version = "5.2" }

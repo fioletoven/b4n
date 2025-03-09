@@ -20,13 +20,30 @@ pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let time_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
     let timer = tracing_subscriber::fmt::time::OffsetTime::new(time_offset, timer);
 
-    let env_filter = tracing_subscriber::filter::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new(format!("warn,{}=info", env!("CARGO_CRATE_NAME"))));
+    #[cfg(debug_assertions)]
+    let env = format!("warn,{}=info", env!("CARGO_CRATE_NAME"));
 
+    #[cfg(not(debug_assertions))]
+    let env = format!("none,{}=info", env!("CARGO_CRATE_NAME"));
+
+    let env_filter = tracing_subscriber::filter::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new(env));
+
+    #[cfg(debug_assertions)]
     let file_subscriber = tracing_subscriber::fmt::layer()
         .compact()
         .with_file(true)
         .with_line_number(true)
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_timer(timer)
+        .with_ansi(false)
+        .with_writer(non_blocking_appender)
+        .with_filter(env_filter);
+
+    #[cfg(not(debug_assertions))]
+    let file_subscriber = tracing_subscriber::fmt::layer()
+        .compact()
         .with_target(true)
         .with_thread_ids(true)
         .with_timer(timer)
