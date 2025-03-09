@@ -114,14 +114,12 @@ impl<T: Table> Responsive for Select<T> {
             self.filter.process_key(key);
             if self.filter.value().is_empty() {
                 self.items.filter(None);
-            } else {
-                if let Some(filter) = self.items.get_filter() {
-                    if self.filter.value() != filter {
-                        self.filter_and_highlight();
-                    }
-                } else {
+            } else if let Some(filter) = self.items.get_filter() {
+                if self.filter.value() != filter {
                     self.filter_and_highlight();
                 }
+            } else {
+                self.filter_and_highlight();
             }
         }
 

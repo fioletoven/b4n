@@ -32,7 +32,7 @@ impl ResourcesTable {
         let header = HeaderPane::new(Rc::clone(&app_data));
         let list = ListPane::new(
             Rc::clone(&app_data),
-            ResourcesList::default().with_filter_settings(Some("")),
+            ResourcesList::default().with_filter_settings(Some("e")),
             ViewType::Compact,
         );
 

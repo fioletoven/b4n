@@ -9,6 +9,7 @@ use ratatui::{
 use crate::{
     app::SharedAppData,
     ui::{ResponseEvent, Responsive},
+    utils::logical_expressions::{ParserError, validate},
 };
 
 use super::Input;
@@ -25,6 +26,8 @@ pub struct Filter {
     input: Input,
     current: String,
     width: u16,
+    last_validated: String,
+    error_index: Option<usize>,
 }
 
 impl Filter {
@@ -34,11 +37,10 @@ impl Filter {
             .with_prompt(" ", &app_data.borrow().config.theme.colors.filter.prompt);
 
         Self {
-            is_visible: false,
             app_data,
             input,
-            current: String::new(),
             width,
+            ..Default::default()
         }
     }
 
@@ -83,6 +85,24 @@ impl Filter {
 
         self.input.draw(frame, area);
     }
+
+    /// Validates the filter value as a logical expression.
+    fn validate(&mut self) {
+        if self.last_validated == self.input.value() {
+            return;
+        }
+
+        if let Err(error) = validate(self.input.value()) {
+            match error {
+                ParserError::ExpectedOperator(index) => self.error_index = Some(index),
+                ParserError::ExpectedValue(index) => self.error_index = Some(index),
+                ParserError::UnexpectedClosingBracket(index) => self.error_index = Some(index),
+                ParserError::ExpectedClosingBracket(index) => self.error_index = Some(index),
+            }
+        }
+
+        self.last_validated = self.input.value().to_owned();
+    }
 }
 
 impl Responsive for Filter {
@@ -106,6 +126,7 @@ impl Responsive for Filter {
         }
 
         self.input.process_key(key);
+        self.validate();
 
         ResponseEvent::Handled
     }

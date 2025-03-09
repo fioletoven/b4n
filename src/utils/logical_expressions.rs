@@ -39,6 +39,12 @@ pub fn expand(expression: &str) -> Result<Vec<Vec<String>>, ParserError> {
     Ok(expanded)
 }
 
+/// Validates if the provided logical expression can be parsed and expanded to the two-dimensional array of strings.
+pub fn validate(expression: &str) -> Result<(), ParserError> {
+    let _ = tokenize(expression)?;
+    Ok(())
+}
+
 /// Possible tokens for tokenized logical expression.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum Token<'a> {
@@ -266,4 +272,17 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, ParserError> {
     }
 
     Ok(result)
+}
+
+/// Adds comparison extensions for two-dimensional arrays of strings.  
+/// **Note** that first dimension is the `OR` part and second dimension is the `AND` part.
+pub trait MatchExtensions {
+    /// Returns `true` if the provided two-dimensional array is matching this object.
+    fn is_matching(&self, expression: &[Vec<String>]) -> bool;
+}
+
+impl MatchExtensions for String {
+    fn is_matching(&self, expression: &[Vec<String>]) -> bool {
+        expression.iter().any(|e| e.iter().all(|i| self.contains(i)))
+    }
 }

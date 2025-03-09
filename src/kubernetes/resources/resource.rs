@@ -6,7 +6,10 @@ use crate::{
     app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
-    utils::truncate,
+    utils::{
+        logical_expressions::{MatchExtensions, expand},
+        truncate,
+    },
 };
 
 use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
@@ -195,7 +198,7 @@ impl Row for Resource {
 /// Filtering context for [`Resource`].
 pub struct ResourceFilterContext {
     pattern: String,
-    is_extended: bool,
+    extended: Option<Vec<Vec<String>>>,
 }
 
 impl FilterContext for ResourceFilterContext {
@@ -206,9 +209,22 @@ impl FilterContext for ResourceFilterContext {
 
 impl Filterable<ResourceFilterContext> for Resource {
     fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
+        let extended = if let Some(settings) = settings {
+            if settings.contains('e') {
+                match expand(pattern) {
+                    Ok(expanded) => Some(expanded),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         ResourceFilterContext {
             pattern: pattern.to_owned(),
-            is_extended: settings.is_some(),
+            extended,
         }
     }
 
@@ -216,22 +232,20 @@ impl Filterable<ResourceFilterContext> for Resource {
     /// **Note** that currently it has only a switch for normal/extended filtering.
     /// Extended filtering is when [`Some`] is provided in settings.
     fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
-        if context.is_extended {
-            self.name.contains(&context.pattern)
-                || any(self.labels.as_ref(), &context.pattern)
-                || any(self.annotations.as_ref(), &context.pattern)
+        if let Some(extended) = &context.extended {
+            self.name.is_matching(extended) || any(self.labels.as_ref(), extended) || any(self.annotations.as_ref(), extended)
         } else {
             self.name.contains(&context.pattern)
         }
     }
 }
 
-fn any(tree: Option<&BTreeMap<String, String>>, pattern: &str) -> bool {
+fn any(tree: Option<&BTreeMap<String, String>>, expression: &[Vec<String>]) -> bool {
     let Some(tree) = tree else {
         return false;
     };
 
-    tree.keys().any(|k| k.contains(pattern)) || tree.values().any(|v| v.contains(pattern))
+    tree.keys().any(|k| k.is_matching(expression)) || tree.values().any(|v| v.is_matching(expression))
 }
 
 /// Extension methods for string.
