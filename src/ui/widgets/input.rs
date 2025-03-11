@@ -69,6 +69,11 @@ impl Input {
         }
     }
 
+    /// Sets characters that should be accented by the [`Input`] instance.
+    pub fn set_accent_characters(&mut self, highlight: Option<String>) {
+        self.accent_chars = highlight;
+    }
+
     /// Sets input colors.
     pub fn set_colors(&mut self, colors: TextColors) {
         self.colors = colors;
@@ -79,14 +84,19 @@ impl Input {
         self.show_cursor = show_cursor;
     }
 
+    /// Sets error colors.
+    pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
+        self.error = colors;
+    }
+
     /// Sets error position.
     pub fn set_error(&mut self, error_index: Option<usize>) {
         self.error_index = error_index;
     }
 
-    /// Sets error colors.
-    pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
-        self.error = colors;
+    /// Returns `true` if the input has an error set.
+    pub fn has_error(&self) -> bool {
+        self.error_index.is_some()
     }
 
     /// Returns the input value.
@@ -97,11 +107,13 @@ impl Input {
     /// Sets the input value.
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.input = tui_input::Input::new(value.into());
+        self.error_index = None;
     }
 
     /// Resets the input value.
     pub fn reset(&mut self) {
         self.input.reset();
+        self.error_index = None;
     }
 
     /// Draws [`Input`] on the provided frame area.

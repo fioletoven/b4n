@@ -87,7 +87,7 @@ pub struct ThemeColors {
     pub text: TextColors,
     pub header: HeaderColors,
     pub footer: FooterColors,
-    pub filter: FilterColors,
+    pub filter: SelectColors,
     pub modal: ModalColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
@@ -121,10 +121,14 @@ impl Default for Theme {
                     info: TextColors::bg(Color::LightGreen, Color::DarkGray),
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
                 },
-                filter: FilterColors {
-                    input: TextColors::dim(Color::LightBlue, Color::LightYellow, Color::DarkGray),
-                    prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                    error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+                filter: SelectColors {
+                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    filter: FilterColors {
+                        input: TextColors::dim(Color::LightBlue, Color::LightYellow, Color::DarkGray),
+                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+                    },
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),

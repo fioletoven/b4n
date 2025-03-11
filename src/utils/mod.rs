@@ -18,6 +18,19 @@ pub fn try_truncate(s: &str, max_chars: usize) -> Option<&str> {
     }
 }
 
+/// Adds padding to the string slice.
+pub fn add_padding(s: &str, width: usize) -> String {
+    let name_width = s.chars().count();
+
+    let mut text = String::with_capacity(width);
+    text.push_str(truncate(s, width));
+
+    let padding_len = width.saturating_sub(name_width);
+    (0..padding_len).for_each(|_| text.push(' '));
+
+    text
+}
+
 /// Calculates SHA1 for specified string and sets the length to `len`.
 pub fn calculate_hash(t: &str, len: usize) -> String {
     let mut hasher = Sha1::new();

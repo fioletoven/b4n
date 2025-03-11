@@ -10,7 +10,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{
         ObserverResult, SharedAppData,
-        lists::{ActionsListBuilder, KindsList, ResourcesList},
+        lists::{KindsList, ResourcesList},
     },
     kubernetes::{
         Namespace,
@@ -19,7 +19,7 @@ use crate::{
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Action, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
+        widgets::{Action, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
     },
 };
 

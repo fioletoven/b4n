@@ -1,4 +1,5 @@
 use crossterm::event::{KeyEvent, KeyModifiers};
+use delegate::delegate;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::Widget,
@@ -23,7 +24,7 @@ impl<T: Table> Select<T> {
     /// * `filter_auto_hide` - hides filter input when no filter is present.
     /// * `filter_show_cursor` - indicates if filter input should show cursor.
     pub fn new(list: T, colors: SelectColors, filter_auto_hide: bool, filter_show_cursor: bool) -> Self {
-        let filter = Input::new(colors.filter.input, filter_show_cursor);
+        let filter = Input::new(colors.filter.input, filter_show_cursor).with_error_colors(colors.filter.error);
 
         Select {
             items: list,
@@ -39,6 +40,12 @@ impl<T: Table> Select<T> {
         self
     }
 
+    /// Adds a set of characters that should be accented by the [`Select`] instance.
+    pub fn with_accent_characters(mut self, highlight: impl Into<String>) -> Self {
+        self.filter.set_accent_characters(Some(highlight.into()));
+        self
+    }
+
     /// Sets prompt for the filter input.
     pub fn set_prompt(&mut self, prompt: impl Into<String>) {
         self.filter.set_prompt(Some((prompt, self.colors.filter.prompt)));
@@ -47,15 +54,27 @@ impl<T: Table> Select<T> {
     /// Sets colors for the filter input and list lines.
     pub fn set_colors(&mut self, colors: SelectColors) {
         self.filter.set_colors(colors.filter.input);
+        self.filter.set_prompt_colors(colors.filter.prompt);
+        self.filter.set_error_colors(colors.filter.error);
         self.colors = colors;
     }
 
-    /// Sets whether to show the cursor in the filter input.
-    pub fn set_cursor(&mut self, show_cursor: bool) {
-        self.filter.set_cursor(show_cursor);
+    delegate! {
+        to self.filter {
+            pub fn set_cursor(&mut self, show_cursor: bool);
+            pub fn has_error(&mut self) -> bool;
+            pub fn set_error(&mut self, error_index: Option<usize>);
+            pub fn value(&self) -> &str;
+        }
     }
 
-    /// Resets filter.
+    /// Sets the filter value.
+    pub fn set_value(&mut self, value: impl Into<String>) {
+        self.filter.set_value(value);
+        self.update_items_filter();
+    }
+
+    /// Resets the filter.
     pub fn reset(&mut self) {
         self.filter.reset();
         self.items.filter(None);
@@ -102,6 +121,18 @@ impl<T: Table> Select<T> {
             self.items.highlight_first_item();
         }
     }
+
+    fn update_items_filter(&mut self) {
+        if self.filter.value().is_empty() {
+            self.items.filter(None);
+        } else if let Some(filter) = self.items.get_filter() {
+            if self.filter.value() != filter {
+                self.filter_and_highlight();
+            }
+        } else {
+            self.filter_and_highlight();
+        }
+    }
 }
 
 impl<T: Table> Responsive for Select<T> {
@@ -112,15 +143,7 @@ impl<T: Table> Responsive for Select<T> {
 
         if self.items.process_key(key) == ResponseEvent::NotHandled {
             self.filter.process_key(key);
-            if self.filter.value().is_empty() {
-                self.items.filter(None);
-            } else if let Some(filter) = self.items.get_filter() {
-                if self.filter.value() != filter {
-                    self.filter_and_highlight();
-                }
-            } else {
-                self.filter_and_highlight();
-            }
+            self.update_items_filter();
         }
 
         ResponseEvent::Handled

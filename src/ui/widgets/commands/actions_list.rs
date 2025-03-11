@@ -3,11 +3,10 @@ use kube::config::NamedContext;
 use std::collections::HashMap;
 
 use crate::{
+    app::lists::{BasicFilterContext, ScrollableList},
     kubernetes::resources::Kind,
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme, widgets::Action},
 };
-
-use super::{BasicFilterContext, ScrollableList};
 
 /// UI actions list.
 #[derive(Default)]
@@ -48,7 +47,7 @@ impl Table for ActionsList {
     }
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.  
-    /// As actions are used only in selector, we don't care to implement this.
+    /// **Note** that this is not implemented for [`ActionsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }

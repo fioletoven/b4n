@@ -47,6 +47,17 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Appends an element to the back of the list.  
+    /// **Note** that it may be immediately filtered out by the currently applied filter.
+    pub fn push(&mut self, value: T) {
+        if let Some(items) = &mut self.items {
+            items.push(Item::new(value));
+            self.apply_filter();
+        } else {
+            self.items = Some(FilterableList::from(vec![Item::new(value)]));
+        }
+    }
+
     /// Clears the [`ScrollableList`], removing all values.
     pub fn clear(&mut self) {
         if let Some(items) = &mut self.items {
@@ -301,7 +312,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(list) = self.get_page() {
             let mut result = Vec::with_capacity(self.page_height.into());
             for item in list {
-                result.push((item.data.get_name(width), item.is_active));
+                if item.is_active {
+                    result.push((item.data.get_name_for_highlighted(width), true));
+                } else {
+                    result.push((item.data.get_name(width), false));
+                }
             }
 
             return Some(result);
