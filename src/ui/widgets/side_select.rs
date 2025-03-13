@@ -61,7 +61,7 @@ impl<T: Table> SideSelect<T> {
         }
     }
 
-    /// Marks [`SideSelect`] as visible, after that it can be drawn on terminal frame.
+    /// Marks [`SideSelect`] as visible, after that it can be drawn on the terminal frame.
     pub fn show(&mut self) {
         self.is_key_pressed = false;
         self.is_visible = true;

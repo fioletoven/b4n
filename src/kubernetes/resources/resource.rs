@@ -7,7 +7,7 @@ use crate::{
     kubernetes,
     ui::{ViewType, colors::TextColors, theme::Theme},
     utils::{
-        logical_expressions::{MatchExtensions, expand},
+        logical_expressions::{Expression, ExpressionExtensions, parse},
         truncate,
     },
 };
@@ -26,8 +26,7 @@ pub struct Resource {
     pub namespace: Option<String>,
     pub age: Option<String>,
     pub creation_timestamp: Option<Time>,
-    pub labels: Option<BTreeMap<String, String>>,
-    pub annotations: Option<BTreeMap<String, String>>,
+    pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
 }
 
@@ -44,6 +43,7 @@ impl Resource {
     /// Creates [`Resource`] from kubernetes [`DynamicObject`].
     pub fn from(kind: &str, object: DynamicObject) -> Self {
         let data = Some(get_resource_data(kind, &object));
+        let filter = get_filter_metadata(&object);
 
         Self {
             age: object.creation_timestamp().as_ref().map(|t| t.0.timestamp().to_string()),
@@ -51,8 +51,7 @@ impl Resource {
             namespace: object.metadata.namespace,
             uid: object.metadata.uid,
             creation_timestamp: object.metadata.creation_timestamp,
-            labels: object.metadata.labels,
-            annotations: object.metadata.annotations,
+            filter_metadata: filter,
             data,
         }
     }
@@ -198,7 +197,7 @@ impl Row for Resource {
 /// Filtering context for [`Resource`].
 pub struct ResourceFilterContext {
     pattern: String,
-    extended: Option<Vec<Vec<String>>>,
+    extended: Option<Expression>,
 }
 
 impl FilterContext for ResourceFilterContext {
@@ -209,10 +208,10 @@ impl FilterContext for ResourceFilterContext {
 
 impl Filterable<ResourceFilterContext> for Resource {
     fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
-        let extended = if let Some(settings) = settings {
+        let expression = if let Some(settings) = settings {
             if settings.contains('e') {
-                match expand(pattern) {
-                    Ok(expanded) => Some(expanded),
+                match parse(pattern) {
+                    Ok(expression) => Some(expression),
                     Err(_) => None,
                 }
             } else {
@@ -224,28 +223,42 @@ impl Filterable<ResourceFilterContext> for Resource {
 
         ResourceFilterContext {
             pattern: pattern.to_owned(),
-            extended,
+            extended: expression,
         }
     }
 
     /// Checks if an item match a filter using the provided context.  
+    /// Extended filtering is when `e` is provided in settings.  
     /// **Note** that currently it has only a switch for normal/extended filtering.
-    /// Extended filtering is when [`Some`] is provided in settings.
     fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
-        if let Some(extended) = &context.extended {
-            self.name.is_matching(extended) || any(self.labels.as_ref(), extended) || any(self.annotations.as_ref(), extended)
+        if let Some(expression) = &context.extended {
+            self.filter_metadata.evaluate(expression)
         } else {
             self.name.contains(&context.pattern)
         }
     }
 }
 
-fn any(tree: Option<&BTreeMap<String, String>>, expression: &[Vec<String>]) -> bool {
-    let Some(tree) = tree else {
-        return false;
-    };
+fn get_filter_metadata(object: &DynamicObject) -> Vec<String> {
+    let mut result = vec![object.name_any().to_ascii_lowercase()];
 
-    tree.keys().any(|k| k.is_matching(expression)) || tree.values().any(|v| v.is_matching(expression))
+    if let Some(labels) = object.metadata.labels.as_ref() {
+        result.append(&mut flatten_metadata(labels));
+    }
+
+    if let Some(annotations) = object.metadata.annotations.as_ref() {
+        result.append(&mut flatten_metadata(annotations));
+    }
+
+    result
+}
+
+#[inline]
+fn flatten_metadata(items: &BTreeMap<String, String>) -> Vec<String> {
+    items
+        .iter()
+        .map(|(k, v)| [k.to_ascii_lowercase(), v.to_ascii_lowercase()].join(": "))
+        .collect::<Vec<String>>()
 }
 
 /// Extension methods for string.

@@ -36,7 +36,7 @@ impl Filter {
         let colors = app_data.borrow().config.theme.colors.filter.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true)
             .with_prompt(" ")
-            .with_accent_characters("|+&()");
+            .with_accent_characters("|&!()");
 
         Self {
             app_data,
@@ -88,9 +88,9 @@ impl Filter {
         if let Err(error) = validate(self.patterns.value()) {
             match error {
                 ParserError::ExpectedOperator(index) => self.patterns.set_error(Some(index)),
-                ParserError::ExpectedValue(index) => self.patterns.set_error(Some(index)),
-                ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
+                ParserError::UnexpectedOperator(index) => self.patterns.set_error(Some(index)),
                 ParserError::ExpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
+                ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
             }
         } else {
             self.patterns.set_error(None);
@@ -119,7 +119,7 @@ impl Responsive for Filter {
                 self.patterns.set_value(self.current.clone());
                 return ResponseEvent::Cancelled;
             } else {
-                self.reset();
+                self.patterns.reset();
                 return ResponseEvent::Handled;
             }
         }
