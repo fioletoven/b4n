@@ -1,14 +1,16 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::{Constraint, Direction, Flex, Layout, Rect},
+    layout::Rect,
     style::Style,
     widgets::{Block, Clear},
 };
 
 use crate::{
-    app::{SharedAppData, lists::ActionsList},
-    ui::{ResponseEvent, Responsive, widgets::Select},
+    app::SharedAppData,
+    ui::{ResponseEvent, Responsive, utils::center_horizontal, widgets::Select},
 };
+
+use super::ActionsList;
 
 /// Command Palette widget for TUI.
 #[derive(Default)]
@@ -42,12 +44,12 @@ impl CommandPalette {
         self.actions.select(name, "");
     }
 
-    /// Marks [`CommandPalette`] as a visible.
+    /// Marks [`CommandPalette`] as visible.
     pub fn show(&mut self) {
         self.is_visible = true;
     }
 
-    /// Marks [`CommandPalette`] as a hidden.
+    /// Marks [`CommandPalette`] as hidden.
     pub fn hide(&mut self) {
         self.is_visible = false;
     }
@@ -60,7 +62,7 @@ impl CommandPalette {
 
         let colors = &self.app_data.borrow().config.theme.colors;
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center(area, width, self.actions.items.list.len() + 1);
+        let area = center_horizontal(area, width, self.actions.items.list.len() + 1);
         let block = Block::new().style(Style::default().bg(colors.command_palette.normal.bg));
 
         frame.render_widget(Clear, area);
@@ -89,26 +91,5 @@ impl Responsive for CommandPalette {
         }
 
         self.actions.process_key(key)
-    }
-}
-
-/// Centers horizontally a [`Rect`] within another [`Rect`] using the provided width and max height.
-pub fn center(area: Rect, width: u16, max_height: usize) -> Rect {
-    let [area] = Layout::horizontal([Constraint::Length(width)]).flex(Flex::Center).areas(area);
-    let top = if area.height > 2 { (area.height - 2).min(3) } else { 0 };
-    let mut bottom = if area.height > 5 { (area.height - 5).min(6) } else { 0 };
-    if area.height >= 7 && area.height <= 14 {
-        bottom = area.height.saturating_sub(9).max(2);
-    }
-
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(top), Constraint::Fill(1), Constraint::Length(bottom)])
-        .split(area);
-
-    if usize::from(layout[1].height) > max_height {
-        Rect::new(layout[1].x, layout[1].y, layout[1].width, max_height as u16)
-    } else {
-        layout[1]
     }
 }

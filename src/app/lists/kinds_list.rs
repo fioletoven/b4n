@@ -66,7 +66,7 @@ impl Table for KindsList {
     }
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.  
-    /// As kinds are used only in selector, we don't care to implement this.
+    /// **Note** that this is not implemented for [`KindsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }

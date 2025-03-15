@@ -118,14 +118,14 @@ impl Row for Action {
                 text.push_str(truncate(descr, text_width - text.len() + 1));
                 text.push(']');
             } else {
-                let padding_len = text_width - name_width - descr_width;
+                let padding_len = text_width.saturating_sub(name_width).saturating_sub(descr_width);
                 (0..padding_len).for_each(|_| text.push(' '));
                 text.push('[');
                 text.push_str(descr);
                 text.push(']');
             }
         } else {
-            let padding_len = text_width - name_width;
+            let padding_len = text_width.saturating_sub(name_width);
             (0..padding_len).for_each(|_| text.push(' '));
         }
 

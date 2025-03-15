@@ -5,12 +5,12 @@ use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{SharedAppData, commands::CommandResult, lists::ActionsListBuilder},
+    app::{SharedAppData, commands::CommandResult},
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::View,
-        widgets::{Action, CommandPalette, FooterMessage},
+        widgets::{Action, ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
