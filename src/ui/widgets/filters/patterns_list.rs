@@ -15,12 +15,42 @@ pub struct PatternsList {
 }
 
 impl PatternsList {
+    /// Creates new [`PatternsList`] instance from the filter history list.
+    pub fn from(filter_history: Vec<String>) -> Self {
+        let mut list = ScrollableList::from(filter_history.into_iter().map(Pattern::from).collect());
+        list.sort(1, false);
+        Self { list }
+    }
+
     /// Returns `true` if the [`PatternsList`] contains an element with the given value.
     pub fn contains(&self, value: &str) -> bool {
         self.list
             .items
             .as_ref()
             .is_some_and(|l| l.full_iter().any(|i| i.data.value == value))
+    }
+
+    /// Removes the oldest element from a list.
+    pub fn remove_oldest(&mut self) {
+        if let Some(list) = &mut self.list.items {
+            let index = list
+                .full_iter()
+                .enumerate()
+                .min_by_key(|(_, i)| i.data.creation_time)
+                .map(|(index, _)| index);
+            if let Some(index) = index {
+                list.full_remove(index);
+            }
+        }
+    }
+
+    /// Returns [`PatternsList`] as a filter history that can be saved in the app history data.
+    pub fn get_filter_history(&self) -> Vec<String> {
+        if let Some(list) = &self.list.items {
+            list.full_iter().map(|i| i.data.to_string()).collect()
+        } else {
+            Vec::new()
+        }
     }
 }
 

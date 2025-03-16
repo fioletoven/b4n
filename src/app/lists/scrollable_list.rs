@@ -65,7 +65,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
-    /// Returns the number of elements in the scrollable list.
+    /// Returns the number of elements in the filtered out scrollable list.
     pub fn len(&self) -> usize {
         self.items.as_ref().map(|l| l.len()).unwrap_or_default()
     }

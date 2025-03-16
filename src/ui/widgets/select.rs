@@ -114,15 +114,8 @@ impl<T: Table> Select<T> {
         }
     }
 
-    fn filter_and_highlight(&mut self) {
-        self.items.filter(Some(self.filter.value().to_owned()));
-        self.items.highlight_item_by_name_start(self.filter.value());
-        if self.items.get_highlighted_item_index().is_none() {
-            self.items.highlight_first_item();
-        }
-    }
-
-    fn update_items_filter(&mut self) {
+    /// Updates filter applied on items.
+    pub fn update_items_filter(&mut self) {
         if self.filter.value().is_empty() {
             self.items.filter(None);
         } else if let Some(filter) = self.items.get_filter() {
@@ -131,6 +124,14 @@ impl<T: Table> Select<T> {
             }
         } else {
             self.filter_and_highlight();
+        }
+    }
+
+    fn filter_and_highlight(&mut self) {
+        self.items.filter(Some(self.filter.value().to_owned()));
+        self.items.highlight_item_by_name_start(self.filter.value());
+        if self.items.get_highlighted_item_index().is_none() {
+            self.items.highlight_first_item();
         }
     }
 }

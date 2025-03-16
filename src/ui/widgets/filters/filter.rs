@@ -6,24 +6,24 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    app::{SharedAppData, SharedBgWorker},
     ui::{ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };
 
 use super::PatternsList;
 
-const HISTORY_SIZE: usize = 10;
+const HISTORY_SIZE: usize = 20;
 
 #[cfg(test)]
 #[path = "./filter.tests.rs"]
 mod filter_tests;
 
 /// Filter widget for TUI.
-#[derive(Default)]
 pub struct Filter {
     pub is_visible: bool,
     app_data: SharedAppData,
+    worker: Option<SharedBgWorker>,
     patterns: Select<PatternsList>,
     current: String,
     last_validated: String,
@@ -32,17 +32,20 @@ pub struct Filter {
 
 impl Filter {
     /// Creates new [`Filter`] instance.
-    pub fn new(app_data: SharedAppData, width: u16) -> Self {
+    pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
         let colors = app_data.borrow().config.theme.colors.filter.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true)
             .with_prompt(" ")
             .with_accent_characters("|&!()");
 
         Self {
+            is_visible: false,
             app_data,
+            worker,
             patterns,
+            current: String::new(),
+            last_validated: String::new(),
             width,
-            ..Default::default()
         }
     }
 
@@ -53,6 +56,11 @@ impl Filter {
 
     /// Marks [`Filter`] as visible.
     pub fn show(&mut self) {
+        let context = self.app_data.borrow().current.context.clone();
+        self.patterns.items = PatternsList::from(self.app_data.borrow_mut().history.get_filter_history(&context));
+        self.patterns.update_items_filter();
+        self.patterns
+            .set_colors(self.app_data.borrow().config.theme.colors.filter.clone());
         self.is_visible = true;
     }
 
@@ -99,10 +107,28 @@ impl Filter {
         self.last_validated = self.patterns.value().to_owned();
     }
 
-    fn remember_pattern(&mut self, pattern: String) {
-        self.current = pattern.clone();
-        if !pattern.is_empty() && !self.patterns.items.contains(&pattern) && self.patterns.items.len() < HISTORY_SIZE {
-            self.patterns.items.list.push(pattern.into());
+    fn remember_pattern(&mut self) {
+        let pattern = self.patterns.value();
+        self.current = pattern.to_owned();
+        if !pattern.is_empty() && !self.patterns.items.contains(pattern) {
+            self.patterns.items.list.push(pattern.to_owned().into());
+
+            let len = self.patterns.items.list.items.as_ref().map(|l| l.full_len());
+            if len.unwrap_or_default() > HISTORY_SIZE {
+                self.patterns.items.remove_oldest();
+            }
+
+            self.patterns.items.list.sort(1, false);
+
+            let context = self.app_data.borrow().current.context.clone();
+            self.app_data
+                .borrow_mut()
+                .history
+                .update_filter_history(&context, self.patterns.items.get_filter_history());
+
+            if let Some(worker) = &self.worker {
+                worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
+            }
         }
     }
 }
@@ -130,7 +156,8 @@ impl Responsive for Filter {
             }
 
             self.is_visible = false;
-            self.remember_pattern(self.patterns.value().to_owned());
+            self.remember_pattern();
+
             return ResponseEvent::Handled;
         }
 

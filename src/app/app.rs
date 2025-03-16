@@ -46,7 +46,7 @@ impl App {
         let data = Rc::new(RefCell::new(AppData::new(config, history)));
         let footer = Footer::new(Rc::clone(&data));
         let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
-        let resources = ResourcesView::new(Rc::clone(&data));
+        let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_messages_sender());
 
         Ok(Self {

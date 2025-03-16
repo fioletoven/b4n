@@ -96,7 +96,7 @@ impl Resource {
                 .as_ref()
                 .map(kubernetes::utils::format_timestamp)
                 .as_deref()
-                .unwrap_or(" "),
+                .unwrap_or("n/a"),
             AGE_COLUMN_WIDTH + 1,
             true,
         );

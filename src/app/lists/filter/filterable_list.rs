@@ -18,18 +18,15 @@ mod filterable_list_tests;
 pub struct FilterableList<T: Filterable<Fc>, Fc: FilterContext> {
     items: Vec<T>,
     filtered: Option<Vec<usize>>,
-    len: usize,
     _marker: PhantomData<Fc>,
 }
 
 impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     /// Creates new [`FilterableList<T, Fc>`] instance from the [`Vec`] object.
     pub fn from(items: Vec<T>) -> Self {
-        let len = items.len();
         Self {
             items,
             filtered: None,
-            len,
             _marker: PhantomData,
         }
     }
@@ -64,7 +61,6 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
             .filter(|(_i, x)| x.is_matching(context))
             .map(|(i, _x)| i)
             .collect();
-        self.len = filtered.len();
         self.filtered = Some(filtered);
     }
 
@@ -72,19 +68,21 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     #[inline]
     pub fn filter_reset(&mut self) {
         self.filtered = None;
-        self.len = self.items.len();
     }
 
     /// Returns the number of elements in the filtered out list.
     #[inline]
     pub fn len(&self) -> usize {
-        self.len
+        match &self.filtered {
+            Some(filtered) => filtered.len(),
+            None => self.items.len(),
+        }
     }
 
     /// Returns `true` if the filtered out list contains no elements.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
     /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.  

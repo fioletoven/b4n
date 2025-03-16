@@ -9,7 +9,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     app::{
-        ObserverResult, SharedAppData,
+        ObserverResult, SharedAppData, SharedBgWorker,
         lists::{KindsList, ResourcesList},
     },
     kubernetes::{
@@ -38,7 +38,7 @@ pub struct ResourcesView {
 
 impl ResourcesView {
     /// Creates a new resources view.
-    pub fn new(app_data: SharedAppData) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker) -> Self {
         let table = ResourcesTable::new(Rc::clone(&app_data));
         let ns_selector = SideSelect::new(
             "NAMESPACE",
@@ -56,7 +56,7 @@ impl ResourcesView {
             ResponseEvent::ChangeKind,
             35,
         );
-        let filter = Filter::new(Rc::clone(&app_data), 60);
+        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
 
         Self {
             app_data,

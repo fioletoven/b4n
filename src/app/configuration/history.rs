@@ -16,6 +16,7 @@ pub struct ContextInfo {
     pub name: String,
     pub namespace: String,
     pub kind: String,
+    pub filter_history: Vec<String>,
 }
 
 impl ContextInfo {
@@ -33,6 +34,7 @@ impl ContextInfo {
             name: info.context.clone(),
             namespace: info.namespace.as_str().into(),
             kind: info.kind.clone(),
+            filter_history: Vec::new(),
         }
     }
 
@@ -153,6 +155,26 @@ impl History {
         } else {
             self.kube_configs
                 .insert(self.config_key().to_owned(), KubeConfig::new(context, kind, namespace));
+        }
+    }
+
+    /// Gets copy of `filter_history` from the specified `context` of the current kube config.
+    pub fn get_filter_history(&mut self, context: &str) -> Vec<String> {
+        if let Some(config) = self.current_config_mut() {
+            if let Some(index) = config.contexts.iter().position(|c| c.name == context) {
+                return config.contexts[index].filter_history.clone();
+            }
+        }
+
+        Vec::new()
+    }
+
+    /// Updates `filter_history` in the specified `context` of the current kube config.
+    pub fn update_filter_history(&mut self, context: &str, filter_history: Vec<String>) {
+        if let Some(config) = self.current_config_mut() {
+            if let Some(index) = config.contexts.iter().position(|c| c.name == context) {
+                config.contexts[index].filter_history = filter_history;
+            }
         }
     }
 
