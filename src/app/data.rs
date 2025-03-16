@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, highlighting::Theme, parsing::Synta
 
 use crate::kubernetes::Namespace;
 
-use super::Config;
+use super::{Config, History};
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 
@@ -71,6 +71,9 @@ pub struct AppData {
     /// Application configuration read from file.
     pub config: Config,
 
+    /// Application history data read from file.
+    pub history: History,
+
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
@@ -83,23 +86,24 @@ pub struct AppData {
 
 impl AppData {
     /// Creates new [`AppData`] instance.
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, history: History) -> Self {
         Self {
             config,
+            history,
             current: ResourcesInfo::default(),
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             is_connected: false,
         }
     }
 
-    /// Returns resource's `kind` and `namespace` from the configuration.  
-    /// **Note** that if provided `context` is not found in the configuration file, current context resource is used.
+    /// Returns resource's `kind` and `namespace` from the history data.  
+    /// **Note** that if provided `context` is not found in the history file, current context resource is used.
     pub fn get_namespaced_resource_from_config(&self, context: &str) -> (String, Namespace) {
-        let kind = self.config.get_kind(context);
+        let kind = self.history.get_kind(context);
         if kind.is_none() {
             (self.current.kind_plural.clone(), self.current.namespace.clone())
         } else {
-            let namespace = self.config.get_namespace(context).unwrap_or_default();
+            let namespace = self.history.get_namespace(context).unwrap_or_default();
             (kind.unwrap_or_default().to_owned(), namespace.into())
         }
     }

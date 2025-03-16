@@ -17,20 +17,20 @@ use tokio_util::sync::CancellationToken;
 
 use crate::app::utils::wait_for_task;
 
-use super::Config;
+use super::Persistable;
 
 /// Observes for changes in configuration file.
-pub struct ConfigWatcher {
+pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
     path: PathBuf,
     watcher: Option<RecommendedWatcher>,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    config_tx: UnboundedSender<Config>,
-    config_rx: UnboundedReceiver<Config>,
+    config_tx: UnboundedSender<T>,
+    config_rx: UnboundedReceiver<T>,
     skip_next: Arc<AtomicBool>,
 }
 
-impl ConfigWatcher {
+impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     /// Creates new [`ConfigWatcher`] instance.
     pub fn new(config_to_watch: PathBuf) -> Self {
         let (config_tx, config_rx) = mpsc::unbounded_channel();
@@ -78,7 +78,7 @@ impl ConfigWatcher {
                 }
 
                 if configuration_modified && !_skip_next.swap(false, Ordering::Relaxed) {
-                    if let Ok(config) = Config::load().await {
+                    if let Ok(config) = T::load().await {
                         _config_tx.send(config).unwrap();
                     }
                 }
@@ -110,12 +110,12 @@ impl ConfigWatcher {
     }
 
     /// Tries to get a new configuration if it has been reloaded due to a file modification.
-    pub fn try_next(&mut self) -> Option<Config> {
+    pub fn try_next(&mut self) -> Option<T> {
         self.config_rx.try_recv().ok()
     }
 }
 
-impl Drop for ConfigWatcher {
+impl<T: Persistable<T> + Send + 'static> Drop for ConfigWatcher<T> {
     fn drop(&mut self) {
         self.cancel();
         if let Some(watcher) = &mut self.watcher {

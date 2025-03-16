@@ -1,6 +1,6 @@
 use tracing::error;
 
-use crate::app::Config;
+use crate::app::{Config, Persistable};
 
 use super::CommandResult;
 
