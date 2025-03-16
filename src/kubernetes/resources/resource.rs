@@ -109,28 +109,33 @@ impl Resource {
     }
 
     fn push_inner_text(&self, row: &mut String, header: &Header) {
-        let Some(values) = self.get_extra_values() else {
-            return;
-        };
         let Some(columns) = header.get_extra_columns() else {
             return;
         };
-        if values.len() != columns.len() {
-            return;
-        }
-
-        for i in 0..columns.len() {
-            if i > 0 {
-                row.push(' ');
+        if let Some(values) = self.get_extra_values() {
+            if values.len() != columns.len() {
+                return;
             }
 
-            let len = if columns[i].is_fixed {
-                columns[i].data_len
-            } else {
-                columns[i].data_len.clamp(columns[i].min_len(), columns[i].max_len())
-            };
+            for i in 0..columns.len() {
+                if i > 0 {
+                    row.push(' ');
+                }
 
-            row.push_cell(values[i].text.as_deref().unwrap_or("n/a"), len, columns[i].to_right);
+                row.push_cell(
+                    values[i].text.as_deref().unwrap_or("n/a"),
+                    columns[i].len(),
+                    columns[i].to_right,
+                );
+            }
+        } else {
+            for (i, column) in columns.iter().enumerate() {
+                if i > 0 {
+                    row.push(' ');
+                }
+
+                (0..column.len()).for_each(|_| row.push(' '));
+            }
         }
     }
 
@@ -182,11 +187,7 @@ impl Row for Resource {
     fn column_sort_text(&self, column: usize) -> &str {
         if let Some(values) = self.get_extra_values() {
             if column >= 2 && column <= values.len() + 1 {
-                if values[column - 2].is_numeric {
-                    return values[column - 2].number.as_deref().unwrap_or("n/a");
-                } else {
-                    return values[column - 2].text.as_deref().unwrap_or("n/a");
-                }
+                return values[column - 2].value();
             }
         }
 

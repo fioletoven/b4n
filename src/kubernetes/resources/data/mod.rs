@@ -5,14 +5,20 @@ use crate::{
     ui::{colors::TextColors, theme::Theme},
 };
 
+pub mod config_map;
 pub mod default;
+pub mod namespace;
 pub mod pod;
+pub mod secret;
 pub mod service;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
 pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
     match kind {
+        "ConfigMap" => config_map::data(object),
+        "Namespace" => namespace::data(object),
         "Pod" => pod::data(object),
+        "Secret" => secret::data(object),
         "Service" => service::data(object),
         _ => default::data(object),
     }
@@ -21,7 +27,10 @@ pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for provided Kubernetes resource kind.
 pub fn get_header_data(kind: &str) -> Header {
     match kind {
+        "ConfigMap" => config_map::header(),
+        "Namespace" => namespace::header(),
         "Pod" => pod::header(),
+        "Secret" => secret::header(),
         "Service" => service::header(),
         _ => default::header(),
     }
@@ -43,6 +52,15 @@ impl ResourceValue {
             text,
             number: numeric,
             is_numeric: true,
+        }
+    }
+
+    /// Returns resource value.
+    pub fn value(&self) -> &str {
+        if self.is_numeric {
+            self.number.as_deref().unwrap_or("NaN")
+        } else {
+            self.text.as_deref().unwrap_or("n/a")
         }
     }
 }

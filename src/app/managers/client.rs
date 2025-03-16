@@ -148,7 +148,7 @@ impl KubernetesClientManager {
 
     /// Sends command to create new Kubernetes client to the background executor.
     fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> RequestInfo {
-        let kube_config_path = self.app_data.borrow().config.kube_config_path().map(String::from);
+        let kube_config_path = self.app_data.borrow().history.kube_config_path().map(String::from);
         let cmd = NewKubernetesClientCommand::new(kube_config_path, context.clone(), kind.clone(), namespace.clone());
 
         RequestInfo {

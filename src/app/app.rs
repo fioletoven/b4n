@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, KubernetesClientManager, SharedAppData, SharedBgWorker,
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
     commands::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ResourceYamlError,
         ResourceYamlResult,
@@ -35,17 +35,18 @@ pub struct App {
     view: Option<Box<dyn View>>,
     footer: Footer,
     worker: SharedBgWorker,
-    watcher: ConfigWatcher,
+    config_watcher: ConfigWatcher<Config>,
+    history_watcher: ConfigWatcher<History>,
     client_manager: KubernetesClientManager,
 }
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(config: Config) -> Result<Self> {
-        let data = Rc::new(RefCell::new(AppData::new(config)));
+    pub fn new(config: Config, history: History) -> Result<Self> {
+        let data = Rc::new(RefCell::new(AppData::new(config, history)));
         let footer = Footer::new(Rc::clone(&data));
         let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
-        let resources = ResourcesView::new(Rc::clone(&data));
+        let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_messages_sender());
 
         Ok(Self {
@@ -55,7 +56,8 @@ impl App {
             view: None,
             footer,
             worker,
-            watcher: Config::watcher(),
+            config_watcher: Config::watcher(),
+            history_watcher: History::watcher(),
             client_manager,
         })
     }
@@ -66,7 +68,8 @@ impl App {
             .request_new_client(context.clone(), kind, namespace.clone());
         self.resources
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
-        self.watcher.start()?;
+        self.config_watcher.start()?;
+        self.history_watcher.start()?;
         self.tui.enter_terminal()?;
 
         Ok(())
@@ -75,14 +78,16 @@ impl App {
     /// Cancels all app tasks.
     pub fn cancel(&mut self) {
         self.worker.borrow_mut().cancel_all();
-        self.watcher.cancel();
+        self.config_watcher.cancel();
+        self.history_watcher.cancel();
         self.tui.cancel();
     }
 
     /// Stops app.
     pub fn stop(&mut self) -> Result<()> {
         self.worker.borrow_mut().stop_all();
-        self.watcher.stop();
+        self.config_watcher.stop();
+        self.history_watcher.stop();
         self.tui.exit_terminal()?;
 
         Ok(())
@@ -90,8 +95,12 @@ impl App {
 
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
-        if let Some(config) = self.watcher.try_next() {
+        if let Some(config) = self.config_watcher.try_next() {
             self.data.borrow_mut().config = config;
+        }
+
+        if let Some(history) = self.history_watcher.try_next() {
+            self.data.borrow_mut().history = history;
         }
 
         self.process_commands_results();
@@ -237,7 +246,7 @@ impl App {
 
     /// Runs command to list kube contexts from the current config.
     fn list_kube_contexts(&mut self) {
-        let kube_config_path = self.data.borrow().config.kube_config_path().map(String::from);
+        let kube_config_path = self.data.borrow().history.kube_config_path().map(String::from);
         self.worker
             .borrow_mut()
             .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
@@ -288,22 +297,22 @@ impl App {
     /// **Note** that this means the resource list will change soon.
     fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>) {
         self.resources.clear_list_data();
-        self.update_configuration(kind, namespace);
+        self.update_history_data(kind, namespace);
         if let Some(scope) = scope {
             self.set_page_view(scope);
         }
     }
 
-    /// Updates `kind` and `namespace` in the configuration and saves it to a file.
-    fn update_configuration(&mut self, kind: Option<String>, namespace: Option<String>) {
+    /// Updates `kind` and `namespace` in the app history data and saves it to a file.
+    fn update_history_data(&mut self, kind: Option<String>, namespace: Option<String>) {
         let context = { self.data.borrow().current.context.clone() };
         self.data
             .borrow_mut()
-            .config
+            .history
             .create_or_update_context(context, kind, namespace);
 
-        self.watcher.skip_next();
-        self.worker.borrow_mut().save_configuration(self.data.borrow().config.clone());
+        self.history_watcher.skip_next();
+        self.worker.borrow_mut().save_history(self.data.borrow().history.clone());
     }
 
     /// Sets page view from resource scope.

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use app::{App, Config, ExecutionFlow};
+use app::{App, Config, ExecutionFlow, History};
 use clap::Parser;
 use kubernetes::client::get_context;
 use std::time::Duration;
@@ -35,25 +35,26 @@ async fn main() -> Result<()> {
 async fn run_application() -> Result<()> {
     let args = cli::Args::parse();
 
-    let mut config = Config::load_or_create().await?;
+    let config = Config::load_or_create().await?;
+    let mut history = History::load_or_create().await?;
     let (context, kube_config_path) = get_context(
         args.kube_config.as_deref(),
-        args.context(config.current_context()),
+        args.context(history.current_context()),
         args.context.is_none(),
     )
     .await?;
     let Some(context) = context else {
         return Err(anyhow::anyhow!(format!(
             "Kube context '{}' not found in configuration.",
-            args.context(config.current_context()).unwrap_or("default")
+            args.context(history.current_context()).unwrap_or("default")
         )));
     };
-    config.set_kube_config_path(kube_config_path);
+    history.set_kube_config_path(kube_config_path);
 
-    let resource = args.kind(config.get_kind(&context)).unwrap_or("pods").to_owned();
-    let namespace = args.namespace(config.get_namespace(&context)).map(String::from);
+    let resource = args.kind(history.get_kind(&context)).unwrap_or("pods").to_owned();
+    let namespace = args.namespace(history.get_namespace(&context)).map(String::from);
 
-    let mut app = App::new(config)?;
+    let mut app = App::new(config, history)?;
     app.start(context, resource, namespace.into()).await?;
 
     loop {

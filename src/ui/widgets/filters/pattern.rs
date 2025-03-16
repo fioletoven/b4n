@@ -1,17 +1,54 @@
+use std::time::{Duration, SystemTime};
+
 use crate::{
     app::lists::{BasicFilterContext, Filterable, Row},
     utils::{add_padding, truncate},
 };
 
 /// Filter pattern item.
-#[derive(Default)]
 pub struct Pattern {
     pub value: String,
+    pub creation_time: SystemTime,
+}
+
+impl Default for Pattern {
+    fn default() -> Self {
+        Self {
+            value: Default::default(),
+            creation_time: SystemTime::now(),
+        }
+    }
+}
+
+impl std::fmt::Display for Pattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}::{}",
+            self.value,
+            self.creation_time
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        )
+    }
 }
 
 impl From<String> for Pattern {
     fn from(value: String) -> Self {
-        Self { value }
+        if value.contains("::") {
+            let mut split = value.splitn(2, "::");
+            Self {
+                value: split.next().map(String::from).unwrap(),
+                creation_time: SystemTime::UNIX_EPOCH
+                    + Duration::from_secs(split.next().map(|d| d.parse::<u64>().unwrap_or(0)).unwrap_or(0)),
+            }
+        } else {
+            Self {
+                value,
+                creation_time: SystemTime::now(),
+            }
+        }
     }
 }
 

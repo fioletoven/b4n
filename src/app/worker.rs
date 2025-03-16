@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, SyntaxData, TaskResult,
-    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
+    BgDiscovery, BgExecutor, BgObserver, BgObserverError, Config, History, SyntaxData, TaskResult,
+    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand, SaveHistoryCommand},
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
@@ -152,10 +152,16 @@ impl BgWorker {
         }
     }
 
-    /// Saves the provided configuration to a file.
+    /// Saves the provided app configuration to a file.
     pub fn save_configuration(&mut self, config: Config) {
         self.executor
             .run_task(Command::SaveConfiguration(Box::new(SaveConfigurationCommand::new(config))));
+    }
+
+    /// Saves the provided app history to a file.
+    pub fn save_history(&mut self, history: History) {
+        self.executor
+            .run_task(Command::SaveHistory(Box::new(SaveHistoryCommand::new(history))));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  

@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn esc_reverts_value_test() {
     let data = Rc::new(RefCell::new(AppData::default()));
-    let mut filter = Filter::new(data, 60);
+    let mut filter = Filter::new(data, None, 60);
 
     filter.show();
     filter.process_key(KeyEvent::from(KeyCode::Char('t')));
@@ -25,7 +25,7 @@ fn esc_reverts_value_test() {
 #[test]
 fn enter_stores_value_test() {
     let data = Rc::new(RefCell::new(AppData::default()));
-    let mut filter = Filter::new(data, 60);
+    let mut filter = Filter::new(data, None, 60);
 
     filter.show();
     filter.process_key(KeyEvent::from(KeyCode::Char('t')));
