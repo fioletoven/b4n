@@ -113,6 +113,23 @@ impl Column {
         self
     }
 
+    /// Returns the current length of a [`Column`].
+    #[inline]
+    pub fn len(&self) -> usize {
+        if self.is_fixed {
+            self.data_len
+        } else {
+            self.data_len.clamp(self.min_len(), self.max_len())
+        }
+    }
+
+    /// Returns `true` if [`Column`] has a current length of zero bytes.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns `min` length of a [`Column`].
     #[inline]
     pub fn min_len(&self) -> usize {
         if self.is_sorted && self.name.chars().count() + 1 > self.min_len {
@@ -122,6 +139,7 @@ impl Column {
         }
     }
 
+    /// Returns `max` length of a [`Column`].
     #[inline]
     pub fn max_len(&self) -> usize {
         if self.is_sorted && self.min_len() > self.max_len {
