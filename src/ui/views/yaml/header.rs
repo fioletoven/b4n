@@ -62,7 +62,7 @@ impl HeaderPane {
     /// Returns formatted YAML resource path as breadcrumbs:  
     /// \> `YAML` \> `namespace` \> `kind` \> `name` \>
     fn get_path(&self) -> Line {
-        let header = &self.app_data.borrow().config.theme.colors.header;
+        let header = &self.app_data.borrow().theme.colors.header;
         let path = vec![
             Span::styled("", Style::new().fg(header.text.bg)),
             Span::styled(" YAML  ", &header.text),
@@ -81,7 +81,7 @@ impl HeaderPane {
     /// Returns formatted text as right breadcrumbs:
     /// < `text` <
     fn get_right_text(&self, text: String) -> Line {
-        let header = &self.app_data.borrow().config.theme.colors.header;
+        let header = &self.app_data.borrow().theme.colors.header;
 
         Line::from(vec![
             Span::styled("", Style::new().fg(header.text.bg)),

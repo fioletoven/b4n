@@ -245,7 +245,7 @@ impl ResourcesView {
 
     /// Creates new delete dialog.
     fn new_delete_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
 
         Dialog::new(
             "Are you sure you want to delete the selected resources?".to_owned(),

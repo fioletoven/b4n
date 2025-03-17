@@ -52,7 +52,7 @@ impl HeaderPane {
     /// Returns formatted kubernetes resource path as breadcrumbs:  
     /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
     fn get_path(&self, context: &str, namespace: &str, resource: &str, count: usize, scope: Scope) -> Line {
-        let colors = &self.app_data.borrow().config.theme.colors.header;
+        let colors = &self.app_data.borrow().theme.colors.header;
         let mut path = vec![
             Span::styled("", Style::new().fg(colors.context.bg)),
             Span::styled(format!(" {} ", context.to_lowercase()), &colors.context),
@@ -85,10 +85,10 @@ impl HeaderPane {
         let colors;
         let text;
         if self.app_data.borrow().is_connected {
-            colors = self.app_data.borrow().config.theme.colors.header.info;
+            colors = self.app_data.borrow().theme.colors.header.info;
             text = format!(" {} ", version);
         } else {
-            colors = self.app_data.borrow().config.theme.colors.header.disconnected;
+            colors = self.app_data.borrow().theme.colors.header.disconnected;
             text = format!("  {} ", if version.is_empty() { "connecting…" } else { version });
         };
 

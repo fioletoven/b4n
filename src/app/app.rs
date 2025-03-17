@@ -7,6 +7,7 @@ use crate::{
     kubernetes::{NAMESPACES, Namespace},
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
+        theme::Theme,
         views::{ResourcesView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
@@ -37,13 +38,15 @@ pub struct App {
     worker: SharedBgWorker,
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
+    theme_watcher: ConfigWatcher<Theme>,
     client_manager: KubernetesClientManager,
 }
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(config: Config, history: History) -> Result<Self> {
-        let data = Rc::new(RefCell::new(AppData::new(config, history)));
+    pub fn new(config: Config, history: History, theme: Theme) -> Result<Self> {
+        let theme_path = config.theme_path();
+        let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
         let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
@@ -58,6 +61,7 @@ impl App {
             worker,
             config_watcher: Config::watcher(),
             history_watcher: History::watcher(),
+            theme_watcher: ConfigWatcher::new(theme_path),
             client_manager,
         })
     }
@@ -70,6 +74,7 @@ impl App {
             .set_resources_info(context, namespace, String::default(), Scope::Cluster);
         self.config_watcher.start()?;
         self.history_watcher.start()?;
+        self.theme_watcher.start()?;
         self.tui.enter_terminal()?;
 
         Ok(())
@@ -80,6 +85,7 @@ impl App {
         self.worker.borrow_mut().cancel_all();
         self.config_watcher.cancel();
         self.history_watcher.cancel();
+        self.theme_watcher.cancel();
         self.tui.cancel();
     }
 
@@ -88,6 +94,7 @@ impl App {
         self.worker.borrow_mut().stop_all();
         self.config_watcher.stop();
         self.history_watcher.stop();
+        self.theme_watcher.stop();
         self.tui.exit_terminal()?;
 
         Ok(())
@@ -96,11 +103,16 @@ impl App {
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         if let Some(config) = self.config_watcher.try_next() {
+            self.theme_watcher.change_file(config.theme_path())?;
             self.data.borrow_mut().config = config;
         }
 
         if let Some(history) = self.history_watcher.try_next() {
             self.data.borrow_mut().history = history;
+        }
+
+        if let Some(theme) = self.theme_watcher.try_next() {
+            self.data.borrow_mut().theme = theme;
         }
 
         self.process_commands_results();

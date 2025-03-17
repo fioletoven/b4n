@@ -1,6 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
@@ -83,21 +86,28 @@ pub struct History {
 impl History {
     /// Returns watcher for history.
     pub fn watcher() -> ConfigWatcher<History> {
-        ConfigWatcher::new(get_default_history_dir())
+        ConfigWatcher::new(History::default_path())
     }
 
     /// Loads history from a file or creates default one if the file does not exist.
-    /// Default location for the history file is: `HOME/b4n/history.yaml`.
     pub async fn load_or_create() -> Result<Self, ConfigError> {
-        let history = Self::load().await;
+        let history = Self::load(&History::default_path()).await;
         match history {
             Ok(history) => Ok(history),
             Err(ConfigError::SerializationError(_)) => Ok(Self::default()),
             Err(_) => {
                 let history = Self::default();
-                history.save().await?;
+                history.save(&History::default_path()).await?;
                 Ok(history)
             }
+        }
+    }
+
+    /// Returns the default history file path: `HOME/b4n/history.yaml`.
+    pub fn default_path() -> PathBuf {
+        match home::home_dir() {
+            Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("history.yaml"),
+            None => PathBuf::from("history.yaml"),
         }
     }
 
@@ -206,8 +216,8 @@ impl History {
 }
 
 impl Persistable<History> for History {
-    async fn load() -> Result<History, ConfigError> {
-        let mut file = File::open(get_default_history_dir()).await?;
+    async fn load(path: &Path) -> Result<History, ConfigError> {
+        let mut file = File::open(path).await?;
 
         let mut history_str = String::new();
         file.read_to_string(&mut history_str).await?;
@@ -215,20 +225,13 @@ impl Persistable<History> for History {
         Ok(serde_yaml::from_str::<History>(&history_str)?)
     }
 
-    async fn save(&self) -> Result<(), ConfigError> {
+    async fn save(&self, path: &Path) -> Result<(), ConfigError> {
         let history_str = serde_yaml::to_string(self)?;
 
-        let mut file = File::create(get_default_history_dir()).await?;
+        let mut file = File::create(path).await?;
         file.write_all(history_str.as_bytes()).await?;
         file.flush().await?;
 
         Ok(())
-    }
-}
-
-fn get_default_history_dir() -> PathBuf {
-    match home::home_dir() {
-        Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("history.yaml"),
-        None => PathBuf::from("history.yaml"),
     }
 }

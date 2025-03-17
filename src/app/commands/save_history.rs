@@ -17,7 +17,7 @@ impl SaveHistoryCommand {
 
     /// Saves app history data to a file.
     pub async fn execute(&self) -> Option<CommandResult> {
-        if let Err(error) = self.history.save().await {
+        if let Err(error) = self.history.save(&History::default_path()).await {
             error!("The history data cannot be saved to a file: {}", error);
         }
 

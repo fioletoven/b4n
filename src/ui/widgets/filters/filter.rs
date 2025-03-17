@@ -33,7 +33,7 @@ pub struct Filter {
 impl Filter {
     /// Creates new [`Filter`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        let colors = app_data.borrow().config.theme.colors.filter.clone();
+        let colors = app_data.borrow().theme.colors.filter.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true)
             .with_prompt(" ")
             .with_accent_characters("|&!()");
@@ -59,8 +59,7 @@ impl Filter {
         let context = self.app_data.borrow().current.context.clone();
         self.patterns.items = PatternsList::from(self.app_data.borrow_mut().history.get_filter_history(&context));
         self.patterns.update_items_filter();
-        self.patterns
-            .set_colors(self.app_data.borrow().config.theme.colors.filter.clone());
+        self.patterns.set_colors(self.app_data.borrow().theme.colors.filter.clone());
         self.is_visible = true;
     }
 
@@ -76,7 +75,7 @@ impl Filter {
             return;
         }
 
-        let colors = &self.app_data.borrow().config.theme.colors.filter;
+        let colors = &self.app_data.borrow().theme.colors.filter;
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
         let block = Block::new().style(Style::default().bg(colors.normal.bg));
