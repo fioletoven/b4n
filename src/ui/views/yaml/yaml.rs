@@ -132,7 +132,7 @@ impl YamlViewer {
 
             frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), layout[1]);
         } else if self.creation_time.elapsed().as_millis() > 80 {
-            let colors = &self.app_data.borrow().config.theme.colors;
+            let colors = &self.app_data.borrow().theme.colors;
             let line = Line::styled(" waiting for data…", &colors.text);
             let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
             frame.render_widget(line, area);

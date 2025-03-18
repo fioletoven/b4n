@@ -1,8 +1,8 @@
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
-use syntect::{dumps::from_uncompressed_data, highlighting::Theme, parsing::SyntaxSet};
+use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
-use crate::kubernetes::Namespace;
+use crate::{kubernetes::Namespace, ui::theme::Theme};
 
 use super::{Config, History};
 
@@ -62,17 +62,20 @@ impl ResourcesInfo {
 /// Keeps data required for syntax highlighting.
 pub struct SyntaxData {
     pub syntax_set: SyntaxSet,
-    pub yaml_theme: Theme,
+    pub yaml_theme: syntect::highlighting::Theme,
 }
 
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
-    /// Application configuration read from file.
+    /// Application configuration.
     pub config: Config,
 
-    /// Application history data read from file.
+    /// Application history data.
     pub history: History,
+
+    /// Current application theme.
+    pub theme: Theme,
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
@@ -86,10 +89,11 @@ pub struct AppData {
 
 impl AppData {
     /// Creates new [`AppData`] instance.
-    pub fn new(config: Config, history: History) -> Self {
+    pub fn new(config: Config, history: History, theme: Theme) -> Self {
         Self {
             config,
             history,
+            theme,
             current: ResourcesInfo::default(),
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             is_connected: false,
@@ -113,7 +117,7 @@ impl AppData {
     pub fn get_syntax_data(&self) -> SyntaxData {
         SyntaxData {
             syntax_set: self.syntax_set.clone(),
-            yaml_theme: self.config.theme.build_syntect_yaml_theme(),
+            yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
     }
 }

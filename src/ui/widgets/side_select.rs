@@ -46,7 +46,7 @@ impl<T: Table> SideSelect<T> {
         width: u16,
     ) -> Self {
         let header = format!(" SELECT {}: ", name);
-        let select = Select::new(list, app_data.borrow().config.theme.colors.side_select.clone(), true, false);
+        let select = Select::new(list, app_data.borrow().theme.colors.side_select.clone(), true, false);
 
         SideSelect {
             is_visible: false,
@@ -67,7 +67,7 @@ impl<T: Table> SideSelect<T> {
         self.is_visible = true;
         self.select.reset();
         self.select
-            .set_colors(self.app_data.borrow().config.theme.colors.side_select.clone());
+            .set_colors(self.app_data.borrow().theme.colors.side_select.clone());
         self.showup_time = Instant::now();
     }
 
@@ -99,7 +99,7 @@ impl<T: Table> SideSelect<T> {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(inner_area);
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
         frame.render_widget(
             Paragraph::new(self.header.clone()).fg(colors.side_select.normal.fg),
             layout[0],
@@ -108,7 +108,7 @@ impl<T: Table> SideSelect<T> {
     }
 
     fn get_positioned_block(&mut self) -> Block<'_> {
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
         let block = Block::new()
             .border_set(border::Set {
                 vertical_left: "",

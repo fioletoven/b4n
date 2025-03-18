@@ -6,7 +6,7 @@ use crate::{
     kubernetes::resources::{ResourceData, ResourceValue},
 };
 
-/// Returns [`ResourceData`] for the `config_map` kubernetes resource.
+/// Returns [`ResourceData`] for the `configmap` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let data_count = object.data["data"].as_object().map(|o| o.len()).unwrap_or(0).to_string();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
@@ -22,7 +22,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     }
 }
 
-/// Returns [`Header`] for the `config_map` kubernetes resource.
+/// Returns [`Header`] for the `configmap` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
         NAMESPACE.clone(),

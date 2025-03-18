@@ -101,7 +101,7 @@ impl Footer {
     /// Returns formatted footer line.
     fn get_footer(&self, terminal_width: usize) -> Line<'_> {
         let footer = format!(" {1:<0$}", terminal_width - 3, &self.version);
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
 
         Line::from(vec![
             Span::styled("", Style::new().fg(colors.footer.text.bg)),
@@ -112,7 +112,7 @@ impl Footer {
 
     /// Returns formatted message to show.
     fn get_message<'a>(&self, message: &'a str, is_error: bool) -> Line<'a> {
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
         Line::styled(message, if is_error { &colors.footer.error } else { &colors.footer.info })
     }
 

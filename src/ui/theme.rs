@@ -1,5 +1,12 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
+
+use crate::app::{ConfigError, Persistable};
 
 use super::colors::{LineColors, TextColors, to_syntect_color};
 
@@ -219,6 +226,27 @@ impl Theme {
                 get_theme_item("constant.other.timestamp", self.colors.syntax.yaml.timestamp),
             ],
         }
+    }
+}
+
+impl Persistable<Theme> for Theme {
+    async fn load(path: &Path) -> Result<Theme, ConfigError> {
+        let mut file = File::open(path).await?;
+
+        let mut theme_str = String::new();
+        file.read_to_string(&mut theme_str).await?;
+
+        Ok(serde_yaml::from_str::<Theme>(&theme_str)?)
+    }
+
+    async fn save(&self, path: &Path) -> Result<(), ConfigError> {
+        let history_str = serde_yaml::to_string(self)?;
+
+        let mut file = File::create(path).await?;
+        file.write_all(history_str.as_bytes()).await?;
+        file.flush().await?;
+
+        Ok(())
     }
 }
 

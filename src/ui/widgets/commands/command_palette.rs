@@ -24,7 +24,7 @@ pub struct CommandPalette {
 impl CommandPalette {
     /// Creates new [`CommandPalette`] instance.
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
-        let colors = app_data.borrow().config.theme.colors.command_palette.clone();
+        let colors = app_data.borrow().theme.colors.command_palette.clone();
 
         Self {
             is_visible: false,
@@ -60,7 +60,7 @@ impl CommandPalette {
             return;
         }
 
-        let colors = &self.app_data.borrow().config.theme.colors;
+        let colors = &self.app_data.borrow().theme.colors;
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center_horizontal(area, width, self.actions.items.list.len() + 1);
         let block = Block::new().style(Style::default().bg(colors.command_palette.normal.bg));

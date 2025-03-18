@@ -19,7 +19,7 @@ use crate::app::utils::wait_for_task;
 
 use super::Persistable;
 
-/// Observes for changes in configuration file.
+/// Observes for changes in the configuration file.
 pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
     path: PathBuf,
     watcher: Option<RecommendedWatcher>,
@@ -27,6 +27,7 @@ pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
     cancellation_token: Option<CancellationToken>,
     config_tx: UnboundedSender<T>,
     config_rx: UnboundedReceiver<T>,
+    force_reload: Arc<AtomicBool>,
     skip_next: Arc<AtomicBool>,
 }
 
@@ -41,6 +42,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
             cancellation_token: None,
             config_tx,
             config_rx,
+            force_reload: Arc::new(AtomicBool::new(false)),
             skip_next: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -60,7 +62,9 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
 
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
+        let _path = self.path.clone();
         let _config_tx = self.config_tx.clone();
+        let _force_reload = Arc::clone(&self.force_reload);
         let _skip_next = Arc::clone(&self.skip_next);
         self.skip_next.store(false, Ordering::Relaxed);
 
@@ -77,8 +81,10 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                     }
                 }
 
-                if configuration_modified && !_skip_next.swap(false, Ordering::Relaxed) {
-                    if let Ok(config) = T::load().await {
+                if (configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
+                    || _force_reload.swap(false, Ordering::Relaxed)
+                {
+                    if let Ok(config) = T::load(&_path).await {
                         _config_tx.send(config).unwrap();
                     }
                 }
@@ -91,8 +97,19 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
         Ok(())
     }
 
+    /// Changes the observed configuration file to the specified one and restarts the [`ConfigWatcher`].  
+    /// **Note** that this will force a reload of the observed file.
+    pub fn change_file(&mut self, config_to_watch: PathBuf) -> Result<()> {
+        self.stop();
+        self.path = config_to_watch;
+        self.skip_next.store(false, Ordering::Relaxed);
+        self.force_reload.store(true, Ordering::Relaxed);
+        self.start()
+    }
+
     /// Cancels [`ConfigWatcher`] task.
     pub fn cancel(&mut self) {
+        self.stop_watcher();
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
         }
@@ -113,13 +130,16 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     pub fn try_next(&mut self) -> Option<T> {
         self.config_rx.try_recv().ok()
     }
+
+    fn stop_watcher(&mut self) {
+        if let Some(mut watcher) = self.watcher.take() {
+            let _ = watcher.unwatch(&self.path);
+        }
+    }
 }
 
 impl<T: Persistable<T> + Send + 'static> Drop for ConfigWatcher<T> {
     fn drop(&mut self) {
         self.cancel();
-        if let Some(watcher) = &mut self.watcher {
-            let _ = watcher.unwatch(&self.path);
-        }
     }
 }

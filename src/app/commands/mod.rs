@@ -4,21 +4,18 @@ pub use self::delete_resources::*;
 pub use self::get_yaml::*;
 pub use self::list_contexts::*;
 pub use self::new_kubernetes_client::*;
-pub use self::save_configuration::*;
 pub use self::save_history::*;
 
 mod delete_resources;
 mod get_yaml;
 mod list_contexts;
 mod new_kubernetes_client;
-mod save_configuration;
 mod save_history;
 
 /// List of all possible commands for [BgExecutor](super::BgExecutor).
 pub enum Command {
     ListKubeContexts(ListKubeContextsCommand),
     NewKubernetesClient(Box<NewKubernetesClientCommand>),
-    SaveConfiguration(Box<SaveConfigurationCommand>),
     SaveHistory(Box<SaveHistoryCommand>),
     DeleteResource(Box<DeleteResourcesCommand>),
     GetYaml(Box<GetResourceYamlCommand>),

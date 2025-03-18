@@ -42,7 +42,7 @@ impl<T: Table> ListPane<T> {
             let sort_symbols = self.items.get_sort_symbols();
             let mut header = HeaderWidget {
                 header: self.items.get_header(self.view, list_width),
-                colors: &self.app_data.borrow().config.theme.colors.header.text,
+                colors: &self.app_data.borrow().theme.colors.header.text,
                 view: self.view,
                 sort_symbols: &sort_symbols,
             };
@@ -52,7 +52,7 @@ impl<T: Table> ListPane<T> {
         self.items.update_page(layout[1].height);
         if let Some(list) = self
             .items
-            .get_paged_items(&self.app_data.borrow().config.theme, self.view, list_width)
+            .get_paged_items(&self.app_data.borrow().theme, self.view, list_width)
         {
             frame.render_widget(Paragraph::new(self.get_resources(list)), layout[1]);
         }

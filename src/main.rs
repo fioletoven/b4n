@@ -36,6 +36,7 @@ async fn run_application() -> Result<()> {
     let args = cli::Args::parse();
 
     let config = Config::load_or_create().await?;
+    let theme = config.load_or_create_theme().await?;
     let mut history = History::load_or_create().await?;
     let (context, kube_config_path) = get_context(
         args.kube_config.as_deref(),
@@ -54,7 +55,7 @@ async fn run_application() -> Result<()> {
     let resource = args.kind(history.get_kind(&context)).unwrap_or("pods").to_owned();
     let namespace = args.namespace(history.get_namespace(&context)).map(String::from);
 
-    let mut app = App::new(config, history)?;
+    let mut app = App::new(config, history, theme)?;
     app.start(context, resource, namespace.into()).await?;
 
     loop {
