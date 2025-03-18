@@ -1,0 +1,103 @@
+# based on https://github.com/crate-ci/cargo-release/blob/v0.25.17/.github/workflows/post-release.yml
+
+name: release
+on:
+  push:
+    tags:
+    - "v*"
+
+env:
+  BIN_NAME: b4n
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Get the release version from the tag
+      id: tag
+      run: echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+    - name: Show the tag
+      run: |
+        echo "tag is: ${{ steps.tag.outputs.tag }}"
+    - name: Generate Release Notes
+      run: |
+        ./.github/workflows/release-notes.py --tag ${{ steps.tag.outputs.tag }} --output notes-${{ steps.tag.outputs.tag }}.md
+        cat notes-${{ steps.tag.outputs.tag }}.md
+    - name: Create GitHub release
+      run: >-
+        gh release create "${{ steps.tag.outputs.tag }}" --verify-tag --draft --title "${{ steps.tag.outputs.tag }}"
+        --notes-file notes-${{ steps.tag.outputs.tag }}.md
+      env:
+        GH_TOKEN: ${{ github.token }}
+  build-release:
+    name: build-release
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [win-msvc]
+        include:
+        - build: win-msvc
+          os: windows-2019
+          rust: stable
+          target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+    - name: Build release binary
+      run: cargo build --target ${{ matrix.target }} --verbose --release
+    - name: Build archive
+      id: archive
+      shell: bash
+      run: |
+        outdir="./target/${{ matrix.target }}/release"
+        staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.tag }}-${{ matrix.target }}"
+        cp {README.md,LICENSE,CHANGELOG.md} "$staging/"
+        if [ "${{ matrix.os }}" = "windows-2019" ]; then
+          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe" "$staging/"
+          ls -l "$staging"
+          cd "$staging"
+          7z a "../$staging.zip" .
+          echo "asset=$staging.zip" >> "$GITHUB_OUTPUT"
+        else
+          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
+          ls -l "$staging"
+          tar czf "$staging.tar.gz" -C "$staging" .
+          echo "asset=$staging.tar.gz" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Upload release archive
+      shell: bash
+      run: gh release upload "${{ needs.create-release.outputs.tag }}" ${{ steps.archive.outputs.asset }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+  publish-release:
+    name: Publish Release
+    needs: [create-release, build-release]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Publish Release
+      run: gh release edit "${{ needs.create-release.outputs.tag }}" --draft=false
+      env:
+        GH_TOKEN: ${{ github.token }}
