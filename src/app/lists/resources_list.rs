@@ -207,17 +207,17 @@ impl Table for ResourcesList {
         }
     }
 
-    fn filter(&mut self, filter: Option<String>) {
-        if self.list.filter(filter) {
-            self.update_data_lengths();
-        }
-    }
-
     fn clear(&mut self) {
         self.list.clear();
         self.kind = String::new();
         self.kind_plural = String::new();
         self.group = String::new();
+    }
+
+    fn filter(&mut self, filter: Option<String>) {
+        if self.list.filter(filter) {
+            self.update_data_lengths();
+        }
     }
 
     fn sort(&mut self, column_no: usize, is_descending: bool) {

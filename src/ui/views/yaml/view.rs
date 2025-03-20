@@ -5,7 +5,7 @@ use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{SharedAppData, commands::CommandResult},
+    app::{SharedAppData, SharedBgWorker, commands::CommandResult},
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, TuiEvent,
@@ -20,6 +20,7 @@ use super::YamlViewer;
 pub struct YamlView {
     pub yaml: YamlViewer,
     app_data: SharedAppData,
+    worker: SharedBgWorker,
     lines: Vec<String>,
     command_id: Option<String>,
     command_palette: CommandPalette,
@@ -30,18 +31,19 @@ impl YamlView {
     /// Creates new [`YamlView`] instance.
     pub fn new(
         app_data: SharedAppData,
+        worker: SharedBgWorker,
         command_id: Option<String>,
         name: String,
         namespace: Namespace,
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
-        is_decoded: bool,
     ) -> Self {
-        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
+        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural, false);
 
         Self {
             yaml: viewer,
             app_data,
+            worker,
             lines: Vec::new(),
             command_id,
             command_palette: CommandPalette::default(),
@@ -65,21 +67,36 @@ impl YamlView {
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let actions = ActionsListBuilder::default()
-                .with_close()
-                .with_quit()
-                .with_action(
-                    Action::new("copy")
-                        .with_description("copies YAML to the clipboard")
-                        .with_response(ResponseEvent::Action("copy".to_owned())),
-                )
-                .build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
+                Action::new("copy")
+                    .with_description("copies YAML to the clipboard")
+                    .with_response(ResponseEvent::Action("copy".to_owned())),
+            );
+            if self.yaml.header.kind_plural == "secrets" {
+                let action = if self.yaml.header.is_decoded { "encode" } else { "decode" };
+                builder = builder.with_action(
+                    Action::new(action)
+                        .with_description(&format!("{}s the resource's data", action))
+                        .with_response(ResponseEvent::Action("decode".to_owned())),
+                );
+            }
+
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
         } else {
             false
         }
+    }
+
+    fn toggle_yaml_decode(&mut self) {
+        self.command_id = self.worker.borrow_mut().get_yaml(
+            self.yaml.header.name.clone(),
+            self.yaml.header.namespace.clone(),
+            &self.yaml.header.kind_plural,
+            self.app_data.borrow().get_syntax_data(),
+            !self.yaml.header.is_decoded,
+        );
     }
 }
 
@@ -112,12 +129,20 @@ impl View for YamlView {
             if response.is_action("copy") {
                 self.copy_yaml_to_clipboard();
                 return ResponseEvent::Handled;
+            } else if response.is_action("decode") {
+                self.toggle_yaml_decode();
+                return ResponseEvent::Handled;
             }
 
             return response;
         }
 
         if self.process_command_palette_events(key) {
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('x') && self.yaml.header.kind_plural == "secrets" {
+            self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         }
 

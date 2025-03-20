@@ -365,12 +365,12 @@ impl App {
 
         self.view = Some(Box::new(YamlView::new(
             Rc::clone(&self.data),
+            Rc::clone(&self.worker),
             command_id,
             resource,
             namespace.into(),
             self.resources.kind_plural().to_owned(),
             self.footer.get_messages_sender(),
-            decode,
         )));
     }
 

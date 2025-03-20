@@ -12,8 +12,8 @@ pub struct HeaderPane {
     pub name: String,
     pub namespace: Namespace,
     pub kind_plural: String,
+    pub is_decoded: bool,
     app_data: SharedAppData,
-    is_decoded: bool,
     position_x: usize,
     position_y: usize,
 }
@@ -25,8 +25,8 @@ impl HeaderPane {
             name,
             namespace,
             kind_plural,
-            app_data,
             is_decoded,
+            app_data,
             position_x: 0,
             position_y: 0,
         }

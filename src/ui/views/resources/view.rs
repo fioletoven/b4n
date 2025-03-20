@@ -239,7 +239,7 @@ impl ResourcesView {
                     builder
                         .with_action(
                             Action::new("decode")
-                                .with_description("decodes selected resource's data")
+                                .with_description("shows decoded YAML of the selected secret")
                                 .with_aliases(&["decode", "x"])
                                 .with_response(ResponseEvent::Action("decode_yaml".to_owned())),
                         )
