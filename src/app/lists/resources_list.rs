@@ -191,7 +191,6 @@ impl Table for ResourcesList {
         to self.list {
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
-            fn filter(&mut self, filter: Option<String>);
             fn get_filter(&self) -> Option<&str>;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
@@ -213,6 +212,12 @@ impl Table for ResourcesList {
         self.kind = String::new();
         self.kind_plural = String::new();
         self.group = String::new();
+    }
+
+    fn filter(&mut self, filter: Option<String>) {
+        if self.list.filter(filter) {
+            self.update_data_lengths();
+        }
     }
 
     fn sort(&mut self, column_no: usize, is_descending: bool) {

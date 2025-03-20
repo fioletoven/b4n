@@ -107,10 +107,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.has_pattern()
     }
 
-    /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.
-    pub fn filter(&mut self, filter: Option<String>) {
+    /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.  
+    /// Returns `true` if pattern was updated.
+    pub fn filter(&mut self, filter: Option<String>) -> bool {
         if !self.filter.set_pattern(filter) {
-            return;
+            return false;
         }
 
         if self.filter.has_pattern() {
@@ -127,6 +128,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
                 list[highlighted].is_active = true;
             }
         }
+
+        true
     }
 
     /// Returns currently applied filter value.

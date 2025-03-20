@@ -49,7 +49,7 @@ pub enum ResponseEvent {
     AskDeleteResources,
     DeleteResources,
 
-    ViewYaml(String, String),
+    ViewYaml(String, String, bool),
 }
 
 impl ResponseEvent {

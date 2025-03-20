@@ -12,6 +12,7 @@ pub struct HeaderPane {
     pub name: String,
     pub namespace: Namespace,
     pub kind_plural: String,
+    pub is_decoded: bool,
     app_data: SharedAppData,
     position_x: usize,
     position_y: usize,
@@ -19,11 +20,12 @@ pub struct HeaderPane {
 
 impl HeaderPane {
     /// Creates new UI header pane.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String) -> Self {
+    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
         Self {
             name,
             namespace,
             kind_plural,
+            is_decoded,
             app_data,
             position_x: 0,
             position_y: 0,
@@ -31,10 +33,11 @@ impl HeaderPane {
     }
 
     /// Sets header data.
-    pub fn set_data(&mut self, name: String, namespace: Namespace, kind_plural: String) {
+    pub fn set_data(&mut self, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) {
         self.name = name;
         self.namespace = namespace;
         self.kind_plural = kind_plural;
+        self.is_decoded = is_decoded;
     }
 
     /// Sets header coordinates.
@@ -63,9 +66,10 @@ impl HeaderPane {
     /// \> `YAML` \> `namespace` \> `kind` \> `name` \>
     fn get_path(&self) -> Line {
         let header = &self.app_data.borrow().theme.colors.header;
+        let header_text = if self.is_decoded { "  YAML  " } else { " YAML  " };
         let path = vec![
             Span::styled("", Style::new().fg(header.text.bg)),
-            Span::styled(" YAML  ", &header.text),
+            Span::styled(header_text, &header.text),
             Span::styled("", Style::new().fg(header.text.bg).bg(header.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &header.namespace),
             Span::styled("", Style::new().fg(header.namespace.bg).bg(header.resource.bg)),
