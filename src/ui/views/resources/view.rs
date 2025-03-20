@@ -144,7 +144,8 @@ impl ResourcesView {
             return self
                 .command_palette
                 .process_key(key)
-                .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))));
+                .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
+                .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -226,15 +227,26 @@ impl ResourcesView {
     fn process_command_palette_events(&mut self, key: KeyEvent) {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let actions = if self.app_data.borrow().is_connected {
-                ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
+                let builder = ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
                     .with_resources_actions(false)
                     .with_action(
                         Action::new("show YAML")
                             .with_description("shows YAML of the selected resource")
                             .with_aliases(&["show", "yaml"])
                             .with_response(ResponseEvent::Action("show_yaml".to_owned())),
-                    )
-                    .build()
+                    );
+                if self.table.kind_plural() == "secrets" {
+                    builder
+                        .with_action(
+                            Action::new("decode")
+                                .with_description("decodes selected resource's data")
+                                .with_aliases(&["decode", "x"])
+                                .with_response(ResponseEvent::Action("decode_yaml".to_owned())),
+                        )
+                        .build()
+                } else {
+                    builder.build()
+                }
             } else {
                 ActionsListBuilder::default().with_resources_actions(true).build()
             };

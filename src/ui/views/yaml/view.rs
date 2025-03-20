@@ -35,8 +35,9 @@ impl YamlView {
         namespace: Namespace,
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
+        is_decoded: bool,
     ) -> Self {
-        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural);
+        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
 
         Self {
             yaml: viewer,
@@ -89,7 +90,8 @@ impl View for YamlView {
 
     fn process_command_result(&mut self, result: CommandResult) {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
-            self.yaml.set_header(result.name, result.namespace, result.kind_plural);
+            self.yaml
+                .set_header(result.name, result.namespace, result.kind_plural, result.is_decoded);
             self.yaml.set_content(
                 result.styled,
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),

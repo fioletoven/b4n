@@ -181,7 +181,7 @@ impl App {
                 ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, namespace) => self.request_yaml(resource, namespace),
+                ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
                 _ => (),
             };
         }
@@ -354,12 +354,13 @@ impl App {
     }
 
     /// Sends command to fetch resource's YAML to the background executor.
-    fn request_yaml(&mut self, resource: String, namespace: String) {
+    fn request_yaml(&mut self, resource: String, namespace: String, decode: bool) {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.clone(),
             namespace.clone().into(),
             self.resources.kind_plural(),
             self.data.borrow().get_syntax_data(),
+            decode,
         );
 
         self.view = Some(Box::new(YamlView::new(
@@ -369,6 +370,7 @@ impl App {
             namespace.into(),
             self.resources.kind_plural().to_owned(),
             self.footer.get_messages_sender(),
+            decode,
         )));
     }
 

@@ -30,20 +30,21 @@ General planned features:
 
 ## Key Bindings
 
-| Action                                 | Command       | Comments                                                     |
-|----------------------------------------|---------------|--------------------------------------------------------------|
-| Copy YAML to the clipboard             | `c`           | Works only in YAML view                                      |
-| Delete selected resources              | `CTRL` + `d`  | Displays a confirmation dialog                               |
-| Go back to namespaces; clear filter    | `ESC`         | Also clears input in the filter widget                       |
-| Quit the application                   | `CTRL` + `c`  |                                                              |
-| Reverse selection                      | `CTRL` + ` `  |  (`CTRL` + `SPACE`)                                          |
-| Select resource                        | ` `           | (`SPACE`)                                                    |
-| Show command palette                   | `:`           | For example, entering `:q`↲ quits the app                    |
-| Show filter input                      | `/`           | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
-| Show namespaces selector               | `←`           | To select `all` quickly press `←` again                      |
-| Show resources selector                | `→`           | To select the first item quickly press `→` again             |
-| Show YAML for the highlighted resource | `y`           |                                                              |
-| Sort column                            | `ALT`+`[0-9]` | Also works `ALT` + `[underlined letter]`                     |
+| Action                                 | Command         | Comments                                                     |
+|:---------------------------------------|:----------------|:-------------------------------------------------------------|
+| Copy YAML to the clipboard             | `c`             | Works only in YAML view                                      |
+| Decode highlighted resource            | `x`             |                                                              |
+| Delete selected resources              | `CTRL` + `d`    | Displays a confirmation dialog                               |
+| Go back to namespaces; clear filter    | `ESC`           | Also clears input in the filter widget                       |
+| Quit the application                   | `CTRL` + `c`    |                                                              |
+| Reverse selection                      | `CTRL` + ` `    |  (`CTRL` + `SPACE`)                                          |
+| Select resource                        | ` `             | (`SPACE`)                                                    |
+| Show command palette                   | `:`             | For example, entering `:q`↲ quits the app                    |
+| Show filter input                      | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
+| Show namespaces selector               | `←`             | To select `all` quickly press `←` again                      |
+| Show resources selector                | `→`             | To select the first item quickly press `→` again             |
+| Show YAML for the highlighted resource | `y`             |                                                              |
+| Sort column                            | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |
 
 ## License
 

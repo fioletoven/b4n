@@ -3,6 +3,8 @@ use syntect::dumps::dump_to_uncompressed_file;
 use syntect::parsing::SyntaxSetBuilder;
 
 fn main() {
+    println!("cargo::rerun-if-changed=assets/syntaxes");
+
     let current_dir = env!("CARGO_MANIFEST_DIR");
     let assets_dir = PathBuf::from(current_dir).join("assets").join("syntaxes");
     let output_file = assets_dir.join("syntaxes.packdump");

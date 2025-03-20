@@ -35,8 +35,8 @@ pub struct YamlViewer {
 
 impl YamlViewer {
     /// Creates a new YAML viewer page.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural);
+    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
+        let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
 
         Self {
             header,
@@ -53,8 +53,8 @@ impl YamlViewer {
     }
 
     /// Sets header data.
-    pub fn set_header(&mut self, name: String, namespace: Namespace, kind_plural: String) {
-        self.header.set_data(name, namespace, kind_plural);
+    pub fn set_header(&mut self, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) {
+        self.header.set_data(name, namespace, kind_plural, is_decoded);
     }
 
     /// Sets styled YAML content to view.

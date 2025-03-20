@@ -191,7 +191,6 @@ impl Table for ResourcesList {
         to self.list {
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
-            fn filter(&mut self, filter: Option<String>);
             fn get_filter(&self) -> Option<&str>;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
@@ -205,6 +204,12 @@ impl Table for ResourcesList {
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
             fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+        }
+    }
+
+    fn filter(&mut self, filter: Option<String>) {
+        if self.list.filter(filter) {
+            self.update_data_lengths();
         }
     }
 

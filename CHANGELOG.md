@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.1 - 2025-03-20
+
+### Features
+
+- decode the selected resource by pressing `x` in the resources list
+
 ## 0.1.0 - 2025-03-18
 
 This is the first release of `b4n` app.  

@@ -152,10 +152,14 @@ impl ResourcesTable {
             return ResponseEvent::ViewNamespaces;
         }
 
-        if key.code == KeyCode::Char('y') {
+        if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == "secrets") {
             if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
                 if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
-                    return ResponseEvent::ViewYaml(selected_resource.name().to_owned(), selected_resource.group().to_owned());
+                    return ResponseEvent::ViewYaml(
+                        selected_resource.name().to_owned(),
+                        selected_resource.group().to_owned(),
+                        key.code == KeyCode::Char('x'),
+                    );
                 }
             }
         }
