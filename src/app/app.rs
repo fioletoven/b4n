@@ -14,7 +14,8 @@ use crate::{
 };
 
 use super::{
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, ResourceRef, SharedAppData,
+    SharedBgWorker,
     commands::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ResourceYamlError,
         ResourceYamlResult,
@@ -176,6 +177,7 @@ impl App {
                 ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
                 ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
                 ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
+                ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
                 ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
                 ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
@@ -213,7 +215,8 @@ impl App {
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
         if self.data.borrow().current.namespace != namespace || !self.data.borrow().current.is_kind_equal(&kind) {
             self.resources.set_namespace(namespace.clone());
-            let scope = self.worker.borrow_mut().restart(kind.clone(), namespace.clone())?;
+            let resource = ResourceRef::new(kind.clone(), namespace.clone());
+            let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind), Some(namespace.into()), Some(scope));
         }
 
@@ -249,6 +252,14 @@ impl App {
         Ok(())
     }
 
+    /// Changes observed resources to `containters` for a specified `pod`.
+    fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.resources.clear_list_data();
+        self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
+
+        Ok(())
+    }
+
     /// Changes observed resources kind to `namespaces`.
     fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
         self.change_kind(NAMESPACES.to_owned(), None)?;
@@ -269,12 +280,9 @@ impl App {
         if let Some(result) = self.client_manager.process_result(&command_id, result) {
             let context = result.client.context().to_owned();
             let version = result.client.k8s_version().to_owned();
+            let resource = ResourceRef::new(result.kind.clone(), result.namespace.clone());
 
-            let scope =
-                self.worker
-                    .borrow_mut()
-                    .start(result.client, result.discovery, result.kind.clone(), result.namespace.clone());
-
+            let scope = self.worker.borrow_mut().start(result.client, result.discovery, resource);
             if let Ok(scope) = scope {
                 self.resources
                     .set_resources_info(context, result.namespace.clone(), version, scope.clone());

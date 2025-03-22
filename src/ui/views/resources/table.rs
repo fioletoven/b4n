@@ -142,25 +142,41 @@ impl ResourcesTable {
 
     /// Process UI key event.
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
-        if key.code == KeyCode::Enter && self.kind_plural() == NAMESPACES {
-            if let Some(selected_namespace) = self.list.items.get_highlighted_item_name() {
-                return ResponseEvent::Change("pods".to_owned(), selected_namespace.to_owned());
+        if key.code == KeyCode::Enter {
+            match self.kind_plural() {
+                NAMESPACES => {
+                    if let Some(selected_namespace) = self.list.items.get_highlighted_item_name() {
+                        return ResponseEvent::Change("pods".to_owned(), selected_namespace.to_owned());
+                    }
+                }
+                "pods" => {
+                    if let Some(selected_pod) = self.list.items.get_highlighted_resource() {
+                        return ResponseEvent::ViewContainers(
+                            selected_pod.name.clone(),
+                            selected_pod.namespace.clone().unwrap_or_default(),
+                        );
+                    }
+                }
+                "containers" => (),
+                _ => {
+                    if let Some(response) = self.get_view_yaml_response(false) {
+                        return response;
+                    }
+                }
             }
         }
 
-        if key.code == KeyCode::Esc && self.kind_plural() != NAMESPACES {
-            return ResponseEvent::ViewNamespaces;
+        if key.code == KeyCode::Esc {
+            match self.kind_plural() {
+                NAMESPACES => (),
+                "containers" => return ResponseEvent::ChangeKind("pods".to_owned()),
+                _ => return ResponseEvent::ViewNamespaces,
+            }
         }
 
         if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == "secrets") {
-            if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
-                if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
-                    return ResponseEvent::ViewYaml(
-                        selected_resource.name().to_owned(),
-                        selected_resource.group().to_owned(),
-                        key.code == KeyCode::Char('x'),
-                    );
-                }
+            if let Some(response) = self.get_view_yaml_response(key.code == KeyCode::Char('x')) {
+                return response;
             }
         }
 
@@ -176,5 +192,23 @@ impl ResourcesTable {
 
         self.header.draw(frame, layout[0]);
         self.list.draw(frame, layout[1]);
+    }
+
+    fn get_view_yaml_response(&mut self, decode: bool) -> Option<ResponseEvent> {
+        if self.app_data.borrow().current.is_kind_equal("containers") {
+            return None;
+        }
+
+        if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
+            if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
+                return Some(ResponseEvent::ViewYaml(
+                    selected_resource.name().to_owned(),
+                    selected_resource.group().to_owned(),
+                    decode,
+                ));
+            }
+        }
+
+        None
     }
 }

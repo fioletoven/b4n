@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, ResourceRef, SyntaxData, TaskResult,
     commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
 };
 
@@ -59,29 +59,31 @@ impl BgWorker {
         &mut self,
         client: KubernetesClient,
         initial_discovery_list: Vec<(ApiResource, ApiCapabilities)>,
-        resource_name: String,
-        resource_namespace: Namespace,
+        resource: ResourceRef,
     ) -> Result<Scope, BgWorkerError> {
         self.list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
         let discovery = get_resource(self.list.as_ref(), NAMESPACES);
-        self.namespaces
-            .start(&client, NAMESPACES.to_owned(), Namespace::default(), discovery)?;
+        self.namespaces.start(
+            &client,
+            ResourceRef::new(NAMESPACES.to_owned(), Namespace::default()),
+            discovery,
+        )?;
 
-        let discovery = get_resource(self.list.as_ref(), &resource_name);
-        let scope = self.resources.start(&client, resource_name, resource_namespace, discovery)?;
+        let discovery = get_resource(self.list.as_ref(), &resource.kind);
+        let scope = self.resources.start(&client, resource, discovery)?;
 
         self.client = Some(client);
 
         Ok(scope)
     }
 
-    /// Restarts (if needed) the resources observer to change observed resource kind and namespace.
-    pub fn restart(&mut self, resource_name: String, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
+    /// Restarts (if needed) the resources observer to change observed resource and namespace.
+    pub fn restart(&mut self, resource: ResourceRef) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), &resource_name);
-            Ok(self.resources.restart(client, resource_name, resource_namespace, discovery)?)
+            let discovery = get_resource(self.list.as_ref(), &resource.kind);
+            Ok(self.resources.restart(client, resource, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -100,8 +102,20 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), self.resources.get_resource_name());
+            let discovery = get_resource(self.list.as_ref(), self.resources.get_resource_kind());
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
+        } else {
+            Err(BgWorkerError::NoKubernetesClient)
+        }
+    }
+
+    /// Restarts (if needed) the resources observer to show pod containers.
+    pub fn restart_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<Scope, BgWorkerError> {
+        if let Some(client) = &self.client {
+            let discovery = get_resource(self.list.as_ref(), "Pod");
+            Ok(self
+                .resources
+                .restart_containers(client, pod_name, pod_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }

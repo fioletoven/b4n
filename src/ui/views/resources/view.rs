@@ -165,11 +165,6 @@ impl ResourcesView {
             return self.filter.process_key(key);
         }
 
-        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
-            self.filter.reset();
-            return ResponseEvent::Handled;
-        }
-
         if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");

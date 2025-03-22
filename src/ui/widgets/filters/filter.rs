@@ -138,6 +138,11 @@ impl Responsive for Filter {
             return ResponseEvent::NotHandled;
         }
 
+        if key.code == KeyCode::Esc && !self.patterns.value().is_empty() {
+            self.patterns.reset();
+            return ResponseEvent::Handled;
+        }
+
         if key.code == KeyCode::Esc {
             if self.patterns.value().is_empty() {
                 self.is_visible = false;
