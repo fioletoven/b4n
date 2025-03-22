@@ -9,6 +9,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use crate::app::SharedAppData;
 
+const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
 const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
 
 /// Footer message to show.
@@ -41,7 +42,6 @@ impl FooterMessage {
 /// Footer widget.
 pub struct Footer {
     app_data: SharedAppData,
-    version: String,
     message: Option<FooterMessage>,
     messages_tx: UnboundedSender<FooterMessage>,
     messages_rx: UnboundedReceiver<FooterMessage>,
@@ -51,12 +51,10 @@ pub struct Footer {
 impl Footer {
     /// Creates new UI footer pane.
     pub fn new(app_data: SharedAppData) -> Self {
-        let version = format!(" {} v{} ", env!("CARGO_CRATE_NAME"), env!("CARGO_PKG_VERSION"));
         let (messages_tx, messages_rx) = mpsc::unbounded_channel();
 
         Footer {
             app_data,
-            version,
             message: None,
             messages_tx,
             messages_rx,
@@ -100,7 +98,7 @@ impl Footer {
 
     /// Returns formatted footer line.
     fn get_footer(&self, terminal_width: usize) -> Line<'_> {
-        let footer = format!(" {1:<0$}", terminal_width - 3, &self.version);
+        let footer = format!(" {1:<0$}", terminal_width - 3, FOOTER_APP_VERSION);
         let colors = &self.app_data.borrow().theme.colors;
 
         Line::from(vec![

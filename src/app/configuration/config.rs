@@ -10,6 +10,8 @@ use crate::ui::theme::Theme;
 
 use super::ConfigWatcher;
 
+pub const APP_NAME: &str = env!("CARGO_CRATE_NAME");
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_THEME_NAME: &str = "default";
 
 /// Possible errors from [`Config`] manipulation.
@@ -67,7 +69,7 @@ impl Config {
     /// Returns path to the themes directory.
     pub fn theme_dir(&self) -> PathBuf {
         match home::home_dir() {
-            Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("themes"),
+            Some(path) => path.join(format!(".{}", APP_NAME)).join("themes"),
             None => PathBuf::from("themes"),
         }
     }
@@ -85,7 +87,7 @@ impl Config {
     /// Returns the default configuration path: `HOME/b4n/config.yaml`.
     pub fn default_path() -> PathBuf {
         match home::home_dir() {
-            Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("config.yaml"),
+            Some(path) => path.join(format!(".{}", APP_NAME)).join("config.yaml"),
             None => PathBuf::from("config.yaml"),
         }
     }

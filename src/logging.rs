@@ -4,16 +4,18 @@ use anyhow::Result;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
+use crate::app::APP_NAME;
+
 /// Initializes new logging to file and returns worker guard that will flush logs on drop.
 pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let home_dir = match home::home_dir() {
         Some(mut path) => {
-            path.push(format!(".{}/logs", env!("CARGO_CRATE_NAME")));
+            path.push(format!(".{}/logs", APP_NAME));
             path
         }
         None => PathBuf::from("logs"),
     };
-    let appender = tracing_appender::rolling::daily(home_dir, format!("{}.log", env!("CARGO_CRATE_NAME")));
+    let appender = tracing_appender::rolling::daily(home_dir, format!("{}.log", APP_NAME));
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(appender);
 
     let timer = time::format_description::parse("[year]-[month padding:zero]-[day padding:zero] [hour]:[minute]:[second]")?;
@@ -21,10 +23,10 @@ pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let timer = tracing_subscriber::fmt::time::OffsetTime::new(time_offset, timer);
 
     #[cfg(debug_assertions)]
-    let env = format!("warn,{}=info", env!("CARGO_CRATE_NAME"));
+    let env = format!("warn,{}=info", APP_NAME);
 
     #[cfg(not(debug_assertions))]
-    let env = format!("none,{}=info", env!("CARGO_CRATE_NAME"));
+    let env = format!("none,{}=info", APP_NAME);
 
     let env_filter = tracing_subscriber::filter::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new(env));

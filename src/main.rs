@@ -15,28 +15,21 @@ pub mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _logging_guard = logging::initialize()?;
-    info!("{} v{} started", env!("CARGO_CRATE_NAME"), env!("CARGO_PKG_VERSION"));
+    let args = cli::Args::parse();
 
-    if let Err(error) = run_application().await {
-        error!(
-            "{} v{} terminated with an error: {}",
-            env!("CARGO_CRATE_NAME"),
-            env!("CARGO_PKG_VERSION"),
-            error
-        );
+    let _logging_guard = logging::initialize()?;
+    info!("{} v{} started", app::APP_NAME, app::APP_VERSION);
+
+    if let Err(error) = run_application(args).await {
+        error!("{} v{} terminated with an error: {}", app::APP_NAME, app::APP_VERSION, error);
         Err(error)
     } else {
-        info!("{} v{} stopped", env!("CARGO_CRATE_NAME"), env!("CARGO_PKG_VERSION"));
+        info!("{} v{} stopped", app::APP_NAME, app::APP_VERSION);
         Ok(())
     }
 }
 
-async fn run_application() -> Result<()> {
-    let args = cli::Args::parse();
-
-    let config = Config::load_or_create().await?;
-    let theme = config.load_or_create_theme().await?;
+async fn run_application(args: cli::Args) -> Result<()> {
     let mut history = History::load_or_create().await?;
     let (context, kube_config_path) = get_context(
         args.kube_config.as_deref(),
@@ -55,6 +48,8 @@ async fn run_application() -> Result<()> {
     let resource = args.kind(history.get_kind(&context)).unwrap_or("pods").to_owned();
     let namespace = args.namespace(history.get_namespace(&context)).map(String::from);
 
+    let config = Config::load_or_create().await?;
+    let theme = config.load_or_create_theme().await?;
     let mut app = App::new(config, history, theme)?;
     app.start(context, resource, namespace.into()).await?;
 

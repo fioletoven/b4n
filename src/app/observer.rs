@@ -13,6 +13,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
+    time::Instant,
 };
 use thiserror;
 use tokio::{
@@ -28,6 +29,8 @@ use crate::{
 };
 
 use super::utils::wait_for_task;
+
+const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -45,6 +48,7 @@ pub struct ObserverResult {
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
+#[derive(Clone)]
 pub struct ObserverInitData {
     pub kind: String,
     pub kind_plural: String,
@@ -110,56 +114,34 @@ impl BgObserver {
         let cancellation_token = CancellationToken::new();
         let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
 
-        let _kind = ar.kind.clone();
-        let _kind_plural = ar.plural.to_lowercase();
-        let _group = ar.group.clone();
         self.scope = cap.scope.clone();
-        let _scope = cap.scope.clone();
-
-        let _api_client = client.get_api(ar, cap, resource_namespace.as_option(), resource_namespace.is_all());
-
-        let _cancellation_token = cancellation_token.clone();
-        let _context_tx = self.context_tx.clone();
-
         self.has_error.store(false, Ordering::Relaxed);
-        let _has_error = Arc::clone(&self.has_error);
-        let _footer_tx = self.footer_tx.clone();
+
+        let mut _processor = EventsProcessor {
+            init_data: ObserverInitData::new(ar.kind.clone(), ar.plural.to_lowercase(), ar.group.clone(), cap.scope.clone()),
+            context_tx: self.context_tx.clone(),
+            footer_tx: self.footer_tx.clone(),
+            has_error: Arc::clone(&self.has_error),
+            last_watch_error: None,
+        };
+        let _api_client = client.get_api(ar, cap, resource_namespace.as_option(), resource_namespace.is_all());
+        let _cancellation_token = cancellation_token.clone();
 
         let task = tokio::spawn(async move {
-            let watch = watcher(_api_client, watcher::Config::default()).default_backoff();
-            let mut watch = pin!(watch);
-
             while !_cancellation_token.is_cancelled() {
-                tokio::select! {
-                    _ = _cancellation_token.cancelled() => (),
-                    result = watch.try_next() => {
-                        match result {
-                            Ok(event) => {
-                                if let Some(result) = match event {
-                                    Some(Event::Init) => Some(get_init_result(
-                                        _kind.clone(),
-                                        _kind_plural.clone(),
-                                        _group.clone(),
-                                        _scope.clone())),
-                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(&_kind, o, false)),
-                                    Some(Event::Delete(o)) => Some(get_result(&_kind, o, true)),
-                                    _ => None,
-                                } {
-                                    _context_tx.send(result).unwrap();
-                                }
-                                _has_error.store(false, Ordering::Relaxed);
-                            },
-                            Err(error) => {
-                                let msg = format!("Watch {}: {}", _kind_plural, error);
-                                warn!("{}", msg);
-                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
-                                match error {
-                                    Error::WatchFailed(_) => (), // WatchFailed do not trigger Init, so we do not set _has_error.
-                                    _ =>_has_error.store(true, Ordering::Relaxed),
-                                }
+                let watch = watcher(_api_client.clone(), watcher::Config::default()).default_backoff();
+                let mut watch = pin!(watch);
+
+                while !_cancellation_token.is_cancelled() {
+                    tokio::select! {
+                        _ = _cancellation_token.cancelled() => (),
+                        result = watch.try_next() => {
+                            if !_processor.process_event(result) {
+                                // we need to restart watcher, so go up one while loop
+                                break;
                             }
-                        };
-                    },
+                        },
+                    }
                 }
             }
         });
@@ -268,18 +250,80 @@ impl Drop for BgObserver {
     }
 }
 
-fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> Box<ObserverResult> {
-    Box::new(ObserverResult {
-        init: Some(ObserverInitData::new(kind, kind_plural, group, scope)),
-        object: None,
-        is_delete: false,
-    })
+/// Internal watcher's events processor.
+struct EventsProcessor {
+    pub init_data: ObserverInitData,
+    pub context_tx: UnboundedSender<Box<ObserverResult>>,
+    pub footer_tx: UnboundedSender<FooterMessage>,
+    pub has_error: Arc<AtomicBool>,
+    pub last_watch_error: Option<Instant>,
 }
 
-fn get_result(kind: &str, object: DynamicObject, is_delete: bool) -> Box<ObserverResult> {
-    Box::new(ObserverResult {
-        init: None,
-        object: Some(Resource::from(kind, object)),
-        is_delete,
-    })
+impl EventsProcessor {
+    /// Process watcher's event. It returns `true` if all was OK or `false` if the watcher needs to be restarted.
+    pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> bool {
+        match result {
+            Ok(event) => {
+                let mut reset_error = true;
+                if let Some(result) = match event {
+                    Some(Event::Init) => {
+                        reset_error = false; // Init is also emitted after a forced restart of the watcher
+                        Some(self.build_init_result())
+                    }
+                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(self.build_result(o, false)),
+                    Some(Event::Delete(o)) => Some(self.build_result(o, true)),
+                    _ => None,
+                } {
+                    self.context_tx.send(result).unwrap();
+                }
+
+                if reset_error {
+                    self.last_watch_error = None;
+                    self.has_error.store(false, Ordering::Relaxed);
+                }
+            }
+            Err(error) => {
+                let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
+                warn!("{}", msg);
+                self.footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+
+                match error {
+                    Error::WatchStartFailed(_) | Error::WatchFailed(_) => {
+                        // WatchStartFailed and WatchFailed do not trigger Init, so we do not set error immediately.
+                        if self
+                            .last_watch_error
+                            .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
+                        {
+                            warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
+                            self.has_error.store(true, Ordering::Relaxed);
+                            self.last_watch_error = Some(Instant::now());
+
+                            return false;
+                        } else {
+                            self.last_watch_error = Some(Instant::now());
+                        }
+                    }
+                    _ => self.has_error.store(true, Ordering::Relaxed),
+                }
+            }
+        }
+
+        true
+    }
+
+    fn build_init_result(&self) -> Box<ObserverResult> {
+        Box::new(ObserverResult {
+            init: Some(self.init_data.clone()),
+            object: None,
+            is_delete: false,
+        })
+    }
+
+    fn build_result(&self, object: DynamicObject, is_delete: bool) -> Box<ObserverResult> {
+        Box::new(ObserverResult {
+            init: None,
+            object: Some(Resource::from(&self.init_data.kind, object)),
+            is_delete,
+        })
+    }
 }
