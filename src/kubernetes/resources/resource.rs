@@ -274,7 +274,6 @@ fn get_filter_metadata(object: &DynamicObject) -> Vec<String> {
     result
 }
 
-#[inline]
 fn flatten_metadata(items: &BTreeMap<String, String>) -> Vec<String> {
     items
         .iter()

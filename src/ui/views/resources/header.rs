@@ -25,15 +25,8 @@ impl HeaderPane {
 
     /// Draws [`HeaderPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let data = &self.app_data.borrow().current;
-        let path = self.get_path(
-            &data.context,
-            data.namespace.as_str(),
-            &data.kind_plural,
-            data.count,
-            data.scope.clone(),
-        );
-        let version = self.get_version(&data.version);
+        let path = self.get_path();
+        let version = self.get_version();
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -51,17 +44,18 @@ impl HeaderPane {
 
     /// Returns formatted kubernetes resource path as breadcrumbs:  
     /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
-    fn get_path(&self, context: &str, namespace: &str, resource: &str, count: usize, scope: Scope) -> Line {
+    fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
+        let data = &self.app_data.borrow().current;
         let mut path = vec![
             Span::styled("", Style::new().fg(colors.context.bg)),
-            Span::styled(format!(" {} ", context.to_lowercase()), &colors.context),
+            Span::styled(format!(" {} ", data.context), &colors.context),
         ];
 
-        if scope == Scope::Namespaced {
+        if data.scope == Scope::Namespaced {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-                Span::styled(format!(" {} ", namespace.to_lowercase()), &colors.namespace),
+                Span::styled(format!(" {} ", data.namespace.as_str()), &colors.namespace),
                 Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             ]);
         } else {
@@ -70,9 +64,9 @@ impl HeaderPane {
 
         let count_icon = if self.is_filtered { "" } else { "" };
         path.append(&mut vec![
-            Span::styled(format!(" {} ", resource.to_lowercase()), &colors.resource),
+            Span::styled(format!(" {} ", data.kind_plural), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
-            Span::styled(format!(" {}{} ", count_icon, count), &colors.count),
+            Span::styled(format!(" {}{} ", count_icon, data.count), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),
         ]);
 
@@ -81,15 +75,23 @@ impl HeaderPane {
 
     /// Returns formatted k8s version info as breadcrumbs:  
     /// \< `k8s version` \<
-    fn get_version(&self, version: &str) -> Line {
+    fn get_version(&self) -> Line {
+        let data = &self.app_data.borrow().current;
         let colors;
         let text;
         if self.app_data.borrow().is_connected {
             colors = self.app_data.borrow().theme.colors.header.info;
-            text = format!(" {} ", version);
+            text = format!(" {} ", &data.version);
         } else {
             colors = self.app_data.borrow().theme.colors.header.disconnected;
-            text = format!("  {} ", if version.is_empty() { "connecting…" } else { version });
+            text = format!(
+                "  {} ",
+                if data.version.is_empty() {
+                    "connecting…"
+                } else {
+                    &data.version
+                }
+            );
         };
 
         Line::from(vec![

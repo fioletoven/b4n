@@ -41,15 +41,27 @@ pub enum BgObserverError {
 }
 
 /// Background observer result.
-pub struct ObserverResult {
-    pub init: Option<ObserverInitData>,
-    pub object: Option<Resource>,
-    pub is_delete: bool,
+pub enum ObserverResult {
+    Init(InitData),
+    InitDone,
+    Apply(Resource),
+    Delete(Resource),
+}
+
+impl ObserverResult {
+    /// Creates new [`ObserverResult`] for resource.
+    pub fn new(resource: Resource, is_delete: bool) -> Self {
+        if is_delete {
+            Self::Delete(resource)
+        } else {
+            Self::Apply(resource)
+        }
+    }
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
 #[derive(Debug, Clone)]
-pub struct ObserverInitData {
+pub struct InitData {
     pub name: Option<String>,
     pub kind: String,
     pub kind_plural: String,
@@ -57,7 +69,19 @@ pub struct ObserverInitData {
     pub scope: Scope,
 }
 
-impl ObserverInitData {
+impl Default for InitData {
+    fn default() -> Self {
+        Self {
+            name: None,
+            kind: String::new(),
+            kind_plural: String::new(),
+            group: String::new(),
+            scope: Scope::Cluster,
+        }
+    }
+}
+
+impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope) -> Self {
         if rt.is_container {
@@ -80,7 +104,7 @@ impl ObserverInitData {
     }
 }
 
-/// Points to the specific kubernetes resource kind.
+/// Points to the specific kubernetes resource.
 #[derive(Default, Debug, Clone)]
 pub struct ResourceRef {
     pub name: Option<String>,
@@ -159,7 +183,7 @@ impl BgObserver {
         self.has_error.store(false, Ordering::Relaxed);
 
         let mut _processor = EventsProcessor {
-            init_data: ObserverInitData::new(&self.resource, &ar, cap.scope.clone()),
+            init_data: InitData::new(&self.resource, &ar, cap.scope.clone()),
             is_container: self.resource.is_container,
             context_tx: self.context_tx.clone(),
             footer_tx: self.footer_tx.clone(),
@@ -313,7 +337,7 @@ impl Drop for BgObserver {
 /// Internal watcher's events processor.
 #[derive(Debug)]
 struct EventsProcessor {
-    init_data: ObserverInitData,
+    init_data: InitData,
     is_container: bool,
     context_tx: UnboundedSender<Box<ObserverResult>>,
     footer_tx: UnboundedSender<FooterMessage>,
@@ -328,18 +352,15 @@ impl EventsProcessor {
         match result {
             Ok(event) => {
                 let mut reset_error = true;
-                if let Some(results) = match event {
+                match event {
                     Some(Event::Init) => {
                         reset_error = false; // Init is also emitted after a forced restart of the watcher
-                        Some(self.build_init_result())
+                        self.send_init_result();
                     }
-                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(self.build_results(o, false)),
-                    Some(Event::Delete(o)) => Some(self.build_results(o, true)),
-                    _ => None,
-                } {
-                    for result in results {
-                        self.context_tx.send(Box::new(result)).unwrap();
-                    }
+                    Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
+                    Some(Event::InitApply(o) | Event::Apply(o)) => self.send_results(o, false),
+                    Some(Event::Delete(o)) => self.send_results(o, true),
+                    _ => (),
                 }
 
                 if reset_error {
@@ -376,15 +397,13 @@ impl EventsProcessor {
         true
     }
 
-    fn build_init_result(&self) -> Vec<ObserverResult> {
-        vec![ObserverResult {
-            init: Some(self.init_data.clone()),
-            object: None,
-            is_delete: false,
-        }]
+    fn send_init_result(&self) {
+        self.context_tx
+            .send(Box::new(ObserverResult::Init(self.init_data.clone())))
+            .unwrap();
     }
 
-    fn build_results(&self, object: DynamicObject, is_delete: bool) -> Vec<ObserverResult> {
+    fn send_results(&self, object: DynamicObject, is_delete: bool) {
         if self.is_container {
             if let Some(containers) = object
                 .data
@@ -392,23 +411,18 @@ impl EventsProcessor {
                 .and_then(|s| s.get("containers"))
                 .and_then(|c| c.as_array())
             {
-                return containers
-                    .iter()
-                    .map(|c| ObserverResult {
-                        init: None,
-                        object: Some(Resource::from_container(c, &object.metadata)),
-                        is_delete,
-                    })
-                    .collect();
+                for c in containers.iter() {
+                    let result = ObserverResult::new(Resource::from_container(c, &object.metadata), is_delete);
+                    self.context_tx.send(Box::new(result)).unwrap();
+                }
             }
-
-            vec![]
         } else {
-            vec![ObserverResult {
-                init: None,
-                object: Some(Resource::from(&self.init_data.kind, object)),
-                is_delete,
-            }]
+            self.context_tx
+                .send(Box::new(ObserverResult::new(
+                    Resource::from(&self.init_data.kind, object),
+                    is_delete,
+                )))
+                .unwrap();
         }
     }
 }

@@ -75,17 +75,17 @@ impl ResourcesTable {
 
     /// Gets current kind (plural) for resources listed in [`ResourcesTable`].
     pub fn kind_plural(&self) -> &str {
-        &self.list.items.kind_plural
+        &self.list.items.data.kind_plural
     }
 
     /// Gets current scope for resources listed in [`ResourcesTable`].
     pub fn scope(&self) -> &Scope {
-        &self.list.items.scope
+        &self.list.items.data.scope
     }
 
     /// Gets resources group.
     pub fn group(&self) -> &str {
-        &self.list.items.group
+        &self.list.items.data.group
     }
 
     /// Sets namespace for [`ResourcesTable`].
@@ -122,26 +122,30 @@ impl ResourcesTable {
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: Box<ObserverResult>) {
+    pub fn update_resources_list(&mut self, result: ObserverResult) {
+        if matches!(result, ObserverResult::InitDone) {
+            if let Some(name) = self.highlight_next.as_deref() {
+                self.list.items.highlight_item_by_name(name);
+                self.highlight_next = None;
+            }
+        }
+
         if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
-            data.current.kind = self.list.items.kind.clone();
-            data.current.kind_plural = self.list.items.kind_plural.clone();
-            data.current.group = self.list.items.group.clone();
-            data.current.scope = self.list.items.scope.clone();
+            data.current.name = self.list.items.data.name.clone();
+            data.current.kind_plural = self.list.items.data.kind_plural.clone();
+            data.current.group = self.list.items.data.group.clone();
+            data.current.scope = self.list.items.data.scope.clone();
             data.current.count = self.list.items.list.len();
         } else {
             self.app_data.borrow_mut().current.count = self.list.items.list.len();
-        }
-
-        if let Some(name) = self.highlight_next.as_deref() {
-            self.list.items.highlight_item_by_name(name);
-            self.highlight_next = None;
         }
     }
 
     /// Process UI key event.
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+        self.highlight_next = None;
+
         if key.code == KeyCode::Enter {
             match self.kind_plural() {
                 NAMESPACES => {
@@ -169,7 +173,10 @@ impl ResourcesTable {
         if key.code == KeyCode::Esc {
             match self.kind_plural() {
                 NAMESPACES => (),
-                "containers" => return ResponseEvent::ChangeKind("pods".to_owned()),
+                "containers" => {
+                    let to_select = self.app_data.borrow().current.name.clone();
+                    return ResponseEvent::ChangeKindSelect("pods".to_owned(), to_select);
+                }
                 _ => return ResponseEvent::ViewNamespaces,
             }
         }

@@ -40,6 +40,7 @@ pub enum ResponseEvent {
 
     Change(String, String),
     ChangeKind(String),
+    ChangeKindSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
     ViewContainers(String, String),

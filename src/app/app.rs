@@ -153,11 +153,11 @@ impl App {
         }
 
         while let Some(update_result) = worker.namespaces.try_next() {
-            self.resources.update_namespaces_list(update_result);
+            self.resources.update_namespaces_list(*update_result);
         }
 
         while let Some(update_result) = worker.resources.try_next() {
-            self.resources.update_resources_list(update_result);
+            self.resources.update_resources_list(*update_result);
         }
 
         self.data.borrow_mut().is_connected = !worker.has_errors();
@@ -176,6 +176,7 @@ impl App {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
                 ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
                 ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
+                ResponseEvent::ChangeKindSelect(kind, to_select) => self.change_kind(kind, to_select)?,
                 ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
                 ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
