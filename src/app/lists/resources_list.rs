@@ -13,6 +13,8 @@ use crate::{
 
 use super::{FilterableList, Header, Item, Row, ScrollableList};
 
+pub const CONTAINERS: &str = "containers";
+
 /// Kubernetes resources list.
 #[derive(Default)]
 pub struct ResourcesList {
@@ -53,6 +55,11 @@ impl ResourcesList {
                 false
             }
         }
+    }
+
+    /// Returns `true` if the resources in the list are of a special type `containers`.
+    pub fn has_containers(&self) -> bool {
+        self.data.kind_plural == CONTAINERS
     }
 
     /// Gets highlighted resource.

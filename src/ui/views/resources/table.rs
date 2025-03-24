@@ -10,7 +10,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{
         ObserverResult, ResourcesInfo, SharedAppData,
-        lists::{ResourcesList, Row},
+        lists::{CONTAINERS, ResourcesList, Row},
     },
     kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace, resources::Resource},
     ui::{Responsive, Table, ViewType, tui::ResponseEvent},
@@ -70,6 +70,7 @@ impl ResourcesTable {
             pub fn deselect_all(&mut self);
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
+            pub fn has_containers(&self) -> bool;
         }
     }
 
@@ -131,13 +132,15 @@ impl ResourcesTable {
         }
 
         if self.list.items.update(result) {
-            let mut data = self.app_data.borrow_mut();
-            data.current.name = self.list.items.data.name.clone();
-            data.current.kind = self.list.items.data.kind.clone();
-            data.current.kind_plural = self.list.items.data.kind_plural.clone();
-            data.current.group = self.list.items.data.group.clone();
-            data.current.scope = self.list.items.data.scope.clone();
-            data.current.count = self.list.items.list.len();
+            let current = &mut self.app_data.borrow_mut().current;
+            // current.namespace is only updated inside the set_namespace method, because the containers are temporarily
+            // in the pod's namespace, so the main namespace would be overwritten here from the observed container events
+            current.name = self.list.items.data.name.clone();
+            current.kind = self.list.items.data.kind.clone();
+            current.kind_plural = self.list.items.data.kind_plural.clone();
+            current.group = self.list.items.data.group.clone();
+            current.scope = self.list.items.data.scope.clone();
+            current.count = self.list.items.list.len();
         } else {
             self.app_data.borrow_mut().current.count = self.list.items.list.len();
         }
@@ -162,7 +165,7 @@ impl ResourcesTable {
                         );
                     }
                 }
-                "containers" => (),
+                CONTAINERS => (),
                 _ => {
                     if let Some(response) = self.get_view_yaml_response(false) {
                         return response;
@@ -174,7 +177,7 @@ impl ResourcesTable {
         if key.code == KeyCode::Esc {
             match self.kind_plural() {
                 NAMESPACES => (),
-                "containers" => {
+                CONTAINERS => {
                     let to_select = self.app_data.borrow().current.name.clone();
                     return ResponseEvent::ChangeKindSelect("pods".to_owned(), to_select);
                 }
@@ -203,7 +206,7 @@ impl ResourcesTable {
     }
 
     fn get_view_yaml_response(&mut self, decode: bool) -> Option<ResponseEvent> {
-        if self.app_data.borrow().current.is_kind_equal("containers") {
+        if self.app_data.borrow().current.is_kind_equal(CONTAINERS) {
             return None;
         }
 

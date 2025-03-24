@@ -165,7 +165,7 @@ impl ResourcesView {
             return self.filter.process_key(key);
         }
 
-        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced {
+        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced && !self.table.has_containers() {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }

@@ -28,7 +28,7 @@ use crate::{
     ui::widgets::FooterMessage,
 };
 
-use super::utils::wait_for_task;
+use super::{lists::CONTAINERS, utils::wait_for_task};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -88,7 +88,7 @@ impl InitData {
             Self {
                 name: rt.name.clone(),
                 kind: "Container".to_owned(),
-                kind_plural: "containers".to_owned(),
+                kind_plural: CONTAINERS.to_owned(),
                 group: ar.group.clone(),
                 scope,
             }
@@ -411,7 +411,7 @@ impl EventsProcessor {
             if let Some(containers) = object
                 .data
                 .get("spec")
-                .and_then(|s| s.get("containers"))
+                .and_then(|s| s.get(CONTAINERS))
                 .and_then(|c| c.as_array())
             {
                 for c in containers.iter() {
