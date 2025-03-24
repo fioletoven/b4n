@@ -78,9 +78,7 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     for c in containers {
         if let Some(reason) = c
             .get("state")
-            .and_then(|s| s.as_object())
             .and_then(|s| s.get("waiting"))
-            .and_then(|w| w.as_object())
             .and_then(|w| w.get("reason"))
             .and_then(|r| r.as_str())
         {

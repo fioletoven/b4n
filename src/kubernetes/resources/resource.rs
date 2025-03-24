@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
+use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -64,7 +64,7 @@ impl Resource {
     }
 
     /// Creates [`Resource`] from kubernetes pod container and its metadata.
-    pub fn from_container(container: &Value, pod_metadata: &ObjectMeta) -> Self {
+    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta) -> Self {
         Self {
             age: pod_metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string()),
             name: container["name"].as_str().unwrap_or("unknown").to_owned(),
@@ -72,7 +72,7 @@ impl Resource {
             uid: pod_metadata.uid.as_ref().map(|u| format!("{}.{}", u, container["name"])),
             creation_timestamp: pod_metadata.creation_timestamp.clone(),
             filter_metadata: vec![],
-            data: None,
+            data: Some(container::data(container, status, pod_metadata.deletion_timestamp.is_some())),
         }
     }
 

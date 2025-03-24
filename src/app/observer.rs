@@ -1,4 +1,5 @@
 use futures::TryStreamExt;
+use k8s_openapi::serde_json::Value;
 use kube::{
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
@@ -415,7 +416,7 @@ impl EventsProcessor {
                 .and_then(|c| c.as_array())
             {
                 for c in containers.iter() {
-                    let result = ObserverResult::new(Resource::from_container(c, &object.metadata), is_delete);
+                    let result = get_container_result(c, &object, is_delete);
                     self.context_tx.send(Box::new(result)).unwrap();
                 }
             }
@@ -428,4 +429,14 @@ impl EventsProcessor {
                 .unwrap();
         }
     }
+}
+
+fn get_container_result(container: &Value, object: &DynamicObject, is_delete: bool) -> ObserverResult {
+    let status = object
+        .data
+        .get("status")
+        .and_then(|s| s.get("containerStatuses"))
+        .and_then(|s| s.as_array())
+        .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
+    ObserverResult::new(Resource::from_container(container, status, &object.metadata), is_delete)
 }
