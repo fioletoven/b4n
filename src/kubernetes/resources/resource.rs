@@ -1,5 +1,8 @@
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use kube::{ResourceExt, api::DynamicObject};
+use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, serde_json::Value};
+use kube::{
+    ResourceExt,
+    api::{DynamicObject, ObjectMeta},
+};
 use std::collections::BTreeMap;
 
 use crate::{
@@ -12,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{ResourceData, ResourceValue, get_header_data, get_resource_data};
+use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -46,13 +49,31 @@ impl Resource {
         let filter = get_filter_metadata(&object);
 
         Self {
-            age: object.creation_timestamp().as_ref().map(|t| t.0.timestamp().to_string()),
+            age: object
+                .metadata
+                .creation_timestamp
+                .as_ref()
+                .map(|t| t.0.timestamp().to_string()),
             name: object.name_any(),
             namespace: object.metadata.namespace,
             uid: object.metadata.uid,
             creation_timestamp: object.metadata.creation_timestamp,
             filter_metadata: filter,
             data,
+        }
+    }
+
+    /// Creates [`Resource`] from kubernetes pod container and its metadata.
+    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta) -> Self {
+        let name = container["name"].as_str().unwrap_or("unknown").to_owned();
+        Self {
+            age: pod_metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string()),
+            name: name.clone(),
+            namespace: pod_metadata.namespace.clone(),
+            uid: pod_metadata.uid.as_ref().map(|u| format!("{}.{}", u, container["name"])),
+            creation_timestamp: pod_metadata.creation_timestamp.clone(),
+            filter_metadata: vec![name],
+            data: Some(container::data(container, status, pod_metadata.deletion_timestamp.is_some())),
         }
     }
 
@@ -254,7 +275,6 @@ fn get_filter_metadata(object: &DynamicObject) -> Vec<String> {
     result
 }
 
-#[inline]
 fn flatten_metadata(items: &BTreeMap<String, String>) -> Vec<String> {
     items
         .iter()

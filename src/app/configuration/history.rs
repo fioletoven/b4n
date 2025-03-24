@@ -36,7 +36,7 @@ impl ContextInfo {
         Self {
             name: info.context.clone(),
             namespace: info.namespace.as_str().into(),
-            kind: info.kind.clone(),
+            kind: info.kind_plural.clone(),
             filter_history: Vec::new(),
         }
     }
@@ -106,7 +106,7 @@ impl History {
     /// Returns the default history file path: `HOME/b4n/history.yaml`.
     pub fn default_path() -> PathBuf {
         match home::home_dir() {
-            Some(path) => path.join(format!(".{}", env!("CARGO_CRATE_NAME"))).join("history.yaml"),
+            Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),
             None => PathBuf::from("history.yaml"),
         }
     }

@@ -5,7 +5,7 @@ pub const NAMESPACES: &str = "namespaces";
 
 /// Represents kubernetes namespace.  
 /// **Note** that it treats string `all` as a special case: all namespaces.
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Namespace {
     value: Option<String>,
 }

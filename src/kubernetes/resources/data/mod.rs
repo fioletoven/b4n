@@ -6,6 +6,7 @@ use crate::{
 };
 
 pub mod config_map;
+pub mod container;
 pub mod default;
 pub mod namespace;
 pub mod pod;
@@ -27,6 +28,7 @@ pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for provided Kubernetes resource kind.
 pub fn get_header_data(kind: &str) -> Header {
     match kind {
+        "Container" => container::header(),
         "ConfigMap" => config_map::header(),
         "Namespace" => namespace::header(),
         "Pod" => pod::header(),

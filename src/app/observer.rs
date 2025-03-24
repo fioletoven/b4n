@@ -1,4 +1,5 @@
 use futures::TryStreamExt;
+use k8s_openapi::serde_json::Value;
 use kube::{
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
@@ -13,6 +14,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
+    time::Instant,
 };
 use thiserror;
 use tokio::{
@@ -27,7 +29,9 @@ use crate::{
     ui::widgets::FooterMessage,
 };
 
-use super::utils::wait_for_task;
+use super::{lists::CONTAINERS, utils::wait_for_task};
+
+const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -38,36 +42,103 @@ pub enum BgObserverError {
 }
 
 /// Background observer result.
-pub struct ObserverResult {
-    pub init: Option<ObserverInitData>,
-    pub object: Option<Resource>,
-    pub is_delete: bool,
+pub enum ObserverResult {
+    Init(InitData),
+    InitDone,
+    Apply(Resource),
+    Delete(Resource),
+}
+
+impl ObserverResult {
+    /// Creates new [`ObserverResult`] for resource.
+    pub fn new(resource: Resource, is_delete: bool) -> Self {
+        if is_delete {
+            Self::Delete(resource)
+        } else {
+            Self::Apply(resource)
+        }
+    }
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
-pub struct ObserverInitData {
+#[derive(Debug, Clone)]
+pub struct InitData {
+    pub name: Option<String>,
     pub kind: String,
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
 }
 
-impl ObserverInitData {
-    /// Creates new [`ObserverResult`] initial data.
-    pub fn new(kind: String, kind_plural: String, group: String, scope: Scope) -> Self {
-        ObserverInitData {
-            kind,
-            kind_plural,
-            group,
-            scope,
+impl Default for InitData {
+    fn default() -> Self {
+        Self {
+            name: None,
+            kind: String::new(),
+            kind_plural: String::new(),
+            group: String::new(),
+            scope: Scope::Cluster,
+        }
+    }
+}
+
+impl InitData {
+    /// Creates new initial data for [`ObserverResult`].
+    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope) -> Self {
+        if rt.is_container {
+            Self {
+                name: rt.name.clone(),
+                kind: "Container".to_owned(),
+                kind_plural: CONTAINERS.to_owned(),
+                group: ar.group.clone(),
+                scope,
+            }
+        } else {
+            Self {
+                name: None,
+                kind: ar.kind.clone(),
+                kind_plural: ar.plural.to_lowercase(),
+                group: ar.group.clone(),
+                scope,
+            }
+        }
+    }
+}
+
+/// Points to the specific kubernetes resource.
+#[derive(Default, Debug, Clone)]
+pub struct ResourceRef {
+    pub name: Option<String>,
+    pub kind: String,
+    pub namespace: Namespace,
+    pub is_container: bool,
+}
+
+impl ResourceRef {
+    /// Creates new [`ResourceRef`] for kubernetes resource expressed as `kind` and `namespace`.
+    pub fn new(resource_kind: String, resource_namespace: Namespace) -> Self {
+        Self {
+            name: None,
+            kind: resource_kind,
+            namespace: resource_namespace,
+            is_container: false,
+        }
+    }
+
+    /// Creates new [`ResourceRef`] for kubernetes pod containers.
+    pub fn container(pod_name: String, pod_namespace: Namespace) -> Self {
+        Self {
+            name: Some(pod_name),
+            kind: "Pod".to_owned(),
+            namespace: pod_namespace,
+            is_container: true,
         }
     }
 }
 
 /// Background k8s resource observer.
 pub struct BgObserver {
-    resource: String,
-    namespace: Namespace,
+    resource: ResourceRef,
     scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
@@ -82,8 +153,7 @@ impl BgObserver {
     pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
-            resource: String::new(),
-            namespace: Namespace::default(),
+            resource: ResourceRef::default(),
             scope: Scope::Cluster,
             task: None,
             cancellation_token: None,
@@ -101,8 +171,7 @@ impl BgObserver {
     pub fn start(
         &mut self,
         client: &KubernetesClient,
-        resource_name: String,
-        resource_namespace: Namespace,
+        resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         self.stop();
@@ -110,84 +179,67 @@ impl BgObserver {
         let cancellation_token = CancellationToken::new();
         let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
 
-        let _kind = ar.kind.clone();
-        let _kind_plural = ar.plural.to_lowercase();
-        let _group = ar.group.clone();
+        self.resource = resource;
         self.scope = cap.scope.clone();
-        let _scope = cap.scope.clone();
-
-        let _api_client = client.get_api(ar, cap, resource_namespace.as_option(), resource_namespace.is_all());
-
-        let _cancellation_token = cancellation_token.clone();
-        let _context_tx = self.context_tx.clone();
-
         self.has_error.store(false, Ordering::Relaxed);
-        let _has_error = Arc::clone(&self.has_error);
-        let _footer_tx = self.footer_tx.clone();
+
+        let mut _processor = EventsProcessor {
+            init_data: InitData::new(&self.resource, &ar, cap.scope.clone()),
+            is_container: self.resource.is_container,
+            context_tx: self.context_tx.clone(),
+            footer_tx: self.footer_tx.clone(),
+            has_error: Arc::clone(&self.has_error),
+            last_watch_error: None,
+        };
+        let _api_client = client.get_api(ar, cap, self.resource.namespace.as_option(), self.resource.namespace.is_all());
+        let _cancellation_token = cancellation_token.clone();
+        let _resource_name = self.resource.name.clone();
 
         let task = tokio::spawn(async move {
-            let watch = watcher(_api_client, watcher::Config::default()).default_backoff();
-            let mut watch = pin!(watch);
-
             while !_cancellation_token.is_cancelled() {
-                tokio::select! {
-                    _ = _cancellation_token.cancelled() => (),
-                    result = watch.try_next() => {
-                        match result {
-                            Ok(event) => {
-                                if let Some(result) = match event {
-                                    Some(Event::Init) => Some(get_init_result(
-                                        _kind.clone(),
-                                        _kind_plural.clone(),
-                                        _group.clone(),
-                                        _scope.clone())),
-                                    Some(Event::InitApply(o) | Event::Apply(o)) => Some(get_result(&_kind, o, false)),
-                                    Some(Event::Delete(o)) => Some(get_result(&_kind, o, true)),
-                                    _ => None,
-                                } {
-                                    _context_tx.send(result).unwrap();
-                                }
-                                _has_error.store(false, Ordering::Relaxed);
-                            },
-                            Err(error) => {
-                                let msg = format!("Watch {}: {}", _kind_plural, error);
-                                warn!("{}", msg);
-                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
-                                match error {
-                                    Error::WatchFailed(_) => (), // WatchFailed do not trigger Init, so we do not set _has_error.
-                                    _ =>_has_error.store(true, Ordering::Relaxed),
-                                }
+                let mut config = watcher::Config::default();
+                if let Some(name) = _resource_name.as_ref() {
+                    let fields = format!("metadata.name={name}");
+                    config = config.fields(&fields);
+                }
+                let watch = watcher(_api_client.clone(), config).default_backoff();
+                let mut watch = pin!(watch);
+
+                while !_cancellation_token.is_cancelled() {
+                    tokio::select! {
+                        _ = _cancellation_token.cancelled() => (),
+                        result = watch.try_next() => {
+                            if !_processor.process_event(result) {
+                                // we need to restart watcher, so go up one while loop
+                                break;
                             }
-                        };
-                    },
+                        },
+                    }
                 }
             }
         });
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
-        self.resource = resource_name;
-        self.namespace = resource_namespace;
 
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource_name` or `new_namespace` is different than the current one.
+    /// Restarts [`BgObserver`] task if `new_kind` or `new_namespace` is different than the current one.
     pub fn restart(
         &mut self,
         client: &KubernetesClient,
-        new_resource_name: String,
-        new_namespace: Namespace,
+        new_resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource != new_resource_name || self.namespace != new_namespace {
-            self.start(client, new_resource_name, new_namespace, discovery)?;
+        if self.resource.kind != new_resource.kind || self.resource.namespace != new_resource.namespace {
+            self.start(client, new_resource, discovery)?;
         }
 
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource_name` is different from the current one.
+    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.  
     /// **Note** that it uses `new_namespace` if resource is namespaced.
     pub fn restart_new_kind(
         &mut self,
@@ -196,15 +248,14 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource != new_kind {
-            let mut namespace = Namespace::all();
-            if let Some((_, cap)) = &discovery {
-                if cap.scope == Scope::Namespaced {
-                    namespace = new_namespace;
-                }
-            }
+        if self.resource.kind != new_kind {
+            let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
+                ResourceRef::new(new_kind, new_namespace)
+            } else {
+                ResourceRef::new(new_kind, Namespace::all())
+            };
 
-            self.start(client, new_kind, namespace, discovery)?;
+            self.start(client, resource, discovery)?;
         }
 
         Ok(self.scope.clone())
@@ -217,8 +268,28 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.namespace != new_namespace {
-            self.start(client, self.resource.clone(), new_namespace, discovery)?;
+        if self.resource.is_container {
+            let resource = ResourceRef::new("Pod".to_owned(), new_namespace);
+            self.start(client, resource, discovery)?;
+        } else if self.resource.namespace != new_namespace {
+            let resource = ResourceRef::new(self.resource.kind.clone(), new_namespace);
+            self.start(client, resource, discovery)?;
+        }
+
+        Ok(self.scope.clone())
+    }
+
+    /// Restarts [`BgObserver`] task to show pod containers.
+    pub fn restart_containers(
+        &mut self,
+        client: &KubernetesClient,
+        pod_name: String,
+        pod_namespace: Namespace,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+    ) -> Result<Scope, BgObserverError> {
+        if !self.resource.is_container || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
+            let resource = ResourceRef::container(pod_name, pod_namespace);
+            self.start(client, resource, discovery)?;
         }
 
         Ok(self.scope.clone())
@@ -228,8 +299,7 @@ impl BgObserver {
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
-            self.resource = String::new();
-            self.namespace = Namespace::default();
+            self.resource = ResourceRef::default();
             self.has_error.store(true, Ordering::Relaxed);
         }
     }
@@ -251,9 +321,9 @@ impl BgObserver {
         while self.context_rx.try_recv().is_ok() {}
     }
 
-    /// Returns currently observed resource name.
-    pub fn get_resource_name(&self) -> &str {
-        &self.resource
+    /// Returns currently observed resource kind.
+    pub fn get_resource_kind(&self) -> &str {
+        &self.resource.kind
     }
 
     /// Returns `true` if observer is not running or is in an error state.
@@ -268,18 +338,105 @@ impl Drop for BgObserver {
     }
 }
 
-fn get_init_result(kind: String, kind_plural: String, group: String, scope: Scope) -> Box<ObserverResult> {
-    Box::new(ObserverResult {
-        init: Some(ObserverInitData::new(kind, kind_plural, group, scope)),
-        object: None,
-        is_delete: false,
-    })
+/// Internal watcher's events processor.
+#[derive(Debug)]
+struct EventsProcessor {
+    init_data: InitData,
+    is_container: bool,
+    context_tx: UnboundedSender<Box<ObserverResult>>,
+    footer_tx: UnboundedSender<FooterMessage>,
+    has_error: Arc<AtomicBool>,
+    last_watch_error: Option<Instant>,
 }
 
-fn get_result(kind: &str, object: DynamicObject, is_delete: bool) -> Box<ObserverResult> {
-    Box::new(ObserverResult {
-        init: None,
-        object: Some(Resource::from(kind, object)),
-        is_delete,
-    })
+impl EventsProcessor {
+    /// Process event received from the kubernetes resource watcher.  
+    /// Returns `true` if all was OK or `false` if the watcher needs to be restarted.
+    pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> bool {
+        match result {
+            Ok(event) => {
+                let mut reset_error = true;
+                match event {
+                    Some(Event::Init) => {
+                        reset_error = false; // Init is also emitted after a forced restart of the watcher
+                        self.send_init_result();
+                    }
+                    Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
+                    Some(Event::InitApply(o) | Event::Apply(o)) => self.send_results(o, false),
+                    Some(Event::Delete(o)) => self.send_results(o, true),
+                    _ => (),
+                }
+
+                if reset_error {
+                    self.last_watch_error = None;
+                    self.has_error.store(false, Ordering::Relaxed);
+                }
+            }
+            Err(error) => {
+                let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
+                warn!("{}", msg);
+                self.footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+
+                match error {
+                    Error::WatchStartFailed(_) | Error::WatchFailed(_) => {
+                        // WatchStartFailed and WatchFailed do not trigger Init, so we do not set error immediately.
+                        if self
+                            .last_watch_error
+                            .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
+                        {
+                            warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
+                            self.has_error.store(true, Ordering::Relaxed);
+                            self.last_watch_error = Some(Instant::now());
+
+                            return false;
+                        } else {
+                            self.last_watch_error = Some(Instant::now());
+                        }
+                    }
+                    _ => self.has_error.store(true, Ordering::Relaxed),
+                }
+            }
+        }
+
+        true
+    }
+
+    fn send_init_result(&self) {
+        self.context_tx
+            .send(Box::new(ObserverResult::Init(self.init_data.clone())))
+            .unwrap();
+    }
+
+    fn send_results(&self, object: DynamicObject, is_delete: bool) {
+        if self.is_container {
+            if let Some(containers) = object
+                .data
+                .get("spec")
+                .and_then(|s| s.get(CONTAINERS))
+                .and_then(|c| c.as_array())
+            {
+                for c in containers.iter() {
+                    let result = get_container_result(c, &object, is_delete);
+                    self.context_tx.send(Box::new(result)).unwrap();
+                }
+            }
+        } else {
+            self.context_tx
+                .send(Box::new(ObserverResult::new(
+                    Resource::from(&self.init_data.kind, object),
+                    is_delete,
+                )))
+                .unwrap();
+        }
+    }
+}
+
+fn get_container_result(container: &Value, object: &DynamicObject, is_delete: bool) -> ObserverResult {
+    let status = object
+        .data
+        .get("status")
+        .and_then(|s| s.get("containerStatuses"))
+        .and_then(|s| s.as_array())
+        .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
+    ObserverResult::new(Resource::from_container(container, status, &object.metadata), is_delete)
 }

@@ -81,7 +81,7 @@ impl ResourcesView {
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
             pub fn set_namespace(&mut self, namespace: Namespace);
             pub fn set_view(&mut self, view: ViewType);
-            pub fn update_resources_list(&mut self, result: Box<ObserverResult>);
+            pub fn update_resources_list(&mut self, result: ObserverResult);
         }
     }
 
@@ -102,7 +102,7 @@ impl ResourcesView {
     }
 
     /// Updates namespaces list with a new data from [`ObserverResult`].
-    pub fn update_namespaces_list(&mut self, result: Box<ObserverResult>) {
+    pub fn update_namespaces_list(&mut self, result: ObserverResult) {
         self.ns_selector.select.items.update(result);
     }
 
@@ -165,12 +165,7 @@ impl ResourcesView {
             return self.filter.process_key(key);
         }
 
-        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
-            self.filter.reset();
-            return ResponseEvent::Handled;
-        }
-
-        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced {
+        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced && !self.table.has_containers() {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
         }

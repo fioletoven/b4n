@@ -40,47 +40,47 @@ pub fn format_timestamp(time: &Time) -> String {
     }
 }
 
-/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name.  
-/// Name value can be in the format `name.group`.
-pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, name: &str) -> Option<(ApiResource, ApiCapabilities)> {
-    if name.contains('.') {
-        let mut split = name.splitn(2, '.');
+/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.  
+/// Kind value can be in the format `kind.group`.
+pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
+    if kind.contains('.') {
+        let mut split = kind.splitn(2, '.');
         get_resource_with_group(list, split.next().unwrap(), split.next().unwrap())
     } else {
-        get_resource_no_group(list, name)
+        get_resource_no_group(list, kind)
     }
 }
 
-/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name and group.
+/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` and `group`.
 fn get_resource_with_group(
     list: Option<&Vec<(ApiResource, ApiCapabilities)>>,
-    name: &str,
+    kind: &str,
     group: &str,
 ) -> Option<(ApiResource, ApiCapabilities)> {
     if group.is_empty() {
-        get_resource_no_group(list, name)
+        get_resource_no_group(list, kind)
     } else {
         list.and_then(|discovery| {
             discovery
                 .iter()
                 .find(|(ar, _)| {
                     group.eq_ignore_ascii_case(&ar.group)
-                        && (name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
+                        && (kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
                 })
                 .map(|(ar, cap)| (ar.clone(), cap.clone()))
         })
     }
 }
 
-/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource name ignoring group.
+/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` ignoring `group`.
 fn get_resource_no_group(
     list: Option<&Vec<(ApiResource, ApiCapabilities)>>,
-    name: &str,
+    kind: &str,
 ) -> Option<(ApiResource, ApiCapabilities)> {
     list.and_then(|discovery| {
         discovery
             .iter()
-            .filter(|(ar, _)| name.eq_ignore_ascii_case(&ar.kind) || name.eq_ignore_ascii_case(&ar.plural))
+            .filter(|(ar, _)| kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
             .min_by_key(|(ar, _)| &ar.group)
             .map(|(ar, cap)| (ar.clone(), cap.clone()))
     })

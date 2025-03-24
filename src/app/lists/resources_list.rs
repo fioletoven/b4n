@@ -1,10 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
-use kube::discovery::Scope;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{ObserverInitData, ObserverResult},
+    app::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
         resources::{Resource, ResourceFilterContext},
@@ -14,29 +13,15 @@ use crate::{
 
 use super::{FilterableList, Header, Item, Row, ScrollableList};
 
+pub const CONTAINERS: &str = "containers";
+
 /// Kubernetes resources list.
+#[derive(Default)]
 pub struct ResourcesList {
-    pub kind: String,
-    pub kind_plural: String,
-    pub group: String,
-    pub scope: Scope,
+    pub data: InitData,
     pub list: ScrollableList<Resource, ResourceFilterContext>,
     header: Header,
     header_cache: HeaderCache,
-}
-
-impl Default for ResourcesList {
-    fn default() -> Self {
-        ResourcesList {
-            kind: String::new(),
-            kind_plural: String::new(),
-            group: String::new(),
-            scope: Scope::Cluster,
-            list: ScrollableList::default(),
-            header: Header::default(),
-            header_cache: HeaderCache::default(),
-        }
-    }
 }
 
 impl ResourcesList {
@@ -47,21 +32,34 @@ impl ResourcesList {
     }
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
-    /// Returns `true` if the kind was also changed during the update.
-    pub fn update(&mut self, result: Box<ObserverResult>) -> bool {
+    /// Returns `true` if the kind was changed during the update.
+    pub fn update(&mut self, result: ObserverResult) -> bool {
         let (mut sort_by, mut is_descending) = self.header.sort_info();
-        if self.update_kind(result.init) {
-            (sort_by, is_descending) = self.header.sort_info();
-            self.header.set_sort_info(sort_by, is_descending);
-            self.header_cache.invalidate();
-            true
-        } else {
-            if let Some(resource) = result.object {
-                self.update_list(resource, result.is_delete);
+        match result {
+            ObserverResult::Init(init) => {
+                self.update_kind(init);
+                (sort_by, is_descending) = self.header.sort_info();
+                self.header.set_sort_info(sort_by, is_descending);
+                self.header_cache.invalidate();
+                true
             }
-            self.sort_internal_list(sort_by, is_descending);
-            false
+            ObserverResult::InitDone => false,
+            ObserverResult::Apply(resource) => {
+                self.update_list(resource, false);
+                self.sort_internal_list(sort_by, is_descending);
+                false
+            }
+            ObserverResult::Delete(resource) => {
+                self.update_list(resource, true);
+                self.sort_internal_list(sort_by, is_descending);
+                false
+            }
         }
+    }
+
+    /// Returns `true` if the resources in the list are of a special type `containers`.
+    pub fn has_containers(&self) -> bool {
+        self.data.kind_plural == CONTAINERS
     }
 
     /// Gets highlighted resource.
@@ -88,24 +86,14 @@ impl ResourcesList {
         }
     }
 
-    /// Returns `true` if kind was changed.
-    fn update_kind(&mut self, init: Option<ObserverInitData>) -> bool {
-        let Some(init) = init else {
-            return false;
-        };
-
-        self.kind = init.kind;
-        self.kind_plural = init.kind_plural;
-        self.group = init.group;
-        self.scope = init.scope;
-        self.header = Resource::header(&self.kind);
+    fn update_kind(&mut self, init: InitData) {
+        self.data = init;
+        self.header = Resource::header(&self.data.kind);
         self.header_cache.invalidate();
         self.list.clear();
-        if self.kind_plural == NAMESPACES {
+        if self.data.kind_plural == NAMESPACES {
             self.list.items = Some(FilterableList::from(vec![Item::fixed(Resource::new(ALL_NAMESPACES))]));
         }
-
-        true
     }
 
     /// Adds, updates or deletes `new_item` from the resources list.
@@ -208,10 +196,8 @@ impl Table for ResourcesList {
     }
 
     fn clear(&mut self) {
+        self.data = InitData::default();
         self.list.clear();
-        self.kind = String::new();
-        self.kind_plural = String::new();
-        self.group = String::new();
     }
 
     fn filter(&mut self, filter: Option<String>) {
