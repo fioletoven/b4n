@@ -52,10 +52,17 @@ impl HeaderPane {
             Span::styled(format!(" {} ", data.context), &colors.context),
         ];
 
-        if data.scope == Scope::Namespaced {
+        let mut namespace_text = None;
+        if data.name.is_some() {
+            namespace_text = data.name.as_deref();
+        } else if data.scope == Scope::Namespaced {
+            namespace_text = Some(data.namespace.as_str());
+        }
+
+        if let Some(namespace_text) = namespace_text {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-                Span::styled(format!(" {} ", data.namespace.as_str()), &colors.namespace),
+                Span::styled(format!(" {} ", namespace_text), &colors.namespace),
                 Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             ]);
         } else {

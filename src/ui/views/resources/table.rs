@@ -133,6 +133,7 @@ impl ResourcesTable {
         if self.list.items.update(result) {
             let mut data = self.app_data.borrow_mut();
             data.current.name = self.list.items.data.name.clone();
+            data.current.kind = self.list.items.data.kind.clone();
             data.current.kind_plural = self.list.items.data.kind_plural.clone();
             data.current.group = self.list.items.data.group.clone();
             data.current.scope = self.list.items.data.scope.clone();

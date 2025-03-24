@@ -95,7 +95,7 @@ impl InitData {
         } else {
             Self {
                 name: None,
-                kind: rt.kind.clone(),
+                kind: ar.kind.clone(),
                 kind_plural: ar.plural.to_lowercase(),
                 group: ar.group.clone(),
                 scope,
@@ -267,7 +267,10 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.namespace != new_namespace {
+        if self.resource.is_container {
+            let resource = ResourceRef::new("Pod".to_owned(), new_namespace);
+            self.start(client, resource, discovery)?;
+        } else if self.resource.namespace != new_namespace {
             let resource = ResourceRef::new(self.resource.kind.clone(), new_namespace);
             self.start(client, resource, discovery)?;
         }
