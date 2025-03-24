@@ -7,14 +7,13 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the pod's `container`.
-pub fn data(object: &Value, status: Option<&Value>, is_terminating: bool) -> ResourceData {
-    let image = object["image"].as_str().map(|s| s.to_owned());
+pub fn data(container: &Value, status: Option<&Value>, is_terminating: bool) -> ResourceData {
+    let image = container["image"].as_str().map(|s| s.to_owned());
 
     let ready = status
         .and_then(|s| s.get("ready"))
         .and_then(|r| r.as_bool())
         .unwrap_or_default();
-    let ready = if ready { "true" } else { "false" };
     let restarts = status.and_then(|s| s.get("restartCount")).and_then(|r| r.as_u64());
 
     let is_running = status.and_then(|s| s.get("state")).and_then(|s| s.get("running")).is_some();
@@ -31,7 +30,7 @@ pub fn data(object: &Value, status: Option<&Value>, is_terminating: bool) -> Res
 
     let values: [ResourceValue; 4] = [
         ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
-        ready.into(),
+        if ready { "true".into() } else { "false".into() },
         phase.into(),
         image.into(),
     ];

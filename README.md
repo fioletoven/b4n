@@ -23,7 +23,7 @@ As the project is in its early stages, for this moment the only supported functi
 General planned features:
 
 - describing resources
-- showing pod containers and their logs
+- viewing logs for a pod and its containers
 - editing resources (YAML)
 - port forwarding
 - shell

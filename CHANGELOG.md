@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.2 - 2025-03-24
+
+### Features
+
+- display containers of a pod by pressing `ENTER` on the selected pod
+
 ## 0.1.1 - 2025-03-20
 
 ### Features

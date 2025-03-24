@@ -52,26 +52,32 @@ impl HeaderPane {
             Span::styled(format!(" {} ", data.context), &colors.context),
         ];
 
-        let mut namespace_text = None;
-        if data.name.is_some() {
-            namespace_text = data.name.as_deref();
-        } else if data.scope == Scope::Namespaced {
-            namespace_text = Some(data.namespace.as_str());
-        }
-
-        if let Some(namespace_text) = namespace_text {
+        if data.scope == Scope::Namespaced {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-                Span::styled(format!(" {} ", namespace_text), &colors.namespace),
+                Span::styled(format!(" {} ", data.namespace.as_str()), &colors.namespace),
                 Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             ]);
         } else {
             path.push(Span::styled("", Style::new().fg(colors.context.bg).bg(colors.resource.bg)));
         }
 
-        let count_icon = if self.is_filtered { "" } else { "" };
+        let count_icon = if self.is_filtered {
+            ""
+        } else if data.name.is_some() {
+            ""
+        } else {
+            ""
+        };
+
+        let kind = if data.name.is_some() {
+            data.name.as_ref().unwrap()
+        } else {
+            &data.kind_plural
+        };
+
         path.append(&mut vec![
-            Span::styled(format!(" {} ", data.kind_plural), &colors.resource),
+            Span::styled(format!(" {} ", kind), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
             Span::styled(format!(" {}{} ", count_icon, data.count), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),

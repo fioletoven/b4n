@@ -253,7 +253,7 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources to `containters` for a specified `pod`.
+    /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.resources.clear_list_data();
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
