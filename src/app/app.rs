@@ -176,7 +176,7 @@ impl App {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
                 ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
                 ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-                ResponseEvent::ChangeKindSelect(kind, to_select) => self.change_kind(kind, to_select)?,
+                ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind, to_select)?,
                 ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
                 ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
@@ -214,7 +214,7 @@ impl App {
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if self.data.borrow().current.namespace != namespace || !self.data.borrow().current.is_kind_equal(&kind) {
+        if !self.data.borrow().current.is_namespace_equal(&namespace) || !self.data.borrow().current.is_kind_equal(&kind) {
             self.resources.set_namespace(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
@@ -228,7 +228,7 @@ impl App {
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
-            let namespace = self.data.borrow().current.namespace.clone();
+            let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind == NAMESPACES {
                 let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
@@ -244,7 +244,7 @@ impl App {
 
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if self.data.borrow().current.namespace != namespace {
+        if !self.data.borrow().current.is_namespace_equal(&namespace) {
             self.process_resources_change(None, Some(namespace.clone().into()), None);
             self.resources.set_namespace(namespace.clone());
             self.worker.borrow_mut().restart_new_namespace(namespace)?;
@@ -256,6 +256,7 @@ impl App {
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.resources.clear_list_data();
+        self.resources.set_view(ViewType::Compact);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -340,7 +341,7 @@ impl App {
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
             self.resources.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.namespace.is_all() {
+        } else if self.data.borrow().current.is_all_namespace() {
             self.resources.set_view(ViewType::Full);
         }
     }

@@ -68,6 +68,7 @@ pub struct InitData {
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
+    pub namespace: Namespace,
 }
 
 impl Default for InitData {
@@ -78,6 +79,7 @@ impl Default for InitData {
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
+            namespace: Namespace::default(),
         }
     }
 }
@@ -92,6 +94,7 @@ impl InitData {
                 kind_plural: CONTAINERS.to_owned(),
                 group: ar.group.clone(),
                 scope,
+                namespace: rt.namespace.clone(),
             }
         } else {
             Self {
@@ -100,6 +103,7 @@ impl InitData {
                 kind_plural: ar.plural.to_lowercase(),
                 group: ar.group.clone(),
                 scope,
+                namespace: rt.namespace.clone(),
             }
         }
     }

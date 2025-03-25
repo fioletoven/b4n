@@ -52,9 +52,10 @@ impl ResourcesTable {
 
     /// Sets initial kubernetes resources data for [`ResourcesTable`].
     pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
-        self.list.view = ViewType::Full;
         if scope == Scope::Cluster || !namespace.is_all() {
-            self.list.view = ViewType::Compact;
+            self.set_view(ViewType::Compact);
+        } else {
+            self.set_view(ViewType::Full);
         }
 
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
@@ -91,21 +92,21 @@ impl ResourcesTable {
 
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.list.view = if namespace.is_all() {
+        self.set_view(if namespace.is_all() {
             ViewType::Full
         } else {
             ViewType::Compact
-        };
+        });
 
-        if self.app_data.borrow().current.namespace != namespace {
-            self.app_data.borrow_mut().current.namespace = namespace;
+        if !self.app_data.borrow().current.is_namespace_equal(&namespace) {
+            self.app_data.borrow_mut().current.set_namespace(namespace);
             self.list.items.deselect_all();
         }
     }
 
     /// Sets list view for [`ResourcesTable`].
     pub fn set_view(&mut self, view: ViewType) {
-        self.list.view = view;
+        self.list.view = if self.has_containers() { ViewType::Compact } else { view };
     }
 
     /// Sets filter on the resources list.
@@ -133,13 +134,7 @@ impl ResourcesTable {
 
         if self.list.items.update(result) {
             let current = &mut self.app_data.borrow_mut().current;
-            // current.namespace is only updated inside the set_namespace method, because the containers are temporarily
-            // in the pod's namespace, so the main namespace would be overwritten here from the observed container events
-            current.name = self.list.items.data.name.clone();
-            current.kind = self.list.items.data.kind.clone();
-            current.kind_plural = self.list.items.data.kind_plural.clone();
-            current.group = self.list.items.data.group.clone();
-            current.scope = self.list.items.data.scope.clone();
+            current.update_from(&self.list.items.data);
             current.count = self.list.items.list.len();
         } else {
             self.app_data.borrow_mut().current.count = self.list.items.list.len();
@@ -179,7 +174,7 @@ impl ResourcesTable {
                 NAMESPACES => (),
                 CONTAINERS => {
                     let to_select = self.app_data.borrow().current.name.clone();
-                    return ResponseEvent::ChangeKindSelect("pods".to_owned(), to_select);
+                    return ResponseEvent::ChangeKindAndSelect("pods".to_owned(), to_select);
                 }
                 _ => return ResponseEvent::ViewNamespaces,
             }
