@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the pod's `container`.
-pub fn data(container: &Value, status: Option<&Value>, is_terminating: bool) -> ResourceData {
+pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, is_terminating: bool) -> ResourceData {
     let image = container["image"].as_str().map(|s| s.to_owned());
     let restarts = status.and_then(|s| s.get("restartCount")).and_then(|r| r.as_u64());
     let ready = status
@@ -34,10 +34,11 @@ pub fn data(container: &Value, status: Option<&Value>, is_terminating: bool) -> 
             .unwrap_or("Unknown")
     };
 
-    let values: [ResourceValue; 4] = [
+    let values: [ResourceValue; 5] = [
         ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
-        if ready { "true".into() } else { "false".into() },
+        ready.into(),
         phase.into(),
+        is_init_container.into(),
         image.into(),
     ];
 
@@ -58,8 +59,9 @@ pub fn header() -> Header {
             Column::fixed("RESTARTS", 3, true),
             Column::fixed("READY", 7, false),
             Column::bound("STATE", 10, 20, false),
+            Column::fixed("INIT", 6, false),
             Column::bound("IMAGE", 15, 70, false),
         ])),
-        Rc::new([' ', 'N', 'R', 'E', 'S', 'I', 'A']),
+        Rc::new([' ', 'N', 'R', 'E', 'S', 'T', 'I', 'A']),
     )
 }

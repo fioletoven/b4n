@@ -64,16 +64,24 @@ impl Resource {
     }
 
     /// Creates [`Resource`] from kubernetes pod container and its metadata.
-    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta) -> Self {
-        let name = container["name"].as_str().unwrap_or("unknown").to_owned();
+    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
+        let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
         Self {
             age: pod_metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string()),
-            name: name.clone(),
+            name: container_name.clone(),
             namespace: pod_metadata.namespace.clone(),
-            uid: pod_metadata.uid.as_ref().map(|u| format!("{}.{}", u, container["name"])),
+            uid: pod_metadata
+                .uid
+                .as_ref()
+                .map(|u| format!("{}.{}.{}", u, container_name, if is_init_container { "I" } else { "M" })),
             creation_timestamp: pod_metadata.creation_timestamp.clone(),
-            filter_metadata: vec![name],
-            data: Some(container::data(container, status, pod_metadata.deletion_timestamp.is_some())),
+            filter_metadata: vec![container_name],
+            data: Some(container::data(
+                container,
+                status,
+                is_init_container,
+                pod_metadata.deletion_timestamp.is_some(),
+            )),
         }
     }
 

@@ -413,34 +413,52 @@ impl EventsProcessor {
 
     fn send_results(&self, object: DynamicObject, is_delete: bool) {
         if self.is_container {
-            if let Some(containers) = object
-                .data
-                .get("spec")
-                .and_then(|s| s.get(CONTAINERS))
-                .and_then(|c| c.as_array())
-            {
-                for c in containers.iter() {
-                    let result = get_container_result(c, &object, is_delete);
-                    self.context_tx.send(Box::new(result)).unwrap();
-                }
-            }
+            self.send_containers(&object, "initContainers", "initContainerStatuses", true, is_delete);
+            self.send_containers(&object, "containers", "containerStatuses", false, is_delete);
         } else {
-            self.context_tx
-                .send(Box::new(ObserverResult::new(
-                    Resource::from(&self.init_data.kind, object),
-                    is_delete,
-                )))
-                .unwrap();
+            self.send_resource(object, is_delete);
         }
+    }
+
+    fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
+        if let Some(containers) = get_conatainers(object, array) {
+            for c in containers.iter() {
+                let result = get_container_result(c, object, statuses_array, is_init, is_delete);
+                self.context_tx.send(Box::new(result)).unwrap();
+            }
+        }
+    }
+
+    fn send_resource(&self, object: DynamicObject, is_delete: bool) {
+        let result = ObserverResult::new(Resource::from(&self.init_data.kind, object), is_delete);
+        self.context_tx.send(Box::new(result)).unwrap();
     }
 }
 
-fn get_container_result(container: &Value, object: &DynamicObject, is_delete: bool) -> ObserverResult {
+fn get_conatainers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a Vec<Value>> {
+    object
+        .data
+        .get("spec")
+        .and_then(|s| s.get(array_name))
+        .and_then(|c| c.as_array())
+}
+
+fn get_container_result(
+    container: &Value,
+    object: &DynamicObject,
+    statuses_array: &str,
+    is_init_container: bool,
+    is_delete: bool,
+) -> ObserverResult {
     let status = object
         .data
         .get("status")
-        .and_then(|s| s.get("containerStatuses"))
+        .and_then(|s| s.get(statuses_array))
         .and_then(|s| s.as_array())
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
-    ObserverResult::new(Resource::from_container(container, status, &object.metadata), is_delete)
+
+    ObserverResult::new(
+        Resource::from_container(container, status, &object.metadata, is_init_container),
+        is_delete,
+    )
 }
