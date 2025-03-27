@@ -14,11 +14,11 @@ use crate::{
     },
 };
 
-use super::YamlViewer;
+use super::YamlContent;
 
 /// YAML view.
 pub struct YamlView {
-    pub yaml: YamlViewer,
+    pub yaml: YamlContent,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     lines: Vec<String>,
@@ -38,10 +38,10 @@ impl YamlView {
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural, false);
+        let yaml = YamlContent::new(Rc::clone(&app_data), name, namespace, kind_plural, false);
 
         Self {
-            yaml: viewer,
+            yaml,
             app_data,
             worker,
             lines: Vec::new(),

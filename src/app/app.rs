@@ -8,7 +8,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
-        views::{ResourcesView, View, YamlView},
+        views::{LogsView, ResourcesView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
 };
@@ -185,6 +185,9 @@ impl App {
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
                 ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
+                ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
+                    self.view_logs(pod_name, pod_namespace, pod_container)
+                }
                 _ => (),
             };
         }
@@ -398,6 +401,18 @@ impl App {
         } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::ResourceYaml(result));
         }
+    }
+
+    /// Shows logs for the specified container.
+    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: String) {
+        self.view = Some(Box::new(LogsView::new(
+            Rc::clone(&self.data),
+            Rc::clone(&self.worker),
+            pod_name,
+            pod_namespace,
+            pod_container,
+            self.footer.get_messages_sender(),
+        )));
     }
 }
 

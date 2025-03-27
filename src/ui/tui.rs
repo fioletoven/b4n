@@ -52,6 +52,7 @@ pub enum ResponseEvent {
     DeleteResources,
 
     ViewYaml(String, String, bool),
+    ViewLogs(String, String, String),
 }
 
 impl ResponseEvent {

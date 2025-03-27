@@ -1,7 +1,7 @@
+pub use self::content::*;
 pub use self::header::*;
 pub use self::view::*;
-pub use self::yaml::*;
 
+mod content;
 mod header;
 mod view;
-mod yaml;

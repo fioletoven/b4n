@@ -65,25 +65,25 @@ impl HeaderPane {
     /// Returns formatted YAML resource path as breadcrumbs:  
     /// \> `YAML` \> `namespace` \> `kind` \> `name` \>
     fn get_path(&self) -> Line {
-        let header = &self.app_data.borrow().theme.colors.header;
-        let header_text = if self.is_decoded { "  YAML  " } else { " YAML  " };
+        let colors = &self.app_data.borrow().theme.colors.header;
+        let header_text = if self.is_decoded { " YAML  " } else { " YAML  " };
         let path = vec![
-            Span::styled("", Style::new().fg(header.text.bg)),
-            Span::styled(header_text, &header.text),
-            Span::styled("", Style::new().fg(header.text.bg).bg(header.namespace.bg)),
-            Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &header.namespace),
-            Span::styled("", Style::new().fg(header.namespace.bg).bg(header.resource.bg)),
-            Span::styled(format!(" {} ", self.kind_plural.to_lowercase()), &header.resource),
-            Span::styled("", Style::new().fg(header.resource.bg).bg(header.count.bg)),
-            Span::styled(format!(" {} ", self.name.to_lowercase()), &header.count),
-            Span::styled("", Style::new().fg(header.count.bg)),
+            Span::styled("", Style::new().fg(colors.text.bg)),
+            Span::styled(header_text, &colors.text),
+            Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
+            Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
+            Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
+            Span::styled(format!(" {} ", self.kind_plural.to_lowercase()), &colors.resource),
+            Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
+            Span::styled(format!(" {} ", self.name.to_lowercase()), &colors.count),
+            Span::styled("", Style::new().fg(colors.count.bg)),
         ];
 
         Line::from(path)
     }
 
-    /// Returns formatted text as right breadcrumbs:
-    /// < `text` <
+    /// Returns formatted text as right breadcrumbs:  
+    /// \< `text` \<
     fn get_right_text(&self, text: String) -> Line {
         let header = &self.app_data.borrow().theme.colors.header;
 

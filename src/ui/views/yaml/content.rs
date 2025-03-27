@@ -16,8 +16,8 @@ use crate::{
 
 use super::HeaderPane;
 
-/// YAML viewer with header and footer.
-pub struct YamlViewer {
+/// YAML content with header.
+pub struct YamlContent {
     pub header: HeaderPane,
     app_data: SharedAppData,
 
@@ -33,7 +33,7 @@ pub struct YamlViewer {
     creation_time: Instant,
 }
 
-impl YamlViewer {
+impl YamlContent {
     /// Creates a new YAML viewer page.
     pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
@@ -57,7 +57,7 @@ impl YamlViewer {
         self.header.set_data(name, namespace, kind_plural, is_decoded);
     }
 
-    /// Sets styled YAML content to view.
+    /// Sets styled YAML content.
     pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>, max_width: usize) {
         self.lines = styled_lines;
         self.lines_width = max_width;
@@ -109,7 +109,7 @@ impl YamlViewer {
         ResponseEvent::Handled
     }
 
-    /// Draws [`YamlViewer`] on the provided frame and area.
+    /// Draws [`YamlContent`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
