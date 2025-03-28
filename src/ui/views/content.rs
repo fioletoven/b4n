@@ -14,10 +14,10 @@ use crate::{
     ui::{ResponseEvent, utils::center},
 };
 
-use super::HeaderPane;
+use super::header::HeaderPane;
 
-/// YAML content with header.
-pub struct YamlContent {
+/// Content viewer with header.
+pub struct ContentViewer {
     pub header: HeaderPane,
     app_data: SharedAppData,
 
@@ -33,10 +33,10 @@ pub struct YamlContent {
     creation_time: Instant,
 }
 
-impl YamlContent {
-    /// Creates a new YAML viewer page.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
+impl ContentViewer {
+    /// Creates a new content viewer.
+    pub fn new(app_data: SharedAppData, title: &'static str, namespace: Namespace, name: String, descr: String) -> Self {
+        let header = HeaderPane::new(Rc::clone(&app_data), title, namespace, name, descr);
 
         Self {
             header,
@@ -53,11 +53,11 @@ impl YamlContent {
     }
 
     /// Sets header data.
-    pub fn set_header(&mut self, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) {
-        self.header.set_data(name, namespace, kind_plural, is_decoded);
+    pub fn set_header(&mut self, title: &'static str, namespace: Namespace, name: String, descr: String) {
+        self.header.set_data(title, namespace, name, descr);
     }
 
-    /// Sets styled YAML content.
+    /// Sets styled content.
     pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>, max_width: usize) {
         self.lines = styled_lines;
         self.lines_width = max_width;
@@ -69,16 +69,6 @@ impl YamlContent {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
         self.update_page_starts();
-    }
-
-    /// Returns max vertical start of the page.
-    fn max_vstart(&self) -> usize {
-        self.lines.len().saturating_sub(self.page_height)
-    }
-
-    /// Returns max horizontal start of the page.
-    fn max_hstart(&self) -> usize {
-        self.lines_width.saturating_sub(self.page_width)
     }
 
     /// Process UI key event.
@@ -109,7 +99,7 @@ impl YamlContent {
         ResponseEvent::Handled
     }
 
-    /// Draws [`YamlContent`] on the provided frame and area.
+    /// Draws [`ContentViewer`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -137,6 +127,16 @@ impl YamlContent {
             let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
             frame.render_widget(line, area);
         }
+    }
+
+    /// Returns max vertical start of the page.
+    fn max_vstart(&self) -> usize {
+        self.lines.len().saturating_sub(self.page_height)
+    }
+
+    /// Returns max horizontal start of the page.
+    fn max_hstart(&self) -> usize {
+        self.lines_width.saturating_sub(self.page_width)
     }
 
     fn update_page_starts(&mut self) {

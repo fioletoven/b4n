@@ -9,6 +9,8 @@ pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
 pub use self::yaml::YamlView;
 
+mod content;
+mod header;
 mod logs;
 mod resources;
 mod yaml;

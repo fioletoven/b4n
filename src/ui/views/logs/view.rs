@@ -6,21 +6,20 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::{SharedAppData, SharedBgWorker},
+    kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, TuiEvent,
-        views::View,
+        views::{View, content::ContentViewer},
         widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
 /// Logs view.
 pub struct LogsView {
+    pub logs: ContentViewer,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     command_palette: CommandPalette,
-    pod_name: String,
-    pod_namespace: String,
-    pod_container: String,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
@@ -30,17 +29,17 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         pod_name: String,
-        pod_namespace: String,
+        pod_namespace: Namespace,
         pod_container: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
+        let logs = ContentViewer::new(Rc::clone(&app_data), " logs  ", pod_namespace, pod_name, pod_container);
+
         Self {
+            logs,
             app_data,
             worker,
             command_palette: CommandPalette::default(),
-            pod_name,
-            pod_namespace,
-            pod_container,
             footer_tx,
         }
     }
@@ -81,7 +80,7 @@ impl View for LogsView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let _ = area;
+        self.logs.draw(frame, area);
         self.command_palette.draw(frame, frame.area());
     }
 }

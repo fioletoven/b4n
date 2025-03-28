@@ -409,7 +409,7 @@ impl App {
             Rc::clone(&self.data),
             Rc::clone(&self.worker),
             pod_name,
-            pod_namespace,
+            pod_namespace.into(),
             pod_container,
             self.footer.get_messages_sender(),
         )));

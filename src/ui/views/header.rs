@@ -7,12 +7,12 @@ use ratatui::{
 
 use crate::{app::SharedAppData, kubernetes::Namespace};
 
-/// Header pane that shows resource name and namespace.
+/// Header pane that shows resource namespace, kind and name.
 pub struct HeaderPane {
-    pub name: String,
+    pub title: &'static str,
     pub namespace: Namespace,
-    pub kind_plural: String,
-    pub is_decoded: bool,
+    pub kind: String,
+    pub name: String,
     app_data: SharedAppData,
     position_x: usize,
     position_y: usize,
@@ -20,12 +20,12 @@ pub struct HeaderPane {
 
 impl HeaderPane {
     /// Creates new UI header pane.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
+    pub fn new(app_data: SharedAppData, title: &'static str, namespace: Namespace, kind: String, name: String) -> Self {
         Self {
-            name,
+            title,
             namespace,
-            kind_plural,
-            is_decoded,
+            kind,
+            name,
             app_data,
             position_x: 0,
             position_y: 0,
@@ -33,11 +33,11 @@ impl HeaderPane {
     }
 
     /// Sets header data.
-    pub fn set_data(&mut self, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) {
-        self.name = name;
+    pub fn set_data(&mut self, title: &'static str, namespace: Namespace, kind: String, descr: String) {
+        self.title = title;
         self.namespace = namespace;
-        self.kind_plural = kind_plural;
-        self.is_decoded = is_decoded;
+        self.kind = kind;
+        self.name = descr;
     }
 
     /// Sets header coordinates.
@@ -62,18 +62,17 @@ impl HeaderPane {
         frame.render_widget(Paragraph::new(self.get_right_text(coordinates)), layout[1]);
     }
 
-    /// Returns formatted YAML resource path as breadcrumbs:  
-    /// \> `YAML` \> `namespace` \> `kind` \> `name` \>
+    /// Returns formatted header path as breadcrumbs:  
+    /// \> `title` \> `namespace` \> `kind` \> `name` \>
     fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
-        let header_text = if self.is_decoded { " YAML  " } else { " YAML  " };
         let path = vec![
             Span::styled("", Style::new().fg(colors.text.bg)),
-            Span::styled(header_text, &colors.text),
+            Span::styled(self.title, &colors.text),
             Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
-            Span::styled(format!(" {} ", self.kind_plural.to_lowercase()), &colors.resource),
+            Span::styled(format!(" {} ", self.kind.to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
             Span::styled(format!(" {} ", self.name.to_lowercase()), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),
@@ -85,12 +84,12 @@ impl HeaderPane {
     /// Returns formatted text as right breadcrumbs:  
     /// \< `text` \<
     fn get_right_text(&self, text: String) -> Line {
-        let header = &self.app_data.borrow().theme.colors.header;
+        let colors = &self.app_data.borrow().theme.colors.header;
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(header.text.bg)),
-            Span::styled(text, &header.text),
-            Span::styled("", Style::new().fg(header.text.bg)),
+            Span::styled("", Style::new().fg(colors.text.bg)),
+            Span::styled(text, &colors.text),
+            Span::styled("", Style::new().fg(colors.text.bg)),
         ])
         .right_aligned()
     }
