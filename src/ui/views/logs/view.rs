@@ -33,7 +33,13 @@ impl LogsView {
         pod_container: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let logs = ContentViewer::new(Rc::clone(&app_data), " logs  ", pod_namespace, pod_name, pod_container);
+        let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
+            " logs  ",
+            pod_namespace,
+            "pods".to_owned(),
+            pod_name,
+            Some(pod_container),
+        );
 
         Self {
             logs,

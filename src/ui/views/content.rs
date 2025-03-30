@@ -35,8 +35,8 @@ pub struct ContentViewer {
 
 impl ContentViewer {
     /// Creates a new content viewer.
-    pub fn new(app_data: SharedAppData, title: &'static str, namespace: Namespace, name: String, descr: String) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data), title, namespace, name, descr);
+    pub fn new(app_data: SharedAppData) -> Self {
+        let header = HeaderPane::new(Rc::clone(&app_data), "", Namespace::all(), String::new(), String::new(), None);
 
         Self {
             header,
@@ -53,8 +53,26 @@ impl ContentViewer {
     }
 
     /// Sets header data.
-    pub fn set_header(&mut self, title: &'static str, namespace: Namespace, name: String, descr: String) {
-        self.header.set_data(title, namespace, name, descr);
+    pub fn with_header(
+        mut self,
+        title: &'static str,
+        namespace: Namespace,
+        kind: String,
+        name: String,
+        descr: Option<String>,
+    ) -> Self {
+        self.header.set_data(title, namespace, kind, name, descr);
+        self
+    }
+
+    /// Sets header data.
+    pub fn set_header(&mut self, title: &'static str, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
+        self.header.set_data(title, namespace, kind, name, descr);
+    }
+
+    /// Sets header title.
+    pub fn set_header_title(&mut self, title: &'static str) {
+        self.header.set_title(title);
     }
 
     /// Sets styled content.

@@ -37,7 +37,7 @@ impl YamlView {
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data), " YAML  ", namespace, kind_plural, name);
+        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header(" YAML  ", namespace, kind_plural, name, None);
 
         Self {
             yaml,
@@ -109,7 +109,8 @@ impl View for YamlView {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
             let title = if result.is_decoded { " YAML  " } else { " YAML  " };
             self.is_decoded = result.is_decoded;
-            self.yaml.set_header(title, result.namespace, result.kind_plural, result.name);
+            self.yaml
+                .set_header(title, result.namespace, result.kind_plural, result.name, None);
             self.yaml.set_content(
                 result.styled,
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
