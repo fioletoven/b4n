@@ -17,7 +17,7 @@ impl ListKubeContextsCommand {
             Err(error) => {
                 error!("Cannot read contexts list: {}", error);
                 None
-            }
+            },
         }
     }
 }

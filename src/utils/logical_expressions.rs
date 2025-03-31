@@ -169,31 +169,31 @@ fn parse_tokens(tokens: Vec<Token>) -> Expression {
             Token::And => {
                 check_current(&mut current);
                 current.op = Operator::And;
-            }
+            },
             Token::Or => {
                 check_current(&mut current);
                 current.op = Operator::Or;
-            }
+            },
             Token::Not => current.is_negation = true,
             Token::Open => stack.push(std::mem::take(&mut current)),
             Token::NotOpen => {
                 stack.push(std::mem::take(&mut current));
                 current.is_negation = true;
-            }
+            },
             Token::Close => {
                 if let Some(mut prev) = stack.pop() {
                     prev.push(std::mem::take(&mut current));
                     current = prev;
                 }
-            }
+            },
             Token::Value(s) => {
                 check_current(&mut current);
                 current.push(Expression::new(s, false));
-            }
+            },
             Token::NotValue(s) => {
                 check_current(&mut current);
                 current.push(Expression::new(s, true));
-            }
+            },
         }
     }
 
@@ -235,7 +235,7 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, ParserError> {
 
                 has_value = true;
                 None
-            }
+            },
         } {
             if (token == Token::And || token == Token::Or || token == Token::Close) && !has_value && !has_close {
                 return Err(ParserError::UnexpectedOperator(index));

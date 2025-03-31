@@ -6,7 +6,10 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::{SharedAppData, lists::CONTAINERS};
+use crate::{
+    app::SharedAppData,
+    kubernetes::resources::{CONTAINERS, PODS},
+};
 
 /// Header pane that shows resource path and version information as breadcrumbs.
 pub struct HeaderPane {
@@ -71,7 +74,7 @@ impl HeaderPane {
         };
 
         let kind = if data.kind_plural == CONTAINERS {
-            "pods"
+            PODS
         } else {
             &data.kind_plural
         };

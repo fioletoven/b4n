@@ -16,12 +16,14 @@ use crate::{
 
 use super::header::HeaderPane;
 
+pub type StyledLines = Vec<Vec<(Style, String)>>;
+
 /// Content viewer with header.
 pub struct ContentViewer {
     pub header: HeaderPane,
     app_data: SharedAppData,
 
-    lines: Vec<Vec<(Style, String)>>,
+    lines: Option<StyledLines>,
     lines_width: usize,
 
     page_height: usize,
@@ -29,7 +31,6 @@ pub struct ContentViewer {
     page_vstart: usize,
     page_hstart: usize,
 
-    has_content: bool,
     creation_time: Instant,
 }
 
@@ -41,13 +42,12 @@ impl ContentViewer {
         Self {
             header,
             app_data,
-            lines: Vec::new(),
+            lines: None,
             lines_width: 0,
             page_height: 0,
             page_width: 0,
             page_vstart: 0,
             page_hstart: 0,
-            has_content: false,
             creation_time: Instant::now(),
         }
     }
@@ -76,10 +76,14 @@ impl ContentViewer {
     }
 
     /// Sets styled content.
-    pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>, max_width: usize) {
-        self.lines = styled_lines;
+    pub fn set_content(&mut self, styled_lines: StyledLines, max_width: usize) {
+        self.lines = Some(styled_lines);
         self.lines_width = max_width;
-        self.has_content = true;
+    }
+
+    /// Takes styled content.
+    pub fn take_content(&mut self) -> Option<StyledLines> {
+        self.lines.take()
     }
 
     /// Updates page height.
@@ -96,7 +100,7 @@ impl ContentViewer {
             x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
             x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
                 self.page_hstart = self.page_hstart.saturating_sub(self.page_width)
-            }
+            },
             x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
             x if x.code == KeyCode::Right => self.page_hstart += 1,
             x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
@@ -126,12 +130,14 @@ impl ContentViewer {
 
         self.header.draw(frame, layout[0]);
 
-        if self.has_content {
+        if self.lines.is_some() {
             self.update_page(layout[1].height, layout[1].width);
 
             let start = self.page_vstart.clamp(0, self.max_vstart());
             let lines = self
                 .lines
+                .as_ref()
+                .unwrap()
                 .iter()
                 .skip(start)
                 .take(usize::from(layout[1].height))
@@ -149,7 +155,10 @@ impl ContentViewer {
 
     /// Returns max vertical start of the page.
     fn max_vstart(&self) -> usize {
-        self.lines.len().saturating_sub(self.page_height)
+        self.lines
+            .as_ref()
+            .map(|l| l.len().saturating_sub(self.page_height))
+            .unwrap_or(0)
     }
 
     /// Returns max horizontal start of the page.

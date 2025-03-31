@@ -3,7 +3,7 @@ use thiserror;
 
 use crate::{
     app::discovery::convert_to_vector,
-    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, utils::get_resource},
+    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::PODS, utils::get_resource},
 };
 
 use super::CommandResult;
@@ -64,7 +64,7 @@ impl NewKubernetesClientCommand {
         let kind = if get_resource(Some(&discovery), &self.kind).is_some() {
             self.kind
         } else {
-            "pods".to_owned()
+            PODS.to_owned()
         };
         let Some(namespaces) = get_resource(Some(&discovery), NAMESPACES) else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));

@@ -1,12 +1,15 @@
-use std::rc::Rc;
-
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    style::{Color, Style},
+};
+use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::{SharedAppData, SharedBgWorker},
-    kubernetes::Namespace,
+    kubernetes::{Namespace, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{View, content::ContentViewer},
@@ -14,11 +17,14 @@ use crate::{
     },
 };
 
+use super::{LogsObserver, LogsObserverError, PodRef};
+
 /// Logs view.
 pub struct LogsView {
     pub logs: ContentViewer,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    observer: LogsObserver,
     command_palette: CommandPalette,
     footer_tx: UnboundedSender<FooterMessage>,
 }
@@ -30,24 +36,35 @@ impl LogsView {
         worker: SharedBgWorker,
         pod_name: String,
         pod_namespace: Namespace,
-        pod_container: String,
+        pod_container: Option<String>,
         footer_tx: UnboundedSender<FooterMessage>,
-    ) -> Self {
+    ) -> Result<Self, LogsObserverError> {
+        let mut observer = LogsObserver::new();
+        if let Some(client) = worker.borrow().kubernetes_client() {
+            let pod = PodRef {
+                name: pod_name.clone(),
+                namespace: pod_namespace.clone(),
+                container: pod_container.clone(),
+            };
+            observer.start(client, pod)?;
+        }
+
         let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
             " logs  ",
             pod_namespace,
-            "pods".to_owned(),
+            PODS.to_owned(),
             pod_name,
-            Some(pod_container),
+            pod_container,
         );
 
-        Self {
+        Ok(Self {
             logs,
             app_data,
             worker,
+            observer,
             command_palette: CommandPalette::default(),
             footer_tx,
-        }
+        })
     }
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
@@ -63,6 +80,24 @@ impl LogsView {
 }
 
 impl View for LogsView {
+    fn process_event_ticks(&mut self) {
+        while let Some(log) = self.observer.try_next() {
+            let mut content = self.logs.take_content().unwrap_or_default();
+            let mut max_width = 0;
+
+            for line in log.lines {
+                let width = line.chars().count();
+                if max_width < width {
+                    max_width = width;
+                }
+
+                content.push(vec![(Style::new().fg(Color::Black), line)]);
+            }
+
+            self.logs.set_content(content, max_width);
+        }
+    }
+
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
@@ -82,11 +117,17 @@ impl View for LogsView {
             return ResponseEvent::Cancelled;
         }
 
-        ResponseEvent::Handled
+        self.logs.process_key(key)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.logs.draw(frame, area);
         self.command_palette.draw(frame, frame.area());
+    }
+}
+
+impl Drop for LogsView {
+    fn drop(&mut self) {
+        self.observer.stop();
     }
 }

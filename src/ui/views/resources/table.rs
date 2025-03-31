@@ -10,9 +10,12 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{
         ObserverResult, ResourcesInfo, SharedAppData,
-        lists::{CONTAINERS, ResourcesList, Row},
+        lists::{ResourcesList, Row},
     },
-    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace, resources::Resource},
+    kubernetes::{
+        ALL_NAMESPACES, NAMESPACES, Namespace,
+        resources::{CONTAINERS, PODS, Resource},
+    },
     ui::{Responsive, Table, ViewType, tui::ResponseEvent},
 };
 
@@ -148,22 +151,22 @@ impl ResourcesTable {
         if key.code == KeyCode::Enter {
             if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
                 match self.kind_plural() {
-                    NAMESPACES => return ResponseEvent::Change("pods".to_owned(), selected_resource.name.clone()),
-                    "pods" => {
+                    NAMESPACES => return ResponseEvent::Change(PODS.to_owned(), selected_resource.name.clone()),
+                    PODS => {
                         return ResponseEvent::ViewContainers(
                             selected_resource.name.clone(),
                             selected_resource.namespace.clone().unwrap_or_default(),
                         );
-                    }
+                    },
                     CONTAINERS => {
                         if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
                             return ResponseEvent::ViewLogs(
                                 pod_name,
                                 selected_resource.namespace.clone().unwrap_or_default(),
-                                selected_resource.name.clone(),
+                                Some(selected_resource.name.clone()),
                             );
                         }
-                    }
+                    },
                     _ => return self.process_view_yaml(selected_resource, false),
                 }
             }
@@ -174,8 +177,8 @@ impl ResourcesTable {
                 NAMESPACES => (),
                 CONTAINERS => {
                     let to_select = self.app_data.borrow().current.name.clone();
-                    return ResponseEvent::ChangeKindAndSelect("pods".to_owned(), to_select);
-                }
+                    return ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select);
+                },
                 _ => return ResponseEvent::ViewNamespaces,
             }
         }

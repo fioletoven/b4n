@@ -123,6 +123,6 @@ async fn load_or_create_default<T: Persistable<T> + Default>(path: &Path) -> Res
             let configuration = T::default();
             configuration.save(path).await?;
             Ok(configuration)
-        }
+        },
     }
 }

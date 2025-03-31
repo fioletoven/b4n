@@ -1,7 +1,7 @@
 use anyhow::Result;
 use app::{App, Config, ExecutionFlow, History};
 use clap::Parser;
-use kubernetes::client::get_context;
+use kubernetes::{client::get_context, resources::PODS};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -45,7 +45,7 @@ async fn run_application(args: cli::Args) -> Result<()> {
     };
     history.set_kube_config_path(kube_config_path);
 
-    let resource = args.kind(history.get_kind(&context)).unwrap_or("pods").to_owned();
+    let resource = args.kind(history.get_kind(&context)).unwrap_or(PODS).to_owned();
     let namespace = args.namespace(history.get_namespace(&context)).map(String::from);
 
     let config = Config::load_or_create().await?;

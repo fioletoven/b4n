@@ -116,6 +116,7 @@ impl App {
             self.data.borrow_mut().theme = theme;
         }
 
+        self.process_view_events();
         self.process_commands_results();
         self.process_connection_events();
         self.update_lists();
@@ -187,7 +188,7 @@ impl App {
                 ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
                 ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
                     self.view_logs(pod_name, pod_namespace, pod_container)
-                }
+                },
                 _ => (),
             };
         }
@@ -195,7 +196,14 @@ impl App {
         Ok(ResponseEvent::Handled)
     }
 
-    /// Process results from commands execution.
+    /// Processes additional view events.
+    fn process_view_events(&mut self) {
+        if let Some(view) = &mut self.view {
+            view.process_event_ticks();
+        }
+    }
+
+    /// Processes results from commands execution.
     fn process_commands_results(&mut self) {
         let commands = self.worker.borrow_mut().get_all_waiting_results();
         for command in commands {
@@ -404,15 +412,17 @@ impl App {
     }
 
     /// Shows logs for the specified container.
-    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: String) {
-        self.view = Some(Box::new(LogsView::new(
+    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
+        if let Ok(view) = LogsView::new(
             Rc::clone(&self.data),
             Rc::clone(&self.worker),
             pod_name,
             pod_namespace.into(),
             pod_container,
             self.footer.get_messages_sender(),
-        )));
+        ) {
+            self.view = Some(Box::new(view));
+        }
     }
 }
 

@@ -25,11 +25,15 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
 use crate::{
-    kubernetes::{Namespace, client::KubernetesClient, resources::Resource},
+    kubernetes::{
+        Namespace,
+        client::KubernetesClient,
+        resources::{CONTAINERS, Resource},
+    },
     ui::widgets::FooterMessage,
 };
 
-use super::{lists::CONTAINERS, utils::wait_for_task};
+use super::utils::wait_for_task;
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -167,9 +171,7 @@ impl BgObserver {
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
-}
 
-impl BgObserver {
     /// Starts new [`BgObserver`] task.  
     /// **Note** that it stops the old task if it is running.
     pub fn start(
@@ -364,7 +366,7 @@ impl EventsProcessor {
                     Some(Event::Init) => {
                         reset_error = false; // Init is also emitted after a forced restart of the watcher
                         self.send_init_result();
-                    }
+                    },
                     Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_results(o, false),
                     Some(Event::Delete(o)) => self.send_results(o, true),
@@ -375,7 +377,7 @@ impl EventsProcessor {
                     self.last_watch_error = None;
                     self.has_error.store(false, Ordering::Relaxed);
                 }
-            }
+            },
             Err(error) => {
                 let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
                 warn!("{}", msg);
@@ -396,10 +398,10 @@ impl EventsProcessor {
                         } else {
                             self.last_watch_error = Some(Instant::now());
                         }
-                    }
+                    },
                     _ => self.has_error.store(true, Ordering::Relaxed),
                 }
-            }
+            },
         }
 
         true

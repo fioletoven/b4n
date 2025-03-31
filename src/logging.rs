@@ -12,7 +12,7 @@ pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {
         Some(mut path) => {
             path.push(format!(".{}/logs", APP_NAME));
             path
-        }
+        },
         None => PathBuf::from("logs"),
     };
     let appender = tracing_appender::rolling::daily(home_dir, format!("{}.log", APP_NAME));
