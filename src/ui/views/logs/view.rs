@@ -1,15 +1,12 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Style},
-};
+use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
+use time::{format_description::BorrowedFormatItem, macros::format_description};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{SharedAppData, SharedBgWorker},
-    kubernetes::{Namespace, resources::PODS},
+    app::SharedAppData,
+    kubernetes::{Namespace, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{View, content::ContentViewer},
@@ -19,35 +16,38 @@ use crate::{
 
 use super::{LogsObserver, LogsObserverError, PodRef};
 
+const DATETIME_FORMAT: &[BorrowedFormatItem<'_>] = format_description!(
+    version = 2,
+    "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6] "
+);
+
 /// Logs view.
 pub struct LogsView {
     pub logs: ContentViewer,
     app_data: SharedAppData,
-    worker: SharedBgWorker,
     observer: LogsObserver,
     command_palette: CommandPalette,
     footer_tx: UnboundedSender<FooterMessage>,
+    bound_to_bottom: bool,
 }
 
 impl LogsView {
     /// Creates new [`LogsView`] instance.
     pub fn new(
         app_data: SharedAppData,
-        worker: SharedBgWorker,
+        client: &KubernetesClient,
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Result<Self, LogsObserverError> {
         let mut observer = LogsObserver::new();
-        if let Some(client) = worker.borrow().kubernetes_client() {
-            let pod = PodRef {
-                name: pod_name.clone(),
-                namespace: pod_namespace.clone(),
-                container: pod_container.clone(),
-            };
-            observer.start(client, pod)?;
-        }
+        let pod = PodRef {
+            name: pod_name.clone(),
+            namespace: pod_namespace.clone(),
+            container: pod_container.clone(),
+        };
+        observer.start(client, pod)?;
 
         let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
             " logs  ",
@@ -60,10 +60,10 @@ impl LogsView {
         Ok(Self {
             logs,
             app_data,
-            worker,
             observer,
             command_palette: CommandPalette::default(),
             footer_tx,
+            bound_to_bottom: true,
         })
     }
 
@@ -80,21 +80,37 @@ impl LogsView {
 }
 
 impl View for LogsView {
-    fn process_event_ticks(&mut self) {
-        while let Some(log) = self.observer.try_next() {
-            let mut content = self.logs.take_content().unwrap_or_default();
-            let mut max_width = 0;
-
-            for line in log.lines {
-                let width = line.chars().count();
-                if max_width < width {
-                    max_width = width;
-                }
-
-                content.push(vec![(Style::new().fg(Color::Black), line)]);
+    fn process_tick(&mut self) {
+        if !self.observer.is_empty() {
+            let colors = &self.app_data.borrow().theme.colors;
+            if !self.logs.has_content() {
+                self.logs.set_content(Vec::with_capacity(200), 0);
             }
 
-            self.logs.set_content(content, max_width);
+            let content = self.logs.content_mut().unwrap();
+            let mut max_width = 0;
+
+            while let Some(chunk) = self.observer.try_next() {
+                for line in chunk.lines {
+                    let width = line.message.chars().count();
+                    if max_width < width {
+                        max_width = width;
+                    }
+
+                    content.push(vec![
+                        (
+                            (&colors.syntax.logs.timestamp).into(),
+                            line.datetime.format(DATETIME_FORMAT).unwrap(),
+                        ),
+                        ((&colors.syntax.logs.string).into(), line.message),
+                    ]);
+                }
+            }
+
+            self.logs.update_content_width(max_width);
+            if self.bound_to_bottom {
+                self.logs.scroll_to_end();
+            }
         }
     }
 
@@ -117,7 +133,11 @@ impl View for LogsView {
             return ResponseEvent::Cancelled;
         }
 
-        self.logs.process_key(key)
+        if self.logs.process_key(key) == ResponseEvent::Handled {
+            self.bound_to_bottom = false;
+        }
+
+        ResponseEvent::Handled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

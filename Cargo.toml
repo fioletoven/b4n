@@ -24,7 +24,7 @@ sha1 = { version = "0.10" }
 syntect = { version = "5.2" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }
-time = { version = "0.3", features = ["local-offset"] }
+time = { version = "0.3", features = ["local-offset", "macros"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7" }
 tracing = { version = "0.1" }

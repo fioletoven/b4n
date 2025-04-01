@@ -118,7 +118,7 @@ impl Footer {
     fn has_message_to_show(&mut self) -> bool {
         self.update_current_message();
         if let Some(message) = &self.message {
-            if self.message_received_time.elapsed().as_millis() <= message.duration.into() {
+            if self.message_received_time.elapsed().as_millis() <= u128::from(message.duration) {
                 true
             } else {
                 self.message = None;

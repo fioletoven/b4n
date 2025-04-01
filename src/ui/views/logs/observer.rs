@@ -2,6 +2,7 @@ use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, api::LogParams};
 use thiserror;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
@@ -28,8 +29,14 @@ pub struct PodRef {
     pub container: Option<String>,
 }
 
+pub struct LogLine {
+    pub datetime: OffsetDateTime,
+    pub message: String,
+}
+
 pub struct LogsChunk {
-    pub lines: Vec<String>,
+    pub start: OffsetDateTime,
+    pub lines: Vec<LogLine>,
 }
 
 pub struct LogsObserver {
@@ -66,7 +73,7 @@ impl LogsObserver {
                 ..LogParams::default()
             };
 
-            let mut logs = match pods.log_stream(&pod.name, &params).await {
+            let mut lines = match pods.log_stream(&pod.name, &params).await {
                 Ok(stream) => stream.lines(),
                 Err(err) => {
                     warn!("Error while initialising logs stream: {}", err);
@@ -77,10 +84,12 @@ impl LogsObserver {
             while !_cancellation_token.is_cancelled() {
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    line = logs.try_next() => {
+                    line = lines.try_next() => {
                         match line {
                             Ok(Some(line)) => {
-                                _context_tx.send(Box::new(process_line(line))).unwrap();
+                                if let Some(line) = process_line(line) {
+                                    _context_tx.send(Box::new(line)).unwrap();
+                                }
                             },
                             Ok(None) => return,
                             Err(err) => {
@@ -118,12 +127,26 @@ impl LogsObserver {
         self.context_rx.try_recv().ok()
     }
 
+    /// Checks if [`LogsObserver`] is empty.
+    pub fn is_empty(&self) -> bool {
+        self.context_rx.is_empty()
+    }
+
     /// Drains waiting [`LogsChunk`]s.
     pub fn drain(&mut self) {
         while self.context_rx.try_recv().is_ok() {}
     }
 }
 
-fn process_line(line: String) -> LogsChunk {
-    LogsChunk { lines: vec![line] }
+fn process_line(line: String) -> Option<LogsChunk> {
+    let mut split = line.splitn(2, ' ');
+    let dt = OffsetDateTime::parse(split.next()?, &Rfc3339).ok()?;
+
+    Some(LogsChunk {
+        start: dt,
+        lines: vec![LogLine {
+            datetime: dt,
+            message: split.next()?.to_owned(),
+        }],
+    })
 }

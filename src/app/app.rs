@@ -199,7 +199,7 @@ impl App {
     /// Processes additional view events.
     fn process_view_events(&mut self) {
         if let Some(view) = &mut self.view {
-            view.process_event_ticks();
+            view.process_tick();
         }
     }
 
@@ -413,15 +413,17 @@ impl App {
 
     /// Shows logs for the specified container.
     fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
-        if let Ok(view) = LogsView::new(
-            Rc::clone(&self.data),
-            Rc::clone(&self.worker),
-            pod_name,
-            pod_namespace.into(),
-            pod_container,
-            self.footer.get_messages_sender(),
-        ) {
-            self.view = Some(Box::new(view));
+        if let Some(client) = self.worker.borrow().kubernetes_client() {
+            if let Ok(view) = LogsView::new(
+                Rc::clone(&self.data),
+                client,
+                pod_name,
+                pod_namespace.into(),
+                pod_container,
+                self.footer.get_messages_sender(),
+            ) {
+                self.view = Some(Box::new(view));
+            }
         }
     }
 }

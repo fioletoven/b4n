@@ -32,9 +32,9 @@ pub trait View {
         let _ = result;
     }
 
-    /// Process event ticks.
-    fn process_event_ticks(&mut self) {
-        // empty implementation
+    /// Process app tick.
+    fn process_tick(&mut self) {
+        // defaults to empty implementation
     }
 
     /// Process single TUI event.

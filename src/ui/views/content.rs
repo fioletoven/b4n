@@ -75,15 +75,25 @@ impl ContentViewer {
         self.header.set_title(title);
     }
 
+    /// Returns `true` if viewer has content.
+    pub fn has_content(&self) -> bool {
+        self.lines.is_some()
+    }
+
     /// Sets styled content.
     pub fn set_content(&mut self, styled_lines: StyledLines, max_width: usize) {
         self.lines = Some(styled_lines);
         self.lines_width = max_width;
     }
 
-    /// Takes styled content.
-    pub fn take_content(&mut self) -> Option<StyledLines> {
-        self.lines.take()
+    /// Returns styled content as mutable reference.
+    pub fn content_mut(&mut self) -> Option<&mut StyledLines> {
+        self.lines.as_mut()
+    }
+
+    /// Updates max width for content lines.
+    pub fn update_content_width(&mut self, max_width: usize) {
+        self.lines_width = max_width;
     }
 
     /// Updates page height.
@@ -91,6 +101,16 @@ impl ContentViewer {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
         self.update_page_starts();
+    }
+
+    /// Scrolls content to the end.
+    pub fn scroll_to_start(&mut self) {
+        self.page_vstart = 0;
+    }
+
+    /// Scrolls content to the end.
+    pub fn scroll_to_end(&mut self) {
+        self.page_vstart = self.max_vstart();
     }
 
     /// Process UI key event.
@@ -114,7 +134,7 @@ impl ContentViewer {
             x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
             x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
 
-            _ => (),
+            _ => return ResponseEvent::NotHandled,
         }
 
         self.update_page_starts();

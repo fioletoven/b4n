@@ -76,6 +76,7 @@ pub struct SelectColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
     pub yaml: YamlSyntaxColors,
+    pub logs: LogsSyntaxColors,
 }
 
 /// Represents colors for YAML syntax highlighting.
@@ -86,6 +87,13 @@ pub struct YamlSyntaxColors {
     pub string: TextColors,
     pub numeric: TextColors,
     pub language: TextColors,
+    pub timestamp: TextColors,
+}
+
+/// Represents colors for logs syntax highlighting.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct LogsSyntaxColors {
+    pub string: TextColors,
     pub timestamp: TextColors,
 }
 
@@ -201,6 +209,10 @@ impl Default for Theme {
                         string: TextColors::new(Color::Gray),
                         numeric: TextColors::new(Color::Blue),
                         language: TextColors::new(Color::LightBlue),
+                        timestamp: TextColors::new(Color::Magenta),
+                    },
+                    logs: LogsSyntaxColors {
+                        string: TextColors::new(Color::Gray),
                         timestamp: TextColors::new(Color::Magenta),
                     },
                 },
