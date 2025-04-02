@@ -63,7 +63,11 @@ impl HeaderPane {
 
     /// Draws [`HeaderPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let coordinates = format!("  Ln {}, Col {} ", self.position_y, self.position_x);
+        let coordinates = if self.app_data.borrow().is_connected {
+            format!("  Ln {}, Col {} ", self.position_y, self.position_x)
+        } else {
+            format!("  Ln {}, Col {} ", self.position_y, self.position_x)
+        };
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -108,12 +112,16 @@ impl HeaderPane {
     /// Returns formatted text as right breadcrumbs:  
     /// \< `text` \<
     fn get_right_text(&self, text: String) -> Line {
-        let colors = &self.app_data.borrow().theme.colors.header;
+        let colors = if self.app_data.borrow().is_connected {
+            &self.app_data.borrow().theme.colors.header.text
+        } else {
+            &self.app_data.borrow().theme.colors.header.disconnected
+        };
 
         Line::from(vec![
-            Span::styled("", Style::new().fg(colors.text.bg)),
-            Span::styled(text, &colors.text),
-            Span::styled("", Style::new().fg(colors.text.bg)),
+            Span::styled("", Style::new().fg(colors.bg)),
+            Span::styled(text, colors),
+            Span::styled("", Style::new().fg(colors.bg)),
         ])
         .right_aligned()
     }

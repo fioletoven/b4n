@@ -72,7 +72,7 @@ impl YamlView {
                     .with_description("copies YAML to the clipboard")
                     .with_response(ResponseEvent::Action("copy".to_owned())),
             );
-            if self.yaml.header.kind == "secrets" {
+            if self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     Action::new(action)
@@ -119,6 +119,10 @@ impl View for YamlView {
         }
     }
 
+    fn process_disconnection(&mut self) {
+        self.command_palette.hide();
+    }
+
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
@@ -143,7 +147,7 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('x') && self.yaml.header.kind == "secrets" {
+        if key.code == KeyCode::Char('x') && self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         }

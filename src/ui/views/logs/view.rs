@@ -114,6 +114,10 @@ impl View for LogsView {
         }
     }
 
+    fn process_disconnection(&mut self) {
+        // pass
+    }
+
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 

@@ -116,10 +116,10 @@ impl App {
             self.data.borrow_mut().theme = theme;
         }
 
-        self.process_view_events();
         self.process_commands_results();
         self.process_connection_events();
         self.update_lists();
+        self.process_view_events();
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
@@ -160,8 +160,6 @@ impl App {
         while let Some(update_result) = worker.resources.try_next() {
             self.resources.update_resources_list(*update_result);
         }
-
-        self.data.borrow_mut().is_connected = !worker.has_errors();
     }
 
     /// Process TUI event.
@@ -217,9 +215,13 @@ impl App {
 
     /// Processes connection events.
     fn process_connection_events(&mut self) {
+        self.data.borrow_mut().is_connected = !self.worker.borrow().has_errors();
         self.client_manager.process_request_overdue();
         if self.client_manager.should_process_disconnection() {
             self.resources.process_disconnection();
+            if let Some(view) = &mut self.view {
+                view.process_disconnection();
+            }
         }
     }
 

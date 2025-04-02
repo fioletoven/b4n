@@ -27,17 +27,20 @@ pub trait View {
         self.command_id().is_some_and(|id| id == command_id)
     }
 
-    /// Process result from the command.
+    /// Processes result from the command.
     fn process_command_result(&mut self, result: CommandResult) {
         let _ = result;
     }
 
-    /// Process app tick.
+    /// Processes app tick.
     fn process_tick(&mut self) {
         // defaults to empty implementation
     }
 
-    /// Process single TUI event.
+    /// Processes disconnection state.
+    fn process_disconnection(&mut self);
+
+    /// Processes single TUI event.
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent;
 
     /// Draw [`View`] on the provided frame and area.
