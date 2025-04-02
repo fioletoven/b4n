@@ -1,6 +1,18 @@
+use backoff::{ExponentialBackoff, ExponentialBackoffBuilder};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::error;
+
+/// Returns default exponential backoff policy.
+pub fn build_default_backoff() -> ExponentialBackoff {
+    ExponentialBackoffBuilder::new()
+        .with_initial_interval(Duration::from_millis(800))
+        .with_max_interval(Duration::from_secs(30))
+        .with_randomization_factor(1.0)
+        .with_multiplier(2.0)
+        .with_max_elapsed_time(None)
+        .build()
+}
 
 /// Synchronously waits for task to end (e.g. after cancellation).
 pub fn wait_for_task<T>(task: Option<JoinHandle<T>>, task_name: &str) {

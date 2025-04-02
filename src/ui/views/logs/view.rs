@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
-use time::{format_description::BorrowedFormatItem, macros::format_description};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -15,11 +14,6 @@ use crate::{
 };
 
 use super::{LogsObserver, LogsObserverError, PodRef};
-
-const DATETIME_FORMAT: &[BorrowedFormatItem<'_>] = format_description!(
-    version = 2,
-    "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:6] "
-);
 
 /// Logs view.
 pub struct LogsView {
@@ -84,7 +78,7 @@ impl View for LogsView {
         if !self.observer.is_empty() {
             let colors = &self.app_data.borrow().theme.colors;
             if !self.logs.has_content() {
-                self.logs.set_content(Vec::with_capacity(200), 0);
+                self.logs.set_content(Vec::with_capacity(2_000), 0);
             }
 
             let content = self.logs.content_mut().unwrap();
@@ -100,7 +94,7 @@ impl View for LogsView {
                     content.push(vec![
                         (
                             (&colors.syntax.logs.timestamp).into(),
-                            line.datetime.format(DATETIME_FORMAT).unwrap(),
+                            line.datetime.format("%Y-%m-%d %H:%M:%S%.3f ").to_string(),
                         ),
                         ((&colors.syntax.logs.string).into(), line.message),
                     ]);

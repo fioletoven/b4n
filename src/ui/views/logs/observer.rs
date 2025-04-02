@@ -1,24 +1,29 @@
+use backoff::backoff::Backoff;
 use futures::{AsyncBufReadExt, TryStreamExt};
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::{
+    api::core::v1::Pod,
+    chrono::{DateTime, Utc},
+};
 use kube::{Api, api::LogParams};
+use std::time::Duration;
 use thiserror;
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
+    time::sleep,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use crate::{
-    app::utils::wait_for_task,
+    app::utils::{build_default_backoff, wait_for_task},
     kubernetes::{Namespace, client::KubernetesClient},
 };
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
 pub enum LogsObserverError {
-    /// Resource was not found in k8s cluster
+    /// Kubernetes client error.
     #[error("kubernetes client error")]
     KubeClientError(#[from] kube::Error),
 }
@@ -30,12 +35,13 @@ pub struct PodRef {
 }
 
 pub struct LogLine {
-    pub datetime: OffsetDateTime,
+    pub datetime: DateTime<Utc>,
     pub message: String,
 }
 
 pub struct LogsChunk {
-    pub start: OffsetDateTime,
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
     pub lines: Vec<LogLine>,
 }
 
@@ -64,40 +70,19 @@ impl LogsObserver {
         let _context_tx = self.context_tx.clone();
 
         let task = tokio::spawn(async move {
-            let pods: Api<Pod> = Api::namespaced(_client, pod.namespace.as_str());
-            let params = LogParams {
-                follow: true,
-                container: pod.container,
-                tail_lines: Some(200),
-                timestamps: true,
-                ..LogParams::default()
-            };
+            let api: Api<Pod> = Api::namespaced(_client, pod.namespace.as_str());
+            let mut backoff = build_default_backoff();
 
-            let mut lines = match pods.log_stream(&pod.name, &params).await {
-                Ok(stream) => stream.lines(),
-                Err(err) => {
-                    warn!("Error while initialising logs stream: {}", err);
-                    return;
-                },
-            };
-
+            let mut last_message = None;
             while !_cancellation_token.is_cancelled() {
+                last_message = observe(&pod, &api, &_context_tx, last_message, &_cancellation_token).await;
+                if _cancellation_token.is_cancelled() {
+                    break;
+                }
+
                 tokio::select! {
                     _ = _cancellation_token.cancelled() => (),
-                    line = lines.try_next() => {
-                        match line {
-                            Ok(Some(line)) => {
-                                if let Some(line) = process_line(line) {
-                                    _context_tx.send(Box::new(line)).unwrap();
-                                }
-                            },
-                            Ok(None) => return,
-                            Err(err) => {
-                                warn!("Error while reading logs stream: {}", err);
-                                return;
-                            },
-                        }
-                    },
+                    _ = sleep(backoff.next_backoff().unwrap_or(Duration::from_millis(800))) => (),
                 }
             }
         });
@@ -138,12 +123,66 @@ impl LogsObserver {
     }
 }
 
+async fn observe(
+    pod: &PodRef,
+    api: &Api<Pod>,
+    channel: &UnboundedSender<Box<LogsChunk>>,
+    last_message: Option<DateTime<Utc>>,
+    cancellation_token: &CancellationToken,
+) -> Option<DateTime<Utc>> {
+    let mut params = LogParams {
+        follow: true,
+        container: pod.container.clone(),
+        timestamps: true,
+        ..LogParams::default()
+    };
+
+    if let Some(last_message) = last_message {
+        params.since_time = Some(last_message);
+    } else {
+        params.tail_lines = Some(200);
+    }
+
+    let mut lines = match api.log_stream(&pod.name, &params).await {
+        Ok(stream) => stream.lines(),
+        Err(err) => {
+            warn!("Error while initialising logs stream: {}", err);
+            return None;
+        },
+    };
+
+    let mut last_message = None;
+    while !cancellation_token.is_cancelled() {
+        tokio::select! {
+            _ = cancellation_token.cancelled() => (),
+            line = lines.try_next() => {
+                match line {
+                    Ok(Some(line)) => {
+                        if let Some(line) = process_line(line) {
+                            last_message = Some(line.end);
+                            channel.send(Box::new(line)).unwrap();
+                        }
+                    },
+                    Ok(None) => break,
+                    Err(err) => {
+                        warn!("Error while reading logs stream: {}", err);
+                        break;
+                    },
+                }
+            },
+        }
+    }
+
+    last_message
+}
+
 fn process_line(line: String) -> Option<LogsChunk> {
     let mut split = line.splitn(2, ' ');
-    let dt = OffsetDateTime::parse(split.next()?, &Rfc3339).ok()?;
+    let dt = split.next()?.parse().ok()?;
 
     Some(LogsChunk {
         start: dt,
+        end: dt,
         lines: vec![LogLine {
             datetime: dt,
             message: split.next()?.to_owned(),
