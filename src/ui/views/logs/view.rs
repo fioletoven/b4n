@@ -44,7 +44,7 @@ impl LogsView {
         observer.start(client, pod)?;
 
         let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
-            " logs  ",
+            " logs  ",
             pod_namespace,
             PODS.to_owned(),
             pod_name,
@@ -131,8 +131,15 @@ impl View for LogsView {
             return ResponseEvent::Cancelled;
         }
 
-        if self.logs.process_key(key) == ResponseEvent::Handled {
+        if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
+            && !self.bound_to_bottom
+            && self.logs.is_at_end()
+        {
+            self.bound_to_bottom = true;
+            self.logs.header.set_title(" logs  ");
+        } else if self.logs.process_key(key) == ResponseEvent::Handled {
             self.bound_to_bottom = false;
+            self.logs.header.set_title(" logs  ");
         }
 
         ResponseEvent::Handled

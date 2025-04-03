@@ -113,6 +113,11 @@ impl ContentViewer {
         self.page_vstart = self.max_vstart();
     }
 
+    /// Returns `true` if view is showing the last part of the content.
+    pub fn is_at_end(&self) -> bool {
+        self.page_vstart == self.max_vstart()
+    }
+
     /// Process UI key event.
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
         match key {
