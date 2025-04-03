@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{Frame, layout::Rect, style::Style};
 use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -8,12 +8,13 @@ use crate::{
     kubernetes::{Namespace, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
+        theme::LogsSyntaxColors,
         views::{View, content::ContentViewer},
         widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
-use super::{LogsObserver, LogsObserverError, PodRef};
+use super::{LogLine, LogsObserver, LogsObserverError, PodRef};
 
 /// Logs view.
 pub struct LogsView {
@@ -76,7 +77,7 @@ impl LogsView {
 impl View for LogsView {
     fn process_tick(&mut self) {
         if !self.observer.is_empty() {
-            let colors = &self.app_data.borrow().theme.colors;
+            let colors = &self.app_data.borrow().theme.colors.syntax.logs;
             if !self.logs.has_content() {
                 self.logs.set_content(Vec::with_capacity(2_000), 0);
             }
@@ -91,13 +92,7 @@ impl View for LogsView {
                         max_width = width;
                     }
 
-                    content.push(vec![
-                        (
-                            (&colors.syntax.logs.timestamp).into(),
-                            line.datetime.format("%Y-%m-%d %H:%M:%S%.3f ").to_string(),
-                        ),
-                        ((&colors.syntax.logs.string).into(), line.message),
-                    ]);
+                    content.push(style_log_line(line, colors));
                 }
             }
 
@@ -131,10 +126,7 @@ impl View for LogsView {
             return ResponseEvent::Cancelled;
         }
 
-        if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
-            && !self.bound_to_bottom
-            && self.logs.is_at_end()
-        {
+        if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
             self.bound_to_bottom = true;
             self.logs.header.set_title(" logs  ");
         } else if self.logs.process_key(key) == ResponseEvent::Handled {
@@ -155,4 +147,15 @@ impl Drop for LogsView {
     fn drop(&mut self) {
         self.observer.stop();
     }
+}
+
+fn style_log_line(line: LogLine, colors: &LogsSyntaxColors) -> Vec<(Style, String)> {
+    let log_colors = if line.is_error { &colors.error } else { &colors.string };
+    vec![
+        (
+            (&colors.timestamp).into(),
+            line.datetime.format("%Y-%m-%d %H:%M:%S%.3f ").to_string(),
+        ),
+        (log_colors.into(), line.message),
+    ]
 }

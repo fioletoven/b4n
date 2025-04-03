@@ -13,7 +13,6 @@ use tokio::{
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 
 use crate::{
     app::utils::{build_default_backoff, wait_for_task},
@@ -37,6 +36,7 @@ pub struct PodRef {
 pub struct LogLine {
     pub datetime: DateTime<Utc>,
     pub message: String,
+    pub is_error: bool,
 }
 
 pub struct LogsChunk {
@@ -146,7 +146,7 @@ async fn observe(
     let mut lines = match api.log_stream(&pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            warn!("Error while initialising logs stream: {}", err);
+            channel.send(Box::new(process_error(err.to_string()))).unwrap();
             return None;
         },
     };
@@ -163,9 +163,12 @@ async fn observe(
                             channel.send(Box::new(line)).unwrap();
                         }
                     },
-                    Ok(None) => break,
+                    Ok(None) => {
+                        channel.send(Box::new(process_error("Logs stream closed.".to_owned()))).unwrap();
+                        break;
+                    },
                     Err(err) => {
-                        warn!("Error while reading logs stream: {}", err);
+                        channel.send(Box::new(process_error(err.to_string()))).unwrap();
                         break;
                     },
                 }
@@ -186,6 +189,21 @@ fn process_line(line: String) -> Option<LogsChunk> {
         lines: vec![LogLine {
             datetime: dt,
             message: split.next()?.to_owned(),
+            is_error: false,
         }],
     })
+}
+
+fn process_error(error: String) -> LogsChunk {
+    let dt = Utc::now();
+
+    LogsChunk {
+        start: dt,
+        end: dt,
+        lines: vec![LogLine {
+            datetime: dt,
+            message: error,
+            is_error: true,
+        }],
+    }
 }

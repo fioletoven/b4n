@@ -94,6 +94,7 @@ pub struct YamlSyntaxColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LogsSyntaxColors {
     pub string: TextColors,
+    pub error: TextColors,
     pub timestamp: TextColors,
 }
 
@@ -213,6 +214,7 @@ impl Default for Theme {
                     },
                     logs: LogsSyntaxColors {
                         string: TextColors::new(Color::Gray),
+                        error: TextColors::new(Color::Red),
                         timestamp: TextColors::new(Color::Magenta),
                     },
                 },
