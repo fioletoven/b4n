@@ -239,14 +239,7 @@ impl FilterContext for ResourceFilterContext {
 impl Filterable<ResourceFilterContext> for Resource {
     fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
         let expression = if let Some(settings) = settings {
-            if settings.contains('e') {
-                match parse(pattern) {
-                    Ok(expression) => Some(expression),
-                    Err(_) => None,
-                }
-            } else {
-                None
-            }
+            if settings.contains('e') { parse(pattern).ok() } else { None }
         } else {
             None
         };

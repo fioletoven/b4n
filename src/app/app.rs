@@ -416,14 +416,7 @@ impl App {
     /// Shows logs for the specified container.
     fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = LogsView::new(
-                Rc::clone(&self.data),
-                client,
-                pod_name,
-                pod_namespace.into(),
-                pod_container,
-                self.footer.get_messages_sender(),
-            ) {
+            if let Ok(view) = LogsView::new(Rc::clone(&self.data), client, pod_name, pod_namespace.into(), pod_container) {
                 self.view = Some(Box::new(view));
             }
         }

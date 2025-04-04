@@ -40,7 +40,6 @@ pub struct LogLine {
 }
 
 pub struct LogsChunk {
-    pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub lines: Vec<LogLine>,
 }
@@ -63,7 +62,7 @@ impl LogsObserver {
         }
     }
 
-    pub fn start(&mut self, client: &KubernetesClient, pod: PodRef) -> Result<(), LogsObserverError> {
+    pub fn start(&mut self, client: &KubernetesClient, pod: PodRef, tail_lines: Option<i64>) -> Result<(), LogsObserverError> {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _client = client.get_client();
@@ -71,12 +70,20 @@ impl LogsObserver {
 
         let task = tokio::spawn(async move {
             let api: Api<Pod> = Api::namespaced(_client, pod.namespace.as_str());
-            let mut backoff = build_default_backoff();
+            let context = ObserverContext {
+                pod: &pod,
+                tail_lines,
+                api: &api,
+                channel: &_context_tx,
+                cancellation_token: &_cancellation_token,
+            };
 
-            let mut last_message = None;
+            let mut backoff = build_default_backoff();
+            let mut since_time = None;
+            let mut should_continue;
             while !_cancellation_token.is_cancelled() {
-                last_message = observe(&pod, &api, &_context_tx, last_message, &_cancellation_token).await;
-                if _cancellation_token.is_cancelled() {
+                (should_continue, since_time) = observe(since_time, &context).await;
+                if _cancellation_token.is_cancelled() || !should_continue {
                     break;
                 }
 
@@ -123,52 +130,59 @@ impl LogsObserver {
     }
 }
 
-async fn observe(
-    pod: &PodRef,
-    api: &Api<Pod>,
-    channel: &UnboundedSender<Box<LogsChunk>>,
-    last_message: Option<DateTime<Utc>>,
-    cancellation_token: &CancellationToken,
-) -> Option<DateTime<Utc>> {
+struct ObserverContext<'a> {
+    pod: &'a PodRef,
+    tail_lines: Option<i64>,
+    api: &'a Api<Pod>,
+    channel: &'a UnboundedSender<Box<LogsChunk>>,
+    cancellation_token: &'a CancellationToken,
+}
+
+async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_>) -> (bool, Option<DateTime<Utc>>) {
     let mut params = LogParams {
         follow: true,
-        container: pod.container.clone(),
+        container: context.pod.container.clone(),
         timestamps: true,
         ..LogParams::default()
     };
 
-    if let Some(last_message) = last_message {
-        params.since_time = Some(last_message);
+    if let Some(since_time) = since_time {
+        params.since_time = Some(since_time);
     } else {
-        params.tail_lines = Some(200);
+        params.tail_lines = context.tail_lines;
     }
 
-    let mut lines = match api.log_stream(&pod.name, &params).await {
+    let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            channel.send(Box::new(process_error(err.to_string()))).unwrap();
-            return None;
+            context.channel.send(Box::new(process_error(err.to_string()))).unwrap();
+            return (true, None);
         },
     };
 
-    let mut last_message = None;
-    while !cancellation_token.is_cancelled() {
+    let mut last_message_time = None;
+    let mut should_continue = true;
+    while !context.cancellation_token.is_cancelled() {
         tokio::select! {
-            _ = cancellation_token.cancelled() => (),
+            _ = context.cancellation_token.cancelled() => (),
             line = lines.try_next() => {
                 match line {
                     Ok(Some(line)) => {
                         if let Some(line) = process_line(line) {
-                            last_message = Some(line.end);
-                            channel.send(Box::new(line)).unwrap();
+                            last_message_time = Some(line.end);
+                            context.channel.send(Box::new(line)).unwrap();
                         }
                     },
                     Ok(None) => {
-                        channel.send(Box::new(process_error("Logs stream closed.".to_owned()))).unwrap();
+                        should_continue = false;
+                        let msg = format!(
+                            "Logs stream closed {}/{} ({}).",
+                            context.pod.namespace, context.pod.name, context.pod.container.as_deref().unwrap_or_default());
+                        context.channel.send(Box::new(process_error(msg))).unwrap();
                         break;
                     },
                     Err(err) => {
-                        channel.send(Box::new(process_error(err.to_string()))).unwrap();
+                        context.channel.send(Box::new(process_error(err.to_string()))).unwrap();
                         break;
                     },
                 }
@@ -176,7 +190,7 @@ async fn observe(
         }
     }
 
-    last_message
+    (should_continue, last_message_time)
 }
 
 fn process_line(line: String) -> Option<LogsChunk> {
@@ -184,7 +198,6 @@ fn process_line(line: String) -> Option<LogsChunk> {
     let dt = split.next()?.parse().ok()?;
 
     Some(LogsChunk {
-        start: dt,
         end: dt,
         lines: vec![LogLine {
             datetime: dt,
@@ -198,7 +211,6 @@ fn process_error(error: String) -> LogsChunk {
     let dt = Utc::now();
 
     LogsChunk {
-        start: dt,
         end: dt,
         lines: vec![LogLine {
             datetime: dt,

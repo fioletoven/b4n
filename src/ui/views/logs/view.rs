@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect, style::Style};
 use std::rc::Rc;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::SharedAppData,
@@ -10,7 +9,7 @@ use crate::{
         ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{View, content::ContentViewer},
-        widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
+        widgets::{ActionsListBuilder, CommandPalette},
     },
 };
 
@@ -22,7 +21,6 @@ pub struct LogsView {
     app_data: SharedAppData,
     observer: LogsObserver,
     command_palette: CommandPalette,
-    footer_tx: UnboundedSender<FooterMessage>,
     bound_to_bottom: bool,
 }
 
@@ -34,16 +32,12 @@ impl LogsView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
-        footer_tx: UnboundedSender<FooterMessage>,
     ) -> Result<Self, LogsObserverError> {
-        let mut observer = LogsObserver::new();
         let pod = PodRef {
             name: pod_name.clone(),
             namespace: pod_namespace.clone(),
             container: pod_container.clone(),
         };
-        observer.start(client, pod)?;
-
         let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
             " logs  ",
             pod_namespace,
@@ -52,12 +46,14 @@ impl LogsView {
             pod_container,
         );
 
+        let mut observer = LogsObserver::new();
+        observer.start(client, pod, app_data.borrow().config.logs.lines)?;
+
         Ok(Self {
             logs,
             app_data,
             observer,
             command_palette: CommandPalette::default(),
-            footer_tx,
             bound_to_bottom: true,
         })
     }
