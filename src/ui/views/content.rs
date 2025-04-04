@@ -100,8 +100,10 @@ impl ContentViewer {
     }
 
     /// Updates max width for content lines.
-    pub fn update_content_width(&mut self, max_width: usize) {
-        self.lines_width = max_width;
+    pub fn update_max_width(&mut self, max_width: usize) {
+        if self.lines_width < max_width {
+            self.lines_width = max_width;
+        }
     }
 
     /// Updates page height.

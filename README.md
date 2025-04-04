@@ -15,7 +15,8 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 As the project is in its early stages, for this moment the only supported functions are:
 
 - viewing a list of kubernetes resources
-- displaying YAML of the selected resource
+- displaying YAML of the highlighted resource
+- viewing logs for the highlighted container
 - deleting selected resources
 
 ### Planned
@@ -23,28 +24,29 @@ As the project is in its early stages, for this moment the only supported functi
 General planned features:
 
 - describing resources
-- viewing logs for a pod and its containers
+- viewing combined logs for a pod
 - editing resources (YAML)
 - port forwarding
 - shell
 
 ## Key Bindings
 
-| Action                                 | Command         | Comments                                                     |
-|:---------------------------------------|:----------------|:-------------------------------------------------------------|
-| Copy YAML to the clipboard             | `c`             | Works only in YAML view                                      |
-| Decode highlighted secret              | `x`             |                                                              |
-| Delete selected resources              | `CTRL` + `d`    | Displays a confirmation dialog                               |
-| Go back to namespaces; clear filter    | `ESC`           | Also clears input in the filter widget                       |
-| Quit the application                   | `CTRL` + `c`    |                                                              |
-| Reverse selection                      | `CTRL` + ` `    |  (`CTRL` + `SPACE`)                                          |
-| Select resource                        | ` `             | (`SPACE`)                                                    |
-| Show command palette                   | `:`             | For example, entering `:q`↲ quits the app                    |
-| Show filter input                      | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
-| Show namespaces selector               | `←`             | To select `all` quickly press `←` again                      |
-| Show resources selector                | `→`             | To select the first item quickly press `→` again             |
-| Show YAML for the highlighted resource | `y`             |                                                              |
-| Sort column                            | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |
+| Action                                  | Command         | Comments                                                     |
+|:----------------------------------------|:----------------|:-------------------------------------------------------------|
+| Copy YAML to the clipboard              | `c`             | Works only in YAML view                                      |
+| Decode highlighted secret               | `x`             |                                                              |
+| Delete selected resources               | `CTRL` + `d`    | Displays a confirmation dialog                               |
+| Go back to namespaces; clear filter     | `ESC`           | Also clears input in the filter widget                       |
+| Quit the application                    | `CTRL` + `c`    |                                                              |
+| Reverse selection                       | `CTRL` + ` `    |  (`CTRL` + `SPACE`)                                          |
+| Select resource                         | ` `             | (`SPACE`)                                                    |
+| Show command palette                    | `:`             | For example, entering `:q`↲ quits the app                    |
+| Show filter input                       | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
+| Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |
+| Show namespaces selector                | `←`             | To select `all` quickly press `←` again                      |
+| Show resources selector                 | `→`             | To select the first item quickly press `→` again             |
+| Show YAML for the highlighted resource  | `y`             |                                                              |
+| Sort column                             | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |
 
 ## License
 

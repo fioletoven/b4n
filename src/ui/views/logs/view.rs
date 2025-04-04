@@ -15,6 +15,8 @@ use crate::{
 
 use super::{LogLine, LogsObserver, LogsObserverError, PodRef};
 
+const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
+
 /// Logs view.
 pub struct LogsView {
     pub logs: ContentViewer,
@@ -77,7 +79,7 @@ impl View for LogsView {
         if !self.observer.is_empty() {
             let colors = &self.app_data.borrow().theme.colors.syntax.logs;
             if !self.logs.has_content() {
-                self.logs.set_content(Vec::with_capacity(2_000), 0);
+                self.logs.set_content(Vec::with_capacity(INITIAL_LOGS_VEC_SIZE), 0);
             }
 
             let content = self.logs.content_mut().unwrap();
@@ -85,7 +87,7 @@ impl View for LogsView {
 
             while let Some(chunk) = self.observer.try_next() {
                 for line in chunk.lines {
-                    let width = line.message.chars().count();
+                    let width = line.message.chars().count() + 24;
                     if max_width < width {
                         max_width = width;
                     }
@@ -94,7 +96,7 @@ impl View for LogsView {
                 }
             }
 
-            self.logs.update_content_width(max_width);
+            self.logs.update_max_width(max_width);
             if self.bound_to_bottom {
                 self.logs.scroll_to_end();
             }
@@ -127,6 +129,7 @@ impl View for LogsView {
         if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
             self.bound_to_bottom = true;
             self.logs.set_header_icon('');
+            self.logs.process_key(key);
         } else if self.logs.process_key(key) == ResponseEvent::Handled {
             self.bound_to_bottom = false;
             self.logs.set_header_icon('');

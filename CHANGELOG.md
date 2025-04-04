@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.1.3 - 2025-04-04
+
+### Features
+
+- display logs by pressing `ENTER`, `l` or `p` on the selected container
+- add init containers to the containers view
+- add a disconnection indicator to the YAML view
+
 ## 0.1.2 - 2025-03-24
 
 ### Features
