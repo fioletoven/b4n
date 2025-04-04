@@ -37,7 +37,7 @@ impl YamlView {
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header(" YAML  ", namespace, kind_plural, name, None);
+        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind_plural, name, None);
 
         Self {
             yaml,
@@ -70,14 +70,14 @@ impl YamlView {
             let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
                 Action::new("copy")
                     .with_description("copies YAML to the clipboard")
-                    .with_response(ResponseEvent::Action("copy".to_owned())),
+                    .with_response(ResponseEvent::Action("copy")),
             );
             if self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     Action::new(action)
                         .with_description(&format!("{}s the resource's data", action))
-                        .with_response(ResponseEvent::Action("decode".to_owned())),
+                        .with_response(ResponseEvent::Action("decode")),
                 );
             }
 
@@ -107,10 +107,11 @@ impl View for YamlView {
 
     fn process_command_result(&mut self, result: CommandResult) {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
-            let title = if result.is_decoded { " YAML  " } else { " YAML  " };
+            let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
+            self.yaml.set_header_icon(icon);
             self.yaml
-                .set_header(title, result.namespace, result.kind_plural, result.name, None);
+                .set_header_data(result.namespace, result.kind_plural, result.name, None);
             self.yaml.set_content(
                 result.styled,
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),

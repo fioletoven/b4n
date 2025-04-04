@@ -62,7 +62,13 @@ impl LogsObserver {
         }
     }
 
-    pub fn start(&mut self, client: &KubernetesClient, pod: PodRef, tail_lines: Option<i64>) -> Result<(), LogsObserverError> {
+    pub fn start(
+        &mut self,
+        client: &KubernetesClient,
+        pod: PodRef,
+        tail_lines: Option<i64>,
+        previous: bool,
+    ) -> Result<(), LogsObserverError> {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _client = client.get_client();
@@ -73,6 +79,7 @@ impl LogsObserver {
             let context = ObserverContext {
                 pod: &pod,
                 tail_lines,
+                previous,
                 api: &api,
                 channel: &_context_tx,
                 cancellation_token: &_cancellation_token,
@@ -133,6 +140,7 @@ impl LogsObserver {
 struct ObserverContext<'a> {
     pod: &'a PodRef,
     tail_lines: Option<i64>,
+    previous: bool,
     api: &'a Api<Pod>,
     channel: &'a UnboundedSender<Box<LogsChunk>>,
     cancellation_token: &'a CancellationToken,
@@ -141,6 +149,7 @@ struct ObserverContext<'a> {
 async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_>) -> (bool, Option<DateTime<Utc>>) {
     let mut params = LogParams {
         follow: true,
+        previous: context.previous,
         container: context.pod.container.clone(),
         timestamps: true,
         ..LogParams::default()
@@ -176,8 +185,10 @@ async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_
                     Ok(None) => {
                         should_continue = false;
                         let msg = format!(
-                            "Logs stream closed {}/{} ({}).",
-                            context.pod.namespace, context.pod.name, context.pod.container.as_deref().unwrap_or_default());
+                            "Logs stream closed {}/{} ({})",
+                            context.pod.namespace.as_str(),
+                            context.pod.name,
+                            context.pod.container.as_deref().unwrap_or_default());
                         context.channel.send(Box::new(process_error(msg))).unwrap();
                         break;
                     },

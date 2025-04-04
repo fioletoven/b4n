@@ -14,7 +14,7 @@ use crate::{
     },
     kubernetes::{
         Namespace,
-        resources::{Kind, Resource},
+        resources::{CONTAINERS, Kind, Resource},
     },
     ui::{
         Responsive, Table, ViewType,
@@ -145,7 +145,9 @@ impl ResourcesView {
                 .command_palette
                 .process_key(key)
                 .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
-                .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))));
+                .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
+                .if_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
+                .if_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -227,8 +229,8 @@ impl ResourcesView {
                     .with_action(
                         Action::new("show YAML")
                             .with_description("shows YAML of the selected resource")
-                            .with_aliases(&["show", "yaml"])
-                            .with_response(ResponseEvent::Action("show_yaml".to_owned())),
+                            .with_aliases(&["yaml"])
+                            .with_response(ResponseEvent::Action("show_yaml")),
                     );
                 if self.table.kind_plural() == "secrets" {
                     builder
@@ -236,7 +238,22 @@ impl ResourcesView {
                             Action::new("decode")
                                 .with_description("shows decoded YAML of the selected secret")
                                 .with_aliases(&["decode", "x"])
-                                .with_response(ResponseEvent::Action("decode_yaml".to_owned())),
+                                .with_response(ResponseEvent::Action("decode_yaml")),
+                        )
+                        .build()
+                } else if self.table.kind_plural() == CONTAINERS {
+                    builder
+                        .with_action(
+                            Action::new("show logs")
+                                .with_description("shows containter logs")
+                                .with_aliases(&["logs"])
+                                .with_response(ResponseEvent::Action("show_logs")),
+                        )
+                        .with_action(
+                            Action::new("show previous logs")
+                                .with_description("shows containter previous logs")
+                                .with_aliases(&["previous"])
+                                .with_response(ResponseEvent::Action("show_plogs")),
                         )
                         .build()
                 } else {

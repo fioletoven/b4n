@@ -185,7 +185,10 @@ impl App {
                 ResponseEvent::DeleteResources => self.delete_resources(),
                 ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
                 ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
-                    self.view_logs(pod_name, pod_namespace, pod_container)
+                    self.view_logs(pod_name, pod_namespace, pod_container, false)
+                },
+                ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
+                    self.view_logs(pod_name, pod_namespace, pod_container, true)
                 },
                 _ => (),
             };
@@ -414,9 +417,16 @@ impl App {
     }
 
     /// Shows logs for the specified container.
-    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
+    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>, previous: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = LogsView::new(Rc::clone(&self.data), client, pod_name, pod_namespace.into(), pod_container) {
+            if let Ok(view) = LogsView::new(
+                Rc::clone(&self.data),
+                client,
+                pod_name,
+                pod_namespace.into(),
+                pod_container,
+                previous,
+            ) {
                 self.view = Some(Box::new(view));
             }
         }

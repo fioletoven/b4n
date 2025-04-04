@@ -10,6 +10,7 @@ use crate::{app::SharedAppData, kubernetes::Namespace};
 /// Header pane that shows resource namespace, kind and name.
 pub struct HeaderPane {
     pub title: &'static str,
+    pub icon: char,
     pub namespace: Namespace,
     pub kind: String,
     pub name: String,
@@ -21,20 +22,14 @@ pub struct HeaderPane {
 
 impl HeaderPane {
     /// Creates new UI header pane.
-    pub fn new(
-        app_data: SharedAppData,
-        title: &'static str,
-        namespace: Namespace,
-        kind: String,
-        name: String,
-        descr: Option<String>,
-    ) -> Self {
+    pub fn new(app_data: SharedAppData) -> Self {
         Self {
-            title,
-            namespace,
-            kind,
-            name,
-            descr,
+            title: "",
+            icon: ' ',
+            namespace: Namespace::all(),
+            kind: String::new(),
+            name: String::new(),
+            descr: None,
             app_data,
             position_x: 0,
             position_y: 0,
@@ -42,8 +37,7 @@ impl HeaderPane {
     }
 
     /// Sets header data.
-    pub fn set_data(&mut self, title: &'static str, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
-        self.title = title;
+    pub fn set_data(&mut self, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
         self.namespace = namespace;
         self.kind = kind;
         self.name = name;
@@ -53,6 +47,11 @@ impl HeaderPane {
     /// Sets header title.
     pub fn set_title(&mut self, title: &'static str) {
         self.title = title;
+    }
+
+    /// Sets header icon.
+    pub fn set_icon(&mut self, icon: char) {
+        self.icon = icon;
     }
 
     /// Sets header coordinates.
@@ -82,12 +81,18 @@ impl HeaderPane {
     }
 
     /// Returns formatted header path as breadcrumbs:  
-    /// \> `title` \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
+    /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
     fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
+        let title = if self.icon != ' ' {
+            format!(" {} {} ", self.title, self.icon)
+        } else {
+            format!(" {} ", self.title)
+        };
+
         let mut path = vec![
             Span::styled("", Style::new().fg(colors.text.bg)),
-            Span::styled(self.title, &colors.text),
+            Span::styled(title, &colors.text),
             Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),

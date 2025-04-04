@@ -32,6 +32,7 @@ impl LogsView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
+        previous: bool,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
             name: pod_name.clone(),
@@ -39,7 +40,8 @@ impl LogsView {
             container: pod_container.clone(),
         };
         let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
-            " logs  ",
+            if previous { "previous logs" } else { "logs" },
+            '',
             pod_namespace,
             PODS.to_owned(),
             pod_name,
@@ -47,7 +49,7 @@ impl LogsView {
         );
 
         let mut observer = LogsObserver::new();
-        observer.start(client, pod, app_data.borrow().config.logs.lines)?;
+        observer.start(client, pod, app_data.borrow().config.logs.lines, previous)?;
 
         Ok(Self {
             logs,
@@ -124,10 +126,10 @@ impl View for LogsView {
 
         if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
             self.bound_to_bottom = true;
-            self.logs.header.set_title(" logs  ");
+            self.logs.set_header_icon('');
         } else if self.logs.process_key(key) == ResponseEvent::Handled {
             self.bound_to_bottom = false;
-            self.logs.header.set_title(" logs  ");
+            self.logs.set_header_icon('');
         }
 
         ResponseEvent::Handled
