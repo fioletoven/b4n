@@ -9,19 +9,18 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, TuiEvent,
-        views::View,
+        views::{View, content::ContentViewer},
         widgets::{Action, ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
-use super::YamlViewer;
-
 /// YAML view.
 pub struct YamlView {
-    pub yaml: YamlViewer,
+    pub yaml: ContentViewer,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     lines: Vec<String>,
+    is_decoded: bool,
     command_id: Option<String>,
     command_palette: CommandPalette,
     footer_tx: UnboundedSender<FooterMessage>,
@@ -38,13 +37,14 @@ impl YamlView {
         kind_plural: String,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let viewer = YamlViewer::new(Rc::clone(&app_data), name, namespace, kind_plural, false);
+        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind_plural, name, None);
 
         Self {
-            yaml: viewer,
+            yaml,
             app_data,
             worker,
             lines: Vec::new(),
+            is_decoded: false,
             command_id,
             command_palette: CommandPalette::default(),
             footer_tx,
@@ -70,14 +70,14 @@ impl YamlView {
             let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
                 Action::new("copy")
                     .with_description("copies YAML to the clipboard")
-                    .with_response(ResponseEvent::Action("copy".to_owned())),
+                    .with_response(ResponseEvent::Action("copy")),
             );
-            if self.yaml.header.kind_plural == "secrets" {
-                let action = if self.yaml.header.is_decoded { "encode" } else { "decode" };
+            if self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
+                let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     Action::new(action)
                         .with_description(&format!("{}s the resource's data", action))
-                        .with_response(ResponseEvent::Action("decode".to_owned())),
+                        .with_response(ResponseEvent::Action("decode")),
                 );
             }
 
@@ -93,9 +93,9 @@ impl YamlView {
         self.command_id = self.worker.borrow_mut().get_yaml(
             self.yaml.header.name.clone(),
             self.yaml.header.namespace.clone(),
-            &self.yaml.header.kind_plural,
+            &self.yaml.header.kind,
             self.app_data.borrow().get_syntax_data(),
-            !self.yaml.header.is_decoded,
+            !self.is_decoded,
         );
     }
 }
@@ -107,14 +107,21 @@ impl View for YamlView {
 
     fn process_command_result(&mut self, result: CommandResult) {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
+            let icon = if result.is_decoded { '' } else { '' };
+            self.is_decoded = result.is_decoded;
+            self.yaml.set_header_icon(icon);
             self.yaml
-                .set_header(result.name, result.namespace, result.kind_plural, result.is_decoded);
+                .set_header_data(result.namespace, result.kind_plural, result.name, None);
             self.yaml.set_content(
                 result.styled,
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
             );
             self.lines = result.yaml;
         }
+    }
+
+    fn process_disconnection(&mut self) {
+        self.command_palette.hide();
     }
 
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
@@ -141,7 +148,7 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('x') && self.yaml.header.kind_plural == "secrets" {
+        if key.code == KeyCode::Char('x') && self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         }

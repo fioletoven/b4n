@@ -10,9 +10,12 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{
         ObserverResult, ResourcesInfo, SharedAppData,
-        lists::{CONTAINERS, ResourcesList, Row},
+        lists::{ResourcesList, Row},
     },
-    kubernetes::{ALL_NAMESPACES, NAMESPACES, Namespace, resources::Resource},
+    kubernetes::{
+        ALL_NAMESPACES, NAMESPACES, Namespace,
+        resources::{CONTAINERS, PODS, Resource},
+    },
     ui::{Responsive, Table, ViewType, tui::ResponseEvent},
 };
 
@@ -52,9 +55,10 @@ impl ResourcesTable {
 
     /// Sets initial kubernetes resources data for [`ResourcesTable`].
     pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
-        self.list.view = ViewType::Full;
         if scope == Scope::Cluster || !namespace.is_all() {
-            self.list.view = ViewType::Compact;
+            self.set_view(ViewType::Compact);
+        } else {
+            self.set_view(ViewType::Full);
         }
 
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
@@ -91,21 +95,21 @@ impl ResourcesTable {
 
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.list.view = if namespace.is_all() {
+        self.set_view(if namespace.is_all() {
             ViewType::Full
         } else {
             ViewType::Compact
-        };
+        });
 
-        if self.app_data.borrow().current.namespace != namespace {
-            self.app_data.borrow_mut().current.namespace = namespace;
+        if !self.app_data.borrow().current.is_namespace_equal(&namespace) {
+            self.app_data.borrow_mut().current.set_namespace(namespace);
             self.list.items.deselect_all();
         }
     }
 
     /// Sets list view for [`ResourcesTable`].
     pub fn set_view(&mut self, view: ViewType) {
-        self.list.view = view;
+        self.list.view = if self.has_containers() { ViewType::Compact } else { view };
     }
 
     /// Sets filter on the resources list.
@@ -133,13 +137,7 @@ impl ResourcesTable {
 
         if self.list.items.update(result) {
             let current = &mut self.app_data.borrow_mut().current;
-            // current.namespace is only updated inside the set_namespace method, because the containers are temporarily
-            // in the pod's namespace, so the main namespace would be overwritten here from the observed container events
-            current.name = self.list.items.data.name.clone();
-            current.kind = self.list.items.data.kind.clone();
-            current.kind_plural = self.list.items.data.kind_plural.clone();
-            current.group = self.list.items.data.group.clone();
-            current.scope = self.list.items.data.scope.clone();
+            current.update_from(&self.list.items.data);
             current.count = self.list.items.list.len();
         } else {
             self.app_data.borrow_mut().current.count = self.list.items.list.len();
@@ -150,44 +148,42 @@ impl ResourcesTable {
     pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
         self.highlight_next = None;
 
-        if key.code == KeyCode::Enter {
-            match self.kind_plural() {
-                NAMESPACES => {
-                    if let Some(selected_namespace) = self.list.items.get_highlighted_item_name() {
-                        return ResponseEvent::Change("pods".to_owned(), selected_namespace.to_owned());
-                    }
-                }
-                "pods" => {
-                    if let Some(selected_pod) = self.list.items.get_highlighted_resource() {
-                        return ResponseEvent::ViewContainers(
-                            selected_pod.name.clone(),
-                            selected_pod.namespace.clone().unwrap_or_default(),
-                        );
-                    }
-                }
-                CONTAINERS => (),
-                _ => {
-                    if let Some(response) = self.get_view_yaml_response(false) {
-                        return response;
-                    }
-                }
-            }
-        }
-
         if key.code == KeyCode::Esc {
             match self.kind_plural() {
                 NAMESPACES => (),
                 CONTAINERS => {
                     let to_select = self.app_data.borrow().current.name.clone();
-                    return ResponseEvent::ChangeKindSelect("pods".to_owned(), to_select);
-                }
+                    return ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select);
+                },
                 _ => return ResponseEvent::ViewNamespaces,
             }
         }
 
-        if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == "secrets") {
-            if let Some(response) = self.get_view_yaml_response(key.code == KeyCode::Char('x')) {
-                return response;
+        if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
+            if key.code == KeyCode::Enter {
+                match self.kind_plural() {
+                    NAMESPACES => return ResponseEvent::Change(PODS.to_owned(), selected_resource.name.clone()),
+                    PODS => {
+                        return ResponseEvent::ViewContainers(
+                            selected_resource.name.clone(),
+                            selected_resource.namespace.clone().unwrap_or_default(),
+                        );
+                    },
+                    CONTAINERS => return self.process_view_logs(selected_resource, false),
+                    _ => return self.process_view_yaml(selected_resource, false),
+                }
+            }
+
+            if self.kind_plural() == CONTAINERS {
+                if key.code == KeyCode::Char('l') {
+                    return self.process_view_logs(selected_resource, false);
+                }
+
+                if key.code == KeyCode::Char('p') {
+                    return self.process_view_logs(selected_resource, true);
+                }
+            } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == "secrets") {
+                return self.process_view_yaml(selected_resource, key.code == KeyCode::Char('x'));
             }
         }
 
@@ -205,21 +201,31 @@ impl ResourcesTable {
         self.list.draw(frame, layout[1]);
     }
 
-    fn get_view_yaml_response(&mut self, decode: bool) -> Option<ResponseEvent> {
-        if self.app_data.borrow().current.is_kind_equal(CONTAINERS) {
-            return None;
+    fn process_view_yaml(&self, resource: &Resource, decode: bool) -> ResponseEvent {
+        if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
+            ResponseEvent::ViewYaml(resource.name().to_owned(), resource.group().to_owned(), decode)
+        } else {
+            ResponseEvent::NotHandled
         }
+    }
 
-        if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
-            if selected_resource.name() != ALL_NAMESPACES && selected_resource.group() != NAMESPACES {
-                return Some(ResponseEvent::ViewYaml(
-                    selected_resource.name().to_owned(),
-                    selected_resource.group().to_owned(),
-                    decode,
-                ));
+    fn process_view_logs(&self, selected_resource: &Resource, previous: bool) -> ResponseEvent {
+        if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
+            if previous {
+                ResponseEvent::ViewPreviousLogs(
+                    pod_name,
+                    selected_resource.namespace.clone().unwrap_or_default(),
+                    Some(selected_resource.name.clone()),
+                )
+            } else {
+                ResponseEvent::ViewLogs(
+                    pod_name,
+                    selected_resource.namespace.clone().unwrap_or_default(),
+                    Some(selected_resource.name.clone()),
+                )
             }
+        } else {
+            ResponseEvent::NotHandled
         }
-
-        None
     }
 }

@@ -8,7 +8,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
-        views::{ResourcesView, View, YamlView},
+        views::{LogsView, ResourcesView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
 };
@@ -119,6 +119,7 @@ impl App {
         self.process_commands_results();
         self.process_connection_events();
         self.update_lists();
+        self.process_view_events();
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
@@ -159,8 +160,6 @@ impl App {
         while let Some(update_result) = worker.resources.try_next() {
             self.resources.update_resources_list(*update_result);
         }
-
-        self.data.borrow_mut().is_connected = !worker.has_errors();
     }
 
     /// Process TUI event.
@@ -176,7 +175,7 @@ impl App {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
                 ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
                 ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-                ResponseEvent::ChangeKindSelect(kind, to_select) => self.change_kind(kind, to_select)?,
+                ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind, to_select)?,
                 ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
                 ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
@@ -185,6 +184,12 @@ impl App {
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
                 ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
+                ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
+                    self.view_logs(pod_name, pod_namespace, pod_container, false)
+                },
+                ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
+                    self.view_logs(pod_name, pod_namespace, pod_container, true)
+                },
                 _ => (),
             };
         }
@@ -192,7 +197,14 @@ impl App {
         Ok(ResponseEvent::Handled)
     }
 
-    /// Process results from commands execution.
+    /// Processes additional view events.
+    fn process_view_events(&mut self) {
+        if let Some(view) = &mut self.view {
+            view.process_tick();
+        }
+    }
+
+    /// Processes results from commands execution.
     fn process_commands_results(&mut self) {
         let commands = self.worker.borrow_mut().get_all_waiting_results();
         for command in commands {
@@ -206,15 +218,19 @@ impl App {
 
     /// Processes connection events.
     fn process_connection_events(&mut self) {
+        self.data.borrow_mut().is_connected = !self.worker.borrow().has_errors();
         self.client_manager.process_request_overdue();
         if self.client_manager.should_process_disconnection() {
             self.resources.process_disconnection();
+            if let Some(view) = &mut self.view {
+                view.process_disconnection();
+            }
         }
     }
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if self.data.borrow().current.namespace != namespace || !self.data.borrow().current.is_kind_equal(&kind) {
+        if !self.data.borrow().current.is_namespace_equal(&namespace) || !self.data.borrow().current.is_kind_equal(&kind) {
             self.resources.set_namespace(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
@@ -228,7 +244,7 @@ impl App {
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
-            let namespace = self.data.borrow().current.namespace.clone();
+            let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind == NAMESPACES {
                 let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
@@ -244,7 +260,7 @@ impl App {
 
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if self.data.borrow().current.namespace != namespace {
+        if !self.data.borrow().current.is_namespace_equal(&namespace) {
             self.process_resources_change(None, Some(namespace.clone().into()), None);
             self.resources.set_namespace(namespace.clone());
             self.worker.borrow_mut().restart_new_namespace(namespace)?;
@@ -256,6 +272,7 @@ impl App {
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.resources.clear_list_data();
+        self.resources.set_view(ViewType::Compact);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -340,7 +357,7 @@ impl App {
     fn set_page_view(&mut self, result: Scope) {
         if result == Scope::Cluster {
             self.resources.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.namespace.is_all() {
+        } else if self.data.borrow().current.is_all_namespace() {
             self.resources.set_view(ViewType::Full);
         }
     }
@@ -396,6 +413,22 @@ impl App {
             self.footer.send_message(FooterMessage::error(msg, 0));
         } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::ResourceYaml(result));
+        }
+    }
+
+    /// Shows logs for the specified container.
+    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>, previous: bool) {
+        if let Some(client) = self.worker.borrow().kubernetes_client() {
+            if let Ok(view) = LogsView::new(
+                Rc::clone(&self.data),
+                client,
+                pod_name,
+                pod_namespace.into(),
+                pod_container,
+                previous,
+            ) {
+                self.view = Some(Box::new(view));
+            }
         }
     }
 }

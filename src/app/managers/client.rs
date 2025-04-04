@@ -114,14 +114,14 @@ impl KubernetesClientManager {
                     let msg = format!("Connected to '{}'.", result.client.context());
                     self.footer_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
                     Some(result)
-                }
+                },
                 Err(err) => {
                     self.set_request_as_faulty();
                     let msg = format!("Requested client error: {}.", err);
                     warn!("{}", msg);
                     self.footer_tx.send(FooterMessage::error(msg, ERROR_DURATION)).unwrap();
                     None
-                }
+                },
             }
         } else {
             None

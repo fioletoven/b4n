@@ -1,4 +1,4 @@
-use backoff::{ExponentialBackoffBuilder, backoff::Backoff};
+use backoff::backoff::Backoff;
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::{
     sync::{
@@ -17,7 +17,7 @@ use tracing::warn;
 
 use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterMessage};
 
-use super::utils::wait_for_task;
+use super::utils::{build_default_backoff, wait_for_task};
 
 const DISCOVERY_INTERVAL: u64 = 6_000;
 
@@ -63,13 +63,7 @@ impl BgDiscovery {
         let _client = client.get_client();
 
         let task = tokio::spawn(async move {
-            let mut backoff = ExponentialBackoffBuilder::new()
-                .with_initial_interval(Duration::from_millis(800))
-                .with_max_interval(Duration::from_secs(30))
-                .with_randomization_factor(1.0)
-                .with_multiplier(2.0)
-                .with_max_elapsed_time(None)
-                .build();
+            let mut backoff = build_default_backoff();
             let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 
             let mut maybe_discovery = Some(Discovery::new(_client.clone()));

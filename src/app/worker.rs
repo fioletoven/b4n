@@ -147,6 +147,11 @@ impl BgWorker {
         self.discovery.cancel();
     }
 
+    /// Returns [`KubernetesClient`].
+    pub fn kubernetes_client(&self) -> Option<&KubernetesClient> {
+        self.client.as_ref()
+    }
+
     /// Returns list of discovered kubernetes kinds.
     pub fn get_kinds_list(&self) -> Option<Vec<Kind>> {
         self.list.as_ref().map(|discovery| {

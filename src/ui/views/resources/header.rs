@@ -6,7 +6,10 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::SharedAppData;
+use crate::{
+    app::SharedAppData,
+    kubernetes::resources::{CONTAINERS, PODS},
+};
 
 /// Header pane that shows resource path and version information as breadcrumbs.
 pub struct HeaderPane {
@@ -70,15 +73,24 @@ impl HeaderPane {
             ""
         };
 
-        let kind = if data.name.is_some() {
-            data.name.as_ref().unwrap()
+        let kind = if data.kind_plural == CONTAINERS {
+            PODS
         } else {
             &data.kind_plural
         };
 
+        path.push(Span::styled(format!(" {} ", kind), &colors.resource));
+        if data.name.is_some() {
+            path.append(&mut vec![
+                Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
+                Span::styled(format!(" {} ", data.name.as_ref().unwrap()), &colors.name),
+                Span::styled("", Style::new().fg(colors.name.bg).bg(colors.count.bg)),
+            ]);
+        } else {
+            path.push(Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)));
+        }
+
         path.append(&mut vec![
-            Span::styled(format!(" {} ", kind), &colors.resource),
-            Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.count.bg)),
             Span::styled(format!(" {}{} ", count_icon, data.count), &colors.count),
             Span::styled("", Style::new().fg(colors.count.bg)),
         ]);

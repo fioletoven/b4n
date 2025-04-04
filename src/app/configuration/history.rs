@@ -99,7 +99,7 @@ impl History {
                 let history = Self::default();
                 history.save(&History::default_path()).await?;
                 Ok(history)
-            }
+            },
         }
     }
 

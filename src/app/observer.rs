@@ -25,11 +25,15 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
 use crate::{
-    kubernetes::{Namespace, client::KubernetesClient, resources::Resource},
+    kubernetes::{
+        Namespace,
+        client::KubernetesClient,
+        resources::{CONTAINERS, Resource},
+    },
     ui::widgets::FooterMessage,
 };
 
-use super::{lists::CONTAINERS, utils::wait_for_task};
+use super::utils::wait_for_task;
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -68,6 +72,7 @@ pub struct InitData {
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
+    pub namespace: Namespace,
 }
 
 impl Default for InitData {
@@ -78,6 +83,7 @@ impl Default for InitData {
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
+            namespace: Namespace::default(),
         }
     }
 }
@@ -92,6 +98,7 @@ impl InitData {
                 kind_plural: CONTAINERS.to_owned(),
                 group: ar.group.clone(),
                 scope,
+                namespace: rt.namespace.clone(),
             }
         } else {
             Self {
@@ -100,6 +107,7 @@ impl InitData {
                 kind_plural: ar.plural.to_lowercase(),
                 group: ar.group.clone(),
                 scope,
+                namespace: rt.namespace.clone(),
             }
         }
     }
@@ -163,9 +171,7 @@ impl BgObserver {
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
-}
 
-impl BgObserver {
     /// Starts new [`BgObserver`] task.  
     /// **Note** that it stops the old task if it is running.
     pub fn start(
@@ -360,7 +366,7 @@ impl EventsProcessor {
                     Some(Event::Init) => {
                         reset_error = false; // Init is also emitted after a forced restart of the watcher
                         self.send_init_result();
-                    }
+                    },
                     Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_results(o, false),
                     Some(Event::Delete(o)) => self.send_results(o, true),
@@ -371,7 +377,7 @@ impl EventsProcessor {
                     self.last_watch_error = None;
                     self.has_error.store(false, Ordering::Relaxed);
                 }
-            }
+            },
             Err(error) => {
                 let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
                 warn!("{}", msg);
@@ -392,10 +398,10 @@ impl EventsProcessor {
                         } else {
                             self.last_watch_error = Some(Instant::now());
                         }
-                    }
+                    },
                     _ => self.has_error.store(true, Ordering::Relaxed),
                 }
-            }
+            },
         }
 
         true
@@ -409,34 +415,52 @@ impl EventsProcessor {
 
     fn send_results(&self, object: DynamicObject, is_delete: bool) {
         if self.is_container {
-            if let Some(containers) = object
-                .data
-                .get("spec")
-                .and_then(|s| s.get(CONTAINERS))
-                .and_then(|c| c.as_array())
-            {
-                for c in containers.iter() {
-                    let result = get_container_result(c, &object, is_delete);
-                    self.context_tx.send(Box::new(result)).unwrap();
-                }
-            }
+            self.send_containers(&object, "initContainers", "initContainerStatuses", true, is_delete);
+            self.send_containers(&object, "containers", "containerStatuses", false, is_delete);
         } else {
-            self.context_tx
-                .send(Box::new(ObserverResult::new(
-                    Resource::from(&self.init_data.kind, object),
-                    is_delete,
-                )))
-                .unwrap();
+            self.send_resource(object, is_delete);
         }
+    }
+
+    fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
+        if let Some(containers) = get_conatainers(object, array) {
+            for c in containers.iter() {
+                let result = get_container_result(c, object, statuses_array, is_init, is_delete);
+                self.context_tx.send(Box::new(result)).unwrap();
+            }
+        }
+    }
+
+    fn send_resource(&self, object: DynamicObject, is_delete: bool) {
+        let result = ObserverResult::new(Resource::from(&self.init_data.kind, object), is_delete);
+        self.context_tx.send(Box::new(result)).unwrap();
     }
 }
 
-fn get_container_result(container: &Value, object: &DynamicObject, is_delete: bool) -> ObserverResult {
+fn get_conatainers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a Vec<Value>> {
+    object
+        .data
+        .get("spec")
+        .and_then(|s| s.get(array_name))
+        .and_then(|c| c.as_array())
+}
+
+fn get_container_result(
+    container: &Value,
+    object: &DynamicObject,
+    statuses_array: &str,
+    is_init_container: bool,
+    is_delete: bool,
+) -> ObserverResult {
     let status = object
         .data
         .get("status")
-        .and_then(|s| s.get("containerStatuses"))
+        .and_then(|s| s.get(statuses_array))
         .and_then(|s| s.as_array())
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
-    ObserverResult::new(Resource::from_container(container, status, &object.metadata), is_delete)
+
+    ObserverResult::new(
+        Resource::from_container(container, status, &object.metadata, is_init_container),
+        is_delete,
+    )
 }

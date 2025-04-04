@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{kubernetes::Namespace, ui::theme::Theme};
 
-use super::{Config, History};
+use super::{Config, History, InitData};
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 
@@ -21,6 +21,7 @@ pub struct ResourcesInfo {
     pub group: String,
     pub scope: Scope,
     pub count: usize,
+    is_all_namespace: bool,
 }
 
 impl Default for ResourcesInfo {
@@ -35,6 +36,7 @@ impl Default for ResourcesInfo {
             group: Default::default(),
             scope: Scope::Cluster,
             count: Default::default(),
+            is_all_namespace: false,
         }
     }
 }
@@ -44,11 +46,24 @@ impl ResourcesInfo {
     pub fn from(context: String, namespace: Namespace, version: String, scope: Scope) -> Self {
         Self {
             context,
+            is_all_namespace: namespace.is_all(),
             namespace,
             version,
             scope,
             ..Default::default()
         }
+    }
+
+    /// Updates [`ResourcesInfo`] with data from the [`InitData`].  
+    /// **Note** that this update do not change the flag `is_all_namespace`.
+    /// This results in remembering if the `all` namespace was set by user or by [`InitData`].
+    pub fn update_from(&mut self, data: &InitData) {
+        self.namespace = data.namespace.clone();
+        self.name = data.name.clone();
+        self.kind = data.kind.clone();
+        self.kind_plural = data.kind_plural.clone();
+        self.group = data.group.clone();
+        self.scope = data.scope.clone();
     }
 
     /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
@@ -58,6 +73,42 @@ impl ResourcesInfo {
         }
 
         kind.contains('.') && format!("{}.{}", self.kind_plural, self.group) == kind
+    }
+
+    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
+    /// **Note** that it takes into account the flag for `all` namespace.
+    pub fn is_all_namespace(&self) -> bool {
+        if self.is_all_namespace {
+            true
+        } else {
+            self.namespace.is_all()
+        }
+    }
+
+    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
+    /// **Note** that it takes into account the flag for `all` namespace.
+    pub fn is_namespace_equal(&self, namespace: &Namespace) -> bool {
+        if self.is_all_namespace {
+            namespace.is_all()
+        } else {
+            self.namespace == *namespace
+        }
+    }
+
+    /// Sets new namespace.  
+    /// **Note** that it takes into account the flag for `all` namespace.
+    pub fn set_namespace(&mut self, namespace: Namespace) {
+        self.is_all_namespace = namespace.is_all();
+        self.namespace = namespace;
+    }
+
+    /// Gets namespace respecting the flag if it is an `all` namespace.
+    pub fn get_namespace(&self) -> Namespace {
+        if self.is_all_namespace {
+            Namespace::all()
+        } else {
+            self.namespace.clone()
+        }
     }
 }
 

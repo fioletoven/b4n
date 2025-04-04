@@ -309,7 +309,7 @@ fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
         return 0;
     };
 
-    if columns.len() > 0 && columns[0].to_right && columns[0].min_len() > columns[0].data_len {
+    if !columns.is_empty() && columns[0].to_right && columns[0].min_len() > columns[0].data_len {
         columns[0].min_len() - columns[0].data_len
     } else {
         0

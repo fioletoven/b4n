@@ -34,15 +34,23 @@ pub trait Persistable<T> {
     fn save(&self, path: &Path) -> impl Future<Output = Result<(), ConfigError>> + Send;
 }
 
+/// Kubernetes logs configuration.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Logs {
+    pub lines: Option<i64>,
+}
+
 /// Application configuration.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
+    pub logs: Logs,
     pub theme: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            logs: Logs { lines: Some(400) },
             theme: DEFAULT_THEME_NAME.to_owned(),
         }
     }
@@ -123,6 +131,6 @@ async fn load_or_create_default<T: Persistable<T> + Default>(path: &Path) -> Res
             let configuration = T::default();
             configuration.save(path).await?;
             Ok(configuration)
-        }
+        },
     }
 }

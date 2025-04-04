@@ -14,14 +14,16 @@ use crate::{
     ui::{ResponseEvent, utils::center},
 };
 
-use super::HeaderPane;
+use super::header::HeaderPane;
 
-/// YAML viewer with header and footer.
-pub struct YamlViewer {
+pub type StyledLines = Vec<Vec<(Style, String)>>;
+
+/// Content viewer with header.
+pub struct ContentViewer {
     pub header: HeaderPane,
     app_data: SharedAppData,
 
-    lines: Vec<Vec<(Style, String)>>,
+    lines: Option<StyledLines>,
     lines_width: usize,
 
     page_height: usize,
@@ -29,39 +31,79 @@ pub struct YamlViewer {
     page_vstart: usize,
     page_hstart: usize,
 
-    has_content: bool,
     creation_time: Instant,
 }
 
-impl YamlViewer {
-    /// Creates a new YAML viewer page.
-    pub fn new(app_data: SharedAppData, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data), name, namespace, kind_plural, is_decoded);
+impl ContentViewer {
+    /// Creates a new content viewer.
+    pub fn new(app_data: SharedAppData) -> Self {
+        let header = HeaderPane::new(Rc::clone(&app_data));
 
         Self {
             header,
             app_data,
-            lines: Vec::new(),
+            lines: None,
             lines_width: 0,
             page_height: 0,
             page_width: 0,
             page_vstart: 0,
             page_hstart: 0,
-            has_content: false,
             creation_time: Instant::now(),
         }
     }
 
     /// Sets header data.
-    pub fn set_header(&mut self, name: String, namespace: Namespace, kind_plural: String, is_decoded: bool) {
-        self.header.set_data(name, namespace, kind_plural, is_decoded);
+    pub fn with_header(
+        mut self,
+        title: &'static str,
+        icon: char,
+        namespace: Namespace,
+        kind: String,
+        name: String,
+        descr: Option<String>,
+    ) -> Self {
+        self.header.set_title(title);
+        self.header.set_icon(icon);
+        self.header.set_data(namespace, kind, name, descr);
+        self
     }
 
-    /// Sets styled YAML content to view.
-    pub fn set_content(&mut self, styled_lines: Vec<Vec<(Style, String)>>, max_width: usize) {
-        self.lines = styled_lines;
+    /// Sets header data.
+    pub fn set_header_data(&mut self, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
+        self.header.set_data(namespace, kind, name, descr);
+    }
+
+    /// Sets header title.
+    pub fn set_header_title(&mut self, title: &'static str) {
+        self.header.set_title(title);
+    }
+
+    /// Sets header icon.
+    pub fn set_header_icon(&mut self, icon: char) {
+        self.header.set_icon(icon);
+    }
+
+    /// Returns `true` if viewer has content.
+    pub fn has_content(&self) -> bool {
+        self.lines.is_some()
+    }
+
+    /// Sets styled content.
+    pub fn set_content(&mut self, styled_lines: StyledLines, max_width: usize) {
+        self.lines = Some(styled_lines);
         self.lines_width = max_width;
-        self.has_content = true;
+    }
+
+    /// Returns styled content as mutable reference.
+    pub fn content_mut(&mut self) -> Option<&mut StyledLines> {
+        self.lines.as_mut()
+    }
+
+    /// Updates max width for content lines.
+    pub fn update_max_width(&mut self, max_width: usize) {
+        if self.lines_width < max_width {
+            self.lines_width = max_width;
+        }
     }
 
     /// Updates page height.
@@ -71,14 +113,19 @@ impl YamlViewer {
         self.update_page_starts();
     }
 
-    /// Returns max vertical start of the page.
-    fn max_vstart(&self) -> usize {
-        self.lines.len().saturating_sub(self.page_height)
+    /// Scrolls content to the end.
+    pub fn scroll_to_start(&mut self) {
+        self.page_vstart = 0;
     }
 
-    /// Returns max horizontal start of the page.
-    fn max_hstart(&self) -> usize {
-        self.lines_width.saturating_sub(self.page_width)
+    /// Scrolls content to the end.
+    pub fn scroll_to_end(&mut self) {
+        self.page_vstart = self.max_vstart();
+    }
+
+    /// Returns `true` if view is showing the last part of the content.
+    pub fn is_at_end(&self) -> bool {
+        self.page_vstart == self.max_vstart()
     }
 
     /// Process UI key event.
@@ -88,7 +135,7 @@ impl YamlViewer {
             x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
             x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
                 self.page_hstart = self.page_hstart.saturating_sub(self.page_width)
-            }
+            },
             x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
             x if x.code == KeyCode::Right => self.page_hstart += 1,
             x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
@@ -102,14 +149,14 @@ impl YamlViewer {
             x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
             x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
 
-            _ => (),
+            _ => return ResponseEvent::NotHandled,
         }
 
         self.update_page_starts();
         ResponseEvent::Handled
     }
 
-    /// Draws [`YamlViewer`] on the provided frame and area.
+    /// Draws [`ContentViewer`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -118,12 +165,14 @@ impl YamlViewer {
 
         self.header.draw(frame, layout[0]);
 
-        if self.has_content {
+        if self.lines.is_some() {
             self.update_page(layout[1].height, layout[1].width);
 
             let start = self.page_vstart.clamp(0, self.max_vstart());
             let lines = self
                 .lines
+                .as_ref()
+                .unwrap()
                 .iter()
                 .skip(start)
                 .take(usize::from(layout[1].height))
@@ -137,6 +186,19 @@ impl YamlViewer {
             let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
             frame.render_widget(line, area);
         }
+    }
+
+    /// Returns max vertical start of the page.
+    fn max_vstart(&self) -> usize {
+        self.lines
+            .as_ref()
+            .map(|l| l.len().saturating_sub(self.page_height))
+            .unwrap_or(0)
+    }
+
+    /// Returns max horizontal start of the page.
+    fn max_hstart(&self) -> usize {
+        self.lines_width.saturating_sub(self.page_width)
     }
 
     fn update_page_starts(&mut self) {

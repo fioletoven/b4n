@@ -6,14 +6,12 @@ use crate::{
     app::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
-        resources::{Resource, ResourceFilterContext},
+        resources::{CONTAINERS, Resource, ResourceFilterContext},
     },
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
 };
 
 use super::{FilterableList, Header, Item, Row, ScrollableList};
-
-pub const CONTAINERS: &str = "containers";
 
 /// Kubernetes resources list.
 #[derive(Default)]
@@ -42,18 +40,18 @@ impl ResourcesList {
                 self.header.set_sort_info(sort_by, is_descending);
                 self.header_cache.invalidate();
                 true
-            }
+            },
             ObserverResult::InitDone => false,
             ObserverResult::Apply(resource) => {
                 self.update_list(resource, false);
                 self.sort_internal_list(sort_by, is_descending);
                 false
-            }
+            },
             ObserverResult::Delete(resource) => {
                 self.update_list(resource, true);
                 self.sort_internal_list(sort_by, is_descending);
                 false
-            }
+            },
         }
     }
 

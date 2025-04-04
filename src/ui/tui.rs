@@ -34,13 +34,13 @@ pub enum ResponseEvent {
     Handled,
     Cancelled,
     Accepted,
-    Action(String),
+    Action(&'static str),
 
     ExitApplication,
 
     Change(String, String),
     ChangeKind(String),
-    ChangeKindSelect(String, Option<String>),
+    ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
     ViewContainers(String, String),
@@ -52,13 +52,15 @@ pub enum ResponseEvent {
     DeleteResources,
 
     ViewYaml(String, String, bool),
+    ViewLogs(String, String, Option<String>),
+    ViewPreviousLogs(String, String, Option<String>),
 }
 
 impl ResponseEvent {
     /// Returns `true` if [`ResponseEvent`] is an action matching the provided name.
     pub fn is_action(&self, name: &str) -> bool {
         if let ResponseEvent::Action(action) = self {
-            action == name
+            *action == name
         } else {
             false
         }

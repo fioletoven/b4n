@@ -97,6 +97,16 @@ impl From<&str> for ResourceValue {
     }
 }
 
+impl From<bool> for ResourceValue {
+    fn from(value: bool) -> Self {
+        ResourceValue {
+            text: Some(value.to_string()),
+            number: None,
+            is_numeric: false,
+        }
+    }
+}
+
 /// Extra data for the kubernetes resource.
 pub struct ResourceData {
     pub is_job: bool,

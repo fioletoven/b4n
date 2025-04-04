@@ -17,6 +17,7 @@ pub struct HeaderColors {
     pub context: TextColors,
     pub namespace: TextColors,
     pub resource: TextColors,
+    pub name: TextColors,
     pub count: TextColors,
     pub info: TextColors,
     pub disconnected: TextColors,
@@ -75,6 +76,7 @@ pub struct SelectColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
     pub yaml: YamlSyntaxColors,
+    pub logs: LogsSyntaxColors,
 }
 
 /// Represents colors for YAML syntax highlighting.
@@ -85,6 +87,14 @@ pub struct YamlSyntaxColors {
     pub string: TextColors,
     pub numeric: TextColors,
     pub language: TextColors,
+    pub timestamp: TextColors,
+}
+
+/// Represents colors for logs syntax highlighting.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct LogsSyntaxColors {
+    pub string: TextColors,
+    pub error: TextColors,
     pub timestamp: TextColors,
 }
 
@@ -119,6 +129,7 @@ impl Default for Theme {
                     context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
                     namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
                     resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
+                    name: TextColors::bg(Color::DarkGray, Color::Rgb(229, 233, 240)),
                     count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
                     info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
                     disconnected: TextColors::bg(Color::White, Color::LightRed),
@@ -199,6 +210,11 @@ impl Default for Theme {
                         string: TextColors::new(Color::Gray),
                         numeric: TextColors::new(Color::Blue),
                         language: TextColors::new(Color::LightBlue),
+                        timestamp: TextColors::new(Color::Magenta),
+                    },
+                    logs: LogsSyntaxColors {
+                        string: TextColors::new(Color::Gray),
+                        error: TextColors::new(Color::Red),
                         timestamp: TextColors::new(Color::Magenta),
                     },
                 },
