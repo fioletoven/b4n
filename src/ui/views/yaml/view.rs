@@ -9,14 +9,17 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, TuiEvent,
-        views::{View, content::ContentViewer},
+        views::{
+            View,
+            content::{Content, ContentViewer, StyledLine},
+        },
         widgets::{Action, ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
 /// YAML view.
 pub struct YamlView {
-    pub yaml: ContentViewer,
+    yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     lines: Vec<String>,
@@ -109,11 +112,12 @@ impl View for YamlView {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
             let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
-            self.yaml.set_header_icon(icon);
+            self.yaml.header.set_icon(icon);
             self.yaml
-                .set_header_data(result.namespace, result.kind_plural, result.name, None);
+                .header
+                .set_data(result.namespace, result.kind_plural, result.name, None);
             self.yaml.set_content(
-                result.styled,
+                YamlContent { lines: result.styled },
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
             );
             self.lines = result.yaml;
@@ -168,5 +172,26 @@ impl View for YamlView {
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.yaml.draw(frame, area);
         self.command_palette.draw(frame, frame.area());
+    }
+}
+
+/// Styled YAML content.
+struct YamlContent {
+    lines: Vec<StyledLine>,
+}
+
+impl Content for YamlContent {
+    fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
+        if start >= self.lines.len() {
+            &[]
+        } else if start + count >= self.lines.len() {
+            &self.lines[start..]
+        } else {
+            &self.lines[start..start + count]
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.lines.len()
     }
 }

@@ -16,15 +16,24 @@ use crate::{
 
 use super::header::HeaderPane;
 
-pub type StyledLines = Vec<Vec<(Style, String)>>;
+pub type StyledLine = Vec<(Style, String)>;
+
+/// Content for the [`ContentViewer`].
+pub trait Content {
+    /// Returns page with [`StyledLine`]s.
+    fn page(&mut self, start: usize, count: usize) -> &[StyledLine];
+
+    /// Returns the current length of a [`Column`].
+    fn len(&self) -> usize;
+}
 
 /// Content viewer with header.
-pub struct ContentViewer {
+pub struct ContentViewer<T: Content> {
     pub header: HeaderPane,
     app_data: SharedAppData,
 
-    lines: Option<StyledLines>,
-    lines_width: usize,
+    content: Option<T>,
+    max_width: usize,
 
     page_height: usize,
     page_width: usize,
@@ -34,7 +43,7 @@ pub struct ContentViewer {
     creation_time: Instant,
 }
 
-impl ContentViewer {
+impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData) -> Self {
         let header = HeaderPane::new(Rc::clone(&app_data));
@@ -42,8 +51,8 @@ impl ContentViewer {
         Self {
             header,
             app_data,
-            lines: None,
-            lines_width: 0,
+            content: None,
+            max_width: 0,
             page_height: 0,
             page_width: 0,
             page_vstart: 0,
@@ -68,41 +77,26 @@ impl ContentViewer {
         self
     }
 
-    /// Sets header data.
-    pub fn set_header_data(&mut self, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
-        self.header.set_data(namespace, kind, name, descr);
-    }
-
-    /// Sets header title.
-    pub fn set_header_title(&mut self, title: &'static str) {
-        self.header.set_title(title);
-    }
-
-    /// Sets header icon.
-    pub fn set_header_icon(&mut self, icon: char) {
-        self.header.set_icon(icon);
-    }
-
     /// Returns `true` if viewer has content.
     pub fn has_content(&self) -> bool {
-        self.lines.is_some()
+        self.content.is_some()
     }
 
-    /// Sets styled content.
-    pub fn set_content(&mut self, styled_lines: StyledLines, max_width: usize) {
-        self.lines = Some(styled_lines);
-        self.lines_width = max_width;
+    /// Sets content for the viewer.
+    pub fn set_content(&mut self, content: T, max_width: usize) {
+        self.content = Some(content);
+        self.max_width = max_width;
     }
 
-    /// Returns styled content as mutable reference.
-    pub fn content_mut(&mut self) -> Option<&mut StyledLines> {
-        self.lines.as_mut()
+    /// Returns content as mutable reference.
+    pub fn content_mut(&mut self) -> Option<&mut T> {
+        self.content.as_mut()
     }
 
     /// Updates max width for content lines.
     pub fn update_max_width(&mut self, max_width: usize) {
-        if self.lines_width < max_width {
-            self.lines_width = max_width;
+        if self.max_width < max_width {
+            self.max_width = max_width;
         }
     }
 
@@ -111,11 +105,6 @@ impl ContentViewer {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
         self.update_page_starts();
-    }
-
-    /// Scrolls content to the end.
-    pub fn scroll_to_start(&mut self) {
-        self.page_vstart = 0;
     }
 
     /// Scrolls content to the end.
@@ -165,17 +154,16 @@ impl ContentViewer {
 
         self.header.draw(frame, layout[0]);
 
-        if self.lines.is_some() {
+        if self.content.is_some() {
             self.update_page(layout[1].height, layout[1].width);
 
             let start = self.page_vstart.clamp(0, self.max_vstart());
             let lines = self
-                .lines
-                .as_ref()
+                .content
+                .as_mut()
                 .unwrap()
+                .page(start, usize::from(layout[1].height))
                 .iter()
-                .skip(start)
-                .take(usize::from(layout[1].height))
                 .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
                 .collect::<Vec<_>>();
 
@@ -190,7 +178,7 @@ impl ContentViewer {
 
     /// Returns max vertical start of the page.
     fn max_vstart(&self) -> usize {
-        self.lines
+        self.content
             .as_ref()
             .map(|l| l.len().saturating_sub(self.page_height))
             .unwrap_or(0)
@@ -198,7 +186,7 @@ impl ContentViewer {
 
     /// Returns max horizontal start of the page.
     fn max_hstart(&self) -> usize {
-        self.lines_width.saturating_sub(self.page_width)
+        self.max_width.saturating_sub(self.page_width)
     }
 
     fn update_page_starts(&mut self) {

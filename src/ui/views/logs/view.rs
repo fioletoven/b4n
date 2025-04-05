@@ -8,7 +8,10 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
-        views::{View, content::ContentViewer},
+        views::{
+            View,
+            content::{Content, ContentViewer, StyledLine},
+        },
         widgets::{ActionsListBuilder, CommandPalette},
     },
 };
@@ -19,7 +22,7 @@ const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 
 /// Logs view.
 pub struct LogsView {
-    pub logs: ContentViewer,
+    logs: ContentViewer<LogsContent>,
     app_data: SharedAppData,
     observer: LogsObserver,
     command_palette: CommandPalette,
@@ -77,14 +80,15 @@ impl LogsView {
 impl View for LogsView {
     fn process_tick(&mut self) {
         if !self.observer.is_empty() {
-            let colors = &self.app_data.borrow().theme.colors.syntax.logs;
             if !self.logs.has_content() {
-                self.logs.set_content(Vec::with_capacity(INITIAL_LOGS_VEC_SIZE), 0);
+                self.logs
+                    .set_content(LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone()), 0);
             }
 
             let content = self.logs.content_mut().unwrap();
             let mut max_width = 0;
 
+            content.count = 0; // force re-render current logs page
             while let Some(chunk) = self.observer.try_next() {
                 for line in chunk.lines {
                     let width = line.message.chars().count() + 24;
@@ -92,7 +96,7 @@ impl View for LogsView {
                         max_width = width;
                     }
 
-                    content.push(style_log_line(line, colors));
+                    content.lines.push(line);
                 }
             }
 
@@ -128,11 +132,11 @@ impl View for LogsView {
 
         if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
             self.bound_to_bottom = true;
-            self.logs.set_header_icon('');
+            self.logs.header.set_icon('');
             self.logs.process_key(key);
         } else if self.logs.process_key(key) == ResponseEvent::Handled {
             self.bound_to_bottom = false;
-            self.logs.set_header_icon('');
+            self.logs.header.set_icon('');
         }
 
         ResponseEvent::Handled
@@ -150,13 +154,61 @@ impl Drop for LogsView {
     }
 }
 
-fn style_log_line(line: LogLine, colors: &LogsSyntaxColors) -> Vec<(Style, String)> {
+/// Logs content for [`LogsView`].
+struct LogsContent {
+    colors: LogsSyntaxColors,
+    lines: Vec<LogLine>,
+    page: Vec<StyledLine>,
+    start: usize,
+    count: usize,
+}
+
+impl LogsContent {
+    /// Returns new [`LogsContent`] instance.
+    fn new(colors: LogsSyntaxColors) -> Self {
+        Self {
+            colors,
+            lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
+            page: Vec::default(),
+            start: 0,
+            count: 0,
+        }
+    }
+}
+
+impl Content for LogsContent {
+    fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
+        if start >= self.lines.len() {
+            return &[];
+        }
+
+        let end = start + count;
+        let end = if end >= self.lines.len() { self.lines.len() } else { end };
+        if self.start != start || self.count != count {
+            self.start = start;
+            self.count = count;
+            self.page = Vec::with_capacity(end - start);
+
+            for line in &self.lines[start..end] {
+                self.page.push(style_log_line(line, &self.colors));
+            }
+        }
+
+        &self.page
+    }
+
+    fn len(&self) -> usize {
+        self.lines.len()
+    }
+}
+
+fn style_log_line(line: &LogLine, colors: &LogsSyntaxColors) -> Vec<(Style, String)> {
     let log_colors = if line.is_error { &colors.error } else { &colors.string };
     vec![
         (
             (&colors.timestamp).into(),
             line.datetime.format("%Y-%m-%d %H:%M:%S%.3f ").to_string(),
         ),
-        (log_colors.into(), line.message),
+        (log_colors.into(), line.message.clone()),
     ]
 }
