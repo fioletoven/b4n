@@ -147,6 +147,8 @@ impl View for LogsView {
                 self.toggle_timestamps();
                 return ResponseEvent::Handled;
             }
+
+            return response;
         }
 
         if self.process_command_palette_events(key) {
