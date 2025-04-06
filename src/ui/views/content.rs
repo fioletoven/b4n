@@ -93,10 +93,21 @@ impl<T: Content> ContentViewer<T> {
         self.content.as_mut()
     }
 
-    /// Updates max width for content lines.
-    pub fn update_max_width(&mut self, max_width: usize) {
-        if self.max_width < max_width {
-            self.max_width = max_width;
+    /// Adds value to the maximum width of content lines.
+    pub fn max_width_add(&mut self, rhs: usize) {
+        self.max_width = self.max_width.saturating_add(rhs);
+    }
+
+    /// Subtracts value from the maximum width of content lines.
+    pub fn max_width_sub(&mut self, rhs: usize) {
+        self.max_width = self.max_width.saturating_sub(rhs);
+    }
+
+    /// Updates max width for content lines.  
+    /// **Note** that it will not update the width if new one is smaller.
+    pub fn update_max_width(&mut self, new_max_width: usize) {
+        if self.max_width < new_max_width {
+            self.max_width = new_max_width;
         }
     }
 
@@ -115,6 +126,11 @@ impl<T: Content> ContentViewer<T> {
     /// Returns `true` if view is showing the last part of the content.
     pub fn is_at_end(&self) -> bool {
         self.page_vstart == self.max_vstart()
+    }
+
+    /// Resets horizontal scroll to start position.
+    pub fn reset_horizontal_scroll(&mut self) {
+        self.page_hstart = 0;
     }
 
     /// Process UI key event.

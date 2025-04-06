@@ -12,13 +12,15 @@ use crate::{
             View,
             content::{Content, ContentViewer, StyledLine},
         },
-        widgets::{ActionsListBuilder, CommandPalette},
+        widgets::{Action, ActionsListBuilder, CommandPalette},
     },
 };
 
 use super::{LogLine, LogsObserver, LogsObserverError, PodRef};
 
 const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
+const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
+const TIMESTAMP_TEXT_LENGTH: usize = 24;
 
 /// Logs view.
 pub struct LogsView {
@@ -67,12 +69,29 @@ impl LogsView {
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let builder = ActionsListBuilder::default().with_close().with_quit();
+            let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
+                Action::new("timestamps")
+                    .with_description("toggles the display of timestamps")
+                    .with_response(ResponseEvent::Action("timestamps")),
+            );
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
         } else {
             false
+        }
+    }
+
+    fn toggle_timestamps(&mut self) {
+        if let Some(content) = self.logs.content_mut() {
+            content.toggle_timestamps();
+            if content.show_timestamps {
+                self.logs.max_width_add(TIMESTAMP_TEXT_LENGTH);
+            } else {
+                self.logs.max_width_sub(TIMESTAMP_TEXT_LENGTH);
+            }
+
+            self.logs.reset_horizontal_scroll();
         }
     }
 }
@@ -91,7 +110,11 @@ impl View for LogsView {
             content.count = 0; // force re-render current logs page
             while let Some(chunk) = self.observer.try_next() {
                 for line in chunk.lines {
-                    let width = line.message.chars().count() + 24;
+                    let width = if content.show_timestamps {
+                        line.message.chars().count() + TIMESTAMP_TEXT_LENGTH
+                    } else {
+                        line.message.chars().count()
+                    };
                     if max_width < width {
                         max_width = width;
                     }
@@ -119,7 +142,11 @@ impl View for LogsView {
         }
 
         if self.command_palette.is_visible {
-            return self.command_palette.process_key(key);
+            let response = self.command_palette.process_key(key);
+            if response.is_action("timestamps") {
+                self.toggle_timestamps();
+                return ResponseEvent::Handled;
+            }
         }
 
         if self.process_command_palette_events(key) {
@@ -128,6 +155,11 @@ impl View for LogsView {
 
         if key.code == KeyCode::Esc {
             return ResponseEvent::Cancelled;
+        }
+
+        if key.code == KeyCode::Char('t') {
+            self.toggle_timestamps();
+            return ResponseEvent::Handled;
         }
 
         if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
@@ -156,6 +188,7 @@ impl Drop for LogsView {
 
 /// Logs content for [`LogsView`].
 struct LogsContent {
+    show_timestamps: bool,
     colors: LogsSyntaxColors,
     lines: Vec<LogLine>,
     page: Vec<StyledLine>,
@@ -167,11 +200,37 @@ impl LogsContent {
     /// Returns new [`LogsContent`] instance.
     fn new(colors: LogsSyntaxColors) -> Self {
         Self {
+            show_timestamps: true,
             colors,
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
             start: 0,
             count: 0,
+        }
+    }
+
+    fn toggle_timestamps(&mut self) {
+        self.show_timestamps = !self.show_timestamps;
+        self.count = 0;
+    }
+
+    fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
+        let log_colors = if line.is_error {
+            &self.colors.error
+        } else {
+            &self.colors.string
+        };
+
+        if self.show_timestamps {
+            vec![
+                (
+                    (&self.colors.timestamp).into(),
+                    line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string(),
+                ),
+                (log_colors.into(), line.message.clone()),
+            ]
+        } else {
+            vec![(log_colors.into(), line.message.clone())]
         }
     }
 }
@@ -190,7 +249,7 @@ impl Content for LogsContent {
             self.page = Vec::with_capacity(end - start);
 
             for line in &self.lines[start..end] {
-                self.page.push(style_log_line(line, &self.colors));
+                self.page.push(self.style_log_line(line));
             }
         }
 
@@ -200,15 +259,4 @@ impl Content for LogsContent {
     fn len(&self) -> usize {
         self.lines.len()
     }
-}
-
-fn style_log_line(line: &LogLine, colors: &LogsSyntaxColors) -> Vec<(Style, String)> {
-    let log_colors = if line.is_error { &colors.error } else { &colors.string };
-    vec![
-        (
-            (&colors.timestamp).into(),
-            line.datetime.format("%Y-%m-%d %H:%M:%S%.3f ").to_string(),
-        ),
-        (log_colors.into(), line.message.clone()),
-    ]
 }
