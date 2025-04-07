@@ -1,4 +1,7 @@
-use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
+use k8s_openapi::{
+    apimachinery::pkg::apis::meta::v1::Time,
+    chrono::{DateTime, Utc},
+};
 use kube::{
     ResourceExt,
     api::{ApiResource, DynamicObject},
@@ -18,8 +21,14 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
 }
 
 /// Formats kubernetes timestamp to a human-readable string.
+#[inline]
 pub fn format_timestamp(time: &Time) -> String {
-    let duration = Utc::now().signed_duration_since(time.0);
+    format_datetime(&time.0)
+}
+
+/// Formats datetime to a human-readable string.
+pub fn format_datetime(time: &DateTime<Utc>) -> String {
+    let duration = Utc::now().signed_duration_since(time);
     let days = duration.num_days();
     let hours = duration.num_hours() - (days * 24);
 
