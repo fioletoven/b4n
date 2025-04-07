@@ -40,7 +40,7 @@ General planned features:
 | Quit the application                    | `CTRL` + `c`    |                                                              |
 | Reverse selection                       | `CTRL` + ` `    |  (`CTRL` + `SPACE`)                                          |
 | Select resource                         | ` `             | (`SPACE`)                                                    |
-| Show / hide log timestams               | `t`             | works only in logs view                                      |
+| Show / hide log timestamps              | `t`             | Works only in logs view                                      |
 | Show command palette                    | `:`             | For example, entering `:q`↲ quits the app                    |
 | Show filter input                       | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
 | Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |

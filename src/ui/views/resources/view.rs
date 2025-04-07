@@ -170,18 +170,27 @@ impl ResourcesView {
         if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced && !self.table.has_containers() {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Right {
             self.res_selector.show_selected(self.table.kind_plural(), self.table.group());
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
             self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
+            self.filter.reset();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('/') {
             self.filter.show();
+            return ResponseEvent::Handled;
         }
 
         self.process_command_palette_events(key);
@@ -245,13 +254,13 @@ impl ResourcesView {
                     builder
                         .with_action(
                             Action::new("show logs")
-                                .with_description("shows containter logs")
+                                .with_description("shows container logs")
                                 .with_aliases(&["logs"])
                                 .with_response(ResponseEvent::Action("show_logs")),
                         )
                         .with_action(
                             Action::new("show previous logs")
-                                .with_description("shows containter previous logs")
+                                .with_description("shows container previous logs")
                                 .with_aliases(&["previous"])
                                 .with_response(ResponseEvent::Action("show_plogs")),
                         )
