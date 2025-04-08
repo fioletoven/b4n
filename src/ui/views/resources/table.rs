@@ -93,6 +93,15 @@ impl ResourcesTable {
         &self.list.items.data.group
     }
 
+    /// Returns resources kind and group separated with `.` (dot).
+    pub fn get_kind_with_group(&self) -> String {
+        if self.list.items.data.group.is_empty() {
+            self.list.items.data.kind_plural.to_owned()
+        } else {
+            format!("{}.{}", self.list.items.data.kind_plural, self.list.items.data.group)
+        }
+    }
+
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
         self.set_view(if namespace.is_all() {

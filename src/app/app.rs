@@ -321,7 +321,7 @@ impl App {
             };
             self.worker
                 .borrow_mut()
-                .delete_resources(resources, namespace, self.resources.kind_plural());
+                .delete_resources(resources, namespace, &self.resources.get_kind_with_group());
         }
 
         self.resources.deselect_all();
@@ -384,7 +384,7 @@ impl App {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.clone(),
             namespace.clone().into(),
-            self.resources.kind_plural(),
+            &self.resources.get_kind_with_group(),
             self.data.borrow().get_syntax_data(),
             decode,
         );

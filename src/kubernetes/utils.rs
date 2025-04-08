@@ -53,8 +53,8 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
 /// Kind value can be in the format `kind.group`.
 pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
     if kind.contains('.') {
-        let mut split = kind.splitn(2, '.');
-        get_resource_with_group(list, split.next().unwrap(), split.next().unwrap())
+        let (kind, group) = kind.split_once('.').unwrap();
+        get_resource_with_group(list, kind, group)
     } else {
         get_resource_no_group(list, kind)
     }
