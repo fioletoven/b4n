@@ -1,5 +1,16 @@
 # Change Log
 
+## 0.1.4 - 2025-04-08
+
+### Features
+
+- toggle timestamps in logs by pressing `t`
+- add views for the following resource types: DaemonSets, Deployments, Events, Jobs, ReplicaSets and StatefulSets
+
+### Bug fixes
+
+- ensure the resource group is respected in the YAML view and during resource deletion
+
 ## 0.1.3 - 2025-04-04
 
 ### Features

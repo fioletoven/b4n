@@ -68,11 +68,12 @@ impl ResourcesInfo {
 
     /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
     pub fn is_kind_equal(&self, kind: &str) -> bool {
-        if self.kind_plural == kind || self.kind.to_lowercase() == kind {
-            return true;
+        if kind.contains('.') {
+            let (kind, group) = kind.split_once('.').unwrap();
+            (self.kind_plural == kind || self.kind.to_lowercase() == kind) && self.group == group
+        } else {
+            (self.kind_plural == kind || self.kind.to_lowercase() == kind) && self.group.is_empty()
         }
-
-        kind.contains('.') && format!("{}.{}", self.kind_plural, self.group) == kind
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  

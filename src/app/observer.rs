@@ -423,7 +423,7 @@ impl EventsProcessor {
     }
 
     fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
-        if let Some(containers) = get_conatainers(object, array) {
+        if let Some(containers) = get_containers(object, array) {
             for c in containers.iter() {
                 let result = get_container_result(c, object, statuses_array, is_init, is_delete);
                 self.context_tx.send(Box::new(result)).unwrap();
@@ -437,7 +437,7 @@ impl EventsProcessor {
     }
 }
 
-fn get_conatainers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a Vec<Value>> {
+fn get_containers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a Vec<Value>> {
     object
         .data
         .get("spec")

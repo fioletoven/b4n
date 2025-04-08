@@ -1,4 +1,7 @@
-use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
+use k8s_openapi::{
+    apimachinery::pkg::apis::meta::v1::Time,
+    chrono::{DateTime, Utc},
+};
 use kube::{
     ResourceExt,
     api::{ApiResource, DynamicObject},
@@ -18,8 +21,14 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
 }
 
 /// Formats kubernetes timestamp to a human-readable string.
+#[inline]
 pub fn format_timestamp(time: &Time) -> String {
-    let duration = Utc::now().signed_duration_since(time.0);
+    format_datetime(&time.0)
+}
+
+/// Formats datetime to a human-readable string.
+pub fn format_datetime(time: &DateTime<Utc>) -> String {
+    let duration = Utc::now().signed_duration_since(time);
     let days = duration.num_days();
     let hours = duration.num_hours() - (days * 24);
 
@@ -44,8 +53,8 @@ pub fn format_timestamp(time: &Time) -> String {
 /// Kind value can be in the format `kind.group`.
 pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
     if kind.contains('.') {
-        let mut split = kind.splitn(2, '.');
-        get_resource_with_group(list, split.next().unwrap(), split.next().unwrap())
+        let (kind, group) = kind.split_once('.').unwrap();
+        get_resource_with_group(list, kind, group)
     } else {
         get_resource_no_group(list, kind)
     }

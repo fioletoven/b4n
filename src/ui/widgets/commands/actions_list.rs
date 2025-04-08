@@ -107,9 +107,9 @@ impl ActionsListBuilder {
     }
 
     /// Adds actions relevant to resources view.
-    pub fn with_resources_actions(self, is_disconnected: bool) -> Self {
+    pub fn with_resources_actions(self, is_deletable: bool) -> Self {
         let builder = self.with_context().with_quit();
-        if !is_disconnected { builder.with_delete() } else { builder }
+        if is_deletable { builder.with_delete() } else { builder }
     }
 
     /// Adds `quit` action.

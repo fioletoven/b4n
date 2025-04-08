@@ -1,26 +1,41 @@
+use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 
 use crate::{
     app::lists::Header,
+    kubernetes::utils::format_datetime,
     ui::{colors::TextColors, theme::Theme},
 };
 
 pub mod config_map;
 pub mod container;
+pub mod daemon_set;
 pub mod default;
+pub mod deployment;
+pub mod event;
+pub mod job;
 pub mod namespace;
 pub mod pod;
+pub mod replica_set;
 pub mod secret;
 pub mod service;
+pub mod stateful_set;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
 pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
     match kind {
         "ConfigMap" => config_map::data(object),
+        "DaemonSet" => daemon_set::data(object),
+        "Deployment" => deployment::data(object),
+        "Event" => event::data(object),
+        "Job" => job::data(object),
         "Namespace" => namespace::data(object),
         "Pod" => pod::data(object),
+        "ReplicaSet" => replica_set::data(object),
         "Secret" => secret::data(object),
         "Service" => service::data(object),
+        "StatefulSet" => stateful_set::data(object),
+
         _ => default::data(object),
     }
 }
@@ -28,12 +43,19 @@ pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for provided Kubernetes resource kind.
 pub fn get_header_data(kind: &str) -> Header {
     match kind {
-        "Container" => container::header(),
         "ConfigMap" => config_map::header(),
+        "DaemonSet" => daemon_set::header(),
+        "Deployment" => deployment::header(),
+        "Event" => event::header(),
+        "Job" => job::header(),
         "Namespace" => namespace::header(),
         "Pod" => pod::header(),
+        "ReplicaSet" => replica_set::header(),
         "Secret" => secret::header(),
         "Service" => service::header(),
+        "StatefulSet" => stateful_set::header(),
+
+        "Container" => container::header(),
         _ => default::header(),
     }
 }
@@ -50,6 +72,17 @@ impl ResourceValue {
     pub fn numeric(value: Option<impl Into<String>>, len: usize) -> Self {
         let text = value.map(|v| v.into());
         let numeric = text.as_deref().map(|v| format!("{0:0>1$}", v, len));
+        Self {
+            text,
+            number: numeric,
+            is_numeric: true,
+        }
+    }
+
+    /// Creates new [`ResourceValue`] instance as a datetime value.
+    pub fn datetime(value: Option<&DateTime<Utc>>) -> Self {
+        let text = value.map(format_datetime);
+        let numeric = value.map(|v| v.timestamp_millis().to_string());
         Self {
             text,
             number: numeric,

@@ -93,6 +93,15 @@ impl ResourcesTable {
         &self.list.items.data.group
     }
 
+    /// Returns resources kind and group separated with `.` (dot).
+    pub fn get_kind_with_group(&self) -> String {
+        if self.list.items.data.group.is_empty() {
+            self.list.items.data.kind_plural.to_owned()
+        } else {
+            format!("{}.{}", self.list.items.data.kind_plural, self.list.items.data.group)
+        }
+    }
+
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
         self.set_view(if namespace.is_all() {
@@ -101,7 +110,7 @@ impl ResourcesTable {
             ViewType::Compact
         });
 
-        if !self.app_data.borrow().current.is_namespace_equal(&namespace) {
+        if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);
             self.list.items.deselect_all();
         }
@@ -149,29 +158,27 @@ impl ResourcesTable {
         self.highlight_next = None;
 
         if key.code == KeyCode::Esc {
-            match self.kind_plural() {
-                NAMESPACES => (),
+            return match self.kind_plural() {
+                NAMESPACES => ResponseEvent::Handled,
                 CONTAINERS => {
                     let to_select = self.app_data.borrow().current.name.clone();
-                    return ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select);
+                    ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
                 },
-                _ => return ResponseEvent::ViewNamespaces,
-            }
+                _ => ResponseEvent::ViewNamespaces,
+            };
         }
 
         if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
-                match self.kind_plural() {
-                    NAMESPACES => return ResponseEvent::Change(PODS.to_owned(), selected_resource.name.clone()),
-                    PODS => {
-                        return ResponseEvent::ViewContainers(
-                            selected_resource.name.clone(),
-                            selected_resource.namespace.clone().unwrap_or_default(),
-                        );
-                    },
-                    CONTAINERS => return self.process_view_logs(selected_resource, false),
-                    _ => return self.process_view_yaml(selected_resource, false),
-                }
+                return match self.kind_plural() {
+                    NAMESPACES => ResponseEvent::Change(PODS.to_owned(), selected_resource.name.clone()),
+                    PODS => ResponseEvent::ViewContainers(
+                        selected_resource.name.clone(),
+                        selected_resource.namespace.clone().unwrap_or_default(),
+                    ),
+                    CONTAINERS => self.process_view_logs(selected_resource, false),
+                    _ => self.process_view_yaml(selected_resource, false),
+                };
             }
 
             if self.kind_plural() == CONTAINERS {

@@ -77,6 +77,7 @@ impl ResourcesView {
             pub fn kind_plural(&self) -> &str;
             pub fn scope(&self) -> &Scope;
             pub fn group(&self) -> &str;
+            pub fn get_kind_with_group(&self) -> String;
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
             pub fn set_namespace(&mut self, namespace: Namespace);
@@ -170,18 +171,27 @@ impl ResourcesView {
         if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced && !self.table.has_containers() {
             self.ns_selector
                 .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Right {
             self.res_selector.show_selected(self.table.kind_plural(), self.table.group());
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
             self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
+            self.filter.reset();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('/') {
             self.filter.show();
+            return ResponseEvent::Handled;
         }
 
         self.process_command_palette_events(key);
@@ -223,46 +233,46 @@ impl ResourcesView {
 
     fn process_command_palette_events(&mut self, key: KeyEvent) {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let actions = if self.app_data.borrow().is_connected {
-                let builder = ActionsListBuilder::from_kinds(&self.res_selector.select.items.list)
-                    .with_resources_actions(false)
-                    .with_action(
-                        Action::new("show YAML")
-                            .with_description("shows YAML of the selected resource")
-                            .with_aliases(&["yaml"])
-                            .with_response(ResponseEvent::Action("show_yaml")),
-                    );
-                if self.table.kind_plural() == "secrets" {
-                    builder
-                        .with_action(
-                            Action::new("decode")
-                                .with_description("shows decoded YAML of the selected secret")
-                                .with_aliases(&["decode", "x"])
-                                .with_response(ResponseEvent::Action("decode_yaml")),
-                        )
-                        .build()
-                } else if self.table.kind_plural() == CONTAINERS {
-                    builder
-                        .with_action(
-                            Action::new("show logs")
-                                .with_description("shows containter logs")
-                                .with_aliases(&["logs"])
-                                .with_response(ResponseEvent::Action("show_logs")),
-                        )
-                        .with_action(
-                            Action::new("show previous logs")
-                                .with_description("shows containter previous logs")
-                                .with_aliases(&["previous"])
-                                .with_response(ResponseEvent::Action("show_plogs")),
-                        )
-                        .build()
-                } else {
-                    builder.build()
-                }
+            let is_containers = self.table.kind_plural() == CONTAINERS;
+            let mut builder = if self.app_data.borrow().is_connected {
+                ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers)
             } else {
-                ActionsListBuilder::default().with_resources_actions(true).build()
+                ActionsListBuilder::default().with_resources_actions(false)
             };
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+
+            if is_containers {
+                builder = builder
+                    .with_action(
+                        Action::new("show logs")
+                            .with_description("shows container logs")
+                            .with_aliases(&["logs"])
+                            .with_response(ResponseEvent::Action("show_logs")),
+                    )
+                    .with_action(
+                        Action::new("show previous logs")
+                            .with_description("shows container previous logs")
+                            .with_aliases(&["previous"])
+                            .with_response(ResponseEvent::Action("show_plogs")),
+                    );
+            } else {
+                builder = builder.with_action(
+                    Action::new("show YAML")
+                        .with_description("shows YAML of the selected resource")
+                        .with_aliases(&["yaml"])
+                        .with_response(ResponseEvent::Action("show_yaml")),
+                );
+            }
+
+            if self.table.kind_plural() == "secrets" {
+                builder = builder.with_action(
+                    Action::new("decode")
+                        .with_description("shows decoded YAML of the selected secret")
+                        .with_aliases(&["decode", "x"])
+                        .with_response(ResponseEvent::Action("decode_yaml")),
+                );
+            }
+
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
         }
     }
