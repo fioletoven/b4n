@@ -45,13 +45,13 @@ async fn run_application(args: cli::Args) -> Result<()> {
     };
     history.set_kube_config_path(kube_config_path);
 
-    let resource = args.kind(history.get_kind(&context)).unwrap_or(PODS).to_owned();
-    let namespace = args.namespace(history.get_namespace(&context)).map(String::from);
+    let kind = args.kind(history.get_kind(&context)).unwrap_or(PODS).into();
+    let namespace = args.namespace(history.get_namespace(&context)).map(String::from).into();
 
     let config = Config::load_or_create().await?;
     let theme = config.load_or_create_theme().await?;
     let mut app = App::new(config, history, theme)?;
-    app.start(context, resource, namespace.into()).await?;
+    app.start(context, kind, namespace).await?;
 
     loop {
         if app.process_events()? == ExecutionFlow::Stop {

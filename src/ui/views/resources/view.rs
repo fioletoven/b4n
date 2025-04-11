@@ -10,7 +10,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     app::{ObserverResult, SharedAppData, SharedBgWorker},
     kubernetes::{
-        Namespace,
+        Kind, Namespace,
         kinds::{KindItem, KindsList},
         resources::{CONTAINERS, ResourceItem, ResourcesList},
     },
@@ -75,7 +75,7 @@ impl ResourcesView {
             pub fn kind_plural(&self) -> &str;
             pub fn scope(&self) -> &Scope;
             pub fn group(&self) -> &str;
-            pub fn get_kind_with_group(&self) -> String;
+            pub fn get_kind(&self) -> Kind;
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn set_namespace(&mut self, namespace: Namespace);

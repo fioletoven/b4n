@@ -1,6 +1,8 @@
+use super::resources::CONTAINERS;
+
 /// Represents kubernetes kind together with its group.  
 /// **Note** that it can be also used for plural names.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Kind {
     kind: String,
     index: Option<usize>,
@@ -23,6 +25,11 @@ impl Kind {
         let kind = kind.into();
         let index = kind.find('.');
         Self { kind, index }
+    }
+
+    /// Returnst `true` if kind represents containers.
+    pub fn is_containers(&self) -> bool {
+        self.kind == CONTAINERS
     }
 
     /// Returns `true` if kind has group.
@@ -54,9 +61,31 @@ impl Kind {
     }
 }
 
+impl PartialEq for Kind {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
 impl From<String> for Kind {
     fn from(value: String) -> Self {
         let index = value.find('.');
         Self { kind: value, index }
+    }
+}
+
+impl From<&str> for Kind {
+    fn from(value: &str) -> Self {
+        let index = value.find('.');
+        Self {
+            kind: value.to_owned(),
+            index,
+        }
+    }
+}
+
+impl From<Kind> for String {
+    fn from(value: Kind) -> Self {
+        value.kind
     }
 }

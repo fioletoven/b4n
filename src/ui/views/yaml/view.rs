@@ -6,7 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::{SharedAppData, SharedBgWorker, commands::CommandResult},
-    kubernetes::Namespace,
+    kubernetes::{Kind, Namespace},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{
@@ -37,10 +37,10 @@ impl YamlView {
         command_id: Option<String>,
         name: String,
         namespace: Namespace,
-        kind_plural: String,
+        kind: Kind,
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind_plural, name, None);
+        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind, name, None);
 
         Self {
             yaml,
@@ -75,7 +75,7 @@ impl YamlView {
                     .with_description("copies YAML to the clipboard")
                     .with_response(ResponseEvent::Action("copy")),
             );
-            if self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
+            if self.yaml.header.kind.as_str() == "secrets" && self.app_data.borrow().is_connected {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     ActionItem::new(action)
@@ -113,9 +113,7 @@ impl View for YamlView {
             let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
-            self.yaml
-                .header
-                .set_data(result.namespace, result.kind_plural, result.name, None);
+            self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
             self.yaml.set_content(
                 YamlContent { lines: result.styled },
                 result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
@@ -152,7 +150,7 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('x') && self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
+        if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == "secrets" && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         }

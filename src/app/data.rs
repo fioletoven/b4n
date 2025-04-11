@@ -63,11 +63,6 @@ impl ResourcesInfo {
         self.scope = data.scope.clone();
     }
 
-    /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
-    pub fn is_kind_equal(&self, kind: &str) -> bool {
-        self.kind.as_str() == kind
-    }
-
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_all_namespace(&self) -> bool {
@@ -148,12 +143,12 @@ impl AppData {
 
     /// Returns resource's `kind` and `namespace` from the history data.  
     /// **Note** that if provided `context` is not found in the history file, current context resource is used.
-    pub fn get_namespaced_resource_from_config(&self, context: &str) -> (String, Namespace) {
+    pub fn get_namespaced_resource_from_config(&self, context: &str) -> (Kind, Namespace) {
         if let Some(kind) = self.history.get_kind(context) {
             let namespace = self.history.get_namespace(context).unwrap_or_default();
-            (kind.to_owned(), namespace.into())
+            (kind.into(), namespace.into())
         } else {
-            (self.current.kind.as_str().to_owned(), self.current.namespace.clone())
+            (self.current.kind.clone(), self.current.namespace.clone())
         }
     }
 

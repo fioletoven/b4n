@@ -50,7 +50,7 @@ impl LogsView {
             if previous { "previous logs" } else { "logs" },
             '',
             pod_namespace,
-            PODS.to_owned(),
+            PODS.into(),
             pod_name,
             pod_container,
         );

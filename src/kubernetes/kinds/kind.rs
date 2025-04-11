@@ -14,7 +14,7 @@ pub struct KindItem {
 }
 
 impl KindItem {
-    /// Creates new [`KindRow`] instance.
+    /// Creates new [`KindItem`] instance.
     pub fn new(group: String, name: String, version: String) -> Self {
         let full_name = if group.is_empty() {
             name.clone()

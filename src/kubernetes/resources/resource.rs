@@ -38,7 +38,7 @@ pub struct ResourceItem {
 }
 
 impl ResourceItem {
-    /// Creates light [`Resource`] version just with name.
+    /// Creates light [`ResourceItem`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
             uid: Some(format!("_{}_", name)),
@@ -47,7 +47,7 @@ impl ResourceItem {
         }
     }
 
-    /// Creates [`Resource`] from kubernetes [`DynamicObject`].
+    /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
     pub fn from(kind: &str, object: DynamicObject) -> Self {
         let data = Some(get_resource_data(kind, &object));
         let filter = get_filter_metadata(&object);
@@ -67,7 +67,7 @@ impl ResourceItem {
         }
     }
 
-    /// Creates [`Resource`] from kubernetes pod container and its metadata.
+    /// Creates [`ResourceItem`] from kubernetes pod container and its metadata.
     pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
         Self {
@@ -228,7 +228,7 @@ impl Row for ResourceItem {
     }
 }
 
-/// Filtering context for [`Resource`].
+/// Filtering context for [`ResourceItem`].
 pub struct ResourceFilterContext {
     pattern: String,
     extended: Option<Expression>,

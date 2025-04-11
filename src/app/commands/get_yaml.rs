@@ -10,7 +10,7 @@ use syntect::easy::HighlightLines;
 
 use crate::{
     app::SyntaxData,
-    kubernetes::{self, Namespace, utils},
+    kubernetes::{self, Kind, Namespace, utils},
     ui::colors::from_syntect_color,
 };
 
@@ -52,7 +52,7 @@ pub enum ResourceYamlError {
 pub struct ResourceYamlResult {
     pub name: String,
     pub namespace: Namespace,
-    pub kind_plural: String,
+    pub kind: Kind,
     pub yaml: Vec<String>,
     pub styled: Vec<Vec<(Style, String)>>,
     pub is_decoded: bool,
@@ -62,6 +62,7 @@ pub struct ResourceYamlResult {
 pub struct GetResourceYamlCommand {
     name: String,
     namespace: Namespace,
+    kind: Kind,
     discovery: Option<(ApiResource, ApiCapabilities)>,
     client: Client,
     syntax: SyntaxData,
@@ -73,6 +74,7 @@ impl GetResourceYamlCommand {
     pub fn new(
         name: String,
         namespace: Namespace,
+        kind: Kind,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
         syntax: SyntaxData,
@@ -80,6 +82,7 @@ impl GetResourceYamlCommand {
         Self {
             name,
             namespace,
+            kind,
             discovery,
             client,
             syntax,
@@ -91,12 +94,13 @@ impl GetResourceYamlCommand {
     pub fn decode(
         name: String,
         namespace: Namespace,
+        kind: Kind,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
         syntax: SyntaxData,
     ) -> Self {
-        let decode = discovery.as_ref().is_some_and(|d| d.0.plural == "secrets");
-        let mut command = GetResourceYamlCommand::new(name, namespace, discovery, client, syntax);
+        let decode = kind.as_str() == "secrets";
+        let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, syntax);
         command.decode = decode;
         command
     }
@@ -108,7 +112,6 @@ impl GetResourceYamlCommand {
             return Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetNotSupported)));
         }
 
-        let plural = discovery.0.plural.clone();
         let client = kubernetes::client::get_dynamic_api(
             discovery.0,
             discovery.1,
@@ -119,7 +122,7 @@ impl GetResourceYamlCommand {
 
         match client.get(&self.name).await {
             Ok(resource) => Some(CommandResult::ResourceYaml(
-                style_resource(resource, self.syntax, self.name, self.namespace, plural, self.decode).await,
+                style_resource(resource, self.syntax, self.name, self.namespace, self.kind, self.decode).await,
             )),
             Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
@@ -131,7 +134,7 @@ async fn style_resource(
     data: SyntaxData,
     name: String,
     namespace: Namespace,
-    kind_plural: String,
+    kind: Kind,
     decode: bool,
 ) -> Result<ResourceYamlResult, ResourceYamlError> {
     tokio::task::spawn_blocking(move || {
@@ -161,7 +164,7 @@ async fn style_resource(
         Ok(ResourceYamlResult {
             name,
             namespace,
-            kind_plural,
+            kind,
             yaml: lines,
             styled,
             is_decoded: decode,

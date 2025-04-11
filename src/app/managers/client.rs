@@ -8,7 +8,7 @@ use crate::{
         commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
         utils::StateChangeTracker,
     },
-    kubernetes::Namespace,
+    kubernetes::{Kind, Namespace},
     ui::widgets::FooterMessage,
 };
 
@@ -19,7 +19,7 @@ struct RequestInfo {
     request_time: Instant,
     request_id: Option<String>,
     context: String,
-    kind: String,
+    kind: Kind,
     namespace: Namespace,
 }
 
@@ -57,7 +57,7 @@ impl KubernetesClientManager {
     }
 
     /// Sends command to create new Kubernetes client to the background executor.
-    pub fn request_new_client(&mut self, context: String, kind: String, namespace: Namespace) {
+    pub fn request_new_client(&mut self, context: String, kind: Kind, namespace: Namespace) {
         if let Some(connecting) = &self.request {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
         }
@@ -147,7 +147,7 @@ impl KubernetesClientManager {
     }
 
     /// Sends command to create new Kubernetes client to the background executor.
-    fn new_kubernetes_client(&mut self, context: String, kind: String, namespace: Namespace) -> RequestInfo {
+    fn new_kubernetes_client(&mut self, context: String, kind: Kind, namespace: Namespace) -> RequestInfo {
         let kube_config_path = self.app_data.borrow().history.kube_config_path().map(String::from);
         let cmd = NewKubernetesClientCommand::new(kube_config_path, context.clone(), kind.clone(), namespace.clone());
 
