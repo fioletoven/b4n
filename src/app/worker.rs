@@ -8,7 +8,7 @@ use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource},
+    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, kinds::KindItem, utils::get_resource},
     ui::widgets::FooterMessage,
 };
 
@@ -153,13 +153,13 @@ impl BgWorker {
     }
 
     /// Returns list of discovered kubernetes kinds.
-    pub fn get_kinds_list(&self) -> Option<Vec<Kind>> {
+    pub fn get_kinds_list(&self) -> Option<Vec<KindItem>> {
         self.list.as_ref().map(|discovery| {
             discovery
                 .iter()
                 .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                .map(|(ar, _)| Kind::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
-                .collect::<Vec<Kind>>()
+                .map(|(ar, _)| KindItem::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
+                .collect::<Vec<KindItem>>()
         })
     }
 

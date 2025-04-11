@@ -1,6 +1,6 @@
 use std::vec;
 
-use crate::app::lists::NAMESPACE;
+use crate::ui::lists::NAMESPACE;
 
 use super::*;
 

@@ -13,7 +13,7 @@ use crate::{
             View,
             content::{Content, ContentViewer, StyledLine},
         },
-        widgets::{Action, ActionsListBuilder, CommandPalette, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
@@ -71,14 +71,14 @@ impl YamlView {
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                Action::new("copy")
+                ActionItem::new("copy")
                     .with_description("copies YAML to the clipboard")
                     .with_response(ResponseEvent::Action("copy")),
             );
             if self.yaml.header.kind == "secrets" && self.app_data.borrow().is_connected {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
-                    Action::new(action)
+                    ActionItem::new(action)
                         .with_description(&format!("{}s the resource's data", action))
                         .with_response(ResponseEvent::Action("decode")),
                 );

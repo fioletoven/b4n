@@ -6,18 +6,21 @@ use crate::{
     app::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
-        resources::{CONTAINERS, Resource, ResourceFilterContext},
+        resources::{CONTAINERS, ResourceFilterContext, ResourceItem},
     },
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
+    ui::{
+        ResponseEvent, Responsive, Table, ViewType,
+        colors::TextColors,
+        lists::{FilterableList, Header, Item, Row, ScrollableList},
+        theme::Theme,
+    },
 };
-
-use super::{FilterableList, Header, Item, Row, ScrollableList};
 
 /// Kubernetes resources list.
 #[derive(Default)]
 pub struct ResourcesList {
     pub data: InitData,
-    pub list: ScrollableList<Resource, ResourceFilterContext>,
+    pub list: ScrollableList<ResourceItem, ResourceFilterContext>,
     header: Header,
     header_cache: HeaderCache,
 }
@@ -61,12 +64,12 @@ impl ResourcesList {
     }
 
     /// Gets highlighted resource.
-    pub fn get_highlighted_resource(&self) -> Option<&Resource> {
+    pub fn get_highlighted_resource(&self) -> Option<&ResourceItem> {
         self.list.get_highlighted_item().map(|i| &i.data)
     }
 
     /// Gets specific resource.
-    pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource> {
+    pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem> {
         self.list.items.as_ref().and_then(|items| {
             items
                 .full_iter()
@@ -86,16 +89,16 @@ impl ResourcesList {
 
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
-        self.header = Resource::header(&self.data.kind);
+        self.header = ResourceItem::header(&self.data.kind);
         self.header_cache.invalidate();
         self.list.clear();
         if self.data.kind_plural == NAMESPACES {
-            self.list.items = Some(FilterableList::from(vec![Item::fixed(Resource::new(ALL_NAMESPACES))]));
+            self.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
         }
     }
 
     /// Adds, updates or deletes `new_item` from the resources list.
-    fn update_list(&mut self, new_item: Resource, is_delete: bool) {
+    fn update_list(&mut self, new_item: ResourceItem, is_delete: bool) {
         if let Some(items) = &mut self.list.items {
             if is_delete {
                 if let Some(index) = items.full_iter().position(|i| i.data.uid() == new_item.uid()) {

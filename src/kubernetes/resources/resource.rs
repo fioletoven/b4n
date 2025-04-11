@@ -6,9 +6,13 @@ use kube::{
 use std::collections::BTreeMap;
 
 use crate::{
-    app::lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
     kubernetes,
-    ui::{ViewType, colors::TextColors, theme::Theme},
+    ui::{
+        ViewType,
+        colors::TextColors,
+        lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
+        theme::Theme,
+    },
     utils::{
         logical_expressions::{Expression, ExpressionExtensions, parse},
         truncate,
@@ -23,7 +27,7 @@ mod resource_tests;
 
 /// Represents kubernetes resource of any kind.
 #[derive(Default)]
-pub struct Resource {
+pub struct ResourceItem {
     pub uid: Option<String>,
     pub name: String,
     pub namespace: Option<String>,
@@ -33,7 +37,7 @@ pub struct Resource {
     pub data: Option<ResourceData>,
 }
 
-impl Resource {
+impl ResourceItem {
     /// Creates light [`Resource`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
@@ -173,7 +177,7 @@ impl Resource {
     }
 }
 
-impl Row for Resource {
+impl Row for ResourceItem {
     fn uid(&self) -> Option<&str> {
         self.uid.as_deref()
     }
@@ -236,7 +240,7 @@ impl FilterContext for ResourceFilterContext {
     }
 }
 
-impl Filterable<ResourceFilterContext> for Resource {
+impl Filterable<ResourceFilterContext> for ResourceItem {
     fn get_context(pattern: &str, settings: Option<&str>) -> ResourceFilterContext {
         let expression = if let Some(settings) = settings {
             if settings.contains('e') { parse(pattern).ok() } else { None }

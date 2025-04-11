@@ -1,17 +1,17 @@
 use std::time::{Duration, SystemTime};
 
 use crate::{
-    app::lists::{BasicFilterContext, Filterable, Row},
+    ui::lists::{BasicFilterContext, Filterable, Row},
     utils::{add_padding, truncate},
 };
 
 /// Filter pattern item.
-pub struct Pattern {
+pub struct PatternItem {
     pub value: String,
     pub creation_time: SystemTime,
 }
 
-impl Default for Pattern {
+impl Default for PatternItem {
     fn default() -> Self {
         Self {
             value: Default::default(),
@@ -20,7 +20,7 @@ impl Default for Pattern {
     }
 }
 
-impl std::fmt::Display for Pattern {
+impl std::fmt::Display for PatternItem {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -34,7 +34,7 @@ impl std::fmt::Display for Pattern {
     }
 }
 
-impl From<String> for Pattern {
+impl From<String> for PatternItem {
     fn from(value: String) -> Self {
         if value.contains("::") {
             let mut split = value.splitn(2, "::");
@@ -52,7 +52,7 @@ impl From<String> for Pattern {
     }
 }
 
-impl Row for Pattern {
+impl Row for PatternItem {
     fn uid(&self) -> Option<&str> {
         Some(&self.value)
     }
@@ -87,7 +87,7 @@ impl Row for Pattern {
     }
 }
 
-impl Filterable<BasicFilterContext> for Pattern {
+impl Filterable<BasicFilterContext> for PatternItem {
     fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
         pattern.to_owned().into()
     }

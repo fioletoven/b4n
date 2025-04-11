@@ -73,10 +73,10 @@ impl HeaderPane {
             ""
         };
 
-        let kind = if data.kind_plural == CONTAINERS {
+        let kind = if data.kind.name() == CONTAINERS {
             PODS
         } else {
-            &data.kind_plural
+            data.kind.name()
         };
 
         path.push(Span::styled(format!(" {} ", kind), &colors.resource));

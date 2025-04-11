@@ -2,7 +2,10 @@ use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
-use crate::{kubernetes::Namespace, ui::theme::Theme};
+use crate::{
+    kubernetes::{Kind, Namespace},
+    ui::theme::Theme,
+};
 
 use super::{Config, History, InitData};
 
@@ -16,9 +19,7 @@ pub struct ResourcesInfo {
     pub namespace: Namespace,
     pub version: String,
     pub name: Option<String>,
-    pub kind: String,
-    pub kind_plural: String,
-    pub group: String,
+    pub kind: Kind,
     pub scope: Scope,
     pub count: usize,
     is_all_namespace: bool,
@@ -32,8 +33,6 @@ impl Default for ResourcesInfo {
             version: Default::default(),
             name: None,
             kind: Default::default(),
-            kind_plural: Default::default(),
-            group: Default::default(),
             scope: Scope::Cluster,
             count: Default::default(),
             is_all_namespace: false,
@@ -60,20 +59,13 @@ impl ResourcesInfo {
     pub fn update_from(&mut self, data: &InitData) {
         self.namespace = data.namespace.clone();
         self.name = data.name.clone();
-        self.kind = data.kind.clone();
-        self.kind_plural = data.kind_plural.clone();
-        self.group = data.group.clone();
+        self.kind = Kind::new(&data.kind_plural, &data.group);
         self.scope = data.scope.clone();
     }
 
     /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
     pub fn is_kind_equal(&self, kind: &str) -> bool {
-        if kind.contains('.') {
-            let (kind, group) = kind.split_once('.').unwrap();
-            (self.kind_plural == kind || self.kind.to_lowercase() == kind) && self.group == group
-        } else {
-            (self.kind_plural == kind || self.kind.to_lowercase() == kind) && self.group.is_empty()
-        }
+        self.kind.as_str() == kind
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
@@ -157,12 +149,11 @@ impl AppData {
     /// Returns resource's `kind` and `namespace` from the history data.  
     /// **Note** that if provided `context` is not found in the history file, current context resource is used.
     pub fn get_namespaced_resource_from_config(&self, context: &str) -> (String, Namespace) {
-        let kind = self.history.get_kind(context);
-        if kind.is_none() {
-            (self.current.kind_plural.clone(), self.current.namespace.clone())
-        } else {
+        if let Some(kind) = self.history.get_kind(context) {
             let namespace = self.history.get_namespace(context).unwrap_or_default();
-            (kind.unwrap_or_default().to_owned(), namespace.into())
+            (kind.to_owned(), namespace.into())
+        } else {
+            (self.current.kind.as_str().to_owned(), self.current.namespace.clone())
         }
     }
 

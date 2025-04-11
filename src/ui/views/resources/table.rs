@@ -8,15 +8,12 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{
-        ObserverResult, ResourcesInfo, SharedAppData,
-        lists::{ResourcesList, Row},
-    },
+    app::{ObserverResult, ResourcesInfo, SharedAppData},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
-        resources::{CONTAINERS, PODS, Resource},
+        resources::{CONTAINERS, PODS, ResourceItem, ResourcesList},
     },
-    ui::{Responsive, Table, ViewType, tui::ResponseEvent},
+    ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent},
 };
 
 use super::{HeaderPane, ListPane};
@@ -73,7 +70,7 @@ impl ResourcesTable {
         to self.list.items {
             pub fn deselect_all(&mut self);
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
-            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
+            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn has_containers(&self) -> bool;
         }
     }
@@ -208,7 +205,7 @@ impl ResourcesTable {
         self.list.draw(frame, layout[1]);
     }
 
-    fn process_view_yaml(&self, resource: &Resource, decode: bool) -> ResponseEvent {
+    fn process_view_yaml(&self, resource: &ResourceItem, decode: bool) -> ResponseEvent {
         if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
             ResponseEvent::ViewYaml(resource.name().to_owned(), resource.group().to_owned(), decode)
         } else {
@@ -216,7 +213,7 @@ impl ResourcesTable {
         }
     }
 
-    fn process_view_logs(&self, selected_resource: &Resource, previous: bool) -> ResponseEvent {
+    fn process_view_logs(&self, selected_resource: &ResourceItem, previous: bool) -> ResponseEvent {
         if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
             if previous {
                 ResponseEvent::ViewPreviousLogs(

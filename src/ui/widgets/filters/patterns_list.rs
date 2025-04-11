@@ -1,23 +1,25 @@
 use delegate::delegate;
 use std::collections::HashMap;
 
-use crate::{
-    app::lists::{BasicFilterContext, ScrollableList},
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
+use crate::ui::{
+    ResponseEvent, Responsive, Table, ViewType,
+    colors::TextColors,
+    lists::{BasicFilterContext, ScrollableList},
+    theme::Theme,
 };
 
-use super::Pattern;
+use super::PatternItem;
 
 /// Filter patterns list.
 #[derive(Default)]
 pub struct PatternsList {
-    pub list: ScrollableList<Pattern, BasicFilterContext>,
+    pub list: ScrollableList<PatternItem, BasicFilterContext>,
 }
 
 impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
     pub fn from(filter_history: Vec<String>) -> Self {
-        let mut list = ScrollableList::from(filter_history.into_iter().map(Pattern::from).collect());
+        let mut list = ScrollableList::from(filter_history.into_iter().map(PatternItem::from).collect());
         list.sort(1, false);
         Self { list }
     }

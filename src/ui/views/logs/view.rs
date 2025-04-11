@@ -12,7 +12,7 @@ use crate::{
             View,
             content::{Content, ContentViewer, StyledLine},
         },
-        widgets::{Action, ActionsListBuilder, CommandPalette},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette},
     },
 };
 
@@ -70,7 +70,7 @@ impl LogsView {
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                Action::new("timestamps")
+                ActionItem::new("timestamps")
                     .with_description("toggles the display of timestamps")
                     .with_response(ResponseEvent::Action("timestamps")),
             );

@@ -28,7 +28,7 @@ use crate::{
     kubernetes::{
         Namespace,
         client::KubernetesClient,
-        resources::{CONTAINERS, Resource},
+        resources::{CONTAINERS, ResourceItem},
     },
     ui::widgets::FooterMessage,
 };
@@ -49,13 +49,13 @@ pub enum BgObserverError {
 pub enum ObserverResult {
     Init(InitData),
     InitDone,
-    Apply(Resource),
-    Delete(Resource),
+    Apply(ResourceItem),
+    Delete(ResourceItem),
 }
 
 impl ObserverResult {
     /// Creates new [`ObserverResult`] for resource.
-    pub fn new(resource: Resource, is_delete: bool) -> Self {
+    pub fn new(resource: ResourceItem, is_delete: bool) -> Self {
         if is_delete {
             Self::Delete(resource)
         } else {
@@ -432,7 +432,7 @@ impl EventsProcessor {
     }
 
     fn send_resource(&self, object: DynamicObject, is_delete: bool) {
-        let result = ObserverResult::new(Resource::from(&self.init_data.kind, object), is_delete);
+        let result = ObserverResult::new(ResourceItem::from(&self.init_data.kind, object), is_delete);
         self.context_tx.send(Box::new(result)).unwrap();
     }
 }
@@ -460,7 +460,7 @@ fn get_container_result(
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        Resource::from_container(container, status, &object.metadata, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, is_init_container),
         is_delete,
     )
 }
