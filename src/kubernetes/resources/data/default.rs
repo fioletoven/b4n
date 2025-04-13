@@ -2,8 +2,8 @@ use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    app::lists::{Header, NAMESPACE},
     kubernetes::resources::ResourceData,
+    ui::lists::{Header, NAMESPACE},
 };
 
 /// Returns [`ResourceData`] for any kubernetes resource.

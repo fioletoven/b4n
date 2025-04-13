@@ -3,8 +3,8 @@ use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    app::lists::{Column, Header, NAMESPACE},
     kubernetes::resources::{ResourceData, ResourceValue},
+    ui::lists::{Column, Header, NAMESPACE},
 };
 
 /// Returns [`ResourceData`] for the `job` kubernetes resource.

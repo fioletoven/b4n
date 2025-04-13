@@ -8,6 +8,8 @@ use kube::{
     discovery::ApiCapabilities,
 };
 
+use super::Kind;
+
 /// Serializes kubernetes resource to YAML.
 pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_yaml::Error> {
     resource.managed_fields_mut().clear();
@@ -51,12 +53,11 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
 
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.  
 /// Kind value can be in the format `kind.group`.
-pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
-    if kind.contains('.') {
-        let (kind, group) = kind.split_once('.').unwrap();
-        get_resource_with_group(list, kind, group)
+pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &Kind) -> Option<(ApiResource, ApiCapabilities)> {
+    if kind.has_group() {
+        get_resource_with_group(list, kind.name(), kind.group())
     } else {
-        get_resource_no_group(list, kind)
+        get_resource_no_group(list, kind.as_str())
     }
 }
 

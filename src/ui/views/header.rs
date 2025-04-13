@@ -5,14 +5,17 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{app::SharedAppData, kubernetes::Namespace};
+use crate::{
+    app::SharedAppData,
+    kubernetes::{Kind, Namespace},
+};
 
 /// Header pane that shows resource namespace, kind and name.
 pub struct HeaderPane {
     pub title: &'static str,
     pub icon: char,
     pub namespace: Namespace,
-    pub kind: String,
+    pub kind: Kind,
     pub name: String,
     pub descr: Option<String>,
     app_data: SharedAppData,
@@ -27,7 +30,7 @@ impl HeaderPane {
             title: "",
             icon: ' ',
             namespace: Namespace::all(),
-            kind: String::new(),
+            kind: Kind::default(),
             name: String::new(),
             descr: None,
             app_data,
@@ -37,7 +40,7 @@ impl HeaderPane {
     }
 
     /// Sets header data.
-    pub fn set_data(&mut self, namespace: Namespace, kind: String, name: String, descr: Option<String>) {
+    pub fn set_data(&mut self, namespace: Namespace, kind: Kind, name: String, descr: Option<String>) {
         self.namespace = namespace;
         self.kind = kind;
         self.name = name;
@@ -96,7 +99,7 @@ impl HeaderPane {
             Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
-            Span::styled(format!(" {} ", self.kind.to_lowercase()), &colors.resource),
+            Span::styled(format!(" {} ", self.kind.as_str().to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
             Span::styled(format!(" {} ", self.name.to_lowercase()), &colors.name),
         ];

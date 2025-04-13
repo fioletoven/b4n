@@ -9,7 +9,6 @@ pub use self::worker::*;
 
 pub mod commands;
 pub mod discovery;
-pub mod lists;
 pub mod utils;
 
 mod app;

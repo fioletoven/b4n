@@ -3,15 +3,20 @@ use kube::config::NamedContext;
 use std::collections::HashMap;
 
 use crate::{
-    app::lists::{BasicFilterContext, ScrollableList},
-    kubernetes::resources::Kind,
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme, widgets::Action},
+    kubernetes::kinds::KindItem,
+    ui::{
+        ResponseEvent, Responsive, Table, ViewType,
+        colors::TextColors,
+        lists::{BasicFilterContext, ScrollableList},
+        theme::Theme,
+        widgets::ActionItem,
+    },
 };
 
 /// UI actions list.
 #[derive(Default)]
 pub struct ActionsList {
-    pub list: ScrollableList<Action, BasicFilterContext>,
+    pub list: ScrollableList<ActionItem, BasicFilterContext>,
     header: String,
     width: usize,
 }
@@ -67,15 +72,18 @@ impl Table for ActionsList {
 /// Helper to build [`ActionsList`].
 #[derive(Default)]
 pub struct ActionsListBuilder {
-    actions: Vec<Action>,
+    actions: Vec<ActionItem>,
 }
 
 impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: &ScrollableList<Kind, BasicFilterContext>) -> Self {
+    pub fn from_kinds(kinds: &ScrollableList<KindItem, BasicFilterContext>) -> Self {
         ActionsListBuilder {
             actions: if let Some(items) = &kinds.items {
-                items.full_iter().map(|i| Action::from_kind(&i.data)).collect::<Vec<Action>>()
+                items
+                    .full_iter()
+                    .map(|i| ActionItem::from_kind(&i.data))
+                    .collect::<Vec<ActionItem>>()
             } else {
                 Vec::new()
             },
@@ -85,7 +93,7 @@ impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.
     pub fn from_contexts(contexts: &[NamedContext]) -> Self {
         ActionsListBuilder {
-            actions: contexts.iter().map(Action::from_context).collect::<Vec<Action>>(),
+            actions: contexts.iter().map(ActionItem::from_context).collect::<Vec<ActionItem>>(),
         }
     }
 
@@ -101,7 +109,7 @@ impl ActionsListBuilder {
     }
 
     /// Adds custom action.
-    pub fn with_action(mut self, action: Action) -> Self {
+    pub fn with_action(mut self, action: ActionItem) -> Self {
         self.actions.push(action);
         self
     }
@@ -115,7 +123,7 @@ impl ActionsListBuilder {
     /// Adds `quit` action.
     pub fn with_quit(mut self) -> Self {
         self.actions.push(
-            Action::new("quit")
+            ActionItem::new("quit")
                 .with_description("exits the application")
                 .with_aliases(&["q", "exit"])
                 .with_response(ResponseEvent::ExitApplication),
@@ -126,7 +134,7 @@ impl ActionsListBuilder {
     /// Adds `close` action.
     pub fn with_close(mut self) -> Self {
         self.actions.push(
-            Action::new("close")
+            ActionItem::new("close")
                 .with_description("closes the current view")
                 .with_aliases(&["cancel"])
                 .with_response(ResponseEvent::Cancelled),
@@ -137,7 +145,7 @@ impl ActionsListBuilder {
     /// Adds `context` action.
     pub fn with_context(mut self) -> Self {
         self.actions.push(
-            Action::new("context")
+            ActionItem::new("context")
                 .with_description("changes the current kube context")
                 .with_aliases(&["ctx"])
                 .with_response(ResponseEvent::ListKubeContexts),
@@ -148,7 +156,7 @@ impl ActionsListBuilder {
     /// Adds `delete` action.
     pub fn with_delete(mut self) -> Self {
         self.actions.push(
-            Action::new("delete")
+            ActionItem::new("delete")
                 .with_description("deletes selected resources")
                 .with_aliases(&["del"])
                 .with_response(ResponseEvent::AskDeleteResources),

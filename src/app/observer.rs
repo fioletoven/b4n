@@ -26,9 +26,9 @@ use tracing::{error, warn};
 
 use crate::{
     kubernetes::{
-        Namespace,
+        Kind, Namespace,
         client::KubernetesClient,
-        resources::{CONTAINERS, Resource},
+        resources::{CONTAINERS, PODS, ResourceItem},
     },
     ui::widgets::FooterMessage,
 };
@@ -49,13 +49,13 @@ pub enum BgObserverError {
 pub enum ObserverResult {
     Init(InitData),
     InitDone,
-    Apply(Resource),
-    Delete(Resource),
+    Apply(ResourceItem),
+    Delete(ResourceItem),
 }
 
 impl ObserverResult {
     /// Creates new [`ObserverResult`] for resource.
-    pub fn new(resource: Resource, is_delete: bool) -> Self {
+    pub fn new(resource: ResourceItem, is_delete: bool) -> Self {
         if is_delete {
             Self::Delete(resource)
         } else {
@@ -114,17 +114,17 @@ impl InitData {
 }
 
 /// Points to the specific kubernetes resource.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct ResourceRef {
     pub name: Option<String>,
-    pub kind: String,
+    pub kind: Kind,
     pub namespace: Namespace,
     pub is_container: bool,
 }
 
 impl ResourceRef {
     /// Creates new [`ResourceRef`] for kubernetes resource expressed as `kind` and `namespace`.
-    pub fn new(resource_kind: String, resource_namespace: Namespace) -> Self {
+    pub fn new(resource_kind: Kind, resource_namespace: Namespace) -> Self {
         Self {
             name: None,
             kind: resource_kind,
@@ -137,7 +137,7 @@ impl ResourceRef {
     pub fn container(pod_name: String, pod_namespace: Namespace) -> Self {
         Self {
             name: Some(pod_name),
-            kind: "Pod".to_owned(),
+            kind: PODS.into(),
             namespace: pod_namespace,
             is_container: true,
         }
@@ -231,14 +231,14 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_kind` or `new_namespace` is different than the current one.
+    /// Restarts [`BgObserver`] task if `new_resource` is different than the current one.
     pub fn restart(
         &mut self,
         client: &KubernetesClient,
         new_resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.kind != new_resource.kind || self.resource.namespace != new_resource.namespace {
+        if self.resource != new_resource {
             self.start(client, new_resource, discovery)?;
         }
 
@@ -250,11 +250,11 @@ impl BgObserver {
     pub fn restart_new_kind(
         &mut self,
         client: &KubernetesClient,
-        new_kind: String,
+        new_kind: Kind,
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.kind != new_kind {
+        if self.resource.kind != new_kind || self.resource.is_container != new_kind.is_containers() {
             let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
                 ResourceRef::new(new_kind, new_namespace)
             } else {
@@ -275,7 +275,7 @@ impl BgObserver {
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         if self.resource.is_container {
-            let resource = ResourceRef::new("Pod".to_owned(), new_namespace);
+            let resource = ResourceRef::new(PODS.into(), new_namespace);
             self.start(client, resource, discovery)?;
         } else if self.resource.namespace != new_namespace {
             let resource = ResourceRef::new(self.resource.kind.clone(), new_namespace);
@@ -328,7 +328,7 @@ impl BgObserver {
     }
 
     /// Returns currently observed resource kind.
-    pub fn get_resource_kind(&self) -> &str {
+    pub fn get_resource_kind(&self) -> &Kind {
         &self.resource.kind
     }
 
@@ -432,7 +432,7 @@ impl EventsProcessor {
     }
 
     fn send_resource(&self, object: DynamicObject, is_delete: bool) {
-        let result = ObserverResult::new(Resource::from(&self.init_data.kind, object), is_delete);
+        let result = ObserverResult::new(ResourceItem::from(&self.init_data.kind, object), is_delete);
         self.context_tx.send(Box::new(result)).unwrap();
     }
 }
@@ -460,7 +460,7 @@ fn get_container_result(
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        Resource::from_container(container, status, &object.metadata, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, is_init_container),
         is_delete,
     )
 }

@@ -3,7 +3,7 @@ use thiserror;
 
 use crate::{
     app::discovery::convert_to_vector,
-    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::PODS, utils::get_resource},
+    kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, resources::PODS, utils::get_resource},
 };
 
 use super::CommandResult;
@@ -27,7 +27,7 @@ pub enum KubernetesClientError {
 /// Result for the [`NewKubernetesClientCommand`].
 pub struct KubernetesClientResult {
     pub client: KubernetesClient,
-    pub kind: String,
+    pub kind: Kind,
     pub namespace: Namespace,
     pub discovery: Vec<(ApiResource, ApiCapabilities)>,
 }
@@ -36,13 +36,13 @@ pub struct KubernetesClientResult {
 pub struct NewKubernetesClientCommand {
     pub kube_config_path: Option<String>,
     pub context: String,
-    pub kind: String,
+    pub kind: Kind,
     pub namespace: Namespace,
 }
 
 impl NewKubernetesClientCommand {
     /// Creates new [`NewKubernetesClientCommand`] instance.
-    pub fn new(kube_config_path: Option<String>, context: String, kind: String, namespace: Namespace) -> Self {
+    pub fn new(kube_config_path: Option<String>, context: String, kind: Kind, namespace: Namespace) -> Self {
         Self {
             kube_config_path,
             context,
@@ -64,9 +64,9 @@ impl NewKubernetesClientCommand {
         let kind = if get_resource(Some(&discovery), &self.kind).is_some() {
             self.kind
         } else {
-            PODS.to_owned()
+            PODS.into()
         };
-        let Some(namespaces) = get_resource(Some(&discovery), NAMESPACES) else {
+        let Some(namespaces) = get_resource(Some(&discovery), &NAMESPACES.into()) else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
         };
         let namespaces = client.get_api(namespaces.0, namespaces.1, None, true);

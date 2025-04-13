@@ -1,26 +1,28 @@
 use delegate::delegate;
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    kubernetes::resources::Kind,
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors, theme::Theme},
+use crate::ui::{
+    ResponseEvent, Responsive, Table, ViewType,
+    colors::TextColors,
+    lists::{BasicFilterContext, FilterableList, Item, Row, ScrollableList},
+    theme::Theme,
 };
 
-use super::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
+use super::KindItem;
 
-type KindFilterableList = FilterableList<Item<Kind, BasicFilterContext>, BasicFilterContext>;
+type KindFilterableList = FilterableList<Item<KindItem, BasicFilterContext>, BasicFilterContext>;
 
 /// Kubernetes kinds list.
 #[derive(Default)]
 pub struct KindsList {
-    pub list: ScrollableList<Kind, BasicFilterContext>,
+    pub list: ScrollableList<KindItem, BasicFilterContext>,
     header: String,
     width: usize,
 }
 
 impl KindsList {
     /// Updates [`KindsList`] with new data from [`Vec<Kind>`].
-    pub fn update(&mut self, kinds: Option<Vec<Kind>>, sort_by: usize, is_descending: bool) {
+    pub fn update(&mut self, kinds: Option<Vec<KindItem>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {
             self.list.dirty(false);
 
@@ -83,7 +85,7 @@ impl Table for KindsList {
     }
 }
 
-fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<Kind>) {
+fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 
@@ -109,7 +111,7 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<Kind>) {
     mark_multiple(old_list, &multiple);
 }
 
-fn create_new_list(new_list: Vec<Kind>) -> Option<KindFilterableList> {
+fn create_new_list(new_list: Vec<KindItem>) -> Option<KindFilterableList> {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 

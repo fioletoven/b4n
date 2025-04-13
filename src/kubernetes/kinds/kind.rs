@@ -1,10 +1,10 @@
 use crate::{
-    app::lists::{BasicFilterContext, Filterable, Row},
+    ui::lists::{BasicFilterContext, Filterable, Row},
     utils::truncate,
 };
 
 /// Represents kubernetes kind.
-pub struct Kind {
+pub struct KindItem {
     pub uid: Option<String>,
     pub group: String,
     pub name: String,
@@ -13,8 +13,8 @@ pub struct Kind {
     pub multiple: bool,
 }
 
-impl Kind {
-    /// Creates new [`Kind`] instance.
+impl KindItem {
+    /// Creates new [`KindItem`] instance.
     pub fn new(group: String, name: String, version: String) -> Self {
         let full_name = if group.is_empty() {
             name.clone()
@@ -33,7 +33,7 @@ impl Kind {
     }
 }
 
-impl Row for Kind {
+impl Row for KindItem {
     fn uid(&self) -> Option<&str> {
         self.uid.as_deref()
     }
@@ -68,7 +68,7 @@ impl Row for Kind {
     }
 }
 
-impl Filterable<BasicFilterContext> for Kind {
+impl Filterable<BasicFilterContext> for KindItem {
     fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
         pattern.to_owned().into()
     }

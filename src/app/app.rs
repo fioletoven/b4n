@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use tracing::warn;
 
 use crate::{
-    kubernetes::{NAMESPACES, Namespace},
+    kubernetes::{Kind, NAMESPACES, Namespace},
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
@@ -68,7 +68,7 @@ impl App {
     }
 
     /// Starts app with initial data.
-    pub async fn start(&mut self, context: String, kind: String, namespace: Namespace) -> Result<()> {
+    pub async fn start(&mut self, context: String, kind: Kind, namespace: Namespace) -> Result<()> {
         self.client_manager
             .request_new_client(context.clone(), kind, namespace.clone());
         self.resources
@@ -173,9 +173,9 @@ impl App {
         } else {
             match self.resources.process_event(event) {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-                ResponseEvent::Change(kind, namespace) => self.change(kind, namespace.into())?,
-                ResponseEvent::ChangeKind(kind) => self.change_kind(kind, None)?,
-                ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind, to_select)?,
+                ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,
+                ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
+                ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
                 ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
                 ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
@@ -229,12 +229,12 @@ impl App {
     }
 
     /// Changes observed resources namespace and kind.
-    fn change(&mut self, kind: String, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if !self.data.borrow().current.is_namespace_equal(&namespace) || !self.data.borrow().current.is_kind_equal(&kind) {
+    fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
+        if !self.data.borrow().current.is_namespace_equal(&namespace) || self.data.borrow().current.kind != kind {
             self.resources.set_namespace(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
-            self.process_resources_change(Some(kind), Some(namespace.into()), Some(scope));
+            self.process_resources_change(Some(kind.into()), Some(namespace.into()), Some(scope));
         }
 
         Ok(())
@@ -242,17 +242,17 @@ impl App {
 
     /// Changes observed resources kind, optionally selects one of them.  
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
-    fn change_kind(&mut self, kind: String, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        if !self.data.borrow().current.is_kind_equal(&kind) {
+    fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        if self.data.borrow().current.kind != kind {
             let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
-            if to_select.is_none() && kind == NAMESPACES {
+            if to_select.is_none() && kind.as_str() == NAMESPACES {
                 let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
                 self.resources.highlight_next(to_select);
             } else {
                 self.resources.highlight_next(to_select);
             }
-            self.process_resources_change(Some(kind), None, Some(scope));
+            self.process_resources_change(Some(kind.into()), None, Some(scope));
         }
 
         Ok(())
@@ -280,7 +280,7 @@ impl App {
 
     /// Changes observed resources kind to `namespaces`.
     fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
-        self.change_kind(NAMESPACES.to_owned(), None)?;
+        self.change_kind(NAMESPACES.into(), None)?;
 
         Ok(())
     }
@@ -304,7 +304,7 @@ impl App {
             if let Ok(scope) = scope {
                 self.resources
                     .set_resources_info(context, result.namespace.clone(), version, scope.clone());
-                self.process_resources_change(Some(result.kind), Some(result.namespace.into()), Some(scope));
+                self.process_resources_change(Some(result.kind.into()), Some(result.namespace.into()), Some(scope));
             }
         }
     }
@@ -321,7 +321,7 @@ impl App {
             };
             self.worker
                 .borrow_mut()
-                .delete_resources(resources, namespace, &self.resources.get_kind_with_group());
+                .delete_resources(resources, namespace, &self.resources.get_kind());
         }
 
         self.resources.deselect_all();
@@ -384,7 +384,7 @@ impl App {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.clone(),
             namespace.clone().into(),
-            &self.resources.get_kind_with_group(),
+            &self.resources.get_kind(),
             self.data.borrow().get_syntax_data(),
             decode,
         );
@@ -395,7 +395,7 @@ impl App {
             command_id,
             resource,
             namespace.into(),
-            self.resources.kind_plural().to_owned(),
+            self.resources.get_kind(),
             self.footer.get_messages_sender(),
         )));
     }

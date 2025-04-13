@@ -8,18 +8,16 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{
-        ObserverResult, SharedAppData, SharedBgWorker,
-        lists::{KindsList, ResourcesList},
-    },
+    app::{ObserverResult, SharedAppData, SharedBgWorker},
     kubernetes::{
-        Namespace,
-        resources::{CONTAINERS, Kind, Resource},
+        Kind, Namespace,
+        kinds::{KindItem, KindsList},
+        resources::{CONTAINERS, ResourceItem, ResourcesList},
     },
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{Action, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
     },
 };
 
@@ -77,9 +75,9 @@ impl ResourcesView {
             pub fn kind_plural(&self) -> &str;
             pub fn scope(&self) -> &Scope;
             pub fn group(&self) -> &str;
-            pub fn get_kind_with_group(&self) -> String;
+            pub fn get_kind(&self) -> Kind;
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
-            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&Resource>;
+            pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn set_namespace(&mut self, namespace: Namespace);
             pub fn set_view(&mut self, view: ViewType);
             pub fn update_resources_list(&mut self, result: ObserverResult);
@@ -108,7 +106,7 @@ impl ResourcesView {
     }
 
     /// Updates kinds list with a new data.
-    pub fn update_kinds_list(&mut self, kinds: Option<Vec<Kind>>) {
+    pub fn update_kinds_list(&mut self, kinds: Option<Vec<KindItem>>) {
         self.res_selector.select.items.update(kinds, 1, false);
     }
 
@@ -243,20 +241,20 @@ impl ResourcesView {
             if is_containers {
                 builder = builder
                     .with_action(
-                        Action::new("show logs")
+                        ActionItem::new("show logs")
                             .with_description("shows container logs")
                             .with_aliases(&["logs"])
                             .with_response(ResponseEvent::Action("show_logs")),
                     )
                     .with_action(
-                        Action::new("show previous logs")
+                        ActionItem::new("show previous logs")
                             .with_description("shows container previous logs")
                             .with_aliases(&["previous"])
                             .with_response(ResponseEvent::Action("show_plogs")),
                     );
             } else {
                 builder = builder.with_action(
-                    Action::new("show YAML")
+                    ActionItem::new("show YAML")
                         .with_description("shows YAML of the selected resource")
                         .with_aliases(&["yaml"])
                         .with_response(ResponseEvent::Action("show_yaml")),
@@ -265,7 +263,7 @@ impl ResourcesView {
 
             if self.table.kind_plural() == "secrets" {
                 builder = builder.with_action(
-                    Action::new("decode")
+                    ActionItem::new("decode")
                         .with_description("shows decoded YAML of the selected secret")
                         .with_aliases(&["decode", "x"])
                         .with_response(ResponseEvent::Action("decode_yaml")),

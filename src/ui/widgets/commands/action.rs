@@ -1,15 +1,17 @@
 use kube::config::NamedContext;
 
 use crate::{
-    app::lists::{BasicFilterContext, Filterable, Row},
-    kubernetes::resources::Kind,
-    ui::ResponseEvent,
+    kubernetes::kinds::KindItem,
+    ui::{
+        ResponseEvent,
+        lists::{BasicFilterContext, Filterable, Row},
+    },
     utils::truncate,
 };
 
 /// Command palette action.
 #[derive(Default)]
-pub struct Action {
+pub struct ActionItem {
     pub uid: Option<String>,
     pub group: String,
     pub name: String,
@@ -19,8 +21,8 @@ pub struct Action {
     aliases: Option<Vec<String>>,
 }
 
-impl Action {
-    /// Creates new [`Action`] instance.
+impl ActionItem {
+    /// Creates new [`ActionItem`] instance.
     pub fn new(name: &str) -> Self {
         Self {
             uid: Some(format!("_action:{}_", name)),
@@ -31,8 +33,8 @@ impl Action {
         }
     }
 
-    /// Creates new [`Action`] instance from [`Kind`].
-    pub fn from_kind(kind: &Kind) -> Self {
+    /// Creates new [`ActionItem`] instance from [`Kind`].
+    pub fn from_kind(kind: &KindItem) -> Self {
         Self {
             uid: kind.uid().map(String::from),
             group: "resource".to_owned(),
@@ -42,7 +44,7 @@ impl Action {
         }
     }
 
-    /// Creates new [`Action`] instance from [`NamedContext`].
+    /// Creates new [`ActionItem`] instance from [`NamedContext`].
     pub fn from_context(context: &NamedContext) -> Self {
         Self {
             uid: Some(format!(
@@ -91,7 +93,7 @@ impl Action {
     }
 }
 
-impl Row for Action {
+impl Row for ActionItem {
     fn uid(&self) -> Option<&str> {
         self.uid.as_deref()
     }
@@ -185,7 +187,7 @@ impl Row for Action {
     }
 }
 
-impl Filterable<BasicFilterContext> for Action {
+impl Filterable<BasicFilterContext> for ActionItem {
     fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
         pattern.to_owned().into()
     }

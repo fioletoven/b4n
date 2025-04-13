@@ -10,7 +10,7 @@ use std::{rc::Rc, time::Instant};
 
 use crate::{
     app::SharedAppData,
-    kubernetes::Namespace,
+    kubernetes::{Kind, Namespace},
     ui::{ResponseEvent, utils::center},
 };
 
@@ -67,7 +67,7 @@ impl<T: Content> ContentViewer<T> {
         title: &'static str,
         icon: char,
         namespace: Namespace,
-        kind: String,
+        kind: Kind,
         name: String,
         descr: Option<String>,
     ) -> Self {

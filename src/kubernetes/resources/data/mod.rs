@@ -2,9 +2,8 @@ use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 
 use crate::{
-    app::lists::Header,
     kubernetes::utils::format_datetime,
-    ui::{colors::TextColors, theme::Theme},
+    ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 
 pub mod config_map;

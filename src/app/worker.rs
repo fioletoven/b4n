@@ -8,7 +8,7 @@ use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    kubernetes::{NAMESPACES, Namespace, client::KubernetesClient, resources::Kind, utils::get_resource},
+    kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource},
     ui::widgets::FooterMessage,
 };
 
@@ -64,12 +64,10 @@ impl BgWorker {
         self.list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
-        let discovery = get_resource(self.list.as_ref(), NAMESPACES);
-        self.namespaces.start(
-            &client,
-            ResourceRef::new(NAMESPACES.to_owned(), Namespace::default()),
-            discovery,
-        )?;
+        let namespaces = Kind::from(NAMESPACES);
+        let discovery = get_resource(self.list.as_ref(), &namespaces);
+        self.namespaces
+            .start(&client, ResourceRef::new(namespaces, Namespace::default()), discovery)?;
 
         let discovery = get_resource(self.list.as_ref(), &resource.kind);
         let scope = self.resources.start(&client, resource, discovery)?;
@@ -90,7 +88,7 @@ impl BgWorker {
     }
 
     /// Restarts (if needed) the resources observer to change observed resource kind.
-    pub fn restart_new_kind(&mut self, kind: String, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
+    pub fn restart_new_kind(&mut self, kind: Kind, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), &kind);
             Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
@@ -104,7 +102,7 @@ impl BgWorker {
         if let Some(client) = &self.client {
             let mut discovery = get_resource(self.list.as_ref(), self.resources.get_resource_kind());
             if discovery.is_none() {
-                discovery = get_resource(self.list.as_ref(), "Pod");
+                discovery = get_resource(self.list.as_ref(), &PODS.into());
             }
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
         } else {
@@ -115,7 +113,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to show pod containers.
     pub fn restart_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), "Pod");
+            let discovery = get_resource(self.list.as_ref(), &PODS.into());
             Ok(self
                 .resources
                 .restart_containers(client, pod_name, pod_namespace, discovery)?)
@@ -153,13 +151,13 @@ impl BgWorker {
     }
 
     /// Returns list of discovered kubernetes kinds.
-    pub fn get_kinds_list(&self) -> Option<Vec<Kind>> {
+    pub fn get_kinds_list(&self) -> Option<Vec<KindItem>> {
         self.list.as_ref().map(|discovery| {
             discovery
                 .iter()
                 .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                .map(|(ar, _)| Kind::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
-                .collect::<Vec<Kind>>()
+                .map(|(ar, _)| KindItem::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
+                .collect::<Vec<KindItem>>()
         })
     }
 
@@ -181,7 +179,7 @@ impl BgWorker {
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
-    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &str) {
+    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
@@ -194,16 +192,16 @@ impl BgWorker {
         &mut self,
         name: String,
         namespace: Namespace,
-        kind: &str,
+        kind: &Kind,
         syntax: SyntaxData,
         decode: bool,
     ) -> Option<String> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
             let command = if decode {
-                GetResourceYamlCommand::decode(name, namespace, discovery, client.get_client(), syntax)
+                GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), syntax)
             } else {
-                GetResourceYamlCommand::new(name, namespace, discovery, client.get_client(), syntax)
+                GetResourceYamlCommand::new(name, namespace, kind.clone(), discovery, client.get_client(), syntax)
             };
             Some(self.executor.run_task(Command::GetYaml(Box::new(command))))
         } else {
