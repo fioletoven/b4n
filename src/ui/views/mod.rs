@@ -7,12 +7,14 @@ use super::{ResponseEvent, TuiEvent};
 
 pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
+pub use self::shell::*;
 pub use self::yaml::YamlView;
 
 mod content;
 mod header;
 mod logs;
 mod resources;
+mod shell;
 mod yaml;
 
 /// TUI view with pages and widgets.

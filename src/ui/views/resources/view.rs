@@ -12,7 +12,7 @@ use crate::{
     kubernetes::{
         Kind, Namespace,
         kinds::{KindItem, KindsList},
-        resources::{CONTAINERS, ResourceItem, ResourcesList},
+        resources::{CONTAINERS, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{
         Responsive, Table, ViewType,
@@ -261,7 +261,7 @@ impl ResourcesView {
                 );
             }
 
-            if self.table.kind_plural() == "secrets" {
+            if self.table.kind_plural() == SECRETS {
                 builder = builder.with_action(
                     ActionItem::new("decode")
                         .with_description("shows decoded YAML of the selected secret")

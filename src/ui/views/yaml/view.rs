@@ -6,7 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     app::{SharedAppData, SharedBgWorker, commands::CommandResult},
-    kubernetes::{Kind, Namespace},
+    kubernetes::{Kind, Namespace, resources::SECRETS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{
@@ -75,7 +75,7 @@ impl YamlView {
                     .with_description("copies YAML to the clipboard")
                     .with_response(ResponseEvent::Action("copy")),
             );
-            if self.yaml.header.kind.as_str() == "secrets" && self.app_data.borrow().is_connected {
+            if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     ActionItem::new(action)
@@ -150,7 +150,7 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == "secrets" && self.app_data.borrow().is_connected {
+        if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         }

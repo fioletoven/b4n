@@ -8,7 +8,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
-        views::{LogsView, ResourcesView, View, YamlView},
+        views::{LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
 };
@@ -189,6 +189,9 @@ impl App {
                 },
                 ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
                     self.view_logs(pod_name, pod_namespace, pod_container, true)
+                },
+                ResponseEvent::OpenShell(pod_name, pod_namespace, pod_container) => {
+                    self.open_shell(pod_name, pod_namespace, pod_container)
                 },
                 _ => (),
             };
@@ -427,6 +430,15 @@ impl App {
                 pod_container,
                 previous,
             ) {
+                self.view = Some(Box::new(view));
+            }
+        }
+    }
+
+    /// Opens shell for the specified container.
+    fn open_shell(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
+        if let Some(client) = self.worker.borrow().kubernetes_client() {
+            if let Ok(view) = ShellView::new(Rc::clone(&self.data), client, pod_name, pod_namespace.into(), pod_container) {
                 self.view = Some(Box::new(view));
             }
         }

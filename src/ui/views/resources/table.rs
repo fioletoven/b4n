@@ -11,7 +11,7 @@ use crate::{
     app::{ObserverResult, ResourcesInfo, SharedAppData},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace,
-        resources::{CONTAINERS, PODS, ResourceItem, ResourcesList},
+        resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent},
 };
@@ -182,7 +182,11 @@ impl ResourcesTable {
                 if key.code == KeyCode::Char('p') {
                     return self.process_view_logs(selected_resource, true);
                 }
-            } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == "secrets") {
+
+                if key.code == KeyCode::Char('s') {
+                    return self.process_open_shell(selected_resource);
+                }
+            } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
                 return self.process_view_yaml(selected_resource, key.code == KeyCode::Char('x'));
             }
         }
@@ -224,6 +228,18 @@ impl ResourcesTable {
                     Some(selected_resource.name.clone()),
                 )
             }
+        } else {
+            ResponseEvent::NotHandled
+        }
+    }
+
+    fn process_open_shell(&self, selected_resource: &ResourceItem) -> ResponseEvent {
+        if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
+            ResponseEvent::OpenShell(
+                pod_name,
+                selected_resource.namespace.clone().unwrap_or_default(),
+                Some(selected_resource.name.clone()),
+            )
         } else {
             ResponseEvent::NotHandled
         }
