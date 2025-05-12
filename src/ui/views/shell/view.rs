@@ -1,19 +1,25 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+};
 use std::sync::{Arc, RwLock};
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
-    app::{SharedAppData, commands::CommandResult},
-    kubernetes::{Namespace, PodRef, client::KubernetesClient},
-    ui::{ResponseEvent, TuiEvent, views::View},
+    app::SharedAppData,
+    kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
+    ui::{
+        ResponseEvent, TuiEvent,
+        views::{View, header::HeaderPane},
+    },
 };
 
 use super::bridge::{IOBridge, IOBridgeError};
 
 /// Pod's shell view.
 pub struct ShellView {
-    app_data: SharedAppData,
+    header: HeaderPane,
     bridge: IOBridge,
     parser: Arc<RwLock<vt100::Parser>>,
 }
@@ -32,22 +38,25 @@ impl ShellView {
             namespace: pod_namespace.clone(),
             container: pod_container.clone(),
         };
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(24, 80, 0)));
+        let mut header = HeaderPane::new(app_data, false);
+        header.set_title(" shell");
+        header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(24, 80, 0)));
         let mut bridge = IOBridge::new(parser.clone());
         bridge.start(client, pod)?;
 
-        Ok(Self {
-            app_data,
-            bridge,
-            parser,
-        })
+        Ok(Self { header, bridge, parser })
     }
 }
 
 impl View for ShellView {
-    fn process_command_result(&mut self, _result: CommandResult) {
-        // pass
+    fn process_tick(&mut self) -> ResponseEvent {
+        if self.bridge.is_finished() {
+            ResponseEvent::Cancelled
+        } else {
+            ResponseEvent::Handled
+        }
     }
 
     fn process_disconnection(&mut self) {
@@ -57,16 +66,12 @@ impl View for ShellView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
-            return ResponseEvent::ExitApplication;
-        }
-
-        if key.code == KeyCode::Esc || !self.bridge.is_running() {
+        if key.code == KeyCode::Esc {
             return ResponseEvent::Cancelled;
         }
 
         match key.code {
-            KeyCode::Char(input) => self.bridge.send(input.to_string().into_bytes()),
+            KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
             KeyCode::Backspace => self.bridge.send(vec![8]),
             KeyCode::Enter => self.bridge.send(vec![b'\n']),
             KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
@@ -92,10 +97,33 @@ impl View for ShellView {
             return;
         }
 
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+            .split(area);
+
+        self.header.draw(frame, layout[0]);
+
         if let Ok(parser) = self.parser.read() {
             let screen = parser.screen();
             let pseudo_term = PseudoTerminal::new(screen);
-            frame.render_widget(pseudo_term, area);
+            frame.render_widget(pseudo_term, layout[1]);
         }
+    }
+}
+
+impl Drop for ShellView {
+    fn drop(&mut self) {
+        self.bridge.stop();
+    }
+}
+
+fn get_bytes(input: char, modifiers: KeyModifiers) -> Vec<u8> {
+    if modifiers == KeyModifiers::CONTROL {
+        let mut result = input.to_ascii_uppercase().to_string().into_bytes();
+        result[0] = result[0].saturating_sub(64);
+        result
+    } else {
+        input.to_string().into_bytes()
     }
 }

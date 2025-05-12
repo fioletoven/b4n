@@ -19,13 +19,14 @@ pub struct HeaderPane {
     pub name: String,
     pub descr: Option<String>,
     app_data: SharedAppData,
+    show_coordinates: bool,
     position_x: usize,
     position_y: usize,
 }
 
 impl HeaderPane {
     /// Creates new UI header pane.
-    pub fn new(app_data: SharedAppData) -> Self {
+    pub fn new(app_data: SharedAppData, show_coordinates: bool) -> Self {
         Self {
             title: "",
             icon: ' ',
@@ -34,6 +35,7 @@ impl HeaderPane {
             name: String::new(),
             descr: None,
             app_data,
+            show_coordinates,
             position_x: 0,
             position_y: 0,
         }
@@ -59,6 +61,7 @@ impl HeaderPane {
 
     /// Sets header coordinates.
     pub fn set_coordinates(&mut self, x: usize, y: usize) {
+        self.show_coordinates = true;
         self.position_x = x;
         self.position_y = y;
     }
@@ -80,7 +83,9 @@ impl HeaderPane {
             .split(area);
 
         frame.render_widget(Paragraph::new(self.get_path()), layout[0]);
-        frame.render_widget(Paragraph::new(self.get_right_text(coordinates)), layout[1]);
+        if self.show_coordinates {
+            frame.render_widget(Paragraph::new(self.get_right_text(coordinates)), layout[1]);
+        }
     }
 
     /// Returns formatted header path as breadcrumbs:  

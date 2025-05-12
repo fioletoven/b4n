@@ -30,6 +30,7 @@ pub struct IOBridge {
     cancellation_token: Option<CancellationToken>,
     input_tx: Option<UnboundedSender<Vec<u8>>>,
     parser: Arc<RwLock<vt100::Parser>>,
+    was_started: bool,
 }
 
 impl IOBridge {
@@ -39,6 +40,7 @@ impl IOBridge {
             cancellation_token: None,
             input_tx: None,
             parser,
+            was_started: false,
         }
     }
 
@@ -106,6 +108,7 @@ impl IOBridge {
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
+        self.was_started = true;
 
         Ok(())
     }
@@ -117,7 +120,7 @@ impl IOBridge {
         }
     }
 
-    /// Cancels [`IOBridge`] task and waits until it is finished.
+    /// Cancels [`IOBridge`] task and waits for it to finish.
     pub fn stop(&mut self) {
         self.cancel();
         wait_for_task(self.task.take(), "IO bridge");
@@ -135,5 +138,16 @@ impl IOBridge {
     /// Returns `true` if attached process is running.
     pub fn is_running(&self) -> bool {
         self.task.as_ref().is_some_and(|t| !t.is_finished())
+    }
+
+    /// Returns `true` if attached process has finished.
+    pub fn is_finished(&self) -> bool {
+        (self.was_started && self.task.is_none()) || self.task.as_ref().is_some_and(|t| t.is_finished())
+    }
+}
+
+impl Drop for IOBridge {
+    fn drop(&mut self) {
+        self.cancel();
     }
 }

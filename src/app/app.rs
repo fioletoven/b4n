@@ -119,7 +119,10 @@ impl App {
         self.process_commands_results();
         self.process_connection_events();
         self.update_lists();
-        self.process_view_events();
+
+        if let Some(ResponseEvent::Cancelled) = self.process_view_events() {
+            self.view = None
+        }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
@@ -201,10 +204,8 @@ impl App {
     }
 
     /// Processes additional view events.
-    fn process_view_events(&mut self) {
-        if let Some(view) = &mut self.view {
-            view.process_tick();
-        }
+    fn process_view_events(&mut self) -> Option<ResponseEvent> {
+        self.view.as_mut().map(|view| view.process_tick())
     }
 
     /// Processes results from commands execution.

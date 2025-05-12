@@ -97,7 +97,7 @@ impl LogsView {
 }
 
 impl View for LogsView {
-    fn process_tick(&mut self) {
+    fn process_tick(&mut self) -> ResponseEvent {
         if !self.observer.is_empty() {
             if !self.logs.has_content() {
                 self.logs
@@ -128,6 +128,8 @@ impl View for LogsView {
                 self.logs.scroll_to_end();
             }
         }
+
+        ResponseEvent::Handled
     }
 
     fn process_disconnection(&mut self) {
