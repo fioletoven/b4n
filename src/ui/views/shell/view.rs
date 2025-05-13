@@ -15,13 +15,14 @@ use crate::{
     },
 };
 
-use super::bridge::{IOBridge, IOBridgeError};
+use super::bridge::{ShellBridge, ShellBridgeError};
 
 /// Pod's shell view.
 pub struct ShellView {
     header: HeaderPane,
-    bridge: IOBridge,
+    bridge: ShellBridge,
     parser: Arc<RwLock<vt100::Parser>>,
+    size: (u16, u16), // vt size (width, height)
 }
 
 impl ShellView {
@@ -32,7 +33,7 @@ impl ShellView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
-    ) -> Result<Self, IOBridgeError> {
+    ) -> Result<Self, ShellBridgeError> {
         let pod = PodRef {
             name: pod_name.clone(),
             namespace: pod_namespace.clone(),
@@ -42,11 +43,17 @@ impl ShellView {
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(24, 80, 0)));
-        let mut bridge = IOBridge::new(parser.clone());
+        let size = (80, 24);
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(size.0, size.1, 0)));
+        let mut bridge = ShellBridge::new(parser.clone());
         bridge.start(client, pod)?;
 
-        Ok(Self { header, bridge, parser })
+        Ok(Self {
+            header,
+            bridge,
+            parser,
+            size,
+        })
     }
 }
 
@@ -65,10 +72,6 @@ impl View for ShellView {
 
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
-
-        if key.code == KeyCode::Esc {
-            return ResponseEvent::Cancelled;
-        }
 
         match key.code {
             KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
@@ -103,6 +106,14 @@ impl View for ShellView {
             .split(area);
 
         self.header.draw(frame, layout[0]);
+
+        if self.size.0 != layout[1].width || self.size.1 != layout[1].height {
+            if let Ok(mut parser) = self.parser.write() {
+                parser.set_size(layout[1].height, layout[1].width);
+                self.bridge.set_terminal_size(layout[1].width, layout[1].height);
+                self.size = (layout[1].width, layout[1].height);
+            }
+        }
 
         if let Ok(parser) = self.parser.read() {
             let screen = parser.screen();
