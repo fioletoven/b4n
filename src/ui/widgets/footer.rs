@@ -21,18 +21,18 @@ pub struct FooterMessage {
 
 impl FooterMessage {
     /// Creates new info [`FooterMessage`] instance.
-    pub fn info(text: String, duration: u16) -> Self {
+    pub fn info(text: impl Into<String>, duration: u16) -> Self {
         Self {
-            text,
+            text: text.into(),
             is_error: false,
             duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
         }
     }
 
     /// Creates new error [`FooterMessage`] instance.
-    pub fn error(text: String, duration: u16) -> Self {
+    pub fn error(text: impl Into<String>, duration: u16) -> Self {
         Self {
-            text,
+            text: text.into(),
             is_error: true,
             duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
         }

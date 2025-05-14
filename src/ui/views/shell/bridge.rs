@@ -36,6 +36,7 @@ pub struct ShellBridge {
     size_tx: Option<UnboundedSender<TerminalSize>>,
     parser: Arc<RwLock<vt100::Parser>>,
     has_error: Arc<AtomicBool>,
+    is_running: Arc<AtomicBool>,
     was_started: bool,
     shell: Option<String>,
 }
@@ -50,6 +51,7 @@ impl ShellBridge {
             size_tx: None,
             parser,
             has_error: Arc::new(AtomicBool::new(false)),
+            is_running: Arc::new(AtomicBool::new(false)),
             was_started: false,
             shell: None,
         }
@@ -57,7 +59,7 @@ impl ShellBridge {
 
     /// Starts new shell process.  
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, client: Client, pod: PodRef, shell: String) -> Result<(), ShellBridgeError> {
+    pub fn start(&mut self, client: Client, pod: PodRef, shell: impl Into<String>) -> Result<(), ShellBridgeError> {
         self.stop();
 
         let cancellation_token = CancellationToken::new();
@@ -70,15 +72,18 @@ impl ShellBridge {
         let (size_tx, _size_rx) = mpsc::unbounded_channel();
         self.size_tx = Some(size_tx);
 
-        self.shell = Some(shell.clone());
+        let _shell = shell.into();
+        self.shell = Some(_shell.clone());
+
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
+        let _is_running = Arc::clone(&self.is_running);
 
         let task = tokio::spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
             let attach_params = AttachParams::interactive_tty();
 
-            let mut attached = match api.exec(&pod.name, vec![shell], &attach_params).await {
+            let mut attached = match api.exec(&pod.name, vec![_shell], &attach_params).await {
                 Ok(attached) => attached,
                 Err(err) => {
                     warn!("Cannot attach to the pod's shell: {}", err);
@@ -89,14 +94,17 @@ impl ShellBridge {
 
             let stdin = attached.stdin().unwrap();
             let stdout = attached.stdout().unwrap();
-            let sizer = attached.terminal_size().unwrap();
+            let tty_resize = attached.terminal_size().unwrap();
+
+            _is_running.store(true, Ordering::Relaxed);
 
             let (_, output_closed_too_soon, _) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
                 output_bridge(stdout, _parser, _cancellation_token.clone()),
-                sizer_bridge(sizer, _size_rx, _cancellation_token.clone())
+                resize_bridge(tty_resize, _size_rx, _cancellation_token.clone())
             };
 
+            _is_running.store(false, Ordering::Relaxed);
             _has_error.store(output_closed_too_soon, Ordering::Relaxed);
         });
 
@@ -124,7 +132,9 @@ impl ShellBridge {
     pub fn send(&self, data: Vec<u8>) {
         if self.is_running() {
             if let Some(tx) = &self.input_tx {
-                tx.send(data).unwrap();
+                if let Err(err) = tx.send(data) {
+                    warn!("Cannot send data to the attached process: {}", err);
+                }
             }
         }
     }
@@ -133,7 +143,7 @@ impl ShellBridge {
     pub fn set_terminal_size(&mut self, width: u16, height: u16) {
         if self.is_running() {
             if let Some(tx) = &self.size_tx {
-                tx.send(TerminalSize { width, height }).unwrap();
+                let _ = tx.send(TerminalSize { width, height });
             }
         }
     }
@@ -145,7 +155,7 @@ impl ShellBridge {
 
     /// Returns `true` if attached process is running.
     pub fn is_running(&self) -> bool {
-        self.task.as_ref().is_some_and(|t| !t.is_finished())
+        self.task.as_ref().is_some_and(|t| !t.is_finished()) && self.is_running.load(Ordering::Relaxed)
     }
 
     /// Returns `true` if attached process has finished.
@@ -153,7 +163,7 @@ impl ShellBridge {
         (self.was_started && self.task.is_none()) || self.task.as_ref().is_some_and(|t| t.is_finished())
     }
 
-    /// Returns `true` if shell is in an error state.
+    /// Returns `true` if attached process has/had an error state.
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }
@@ -220,17 +230,17 @@ async fn output_bridge(
     false
 }
 
-async fn sizer_bridge(
-    mut sizer: Sender<TerminalSize>,
-    mut size_rx: UnboundedReceiver<TerminalSize>,
+async fn resize_bridge(
+    mut sender: Sender<TerminalSize>,
+    mut receiver: UnboundedReceiver<TerminalSize>,
     cancellation_token: CancellationToken,
 ) {
     while !cancellation_token.is_cancelled() {
         tokio::select! {
             _ = cancellation_token.cancelled() => (),
-            Some(size) = size_rx.recv() => {
-                if let Err(err) = sizer.send(size).await {
-                    warn!("Cannot set attached process terminal size: {}", err);
+            Some(size) = receiver.recv() => {
+                if let Err(err) = sender.send(size).await {
+                    warn!("Cannot resize the attached process tty: {}", err);
                 }
             },
         }

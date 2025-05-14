@@ -329,10 +329,8 @@ impl App {
         }
 
         self.resources.deselect_all();
-        self.footer.send_message(FooterMessage::info(
-            " Selected resources marked for deletion…".to_owned(),
-            1_500,
-        ));
+        self.footer
+            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 1_500));
     }
 
     /// Performs all necessary actions needed when resources view changes.  
@@ -439,7 +437,14 @@ impl App {
     /// Opens shell for the specified container.
     fn open_shell(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = ShellView::new(Rc::clone(&self.data), client, pod_name, pod_namespace.into(), pod_container) {
+            if let Ok(view) = ShellView::new(
+                Rc::clone(&self.data),
+                client,
+                pod_name,
+                pod_namespace.into(),
+                pod_container,
+                self.footer.get_messages_sender(),
+            ) {
                 self.view = Some(Box::new(view));
             }
         }

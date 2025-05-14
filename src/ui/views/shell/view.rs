@@ -5,6 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
 };
 use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc::UnboundedSender;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
@@ -13,10 +14,14 @@ use crate::{
     ui::{
         ResponseEvent, TuiEvent,
         views::{View, header::HeaderPane},
+        widgets::FooterMessage,
     },
 };
 
 use super::bridge::{ShellBridge, ShellBridgeError};
+
+const DEFAULT_SHELL: &str = "bash";
+const FALLBACK_SHELL: &str = "sh";
 
 /// Pod's shell view.
 pub struct ShellView {
@@ -26,6 +31,7 @@ pub struct ShellView {
     size: (u16, u16), // vt size (width, height)
     client: Client,
     pod: PodRef,
+    footer_tx: UnboundedSender<FooterMessage>,
 }
 
 impl ShellView {
@@ -36,6 +42,7 @@ impl ShellView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
+        footer_tx: UnboundedSender<FooterMessage>,
     ) -> Result<Self, ShellBridgeError> {
         let pod = PodRef {
             name: pod_name.clone(),
@@ -46,18 +53,18 @@ impl ShellView {
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 
-        let size = (80, 24);
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(size.0, size.1, 0)));
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(24, 80, 0)));
         let mut bridge = ShellBridge::new(parser.clone());
-        bridge.start(client.get_client(), pod.clone(), "bash".to_owned())?;
+        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL)?;
 
         Ok(Self {
             header,
             bridge,
             parser,
-            size,
+            size: (0, 0),
             client: client.get_client(),
             pod,
+            footer_tx,
         })
     }
 }
@@ -66,10 +73,18 @@ impl View for ShellView {
     fn process_tick(&mut self) -> ResponseEvent {
         if self.bridge.is_finished() {
             // we try to fallback to 'sh' if ShellBridge has an error and was initially started as 'bash'
-            if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == "bash") {
-                let _ = self.bridge.start(self.client.clone(), self.pod.clone(), "sh".to_owned());
+            if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
+                let _ = self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
                 ResponseEvent::Handled
             } else {
+                if self.bridge.has_error() {
+                    self.footer_tx
+                        .send(FooterMessage::error(
+                            "Unable to attach to the shell process of the selected container",
+                            0,
+                        ))
+                        .unwrap();
+                }
                 ResponseEvent::Cancelled
             }
         } else {
@@ -108,16 +123,16 @@ impl View for ShellView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        if !self.bridge.is_running() {
-            return;
-        }
-
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
         self.header.draw(frame, layout[0]);
+
+        if !self.bridge.is_running() {
+            return;
+        }
 
         if self.size.0 != layout[1].width || self.size.1 != layout[1].height {
             if let Ok(mut parser) = self.parser.write() {

@@ -59,10 +59,7 @@ impl YamlView {
         if let Ok(mut ctx) = result {
             if ctx.set_contents(self.lines.join("")).is_ok() {
                 self.footer_tx
-                    .send(FooterMessage::info(
-                        " YAML content copied to the clipboard…".to_owned(),
-                        1_500,
-                    ))
+                    .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
                     .unwrap();
             }
         }
