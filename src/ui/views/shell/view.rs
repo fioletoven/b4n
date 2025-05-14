@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyModifiers};
+use kube::Client;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -23,6 +24,8 @@ pub struct ShellView {
     bridge: ShellBridge,
     parser: Arc<RwLock<vt100::Parser>>,
     size: (u16, u16), // vt size (width, height)
+    client: Client,
+    pod: PodRef,
 }
 
 impl ShellView {
@@ -46,13 +49,15 @@ impl ShellView {
         let size = (80, 24);
         let parser = Arc::new(RwLock::new(vt100::Parser::new(size.0, size.1, 0)));
         let mut bridge = ShellBridge::new(parser.clone());
-        bridge.start(client, pod)?;
+        bridge.start(client.get_client(), pod.clone(), "bash".to_owned())?;
 
         Ok(Self {
             header,
             bridge,
             parser,
             size,
+            client: client.get_client(),
+            pod,
         })
     }
 }
@@ -60,7 +65,13 @@ impl ShellView {
 impl View for ShellView {
     fn process_tick(&mut self) -> ResponseEvent {
         if self.bridge.is_finished() {
-            ResponseEvent::Cancelled
+            // we try to fallback to 'sh' if ShellBridge has an error and was initially started as 'bash'
+            if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == "bash") {
+                let _ = self.bridge.start(self.client.clone(), self.pod.clone(), "sh".to_owned());
+                ResponseEvent::Handled
+            } else {
+                ResponseEvent::Cancelled
+            }
         } else {
             ResponseEvent::Handled
         }
@@ -75,6 +86,7 @@ impl View for ShellView {
 
         match key.code {
             KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
+            KeyCode::Esc => self.bridge.send(vec![27]),
             KeyCode::Backspace => self.bridge.send(vec![8]),
             KeyCode::Enter => self.bridge.send(vec![b'\n']),
             KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
