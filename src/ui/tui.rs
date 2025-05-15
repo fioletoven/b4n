@@ -54,6 +54,8 @@ pub enum ResponseEvent {
     ViewYaml(String, String, bool),
     ViewLogs(String, String, Option<String>),
     ViewPreviousLogs(String, String, Option<String>),
+
+    OpenShell(String, String, Option<String>),
 }
 
 impl ResponseEvent {

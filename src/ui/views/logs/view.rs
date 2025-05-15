@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::{
     app::SharedAppData,
-    kubernetes::{Namespace, client::KubernetesClient, resources::PODS},
+    kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-use super::{LogLine, LogsObserver, LogsObserverError, PodRef};
+use super::{LogLine, LogsObserver, LogsObserverError};
 
 const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
@@ -97,7 +97,7 @@ impl LogsView {
 }
 
 impl View for LogsView {
-    fn process_tick(&mut self) {
+    fn process_tick(&mut self) -> ResponseEvent {
         if !self.observer.is_empty() {
             if !self.logs.has_content() {
                 self.logs
@@ -128,6 +128,8 @@ impl View for LogsView {
                 self.logs.scroll_to_end();
             }
         }
+
+        ResponseEvent::Handled
     }
 
     fn process_disconnection(&mut self) {

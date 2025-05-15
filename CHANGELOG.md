@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.5 - 2025-05-15
+
+### Features
+
+- attach to the highlighted container's shell
+
 ## 0.1.4 - 2025-04-08
 
 ### Features

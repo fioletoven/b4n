@@ -8,7 +8,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
-        views::{LogsView, ResourcesView, View, YamlView},
+        views::{LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
 };
@@ -119,7 +119,10 @@ impl App {
         self.process_commands_results();
         self.process_connection_events();
         self.update_lists();
-        self.process_view_events();
+
+        if let Some(ResponseEvent::Cancelled) = self.process_view_events() {
+            self.view = None
+        }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
             if self.process_event(event)? == ResponseEvent::ExitApplication {
@@ -190,6 +193,9 @@ impl App {
                 ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
                     self.view_logs(pod_name, pod_namespace, pod_container, true)
                 },
+                ResponseEvent::OpenShell(pod_name, pod_namespace, pod_container) => {
+                    self.open_shell(pod_name, pod_namespace, pod_container)
+                },
                 _ => (),
             };
         }
@@ -198,10 +204,8 @@ impl App {
     }
 
     /// Processes additional view events.
-    fn process_view_events(&mut self) {
-        if let Some(view) = &mut self.view {
-            view.process_tick();
-        }
+    fn process_view_events(&mut self) -> Option<ResponseEvent> {
+        self.view.as_mut().map(|view| view.process_tick())
     }
 
     /// Processes results from commands execution.
@@ -325,10 +329,8 @@ impl App {
         }
 
         self.resources.deselect_all();
-        self.footer.send_message(FooterMessage::info(
-            " Selected resources marked for deletion…".to_owned(),
-            1_500,
-        ));
+        self.footer
+            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 1_500));
     }
 
     /// Performs all necessary actions needed when resources view changes.  
@@ -426,6 +428,22 @@ impl App {
                 pod_namespace.into(),
                 pod_container,
                 previous,
+            ) {
+                self.view = Some(Box::new(view));
+            }
+        }
+    }
+
+    /// Opens shell for the specified container.
+    fn open_shell(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
+        if let Some(client) = self.worker.borrow().kubernetes_client() {
+            if let Ok(view) = ShellView::new(
+                Rc::clone(&self.data),
+                client,
+                pod_name,
+                pod_namespace.into(),
+                pod_container,
+                self.footer.get_messages_sender(),
             ) {
                 self.view = Some(Box::new(view));
             }

@@ -46,7 +46,7 @@ pub struct ContentViewer<T: Content> {
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data));
+        let header = HeaderPane::new(Rc::clone(&app_data), true);
 
         Self {
             header,

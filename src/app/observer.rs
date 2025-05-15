@@ -231,7 +231,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource` is different than the current one.
+    /// Restarts [`BgObserver`] task if `new_resource` is different from the current one.
     pub fn restart(
         &mut self,
         client: &KubernetesClient,

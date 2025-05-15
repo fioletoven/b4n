@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     app::utils::{build_default_backoff, wait_for_task},
-    kubernetes::{Namespace, client::KubernetesClient},
+    kubernetes::{PodRef, client::KubernetesClient},
 };
 
 /// Possible errors from [`LogsObserver`].
@@ -25,12 +25,6 @@ pub enum LogsObserverError {
     /// Kubernetes client error.
     #[error("kubernetes client error")]
     KubeClientError(#[from] kube::Error),
-}
-
-pub struct PodRef {
-    pub name: String,
-    pub namespace: Namespace,
-    pub container: Option<String>,
 }
 
 pub struct LogLine {

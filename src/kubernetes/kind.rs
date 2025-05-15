@@ -27,7 +27,7 @@ impl Kind {
         Self { kind, index }
     }
 
-    /// Returnst `true` if kind represents containers.
+    /// Returns `true` if kind represents containers.
     pub fn is_containers(&self) -> bool {
         self.kind == CONTAINERS
     }

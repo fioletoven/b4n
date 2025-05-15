@@ -1,5 +1,6 @@
 pub const CONTAINERS: &str = "containers";
 pub const PODS: &str = "pods";
+pub const SECRETS: &str = "secrets";
 
 pub use self::data::*;
 pub use self::resource::*;

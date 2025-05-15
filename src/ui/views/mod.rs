@@ -7,12 +7,14 @@ use super::{ResponseEvent, TuiEvent};
 
 pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
+pub use self::shell::ShellView;
 pub use self::yaml::YamlView;
 
 mod content;
 mod header;
 mod logs;
 mod resources;
+mod shell;
 mod yaml;
 
 /// TUI view with pages and widgets.
@@ -33,8 +35,8 @@ pub trait View {
     }
 
     /// Processes app tick.
-    fn process_tick(&mut self) {
-        // defaults to empty implementation
+    fn process_tick(&mut self) -> ResponseEvent {
+        ResponseEvent::Handled
     }
 
     /// Processes disconnection state.

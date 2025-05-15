@@ -17,6 +17,7 @@ As the project is in its early stages, for this moment the only supported functi
 - viewing a list of kubernetes resources
 - displaying YAML of the highlighted resource
 - viewing logs for the highlighted container
+- opening a shell for the highlighted container
 - deleting selected resources
 
 ### Planned
@@ -27,12 +28,12 @@ General planned features:
 - viewing combined logs for a pod
 - editing resources (YAML)
 - port forwarding
-- shell
 
 ## Key Bindings
 
 | Action                                  | Command         | Comments                                                     |
 |:----------------------------------------|:----------------|:-------------------------------------------------------------|
+| Attach to the container's shell         | `s`             | Works only in containers view                                |
 | Copy YAML to the clipboard              | `c`             | Works only in YAML view                                      |
 | Decode highlighted secret               | `x`             |                                                              |
 | Delete selected resources               | `CTRL` + `d`    | Displays a confirmation dialog                               |

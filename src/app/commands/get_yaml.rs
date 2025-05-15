@@ -10,7 +10,7 @@ use syntect::easy::HighlightLines;
 
 use crate::{
     app::SyntaxData,
-    kubernetes::{self, Kind, Namespace, utils},
+    kubernetes::{self, Kind, Namespace, resources::SECRETS, utils},
     ui::colors::from_syntect_color,
 };
 
@@ -99,7 +99,7 @@ impl GetResourceYamlCommand {
         client: Client,
         syntax: SyntaxData,
     ) -> Self {
-        let decode = kind.as_str() == "secrets";
+        let decode = kind.as_str() == SECRETS;
         let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, syntax);
         command.decode = decode;
         command

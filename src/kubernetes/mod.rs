@@ -8,3 +8,11 @@ pub mod utils;
 
 mod kind;
 mod namespace;
+
+/// Reference to the pod/container in a k8s cluster.
+#[derive(Clone)]
+pub struct PodRef {
+    pub name: String,
+    pub namespace: Namespace,
+    pub container: Option<String>,
+}

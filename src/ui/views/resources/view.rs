@@ -12,7 +12,7 @@ use crate::{
     kubernetes::{
         Kind, Namespace,
         kinds::{KindItem, KindsList},
-        resources::{CONTAINERS, ResourceItem, ResourcesList},
+        resources::{CONTAINERS, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{
         Responsive, Table, ViewType,
@@ -146,7 +146,8 @@ impl ResourcesView {
                 .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
                 .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
                 .if_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
-                .if_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))));
+                .if_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
+                .if_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -251,6 +252,11 @@ impl ResourcesView {
                             .with_description("shows container previous logs")
                             .with_aliases(&["previous"])
                             .with_response(ResponseEvent::Action("show_plogs")),
+                    )
+                    .with_action(
+                        ActionItem::new("shell")
+                            .with_description("opens container shell")
+                            .with_response(ResponseEvent::Action("open_shell")),
                     );
             } else {
                 builder = builder.with_action(
@@ -261,7 +267,7 @@ impl ResourcesView {
                 );
             }
 
-            if self.table.kind_plural() == "secrets" {
+            if self.table.kind_plural() == SECRETS {
                 builder = builder.with_action(
                     ActionItem::new("decode")
                         .with_description("shows decoded YAML of the selected secret")
