@@ -1,10 +1,14 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use kube::Client;
+use kube::{Client, api::TerminalSize};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
 };
-use std::sync::{Arc, RwLock};
+use std::{
+    rc::Rc,
+    sync::{Arc, RwLock},
+    time::Instant,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use tui_term::{vt100, widget::PseudoTerminal};
 
@@ -12,9 +16,9 @@ use crate::{
     app::SharedAppData,
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
-        ResponseEvent, TuiEvent,
+        ResponseEvent, Responsive, TuiEvent,
         views::{View, header::HeaderPane},
-        widgets::FooterMessage,
+        widgets::{Button, Dialog, FooterMessage},
     },
 };
 
@@ -22,15 +26,20 @@ use super::bridge::{ShellBridge, ShellBridgeError};
 
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
+const DEFAULT_SIZE: TerminalSize = TerminalSize { width: 80, height: 24 };
 
 /// Pod's shell view.
 pub struct ShellView {
+    app_data: SharedAppData,
     header: HeaderPane,
     bridge: ShellBridge,
     parser: Arc<RwLock<vt100::Parser>>,
-    size: (u16, u16), // vt size (width, height)
+    size: TerminalSize,
     client: Client,
     pod: PodRef,
+    modal: Dialog,
+    esc_count: u8,
+    esc_time: Instant,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
@@ -49,23 +58,72 @@ impl ShellView {
             namespace: pod_namespace.clone(),
             container: pod_container.clone(),
         };
-        let mut header = HeaderPane::new(app_data, false);
+        let mut header = HeaderPane::new(Rc::clone(&app_data), false);
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(24, 80, 0)));
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(DEFAULT_SIZE.height, DEFAULT_SIZE.width, 0)));
         let mut bridge = ShellBridge::new(parser.clone());
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL)?;
 
         Ok(Self {
+            app_data,
             header,
             bridge,
             parser,
-            size: (0, 0),
+            size: DEFAULT_SIZE,
             client: client.get_client(),
             pod,
+            modal: Dialog::default(),
+            esc_count: 0,
+            esc_time: Instant::now(),
             footer_tx,
         })
+    }
+
+    /// Displays a confirmation dialog to forcibly close the shell view.
+    pub fn ask_close_shell_forcibly(&mut self) {
+        if self.bridge.is_running() {
+            self.modal = self.new_close_dialog();
+            self.modal.show();
+        }
+    }
+
+    /// Creates new close dialog.
+    fn new_close_dialog(&mut self) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "Do you want to forcibly close the shell view?\nYou will then need to manually terminate the shell process."
+                .to_owned(),
+            vec![
+                Button::new("Close".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
+                Button::new(
+                    "Cancel".to_owned(),
+                    ResponseEvent::Action("cancel"),
+                    colors.modal.btn_cancel.clone(),
+                ),
+            ],
+            60,
+            colors.modal.text,
+        )
+    }
+
+    /// Checks if `ESC` key was pressed quickly `x` times.
+    fn is_esc_key_pressed_times(&mut self, times: u8) -> bool {
+        if self.esc_time.elapsed().as_millis() < (200 * times as u128) {
+            self.esc_count += 1;
+        } else {
+            self.esc_count = 0;
+            self.esc_time = Instant::now();
+        }
+
+        if self.esc_count == (times - 1) {
+            self.esc_count = 0;
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -75,6 +133,7 @@ impl View for ShellView {
             // we try to fallback to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
                 let _ = self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
+                self.size = DEFAULT_SIZE;
                 ResponseEvent::Handled
             } else {
                 if self.bridge.has_error() {
@@ -98,6 +157,15 @@ impl View for ShellView {
 
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
+
+        if self.modal.is_visible {
+            return self.modal.process_key(key);
+        }
+
+        if key.code == KeyCode::Esc && self.is_esc_key_pressed_times(3) {
+            self.ask_close_shell_forcibly();
+            return ResponseEvent::Handled;
+        }
 
         match key.code {
             KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
@@ -134,11 +202,14 @@ impl View for ShellView {
             return;
         }
 
-        if self.size.0 != layout[1].width || self.size.1 != layout[1].height {
+        if self.size.width != layout[1].width || self.size.height != layout[1].height {
             if let Ok(mut parser) = self.parser.write() {
                 parser.set_size(layout[1].height, layout[1].width);
                 self.bridge.set_terminal_size(layout[1].width, layout[1].height);
-                self.size = (layout[1].width, layout[1].height);
+                self.size = TerminalSize {
+                    width: layout[1].width,
+                    height: layout[1].height,
+                };
             }
         }
 
@@ -147,6 +218,8 @@ impl View for ShellView {
             let pseudo_term = PseudoTerminal::new(screen);
             frame.render_widget(pseudo_term, layout[1]);
         }
+
+        self.modal.draw(frame, frame.area());
     }
 }
 
