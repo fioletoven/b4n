@@ -22,7 +22,7 @@ fn iterators_test() {
     let mut list = FilterableList::from(
         ["abc", "bcd", "cde"]
             .iter()
-            .map(|i| KindItem::new(String::new(), i.to_string(), i.to_string()))
+            .map(|i| KindItem::new(String::new(), (*i).to_string(), (*i).to_string()))
             .collect::<Vec<_>>(),
     );
 
@@ -52,7 +52,7 @@ fn mutable_iterators_test() {
     let mut list = FilterableList::from(
         ["abc", "bcd", "cde"]
             .iter()
-            .map(|i| KindItem::new(String::new(), i.to_string(), i.to_string()))
+            .map(|i| KindItem::new(String::new(), (*i).to_string(), (*i).to_string()))
             .collect::<Vec<_>>(),
     );
 

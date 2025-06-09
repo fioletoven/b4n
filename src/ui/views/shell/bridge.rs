@@ -8,7 +8,6 @@ use std::sync::{
     Arc, RwLock,
     atomic::{AtomicBool, Ordering},
 };
-use thiserror;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -19,14 +18,6 @@ use tracing::warn;
 use tui_term::vt100::{self};
 
 use crate::{app::utils::wait_for_task, kubernetes::PodRef};
-
-/// Possible errors from [`ShellBridge`].
-#[derive(thiserror::Error, Debug)]
-pub enum ShellBridgeError {
-    /// Kubernetes client error.
-    #[error("kubernetes client error")]
-    KubeClientError(#[from] kube::Error),
-}
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
@@ -57,9 +48,9 @@ impl ShellBridge {
         }
     }
 
-    /// Starts new shell process.  
+    /// Starts new shell process.\
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, client: Client, pod: PodRef, shell: impl Into<String>) -> Result<(), ShellBridgeError> {
+    pub fn start(&mut self, client: Client, pod: PodRef, shell: impl Into<String>) {
         self.stop();
 
         let cancellation_token = CancellationToken::new();
@@ -98,7 +89,7 @@ impl ShellBridge {
 
             _is_running.store(true, Ordering::Relaxed);
 
-            let (_, output_closed_too_soon, _) = tokio::join! {
+            let ((), output_closed_too_soon, ()) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
                 output_bridge(stdout, _parser, _cancellation_token.clone()),
                 resize_bridge(tty_resize, _size_rx, _cancellation_token.clone())
@@ -111,8 +102,6 @@ impl ShellBridge {
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
         self.was_started = true;
-
-        Ok(())
     }
 
     /// Cancels [`ShellBridge`] task.
@@ -160,7 +149,7 @@ impl ShellBridge {
 
     /// Returns `true` if attached process has finished.
     pub fn is_finished(&self) -> bool {
-        (self.was_started && self.task.is_none()) || self.task.as_ref().is_some_and(|t| t.is_finished())
+        (self.was_started && self.task.is_none()) || self.task.as_ref().is_some_and(JoinHandle::is_finished)
     }
 
     /// Returns `true` if attached process has/had an error state.
@@ -182,7 +171,7 @@ async fn input_bridge(
 ) {
     while !cancellation_token.is_cancelled() {
         tokio::select! {
-            _ = cancellation_token.cancelled() => (),
+            () = cancellation_token.cancelled() => (),
             Some(input) = input_rx.recv() => {
                 if let Err(err) = stdin.write_all(&input[..]).await {
                     warn!("Cannot write to the attached process stdin: {}", err);
@@ -210,7 +199,7 @@ async fn output_bridge(
 
     while !cancellation_token.is_cancelled() {
         tokio::select! {
-            _ = cancellation_token.cancelled() => (),
+            () = cancellation_token.cancelled() => (),
             Ok(size) = stdout.read(&mut buf) => {
                 if size == 0 {
                     cancellation_token.cancel();
@@ -237,7 +226,7 @@ async fn resize_bridge(
 ) {
     while !cancellation_token.is_cancelled() {
         tokio::select! {
-            _ = cancellation_token.cancelled() => (),
+            () = cancellation_token.cancelled() => (),
             Some(size) = receiver.recv() => {
                 if let Err(err) = sender.send(size).await {
                     warn!("Cannot resize the attached process tty: {}", err);

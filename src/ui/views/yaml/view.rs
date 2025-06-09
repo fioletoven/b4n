@@ -76,7 +76,7 @@ impl YamlView {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     ActionItem::new(action)
-                        .with_description(&format!("{}s the resource's data", action))
+                        .with_description(&format!("{action}s the resource's data"))
                         .with_response(ResponseEvent::Action("decode")),
                 );
             }

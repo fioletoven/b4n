@@ -53,7 +53,7 @@ impl Input {
         self.prompt = prompt.map(|p| (p.0.into(), p.1));
     }
 
-    /// Sets prompt colors.  
+    /// Sets prompt colors.\
     /// **Note** that it takes effect only if the prompt was already set.
     pub fn set_prompt_colors(&mut self, colors: TextColors) {
         if let Some(prompt) = &mut self.prompt {
@@ -61,7 +61,7 @@ impl Input {
         }
     }
 
-    /// Sets the prompt text.  
+    /// Sets the prompt text.\
     /// **Note** that it takes effect only if the prompt was already set.
     pub fn set_prompt_text(&mut self, text: impl Into<String>) {
         if let Some(prompt) = &mut self.prompt {

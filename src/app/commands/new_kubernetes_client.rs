@@ -1,4 +1,8 @@
-use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
+use kube::{
+    Discovery,
+    api::{ApiResource, ListParams},
+    discovery::ApiCapabilities,
+};
 use thiserror;
 
 use crate::{
@@ -69,8 +73,8 @@ impl NewKubernetesClientCommand {
         let Some(namespaces) = get_resource(Some(&discovery), &NAMESPACES.into()) else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
         };
-        let namespaces = client.get_api(namespaces.0, namespaces.1, None, true);
-        let Ok(namespaces) = namespaces.list(&Default::default()).await else {
+        let namespaces = client.get_api(&namespaces.0, &namespaces.1, None, true);
+        let Ok(namespaces) = namespaces.list(&ListParams::default()).await else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
         };
         let namespace = if namespaces.iter().any(|n| self.namespace.is_equal(n.metadata.name.as_deref())) {

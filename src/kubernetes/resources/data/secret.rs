@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json::Map;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
@@ -8,8 +9,8 @@ use crate::{
 
 /// Returns [`ResourceData`] for the `secret` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
-    let secret_type = object.data["type"].as_str().map(|t| t.to_owned());
-    let data_count = object.data["data"].as_object().map(|o| o.len()).unwrap_or(0).to_string();
+    let secret_type = object.data["type"].as_str().map(ToOwned::to_owned);
+    let data_count = object.data["data"].as_object().map_or(0, Map::len).to_string();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 2] = [secret_type.into(), ResourceValue::numeric(Some(data_count), 5)];

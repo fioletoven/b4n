@@ -86,7 +86,7 @@ impl<T: Table> Select<T> {
         if selected_group.is_empty()
             || !self
                 .items
-                .highlight_item_by_name(&format!("{}.{}", selected_name, selected_group))
+                .highlight_item_by_name(&format!("{selected_name}.{selected_group}"))
         {
             self.items.highlight_item_by_name(selected_name);
         }
@@ -164,7 +164,7 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
         .split(area)
 }
 
-/// Widget that renders all visible rows in select.  
+/// Widget that renders all visible rows in select.\
 /// **Note** that it removes `[` and `]` characters from the output dimming the inside text.
 struct ListWidget<'a> {
     pub list: Vec<(String, bool)>,

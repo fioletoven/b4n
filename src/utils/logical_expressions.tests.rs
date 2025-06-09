@@ -22,12 +22,8 @@ fn evaluate_test() {
         "!((a & c) | (e & z))",
         "!(!(!((a & c) | (e & z))))",
     ];
-    for expression in to_check.iter() {
-        assert!(
-            statements.evaluate(&parse(expression).unwrap()),
-            "should match: {}",
-            expression
-        );
+    for expression in &to_check {
+        assert!(statements.evaluate(&parse(expression).unwrap()), "should match: {expression}");
     }
 
     // shouldn't match
@@ -39,11 +35,10 @@ fn evaluate_test() {
         "(a & c) | (e & z)",
         "!(!((a & c) | (e & z)))",
     ];
-    for expression in to_check.iter() {
+    for expression in &to_check {
         assert!(
             !statements.evaluate(&parse(expression).unwrap()),
-            "shouldn't match: {}",
-            expression
+            "shouldn't match: {expression}"
         );
     }
 }

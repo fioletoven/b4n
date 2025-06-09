@@ -21,7 +21,7 @@ pub struct BgTask {
 }
 
 impl BgTask {
-    /// Creates new [`BgTask`] instance.  
+    /// Creates new [`BgTask`] instance.\
     /// **Note** that it must be run in order to start execute a command.
     pub fn new(command: Command) -> Self {
         Self {
@@ -47,7 +47,7 @@ impl BgTask {
 
         let task = tokio::spawn(async move {
             tokio::select! {
-                _ = _cancellation_token.cancelled() => (),
+                () = _cancellation_token.cancelled() => (),
                 result = run_command(_command) => {
                     if let Some(result) = result {
                         results_tx.send(Box::new(TaskResult { id: _task_id, result })).unwrap();

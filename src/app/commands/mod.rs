@@ -12,7 +12,7 @@ mod list_contexts;
 mod new_kubernetes_client;
 mod save_history;
 
-/// List of all possible commands for [BgExecutor](super::BgExecutor).
+/// List of all possible commands for [`BgExecutor`](super::BgExecutor).
 pub enum Command {
     ListKubeContexts(ListKubeContextsCommand),
     NewKubernetesClient(Box<NewKubernetesClientCommand>),

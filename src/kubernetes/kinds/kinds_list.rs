@@ -29,7 +29,7 @@ impl KindsList {
             if let Some(old_list) = &mut self.list.items {
                 update_old_list(old_list, new_list);
             } else {
-                self.list.items = create_new_list(new_list);
+                self.list.items = Some(create_new_list(new_list));
             }
 
             self.list.sort(sort_by, is_descending);
@@ -67,7 +67,7 @@ impl Table for KindsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.  
+    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
     /// **Note** that this is not implemented for [`KindsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
@@ -89,7 +89,7 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 
-    for new_item in new_list.into_iter() {
+    for new_item in new_list {
         let name = new_item.name.clone();
         if unique.contains(&name) {
             multiple.insert(name);
@@ -111,13 +111,13 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
     mark_multiple(old_list, &multiple);
 }
 
-fn create_new_list(new_list: Vec<KindItem>) -> Option<KindFilterableList> {
+fn create_new_list(new_list: Vec<KindItem>) -> KindFilterableList {
     let mut unique = HashSet::new();
     let mut multiple = HashSet::new();
 
     let mut list = Vec::with_capacity(new_list.len());
 
-    for new_item in new_list.into_iter() {
+    for new_item in new_list {
         let name = new_item.name.clone();
         if unique.contains(&name) {
             multiple.insert(name);
@@ -132,7 +132,7 @@ fn create_new_list(new_list: Vec<KindItem>) -> Option<KindFilterableList> {
 
     mark_multiple(&mut list, &multiple);
 
-    Some(list)
+    list
 }
 
 fn mark_multiple(list: &mut KindFilterableList, multiple: &HashSet<String>) {

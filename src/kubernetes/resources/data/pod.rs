@@ -11,7 +11,7 @@ use crate::{
 pub fn data(object: &DynamicObject) -> ResourceData {
     let status = &object.data["status"];
     let ready = status["containerStatuses"].as_array().map(|c| get_ready(c));
-    let phase = status["phase"].as_str().map(|s| s.to_owned());
+    let phase = status["phase"].as_str().map(ToOwned::to_owned);
     let waiting = status["containerStatuses"]
         .as_array()
         .and_then(|c| get_first_waiting_reason(c));
@@ -35,7 +35,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         } else {
             phase.into()
         },
-        status["podIP"].as_str().map(|s| s.to_owned()).into(),
+        status["podIP"].as_str().map(ToOwned::to_owned).into(),
     ];
 
     ResourceData {

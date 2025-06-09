@@ -48,6 +48,8 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     }
 
     /// Runs a background task to observe configuration changes.
+    /// ## Panics
+    /// Will panic if configuration can't be sent through the channel.
     pub fn start(&mut self) -> Result<()> {
         let (mut _tx, mut _rx) = mpsc::channel(10);
         let mut watcher = RecommendedWatcher::new(
@@ -76,7 +78,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                 while let Ok(res) = _rx.try_recv() {
                     if let Ok(res) = res {
                         if let EventKind::Modify(_) = res.kind {
-                            configuration_modified = true
+                            configuration_modified = true;
                         }
                     }
                 }
@@ -97,7 +99,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
         Ok(())
     }
 
-    /// Changes the observed configuration file to the specified one and restarts the [`ConfigWatcher`].  
+    /// Changes the observed configuration file to the specified one and restarts the [`ConfigWatcher`].\
     /// **Note** that this will force a reload of the observed file.
     pub fn change_file(&mut self, config_to_watch: PathBuf) -> Result<()> {
         self.stop();

@@ -172,7 +172,7 @@ impl BgObserver {
         }
     }
 
-    /// Starts new [`BgObserver`] task.  
+    /// Starts new [`BgObserver`] task.\
     /// **Note** that it stops the old task if it is running.
     pub fn start(
         &mut self,
@@ -197,7 +197,12 @@ impl BgObserver {
             has_error: Arc::clone(&self.has_error),
             last_watch_error: None,
         };
-        let _api_client = client.get_api(ar, cap, self.resource.namespace.as_option(), self.resource.namespace.is_all());
+        let _api_client = client.get_api(
+            &ar,
+            &cap,
+            self.resource.namespace.as_option(),
+            self.resource.namespace.is_all(),
+        );
         let _cancellation_token = cancellation_token.clone();
         let _resource_name = self.resource.name.clone();
 
@@ -213,7 +218,7 @@ impl BgObserver {
 
                 while !_cancellation_token.is_cancelled() {
                     tokio::select! {
-                        _ = _cancellation_token.cancelled() => (),
+                        () = _cancellation_token.cancelled() => (),
                         result = watch.try_next() => {
                             if !_processor.process_event(result) {
                                 // we need to restart watcher, so go up one while loop
@@ -245,7 +250,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.  
+    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.\
     /// **Note** that it uses `new_namespace` if resource is namespaced.
     pub fn restart_new_kind(
         &mut self,
@@ -356,7 +361,7 @@ struct EventsProcessor {
 }
 
 impl EventsProcessor {
-    /// Process event received from the kubernetes resource watcher.  
+    /// Process event received from the kubernetes resource watcher.\
     /// Returns `true` if all was OK or `false` if the watcher needs to be restarted.
     pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> bool {
         match result {
@@ -395,9 +400,9 @@ impl EventsProcessor {
                             self.last_watch_error = Some(Instant::now());
 
                             return false;
-                        } else {
-                            self.last_watch_error = Some(Instant::now());
                         }
+
+                        self.last_watch_error = Some(Instant::now());
                     },
                     _ => self.has_error.store(true, Ordering::Relaxed),
                 }
@@ -424,7 +429,7 @@ impl EventsProcessor {
 
     fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
         if let Some(containers) = get_containers(object, array) {
-            for c in containers.iter() {
+            for c in containers {
                 let result = get_container_result(c, object, statuses_array, is_init, is_delete);
                 self.context_tx.send(Box::new(result)).unwrap();
             }

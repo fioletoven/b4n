@@ -21,7 +21,7 @@ pub enum Position {
     Right,
 }
 
-/// Side select widget for TUI.  
+/// Side select widget for TUI.\
 /// It can be displayed on the left or right side of the specified area.
 pub struct SideSelect<T: Table> {
     pub is_visible: bool,
@@ -45,7 +45,7 @@ impl<T: Table> SideSelect<T> {
         result: fn(String) -> ResponseEvent,
         width: u16,
     ) -> Self {
-        let header = format!(" SELECT {}: ", name);
+        let header = format!(" SELECT {name}: ");
         let select = Select::new(list, app_data.borrow().theme.colors.side_select.clone(), true, false);
 
         SideSelect {

@@ -86,13 +86,13 @@ impl Table for PatternsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.  
+    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
     /// **Note** that this is not implemented for [`PatternsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }
 
-    /// Returns header text for the list.  
+    /// Returns header text for the list.\
     /// **Note** that this is not implemented for [`PatternsList`].
     fn get_header(&mut self, _view: ViewType, _width: usize) -> &str {
         "n/a"

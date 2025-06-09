@@ -25,7 +25,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_action:{}_", name)),
+            uid: Some(format!("_action:{name}_")),
             group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some("".to_owned()),
@@ -81,8 +81,7 @@ impl ActionItem {
     fn get_text_width(&self, width: usize) -> usize {
         self.icon
             .as_ref()
-            .map(|i| width.max(i.chars().count() + 1) - i.chars().count() - 1)
-            .unwrap_or(width)
+            .map_or(width, |i| width.max(i.chars().count() + 1) - i.chars().count() - 1)
     }
 
     fn add_icon(&self, text: &mut String) {

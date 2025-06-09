@@ -56,13 +56,7 @@ impl LogsObserver {
         }
     }
 
-    pub fn start(
-        &mut self,
-        client: &KubernetesClient,
-        pod: PodRef,
-        tail_lines: Option<i64>,
-        previous: bool,
-    ) -> Result<(), LogsObserverError> {
+    pub fn start(&mut self, client: &KubernetesClient, pod: PodRef, tail_lines: Option<i64>, previous: bool) {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _client = client.get_client();
@@ -89,16 +83,14 @@ impl LogsObserver {
                 }
 
                 tokio::select! {
-                    _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(backoff.next_backoff().unwrap_or(Duration::from_millis(800))) => (),
+                    () = _cancellation_token.cancelled() => (),
+                    () = sleep(backoff.next_backoff().unwrap_or(Duration::from_millis(800))) => (),
                 }
             }
         });
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
-
-        Ok(())
     }
 
     /// Cancels [`LogsObserver`] task.
@@ -167,11 +159,11 @@ async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_
     let mut should_continue = true;
     while !context.cancellation_token.is_cancelled() {
         tokio::select! {
-            _ = context.cancellation_token.cancelled() => (),
+            () = context.cancellation_token.cancelled() => (),
             line = lines.try_next() => {
                 match line {
                     Ok(Some(line)) => {
-                        if let Some(line) = process_line(line) {
+                        if let Some(line) = process_line(&line) {
                             last_message_time = Some(line.end);
                             context.channel.send(Box::new(line)).unwrap();
                         }
@@ -198,7 +190,7 @@ async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_
     (should_continue, last_message_time)
 }
 
-fn process_line(line: String) -> Option<LogsChunk> {
+fn process_line(line: &str) -> Option<LogsChunk> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
 

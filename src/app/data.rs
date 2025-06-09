@@ -28,11 +28,11 @@ pub struct ResourcesInfo {
 impl Default for ResourcesInfo {
     fn default() -> Self {
         Self {
-            context: Default::default(),
-            namespace: Default::default(),
-            version: Default::default(),
+            context: String::default(),
+            namespace: Namespace::default(),
+            version: String::default(),
             name: None,
-            kind: Default::default(),
+            kind: Kind::default(),
             scope: Scope::Cluster,
             count: Default::default(),
             is_all_namespace: false,
@@ -53,17 +53,17 @@ impl ResourcesInfo {
         }
     }
 
-    /// Updates [`ResourcesInfo`] with data from the [`InitData`].  
+    /// Updates [`ResourcesInfo`] with data from the [`InitData`].\
     /// **Note** that this update do not change the flag `is_all_namespace`.
     /// This results in remembering if the `all` namespace was set by user or by [`InitData`].
     pub fn update_from(&mut self, data: &InitData) {
+        self.name.clone_from(&data.name);
         self.namespace = data.namespace.clone();
-        self.name = data.name.clone();
         self.kind = Kind::new(&data.kind_plural, &data.group);
         self.scope = data.scope.clone();
     }
 
-    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
+    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_all_namespace(&self) -> bool {
         if self.is_all_namespace {
@@ -73,7 +73,7 @@ impl ResourcesInfo {
         }
     }
 
-    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].  
+    /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_namespace_equal(&self, namespace: &Namespace) -> bool {
         if self.is_all_namespace {
@@ -83,7 +83,7 @@ impl ResourcesInfo {
         }
     }
 
-    /// Sets new namespace.  
+    /// Sets new namespace.\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn set_namespace(&mut self, namespace: Namespace) {
         self.is_all_namespace = namespace.is_all();
@@ -130,6 +130,8 @@ pub struct AppData {
 
 impl AppData {
     /// Creates new [`AppData`] instance.
+    /// ## Panics
+    /// Will panic if syntax set data is invalid.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
         Self {
             config,
@@ -141,7 +143,7 @@ impl AppData {
         }
     }
 
-    /// Returns resource's `kind` and `namespace` from the history data.  
+    /// Returns resource's `kind` and `namespace` from the history data.\
     /// **Note** that if provided `context` is not found in the history file, current context resource is used.
     pub fn get_namespaced_resource_from_config(&self, context: &str) -> (Kind, Namespace) {
         if let Some(kind) = self.history.get_kind(context) {
@@ -152,7 +154,7 @@ impl AppData {
         }
     }
 
-    /// Returns new [`SyntaxData`] instance.  
+    /// Returns new [`SyntaxData`] instance.\
     /// **Note** that all elements are cloned/build every time you call this method.
     pub fn get_syntax_data(&self) -> SyntaxData {
         SyntaxData {

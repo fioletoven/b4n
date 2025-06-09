@@ -41,7 +41,7 @@ impl ResourceItem {
     /// Creates light [`ResourceItem`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_{}_", name)),
+            uid: Some(format!("_{name}_")),
             name: name.to_owned(),
             ..Default::default()
         }
@@ -110,7 +110,7 @@ impl ResourceItem {
             ViewType::Name => row.push_cell(&self.name, width, false),
             ViewType::Compact => self.get_compact_text(&mut row, header, name_width),
             ViewType::Full => self.get_full_text(&mut row, header, namespace_width, name_width),
-        };
+        }
 
         if row.chars().count() > width {
             truncate(row.as_str(), width).to_owned()
@@ -254,8 +254,8 @@ impl Filterable<ResourceFilterContext> for ResourceItem {
         }
     }
 
-    /// Checks if an item match a filter using the provided context.  
-    /// Extended filtering is when `e` is provided in settings.  
+    /// Checks if an item match a filter using the provided context.\
+    /// Extended filtering is when `e` is provided in settings.\
     /// **Note** that currently it has only a switch for normal/extended filtering.
     fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
         if let Some(expression) = &context.extended {

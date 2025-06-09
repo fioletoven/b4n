@@ -231,54 +231,60 @@ impl ResourcesView {
     }
 
     fn process_command_palette_events(&mut self, key: KeyEvent) {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let is_containers = self.table.kind_plural() == CONTAINERS;
-            let mut builder = if self.app_data.borrow().is_connected {
-                ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers)
-            } else {
-                ActionsListBuilder::default().with_resources_actions(false)
-            };
-
-            if is_containers {
-                builder = builder
-                    .with_action(
-                        ActionItem::new("show logs")
-                            .with_description("shows container logs")
-                            .with_aliases(&["logs"])
-                            .with_response(ResponseEvent::Action("show_logs")),
-                    )
-                    .with_action(
-                        ActionItem::new("show previous logs")
-                            .with_description("shows container previous logs")
-                            .with_aliases(&["previous"])
-                            .with_response(ResponseEvent::Action("show_plogs")),
-                    )
-                    .with_action(
-                        ActionItem::new("shell")
-                            .with_description("opens container shell")
-                            .with_response(ResponseEvent::Action("open_shell")),
-                    );
-            } else {
-                builder = builder.with_action(
-                    ActionItem::new("show YAML")
-                        .with_description("shows YAML of the selected resource")
-                        .with_aliases(&["yaml"])
-                        .with_response(ResponseEvent::Action("show_yaml")),
-                );
-            }
-
-            if self.table.kind_plural() == SECRETS {
-                builder = builder.with_action(
-                    ActionItem::new("decode")
-                        .with_description("shows decoded YAML of the selected secret")
-                        .with_aliases(&["decode", "x"])
-                        .with_response(ResponseEvent::Action("decode_yaml")),
-                );
-            }
-
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
+        if key.code != KeyCode::Char(':') && key.code != KeyCode::Char('>') {
+            return;
         }
+
+        if !self.app_data.borrow().is_connected {
+            let actions = ActionsListBuilder::default().with_resources_actions(false).build();
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
+            return;
+        }
+
+        let is_containers = self.table.kind_plural() == CONTAINERS;
+        let mut builder =
+            ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers);
+
+        if is_containers {
+            builder = builder
+                .with_action(
+                    ActionItem::new("show logs")
+                        .with_description("shows container logs")
+                        .with_aliases(&["logs"])
+                        .with_response(ResponseEvent::Action("show_logs")),
+                )
+                .with_action(
+                    ActionItem::new("show previous logs")
+                        .with_description("shows container previous logs")
+                        .with_aliases(&["previous"])
+                        .with_response(ResponseEvent::Action("show_plogs")),
+                )
+                .with_action(
+                    ActionItem::new("shell")
+                        .with_description("opens container shell")
+                        .with_response(ResponseEvent::Action("open_shell")),
+                );
+        } else {
+            builder = builder.with_action(
+                ActionItem::new("show YAML")
+                    .with_description("shows YAML of the selected resource")
+                    .with_aliases(&["yaml"])
+                    .with_response(ResponseEvent::Action("show_yaml")),
+            );
+        }
+
+        if self.table.kind_plural() == SECRETS {
+            builder = builder.with_action(
+                ActionItem::new("decode")
+                    .with_description("shows decoded YAML of the selected secret")
+                    .with_aliases(&["decode", "x"])
+                    .with_response(ResponseEvent::Action("decode_yaml")),
+            );
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     /// Creates new delete dialog.

@@ -156,7 +156,7 @@ impl BgWorker {
             discovery
                 .iter()
                 .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                .map(|(ar, _)| KindItem::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
+                .map(|(ar, _)| KindItem::new(ar.group.clone(), ar.plural.clone(), ar.version.clone()))
                 .collect::<Vec<KindItem>>()
         })
     }
@@ -178,7 +178,7 @@ impl BgWorker {
             .run_task(Command::SaveHistory(Box::new(SaveHistoryCommand::new(history))));
     }
 
-    /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
+    /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
     pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);

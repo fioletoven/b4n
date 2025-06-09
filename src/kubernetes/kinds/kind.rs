@@ -19,11 +19,11 @@ impl KindItem {
         let full_name = if group.is_empty() {
             name.clone()
         } else {
-            format!("{}.{}", name, group)
+            format!("{name}.{group}")
         };
 
         Self {
-            uid: Some(format!("_{}:{}:{}_", group, name, version)),
+            uid: Some(format!("_{group}:{name}:{version}_")),
             group,
             name,
             full_name,

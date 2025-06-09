@@ -29,7 +29,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Creates new [`Header`] instance with provided columns.  
+    /// Creates new [`Header`] instance with provided columns.\
     /// **Note** that `sort_symbols` must be uppercase ASCII characters.
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
         let extra_columns_text = get_extra_columns_text(&extra_columns, false);
@@ -121,7 +121,7 @@ impl Header {
 
     /// Returns current data length of the provided column.
     pub fn get_data_length(&self, column_no: usize) -> usize {
-        self.column(column_no).map(|c| c.data_len).unwrap_or(3) // 3: "n/a" length
+        self.column(column_no).map_or(3, |c| c.data_len) // 3: "n/a" length
     }
 
     /// Sets data length for the provided column.

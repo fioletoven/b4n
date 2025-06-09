@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json::Map;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
@@ -8,7 +9,7 @@ use crate::{
 
 /// Returns [`ResourceData`] for the `configmap` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
-    let data_count = object.data["data"].as_object().map(|o| o.len()).unwrap_or(0).to_string();
+    let data_count = object.data["data"].as_object().map_or(0, Map::len).to_string();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 1] = [ResourceValue::numeric(Some(data_count), 5)];

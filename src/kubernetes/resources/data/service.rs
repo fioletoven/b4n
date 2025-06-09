@@ -9,8 +9,8 @@ use crate::{
 /// Returns [`ResourceData`] for the `service` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let spec = &object.data["spec"];
-    let service_type = spec["type"].as_str().map(|t| t.to_owned());
-    let cluster_ip = spec["clusterIP"].as_str().map(|t| t.to_owned());
+    let service_type = spec["type"].as_str().map(ToOwned::to_owned);
+    let cluster_ip = spec["clusterIP"].as_str().map(ToOwned::to_owned);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 2] = [service_type.into(), cluster_ip.into()];

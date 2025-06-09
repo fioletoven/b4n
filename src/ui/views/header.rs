@@ -88,7 +88,7 @@ impl HeaderPane {
         }
     }
 
-    /// Returns formatted header path as breadcrumbs:  
+    /// Returns formatted header path as breadcrumbs:\
     /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
     fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
@@ -122,7 +122,7 @@ impl HeaderPane {
         Line::from(path)
     }
 
-    /// Returns formatted text as right breadcrumbs:  
+    /// Returns formatted text as right breadcrumbs:\
     /// \< `text` \<
     fn get_right_text(&self, text: String) -> Line {
         let colors = if self.app_data.borrow().is_connected {

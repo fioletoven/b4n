@@ -11,8 +11,8 @@ use super::{FilterContext, Filterable};
 #[path = "./filterable_list.tests.rs"]
 mod filterable_list_tests;
 
-/// Wrapper for the [`Vec`] type that provides filtered iterators.  
-/// It remembers the original list so the filter can be re-applied anytime with different conditions.  
+/// Wrapper for the [`Vec`] type that provides filtered iterators.\
+/// It remembers the original list so the filter can be re-applied anytime with different conditions.\
 /// Also it can be more efficient for cases where filtering is CPU bound and the filtered iterator is
 /// frequently requested (e.g. drawing a fame on the terminal).
 pub struct FilterableList<T: Filterable<Fc>, Fc: FilterContext> {
@@ -38,7 +38,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.filter_reset();
     }
 
-    /// Removes and returns the element at position `index` within the filtered out list.  
+    /// Removes and returns the element at position `index` within the filtered out list.\
     /// **Note** that this clears the current filter.
     pub fn remove(&mut self, index: usize) -> T {
         if let Some(list) = &self.filtered {
@@ -51,7 +51,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         }
     }
 
-    /// Filters out the underneath list using `context` for that.  
+    /// Filters out the underneath list using `context` for that.\
     /// **Note** that the filter is cleared out every time the underneath array is modified.
     pub fn filter(&mut self, context: &mut Fc) {
         let filtered: Vec<usize> = self
@@ -85,14 +85,14 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.len() == 0
     }
 
-    /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.  
+    /// Inserts an element at position `index` within the vector, shifting all elements after it to the right.\
     /// **Note** that this clears the current filter.
     pub fn insert(&mut self, index: usize, element: T) {
         self.items.insert(index, element);
         self.filter_reset();
     }
 
-    /// Appends an element to the back of a collection.  
+    /// Appends an element to the back of a collection.\
     /// **Note** that this clears the current filter.
     pub fn push(&mut self, value: T) {
         self.items.push(value);
@@ -115,7 +115,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.items.len()
     }
 
-    /// Sorts the underneath collection with a comparison function, preserving initial order of equal elements.  
+    /// Sorts the underneath collection with a comparison function, preserving initial order of equal elements.\
     /// **Note** that this clears the current filter.
     pub fn full_sort_by<F>(&mut self, compare: F)
     where
@@ -125,7 +125,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.filter_reset();
     }
 
-    /// Retains only the elements specified by the predicate in the underneath collection.  
+    /// Retains only the elements specified by the predicate in the underneath collection.\
     /// **Note** that this clears the current filter.
     pub fn full_retain<F>(&mut self, f: F)
     where
@@ -135,7 +135,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.filter_reset();
     }
 
-    /// Removes and returns the element at position `index` within the underneath collection.  
+    /// Removes and returns the element at position `index` within the underneath collection.\
     /// **Note** that this clears the current filter.
     pub fn full_remove(&mut self, index: usize) -> T {
         self.filter_reset();

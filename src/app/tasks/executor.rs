@@ -23,7 +23,7 @@ impl Default for BgExecutor {
 }
 
 impl BgExecutor {
-    /// Creates a task with the specified command and runs it.  
+    /// Creates a task with the specified command and runs it.\
     /// **Note** that it returns a unique task ID by which the task can be cancelled.
     pub fn run_task(&mut self, command: Command) -> String {
         let mut task = BgTask::new(command);
@@ -63,7 +63,7 @@ impl BgExecutor {
         self.tasks.clear();
     }
 
-    /// Cancels all currently running tasks and waits for them to finish.  
+    /// Cancels all currently running tasks and waits for them to finish.\
     /// **Note** that it can be a slow operation. It stops tasks one by one.
     pub fn stop_all(&mut self) {
         for task in &mut self.tasks {

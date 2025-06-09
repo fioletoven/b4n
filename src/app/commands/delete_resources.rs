@@ -45,7 +45,7 @@ impl DeleteResourcesCommand {
         } else {
             self.namespace.as_option()
         };
-        let client = kubernetes::client::get_dynamic_api(discovery.0, discovery.1, self.client, namespace, namespace.is_none());
+        let client = kubernetes::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
 
         for name in &self.names {
             let deleted = client.delete(name, &DeleteParams::default()).await;

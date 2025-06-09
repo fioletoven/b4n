@@ -72,7 +72,7 @@ impl Footer {
         self.messages_tx.send(message).unwrap();
     }
 
-    /// Returns layout that can be used to draw [`Footer`].  
+    /// Returns layout that can be used to draw [`Footer`].\
     /// **Note** that returned slice has two elements, the second one is for the footer itself.
     pub fn get_layout(area: Rect) -> Rc<[Rect]> {
         Layout::default()

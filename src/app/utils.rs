@@ -63,9 +63,9 @@ impl<T: PartialEq> StateChangeTracker<T> {
     }
 
     /// Sets new state and returns `true` if it changed to the `check` from the last time.
-    pub fn changed_to(&mut self, new_state: T, check: T) -> bool {
+    pub fn changed_to(&mut self, new_state: T, check: &T) -> bool {
         if self.changed(new_state) {
-            self.last_state == check
+            self.last_state == *check
         } else {
             false
         }

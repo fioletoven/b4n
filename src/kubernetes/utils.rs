@@ -51,7 +51,7 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
     }
 }
 
-/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.  
+/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.\
 /// Kind value can be in the format `kind.group`.
 pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &Kind) -> Option<(ApiResource, ApiCapabilities)> {
     if kind.has_group() {

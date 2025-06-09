@@ -1,5 +1,9 @@
 use backoff::backoff::Backoff;
-use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
+use kube::{
+    Discovery,
+    api::ApiResource,
+    discovery::{ApiCapabilities, ApiGroup},
+};
 use std::{
     sync::{
         Arc,
@@ -70,7 +74,7 @@ impl BgDiscovery {
             while !_cancellation_token.is_cancelled() {
                 if let Some(discovery) = maybe_discovery.take() {
                     tokio::select! {
-                        _ = _cancellation_token.cancelled() => (),
+                        () = _cancellation_token.cancelled() => (),
                         result = discovery.run() => match result {
                             Ok(new_discovery) => {
                                 _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
@@ -79,7 +83,7 @@ impl BgDiscovery {
                                 next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
                             }
                             Err(error) => {
-                                let msg = format!("Discovery error: {}", error);
+                                let msg = format!("Discovery error: {error}");
                                 warn!("{}", msg);
                                 _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
                                 if !_has_error.swap(true, Ordering::Relaxed) || backoff.start_time.elapsed().as_secs() > 120 {
@@ -97,8 +101,8 @@ impl BgDiscovery {
                 }
 
                 tokio::select! {
-                    _ = _cancellation_token.cancelled() => (),
-                    _ = sleep(next_interval) => (),
+                    () = _cancellation_token.cancelled() => (),
+                    () = sleep(next_interval) => (),
                 }
             }
         });
@@ -141,5 +145,5 @@ impl Drop for BgDiscovery {
 /// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`].
 #[inline]
 pub fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
-    discovery.groups().flat_map(|g| g.resources_by_stability()).collect()
+    discovery.groups().flat_map(ApiGroup::resources_by_stability).collect()
 }

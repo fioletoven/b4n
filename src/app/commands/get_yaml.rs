@@ -58,7 +58,7 @@ pub struct ResourceYamlResult {
     pub is_decoded: bool,
 }
 
-/// Command that gets a specified resource from the kubernetes API and then styles it.  
+/// Command that gets a specified resource from the kubernetes API and then styles it.
 pub struct GetResourceYamlCommand {
     name: String,
     namespace: Namespace,
@@ -113,8 +113,8 @@ impl GetResourceYamlCommand {
         }
 
         let client = kubernetes::client::get_dynamic_api(
-            discovery.0,
-            discovery.1,
+            &discovery.0,
+            &discovery.1,
             self.client,
             self.namespace.as_option(),
             self.namespace.is_all(),
@@ -174,7 +174,7 @@ async fn style_resource(
 }
 
 fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
-    if resource.data.get("data").is_some_and(|d| d.is_object()) {
+    if resource.data.get("data").is_some_and(Value::is_object) {
         let engine = engine::general_purpose::STANDARD;
         for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
             if let Value::String(data) = &mut data.1 {

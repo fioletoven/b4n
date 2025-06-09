@@ -67,7 +67,7 @@ impl Config {
         load_or_create_default(&Self::default_path()).await
     }
 
-    /// Loads the theme specified in the configuration.  
+    /// Loads the theme specified in the configuration.\
     /// **Note**, if the theme does not exist, a default one is created.
     pub async fn load_or_create_theme(&self) -> Result<Theme, ConfigError> {
         tokio::fs::create_dir_all(self.theme_dir()).await?;
@@ -77,7 +77,7 @@ impl Config {
     /// Returns path to the themes directory.
     pub fn theme_dir(&self) -> PathBuf {
         match home::home_dir() {
-            Some(path) => path.join(format!(".{}", APP_NAME)).join("themes"),
+            Some(path) => path.join(format!(".{APP_NAME}")).join("themes"),
             None => PathBuf::from("themes"),
         }
     }
@@ -88,14 +88,14 @@ impl Config {
         if path.exists() {
             path
         } else {
-            self.theme_dir().join(format!("{}.yaml", DEFAULT_THEME_NAME))
+            self.theme_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
         }
     }
 
     /// Returns the default configuration path: `HOME/b4n/config.yaml`.
     pub fn default_path() -> PathBuf {
         match home::home_dir() {
-            Some(path) => path.join(format!(".{}", APP_NAME)).join("config.yaml"),
+            Some(path) => path.join(format!(".{APP_NAME}")).join("config.yaml"),
             None => PathBuf::from("config.yaml"),
         }
     }

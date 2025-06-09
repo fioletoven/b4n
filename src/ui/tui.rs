@@ -68,7 +68,7 @@ impl ResponseEvent {
         }
     }
 
-    /// Conditionally converts [`ResponseEvent`] to a different [`ResponseEvent`] consuming it.  
+    /// Conditionally converts [`ResponseEvent`] to a different [`ResponseEvent`] consuming it.\
     /// **Note** that the new instance is returned by the `f` closure executed only if it is an action matching the provided name.
     pub fn if_action_then<F>(self, name: &str, f: F) -> Self
     where
@@ -139,15 +139,11 @@ impl Tui {
             loop {
                 let crossterm_event = reader.next().fuse();
                 tokio::select! {
-                    _ = _cancellation_token.cancelled() => {
+                    () = _cancellation_token.cancelled() => {
                         break;
                     },
                     maybe_event = crossterm_event => {
-                        match maybe_event {
-                            Some(Ok(event)) => process_crossterm_event(event, &_event_tx),
-                            Some(Err(_)) => {},
-                            None => {},
-                        }
+                        if let Some(Ok(event)) = maybe_event { process_crossterm_event(event, &_event_tx) }
                     },
                 }
             }

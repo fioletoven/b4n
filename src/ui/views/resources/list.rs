@@ -28,7 +28,7 @@ impl<T: Table> ListPane<T> {
         }
     }
 
-    /// Draws [`ListPane`] on the provided frame area.  
+    /// Draws [`ListPane`] on the provided frame area.\
     /// It draws only the visible elements respecting the height of the `area`.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let layout = Layout::default()
@@ -95,7 +95,7 @@ impl<T: Table> Responsive for ListPane<T> {
     }
 }
 
-/// Widget that renders header for the resources list pane.  
+/// Widget that renders header for the resources list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
     pub header: &'a str,

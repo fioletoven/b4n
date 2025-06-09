@@ -1,6 +1,6 @@
 use super::resources::CONTAINERS;
 
-/// Represents kubernetes kind together with its group.  
+/// Represents kubernetes kind together with its group.\
 /// **Note** that it can be also used for plural names.
 #[derive(Default, Debug, Clone)]
 pub struct Kind {
@@ -14,7 +14,7 @@ impl Kind {
         let kind = if group.is_empty() {
             kind.to_owned()
         } else {
-            format!("{}.{}", kind, group)
+            format!("{kind}.{group}")
         };
         let index = kind.find('.');
         Self { kind, index }

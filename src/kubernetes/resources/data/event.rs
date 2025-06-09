@@ -9,13 +9,13 @@ use crate::{
 /// Returns [`ResourceData`] for the `event` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let count = object.data["count"].as_u64().unwrap_or_default();
-    let r#type = object.data["type"].as_str().map(|t| t.to_owned());
-    let reason = object.data["reason"].as_str().map(|t| t.to_owned());
+    let r#type = object.data["type"].as_str().map(ToOwned::to_owned);
+    let reason = object.data["reason"].as_str().map(ToOwned::to_owned);
     let obj = &object.data["involvedObject"];
     let kind = obj["kind"].as_str().unwrap_or_default().to_ascii_lowercase();
     let name = obj["name"].as_str().unwrap_or_default();
     let obj = if !kind.is_empty() || !name.is_empty() {
-        format!("{}/{}", kind, name)
+        format!("{kind}/{name}")
     } else {
         "n/a".to_owned()
     };

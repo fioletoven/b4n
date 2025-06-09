@@ -64,7 +64,7 @@ impl KubernetesClient {
     ) -> Result<Self, ClientError> {
         let (kube_config, kube_config_path) = get_kube_config(kube_config_path).await?;
         let (client, context) = get_client_fallback(kube_config, kube_context, fallback_to_default).await?;
-        let k8s_version = client.apiserver_version().await?.git_version.to_owned();
+        let k8s_version = client.apiserver_version().await?.git_version.clone();
 
         Ok(Self {
             client,
@@ -79,7 +79,7 @@ impl KubernetesClient {
         let (kube_config, _) = get_kube_config(self.kube_config_path.as_deref()).await?;
         let (client, context) = get_client(kube_config, new_kube_context).await?;
 
-        self.k8s_version = client.apiserver_version().await?.git_version.to_owned();
+        self.k8s_version.clone_from(&client.apiserver_version().await?.git_version);
         self.context = context;
         self.client = client;
 
@@ -92,7 +92,7 @@ impl KubernetesClient {
     }
 
     /// Returns [`Api`] for the currently held kubernetes client.
-    pub fn get_api(&self, ar: ApiResource, caps: ApiCapabilities, ns: Option<&str>, all: bool) -> Api<DynamicObject> {
+    pub fn get_api(&self, ar: &ApiResource, caps: &ApiCapabilities, ns: Option<&str>, all: bool) -> Api<DynamicObject> {
         get_dynamic_api(ar, caps, self.client.clone(), ns, all)
     }
 
@@ -126,7 +126,7 @@ impl DerefMut for KubernetesClient {
     }
 }
 
-/// Returns matching context from the kube config for the provided one.  
+/// Returns matching context from the kube config for the provided one.\
 /// **Note** that it can `fallback_to_default` if the provided context is not found in kube config.
 pub async fn get_context(
     kube_config_path: Option<&str>,
@@ -156,22 +156,22 @@ pub async fn list_contexts(kube_config_path: Option<&str>) -> Result<Vec<NamedCo
 
 /// Gets dynamic api client for given `resource` and `namespace`.
 pub fn get_dynamic_api(
-    ar: ApiResource,
-    caps: ApiCapabilities,
+    ar: &ApiResource,
+    caps: &ApiCapabilities,
     client: Client,
     ns: Option<&str>,
     all: bool,
 ) -> Api<DynamicObject> {
     if caps.scope == Scope::Cluster || all {
-        Api::all_with(client, &ar)
+        Api::all_with(client, ar)
     } else if let Some(namespace) = ns {
-        Api::namespaced_with(client, namespace, &ar)
+        Api::namespaced_with(client, namespace, ar)
     } else {
-        Api::default_namespaced_with(client, &ar)
+        Api::default_namespaced_with(client, ar)
     }
 }
 
-/// Creates kubernetes client and returns it together with used context.  
+/// Creates kubernetes client and returns it together with used context.\
 /// If provided context is not valid it can try the default one.
 async fn get_client_fallback(
     kube_config: Kubeconfig,

@@ -68,7 +68,7 @@ impl App {
     }
 
     /// Starts app with initial data.
-    pub async fn start(&mut self, context: String, kind: Kind, namespace: Namespace) -> Result<()> {
+    pub fn start(&mut self, context: String, kind: Kind, namespace: Namespace) -> Result<()> {
         self.client_manager
             .request_new_client(context.clone(), kind, namespace.clone());
         self.resources
@@ -121,7 +121,7 @@ impl App {
         self.update_lists();
 
         if let Some(ResponseEvent::Cancelled) = self.process_view_events() {
-            self.view = None
+            self.view = None;
         }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
@@ -172,7 +172,7 @@ impl App {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
                 ResponseEvent::Cancelled => self.view = None,
                 _ => (),
-            };
+            }
         } else {
             match self.resources.process_event(event) {
                 ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
@@ -188,16 +188,16 @@ impl App {
                 ResponseEvent::DeleteResources => self.delete_resources(),
                 ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
                 ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
-                    self.view_logs(pod_name, pod_namespace, pod_container, false)
+                    self.view_logs(pod_name, pod_namespace, pod_container, false);
                 },
                 ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
-                    self.view_logs(pod_name, pod_namespace, pod_container, true)
+                    self.view_logs(pod_name, pod_namespace, pod_container, true);
                 },
                 ResponseEvent::OpenShell(pod_name, pod_namespace, pod_container) => {
-                    self.open_shell(pod_name, pod_namespace, pod_container)
+                    self.open_shell(pod_name, pod_namespace, pod_container);
                 },
                 _ => (),
-            };
+            }
         }
 
         Ok(ResponseEvent::Handled)
@@ -214,8 +214,8 @@ impl App {
         for command in commands {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
-                CommandResult::KubernetesClient(result) => self.change_client(command.id, result),
-                CommandResult::ResourceYaml(result) => self.show_yaml(command.id, result),
+                CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
+                CommandResult::ResourceYaml(result) => self.show_yaml(&command.id, result),
             }
         }
     }
@@ -244,7 +244,7 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resources kind, optionally selects one of them.  
+    /// Changes observed resources kind, optionally selects one of them.\
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
         if self.data.borrow().current.kind != kind {
@@ -298,8 +298,8 @@ impl App {
     }
 
     /// Changes kubernetes client to the new one.
-    fn change_client(&mut self, command_id: String, result: Result<KubernetesClientResult, KubernetesClientError>) {
-        if let Some(result) = self.client_manager.process_result(&command_id, result) {
+    fn change_client(&mut self, command_id: &str, result: Result<KubernetesClientResult, KubernetesClientError>) {
+        if let Some(result) = self.client_manager.process_result(command_id, result) {
             let context = result.client.context().to_owned();
             let version = result.client.k8s_version().to_owned();
             let resource = ResourceRef::new(result.kind.clone(), result.namespace.clone());
@@ -333,13 +333,13 @@ impl App {
             .send_message(FooterMessage::info(" Selected resources marked for deletion…", 1_500));
     }
 
-    /// Performs all necessary actions needed when resources view changes.  
+    /// Performs all necessary actions needed when resources view changes.\
     /// **Note** that this means the resource list will change soon.
     fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>) {
         self.resources.clear_list_data();
         self.update_history_data(kind, namespace);
         if let Some(scope) = scope {
-            self.set_page_view(scope);
+            self.set_page_view(&scope);
         }
     }
 
@@ -356,8 +356,8 @@ impl App {
     }
 
     /// Sets page view from resource scope.
-    fn set_page_view(&mut self, result: Scope) {
-        if result == Scope::Cluster {
+    fn set_page_view(&mut self, result: &Scope) {
+        if *result == Scope::Cluster {
             self.resources.set_view(ViewType::Compact);
         } else if self.data.borrow().current.is_all_namespace() {
             self.resources.set_view(ViewType::Full);
@@ -403,14 +403,14 @@ impl App {
     }
 
     /// Shows returned resource's YAML in a separate view.
-    fn show_yaml(&mut self, command_id: String, result: Result<ResourceYamlResult, ResourceYamlError>) {
-        if self.view.as_ref().is_some_and(|v| !v.command_id_match(&command_id)) {
+    fn show_yaml(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
+        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
             return;
         }
 
         if let Err(error) = result {
             self.view = None;
-            let msg = format!("View YAML error: {}", error);
+            let msg = format!("View YAML error: {error}");
             warn!("{}", msg);
             self.footer.send_message(FooterMessage::error(msg, 0));
         } else if let Some(view) = &mut self.view {
@@ -437,16 +437,15 @@ impl App {
     /// Opens shell for the specified container.
     fn open_shell(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = ShellView::new(
+            let view = ShellView::new(
                 Rc::clone(&self.data),
                 client,
                 pod_name,
                 pod_namespace.into(),
                 pod_container,
                 self.footer.get_messages_sender(),
-            ) {
-                self.view = Some(Box::new(view));
-            }
+            );
+            self.view = Some(Box::new(view));
         }
     }
 }

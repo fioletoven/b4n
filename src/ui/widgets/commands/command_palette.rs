@@ -36,7 +36,7 @@ impl CommandPalette {
 
     /// Sets command palette prompt.
     pub fn set_prompt(&mut self, prompt: &str) {
-        self.actions.set_prompt(format!("{} ", prompt));
+        self.actions.set_prompt(format!("{prompt} "));
     }
 
     /// Selects one of the command palette actions by its name.

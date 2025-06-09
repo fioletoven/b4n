@@ -56,7 +56,7 @@ impl LogsView {
         );
 
         let mut observer = LogsObserver::new();
-        observer.start(client, pod, app_data.borrow().config.logs.lines, previous)?;
+        observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
 
         Ok(Self {
             logs,

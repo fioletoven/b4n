@@ -17,9 +17,9 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 4] = [
-        format!("{}/{}", ready, replicas).into(),
-        format!("{}/{}", updated, replicas).into(),
-        format!("{}/{}", available, replicas).into(),
+        format!("{ready}/{replicas}").into(),
+        format!("{updated}/{replicas}").into(),
+        format!("{available}/{replicas}").into(),
         service.into(),
     ];
 
