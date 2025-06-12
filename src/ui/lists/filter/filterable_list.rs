@@ -240,7 +240,8 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterat
                 return None;
             }
 
-            let item = unsafe { &mut *(&mut self.list.items[list[self.index]] as *mut T) };
+            let item = &mut self.list.items[list[self.index]];
+            let item = unsafe { &mut *std::ptr::from_mut::<T>(item) }; // extends the lifetime
             self.index += 1;
 
             Some(item)
@@ -249,7 +250,8 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterat
                 return None;
             }
 
-            let item = unsafe { &mut *(&mut self.list.items[self.index] as *mut T) };
+            let item = &mut self.list.items[self.index];
+            let item = unsafe { &mut *std::ptr::from_mut::<T>(item) }; // extends the lifetime
             self.index += 1;
 
             Some(item)
