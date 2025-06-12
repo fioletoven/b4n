@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
@@ -134,11 +134,13 @@ impl Widget for &mut HeaderWidget<'_> {
                 column_no += 1;
             }
 
-            if in_column && !highlighted && column_no < self.sort_symbols.len() {
-                if self.sort_symbols[column_no] != ' ' && char == self.sort_symbols[column_no] {
-                    highlighted = true;
-                    buf[(x, y)].set_style(Style::default().underlined());
-                }
+            let can_be_highlighted = column_no < self.sort_symbols.len()
+                && self.sort_symbols[column_no] != ' '
+                && char == self.sort_symbols[column_no];
+
+            if in_column && can_be_highlighted && !highlighted {
+                highlighted = true;
+                buf[(x, y)].set_style(Style::default().underlined());
             }
 
             if char == '↑' || char == '↓' {

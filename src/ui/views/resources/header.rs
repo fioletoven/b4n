@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::resources::{CONTAINERS, PODS},
 };
 

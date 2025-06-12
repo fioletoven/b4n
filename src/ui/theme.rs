@@ -6,7 +6,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::app::{ConfigError, Persistable};
+use crate::core::{ConfigError, Persistable};
 
 use super::colors::{LineColors, TextColors, to_syntect_color};
 

@@ -13,7 +13,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,

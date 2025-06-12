@@ -1,6 +1,6 @@
 use tracing::error;
 
-use crate::app::{History, Persistable};
+use crate::core::{History, Persistable};
 
 use super::CommandResult;
 

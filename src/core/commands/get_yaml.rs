@@ -9,7 +9,7 @@ use ratatui::style::Style;
 use syntect::easy::HighlightLines;
 
 use crate::{
-    app::SyntaxData,
+    core::SyntaxData,
     kubernetes::{self, Kind, Namespace, resources::SECRETS, utils},
     ui::colors::from_syntect_color,
 };

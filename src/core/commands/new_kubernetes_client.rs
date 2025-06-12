@@ -6,7 +6,7 @@ use kube::{
 use thiserror;
 
 use crate::{
-    app::discovery::convert_to_vector,
+    core::discovery::convert_to_vector,
     kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, resources::PODS, utils::get_resource},
 };
 

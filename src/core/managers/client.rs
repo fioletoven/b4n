@@ -3,7 +3,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tracing::warn;
 
 use crate::{
-    app::{
+    core::{
         SharedAppData, SharedBgWorker,
         commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
         utils::StateChangeTracker,

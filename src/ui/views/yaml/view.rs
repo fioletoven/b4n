@@ -5,7 +5,7 @@ use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{SharedAppData, SharedBgWorker, commands::CommandResult},
+    core::{SharedAppData, SharedBgWorker, commands::CommandResult},
     kubernetes::{Kind, Namespace, resources::SECRETS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,

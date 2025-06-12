@@ -15,7 +15,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::app::utils::wait_for_task;
+use crate::core::utils::wait_for_task;
 
 use super::Persistable;
 

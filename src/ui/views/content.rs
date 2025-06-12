@@ -9,7 +9,7 @@ use ratatui::{
 use std::{rc::Rc, time::Instant};
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{ResponseEvent, utils::center},
 };

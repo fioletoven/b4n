@@ -17,7 +17,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 use tui_term::vt100::{self};
 
-use crate::{app::utils::wait_for_task, kubernetes::PodRef};
+use crate::{core::utils::wait_for_task, kubernetes::PodRef};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {

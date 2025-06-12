@@ -8,7 +8,7 @@ use ratatui::{
 use std::time::Instant;
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     ui::{ResponseEvent, Responsive, Table},
 };
 

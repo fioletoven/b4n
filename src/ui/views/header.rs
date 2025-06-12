@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Kind, Namespace},
 };
 

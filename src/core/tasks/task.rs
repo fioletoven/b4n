@@ -2,7 +2,7 @@ use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::app::{
+use crate::core::{
     commands::{Command, CommandResult},
     utils::wait_for_task,
 };

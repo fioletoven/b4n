@@ -15,7 +15,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    app::utils::{build_default_backoff, wait_for_task},
+    core::utils::{build_default_backoff, wait_for_task},
     kubernetes::{PodRef, client::KubernetesClient},
 };
 

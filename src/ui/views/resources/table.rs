@@ -8,7 +8,7 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{ObserverResult, ResourcesInfo, SharedAppData},
+    core::{ObserverResult, ResourcesInfo, SharedAppData},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},

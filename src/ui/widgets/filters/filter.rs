@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedBgWorker},
     ui::{ResponseEvent, Responsive, Table, lists::FilterableList, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };

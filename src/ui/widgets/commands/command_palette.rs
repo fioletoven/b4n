@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     ui::{ResponseEvent, Responsive, utils::center_horizontal, widgets::Select},
 };
 

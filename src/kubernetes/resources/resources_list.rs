@@ -3,7 +3,7 @@ use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{InitData, ObserverResult},
+    core::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
         resources::{CONTAINERS, ResourceFilterContext, ResourceItem},

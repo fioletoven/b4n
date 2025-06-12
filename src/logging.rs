@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::app::APP_NAME;
+use crate::core::APP_NAME;
 
 /// Initializes new logging to file and returns worker guard that will flush logs on drop.
 pub fn initialize() -> Result<tracing_appender::non_blocking::WorkerGuard> {

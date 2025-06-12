@@ -1,6 +1,6 @@
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
-use crate::app::commands::Command;
+use crate::core::commands::Command;
 
 use super::{BgTask, TaskResult};
 
