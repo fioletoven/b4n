@@ -21,7 +21,7 @@ pub struct KindsList {
 }
 
 impl KindsList {
-    /// Updates [`KindsList`] with new data from [`Vec<Kind>`].
+    /// Updates [`KindsList`] with new data from [`Vec<KindItem>`].
     pub fn update(&mut self, kinds: Option<Vec<KindItem>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {
             self.list.dirty(false);

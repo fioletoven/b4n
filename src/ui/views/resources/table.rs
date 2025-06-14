@@ -215,7 +215,15 @@ impl ResourcesTable {
     }
 
     fn process_view_ports(&self, resource: &ResourceItem) -> ResponseEvent {
-        todo!()
+        if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
+            ResponseEvent::ListResourcePorts(ResourceRef::container(
+                pod_name,
+                resource.namespace.clone().into(),
+                resource.name.clone(),
+            ))
+        } else {
+            ResponseEvent::NotHandled
+        }
     }
 
     fn process_view_logs(&self, resource: &ResourceItem, previous: bool) -> ResponseEvent {

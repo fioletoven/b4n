@@ -12,7 +12,7 @@ use crate::{
     kubernetes::{
         Kind, Namespace,
         kinds::{KindItem, KindsList},
-        resources::{CONTAINERS, ResourceItem, ResourcesList, SECRETS},
+        resources::{CONTAINERS, Port, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{
         Responsive, Table, ViewType,
@@ -123,6 +123,15 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_contexts(&list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
         self.command_palette.set_prompt("context");
+        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette.show();
+    }
+
+    /// Displays a list of available forward ports for a container to choose from.
+    pub fn show_ports_list(&mut self, list: Vec<Port>) {
+        let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
+        self.command_palette.set_prompt("container port");
         self.command_palette.select(&self.app_data.borrow().current.context);
         self.command_palette.show();
     }

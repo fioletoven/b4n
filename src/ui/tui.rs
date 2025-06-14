@@ -47,6 +47,7 @@ pub enum ResponseEvent {
     ViewNamespaces,
 
     ListKubeContexts,
+    ListResourcePorts(ResourceRef),
 
     AskDeleteResources,
     DeleteResources,

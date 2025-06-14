@@ -182,13 +182,14 @@ impl App {
                 ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
                 ResponseEvent::ViewNamespaces => self.view_namespaces()?,
                 ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
+                ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
                 ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
                 ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
-                ResponseEvent::ViewLogs(resource) => self.view_logs(resource, false),
-                ResponseEvent::ViewPreviousLogs(resource) => self.view_logs(resource, true),
-                ResponseEvent::OpenShell(resource) => self.open_shell(resource),
+                ResponseEvent::ViewLogs(container) => self.view_logs(container, false),
+                ResponseEvent::ViewPreviousLogs(container) => self.view_logs(container, true),
+                ResponseEvent::OpenShell(container) => self.open_shell(container),
                 _ => (),
             }
         }
@@ -207,6 +208,7 @@ impl App {
         for command in commands {
             match command.result {
                 CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
+                CommandResult::ResourcePortsList(list) => self.resources.show_ports_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
                 CommandResult::ResourceYaml(result) => self.show_yaml(&command.id, result),
             }

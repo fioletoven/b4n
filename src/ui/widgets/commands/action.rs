@@ -1,7 +1,7 @@
 use kube::config::NamedContext;
 
 use crate::{
-    kubernetes::kinds::KindItem,
+    kubernetes::{kinds::KindItem, resources::Port},
     ui::{
         ResponseEvent,
         lists::{BasicFilterContext, Filterable, Row},
@@ -33,7 +33,7 @@ impl ActionItem {
         }
     }
 
-    /// Creates new [`ActionItem`] instance from [`Kind`].
+    /// Creates new [`ActionItem`] instance from [`KindItem`].
     pub fn from_kind(kind: &KindItem) -> Self {
         Self {
             uid: kind.uid().map(String::from),
@@ -56,6 +56,18 @@ impl ActionItem {
             name: context.name.clone(),
             response: ResponseEvent::ChangeContext(context.name.clone()),
             description: context.context.as_ref().map(|c| c.cluster.clone()),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`ActionItem`] instance from [`Port`].
+    pub fn from_resource_port(port: &Port) -> Self {
+        Self {
+            uid: Some(format!("_{}:{}:{}_", port.port, port.name, port.protocol)),
+            group: "resource port".to_owned(),
+            name: port.name.clone(),
+            description: Some(format!("{} ({})", port.port, port.protocol)),
+            aliases: Some(vec![port.port.to_string()]),
             ..Default::default()
         }
     }

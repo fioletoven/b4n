@@ -3,7 +3,10 @@ use kube::config::NamedContext;
 use std::collections::HashMap;
 
 use crate::{
-    kubernetes::kinds::KindItem,
+    kubernetes::{
+        kinds::KindItem,
+        resources::{Port, PortProtocol},
+    },
     ui::{
         ResponseEvent, Responsive, Table, ViewType,
         colors::TextColors,
@@ -94,6 +97,17 @@ impl ActionsListBuilder {
     pub fn from_contexts(contexts: &[NamedContext]) -> Self {
         ActionsListBuilder {
             actions: contexts.iter().map(ActionItem::from_context).collect::<Vec<ActionItem>>(),
+        }
+    }
+
+    /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
+    pub fn from_resource_ports(ports: &[Port]) -> Self {
+        ActionsListBuilder {
+            actions: ports
+                .iter()
+                .filter(|p| p.protocol == PortProtocol::TCP)
+                .map(ActionItem::from_resource_port)
+                .collect::<Vec<ActionItem>>(),
         }
     }
 
