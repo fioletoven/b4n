@@ -8,12 +8,14 @@ use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource},
+    kubernetes::{
+        Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
+    },
     ui::widgets::FooterMessage,
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, ResourceRef, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, SyntaxData, TaskResult,
     commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
 };
 

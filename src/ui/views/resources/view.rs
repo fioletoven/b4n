@@ -143,11 +143,11 @@ impl ResourcesView {
             return self
                 .command_palette
                 .process_key(key)
-                .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
-                .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
-                .if_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
-                .if_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .if_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
+                .when_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
+                .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
+                .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
+                .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
+                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
         }
 
         if !self.app_data.borrow().is_connected {

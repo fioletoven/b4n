@@ -16,7 +16,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::core::utils::wait_for_task;
+use crate::{core::utils::wait_for_task, kubernetes::ResourceRef};
 
 use super::utils::init_panic_hook;
 
@@ -51,11 +51,11 @@ pub enum ResponseEvent {
     AskDeleteResources,
     DeleteResources,
 
-    ViewYaml(String, String, bool),
-    ViewLogs(String, String, Option<String>),
-    ViewPreviousLogs(String, String, Option<String>),
+    ViewYaml(ResourceRef, bool),
+    ViewLogs(ResourceRef),
+    ViewPreviousLogs(ResourceRef),
 
-    OpenShell(String, String, Option<String>),
+    OpenShell(ResourceRef),
 }
 
 impl ResponseEvent {
@@ -70,7 +70,7 @@ impl ResponseEvent {
 
     /// Conditionally converts [`ResponseEvent`] to a different [`ResponseEvent`] consuming it.\
     /// **Note** that the new instance is returned by the `f` closure executed only if it is an action matching the provided name.
-    pub fn if_action_then<F>(self, name: &str, f: F) -> Self
+    pub fn when_action_then<F>(self, name: &str, f: F) -> Self
     where
         F: FnOnce() -> Self,
     {

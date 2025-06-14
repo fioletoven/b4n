@@ -130,8 +130,6 @@ pub struct AppData {
 
 impl AppData {
     /// Creates new [`AppData`] instance.
-    /// ## Panics
-    /// Will panic if syntax set data is invalid.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
         Self {
             config,

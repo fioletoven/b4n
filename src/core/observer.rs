@@ -26,7 +26,7 @@ use tracing::{error, warn};
 
 use crate::{
     kubernetes::{
-        Kind, Namespace,
+        Kind, Namespace, ResourceRef,
         client::KubernetesClient,
         resources::{CONTAINERS, PODS, ResourceItem},
     },
@@ -91,7 +91,7 @@ impl Default for InitData {
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope) -> Self {
-        if rt.is_container {
+        if rt.is_container() {
             Self {
                 name: rt.name.clone(),
                 kind: "Container".to_owned(),
@@ -109,37 +109,6 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
             }
-        }
-    }
-}
-
-/// Points to the specific kubernetes resource.
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct ResourceRef {
-    pub name: Option<String>,
-    pub kind: Kind,
-    pub namespace: Namespace,
-    pub is_container: bool,
-}
-
-impl ResourceRef {
-    /// Creates new [`ResourceRef`] for kubernetes resource expressed as `kind` and `namespace`.
-    pub fn new(resource_kind: Kind, resource_namespace: Namespace) -> Self {
-        Self {
-            name: None,
-            kind: resource_kind,
-            namespace: resource_namespace,
-            is_container: false,
-        }
-    }
-
-    /// Creates new [`ResourceRef`] for kubernetes pod containers.
-    pub fn container(pod_name: String, pod_namespace: Namespace) -> Self {
-        Self {
-            name: Some(pod_name),
-            kind: PODS.into(),
-            namespace: pod_namespace,
-            is_container: true,
         }
     }
 }
@@ -191,7 +160,7 @@ impl BgObserver {
 
         let mut _processor = EventsProcessor {
             init_data: InitData::new(&self.resource, &ar, cap.scope.clone()),
-            is_container: self.resource.is_container,
+            is_container: self.resource.is_container(),
             context_tx: self.context_tx.clone(),
             footer_tx: self.footer_tx.clone(),
             has_error: Arc::clone(&self.has_error),
@@ -259,7 +228,7 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.kind != new_kind || self.resource.is_container != new_kind.is_containers() {
+        if self.resource.kind != new_kind || self.resource.is_container() != new_kind.is_containers() {
             let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
                 ResourceRef::new(new_kind, new_namespace)
             } else {
@@ -279,7 +248,7 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.is_container {
+        if self.resource.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
             self.start(client, resource, discovery)?;
         } else if self.resource.namespace != new_namespace {
@@ -298,8 +267,8 @@ impl BgObserver {
         pod_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if !self.resource.is_container || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
-            let resource = ResourceRef::container(pod_name, pod_namespace);
+        if !self.resource.is_container() || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
+            let resource = ResourceRef::containers(pod_name, pod_namespace);
             self.start(client, resource, discovery)?;
         }
 

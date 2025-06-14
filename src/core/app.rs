@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use tracing::warn;
 
 use crate::{
-    kubernetes::{Kind, NAMESPACES, Namespace},
+    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
@@ -14,8 +14,7 @@ use crate::{
 };
 
 use super::{
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, ResourceRef, SharedAppData,
-    SharedBgWorker,
+    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
     commands::{
         Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ResourceYamlError,
         ResourceYamlResult,
@@ -186,16 +185,10 @@ impl App {
                 ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
                 ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
                 ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, namespace, decode) => self.request_yaml(resource, namespace, decode),
-                ResponseEvent::ViewLogs(pod_name, pod_namespace, pod_container) => {
-                    self.view_logs(pod_name, pod_namespace, pod_container, false);
-                },
-                ResponseEvent::ViewPreviousLogs(pod_name, pod_namespace, pod_container) => {
-                    self.view_logs(pod_name, pod_namespace, pod_container, true);
-                },
-                ResponseEvent::OpenShell(pod_name, pod_namespace, pod_container) => {
-                    self.open_shell(pod_name, pod_namespace, pod_container);
-                },
+                ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
+                ResponseEvent::ViewLogs(resource) => self.view_logs(resource, false),
+                ResponseEvent::ViewPreviousLogs(resource) => self.view_logs(resource, true),
+                ResponseEvent::OpenShell(resource) => self.open_shell(resource),
                 _ => (),
             }
         }
@@ -284,9 +277,7 @@ impl App {
 
     /// Changes observed resources kind to `namespaces`.
     fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
-        self.change_kind(NAMESPACES.into(), None)?;
-
-        Ok(())
+        self.change_kind(NAMESPACES.into(), None)
     }
 
     /// Runs command to list kube contexts from the current config.
@@ -382,11 +373,11 @@ impl App {
     }
 
     /// Sends command to fetch resource's YAML to the background executor.
-    fn request_yaml(&mut self, resource: String, namespace: String, decode: bool) {
+    fn request_yaml(&mut self, resource: ResourceRef, decode: bool) {
         let command_id = self.worker.borrow_mut().get_yaml(
-            resource.clone(),
-            namespace.clone().into(),
-            &self.resources.get_kind(),
+            resource.name.clone().unwrap_or_default(),
+            resource.namespace.clone(),
+            &resource.kind,
             self.data.borrow().get_syntax_data(),
             decode,
         );
@@ -395,9 +386,9 @@ impl App {
             Rc::clone(&self.data),
             Rc::clone(&self.worker),
             command_id,
-            resource,
-            namespace.into(),
-            self.resources.get_kind(),
+            resource.name.unwrap_or_default(),
+            resource.namespace,
+            resource.kind,
             self.footer.get_messages_sender(),
         )));
     }
@@ -419,14 +410,14 @@ impl App {
     }
 
     /// Shows logs for the specified container.
-    fn view_logs(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>, previous: bool) {
+    fn view_logs(&mut self, resource: ResourceRef, previous: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
             if let Ok(view) = LogsView::new(
                 Rc::clone(&self.data),
                 client,
-                pod_name,
-                pod_namespace.into(),
-                pod_container,
+                resource.name.unwrap_or_default(),
+                resource.namespace,
+                resource.container,
                 previous,
             ) {
                 self.view = Some(Box::new(view));
@@ -435,14 +426,14 @@ impl App {
     }
 
     /// Opens shell for the specified container.
-    fn open_shell(&mut self, pod_name: String, pod_namespace: String, pod_container: Option<String>) {
+    fn open_shell(&mut self, resource: ResourceRef) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
             let view = ShellView::new(
                 Rc::clone(&self.data),
                 client,
-                pod_name,
-                pod_namespace.into(),
-                pod_container,
+                resource.name.unwrap_or_default(),
+                resource.namespace,
+                resource.container,
                 self.footer.get_messages_sender(),
             );
             self.view = Some(Box::new(view));

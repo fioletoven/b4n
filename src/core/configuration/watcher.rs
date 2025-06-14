@@ -48,8 +48,6 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     }
 
     /// Runs a background task to observe configuration changes.
-    /// ## Panics
-    /// Will panic if configuration can't be sent through the channel.
     pub fn start(&mut self) -> Result<()> {
         let (mut _tx, mut _rx) = mpsc::channel(10);
         let mut watcher = RecommendedWatcher::new(
