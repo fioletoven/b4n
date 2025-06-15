@@ -17,7 +17,7 @@ use crate::{
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect, ValidatorKind},
     },
 };
 
@@ -132,7 +132,9 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("container port")
+            .with_validator(ValidatorKind::Number(0, 65_535))
             .with_input_step("")
+            .with_validator(ValidatorKind::Number(0, 65_535))
             .with_prompt("local port")
             .with_input_step("127.0.0.1")
             .with_prompt("bind address");

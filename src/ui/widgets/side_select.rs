@@ -73,7 +73,7 @@ impl<T: Table> SideSelect<T> {
 
     /// Marks [`SideSelect`] as visible and highlights an item by name and group.
     pub fn show_selected(&mut self, selected_name: &str, selected_group: &str) {
-        self.select.select(selected_name, selected_group);
+        self.select.highlight(selected_name, selected_group);
         self.show();
     }
 

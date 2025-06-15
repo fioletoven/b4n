@@ -93,6 +93,11 @@ impl Input {
         self.show_cursor = show_cursor;
     }
 
+    /// Returns `true` if cursor is visible.
+    pub fn is_cursor_visible(&self) -> bool {
+        self.show_cursor
+    }
+
     /// Sets error colors.
     pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
         self.error = colors;

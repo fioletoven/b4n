@@ -1,4 +1,4 @@
-use crossterm::event::{KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -62,7 +62,7 @@ impl<T: Table> Select<T> {
     delegate! {
         to self.filter {
             pub fn set_cursor(&mut self, show_cursor: bool);
-            pub fn has_error(&mut self) -> bool;
+            pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
@@ -87,7 +87,7 @@ impl<T: Table> Select<T> {
     }
 
     /// Highlights an item by name and group.
-    pub fn select(&mut self, selected_name: &str, selected_group: &str) {
+    pub fn highlight(&mut self, selected_name: &str, selected_group: &str) {
         self.items.filter(None);
         if selected_group.is_empty()
             || !self
@@ -148,7 +148,11 @@ impl<T: Table> Responsive for Select<T> {
             return ResponseEvent::Handled;
         }
 
-        if self.items.process_key(key) == ResponseEvent::NotHandled {
+        // Process Home and End keys directly by filter input if we show cursor
+        // (that means move cursor to start or end of the filter input text).
+        if (self.filter.is_cursor_visible() && (key.code == KeyCode::Home || key.code == KeyCode::End))
+            || self.items.process_key(key) == ResponseEvent::NotHandled
+        {
             self.filter.process_key(key);
             self.update_items_filter();
         }

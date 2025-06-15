@@ -165,7 +165,7 @@ impl Default for Theme {
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                        ..Default::default()
+                        error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
                     },
                 },
                 side_select: SelectColors {
