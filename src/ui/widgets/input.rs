@@ -69,6 +69,15 @@ impl Input {
         }
     }
 
+    /// Gets the prompt text.
+    pub fn prompt(&self) -> Option<&str> {
+        if let Some(prompt) = &self.prompt {
+            Some(prompt.0.as_str())
+        } else {
+            None
+        }
+    }
+
     /// Sets characters that should be accented by the [`Input`] instance.
     pub fn set_accent_characters(&mut self, highlight: Option<String>) {
         self.accent_chars = highlight;

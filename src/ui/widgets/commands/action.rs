@@ -61,13 +61,13 @@ impl ActionItem {
     }
 
     /// Creates new [`ActionItem`] instance from [`Port`].
-    pub fn from_resource_port(port: &Port) -> Self {
+    pub fn from_port(port: &Port) -> Self {
         Self {
             uid: Some(format!("_{}:{}:{}_", port.port, port.name, port.protocol)),
             group: "resource port".to_owned(),
-            name: port.name.clone(),
-            description: Some(format!("{} ({})", port.port, port.protocol)),
-            aliases: Some(vec![port.port.to_string()]),
+            name: port.port.to_string(),
+            description: Some(format!("{} ({})", port.name, port.protocol)),
+            aliases: Some(vec![port.name.clone()]),
             ..Default::default()
         }
     }

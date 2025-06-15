@@ -64,6 +64,7 @@ impl<T: Table> Select<T> {
             pub fn set_cursor(&mut self, show_cursor: bool);
             pub fn has_error(&mut self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
+            pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
         }
     }
@@ -72,6 +73,11 @@ impl<T: Table> Select<T> {
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.filter.set_value(value);
         self.update_items_filter();
+    }
+
+    /// Rturns `true` if anyting on the select list is highlighted.
+    pub fn is_anything_highlighted(&self) -> bool {
+        self.items.get_highlighted_item_name().is_some()
     }
 
     /// Resets the filter.

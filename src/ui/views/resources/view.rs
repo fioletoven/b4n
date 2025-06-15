@@ -121,18 +121,21 @@ impl ResourcesView {
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
         let actions_list = ActionsListBuilder::from_contexts(&list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
-        self.command_palette.set_prompt("context");
-        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+            .with_prompt("context")
+            .with_selected(&self.app_data.borrow().current.context);
         self.command_palette.show();
     }
 
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: Vec<Port>) {
         let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
-        self.command_palette.set_prompt("container port");
-        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+            .with_prompt("container port")
+            .with_input_step("")
+            .with_prompt("local port")
+            .with_input_step("127.0.0.1")
+            .with_prompt("bind address");
         self.command_palette.show();
     }
 

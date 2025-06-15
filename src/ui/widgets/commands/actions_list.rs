@@ -106,7 +106,7 @@ impl ActionsListBuilder {
             actions: ports
                 .iter()
                 .filter(|p| p.protocol == PortProtocol::TCP)
-                .map(ActionItem::from_resource_port)
+                .map(ActionItem::from_port)
                 .collect::<Vec<ActionItem>>(),
         }
     }
