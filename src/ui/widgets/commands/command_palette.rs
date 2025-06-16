@@ -27,6 +27,7 @@ pub struct CommandPalette {
     steps: Vec<Step>,
     index: usize,
     width: u16,
+    response: Option<Box<dyn Fn(Vec<String>) -> ResponseEvent>>,
 }
 
 impl CommandPalette {
@@ -39,18 +40,19 @@ impl CommandPalette {
             steps: vec![Step::new(actions, colors)],
             index: 0,
             width,
+            response: None,
         }
     }
 
     /// Adds additional actions step to the command palette.
-    pub fn with_actions_step(mut self, actions: ActionsList) -> Self {
+    pub fn new_actions_step(mut self, actions: ActionsList) -> Self {
         let colors = self.app_data.borrow().theme.colors.command_palette.clone();
         self.steps.push(Step::new(actions, colors));
         self
     }
 
     /// Adds additional input step to the command palette.
-    pub fn with_input_step(mut self, initial_value: impl Into<String>) -> Self {
+    pub fn new_input_step(mut self, initial_value: impl Into<String>) -> Self {
         let colors = self.app_data.borrow().theme.colors.command_palette.clone();
         let mut step = Step::new(ActionsList::default(), colors);
         step.select.set_value(initial_value);
@@ -77,6 +79,15 @@ impl CommandPalette {
     pub fn with_selected(mut self, name: &str) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.highlight(name, "");
+        self
+    }
+
+    /// Sets closure that will be executed to generate [`ResponseEvent`] when all steps will be processed.
+    pub fn with_response<F>(mut self, response: F) -> Self
+    where
+        F: Fn(Vec<String>) -> ResponseEvent + 'static,
+    {
+        self.response = Some(Box::new(response));
         self
     }
 
@@ -160,6 +171,10 @@ impl CommandPalette {
         result
     }
 
+    fn build_response(&self) -> Vec<String> {
+        self.steps.iter().map(|s| s.select.value().to_owned()).collect()
+    }
+
     fn can_advance_to_next_step(&self) -> bool {
         !self.select().has_error()
             && (self.select().is_anything_highlighted() || (self.select().items.len() == 0 && !self.select().value().is_empty()))
@@ -189,6 +204,10 @@ impl Responsive for CommandPalette {
                 || (!self.select().has_error() && !self.next_step(true))
             {
                 self.is_visible = false;
+                if let Some(response) = &self.response {
+                    return (response)(self.build_response());
+                }
+
                 if let Some(index) = self.select().items.list.get_highlighted_item_index() {
                     if let Some(items) = &self.select().items.list.items {
                         return items[index].data.response.clone();

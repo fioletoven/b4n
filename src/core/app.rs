@@ -190,6 +190,7 @@ impl App {
                 ResponseEvent::ViewLogs(container) => self.view_logs(container, false),
                 ResponseEvent::ViewPreviousLogs(container) => self.view_logs(container, true),
                 ResponseEvent::OpenShell(container) => self.open_shell(container),
+                ResponseEvent::PortForward(to, from, address) => self.port_forward(to, from, address),
                 _ => (),
             }
         }
@@ -440,6 +441,14 @@ impl App {
             );
             self.view = Some(Box::new(view));
         }
+    }
+
+    /// Creates port forward for the specified resource.
+    fn port_forward(&mut self, container_port: u16, local_port: u16, local_address: String) {
+        self.footer.send_message(FooterMessage::info(
+            format!("Port forward: {}:{} -> {}", local_address, local_port, container_port),
+            10_000,
+        ))
     }
 }
 

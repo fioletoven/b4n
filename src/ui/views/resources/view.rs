@@ -133,11 +133,12 @@ impl ResourcesView {
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("container port")
             .with_validator(ValidatorKind::Number(0, 65_535))
-            .with_input_step("")
+            .new_input_step("")
             .with_validator(ValidatorKind::Number(0, 65_535))
             .with_prompt("local port")
-            .with_input_step("127.0.0.1")
-            .with_prompt("bind address");
+            .new_input_step("127.0.0.1")
+            .with_prompt("bind address")
+            .with_response(build_port_forward_response);
         self.command_palette.show();
     }
 
@@ -318,5 +319,17 @@ impl ResourcesView {
             60,
             colors.modal.text,
         )
+    }
+}
+
+fn build_port_forward_response(mut input: Vec<String>) -> ResponseEvent {
+    tracing::info!("got port forward build request: {:?}", input);
+    if input.len() == 3 {
+        let container_port = input[0].parse::<u16>().unwrap_or_default();
+        let local_port = input[1].parse::<u16>().unwrap_or_default();
+        let address = input.pop().unwrap_or_default();
+        ResponseEvent::PortForward(container_port, local_port, address)
+    } else {
+        ResponseEvent::Handled
     }
 }
