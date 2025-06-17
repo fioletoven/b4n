@@ -41,7 +41,7 @@ impl ResourceRef {
             namespace: pod_namespace,
             name: Some(pod_name),
             container: Some(container_name),
-            is_any_container: true,
+            is_any_container: false,
         }
     }
 
@@ -56,7 +56,8 @@ impl ResourceRef {
         }
     }
 
+    /// Returns `true` if [`ResourceRef`] points to a specific container or conatainers.
     pub fn is_container(&self) -> bool {
-        self.is_any_container
+        self.is_any_container || self.container.is_some()
     }
 }

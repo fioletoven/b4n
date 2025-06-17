@@ -10,7 +10,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{ObserverResult, SharedAppData, SharedBgWorker},
     kubernetes::{
-        Kind, Namespace,
+        Kind, Namespace, ResourceRef,
         kinds::{KindItem, KindsList},
         resources::{CONTAINERS, Port, ResourceItem, ResourcesList, SECRETS},
     },
@@ -129,17 +129,19 @@ impl ResourcesView {
 
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: Vec<Port>) {
-        let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
-            .with_prompt("container port")
-            .with_validator(ValidatorKind::Number(0, 65_535))
-            .new_input_step("")
-            .with_validator(ValidatorKind::Number(0, 65_535))
-            .with_prompt("local port")
-            .new_input_step("127.0.0.1")
-            .with_prompt("bind address")
-            .with_response(build_port_forward_response);
-        self.command_palette.show();
+        if let Some(resource) = self.table.get_resource_ref() {
+            let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+                .with_prompt("container port")
+                .with_validator(ValidatorKind::Number(0, 65_535))
+                .new_input_step("")
+                .with_validator(ValidatorKind::Number(0, 65_535))
+                .with_prompt("local port")
+                .new_input_step("127.0.0.1")
+                .with_prompt("bind address")
+                .with_response(|v| build_port_forward_response(v, resource));
+            self.command_palette.show();
+        }
     }
 
     /// Process TUI event.
@@ -322,13 +324,13 @@ impl ResourcesView {
     }
 }
 
-fn build_port_forward_response(mut input: Vec<String>) -> ResponseEvent {
+fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
     tracing::info!("got port forward build request: {:?}", input);
     if input.len() == 3 {
         let container_port = input[0].parse::<u16>().unwrap_or_default();
         let local_port = input[1].parse::<u16>().unwrap_or_default();
         let address = input.pop().unwrap_or_default();
-        ResponseEvent::PortForward(container_port, local_port, address)
+        ResponseEvent::PortForward(resource, container_port, local_port, address)
     } else {
         ResponseEvent::Handled
     }

@@ -27,7 +27,7 @@ pub struct CommandPalette {
     steps: Vec<Step>,
     index: usize,
     width: u16,
-    response: Option<Box<dyn Fn(Vec<String>) -> ResponseEvent>>,
+    response: Option<Box<dyn FnOnce(Vec<String>) -> ResponseEvent>>,
 }
 
 impl CommandPalette {
@@ -85,7 +85,7 @@ impl CommandPalette {
     /// Sets closure that will be executed to generate [`ResponseEvent`] when all steps will be processed.
     pub fn with_response<F>(mut self, response: F) -> Self
     where
-        F: Fn(Vec<String>) -> ResponseEvent + 'static,
+        F: FnOnce(Vec<String>) -> ResponseEvent + 'static,
     {
         self.response = Some(Box::new(response));
         self
@@ -204,7 +204,7 @@ impl Responsive for CommandPalette {
                 || (!self.select().has_error() && !self.next_step(true))
             {
                 self.is_visible = false;
-                if let Some(response) = &self.response {
+                if let Some(response) = self.response.take() {
                     return (response)(self.build_response());
                 }
 
