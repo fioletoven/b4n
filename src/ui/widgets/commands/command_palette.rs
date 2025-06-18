@@ -132,14 +132,22 @@ impl CommandPalette {
         &mut self.steps[self.index].select
     }
 
-    fn next_step(&mut self, force_selected_value: bool) -> bool {
-        if self.index + 1 >= self.steps.len() {
-            return false;
-        }
-
-        if self.select().is_anything_highlighted() && (self.select().value().is_empty() || force_selected_value) {
+    fn insert_highlighted_value(&mut self, overwrite_if_not_empty: bool) {
+        if self.select().is_anything_highlighted() && (self.select().value().is_empty() || overwrite_if_not_empty) {
             let value = self.select().items.get_highlighted_item_name().unwrap_or_default().to_owned();
             self.select_mut().set_value(value);
+        }
+    }
+
+    fn can_advance_to_next_step(&self) -> bool {
+        !self.select().has_error()
+            && self.index + 1 < self.steps.len()
+            && (self.select().is_anything_highlighted() || (self.select().items.len() == 0 && !self.select().value().is_empty()))
+    }
+
+    fn next_step(&mut self) -> bool {
+        if !self.can_advance_to_next_step() {
+            return false;
         }
 
         if self.steps[self.index + 1].select.value().is_empty() {
@@ -174,11 +182,6 @@ impl CommandPalette {
     fn build_response(&self) -> Vec<String> {
         self.steps.iter().map(|s| s.select.value().to_owned()).collect()
     }
-
-    fn can_advance_to_next_step(&self) -> bool {
-        !self.select().has_error()
-            && (self.select().is_anything_highlighted() || (self.select().items.len() == 0 && !self.select().value().is_empty()))
-    }
 }
 
 impl Responsive for CommandPalette {
@@ -193,19 +196,20 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Tab && self.steps.len() > 1 && self.can_advance_to_next_step() {
-            self.next_step(false);
+        if key.code == KeyCode::Tab {
+            self.insert_highlighted_value(true);
             return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Enter {
-            if self.steps.len() == 1
-                || (self.select().value().is_empty() && !self.select().is_anything_highlighted())
-                || (!self.select().has_error() && !self.next_step(true))
-            {
+            self.insert_highlighted_value(false);
+
+            if self.steps.len() == 1 || !self.next_step() {
                 self.is_visible = false;
-                if let Some(response) = self.response.take() {
-                    return (response)(self.build_response());
+                if self.steps.len() == self.index + 1 {
+                    if let Some(response) = self.response.take() {
+                        return (response)(self.build_response());
+                    }
                 }
 
                 if let Some(index) = self.select().items.list.get_highlighted_item_index() {
