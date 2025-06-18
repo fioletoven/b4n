@@ -1,7 +1,10 @@
+use std::net::IpAddr;
+
 /// Validator kind that can be used for the filter input.
 pub enum ValidatorKind {
     None,
     Number(usize, usize),
+    IpAddr,
 }
 
 pub struct InputValidator {
@@ -24,6 +27,7 @@ impl InputValidator {
     pub fn validate(&mut self, input: &str) -> Result<(), usize> {
         match self.kind {
             ValidatorKind::Number(min, max) => self.validate_number(input, min, max),
+            ValidatorKind::IpAddr => self.validate_ip_address(input),
             _ => Ok(()),
         }
     }
@@ -60,5 +64,30 @@ impl InputValidator {
 
         self.last_error = Some(0);
         Err(0)
+    }
+
+    fn validate_ip_address(&mut self, input: &str) -> Result<(), usize> {
+        if self.last_validated == input {
+            if let Some(index) = self.last_error {
+                return Err(index);
+            } else {
+                return Ok(());
+            }
+        }
+
+        self.last_validated = input.to_owned();
+
+        if input.is_empty() {
+            self.last_error = None;
+            return Ok(());
+        }
+
+        if input.parse::<IpAddr>().is_err() {
+            self.last_error = Some(0);
+            Err(0)
+        } else {
+            self.last_error = None;
+            Ok(())
+        }
     }
 }

@@ -17,7 +17,10 @@ use crate::{
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect, ValidatorKind},
+        widgets::{
+            ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect, StepBuilder,
+            ValidatorKind,
+        },
     },
 };
 
@@ -134,11 +137,18 @@ impl ResourcesView {
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
                 .with_prompt("container port")
                 .with_validator(ValidatorKind::Number(0, 65_535))
-                .new_input_step("")
-                .with_validator(ValidatorKind::Number(0, 65_535))
-                .with_prompt("local port")
-                .new_input_step("127.0.0.1")
-                .with_prompt("bind address")
+                .with_step(
+                    StepBuilder::input("")
+                        .with_validator(ValidatorKind::Number(0, 65_535))
+                        .with_prompt("local port")
+                        .build(),
+                )
+                .with_step(
+                    StepBuilder::input("127.0.0.1")
+                        .with_validator(ValidatorKind::IpAddr)
+                        .with_prompt("bind address")
+                        .build(),
+                )
                 .with_response(|v| build_port_forward_response(v, resource));
             self.command_palette.show();
         }

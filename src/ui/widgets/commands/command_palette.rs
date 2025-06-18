@@ -45,17 +45,9 @@ impl CommandPalette {
     }
 
     /// Adds additional actions step to the command palette.
-    pub fn new_actions_step(mut self, actions: ActionsList) -> Self {
+    pub fn with_step(mut self, mut step: Step) -> Self {
         let colors = self.app_data.borrow().theme.colors.command_palette.clone();
-        self.steps.push(Step::new(actions, colors));
-        self
-    }
-
-    /// Adds additional input step to the command palette.
-    pub fn new_input_step(mut self, initial_value: impl Into<String>) -> Self {
-        let colors = self.app_data.borrow().theme.colors.command_palette.clone();
-        let mut step = Step::new(ActionsList::default(), colors);
-        step.select.set_value(initial_value);
+        step.select.set_colors(colors);
         self.steps.push(step);
         self
     }
@@ -204,7 +196,7 @@ impl Responsive for CommandPalette {
         if key.code == KeyCode::Enter {
             self.insert_highlighted_value(false);
 
-            if self.steps.len() == 1 || !self.next_step() {
+            if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
                 self.is_visible = false;
                 if self.steps.len() == self.index + 1 {
                     if let Some(response) = self.response.take() {
@@ -229,8 +221,65 @@ impl Responsive for CommandPalette {
     }
 }
 
+/// Builder for the command palette [`Step`].
+pub struct StepBuilder {
+    actions: Option<ActionsList>,
+    initial_value: Option<String>,
+    prompt: Option<String>,
+    validator: InputValidator,
+}
+
+impl StepBuilder {
+    /// Creates new input [`Step`] builder.
+    pub fn input(initial_value: impl Into<String>) -> Self {
+        Self {
+            actions: None,
+            initial_value: Some(initial_value.into()),
+            prompt: None,
+            validator: InputValidator::new(ValidatorKind::None),
+        }
+    }
+
+    /// Creates new actions [`Step`] builder.
+    pub fn actions(actions: ActionsList) -> Self {
+        Self {
+            actions: Some(actions),
+            initial_value: None,
+            prompt: None,
+            validator: InputValidator::new(ValidatorKind::None),
+        }
+    }
+
+    /// Adds validator to the [`Step`].
+    pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
+        self.validator = InputValidator::new(validator);
+        self
+    }
+
+    /// Adds custom prompt to the [`Step`].
+    pub fn with_prompt(mut self, prompt: &str) -> Self {
+        self.prompt = Some(format!("{prompt}{DEFAULT_PROMPT}"));
+        self
+    }
+
+    /// Builds [`Step`] instance.
+    pub fn build(self) -> Step {
+        let list = self.actions.unwrap_or_default();
+        let mut select = Select::new(list, SelectColors::default(), false, true).with_prompt(DEFAULT_PROMPT);
+        if let Some(initial_value) = self.initial_value {
+            select.set_value(initial_value);
+        }
+
+        Step {
+            select,
+            prompt: self.prompt,
+            validator: self.validator,
+        }
+    }
+}
+
 /// Step for the Command Palette.
-struct Step {
+pub struct Step {
     select: Select<ActionsList>,
     prompt: Option<String>,
     validator: InputValidator,
