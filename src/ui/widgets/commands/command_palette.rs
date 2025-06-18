@@ -11,7 +11,7 @@ use crate::{
         ResponseEvent, Responsive, Table,
         theme::SelectColors,
         utils::center_horizontal,
-        widgets::{InputValidator, Select, ValidatorKind},
+        widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
     },
 };
 
@@ -266,6 +266,7 @@ impl StepBuilder {
     pub fn build(self) -> Step {
         let list = self.actions.unwrap_or_default();
         let mut select = Select::new(list, SelectColors::default(), false, true).with_prompt(DEFAULT_PROMPT);
+        select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
             select.set_value(initial_value);
         }
@@ -288,8 +289,11 @@ pub struct Step {
 impl Step {
     /// Creates new [`Step`] instance.
     fn new(list: ActionsList, colors: SelectColors) -> Self {
+        let mut select = Select::new(list, colors, false, true).with_prompt(DEFAULT_PROMPT);
+        select.set_error_mode(ErrorHighlightMode::Value);
+
         Self {
-            select: Select::new(list, colors, false, true).with_prompt(DEFAULT_PROMPT),
+            select,
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
         }

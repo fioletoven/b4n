@@ -7,6 +7,14 @@ use tui_input::backend::crossterm::EventHandler;
 
 use crate::ui::{ResponseEvent, Responsive, colors::TextColors};
 
+/// Indicates how errors should be highlighted in the input field.
+#[derive(Default, PartialEq)]
+pub enum ErrorHighlightMode {
+    #[default]
+    PromptAndIndex,
+    Value,
+}
+
 /// Input widget for TUI.
 #[derive(Default)]
 pub struct Input {
@@ -15,6 +23,7 @@ pub struct Input {
     prompt: Option<(String, TextColors)>,
     error: Option<TextColors>,
     error_index: Option<usize>,
+    error_mode: ErrorHighlightMode,
     accent_chars: Option<String>,
     show_cursor: bool,
     position: Position,
@@ -103,6 +112,11 @@ impl Input {
         self.error = colors;
     }
 
+    /// Sets error highlight mode.
+    pub fn set_error_mode(&mut self, mode: ErrorHighlightMode) {
+        self.error_mode = mode;
+    }
+
     /// Sets error position.
     pub fn set_error(&mut self, error_index: Option<usize>) {
         self.error_index = error_index;
@@ -150,7 +164,7 @@ impl Input {
 
                 count = i as u16 + 1;
 
-                if self.error_index.is_some() {
+                if self.error_mode == ErrorHighlightMode::PromptAndIndex && self.error_index.is_some() {
                     if let Some(colors) = self.error {
                         buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
                         continue;
@@ -175,7 +189,10 @@ impl Input {
                 return;
             }
 
-            if self.error_index.is_some_and(|p| p - scroll == i) {
+            if self
+                .error_index
+                .is_some_and(|p| self.error_mode == ErrorHighlightMode::Value || p - scroll == i)
+            {
                 if let Some(colors) = self.error {
                     buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
                     continue;

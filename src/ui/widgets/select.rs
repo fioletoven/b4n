@@ -6,7 +6,7 @@ use ratatui::{
 };
 use std::rc::Rc;
 
-use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors};
+use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode};
 
 use super::Input;
 
@@ -62,6 +62,7 @@ impl<T: Table> Select<T> {
     delegate! {
         to self.filter {
             pub fn set_cursor(&mut self, show_cursor: bool);
+            pub fn set_error_mode(&mut self, mode: ErrorHighlightMode);
             pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
