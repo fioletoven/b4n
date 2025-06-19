@@ -171,7 +171,7 @@ impl Input {
                     }
                 }
 
-                buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
+                buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
             }
         }
 

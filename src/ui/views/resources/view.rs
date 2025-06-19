@@ -135,6 +135,10 @@ impl ResourcesView {
         if let Some(resource) = self.table.get_resource_ref() {
             let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+                .with_header(format!(
+                    " Add port forward for {} container:",
+                    resource.container.as_deref().unwrap_or_default()
+                ))
                 .with_prompt("container port")
                 .with_validator(ValidatorKind::Number(0, 65_535))
                 .with_step(

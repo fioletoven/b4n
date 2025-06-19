@@ -69,6 +69,7 @@ pub struct ModalColors {
 pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
+    pub header: TextColors,
     pub filter: FilterColors,
 }
 
@@ -143,10 +144,11 @@ impl Default for Theme {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
                     filter: FilterColors {
-                        input: TextColors::dim(Color::LightBlue, Color::LightYellow, Color::DarkGray),
+                        input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
                     },
+                    ..Default::default()
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
@@ -162,8 +164,9 @@ impl Default for Theme {
                 command_palette: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    header: TextColors::bg(Color::DarkGray, Color::Gray),
                     filter: FilterColors {
-                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        input: TextColors::bg(Color::LightCyan, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
                     },
@@ -173,9 +176,9 @@ impl Default for Theme {
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         ..Default::default()
                     },
+                    ..Default::default()
                 },
                 line: ResourceColors {
                     ready: LineColors {

@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::Rect,
-    style::Style,
-    widgets::{Block, Clear},
+    layout::{Margin, Rect},
+    style::{Color, Style},
+    widgets::{Block, Clear, Paragraph},
 };
 
 use crate::{
@@ -24,6 +24,7 @@ const DEFAULT_PROMPT: &str = " ";
 pub struct CommandPalette {
     pub is_visible: bool,
     app_data: SharedAppData,
+    header: Option<String>,
     steps: Vec<Step>,
     index: usize,
     width: u16,
@@ -35,13 +36,17 @@ impl CommandPalette {
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.command_palette.clone();
         Self {
-            is_visible: false,
             app_data,
             steps: vec![Step::new(actions, colors)],
-            index: 0,
             width,
-            response: None,
+            ..Default::default()
         }
+    }
+
+    /// Adds header to the command palette.
+    pub fn with_header(mut self, text: impl Into<String>) -> Self {
+        self.header = Some(text.into());
+        self
     }
 
     /// Adds additional actions step to the command palette.
@@ -102,16 +107,32 @@ impl CommandPalette {
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center_horizontal(area, width, self.select().items.list.len() + 1);
 
-        self.clear_area(frame, area);
+        {
+            let colors = &self.app_data.borrow().theme.colors;
+            self.clear_area(frame, area, colors.command_palette.normal.bg);
+            if area.top() > 0 {
+                if let Some(header) = self.header.as_deref() {
+                    let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
+                    self.clear_area(frame, area, colors.command_palette.header.bg);
+                    self.draw_header(frame, area, header);
+                }
+            }
+        }
+
         self.select_mut().draw(frame, area);
     }
 
-    fn clear_area(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let colors = &self.app_data.borrow().theme.colors;
-        let block = Block::new().style(Style::default().bg(colors.command_palette.normal.bg));
+    fn clear_area(&self, frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
+        let block = Block::new().style(Style::default().bg(color));
 
         frame.render_widget(Clear, area);
         frame.render_widget(block, area);
+    }
+
+    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, text: &str) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let area = area.inner(Margin::new(1, 0));
+        frame.render_widget(Paragraph::new(text).style(&colors.command_palette.header), area);
     }
 
     #[inline]
