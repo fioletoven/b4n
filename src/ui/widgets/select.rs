@@ -1,4 +1,4 @@
-use crossterm::event::{KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -6,7 +6,7 @@ use ratatui::{
 };
 use std::rc::Rc;
 
-use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors};
+use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode};
 
 use super::Input;
 
@@ -62,8 +62,10 @@ impl<T: Table> Select<T> {
     delegate! {
         to self.filter {
             pub fn set_cursor(&mut self, show_cursor: bool);
-            pub fn has_error(&mut self) -> bool;
+            pub fn set_error_mode(&mut self, mode: ErrorHighlightMode);
+            pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
+            pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
         }
     }
@@ -74,6 +76,11 @@ impl<T: Table> Select<T> {
         self.update_items_filter();
     }
 
+    /// Rturns `true` if anyting on the select list is highlighted.
+    pub fn is_anything_highlighted(&self) -> bool {
+        self.items.get_highlighted_item_name().is_some()
+    }
+
     /// Resets the filter.
     pub fn reset(&mut self) {
         self.filter.reset();
@@ -81,12 +88,12 @@ impl<T: Table> Select<T> {
     }
 
     /// Highlights an item by name and group.
-    pub fn select(&mut self, selected_name: &str, selected_group: &str) {
+    pub fn highlight(&mut self, selected_name: &str, selected_group: &str) {
         self.items.filter(None);
         if selected_group.is_empty()
             || !self
                 .items
-                .highlight_item_by_name(&format!("{}.{}", selected_name, selected_group))
+                .highlight_item_by_name(&format!("{selected_name}.{selected_group}"))
         {
             self.items.highlight_item_by_name(selected_name);
         }
@@ -142,7 +149,11 @@ impl<T: Table> Responsive for Select<T> {
             return ResponseEvent::Handled;
         }
 
-        if self.items.process_key(key) == ResponseEvent::NotHandled {
+        // Process Home and End keys directly by filter input if we show cursor
+        // (that means move cursor to start or end of the filter input text).
+        if (self.filter.is_cursor_visible() && (key.code == KeyCode::Home || key.code == KeyCode::End))
+            || self.items.process_key(key) == ResponseEvent::NotHandled
+        {
             self.filter.process_key(key);
             self.update_items_filter();
         }
@@ -164,7 +175,7 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
         .split(area)
 }
 
-/// Widget that renders all visible rows in select.  
+/// Widget that renders all visible rows in select.\
 /// **Note** that it removes `[` and `]` characters from the output dimming the inside text.
 struct ListWidget<'a> {
     pub list: Vec<(String, bool)>,

@@ -18,7 +18,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 2] = [
-        format!("{}/{}", succeeded, completions).into(),
+        format!("{succeeded}/{completions}").into(),
         ResourceValue::datetime(duration.as_ref()),
     ];
 

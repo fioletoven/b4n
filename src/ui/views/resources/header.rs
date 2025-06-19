@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::resources::{CONTAINERS, PODS},
 };
 
@@ -45,7 +45,7 @@ impl HeaderPane {
         self.is_filtered = is_filtered;
     }
 
-    /// Returns formatted kubernetes resource path as breadcrumbs:  
+    /// Returns formatted kubernetes resource path as breadcrumbs:\
     /// \> `context name` \> \[ `namespace` \> \] `resource` \> `resources count` \>
     fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
@@ -79,7 +79,7 @@ impl HeaderPane {
             data.kind.name()
         };
 
-        path.push(Span::styled(format!(" {} ", kind), &colors.resource));
+        path.push(Span::styled(format!(" {kind} "), &colors.resource));
         if data.name.is_some() {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
@@ -98,7 +98,7 @@ impl HeaderPane {
         Line::from(path)
     }
 
-    /// Returns formatted k8s version info as breadcrumbs:  
+    /// Returns formatted k8s version info as breadcrumbs:\
     /// \< `k8s version` \<
     fn get_version(&self) -> Line {
         let data = &self.app_data.borrow().current;
@@ -117,7 +117,7 @@ impl HeaderPane {
                     &data.version
                 }
             );
-        };
+        }
 
         Line::from(vec![
             Span::styled("", Style::new().fg(colors.bg)),

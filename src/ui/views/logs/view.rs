@@ -3,7 +3,7 @@ use ratatui::{Frame, layout::Rect, style::Style};
 use std::rc::Rc;
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
@@ -56,7 +56,7 @@ impl LogsView {
         );
 
         let mut observer = LogsObserver::new();
-        observer.start(client, pod, app_data.borrow().config.logs.lines, previous)?;
+        observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
 
         Ok(Self {
             logs,

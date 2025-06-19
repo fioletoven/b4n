@@ -9,7 +9,7 @@ use ratatui::{
 use std::{rc::Rc, time::Instant};
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{ResponseEvent, utils::center},
 };
@@ -103,7 +103,7 @@ impl<T: Content> ContentViewer<T> {
         self.max_width = self.max_width.saturating_sub(rhs);
     }
 
-    /// Updates max width for content lines.  
+    /// Updates max width for content lines.\
     /// **Note** that it will not update the width if new one is smaller.
     pub fn update_max_width(&mut self, new_max_width: usize) {
         if self.max_width < new_max_width {
@@ -139,7 +139,7 @@ impl<T: Content> ContentViewer<T> {
             // horizontal scroll
             x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
             x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
-                self.page_hstart = self.page_hstart.saturating_sub(self.page_width)
+                self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
             },
             x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
             x if x.code == KeyCode::Right => self.page_hstart += 1,
@@ -194,10 +194,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns max vertical start of the page.
     fn max_vstart(&self) -> usize {
-        self.content
-            .as_ref()
-            .map(|l| l.len().saturating_sub(self.page_height))
-            .unwrap_or(0)
+        self.content.as_ref().map_or(0, |l| l.len().saturating_sub(self.page_height))
     }
 
     /// Returns max horizontal start of the page.

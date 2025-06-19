@@ -8,11 +8,11 @@ use crate::{
 
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, is_terminating: bool) -> ResourceData {
-    let image = container["image"].as_str().map(|s| s.to_owned());
-    let restarts = status.and_then(|s| s.get("restartCount")).and_then(|r| r.as_u64());
+    let image = container["image"].as_str().map(ToOwned::to_owned);
+    let restarts = status.and_then(|s| s.get("restartCount")).and_then(Value::as_u64);
     let ready = status
         .and_then(|s| s.get("ready"))
-        .and_then(|r| r.as_bool())
+        .and_then(Value::as_bool)
         .unwrap_or_default();
 
     let completed = status

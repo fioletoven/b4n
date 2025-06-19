@@ -45,7 +45,7 @@ pub enum Operator {
     Or,
 }
 
-/// Parsed tokens united as an [`Expression`] that has `lhs` and `rhs` parts joined with the operator.  
+/// Parsed tokens united as an [`Expression`] that has `lhs` and `rhs` parts joined with the operator.\
 /// **Note** that an expression can be also represented as the end, single value.
 #[derive(Default, Debug)]
 pub struct Expression {
@@ -88,7 +88,7 @@ impl Expression {
         self.lhs.is_some() && self.rhs.is_none() && self.value.is_none()
     }
 
-    /// Pushes new [`Expression`] to the first empty hand side (left, then right).  
+    /// Pushes new [`Expression`] to the first empty hand side (left, then right).\
     /// **Note** that it returns `true` if there was a free space.
     pub fn push(&mut self, expression: Expression) -> bool {
         if self.lhs.is_none() {

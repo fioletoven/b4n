@@ -3,7 +3,7 @@ use std::fmt::Display;
 pub const ALL_NAMESPACES: &str = "all";
 pub const NAMESPACES: &str = "namespaces";
 
-/// Represents kubernetes namespace.  
+/// Represents kubernetes namespace.\
 /// **Note** that it treats string `all` as a special case: all namespaces.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Namespace {

@@ -69,8 +69,8 @@ pub struct ResourceValue {
 impl ResourceValue {
     /// Creates new [`ResourceValue`] instance as a numeric value.
     pub fn numeric(value: Option<impl Into<String>>, len: usize) -> Self {
-        let text = value.map(|v| v.into());
-        let numeric = text.as_deref().map(|v| format!("{0:0>1$}", v, len));
+        let text = value.map(Into::into);
+        let numeric = text.as_deref().map(|v| format!("{v:0>len$}"));
         Self {
             text,
             number: numeric,

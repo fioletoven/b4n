@@ -76,10 +76,10 @@ impl<Fc: FilterContext> FilterData<Fc> {
         self.settings.as_deref()
     }
 
-    /// Sets settings for [`Filterable`] item. Returns `true` if settings were updated.  
+    /// Sets settings for [`Filterable`] item. Returns `true` if settings were updated.\
     /// **Note** that it clears filter context.
     pub fn set_settings(&mut self, settings: Option<impl Into<String>>) -> bool {
-        let new_settings = settings.map(|o| o.into());
+        let new_settings = settings.map(Into::into);
         if self.settings != new_settings {
             self.settings = new_settings;
             self.context = None;
@@ -94,10 +94,10 @@ impl<Fc: FilterContext> FilterData<Fc> {
         self.pattern.as_deref()
     }
 
-    /// Sets pattern for [`Filterable`] item. Returns `true` if pattern was updated.  
+    /// Sets pattern for [`Filterable`] item. Returns `true` if pattern was updated.\
     /// **Note** that it clears filter context.
     pub fn set_pattern(&mut self, pattern: Option<impl Into<String>>) -> bool {
-        let new_pattern = pattern.map(|o| o.into());
+        let new_pattern = pattern.map(Into::into);
         if self.pattern != new_pattern {
             self.pattern = new_pattern;
             self.context = None;

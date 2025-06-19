@@ -14,7 +14,7 @@ pub struct PatternItem {
 impl Default for PatternItem {
     fn default() -> Self {
         Self {
-            value: Default::default(),
+            value: String::default(),
             creation_time: SystemTime::now(),
         }
     }
@@ -41,7 +41,7 @@ impl From<String> for PatternItem {
             Self {
                 value: split.next().map(String::from).unwrap(),
                 creation_time: SystemTime::UNIX_EPOCH
-                    + Duration::from_secs(split.next().map(|d| d.parse::<u64>().unwrap_or(0)).unwrap_or(0)),
+                    + Duration::from_secs(split.next().map_or(0, |d| d.parse::<u64>().unwrap_or(0))),
             }
         } else {
             Self {

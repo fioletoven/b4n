@@ -26,7 +26,7 @@ use tracing::{error, warn};
 
 use crate::{
     kubernetes::{
-        Kind, Namespace,
+        Kind, Namespace, ResourceRef,
         client::KubernetesClient,
         resources::{CONTAINERS, PODS, ResourceItem},
     },
@@ -91,7 +91,7 @@ impl Default for InitData {
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope) -> Self {
-        if rt.is_container {
+        if rt.is_container() {
             Self {
                 name: rt.name.clone(),
                 kind: "Container".to_owned(),
@@ -109,37 +109,6 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
             }
-        }
-    }
-}
-
-/// Points to the specific kubernetes resource.
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct ResourceRef {
-    pub name: Option<String>,
-    pub kind: Kind,
-    pub namespace: Namespace,
-    pub is_container: bool,
-}
-
-impl ResourceRef {
-    /// Creates new [`ResourceRef`] for kubernetes resource expressed as `kind` and `namespace`.
-    pub fn new(resource_kind: Kind, resource_namespace: Namespace) -> Self {
-        Self {
-            name: None,
-            kind: resource_kind,
-            namespace: resource_namespace,
-            is_container: false,
-        }
-    }
-
-    /// Creates new [`ResourceRef`] for kubernetes pod containers.
-    pub fn container(pod_name: String, pod_namespace: Namespace) -> Self {
-        Self {
-            name: Some(pod_name),
-            kind: PODS.into(),
-            namespace: pod_namespace,
-            is_container: true,
         }
     }
 }
@@ -172,7 +141,7 @@ impl BgObserver {
         }
     }
 
-    /// Starts new [`BgObserver`] task.  
+    /// Starts new [`BgObserver`] task.\
     /// **Note** that it stops the old task if it is running.
     pub fn start(
         &mut self,
@@ -191,13 +160,18 @@ impl BgObserver {
 
         let mut _processor = EventsProcessor {
             init_data: InitData::new(&self.resource, &ar, cap.scope.clone()),
-            is_container: self.resource.is_container,
+            is_container: self.resource.is_container(),
             context_tx: self.context_tx.clone(),
             footer_tx: self.footer_tx.clone(),
             has_error: Arc::clone(&self.has_error),
             last_watch_error: None,
         };
-        let _api_client = client.get_api(ar, cap, self.resource.namespace.as_option(), self.resource.namespace.is_all());
+        let _api_client = client.get_api(
+            &ar,
+            &cap,
+            self.resource.namespace.as_option(),
+            self.resource.namespace.is_all(),
+        );
         let _cancellation_token = cancellation_token.clone();
         let _resource_name = self.resource.name.clone();
 
@@ -213,7 +187,7 @@ impl BgObserver {
 
                 while !_cancellation_token.is_cancelled() {
                     tokio::select! {
-                        _ = _cancellation_token.cancelled() => (),
+                        () = _cancellation_token.cancelled() => (),
                         result = watch.try_next() => {
                             if !_processor.process_event(result) {
                                 // we need to restart watcher, so go up one while loop
@@ -245,7 +219,7 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.  
+    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.\
     /// **Note** that it uses `new_namespace` if resource is namespaced.
     pub fn restart_new_kind(
         &mut self,
@@ -254,7 +228,7 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.kind != new_kind || self.resource.is_container != new_kind.is_containers() {
+        if self.resource.kind != new_kind || self.resource.is_container() != new_kind.is_containers() {
             let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
                 ResourceRef::new(new_kind, new_namespace)
             } else {
@@ -274,7 +248,7 @@ impl BgObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource.is_container {
+        if self.resource.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
             self.start(client, resource, discovery)?;
         } else if self.resource.namespace != new_namespace {
@@ -293,8 +267,8 @@ impl BgObserver {
         pod_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if !self.resource.is_container || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
-            let resource = ResourceRef::container(pod_name, pod_namespace);
+        if !self.resource.is_container() || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
+            let resource = ResourceRef::containers(pod_name, pod_namespace);
             self.start(client, resource, discovery)?;
         }
 
@@ -356,7 +330,7 @@ struct EventsProcessor {
 }
 
 impl EventsProcessor {
-    /// Process event received from the kubernetes resource watcher.  
+    /// Process event received from the kubernetes resource watcher.\
     /// Returns `true` if all was OK or `false` if the watcher needs to be restarted.
     pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> bool {
         match result {
@@ -395,9 +369,9 @@ impl EventsProcessor {
                             self.last_watch_error = Some(Instant::now());
 
                             return false;
-                        } else {
-                            self.last_watch_error = Some(Instant::now());
                         }
+
+                        self.last_watch_error = Some(Instant::now());
                     },
                     _ => self.has_error.store(true, Ordering::Relaxed),
                 }
@@ -424,7 +398,7 @@ impl EventsProcessor {
 
     fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
         if let Some(containers) = get_containers(object, array) {
-            for c in containers.iter() {
+            for c in containers {
                 let result = get_container_result(c, object, statuses_array, is_init, is_delete);
                 self.context_tx.send(Box::new(result)).unwrap();
             }

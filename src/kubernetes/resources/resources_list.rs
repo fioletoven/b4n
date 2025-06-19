@@ -3,7 +3,7 @@ use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{InitData, ObserverResult},
+    core::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
         resources::{CONTAINERS, ResourceFilterContext, ResourceItem},
@@ -32,7 +32,7 @@ impl ResourcesList {
         self
     }
 
-    /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.  
+    /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.\
     /// Returns `true` if the kind was changed during the update.
     pub fn update(&mut self, result: ObserverResult) -> bool {
         let (mut sort_by, mut is_descending) = self.header.sort_info();
@@ -158,15 +158,15 @@ impl Responsive for ResourcesList {
                     let sort_by = code.to_digit(10).unwrap() as usize;
                     self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
                     return ResponseEvent::Handled;
-                } else {
-                    let sort_symbols = self.header.get_sort_symbols();
-                    let uppercase = code.to_ascii_uppercase();
-                    let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
-                    if let Some(sort_by) = sort_by {
-                        let (column_no, is_descending) = self.header.sort_info();
-                        self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
-                        return ResponseEvent::Handled;
-                    }
+                }
+
+                let sort_symbols = self.header.get_sort_symbols();
+                let uppercase = code.to_ascii_uppercase();
+                let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
+                if let Some(sort_by) = sort_by {
+                    let (column_no, is_descending) = self.header.sort_info();
+                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                    return ResponseEvent::Handled;
                 }
             }
         }

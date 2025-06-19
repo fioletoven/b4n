@@ -8,12 +8,15 @@ use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource},
+    core::commands::ListResourcePortsCommand,
+    kubernetes::{
+        Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
+    },
     ui::widgets::FooterMessage,
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, ResourceRef, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, SyntaxData, TaskResult,
     commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
 };
 
@@ -156,7 +159,7 @@ impl BgWorker {
             discovery
                 .iter()
                 .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                .map(|(ar, _)| KindItem::new(ar.group.to_owned(), ar.plural.to_owned(), ar.version.to_owned()))
+                .map(|(ar, _)| KindItem::new(ar.group.clone(), ar.plural.clone(), ar.version.clone()))
                 .collect::<Vec<KindItem>>()
         })
     }
@@ -178,12 +181,21 @@ impl BgWorker {
             .run_task(Command::SaveHistory(Box::new(SaveHistoryCommand::new(history))));
     }
 
-    /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.  
+    /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
     pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
+        }
+    }
+
+    /// Sends [`ListResourcePortsCommand`] to the background executor.
+    pub fn list_resource_ports(&mut self, resource: ResourceRef) {
+        if let Some(client) = &self.client {
+            let discovery = get_resource(self.list.as_ref(), &resource.kind);
+            let command = ListResourcePortsCommand::new(resource, discovery, client.get_client());
+            self.executor.run_task(Command::ListResourcePorts(Box::new(command)));
         }
     }
 

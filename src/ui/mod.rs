@@ -20,7 +20,7 @@ pub enum ViewType {
     /// Render rows with just the `name` column
     Name,
 
-    /// Render rows without grouping column  
+    /// Render rows without grouping column
     /// _for k8s resource all columns except the `namespace` column_
     Compact,
 
@@ -74,7 +74,7 @@ pub trait Table: Responsive {
     /// Highlights element on list by its name.
     fn highlight_item_by_name(&mut self, name: &str) -> bool;
 
-    /// Highlights first element on list which name starts with `text`.  
+    /// Highlights first element on list which name starts with `text`.\
     /// Returns `true` if element was found and selected.
     fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
 

@@ -36,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = [
     "time",
     "env-filter",
 ] }
-tui-input = { version = "0.12" }
+tui-input = { version = "0.11" }
 tui-term = { version = "0.2" }
 uuid = { version = "1", features = ["v4"] }
 

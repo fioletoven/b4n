@@ -7,7 +7,7 @@ use ratatui::{
 use std::{rc::Rc, time::Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use crate::app::SharedAppData;
+use crate::core::SharedAppData;
 
 const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
 const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
@@ -72,7 +72,7 @@ impl Footer {
         self.messages_tx.send(message).unwrap();
     }
 
-    /// Returns layout that can be used to draw [`Footer`].  
+    /// Returns layout that can be used to draw [`Footer`].\
     /// **Note** that returned slice has two elements, the second one is for the footer itself.
     pub fn get_layout(area: Rect) -> Rc<[Rect]> {
         Layout::default()

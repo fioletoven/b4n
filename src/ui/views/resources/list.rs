@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
@@ -28,7 +28,7 @@ impl<T: Table> ListPane<T> {
         }
     }
 
-    /// Draws [`ListPane`] on the provided frame area.  
+    /// Draws [`ListPane`] on the provided frame area.\
     /// It draws only the visible elements respecting the height of the `area`.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let layout = Layout::default()
@@ -95,7 +95,7 @@ impl<T: Table> Responsive for ListPane<T> {
     }
 }
 
-/// Widget that renders header for the resources list pane.  
+/// Widget that renders header for the resources list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
     pub header: &'a str,
@@ -134,11 +134,13 @@ impl Widget for &mut HeaderWidget<'_> {
                 column_no += 1;
             }
 
-            if in_column && !highlighted && column_no < self.sort_symbols.len() {
-                if self.sort_symbols[column_no] != ' ' && char == self.sort_symbols[column_no] {
-                    highlighted = true;
-                    buf[(x, y)].set_style(Style::default().underlined());
-                }
+            let can_be_highlighted = column_no < self.sort_symbols.len()
+                && self.sort_symbols[column_no] != ' '
+                && char == self.sort_symbols[column_no];
+
+            if in_column && can_be_highlighted && !highlighted {
+                highlighted = true;
+                buf[(x, y)].set_style(Style::default().underlined());
             }
 
             if char == '↑' || char == '↓' {

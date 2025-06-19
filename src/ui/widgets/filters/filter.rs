@@ -6,8 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{SharedAppData, SharedBgWorker},
-    ui::{ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    core::{SharedAppData, SharedBgWorker},
+    ui::{ResponseEvent, Responsive, Table, lists::FilterableList, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };
 
@@ -112,7 +112,7 @@ impl Filter {
         if !pattern.is_empty() && !self.patterns.items.contains(pattern) {
             self.patterns.items.list.push(pattern.to_owned().into());
 
-            let len = self.patterns.items.list.items.as_ref().map(|l| l.full_len());
+            let len = self.patterns.items.list.items.as_ref().map(FilterableList::full_len);
             if len.unwrap_or_default() > HISTORY_SIZE {
                 self.patterns.items.remove_oldest();
             }
@@ -167,7 +167,7 @@ impl Responsive for Filter {
 
         if key.code == KeyCode::Tab {
             if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
-                self.last_validated = pattern.clone();
+                self.last_validated.clone_from(&pattern);
                 self.patterns.set_value(pattern);
             }
 

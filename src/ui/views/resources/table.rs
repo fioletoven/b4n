@@ -8,9 +8,9 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{ObserverResult, ResourcesInfo, SharedAppData},
+    core::{ObserverResult, ResourcesInfo, SharedAppData},
     kubernetes::{
-        ALL_NAMESPACES, Kind, NAMESPACES, Namespace,
+        ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent},
@@ -95,6 +95,14 @@ impl ResourcesTable {
         Kind::new(&self.list.items.data.kind_plural, &self.list.items.data.group)
     }
 
+    /// Returns [`ResourceRef`] for currently highlighted item.
+    pub fn get_resource_ref(&self) -> Option<ResourceRef> {
+        self.list
+            .items
+            .get_highlighted_resource()
+            .and_then(|r| self.resource_ref_from(r))
+    }
+
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
         self.set_view(if namespace.is_all() {
@@ -151,43 +159,32 @@ impl ResourcesTable {
         self.highlight_next = None;
 
         if key.code == KeyCode::Esc {
-            return match self.kind_plural() {
-                NAMESPACES => ResponseEvent::Handled,
-                CONTAINERS => {
-                    let to_select = self.app_data.borrow().current.name.clone();
-                    ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
-                },
-                _ => ResponseEvent::ViewNamespaces,
-            };
+            return self.process_esc_key();
         }
 
-        if let Some(selected_resource) = self.list.items.get_highlighted_resource() {
+        if let Some(highlighted_resource) = self.list.items.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
-                return match self.kind_plural() {
-                    NAMESPACES => ResponseEvent::Change(PODS.to_owned(), selected_resource.name.clone()),
-                    PODS => ResponseEvent::ViewContainers(
-                        selected_resource.name.clone(),
-                        selected_resource.namespace.clone().unwrap_or_default(),
-                    ),
-                    CONTAINERS => self.process_view_logs(selected_resource, false),
-                    _ => self.process_view_yaml(selected_resource, false),
-                };
+                return self.process_enter_key(highlighted_resource);
             }
 
             if self.kind_plural() == CONTAINERS {
+                if key.code == KeyCode::Char('f') {
+                    return self.process_view_ports(highlighted_resource);
+                }
+
                 if key.code == KeyCode::Char('l') {
-                    return self.process_view_logs(selected_resource, false);
+                    return self.process_view_logs(highlighted_resource, false);
                 }
 
                 if key.code == KeyCode::Char('p') {
-                    return self.process_view_logs(selected_resource, true);
+                    return self.process_view_logs(highlighted_resource, true);
                 }
 
                 if key.code == KeyCode::Char('s') {
-                    return self.process_open_shell(selected_resource);
+                    return self.process_open_shell(highlighted_resource);
                 }
             } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
-                return self.process_view_yaml(selected_resource, key.code == KeyCode::Char('x'));
+                return self.process_view_yaml(highlighted_resource, key.code == KeyCode::Char('x'));
             }
         }
 
@@ -205,43 +202,72 @@ impl ResourcesTable {
         self.list.draw(frame, layout[1]);
     }
 
+    fn process_esc_key(&self) -> ResponseEvent {
+        match self.kind_plural() {
+            NAMESPACES => ResponseEvent::Handled,
+            CONTAINERS => {
+                let to_select = self.app_data.borrow().current.name.clone();
+                ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
+            },
+            _ => ResponseEvent::ViewNamespaces,
+        }
+    }
+
+    fn process_enter_key(&self, resource: &ResourceItem) -> ResponseEvent {
+        match self.kind_plural() {
+            NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
+            PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
+            CONTAINERS => self.process_view_logs(resource, false),
+            _ => self.process_view_yaml(resource, false),
+        }
+    }
+
+    fn process_view_ports(&self, resource: &ResourceItem) -> ResponseEvent {
+        self.resource_ref_from(resource)
+            .map(ResponseEvent::ListResourcePorts)
+            .unwrap_or(ResponseEvent::NotHandled)
+    }
+
+    fn process_view_logs(&self, resource: &ResourceItem, previous: bool) -> ResponseEvent {
+        let resource = self.resource_ref_from(resource);
+        if previous {
+            resource
+                .map(ResponseEvent::ViewPreviousLogs)
+                .unwrap_or(ResponseEvent::NotHandled)
+        } else {
+            resource.map(ResponseEvent::ViewLogs).unwrap_or(ResponseEvent::NotHandled)
+        }
+    }
+
+    fn process_open_shell(&self, resource: &ResourceItem) -> ResponseEvent {
+        self.resource_ref_from(resource)
+            .map(ResponseEvent::OpenShell)
+            .unwrap_or(ResponseEvent::NotHandled)
+    }
+
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool) -> ResponseEvent {
-        if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
-            ResponseEvent::ViewYaml(resource.name().to_owned(), resource.group().to_owned(), decode)
-        } else {
-            ResponseEvent::NotHandled
-        }
+        self.resource_ref_from(resource)
+            .map(|r| ResponseEvent::ViewYaml(r, decode))
+            .unwrap_or(ResponseEvent::NotHandled)
     }
 
-    fn process_view_logs(&self, selected_resource: &ResourceItem, previous: bool) -> ResponseEvent {
-        if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
-            if previous {
-                ResponseEvent::ViewPreviousLogs(
-                    pod_name,
-                    selected_resource.namespace.clone().unwrap_or_default(),
-                    Some(selected_resource.name.clone()),
-                )
-            } else {
-                ResponseEvent::ViewLogs(
-                    pod_name,
-                    selected_resource.namespace.clone().unwrap_or_default(),
-                    Some(selected_resource.name.clone()),
-                )
+    fn resource_ref_from(&self, resource: &ResourceItem) -> Option<ResourceRef> {
+        if self.kind_plural() == CONTAINERS {
+            if let Some(name) = self.app_data.borrow().current.name.clone() {
+                return Some(ResourceRef::container(
+                    name,
+                    resource.namespace.clone().into(),
+                    resource.name.clone(),
+                ));
             }
-        } else {
-            ResponseEvent::NotHandled
+        } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
+            return Some(ResourceRef::named(
+                self.get_kind(),
+                resource.group().into(),
+                resource.name().to_owned(),
+            ));
         }
-    }
 
-    fn process_open_shell(&self, selected_resource: &ResourceItem) -> ResponseEvent {
-        if let Some(pod_name) = self.app_data.borrow().current.name.clone() {
-            ResponseEvent::OpenShell(
-                pod_name,
-                selected_resource.namespace.clone().unwrap_or_default(),
-                Some(selected_resource.name.clone()),
-            )
-        } else {
-            ResponseEvent::NotHandled
-        }
+        None
     }
 }

@@ -13,7 +13,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
-    app::SharedAppData,
+    core::SharedAppData,
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-use super::bridge::{ShellBridge, ShellBridgeError};
+use super::bridge::ShellBridge;
 
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
@@ -52,7 +52,7 @@ impl ShellView {
         pod_namespace: Namespace,
         pod_container: Option<String>,
         footer_tx: UnboundedSender<FooterMessage>,
-    ) -> Result<Self, ShellBridgeError> {
+    ) -> Self {
         let pod = PodRef {
             name: pod_name.clone(),
             namespace: pod_namespace.clone(),
@@ -64,9 +64,9 @@ impl ShellView {
 
         let parser = Arc::new(RwLock::new(vt100::Parser::new(DEFAULT_SIZE.height, DEFAULT_SIZE.width, 0)));
         let mut bridge = ShellBridge::new(parser.clone());
-        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL)?;
+        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
 
-        Ok(Self {
+        Self {
             app_data,
             header,
             bridge,
@@ -78,7 +78,7 @@ impl ShellView {
             esc_count: 0,
             esc_time: Instant::now(),
             footer_tx,
-        })
+        }
     }
 
     /// Displays a confirmation dialog to forcibly close the shell view.
@@ -111,7 +111,7 @@ impl ShellView {
 
     /// Checks if `ESC` key was pressed quickly `x` times.
     fn is_esc_key_pressed_times(&mut self, times: u8) -> bool {
-        if self.esc_time.elapsed().as_millis() < (200 * times as u128) {
+        if self.esc_time.elapsed().as_millis() < (200 * u128::from(times)) {
             self.esc_count += 1;
         } else {
             self.esc_count = 0;
@@ -132,7 +132,7 @@ impl View for ShellView {
         if self.bridge.is_finished() {
             // we try to fallback to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
-                let _ = self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
+                self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
                 self.size = DEFAULT_SIZE;
                 ResponseEvent::Handled
             } else {

@@ -1,13 +1,13 @@
 use anyhow::Result;
-use app::{App, Config, ExecutionFlow, History};
 use clap::Parser;
+use core::{App, Config, ExecutionFlow, History};
 use kubernetes::{client::get_context, resources::PODS};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info};
 
-pub mod app;
 pub mod cli;
+pub mod core;
 pub mod kubernetes;
 pub mod logging;
 pub mod ui;
@@ -18,13 +18,18 @@ async fn main() -> Result<()> {
     let args = cli::Args::parse();
 
     let _logging_guard = logging::initialize()?;
-    info!("{} v{} started", app::APP_NAME, app::APP_VERSION);
+    info!("{} v{} started", core::APP_NAME, core::APP_VERSION);
 
     if let Err(error) = run_application(args).await {
-        error!("{} v{} terminated with an error: {}", app::APP_NAME, app::APP_VERSION, error);
+        error!(
+            "{} v{} terminated with an error: {}",
+            core::APP_NAME,
+            core::APP_VERSION,
+            error
+        );
         Err(error)
     } else {
-        info!("{} v{} stopped", app::APP_NAME, app::APP_VERSION);
+        info!("{} v{} stopped", core::APP_NAME, core::APP_VERSION);
         Ok(())
     }
 }
@@ -51,7 +56,7 @@ async fn run_application(args: cli::Args) -> Result<()> {
     let config = Config::load_or_create().await?;
     let theme = config.load_or_create_theme().await?;
     let mut app = App::new(config, history, theme)?;
-    app.start(context, kind, namespace).await?;
+    app.start(context, kind, namespace)?;
 
     loop {
         if app.process_events()? == ExecutionFlow::Stop {

@@ -100,13 +100,13 @@ impl Column {
         }
     }
 
-    /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.  
+    /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.\
     /// **Note** that first column has one extra space in front of the header name.
     pub fn ensure_can_be_first_column(mut self) -> Self {
         if self.name.chars().count() == self.min_len {
             self.min_len += 1;
             if self.min_len > self.max_len {
-                self.max_len = self.min_len
+                self.max_len = self.min_len;
             }
         }
 
@@ -162,13 +162,13 @@ impl StringExtensions for String {
             return;
         }
 
-        let padding_len = len.saturating_sub(column.name.chars().count() + if column.is_sorted { 1 } else { 0 });
+        let padding_len = len.saturating_sub(column.name.chars().count() + usize::from(column.is_sorted));
         if column.to_right && padding_len > 0 {
             (0..padding_len).for_each(|_| self.push(' '));
         }
 
-        for ch in truncate(column.name, len - if column.is_sorted { 1 } else { 0 }).chars() {
-            self.push(if ch == ' ' { ' ' } else { ch })
+        for ch in truncate(column.name, len - usize::from(column.is_sorted)).chars() {
+            self.push(if ch == ' ' { ' ' } else { ch });
         }
 
         if column.is_sorted {

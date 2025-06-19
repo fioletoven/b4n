@@ -47,7 +47,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
-    /// Appends an element to the back of the list.  
+    /// Appends an element to the back of the list.\
     /// **Note** that it may be immediately filtered out by the currently applied filter.
     pub fn push(&mut self, value: T) {
         if let Some(items) = &mut self.items {
@@ -67,7 +67,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns the number of elements in the filtered out scrollable list.
     pub fn len(&self) -> usize {
-        self.items.as_ref().map(|l| l.len()).unwrap_or_default()
+        self.items.as_ref().map(FilterableList::len).unwrap_or_default()
     }
 
     /// Returns `true` if the scrollable list contains no elements.
@@ -107,7 +107,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.has_pattern()
     }
 
-    /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.  
+    /// Filters items in the list by calling `is_matching` on each [`Filterable`] row.\
     /// Returns `true` if pattern was updated.
     pub fn filter(&mut self, filter: Option<String>) -> bool {
         if !self.filter.set_pattern(filter) {

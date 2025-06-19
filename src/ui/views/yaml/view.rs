@@ -5,7 +5,7 @@ use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    app::{SharedAppData, SharedBgWorker, commands::CommandResult},
+    core::{SharedAppData, SharedBgWorker, commands::CommandResult},
     kubernetes::{Kind, Namespace, resources::SECRETS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
@@ -76,7 +76,7 @@ impl YamlView {
                 let action = if self.is_decoded { "encode" } else { "decode" };
                 builder = builder.with_action(
                     ActionItem::new(action)
-                        .with_description(&format!("{}s the resource's data", action))
+                        .with_description(&format!("{action}s the resource's data"))
                         .with_response(ResponseEvent::Action("decode")),
                 );
             }

@@ -14,10 +14,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let available = status["availableReplicas"].as_u64().unwrap_or_default();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [
-        format!("{}/{}", ready, replicas).into(),
-        format!("{}/{}", available, replicas).into(),
-    ];
+    let values: [ResourceValue; 2] = [format!("{ready}/{replicas}").into(), format!("{available}/{replicas}").into()];
 
     ResourceData {
         extra_values: Box::new(values),

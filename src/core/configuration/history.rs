@@ -9,7 +9,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::{app::ResourcesInfo, utils::calculate_hash};
+use crate::{core::ResourcesInfo, utils::calculate_hash};
 
 use super::{ConfigError, ConfigWatcher, Persistable};
 

@@ -7,6 +7,14 @@ use tui_input::backend::crossterm::EventHandler;
 
 use crate::ui::{ResponseEvent, Responsive, colors::TextColors};
 
+/// Indicates how errors should be highlighted in the input field.
+#[derive(Default, PartialEq)]
+pub enum ErrorHighlightMode {
+    #[default]
+    PromptAndIndex,
+    Value,
+}
+
 /// Input widget for TUI.
 #[derive(Default)]
 pub struct Input {
@@ -15,6 +23,7 @@ pub struct Input {
     prompt: Option<(String, TextColors)>,
     error: Option<TextColors>,
     error_index: Option<usize>,
+    error_mode: ErrorHighlightMode,
     accent_chars: Option<String>,
     show_cursor: bool,
     position: Position,
@@ -53,7 +62,7 @@ impl Input {
         self.prompt = prompt.map(|p| (p.0.into(), p.1));
     }
 
-    /// Sets prompt colors.  
+    /// Sets prompt colors.\
     /// **Note** that it takes effect only if the prompt was already set.
     pub fn set_prompt_colors(&mut self, colors: TextColors) {
         if let Some(prompt) = &mut self.prompt {
@@ -61,11 +70,20 @@ impl Input {
         }
     }
 
-    /// Sets the prompt text.  
+    /// Sets the prompt text.\
     /// **Note** that it takes effect only if the prompt was already set.
     pub fn set_prompt_text(&mut self, text: impl Into<String>) {
         if let Some(prompt) = &mut self.prompt {
             prompt.0 = text.into();
+        }
+    }
+
+    /// Gets the prompt text.
+    pub fn prompt(&self) -> Option<&str> {
+        if let Some(prompt) = &self.prompt {
+            Some(prompt.0.as_str())
+        } else {
+            None
         }
     }
 
@@ -84,9 +102,19 @@ impl Input {
         self.show_cursor = show_cursor;
     }
 
+    /// Returns `true` if cursor is visible.
+    pub fn is_cursor_visible(&self) -> bool {
+        self.show_cursor
+    }
+
     /// Sets error colors.
     pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
         self.error = colors;
+    }
+
+    /// Sets error highlight mode.
+    pub fn set_error_mode(&mut self, mode: ErrorHighlightMode) {
+        self.error_mode = mode;
     }
 
     /// Sets error position.
@@ -136,14 +164,14 @@ impl Input {
 
                 count = i as u16 + 1;
 
-                if self.error_index.is_some() {
+                if self.error_mode == ErrorHighlightMode::PromptAndIndex && self.error_index.is_some() {
                     if let Some(colors) = self.error {
                         buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
                         continue;
                     }
                 }
 
-                buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
+                buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
             }
         }
 
@@ -161,7 +189,10 @@ impl Input {
                 return;
             }
 
-            if self.error_index.is_some_and(|p| p - scroll == i) {
+            if self
+                .error_index
+                .is_some_and(|p| self.error_mode == ErrorHighlightMode::Value || p - scroll == i)
+            {
                 if let Some(colors) = self.error {
                     buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
                     continue;

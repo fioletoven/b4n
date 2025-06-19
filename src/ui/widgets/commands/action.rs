@@ -1,7 +1,7 @@
 use kube::config::NamedContext;
 
 use crate::{
-    kubernetes::kinds::KindItem,
+    kubernetes::{kinds::KindItem, resources::Port},
     ui::{
         ResponseEvent,
         lists::{BasicFilterContext, Filterable, Row},
@@ -25,7 +25,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_action:{}_", name)),
+            uid: Some(format!("_action:{name}_")),
             group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some("".to_owned()),
@@ -33,7 +33,7 @@ impl ActionItem {
         }
     }
 
-    /// Creates new [`ActionItem`] instance from [`Kind`].
+    /// Creates new [`ActionItem`] instance from [`KindItem`].
     pub fn from_kind(kind: &KindItem) -> Self {
         Self {
             uid: kind.uid().map(String::from),
@@ -60,6 +60,18 @@ impl ActionItem {
         }
     }
 
+    /// Creates new [`ActionItem`] instance from [`Port`].
+    pub fn from_port(port: &Port) -> Self {
+        Self {
+            uid: Some(format!("_{}:{}:{}_", port.port, port.name, port.protocol)),
+            group: "resource port".to_owned(),
+            name: port.port.to_string(),
+            description: Some(format!("{} ({})", port.name, port.protocol)),
+            aliases: Some(vec![port.name.clone()]),
+            ..Default::default()
+        }
+    }
+
     /// Sets the provided description.
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = Some(description.to_owned());
@@ -81,8 +93,7 @@ impl ActionItem {
     fn get_text_width(&self, width: usize) -> usize {
         self.icon
             .as_ref()
-            .map(|i| width.max(i.chars().count() + 1) - i.chars().count() - 1)
-            .unwrap_or(width)
+            .map_or(width, |i| width.max(i.chars().count() + 1) - i.chars().count() - 1)
     }
 
     fn add_icon(&self, text: &mut String) {

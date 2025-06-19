@@ -8,16 +8,19 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    app::{ObserverResult, SharedAppData, SharedBgWorker},
+    core::{ObserverResult, SharedAppData, SharedBgWorker},
     kubernetes::{
-        Kind, Namespace,
+        Kind, Namespace, ResourceRef,
         kinds::{KindItem, KindsList},
-        resources::{CONTAINERS, ResourceItem, ResourcesList, SECRETS},
+        resources::{CONTAINERS, Port, ResourceItem, ResourcesList, SECRETS},
     },
     ui::{
         Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect},
+        widgets::{
+            ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect, StepBuilder,
+            ValidatorKind,
+        },
     },
 };
 
@@ -121,10 +124,38 @@ impl ResourcesView {
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
         let actions_list = ActionsListBuilder::from_contexts(&list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60);
-        self.command_palette.set_prompt("context");
-        self.command_palette.select(&self.app_data.borrow().current.context);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+            .with_prompt("context")
+            .with_selected(&self.app_data.borrow().current.context);
         self.command_palette.show();
+    }
+
+    /// Displays a list of available forward ports for a container to choose from.
+    pub fn show_ports_list(&mut self, list: Vec<Port>) {
+        if let Some(resource) = self.table.get_resource_ref() {
+            let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+                .with_header(format!(
+                    " Add port forward for {} container:",
+                    resource.container.as_deref().unwrap_or_default()
+                ))
+                .with_prompt("container port")
+                .with_validator(ValidatorKind::Number(0, 65_535))
+                .with_step(
+                    StepBuilder::input("")
+                        .with_validator(ValidatorKind::Number(0, 65_535))
+                        .with_prompt("local port")
+                        .build(),
+                )
+                .with_step(
+                    StepBuilder::input("127.0.0.1")
+                        .with_validator(ValidatorKind::IpAddr)
+                        .with_prompt("bind address")
+                        .build(),
+                )
+                .with_response(|v| build_port_forward_response(v, resource));
+            self.command_palette.show();
+        }
     }
 
     /// Process TUI event.
@@ -143,11 +174,11 @@ impl ResourcesView {
             return self
                 .command_palette
                 .process_key(key)
-                .if_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
-                .if_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
-                .if_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
-                .if_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .if_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
+                .when_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
+                .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
+                .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
+                .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
+                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -231,54 +262,60 @@ impl ResourcesView {
     }
 
     fn process_command_palette_events(&mut self, key: KeyEvent) {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let is_containers = self.table.kind_plural() == CONTAINERS;
-            let mut builder = if self.app_data.borrow().is_connected {
-                ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers)
-            } else {
-                ActionsListBuilder::default().with_resources_actions(false)
-            };
-
-            if is_containers {
-                builder = builder
-                    .with_action(
-                        ActionItem::new("show logs")
-                            .with_description("shows container logs")
-                            .with_aliases(&["logs"])
-                            .with_response(ResponseEvent::Action("show_logs")),
-                    )
-                    .with_action(
-                        ActionItem::new("show previous logs")
-                            .with_description("shows container previous logs")
-                            .with_aliases(&["previous"])
-                            .with_response(ResponseEvent::Action("show_plogs")),
-                    )
-                    .with_action(
-                        ActionItem::new("shell")
-                            .with_description("opens container shell")
-                            .with_response(ResponseEvent::Action("open_shell")),
-                    );
-            } else {
-                builder = builder.with_action(
-                    ActionItem::new("show YAML")
-                        .with_description("shows YAML of the selected resource")
-                        .with_aliases(&["yaml"])
-                        .with_response(ResponseEvent::Action("show_yaml")),
-                );
-            }
-
-            if self.table.kind_plural() == SECRETS {
-                builder = builder.with_action(
-                    ActionItem::new("decode")
-                        .with_description("shows decoded YAML of the selected secret")
-                        .with_aliases(&["decode", "x"])
-                        .with_response(ResponseEvent::Action("decode_yaml")),
-                );
-            }
-
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
+        if key.code != KeyCode::Char(':') && key.code != KeyCode::Char('>') {
+            return;
         }
+
+        if !self.app_data.borrow().is_connected {
+            let actions = ActionsListBuilder::default().with_resources_actions(false).build();
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette.show();
+            return;
+        }
+
+        let is_containers = self.table.kind_plural() == CONTAINERS;
+        let mut builder =
+            ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers);
+
+        if is_containers {
+            builder = builder
+                .with_action(
+                    ActionItem::new("show logs")
+                        .with_description("shows container logs")
+                        .with_aliases(&["logs"])
+                        .with_response(ResponseEvent::Action("show_logs")),
+                )
+                .with_action(
+                    ActionItem::new("show previous logs")
+                        .with_description("shows container previous logs")
+                        .with_aliases(&["previous"])
+                        .with_response(ResponseEvent::Action("show_plogs")),
+                )
+                .with_action(
+                    ActionItem::new("shell")
+                        .with_description("opens container shell")
+                        .with_response(ResponseEvent::Action("open_shell")),
+                );
+        } else {
+            builder = builder.with_action(
+                ActionItem::new("show YAML")
+                    .with_description("shows YAML of the selected resource")
+                    .with_aliases(&["yaml"])
+                    .with_response(ResponseEvent::Action("show_yaml")),
+            );
+        }
+
+        if self.table.kind_plural() == SECRETS {
+            builder = builder.with_action(
+                ActionItem::new("decode")
+                    .with_description("shows decoded YAML of the selected secret")
+                    .with_aliases(&["decode", "x"])
+                    .with_response(ResponseEvent::Action("decode_yaml")),
+            );
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     /// Creates new delete dialog.
@@ -298,5 +335,17 @@ impl ResourcesView {
             60,
             colors.modal.text,
         )
+    }
+}
+
+fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
+    tracing::info!("got port forward build request: {:?}", input);
+    if input.len() == 3 {
+        let container_port = input[0].parse::<u16>().unwrap_or_default();
+        let local_port = input[1].parse::<u16>().unwrap_or_default();
+        let address = input.pop().unwrap_or_default();
+        ResponseEvent::PortForward(resource, container_port, local_port, address)
+    } else {
+        ResponseEvent::Handled
     }
 }
