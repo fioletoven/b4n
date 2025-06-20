@@ -3,12 +3,12 @@ use kube::{
     api::ApiResource,
     discovery::{ApiCapabilities, Scope, verbs},
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    core::commands::ListResourcePortsCommand,
+    core::{PortForwarder, commands::ListResourcePortsCommand},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
     },
@@ -40,6 +40,7 @@ pub struct BgWorker {
     pub resources: BgObserver,
     discovery: BgDiscovery,
     executor: BgExecutor,
+    forwarder: PortForwarder,
     client: Option<KubernetesClient>,
     list: Option<Vec<(ApiResource, ApiCapabilities)>>,
 }
@@ -50,8 +51,9 @@ impl BgWorker {
         Self {
             namespaces: BgObserver::new(footer_tx.clone()),
             resources: BgObserver::new(footer_tx.clone()),
-            discovery: BgDiscovery::new(footer_tx),
+            discovery: BgDiscovery::new(footer_tx.clone()),
             executor: BgExecutor::default(),
+            forwarder: PortForwarder::new(footer_tx),
             client: None,
             list: None,
         }
@@ -175,6 +177,37 @@ impl BgWorker {
         }
     }
 
+    /// Sends the provided command to the background executor.
+    pub fn run_command(&mut self, command: Command) -> String {
+        self.executor.run_task(command)
+    }
+
+    /// Cancels command with the specified ID.
+    pub fn cancel_command(&mut self, command_id: Option<&str>) {
+        if let Some(id) = command_id {
+            self.executor.cancel_task(id);
+        }
+    }
+
+    /// Returns first waiting command result from the background executor.
+    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
+        self.executor.try_next()
+    }
+
+    /// Returns all waiting command results from the background executor.
+    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
+        let mut commands = Vec::new();
+        while let Some(command) = self.check_command_result() {
+            commands.push(command);
+        }
+        commands
+    }
+
+    /// Returns `true` if there are connection problems.
+    pub fn has_errors(&self) -> bool {
+        self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
+    }
+
     /// Saves the provided app history to a file.
     pub fn save_history(&mut self, history: History) {
         self.executor
@@ -221,35 +254,11 @@ impl BgWorker {
         }
     }
 
-    /// Sends the provided command to the background executor.
-    pub fn run_command(&mut self, command: Command) -> String {
-        self.executor.run_task(command)
-    }
-
-    /// Cancels command with the specified ID.
-    pub fn cancel_command(&mut self, command_id: Option<&str>) {
-        if let Some(id) = command_id {
-            self.executor.cancel_task(id);
+    /// Starts port forwarding for the specified resource, port and address.
+    pub fn port_forward(&mut self, resource: ResourceRef, port: u16, address: SocketAddr) {
+        if let Some(client) = &self.client {
+            let _ = self.forwarder.start(client, resource, port, address);
         }
-    }
-
-    /// Returns first waiting command result from the background executor.
-    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
-        self.executor.try_next()
-    }
-
-    /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
-        let mut commands = Vec::new();
-        while let Some(command) = self.check_command_result() {
-            commands.push(command);
-        }
-        commands
-    }
-
-    /// Returns `true` if there are connection problems.
-    pub fn has_errors(&self) -> bool {
-        self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 }
 

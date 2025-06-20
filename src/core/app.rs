@@ -1,6 +1,10 @@
 use anyhow::Result;
 use kube::discovery::Scope;
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    net::{IpAddr, SocketAddr},
+    rc::Rc,
+};
 use tracing::warn;
 
 use crate::{
@@ -443,18 +447,12 @@ impl App {
         }
     }
 
-    /// Creates port forward for the specified resource.
+    /// Creates port forward task for the specified resource.
     fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: String) {
-        self.footer.send_message(FooterMessage::info(
-            format!(
-                "Port forward for {}:  {}:{} -> {}",
-                resource.name.as_deref().unwrap_or_default(),
-                local_address,
-                local_port,
-                container_port
-            ),
-            10_000,
-        ))
+        if let Ok(ip_addr) = local_address.parse::<IpAddr>() {
+            let address = SocketAddr::from((ip_addr, local_port));
+            self.worker.borrow_mut().port_forward(resource, container_port, address);
+        }
     }
 }
 
