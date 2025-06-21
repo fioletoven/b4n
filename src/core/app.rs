@@ -12,7 +12,7 @@ use crate::{
     ui::{
         ResponseEvent, Tui, TuiEvent, ViewType,
         theme::Theme,
-        views::{LogsView, ResourcesView, ShellView, View, YamlView},
+        views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterMessage},
     },
 };
@@ -194,6 +194,7 @@ impl App {
                 ResponseEvent::ViewLogs(container) => self.view_logs(container, false),
                 ResponseEvent::ViewPreviousLogs(container) => self.view_logs(container, true),
                 ResponseEvent::OpenShell(container) => self.open_shell(container),
+                ResponseEvent::ShowPortForwards => self.show_port_forwards(),
                 ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, address),
                 _ => (),
             }
@@ -445,6 +446,16 @@ impl App {
             );
             self.view = Some(Box::new(view));
         }
+    }
+
+    /// Shows port forwards view.
+    fn show_port_forwards(&mut self) {
+        let view = ForwardsView::new(
+            Rc::clone(&self.data),
+            Rc::clone(&self.worker),
+            self.footer.get_messages_sender(),
+        );
+        self.view = Some(Box::new(view));
     }
 
     /// Creates port forward task for the specified resource.

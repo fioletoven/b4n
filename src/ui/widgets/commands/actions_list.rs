@@ -130,7 +130,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_quit();
+        let builder = self.with_context().with_quit().with_forwards();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
@@ -174,6 +174,17 @@ impl ActionsListBuilder {
                 .with_description("deletes selected resources")
                 .with_aliases(&["del"])
                 .with_response(ResponseEvent::AskDeleteResources),
+        );
+        self
+    }
+
+    /// Adds `show port forwards` action.
+    pub fn with_forwards(mut self) -> Self {
+        self.actions.push(
+            ActionItem::new("show port forwards")
+                .with_description("shows active port forwards")
+                .with_aliases(&["pf"])
+                .with_response(ResponseEvent::ShowPortForwards),
         );
         self
     }

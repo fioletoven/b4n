@@ -14,8 +14,10 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
+use uuid::Uuid;
 
 use crate::{
+    core::utils::wait_for_task,
     kubernetes::{ResourceRef, client::KubernetesClient, resources::PODS},
     ui::widgets::FooterMessage,
 };
@@ -52,6 +54,7 @@ pub enum PortForwardEvent {
     ConnectionError,
 }
 
+/// Holds all port forwarding tasks for the current context.
 pub struct PortForwarder {
     tasks: Vec<PortForwardTask>,
     events_tx: UnboundedSender<PortForwardEvent>,
@@ -60,6 +63,7 @@ pub struct PortForwarder {
 }
 
 impl PortForwarder {
+    /// Creates new [`PortForwarder`] instance.
     pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let (events_tx, events_rx) = mpsc::unbounded_channel();
         Self {
@@ -70,6 +74,7 @@ impl PortForwarder {
         }
     }
 
+    /// Starts port forwarding task.
     pub fn start(
         &mut self,
         client: &KubernetesClient,
@@ -96,11 +101,35 @@ impl PortForwarder {
         let pods: Api<Pod> = Api::namespaced(client.get_client(), resource.namespace.as_str());
 
         let mut task = PortForwardTask::new(self.events_tx.clone(), self.footer_tx.clone());
-        task.run(pods, resource.name.unwrap_or_default(), port, address)?;
+        task.run(pods, resource, port, address)?;
 
         self.tasks.push(task);
 
         Ok(())
+    }
+
+    /// Stops port forwarding task with the specified `uuid`.
+    pub fn stop(&mut self, uuid: &str) {
+        if let Some(index) = self.tasks.iter().position(|t| t.uuid == uuid) {
+            let _ = self.tasks.swap_remove(index);
+        }
+    }
+
+    /// Cancels all [`PortForwarder`] tasks.
+    pub fn cancel_all(&mut self) {
+        for task in &mut self.tasks {
+            task.cancel();
+        }
+    }
+
+    /// Cancels all tasks running in [`PortForwarder`] instance.
+    pub fn stop_all(&mut self) {
+        for task in &mut self.tasks {
+            task.stop();
+        }
+
+        self.tasks.clear();
+        self.drain();
     }
 
     /// Tries to get next [`PortForwardEvent`].
@@ -114,15 +143,25 @@ impl PortForwarder {
     }
 }
 
+impl Drop for PortForwarder {
+    fn drop(&mut self) {
+        self.cancel_all();
+    }
+}
+
+/// Task that handles port forwarding for the specific pod port.
 pub struct PortForwardTask {
+    uuid: String,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
+    resource: Option<ResourceRef>,
     statistics: TaskStatistics,
     events_tx: UnboundedSender<PortForwardEvent>,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
 impl PortForwardTask {
+    /// Creates new [`PortForwardTask`] instance.
     fn new(events_tx: UnboundedSender<PortForwardEvent>, footer_tx: UnboundedSender<FooterMessage>) -> Self {
         let statistics = TaskStatistics {
             active_connections: Arc::new(AtomicI16::new(0)),
@@ -131,17 +170,24 @@ impl PortForwardTask {
         };
 
         Self {
+            uuid: Uuid::new_v4()
+                .hyphenated()
+                .encode_lower(&mut Uuid::encode_buffer())
+                .to_owned(),
             task: None,
             cancellation_token: None,
+            resource: None,
             statistics,
             events_tx,
             footer_tx,
         }
     }
 
-    fn run(&mut self, pods: Api<Pod>, resource: String, port: u16, address: SocketAddr) -> Result<(), PortForwardError> {
+    /// Runs port forward task.
+    fn run(&mut self, pods: Api<Pod>, resource: ResourceRef, port: u16, address: SocketAddr) -> Result<(), PortForwardError> {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
+        let _pod_name = resource.name.unwrap_or_default().clone();
         let _events_tx = self.events_tx.clone();
         let _footer_tx = self.footer_tx.clone();
         let _statistics = self.statistics.clone();
@@ -157,7 +203,7 @@ impl PortForwardTask {
                                 Ok((stream, _)) => {
                                     accept_connection(
                                         &pods,
-                                        &resource,
+                                        &_pod_name,
                                         port,
                                         stream,
                                         _events_tx.clone(),
@@ -179,6 +225,25 @@ impl PortForwardTask {
         self.cancellation_token = Some(cancellation_token);
 
         Ok(())
+    }
+
+    /// Cancels [`PortForwardTask`] task.
+    fn cancel(&mut self) {
+        if let Some(cancellation_token) = self.cancellation_token.take() {
+            cancellation_token.cancel();
+        }
+    }
+
+    /// Cancels [`PortForwardTask`] task and waits until it is finished.
+    fn stop(&mut self) {
+        self.cancel();
+        wait_for_task(self.task.take(), "port forward");
+    }
+}
+
+impl Drop for PortForwardTask {
+    fn drop(&mut self) {
+        self.cancel();
     }
 }
 

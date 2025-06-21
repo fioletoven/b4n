@@ -178,7 +178,8 @@ impl ResourcesView {
                 .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
                 .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
                 .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
+                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))))
+                .when_action_then("port_forward", || self.table.process_key(KeyEvent::from(KeyCode::Char('f'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -295,12 +296,18 @@ impl ResourcesView {
                     ActionItem::new("shell")
                         .with_description("opens container shell")
                         .with_response(ResponseEvent::Action("open_shell")),
+                )
+                .with_action(
+                    ActionItem::new("forward port")
+                        .with_description("forwards container port")
+                        .with_aliases(&["port", "pf"])
+                        .with_response(ResponseEvent::Action("port_forward")),
                 );
         } else {
             builder = builder.with_action(
                 ActionItem::new("show YAML")
                     .with_description("shows YAML of the selected resource")
-                    .with_aliases(&["yaml"])
+                    .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
             );
         }

@@ -132,6 +132,7 @@ impl BgWorker {
         self.namespaces.stop();
         self.resources.stop();
         self.discovery.stop();
+        self.forwarder.stop_all();
     }
 
     /// Stops all background tasks running in the application.
@@ -140,6 +141,7 @@ impl BgWorker {
         self.resources.stop();
         self.executor.stop_all();
         self.discovery.stop();
+        self.forwarder.stop_all();
     }
 
     /// Cancels all background tasks running in the application.
@@ -148,6 +150,7 @@ impl BgWorker {
         self.resources.cancel();
         self.executor.cancel_all();
         self.discovery.cancel();
+        self.forwarder.stop_all();
     }
 
     /// Returns [`KubernetesClient`].

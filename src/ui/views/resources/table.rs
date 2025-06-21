@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
@@ -160,6 +160,10 @@ impl ResourcesTable {
 
         if key.code == KeyCode::Esc {
             return self.process_esc_key();
+        }
+
+        if key.modifiers == KeyModifiers::SHIFT && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('F')) {
+            return ResponseEvent::ShowPortForwards;
         }
 
         if let Some(highlighted_resource) = self.list.items.get_highlighted_resource() {
