@@ -339,7 +339,6 @@ impl ResourcesView {
 }
 
 fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
-    tracing::info!("got port forward build request: {:?}", input);
     if input.len() == 3 {
         let container_port = input[0].parse::<u16>().unwrap_or_default();
         let local_port = input[1].parse::<u16>().unwrap_or_default();
