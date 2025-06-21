@@ -13,10 +13,10 @@ use crate::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
     },
-    ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent},
+    ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent, views::ListPane},
 };
 
-use super::{HeaderPane, ListPane};
+use super::HeaderPane;
 
 /// Resources table.
 pub struct ResourcesTable {
@@ -162,7 +162,7 @@ impl ResourcesTable {
             return self.process_esc_key();
         }
 
-        if key.modifiers == KeyModifiers::SHIFT && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('F')) {
+        if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('f') {
             return ResponseEvent::ShowPortForwards;
         }
 

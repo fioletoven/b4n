@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style, Stylize},
-    text::{Line, Span},
+    text::Line,
     widgets::{Paragraph, Widget},
 };
 
@@ -11,7 +11,7 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
-/// Resources list pane.
+/// List pane for table items.
 pub struct ListPane<T: Table> {
     pub items: T,
     pub view: ViewType,
@@ -19,7 +19,7 @@ pub struct ListPane<T: Table> {
 }
 
 impl<T: Table> ListPane<T> {
-    /// Creates new resource list pane.
+    /// Creates new [`ListPane`] instance.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
         ListPane {
             items: list,
@@ -36,12 +36,12 @@ impl<T: Table> ListPane<T> {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
-        let list_width = if area.width > 2 { usize::from(area.width) - 2 } else { 2 };
+        let area = layout[1].inner(Margin::new(1, 0));
 
         {
             let sort_symbols = self.items.get_sort_symbols();
             let mut header = HeaderWidget {
-                header: self.items.get_header(self.view, list_width),
+                header: self.items.get_header(self.view, usize::from(area.width)),
                 colors: &self.app_data.borrow().theme.colors.header.text,
                 view: self.view,
                 sort_symbols: &sort_symbols,
@@ -49,22 +49,21 @@ impl<T: Table> ListPane<T> {
             frame.render_widget(&mut header, layout[0]);
         }
 
-        self.items.update_page(layout[1].height);
+        self.items.update_page(area.height);
         if let Some(list) = self
             .items
-            .get_paged_items(&self.app_data.borrow().theme, self.view, list_width)
+            .get_paged_items(&self.app_data.borrow().theme, self.view, usize::from(area.width))
         {
-            frame.render_widget(Paragraph::new(self.get_resources(list)), layout[1]);
+            frame.render_widget(Paragraph::new(self.get_items(list)), area);
         }
     }
 
-    /// Returns formatted resources rows.
-    fn get_resources(&self, resources: Vec<(String, TextColors)>) -> Vec<Line> {
-        let mut result = Vec::with_capacity(resources.len());
+    /// Returns formatted items rows.
+    fn get_items(&self, items: Vec<(String, TextColors)>) -> Vec<Line> {
+        let mut result = Vec::with_capacity(items.len());
 
-        for (text, colors) in resources {
-            let row = Span::styled(text, &colors);
-            result.push(Line::from(vec![Span::raw(" "), row, Span::raw("\n")]));
+        for (text, colors) in items {
+            result.push(Line::styled(text, &colors));
         }
 
         result
@@ -95,7 +94,7 @@ impl<T: Table> Responsive for ListPane<T> {
     }
 }
 
-/// Widget that renders header for the resources list pane.\
+/// Widget that renders header for the items list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
     pub header: &'a str,

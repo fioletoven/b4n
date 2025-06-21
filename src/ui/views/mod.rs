@@ -6,6 +6,7 @@ use crate::core::commands::CommandResult;
 use super::{ResponseEvent, TuiEvent};
 
 pub use self::forwards::ForwardsView;
+pub use self::list::ListPane;
 pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
 pub use self::shell::ShellView;
@@ -14,6 +15,7 @@ pub use self::yaml::YamlView;
 mod content;
 mod forwards;
 mod header;
+mod list;
 mod logs;
 mod resources;
 mod shell;

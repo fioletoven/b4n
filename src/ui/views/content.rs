@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::Style,
     text::{Line, Span},
     widgets::Paragraph,
@@ -23,7 +23,7 @@ pub trait Content {
     /// Returns page with [`StyledLine`]s.
     fn page(&mut self, start: usize, count: usize) -> &[StyledLine];
 
-    /// Returns the current length of a [`Column`].
+    /// Returns the length of a [`Content`].
     fn len(&self) -> usize;
 }
 
@@ -111,7 +111,7 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    /// Updates page height.
+    /// Updates page `height` and `width`.
     pub fn update_page(&mut self, new_height: u16, hew_width: u16) {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
@@ -171,19 +171,20 @@ impl<T: Content> ContentViewer<T> {
         self.header.draw(frame, layout[0]);
 
         if self.content.is_some() {
-            self.update_page(layout[1].height, layout[1].width);
+            let area = layout[1].inner(Margin::new(1, 0));
+            self.update_page(area.height, area.width);
 
             let start = self.page_vstart.clamp(0, self.max_vstart());
             let lines = self
                 .content
                 .as_mut()
                 .unwrap()
-                .page(start, usize::from(layout[1].height))
+                .page(start, usize::from(area.height))
                 .iter()
                 .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
                 .collect::<Vec<_>>();
 
-            frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), layout[1]);
+            frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), area);
         } else if self.creation_time.elapsed().as_millis() > 80 {
             let colors = &self.app_data.borrow().theme.colors;
             let line = Line::styled(" waiting for data…", &colors.text);
