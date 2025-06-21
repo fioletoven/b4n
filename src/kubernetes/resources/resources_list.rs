@@ -78,15 +78,6 @@ impl ResourcesList {
         })
     }
 
-    /// Gets the widths for namespace and name columns together with extra space for the name column.
-    fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
-        if view == ViewType::Full {
-            self.header.get_full_widths(width)
-        } else {
-            self.header.get_widths(width)
-        }
-    }
-
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
         self.header = ResourceItem::header(&self.data.kind);
@@ -221,7 +212,7 @@ impl Table for ResourcesList {
 
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
-            let (namespace_width, name_width, name_extra_width) = self.get_widths(view, width);
+            let (namespace_width, name_width, name_extra_width) = self.header.get_widths(view, width);
 
             let mut result = Vec::with_capacity(self.list.page_height.into());
             for item in list {
@@ -243,7 +234,7 @@ impl Table for ResourcesList {
             return &self.header_cache.text;
         }
 
-        let (namespace_width, name_width, _) = self.get_widths(view, width);
+        let (namespace_width, name_width, _) = self.header.get_widths(view, width);
         self.header_cache.text = self.header.get_text(view, namespace_width, name_width, width);
         self.header_cache.view = view;
         self.header_cache.width = width;

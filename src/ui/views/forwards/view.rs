@@ -1,19 +1,23 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+};
 use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
-        views::View,
+        ResponseEvent, Responsive, TuiEvent, ViewType,
+        views::{ListPane, PortForwardsList, View},
         widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
 /// Port forwards view.
 pub struct ForwardsView {
+    pub list: ListPane<PortForwardsList>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     command_palette: CommandPalette,
@@ -23,7 +27,11 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+        let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), ViewType::Compact);
+        list.items.update(worker.borrow().get_port_forwards_list(), 0, false);
+
         Self {
+            list,
             app_data,
             worker,
             command_palette: CommandPalette::default(),
@@ -46,6 +54,16 @@ impl ForwardsView {
 impl View for ForwardsView {
     fn process_disconnection(&mut self) {
         self.command_palette.hide();
+    }
+
+    fn process_tick(&mut self) -> ResponseEvent {
+        if self.worker.borrow_mut().is_port_forward_list_changed() {
+            self.list
+                .items
+                .update(self.worker.borrow().get_port_forwards_list(), 0, false);
+        }
+
+        ResponseEvent::Handled
     }
 
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
@@ -71,6 +89,13 @@ impl View for ForwardsView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+            .split(area);
+
+        self.list.draw(frame, layout[1]);
+
         self.command_palette.draw(frame, frame.area());
     }
 }

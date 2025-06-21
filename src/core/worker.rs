@@ -12,7 +12,7 @@ use crate::{
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
     },
-    ui::widgets::FooterMessage,
+    ui::{views::PortForwardItem, widgets::FooterMessage},
 };
 
 use super::{
@@ -167,6 +167,21 @@ impl BgWorker {
                 .map(|(ar, _)| KindItem::new(ar.group.clone(), ar.plural.clone(), ar.version.clone()))
                 .collect::<Vec<KindItem>>()
         })
+    }
+
+    /// Returns list of port forward list items.
+    pub fn get_port_forwards_list(&self) -> Vec<PortForwardItem> {
+        self.forwarder.tasks().iter().map(PortForwardItem::from).collect()
+    }
+
+    /// Returns `true` if there was a change in the port forwards list since the last check.
+    pub fn is_port_forward_list_changed(&mut self) -> bool {
+        let mut list_changed = false;
+        while self.forwarder.try_next().is_some() {
+            list_changed = true;
+        }
+
+        list_changed
     }
 
     /// Checks and updates discovered resources list, returns `true` if discovery was updated.

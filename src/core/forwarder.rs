@@ -74,6 +74,11 @@ impl PortForwarder {
         }
     }
 
+    /// Returns port forward tasks list.
+    pub fn tasks(&self) -> &[PortForwardTask] {
+        &self.tasks
+    }
+
     /// Starts port forwarding task.
     pub fn start(
         &mut self,
@@ -151,10 +156,10 @@ impl Drop for PortForwarder {
 
 /// Task that handles port forwarding for the specific pod port.
 pub struct PortForwardTask {
-    uuid: String,
+    pub uuid: String,
+    pub resource: ResourceRef,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    resource: Option<ResourceRef>,
     statistics: TaskStatistics,
     events_tx: UnboundedSender<PortForwardEvent>,
     footer_tx: UnboundedSender<FooterMessage>,
@@ -174,9 +179,9 @@ impl PortForwardTask {
                 .hyphenated()
                 .encode_lower(&mut Uuid::encode_buffer())
                 .to_owned(),
+            resource: ResourceRef::default(),
             task: None,
             cancellation_token: None,
-            resource: None,
             statistics,
             events_tx,
             footer_tx,
@@ -187,7 +192,7 @@ impl PortForwardTask {
     fn run(&mut self, pods: Api<Pod>, resource: ResourceRef, port: u16, address: SocketAddr) -> Result<(), PortForwardError> {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
-        let _pod_name = resource.name.unwrap_or_default().clone();
+        let _pod_name = resource.name.as_deref().unwrap_or_default().to_owned();
         let _events_tx = self.events_tx.clone();
         let _footer_tx = self.footer_tx.clone();
         let _statistics = self.statistics.clone();
@@ -223,6 +228,7 @@ impl PortForwardTask {
 
         self.task = Some(task);
         self.cancellation_token = Some(cancellation_token);
+        self.resource = resource;
 
         Ok(())
     }

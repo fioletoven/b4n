@@ -14,7 +14,7 @@ fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] te
     let header = Header::default();
     let resource = ResourceItem::new(resource);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
     assert_eq!(
         expected,
@@ -38,7 +38,7 @@ fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case]
     let header = Header::default();
     let resource = ResourceItem::new(resource);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
     assert_eq!(
         expected,
@@ -64,7 +64,7 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
     let header = Header::default();
     let resource = ResourceItem::new(resource);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
     assert_eq!(
         expected,
@@ -95,7 +95,7 @@ fn get_text_pod_test() {
     header.set_data_length(6, 6);
     header.set_sort_info(2, false);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
     let mut resource = ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5");
     resource.namespace = Some("kube-system".to_owned());

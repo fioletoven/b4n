@@ -155,8 +155,17 @@ impl Header {
         header
     }
 
+    /// Returns widths for namespace and name columns together with an extra space for the name column.
+    pub fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
+        if view == ViewType::Full {
+            self.get_full_widths(width)
+        } else {
+            self.get_compact_widths(width)
+        }
+    }
+
     /// Returns dynamic widths for name column together with extra space for it.
-    pub fn get_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
+    fn get_compact_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
         if terminal_width <= self.name.min_len() + self.all_extra_width {
             (0, self.name.min_len(), self.extra_space)
         } else {
@@ -165,7 +174,7 @@ impl Header {
     }
 
     /// Returns dynamic widths for group and name columns together with extra space for name column.
-    pub fn get_full_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
+    fn get_full_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
         let min_width_for_all = self.group.min_len() + 1 + self.name.min_len() + self.all_extra_width;
 
         if terminal_width <= min_width_for_all {
