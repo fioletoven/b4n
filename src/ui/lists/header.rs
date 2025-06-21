@@ -20,6 +20,7 @@ pub struct Header {
     sort_symbols: Rc<[char]>,
     sorted_column_no: usize,
     is_sorted_descending: bool,
+    cache: HeaderCache,
 }
 
 impl Default for Header {
@@ -47,6 +48,7 @@ impl Header {
             sort_symbols,
             sorted_column_no: 1,
             is_sorted_descending: false,
+            cache: HeaderCache::default(),
         }
     }
 
@@ -71,6 +73,7 @@ impl Header {
 
     /// Sets information required for sorting.
     pub fn set_sort_info(&mut self, column_no: usize, is_descending: bool) {
+        self.cache.invalidate();
         self.sorted_column_no = column_no;
         self.is_sorted_descending = is_descending;
 
@@ -101,6 +104,7 @@ impl Header {
 
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
+        self.cache.invalidate();
         self.extra_columns_text = get_extra_columns_text(&self.extra_columns, self.is_sorted_descending);
         self.all_extra_width = self.extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
         self.extra_space = get_extra_space(&self.extra_columns);
@@ -108,6 +112,7 @@ impl Header {
 
     /// Resets `data_len` in each not fixed column.
     pub fn reset_data_lengths(&mut self) {
+        self.cache.invalidate();
         self.group.data_len = 0;
         self.name.data_len = 0;
         if let Some(columns) = &mut self.extra_columns {
@@ -126,6 +131,7 @@ impl Header {
 
     /// Sets data length for the provided column.
     pub fn set_data_length(&mut self, column_no: usize, new_data_len: usize) {
+        self.cache.invalidate();
         if let Some(column) = self.column_mut(column_no) {
             if !column.is_fixed {
                 column.data_len = new_data_len;
@@ -138,21 +144,18 @@ impl Header {
         self.extra_columns.as_deref()
     }
 
-    /// Gets header text for the provided `group_width` and `name_width`.
-    pub fn get_text(&self, view: ViewType, group_width: usize, name_width: usize, terminal_width: usize) -> String {
-        let header = match view {
-            ViewType::Name => self.get_name_text(name_width),
-            ViewType::Compact => self.get_compact_text(name_width, terminal_width),
-            ViewType::Full => self.get_full_text(group_width, name_width, terminal_width),
-        };
-
-        if terminal_width > 0 && header.chars().count() > terminal_width {
-            if let Some(truncated) = try_truncate(header.as_str(), terminal_width) {
-                return truncated.to_owned();
-            }
+    /// Gets header text for the provided `width`.
+    pub fn get_text(&mut self, view: ViewType, width: usize) -> &str {
+        if self.cache.width.is_some_and(|w| w == width) && self.cache.view == view {
+            return &self.cache.text;
         }
 
-        header
+        let (group_width, name_width, _) = self.get_widths(view, width);
+        self.cache.text = self.get_text_string(view, group_width, name_width, width);
+        self.cache.view = view;
+        self.cache.width = Some(width);
+
+        &self.cache.text
     }
 
     /// Returns widths for namespace and name columns together with an extra space for the name column.
@@ -165,61 +168,78 @@ impl Header {
     }
 
     /// Returns dynamic widths for name column together with extra space for it.
-    fn get_compact_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
-        if terminal_width <= self.name.min_len() + self.all_extra_width {
+    fn get_compact_widths(&self, area_width: usize) -> (usize, usize, usize) {
+        if area_width <= self.name.min_len() + self.all_extra_width {
             (0, self.name.min_len(), self.extra_space)
         } else {
-            (0, terminal_width - self.all_extra_width, self.extra_space)
+            (0, area_width - self.all_extra_width, self.extra_space)
         }
     }
 
     /// Returns dynamic widths for group and name columns together with extra space for name column.
-    fn get_full_widths(&self, terminal_width: usize) -> (usize, usize, usize) {
+    fn get_full_widths(&self, area_width: usize) -> (usize, usize, usize) {
         let min_width_for_all = self.group.min_len() + 1 + self.name.min_len() + self.all_extra_width;
 
-        if terminal_width <= min_width_for_all {
+        if area_width <= min_width_for_all {
             (self.group.min_len(), self.name.min_len(), self.extra_space)
         } else {
             let max_group_width = std::cmp::max(self.group.data_len, self.group.min_len());
             let min_width_for_full_size = max_group_width + 1 + self.name.data_len;
 
-            if terminal_width >= min_width_for_full_size + self.all_extra_width {
-                let avail_width = terminal_width - min_width_for_full_size - self.all_extra_width;
+            if area_width >= min_width_for_full_size + self.all_extra_width {
+                let avail_width = area_width - min_width_for_full_size - self.all_extra_width;
 
                 (max_group_width, self.name.data_len + avail_width, self.extra_space)
             } else {
-                let avail_width = terminal_width - min_width_for_all;
+                let avail_width = area_width - min_width_for_all;
                 let group_width = std::cmp::min(self.group.min_len() + avail_width / 2, max_group_width);
-                let name_width = terminal_width - group_width - self.all_extra_width - 1;
+                let name_width = area_width - group_width - self.all_extra_width - 1;
 
                 (group_width, name_width, self.extra_space)
             }
         }
     }
 
+    /// Builds header `String` for the provided `group_width`, `name_width` and `area_width`.
+    fn get_text_string(&self, view: ViewType, group_width: usize, name_width: usize, area_width: usize) -> String {
+        let header = match view {
+            ViewType::Name => self.get_name_text(name_width + area_width),
+            ViewType::Compact => self.get_compact_text(name_width, area_width),
+            ViewType::Full => self.get_full_text(group_width, name_width, area_width),
+        };
+
+        if area_width > 0 && header.chars().count() > area_width {
+            if let Some(truncated) = try_truncate(header.as_str(), area_width) {
+                return truncated.to_owned();
+            }
+        }
+
+        header
+    }
+
     /// Gets only name text.
-    fn get_name_text(&self, name_width: usize) -> String {
-        let mut header = String::with_capacity(name_width + 2);
+    fn get_name_text(&self, area_width: usize) -> String {
+        let mut header = String::with_capacity(area_width + 2);
 
         header.push(' ');
-        header.push_column(&self.name, name_width.saturating_sub(1), self.is_sorted_descending);
+        header.push_column(&self.name, area_width.saturating_sub(1), self.is_sorted_descending);
         header.push(' ');
 
         header
     }
 
     /// Gets header text without group column.
-    fn get_compact_text(&self, name_width: usize, terminal_width: usize) -> String {
-        self.get_text_inner(0, name_width.saturating_sub(1), terminal_width, false)
+    fn get_compact_text(&self, name_width: usize, area_width: usize) -> String {
+        self.get_text_inner(0, name_width.saturating_sub(1), area_width, false)
     }
 
     /// Gets header text with group column.
-    fn get_full_text(&self, group_width: usize, name_width: usize, terminal_width: usize) -> String {
-        self.get_text_inner(group_width.saturating_sub(1), name_width, terminal_width, true)
+    fn get_full_text(&self, group_width: usize, name_width: usize, area_width: usize) -> String {
+        self.get_text_inner(group_width.saturating_sub(1), name_width, area_width, true)
     }
 
-    fn get_text_inner(&self, group_width: usize, name_width: usize, terminal_width: usize, full: bool) -> String {
-        let mut header = String::with_capacity(terminal_width + 2);
+    fn get_text_inner(&self, group_width: usize, name_width: usize, area_width: usize, full: bool) -> String {
+        let mut header = String::with_capacity(area_width + 2);
 
         if full {
             header.push(' ');
@@ -280,6 +300,21 @@ impl Header {
         } else {
             None
         }
+    }
+}
+
+/// Keeps cached header text.
+#[derive(Default)]
+struct HeaderCache {
+    pub text: String,
+    pub width: Option<usize>,
+    pub view: ViewType,
+}
+
+impl HeaderCache {
+    /// Invalidates cache data.
+    pub fn invalidate(&mut self) {
+        self.width = None;
     }
 }
 

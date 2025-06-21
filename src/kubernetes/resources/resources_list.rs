@@ -22,7 +22,6 @@ pub struct ResourcesList {
     pub data: InitData,
     pub list: ScrollableList<ResourceItem, ResourceFilterContext>,
     header: Header,
-    header_cache: HeaderCache,
 }
 
 impl ResourcesList {
@@ -41,7 +40,6 @@ impl ResourcesList {
                 self.update_kind(init);
                 (sort_by, is_descending) = self.header.sort_info();
                 self.header.set_sort_info(sort_by, is_descending);
-                self.header_cache.invalidate();
                 true
             },
             ObserverResult::InitDone => false,
@@ -81,7 +79,6 @@ impl ResourcesList {
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
         self.header = ResourceItem::header(&self.data.kind);
-        self.header_cache.invalidate();
         self.list.clear();
         if self.data.kind_plural == NAMESPACES {
             self.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
@@ -113,7 +110,6 @@ impl ResourcesList {
         self.header.reset_data_lengths();
 
         let Some(list) = &self.list.items else {
-            self.header_cache.invalidate();
             return;
         };
 
@@ -129,7 +125,6 @@ impl ResourcesList {
         }
 
         self.header.recalculate_extra_columns();
-        self.header_cache.invalidate();
     }
 
     /// Sorts internal resources list.
@@ -201,7 +196,6 @@ impl Table for ResourcesList {
     fn sort(&mut self, column_no: usize, is_descending: bool) {
         if column_no < self.header.get_columns_count() {
             self.header.set_sort_info(column_no, is_descending);
-            self.header_cache.invalidate();
             self.sort_internal_list(column_no, is_descending);
         }
     }
@@ -230,30 +224,6 @@ impl Table for ResourcesList {
     }
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {
-        if self.header_cache.width == width && self.header_cache.view == view {
-            return &self.header_cache.text;
-        }
-
-        let (namespace_width, name_width, _) = self.header.get_widths(view, width);
-        self.header_cache.text = self.header.get_text(view, namespace_width, name_width, width);
-        self.header_cache.view = view;
-        self.header_cache.width = width;
-
-        &self.header_cache.text
-    }
-}
-
-/// Keeps cached header text.
-#[derive(Default)]
-struct HeaderCache {
-    pub text: String,
-    pub width: usize,
-    pub view: ViewType,
-}
-
-impl HeaderCache {
-    /// Invalidates cache data.
-    pub fn invalidate(&mut self) {
-        self.width = 0;
+        self.header.get_text(view, width)
     }
 }

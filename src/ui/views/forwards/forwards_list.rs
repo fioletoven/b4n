@@ -15,7 +15,6 @@ use super::PortForwardItem;
 pub struct PortForwardsList {
     pub list: ScrollableList<PortForwardItem, BasicFilterContext>,
     header: Header,
-    header_cache: String,
     width: usize,
 }
 
@@ -78,9 +77,6 @@ impl Table for PortForwardsList {
     }
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {
-        let (namespace_width, name_width, _) = self.header.get_widths(view, width);
-        self.header_cache = self.header.get_text(view, namespace_width, name_width, width);
-
-        &self.header_cache
+        self.header.get_text(view, width)
     }
 }

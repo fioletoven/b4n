@@ -115,7 +115,7 @@ fn get_text_pod_test() {
 
     assert_eq!(
         " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE ",
-        header.get_text(ViewType::Full, namespace_width, name_width, terminal_width)
+        header.get_text(ViewType::Full, terminal_width)
     );
 
     assert_eq!(
