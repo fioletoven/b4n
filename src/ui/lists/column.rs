@@ -150,13 +150,13 @@ impl Column {
     }
 }
 
-/// Extension methods for string.
-pub trait StringExtensions {
+/// Column extension methods for string.
+pub trait ColumnStringExtensions {
     /// Appends a given column onto the end of this `String`.
     fn push_column(&mut self, column: &Column, len: usize, is_descending: bool);
 }
 
-impl StringExtensions for String {
+impl ColumnStringExtensions for String {
     fn push_column(&mut self, column: &Column, len: usize, is_descending: bool) {
         if len == 0 || (column.name.is_empty() && !column.is_sorted) {
             return;

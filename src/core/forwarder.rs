@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::{api::core::v1::Pod, apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
 use kube::Api;
 use std::{
     net::SocketAddr,
@@ -158,9 +158,12 @@ impl Drop for PortForwarder {
 pub struct PortForwardTask {
     pub uuid: String,
     pub resource: ResourceRef,
+    pub bind_address: String,
+    pub port: u16,
+    pub start_time: Option<Time>,
+    pub statistics: TaskStatistics,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    statistics: TaskStatistics,
     events_tx: UnboundedSender<PortForwardEvent>,
     footer_tx: UnboundedSender<FooterMessage>,
 }
@@ -180,9 +183,12 @@ impl PortForwardTask {
                 .encode_lower(&mut Uuid::encode_buffer())
                 .to_owned(),
             resource: ResourceRef::default(),
+            bind_address: String::default(),
+            port: 0,
+            start_time: None,
+            statistics,
             task: None,
             cancellation_token: None,
-            statistics,
             events_tx,
             footer_tx,
         }
@@ -190,6 +196,9 @@ impl PortForwardTask {
 
     /// Runs port forward task.
     fn run(&mut self, pods: Api<Pod>, resource: ResourceRef, port: u16, address: SocketAddr) -> Result<(), PortForwardError> {
+        self.bind_address = address.to_string();
+        self.port = port;
+
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _pod_name = resource.name.as_deref().unwrap_or_default().to_owned();
@@ -229,6 +238,7 @@ impl PortForwardTask {
         self.task = Some(task);
         self.cancellation_token = Some(cancellation_token);
         self.resource = resource;
+        self.start_time = Some(Time(Utc::now()));
 
         Ok(())
     }
@@ -254,10 +264,10 @@ impl Drop for PortForwardTask {
 }
 
 #[derive(Clone)]
-struct TaskStatistics {
-    active_connections: Arc<AtomicI16>,
-    overall_connections: Arc<AtomicI32>,
-    connection_errors: Arc<AtomicI32>,
+pub struct TaskStatistics {
+    pub active_connections: Arc<AtomicI16>,
+    pub overall_connections: Arc<AtomicI32>,
+    pub connection_errors: Arc<AtomicI32>,
 }
 
 fn accept_error(

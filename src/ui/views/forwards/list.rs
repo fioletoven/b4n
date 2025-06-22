@@ -13,7 +13,6 @@ use super::PortForwardItem;
 /// Port forward tasks list.
 pub struct PortForwardsList {
     pub table: TabularList<PortForwardItem, BasicFilterContext>,
-    width: usize,
 }
 
 impl Default for PortForwardsList {
@@ -23,7 +22,6 @@ impl Default for PortForwardsList {
                 header: header(),
                 ..Default::default()
             },
-            width: 0,
         }
     }
 }
@@ -82,7 +80,7 @@ impl Table for PortForwardsList {
             let mut result = Vec::with_capacity(self.table.list.page_height.into());
             for item in list {
                 result.push((
-                    item.data.get_text(
+                    item.get_text(
                         view,
                         &self.table.header,
                         width,
@@ -100,7 +98,6 @@ impl Table for PortForwardsList {
     }
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {
-        tracing::info!("get header text for view: {:?}", view);
         self.table.header.get_text(view, width)
     }
 }
@@ -111,11 +108,11 @@ pub fn header() -> Header {
         NAMESPACE.clone(),
         Some(Box::new([
             Column::bound("LOCAL", 14, 22, false),
-            Column::fixed("REMOTE", 8, false),
+            Column::fixed("REMOTE", 8, true),
             Column::fixed("ACTIVE", 8, true),
-            Column::fixed("OVERALL", 8, true),
-            Column::fixed("ERROR", 8, true),
+            Column::fixed("ERRORS", 8, true),
+            Column::fixed("TOTAL", 8, true),
         ])),
-        Rc::new([' ', 'N', 'L', 'R', 'C', 'O', 'E', 'A']),
+        Rc::new([' ', 'N', 'L', 'R', 'C', 'E', 'T', 'A']),
     )
 }

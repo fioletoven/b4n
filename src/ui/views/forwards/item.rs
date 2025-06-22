@@ -1,0 +1,121 @@
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use std::sync::atomic::Ordering;
+
+use crate::{
+    core::PortForwardTask,
+    ui::{
+        colors::TextColors,
+        lists::{BasicFilterContext, Filterable, Row},
+        theme::Theme,
+    },
+    utils::truncate,
+};
+
+/// Represents port forward list item.
+pub struct PortForwardItem {
+    pub uid: Option<String>,
+    group: String,
+    name: String,
+    age: Option<String>,
+    creation_timestamp: Option<Time>,
+    bind_address: String,
+    port: String,
+    port_sort: String,
+    overall: String,
+    overall_sort: String,
+    active: String,
+    active_sort: String,
+    errors: String,
+    errors_sort: String,
+}
+
+impl PortForwardItem {
+    /// Creates new [`PortForwardItem`] instance.
+    pub fn from(task: &PortForwardTask) -> Self {
+        let overall = task.statistics.overall_connections.load(Ordering::Relaxed);
+        let active = task.statistics.active_connections.load(Ordering::Relaxed);
+        let errors = task.statistics.connection_errors.load(Ordering::Relaxed);
+
+        Self {
+            uid: Some(task.uuid.clone()),
+            group: task.resource.namespace.as_str().to_owned(),
+            name: task.resource.name.as_deref().unwrap_or_default().to_owned(),
+            age: task.start_time.as_ref().map(|t| t.0.timestamp().to_string()),
+            creation_timestamp: task.start_time.clone(),
+            bind_address: task.bind_address.clone(),
+            port: task.port.to_string(),
+            port_sort: format!("{:0>6}", task.port),
+            overall: overall.to_string(),
+            overall_sort: format!("{:0>6}", overall),
+            active: active.to_string(),
+            active_sort: format!("{:0>6}", active),
+            errors: errors.to_string(),
+            errors_sort: format!("{:0>6}", errors),
+        }
+    }
+
+    /// Returns [`TextColors`] for this port forward item considering `theme` and other data.
+    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
+        theme.colors.line.ready.get_specific(is_active, is_selected)
+    }
+}
+
+impl Row for PortForwardItem {
+    fn uid(&self) -> Option<&str> {
+        self.uid.as_deref()
+    }
+
+    fn group(&self) -> &str {
+        &self.group
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn creation_timestamp(&self) -> Option<&Time> {
+        self.creation_timestamp.as_ref()
+    }
+
+    fn get_name(&self, width: usize) -> String {
+        format!("{1:<0$}", width, truncate(self.name.as_str(), width))
+    }
+
+    fn column_text(&self, column: usize) -> &str {
+        match column {
+            0 => self.group(),
+            1 => self.name(),
+            2 => self.bind_address.as_str(),
+            3 => self.port.as_str(),
+            4 => self.active.as_str(),
+            5 => self.errors.as_str(),
+            6 => self.overall.as_str(),
+            7 => self.age.as_deref().unwrap_or("n/a"),
+            _ => "n/a",
+        }
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
+        match column {
+            0 => self.group(),
+            1 => self.name(),
+            2 => self.bind_address.as_str(),
+            3 => self.port_sort.as_str(),
+            4 => self.active_sort.as_str(),
+            5 => self.errors_sort.as_str(),
+            6 => self.overall_sort.as_str(),
+            7 => self.age.as_deref().unwrap_or("n/a"),
+            _ => "n/a",
+        }
+    }
+}
+
+impl Filterable<BasicFilterContext> for PortForwardItem {
+    fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
+        pattern.to_owned().into()
+    }
+
+    fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
+        self.name.contains(&context.pattern)
+    }
+}

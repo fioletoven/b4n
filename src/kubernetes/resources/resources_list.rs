@@ -158,7 +158,7 @@ impl Table for ResourcesList {
             let mut result = Vec::with_capacity(self.table.list.page_height.into());
             for item in list {
                 result.push((
-                    item.data.get_text(
+                    item.get_text(
                         view,
                         &self.table.header,
                         width,

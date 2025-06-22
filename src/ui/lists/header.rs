@@ -1,8 +1,11 @@
 use std::rc::Rc;
 
-use crate::{ui::ViewType, utils::try_truncate};
+use crate::{
+    ui::{ViewType, lists::ColumnStringExtensions},
+    utils::try_truncate,
+};
 
-use super::{AGE, Column, NAME, StringExtensions};
+use super::{AGE, Column, NAME};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]
