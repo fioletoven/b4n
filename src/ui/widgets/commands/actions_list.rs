@@ -183,7 +183,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("show port forwards")
                 .with_description("shows active port forwards")
-                .with_aliases(&["pf"])
+                .with_aliases(&["port", "pf", "forward"])
                 .with_response(ResponseEvent::ShowPortForwards),
         );
         self

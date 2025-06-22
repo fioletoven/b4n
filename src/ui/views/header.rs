@@ -131,11 +131,6 @@ impl HeaderPane {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        Line::from(vec![
-            Span::styled("", Style::new().fg(colors.bg)),
-            Span::styled(text, colors),
-            Span::styled("", Style::new().fg(colors.bg)),
-        ])
-        .right_aligned()
+        crate::ui::views::get_right_breadcrumbs(text, colors)
     }
 }

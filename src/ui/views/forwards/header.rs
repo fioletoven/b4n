@@ -4,22 +4,21 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{
-    core::SharedAppData,
-    kubernetes::resources::{CONTAINERS, PODS},
-};
+use crate::{core::SharedAppData, kubernetes::resources::PODS};
 
-/// Header pane that shows resource path and version information as breadcrumbs.
+/// Header pane that shows context, namespace and number of port forwards as breadcrumbs.
 pub struct HeaderPane {
     app_data: SharedAppData,
+    count: usize,
     is_filtered: bool,
 }
 
 impl HeaderPane {
     /// Creates new UI header pane.
-    pub fn new(app_data: SharedAppData) -> Self {
+    pub fn new(app_data: SharedAppData, count: usize) -> Self {
         Self {
             app_data,
+            count,
             is_filtered: false,
         }
     }
@@ -38,22 +37,21 @@ impl HeaderPane {
         frame.render_widget(Paragraph::new(version), layout[1]);
     }
 
+    /// Sets new value for the header count.
+    pub fn set_count(&mut self, count: usize) {
+        self.count = count;
+    }
+
     /// Sets if header should show icon that indicates data is filtered.
     pub fn show_filtered_icon(&mut self, is_filtered: bool) {
         self.is_filtered = is_filtered;
     }
 
-    /// Returns formatted kubernetes resource path as breadcrumbs:\
-    /// \> `context name` \> \[ `namespace` \> \] `resource` \> \[ `name` \> \] `resources count` \>
+    /// Returns formatted port forwards path as breadcrumbs:\
+    /// \> `context name` \> \[ `namespace` \> \] `pods` \> `port forwards` \> `count` \>
     fn get_path(&self) -> Line {
         let data = &self.app_data.borrow();
-        let kind = if data.current.kind.name() == CONTAINERS {
-            PODS
-        } else {
-            data.current.kind.name()
-        };
-
-        crate::ui::views::get_left_breadcrumbs(data, kind, data.current.name.as_deref(), data.current.count, self.is_filtered)
+        crate::ui::views::get_left_breadcrumbs(data, PODS, Some("port forwards"), self.count, self.is_filtered)
     }
 
     /// Returns formatted k8s version info as breadcrumbs:\

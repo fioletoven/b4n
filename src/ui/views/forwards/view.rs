@@ -9,14 +9,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     core::{SharedAppData, SharedBgWorker},
     ui::{
-        ResponseEvent, Responsive, TuiEvent, ViewType,
-        views::{ListPane, PortForwardsList, View},
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        views::{ListPane, PortForwardsList, View, forwards::HeaderPane},
         widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
 /// Port forwards view.
 pub struct ForwardsView {
+    pub header: HeaderPane,
     pub list: ListPane<PortForwardsList>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
@@ -31,6 +32,7 @@ impl ForwardsView {
         list.items.update(worker.borrow().get_port_forwards_list(), 0, false);
 
         Self {
+            header: HeaderPane::new(Rc::clone(&app_data), list.items.len()),
             list,
             app_data,
             worker,
@@ -61,6 +63,7 @@ impl View for ForwardsView {
             self.list
                 .items
                 .update(self.worker.borrow().get_port_forwards_list(), 0, false);
+            self.header.set_count(self.list.items.len());
         }
 
         ResponseEvent::Handled
@@ -85,7 +88,7 @@ impl View for ForwardsView {
             return ResponseEvent::Cancelled;
         }
 
-        ResponseEvent::Handled
+        self.list.process_key(key)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
@@ -94,6 +97,7 @@ impl View for ForwardsView {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
+        self.header.draw(frame, layout[0]);
         self.list.draw(frame, layout[1]);
 
         self.command_palette.draw(frame, frame.area());

@@ -10,6 +10,7 @@ pub use self::list::ListPane;
 pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
 pub use self::shell::ShellView;
+pub use self::utils::*;
 pub use self::yaml::YamlView;
 
 mod content;
@@ -19,6 +20,7 @@ mod list;
 mod logs;
 mod resources;
 mod shell;
+mod utils;
 mod yaml;
 
 /// TUI view with pages and widgets.
