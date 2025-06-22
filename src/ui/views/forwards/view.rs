@@ -28,11 +28,16 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
-        let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), ViewType::Compact);
-        list.items.update(worker.borrow().get_port_forwards_list(), 0, false);
+        let view = if app_data.borrow().current.namespace.is_all() {
+            ViewType::Full
+        } else {
+            ViewType::Compact
+        };
+        let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), view);
+        list.table.update(worker.borrow().get_port_forwards_list());
 
         Self {
-            header: HeaderPane::new(Rc::clone(&app_data), list.items.len()),
+            header: HeaderPane::new(Rc::clone(&app_data), list.table.len()),
             list,
             app_data,
             worker,
@@ -60,10 +65,8 @@ impl View for ForwardsView {
 
     fn process_tick(&mut self) -> ResponseEvent {
         if self.worker.borrow_mut().is_port_forward_list_changed() {
-            self.list
-                .items
-                .update(self.worker.borrow().get_port_forwards_list(), 0, false);
-            self.header.set_count(self.list.items.len());
+            self.list.table.update(self.worker.borrow().get_port_forwards_list());
+            self.header.set_count(self.list.table.len());
         }
 
         ResponseEvent::Handled

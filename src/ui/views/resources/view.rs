@@ -115,7 +115,7 @@ impl ResourcesView {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.table.list.items.is_anything_selected() && !self.table.has_containers() {
+        if self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }

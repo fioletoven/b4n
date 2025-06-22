@@ -4,7 +4,7 @@ use ratatui::{
     text::{Line, Span},
 };
 
-use crate::{core::AppData, ui::colors::TextColors};
+use crate::{core::AppData, kubernetes::resources::PODS, ui::colors::TextColors};
 
 /// Returns formatted text as left breadcrumbs:\
 /// \> `context` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `count` \>
@@ -17,7 +17,7 @@ pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, 
         Span::styled(format!(" {} ", data.context), &colors.context),
     ];
 
-    if data.scope == Scope::Namespaced {
+    if data.scope == Scope::Namespaced || kind == PODS {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", data.namespace.as_str()), &colors.namespace),

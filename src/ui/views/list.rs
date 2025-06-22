@@ -13,7 +13,7 @@ use crate::{
 
 /// List pane for table items.
 pub struct ListPane<T: Table> {
-    pub items: T,
+    pub table: T,
     pub view: ViewType,
     app_data: SharedAppData,
 }
@@ -22,7 +22,7 @@ impl<T: Table> ListPane<T> {
     /// Creates new [`ListPane`] instance.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
         ListPane {
-            items: list,
+            table: list,
             view,
             app_data,
         }
@@ -39,9 +39,9 @@ impl<T: Table> ListPane<T> {
         let area = layout[1].inner(Margin::new(1, 0));
 
         {
-            let sort_symbols = self.items.get_sort_symbols();
+            let sort_symbols = self.table.get_sort_symbols();
             let mut header = HeaderWidget {
-                header: self.items.get_header(self.view, usize::from(area.width)),
+                header: self.table.get_header(self.view, usize::from(area.width)),
                 colors: &self.app_data.borrow().theme.colors.header.text,
                 view: self.view,
                 sort_symbols: &sort_symbols,
@@ -49,9 +49,9 @@ impl<T: Table> ListPane<T> {
             frame.render_widget(&mut header, layout[0]);
         }
 
-        self.items.update_page(area.height);
+        self.table.update_page(area.height);
         if let Some(list) = self
-            .items
+            .table
             .get_paged_items(&self.app_data.borrow().theme, self.view, usize::from(area.width))
         {
             frame.render_widget(Paragraph::new(self.get_items(list)), area);
@@ -76,15 +76,15 @@ impl<T: Table> Responsive for ListPane<T> {
             return ResponseEvent::Handled;
         }
 
-        if self.items.process_key(key) == ResponseEvent::Handled {
+        if self.table.process_key(key) == ResponseEvent::Handled {
             return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char(' ') {
             if key.modifiers == KeyModifiers::CONTROL {
-                self.items.invert_selection();
+                self.table.invert_selection();
             } else {
-                self.items.select_highlighted_item();
+                self.table.select_highlighted_item();
             }
 
             return ResponseEvent::Handled;

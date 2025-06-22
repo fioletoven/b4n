@@ -46,7 +46,7 @@ impl ResourcesTable {
 
     /// Resets all table data.
     pub fn reset(&mut self) {
-        self.list.items.clear();
+        self.list.table.clear();
         self.header.show_filtered_icon(false);
     }
 
@@ -67,7 +67,7 @@ impl ResourcesTable {
     }
 
     delegate! {
-        to self.list.items {
+        to self.list.table {
             pub fn deselect_all(&mut self);
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
@@ -77,28 +77,28 @@ impl ResourcesTable {
 
     /// Gets current kind (plural) for resources listed in [`ResourcesTable`].
     pub fn kind_plural(&self) -> &str {
-        &self.list.items.data.kind_plural
+        &self.list.table.data.kind_plural
     }
 
     /// Gets current scope for resources listed in [`ResourcesTable`].
     pub fn scope(&self) -> &Scope {
-        &self.list.items.data.scope
+        &self.list.table.data.scope
     }
 
     /// Gets resources group.
     pub fn group(&self) -> &str {
-        &self.list.items.data.group
+        &self.list.table.data.group
     }
 
     /// Returns resources kind.
     pub fn get_kind(&self) -> Kind {
-        Kind::new(&self.list.items.data.kind_plural, &self.list.items.data.group)
+        Kind::new(&self.list.table.data.kind_plural, &self.list.table.data.group)
     }
 
     /// Returns [`ResourceRef`] for currently highlighted item.
     pub fn get_resource_ref(&self) -> Option<ResourceRef> {
         self.list
-            .items
+            .table
             .get_highlighted_resource()
             .and_then(|r| self.resource_ref_from(r))
     }
@@ -113,7 +113,7 @@ impl ResourcesTable {
 
         if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);
-            self.list.items.deselect_all();
+            self.list.table.deselect_all();
         }
     }
 
@@ -126,13 +126,13 @@ impl ResourcesTable {
     pub fn set_filter(&mut self, value: &str) {
         self.header.show_filtered_icon(!value.is_empty());
         if value.is_empty() {
-            if self.list.items.is_filtered() {
-                self.list.items.filter(None);
-                self.app_data.borrow_mut().current.count = self.list.items.len();
+            if self.list.table.is_filtered() {
+                self.list.table.filter(None);
+                self.app_data.borrow_mut().current.count = self.list.table.len();
             }
-        } else if !self.list.items.is_filtered() || self.list.items.get_filter().is_some_and(|f| f != value) {
-            self.list.items.filter(Some(value.to_owned()));
-            self.app_data.borrow_mut().current.count = self.list.items.len();
+        } else if !self.list.table.is_filtered() || self.list.table.get_filter().is_some_and(|f| f != value) {
+            self.list.table.filter(Some(value.to_owned()));
+            self.app_data.borrow_mut().current.count = self.list.table.len();
         }
     }
 
@@ -140,17 +140,17 @@ impl ResourcesTable {
     pub fn update_resources_list(&mut self, result: ObserverResult) {
         if matches!(result, ObserverResult::InitDone) {
             if let Some(name) = self.highlight_next.as_deref() {
-                self.list.items.highlight_item_by_name(name);
+                self.list.table.highlight_item_by_name(name);
                 self.highlight_next = None;
             }
         }
 
-        if self.list.items.update(result) {
+        if self.list.table.update(result) {
             let current = &mut self.app_data.borrow_mut().current;
-            current.update_from(&self.list.items.data);
-            current.count = self.list.items.list.len();
+            current.update_from(&self.list.table.data);
+            current.count = self.list.table.table.list.len();
         } else {
-            self.app_data.borrow_mut().current.count = self.list.items.list.len();
+            self.app_data.borrow_mut().current.count = self.list.table.table.list.len();
         }
     }
 
@@ -166,7 +166,7 @@ impl ResourcesTable {
             return ResponseEvent::ShowPortForwards;
         }
 
-        if let Some(highlighted_resource) = self.list.items.get_highlighted_resource() {
+        if let Some(highlighted_resource) = self.list.table.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
                 return self.process_enter_key(highlighted_resource);
             }
