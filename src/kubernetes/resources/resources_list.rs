@@ -119,8 +119,10 @@ impl Table for ResourcesList {
             fn get_filter(&self) -> Option<&str>;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
+            fn get_highlighted_item_uid(&self) -> Option<&str>;
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
             fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
+            fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);

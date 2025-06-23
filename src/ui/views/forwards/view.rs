@@ -65,8 +65,12 @@ impl View for ForwardsView {
 
     fn process_tick(&mut self) -> ResponseEvent {
         if self.worker.borrow_mut().is_port_forward_list_changed() {
+            let highlighted = self.list.table.get_highlighted_item_uid().map(String::from);
             self.list.table.update(self.worker.borrow().get_port_forwards_list());
             self.header.set_count(self.list.table.len());
+            if let Some(highlighted) = highlighted {
+                self.list.table.highlight_item_by_uid(&highlighted);
+            }
         }
 
         ResponseEvent::Handled

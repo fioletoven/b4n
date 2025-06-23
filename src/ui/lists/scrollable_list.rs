@@ -258,6 +258,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.get_highlighted_item().map(|i| i.data.name())
     }
 
+    /// Gets highlighted element `uid`.
+    pub fn get_highlighted_item_uid(&self) -> Option<&str> {
+        self.get_highlighted_item().and_then(|i| i.data.uid())
+    }
+
     /// Gets highlighted element.
     pub fn get_highlighted_item(&self) -> Option<&Item<T, Fc>> {
         if let Some(items) = &self.items {
@@ -288,6 +293,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Highlights first element on the list which name starts with `text`.
     pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
         self.highlight_item_by(|i| i.data.starts_with(text))
+    }
+
+    /// Highlights element on list by its `uid`.
+    pub fn highlight_item_by_uid(&mut self, uid: &str) -> bool {
+        self.highlight_item_by(|i| i.data.uid().is_some_and(|u| u == uid))
     }
 
     /// Highlights first item on the list, returns `true` on success.
