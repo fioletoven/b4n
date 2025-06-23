@@ -1,6 +1,7 @@
 use k8s_openapi::{api::core::v1::Pod, apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
 use kube::Api;
 use std::{
+    error::Error,
     net::SocketAddr,
     sync::{
         Arc,
@@ -76,6 +77,12 @@ impl PortForwarder {
 
     /// Returns port forward tasks list.
     pub fn tasks(&self) -> &[PortForwardTask] {
+        &self.tasks
+    }
+
+    /// Removes completed port forward tasks and returns updated list.
+    pub fn cleanup_tasks(&mut self) -> &[PortForwardTask] {
+        self.tasks.retain(|t| t.task.as_ref().is_none_or(|t| !t.is_finished()));
         &self.tasks
     }
 
@@ -222,8 +229,9 @@ impl PortForwardTask {
                                         stream,
                                         _events_tx.clone(),
                                         _statistics.clone(),
+                                        _cancellation_token.clone(),
                                     )
-                                    .await
+                                    .await;
                                 },
                                 Err(e) => accept_error(e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
                             };
@@ -292,6 +300,7 @@ async fn accept_connection(
     client_conn: tokio::net::TcpStream,
     events_tx: UnboundedSender<PortForwardEvent>,
     statistics: TaskStatistics,
+    cancellation_token: CancellationToken,
 ) {
     let api = api.clone();
     let pod_name = pod_name.to_owned();
@@ -300,9 +309,16 @@ async fn accept_connection(
         statistics.active_connections.fetch_add(1, Ordering::Relaxed);
         events_tx.send(PortForwardEvent::ConnectionAccepted).unwrap();
 
-        if let Err(e) = forward_connection(&api, &pod_name, port, client_conn).await {
-            warn!("failed to forward connection: {}", e);
+        if let Err(error) = forward_connection(&api, &pod_name, port, client_conn).await {
+            warn!("failed to forward connection: {}", error);
             statistics.connection_errors.fetch_add(1, Ordering::Relaxed);
+
+            match error {
+                PortForwardError::KubeError(_) | PortForwardError::PortNotFound => {
+                    cancellation_token.cancel();
+                },
+                _ => (),
+            }
         }
 
         statistics.active_connections.fetch_sub(1, Ordering::Relaxed);
@@ -323,7 +339,16 @@ async fn forward_connection(
         drop(upstream_conn);
         match forwarder.join().await {
             Ok(_) => Ok(()),
-            Err(e) => Err(PortForwardError::PortforwardError(e.to_string())),
+            Err(error) => {
+                if error
+                    .source()
+                    .is_some_and(|e| format!("{:?}", e) == "Protocol(SendAfterClosing)")
+                {
+                    Ok(())
+                } else {
+                    Err(PortForwardError::PortforwardError(error.to_string()))
+                }
+            },
         }
     } else {
         Err(PortForwardError::PortNotFound)

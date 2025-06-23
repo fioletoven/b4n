@@ -169,9 +169,10 @@ impl BgWorker {
         })
     }
 
-    /// Returns list of port forward list items.
-    pub fn get_port_forwards_list(&self) -> Vec<PortForwardItem> {
-        self.forwarder.tasks().iter().map(PortForwardItem::from).collect()
+    /// Returns list of [`PortForwardItem`] items.\
+    /// **Note** that it also removes all finished tasks in forwarder.
+    pub fn get_port_forwards_list(&mut self) -> Vec<PortForwardItem> {
+        self.forwarder.cleanup_tasks().iter().map(PortForwardItem::from).collect()
     }
 
     /// Returns `true` if there was a change in the port forwards list since the last check.

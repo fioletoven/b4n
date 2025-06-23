@@ -217,6 +217,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Selects items by provided uids.
+    pub fn select_uids(&mut self, uids: &[impl AsRef<str>]) {
+        if let Some(items) = &mut self.items {
+            items
+                .iter_mut()
+                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid().unwrap_or_default()));
+        }
+    }
+
     /// Returns selected item names grouped in [`HashMap`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         if let Some(items) = &self.items {
@@ -236,6 +245,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             result
         } else {
             HashMap::new()
+        }
+    }
+
+    /// Returns selected item uids as [`Vec`].
+    pub fn get_selected_uids(&self) -> Vec<&str> {
+        if let Some(items) = &self.items {
+            items.iter().filter(|i| i.is_selected).flat_map(|i| i.data.uid()).collect()
+        } else {
+            Vec::default()
         }
     }
 

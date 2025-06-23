@@ -34,7 +34,7 @@ impl ForwardsView {
             ViewType::Compact
         };
         let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), view);
-        list.table.update(worker.borrow().get_port_forwards_list());
+        list.table.update(worker.borrow_mut().get_port_forwards_list());
 
         Self {
             header: HeaderPane::new(Rc::clone(&app_data), list.table.len()),
@@ -64,13 +64,10 @@ impl View for ForwardsView {
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
-        if self.worker.borrow_mut().is_port_forward_list_changed() {
-            let highlighted = self.list.table.get_highlighted_item_uid().map(String::from);
-            self.list.table.update(self.worker.borrow().get_port_forwards_list());
+        let mut worker = self.worker.borrow_mut();
+        if worker.is_port_forward_list_changed() {
+            self.list.table.update(worker.get_port_forwards_list());
             self.header.set_count(self.list.table.len());
-            if let Some(highlighted) = highlighted {
-                self.list.table.highlight_item_by_uid(&highlighted);
-            }
         }
 
         ResponseEvent::Handled

@@ -30,8 +30,16 @@ impl PortForwardsList {
     /// Updates [`PortForwardsList`] with new data from [`Vec<PortForwardItem>`].
     pub fn update(&mut self, items: Vec<PortForwardItem>) {
         let (sort_by, is_descending) = self.table.header.sort_info();
+        let highlighted_uid = self.table.list.get_highlighted_item_uid().map(String::from);
+        let selected_uids: Vec<_> = self.table.list.get_selected_uids().iter().map(|&u| u.to_owned()).collect();
+
         self.table.list.items = Some(FilterableList::from(items.into_iter().map(Item::new).collect()));
         self.table.sort(sort_by, is_descending);
+
+        self.table.list.select_uids(selected_uids.as_slice());
+        if let Some(uid) = highlighted_uid {
+            self.table.list.highlight_item_by_uid(&uid);
+        }
     }
 }
 
