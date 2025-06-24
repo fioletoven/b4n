@@ -35,6 +35,22 @@ pub trait View {
         self.command_id().is_some_and(|id| id == command_id)
     }
 
+    /// Returns `true` if namespaces selector can be displayed on the view.
+    fn is_namespaces_selector_allowed(&self) -> bool {
+        false
+    }
+
+    /// Returns `true` if resources selector can be displayed on the view.
+    fn is_resources_selector_allowed(&self) -> bool {
+        false
+    }
+
+    /// Processes namespace change.
+    fn process_namespace_change(&mut self) {}
+
+    /// Processes resource's kind change.
+    fn process_kind_change(&mut self) {}
+
     /// Processes result from the command.
     fn process_command_result(&mut self, result: CommandResult) {
         let _ = result;

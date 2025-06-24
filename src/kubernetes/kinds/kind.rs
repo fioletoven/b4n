@@ -4,7 +4,6 @@ use crate::{
 };
 
 /// Represents kubernetes kind.
-#[derive(Clone)]
 pub struct KindItem {
     pub uid: Option<String>,
     pub group: String,

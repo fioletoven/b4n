@@ -63,6 +63,19 @@ impl ForwardsView {
 }
 
 impl View for ForwardsView {
+    fn is_namespaces_selector_allowed(&self) -> bool {
+        true
+    }
+
+    fn process_namespace_change(&mut self) {
+        self.list.table.update(
+            self.worker
+                .borrow_mut()
+                .get_port_forwards_list(&self.app_data.borrow().current.namespace),
+        );
+        self.header.set_count(self.list.table.len());
+    }
+
     fn process_disconnection(&mut self) {
         self.command_palette.hide();
     }

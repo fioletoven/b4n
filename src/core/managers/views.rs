@@ -64,9 +64,8 @@ impl ViewsManager {
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
         if worker.update_discovery_list() {
-            let kinds = worker.get_kinds_list();
-            self.resources.update_kinds_list(kinds.clone());
-            self.res_selector.select.items.update(kinds, 1, false);
+            self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
+            self.resources.update_kinds_list(&self.res_selector.select.items.list);
         }
 
         while let Some(update_result) = worker.namespaces.try_next() {
@@ -104,28 +103,55 @@ impl ViewsManager {
             return self.res_selector.process_key(key);
         }
 
-        if let Some(view) = &mut self.view {
-            let result = view.process_event(event);
-            if result == ResponseEvent::Cancelled {
-                self.view = None;
-            }
-
-            result
+        if self.view.is_some() {
+            self.process_view_event(event)
         } else {
-            if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
-                self.ns_selector
-                    .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
-                return ResponseEvent::Handled;
-            }
-
-            if key.code == KeyCode::Right {
-                self.res_selector
-                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
-                return ResponseEvent::Handled;
-            }
-
-            self.resources.process_event(event)
+            self.process_resources_event(event)
         }
+    }
+
+    fn process_view_event(&mut self, event: TuiEvent) -> ResponseEvent {
+        let TuiEvent::Key(key) = event;
+        let Some(view) = &mut self.view else {
+            return ResponseEvent::Handled;
+        };
+
+        if key.code == KeyCode::Left && view.is_namespaces_selector_allowed() {
+            self.ns_selector
+                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Right && view.is_resources_selector_allowed() {
+            self.res_selector
+                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+            return ResponseEvent::Handled;
+        }
+
+        let result = view.process_event(event);
+        if result == ResponseEvent::Cancelled {
+            self.view = None;
+        }
+
+        result
+    }
+
+    fn process_resources_event(&mut self, event: TuiEvent) -> ResponseEvent {
+        let TuiEvent::Key(key) = event;
+
+        if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
+            self.ns_selector
+                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Right {
+            self.res_selector
+                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+            return ResponseEvent::Handled;
+        }
+
+        self.resources.process_event(event)
     }
 
     /// Process all waiting events.
@@ -156,11 +182,17 @@ impl ViewsManager {
     /// Processes namespace change.
     pub fn process_namespace_change(&mut self, namespace: Namespace) {
         self.resources.set_namespace(namespace);
+        if let Some(view) = &mut self.view {
+            view.process_namespace_change();
+        }
     }
 
     /// Processes kind change.
     pub fn process_kind_change(&mut self, resource_to_select: Option<String>) {
         self.resources.highlight_next(resource_to_select);
+        if let Some(view) = &mut self.view {
+            view.process_kind_change();
+        }
     }
 
     pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {

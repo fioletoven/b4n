@@ -82,9 +82,21 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: &[KindItem]) -> Self {
+    pub fn from(actions: Vec<ActionItem>) -> Self {
+        ActionsListBuilder { actions }
+    }
+
+    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
+    pub fn from_kinds(kinds: &ScrollableList<KindItem, BasicFilterContext>) -> Self {
         ActionsListBuilder {
-            actions: kinds.iter().map(ActionItem::from_kind).collect::<Vec<ActionItem>>(),
+            actions: if let Some(items) = &kinds.items {
+                items
+                    .full_iter()
+                    .map(|i| ActionItem::from_kind(&i.data))
+                    .collect::<Vec<ActionItem>>()
+            } else {
+                Vec::new()
+            },
         }
     }
 
@@ -115,6 +127,11 @@ impl ActionsListBuilder {
             list,
             ..Default::default()
         }
+    }
+
+    /// Returns vector of [`ActionItem`]s that can be used later to build [`ActionsList`].
+    pub fn to_vec(self) -> Vec<ActionItem> {
+        self.actions
     }
 
     /// Adds custom action.

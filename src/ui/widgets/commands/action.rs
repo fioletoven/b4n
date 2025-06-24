@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Command palette action.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ActionItem {
     pub uid: Option<String>,
     pub group: String,

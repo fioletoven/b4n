@@ -13,6 +13,7 @@ use crate::{
     },
     ui::{
         Responsive, Table, ViewType,
+        lists::{BasicFilterContext, ScrollableList},
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -24,7 +25,7 @@ use super::ResourcesTable;
 pub struct ResourcesView {
     pub table: ResourcesTable,
     app_data: SharedAppData,
-    kinds_list: Vec<KindItem>,
+    kinds_list: Vec<ActionItem>,
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
@@ -70,10 +71,8 @@ impl ResourcesView {
     }
 
     /// Updates kinds list with a new data.
-    pub fn update_kinds_list(&mut self, kinds: Option<Vec<KindItem>>) {
-        if let Some(kinds) = kinds {
-            self.kinds_list = kinds;
-        }
+    pub fn update_kinds_list(&mut self, kinds: &ScrollableList<KindItem, BasicFilterContext>) {
+        self.kinds_list = ActionsListBuilder::from_kinds(kinds).to_vec();
     }
 
     /// Shows delete resources dialog if anything is selected.
@@ -207,7 +206,7 @@ impl ResourcesView {
         }
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
-        let mut builder = ActionsListBuilder::from_kinds(&self.kinds_list).with_resources_actions(!is_containers);
+        let mut builder = ActionsListBuilder::from(self.kinds_list.clone()).with_resources_actions(!is_containers);
 
         if is_containers {
             builder = builder
