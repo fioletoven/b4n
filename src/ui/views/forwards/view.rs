@@ -34,7 +34,11 @@ impl ForwardsView {
             ViewType::Compact
         };
         let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), view);
-        list.table.update(worker.borrow_mut().get_port_forwards_list());
+        list.table.update(
+            worker
+                .borrow_mut()
+                .get_port_forwards_list(&app_data.borrow().current.namespace),
+        );
 
         Self {
             header: HeaderPane::new(Rc::clone(&app_data), list.table.len()),
@@ -66,7 +70,9 @@ impl View for ForwardsView {
     fn process_tick(&mut self) -> ResponseEvent {
         let mut worker = self.worker.borrow_mut();
         if worker.is_port_forward_list_changed() {
-            self.list.table.update(worker.get_port_forwards_list());
+            self.list
+                .table
+                .update(worker.get_port_forwards_list(&self.app_data.borrow().current.namespace));
             self.header.set_count(self.list.table.len());
         }
 

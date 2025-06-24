@@ -80,10 +80,9 @@ impl PortForwarder {
         &self.tasks
     }
 
-    /// Removes completed port forward tasks and returns updated list.
-    pub fn cleanup_tasks(&mut self) -> &[PortForwardTask] {
+    /// Removes completed port forward tasks.
+    pub fn cleanup_tasks(&mut self) {
         self.tasks.retain(|t| t.task.as_ref().is_none_or(|t| !t.is_finished()));
-        &self.tasks
     }
 
     /// Starts port forwarding task.
