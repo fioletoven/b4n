@@ -64,8 +64,7 @@ impl App {
         self.client_manager
             .request_new_client(context.clone(), kind, namespace.clone());
         self.views_manager
-            .resources
-            .set_resources_info(context, namespace, String::default(), Scope::Cluster);
+            .process_context_change(context, namespace, String::default(), Scope::Cluster);
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
@@ -257,7 +256,7 @@ impl App {
             let scope = self.worker.borrow_mut().start(result.client, result.discovery, resource);
             if let Ok(scope) = scope {
                 self.views_manager
-                    .process_context_change(false, context, result.namespace.clone(), version, scope.clone());
+                    .process_context_change(context, result.namespace.clone(), version, scope.clone());
                 self.process_resources_change(Some(result.kind.into()), Some(result.namespace.into()), Some(scope));
             }
         }
@@ -295,8 +294,9 @@ impl App {
         self.worker.borrow_mut().stop();
 
         let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
+        self.views_manager.reset();
         self.views_manager
-            .process_context_change(true, context.clone(), namespace.clone(), String::default(), Scope::Cluster);
+            .process_context_change(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
 
         self.client_manager.request_new_client(context, kind, namespace);
     }

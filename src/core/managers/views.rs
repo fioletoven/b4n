@@ -1,37 +1,62 @@
-use std::rc::Rc;
-
 use anyhow::Result;
+use crossterm::event::KeyCode;
 use kube::discovery::Scope;
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+};
+use std::rc::Rc;
 
 use crate::{
     core::{
         SharedAppData, SharedBgWorker,
         commands::{CommandResult, ResourceYamlError, ResourceYamlResult},
     },
-    kubernetes::{Namespace, ResourceRef},
+    kubernetes::{Namespace, ResourceRef, kinds::KindsList, resources::ResourcesList},
     ui::{
-        ResponseEvent, TuiEvent, ViewType,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterMessage},
+        widgets::{Footer, FooterMessage, Position, SideSelect},
     },
 };
 
 pub struct ViewsManager {
-    pub resources: ResourcesView,
-    pub view: Option<Box<dyn View>>,
-    pub footer: Footer,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    resources: ResourcesView,
+    ns_selector: SideSelect<ResourcesList>,
+    res_selector: SideSelect<KindsList>,
+    view: Option<Box<dyn View>>,
+    footer: Footer,
 }
 
 impl ViewsManager {
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, resources: ResourcesView, footer: Footer) -> Self {
+        let ns_selector = SideSelect::new(
+            "NAMESPACE",
+            Rc::clone(&app_data),
+            ResourcesList::default(),
+            Position::Left,
+            ResponseEvent::ChangeNamespace,
+            30,
+        );
+        let res_selector = SideSelect::new(
+            "RESOURCE",
+            Rc::clone(&app_data),
+            KindsList::default(),
+            Position::Right,
+            ResponseEvent::ChangeKind,
+            35,
+        );
+
         Self {
             app_data,
+            worker,
             resources,
+            ns_selector,
+            res_selector,
             view: None,
             footer,
-            worker,
         }
     }
 
@@ -39,11 +64,13 @@ impl ViewsManager {
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
         if worker.update_discovery_list() {
-            self.resources.update_kinds_list(worker.get_kinds_list());
+            let kinds = worker.get_kinds_list();
+            self.resources.update_kinds_list(kinds.clone());
+            self.res_selector.select.items.update(kinds, 1, false);
         }
 
         while let Some(update_result) = worker.namespaces.try_next() {
-            self.resources.update_namespaces_list(*update_result);
+            self.ns_selector.select.items.update(*update_result);
         }
 
         while let Some(update_result) = worker.resources.try_next() {
@@ -61,10 +88,22 @@ impl ViewsManager {
         } else {
             self.resources.draw(frame, layout[0]);
         }
+
+        self.draw_selectors(frame, layout[0]);
     }
 
     /// Processes single TUI event.
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
+        let TuiEvent::Key(key) = event;
+
+        if self.ns_selector.is_visible {
+            return self.ns_selector.process_key(key);
+        }
+
+        if self.res_selector.is_visible {
+            return self.res_selector.process_key(key);
+        }
+
         if let Some(view) = &mut self.view {
             let result = view.process_event(event);
             if result == ResponseEvent::Cancelled {
@@ -73,6 +112,18 @@ impl ViewsManager {
 
             result
         } else {
+            if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
+                self.ns_selector
+                    .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+                return ResponseEvent::Handled;
+            }
+
+            if key.code == KeyCode::Right {
+                self.res_selector
+                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+                return ResponseEvent::Handled;
+            }
+
             self.resources.process_event(event)
         }
     }
@@ -93,6 +144,9 @@ impl ViewsManager {
 
     /// Processes disconnection state.
     pub fn process_disconnection(&mut self) {
+        self.ns_selector.hide();
+        self.res_selector.hide();
+
         self.resources.process_disconnection();
         if let Some(view) = &mut self.view {
             view.process_disconnection();
@@ -109,13 +163,18 @@ impl ViewsManager {
         self.resources.highlight_next(resource_to_select);
     }
 
-    pub fn process_context_change(&mut self, reset: bool, context: String, namespace: Namespace, version: String, scope: Scope) {
-        if reset {
-            self.resources.reset();
-        }
-
+    pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.resources
             .set_resources_info(context.clone(), namespace.clone(), version, scope);
+    }
+
+    /// Resets all data for views.
+    pub fn reset(&mut self) {
+        self.resources.clear_list_data();
+        self.ns_selector.select.items.clear();
+        self.ns_selector.hide();
+        self.res_selector.select.items.clear();
+        self.res_selector.hide();
     }
 
     /// Clears resources list.
@@ -235,5 +294,18 @@ impl ViewsManager {
             self.footer.get_messages_sender(),
         );
         self.view = Some(Box::new(view));
+    }
+
+    /// Draws namespace / resource selector located on the left / right of the views.
+    fn draw_selectors(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        if self.ns_selector.is_visible || self.res_selector.is_visible {
+            let bottom = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+                .split(area);
+
+            self.ns_selector.draw(frame, bottom[1]);
+            self.res_selector.draw(frame, bottom[1]);
+        }
     }
 }
