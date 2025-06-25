@@ -117,8 +117,7 @@ impl ViewsManager {
         };
 
         if key.code == KeyCode::Left && view.is_namespaces_selector_allowed() {
-            self.ns_selector
-                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            self.ns_selector.show_selected(view.displayed_namespace(), "");
             return ResponseEvent::Handled;
         }
 

@@ -4,7 +4,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{core::SharedAppData, kubernetes::resources::PODS};
+use crate::{core::SharedAppData, ui::views::forwards::VIEW_NAME};
 
 /// Header pane that shows context, namespace and number of port forwards as breadcrumbs.
 pub struct HeaderPane {
@@ -51,7 +51,7 @@ impl HeaderPane {
     /// \> `context name` \> \[ `namespace` \> \] `pods` \> `port forwards` \> `count` \>
     fn get_path(&self) -> Line {
         let data = &self.app_data.borrow();
-        crate::ui::views::get_left_breadcrumbs(data, PODS, Some("port forwards"), self.count, self.is_filtered)
+        crate::ui::views::get_left_breadcrumbs(data, VIEW_NAME, None, self.count, self.is_filtered)
     }
 
     /// Returns formatted k8s version info as breadcrumbs:\

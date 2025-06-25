@@ -45,6 +45,12 @@ pub trait View {
         false
     }
 
+    /// Returns name of the namespace displayed on the view.\
+    /// **Note** that this is used e.g. in side selector to highlight current namespace.
+    fn displayed_namespace(&self) -> &str {
+        ""
+    }
+
     /// Processes namespace change.
     fn process_namespace_change(&mut self) {}
 

@@ -8,12 +8,15 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
+    kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ListPane, PortForwardsList, View, forwards::HeaderPane},
+        views::{ListPane, PortForwardsList, View, forwards::HeaderPane, utils},
         widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
+
+pub const VIEW_NAME: &str = "port forwards";
 
 /// Port forwards view.
 pub struct ForwardsView {
@@ -22,12 +25,14 @@ pub struct ForwardsView {
     app_data: SharedAppData,
     worker: SharedBgWorker,
     command_palette: CommandPalette,
+    namespace: Namespace,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+        let namespace = utils::get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
         let view = if app_data.borrow().current.namespace.is_all() {
             ViewType::Full
         } else {
@@ -46,6 +51,7 @@ impl ForwardsView {
             app_data,
             worker,
             command_palette: CommandPalette::default(),
+            namespace,
             footer_tx,
         }
     }
@@ -67,12 +73,15 @@ impl View for ForwardsView {
         true
     }
 
+    fn displayed_namespace(&self) -> &str {
+        self.namespace.as_str()
+    }
+
     fn process_namespace_change(&mut self) {
-        self.list.table.update(
-            self.worker
-                .borrow_mut()
-                .get_port_forwards_list(&self.app_data.borrow().current.namespace),
-        );
+        self.namespace = utils::get_breadcumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
+        self.list
+            .table
+            .update(self.worker.borrow_mut().get_port_forwards_list(&self.namespace));
         self.header.set_count(self.list.table.len());
     }
 
