@@ -228,31 +228,26 @@ impl ResourcesTable {
 
     fn process_view_ports(&self, resource: &ResourceItem) -> ResponseEvent {
         self.resource_ref_from(resource)
-            .map(ResponseEvent::ListResourcePorts)
-            .unwrap_or(ResponseEvent::NotHandled)
+            .map_or(ResponseEvent::NotHandled, ResponseEvent::ListResourcePorts)
     }
 
     fn process_view_logs(&self, resource: &ResourceItem, previous: bool) -> ResponseEvent {
         let resource = self.resource_ref_from(resource);
         if previous {
-            resource
-                .map(ResponseEvent::ViewPreviousLogs)
-                .unwrap_or(ResponseEvent::NotHandled)
+            resource.map_or(ResponseEvent::NotHandled, ResponseEvent::ViewPreviousLogs)
         } else {
-            resource.map(ResponseEvent::ViewLogs).unwrap_or(ResponseEvent::NotHandled)
+            resource.map_or(ResponseEvent::NotHandled, ResponseEvent::ViewLogs)
         }
     }
 
     fn process_open_shell(&self, resource: &ResourceItem) -> ResponseEvent {
         self.resource_ref_from(resource)
-            .map(ResponseEvent::OpenShell)
-            .unwrap_or(ResponseEvent::NotHandled)
+            .map_or(ResponseEvent::NotHandled, ResponseEvent::OpenShell)
     }
 
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool) -> ResponseEvent {
         self.resource_ref_from(resource)
-            .map(|r| ResponseEvent::ViewYaml(r, decode))
-            .unwrap_or(ResponseEvent::NotHandled)
+            .map_or(ResponseEvent::NotHandled, |r| ResponseEvent::ViewYaml(r, decode))
     }
 
     fn resource_ref_from(&self, resource: &ResourceItem) -> Option<ResourceRef> {

@@ -16,7 +16,7 @@ impl Display for PortProtocol {
             PortProtocol::SCTP => "SCTP",
         };
 
-        write!(f, "{}", value)
+        write!(f, "{value}")
     }
 }
 

@@ -46,11 +46,11 @@ impl PortForwardItem {
             port: task.port.to_string(),
             port_sort: format!("{:0>6}", task.port),
             overall: overall.to_string(),
-            overall_sort: format!("{:0>6}", overall),
+            overall_sort: format!("{overall:0>6}"),
             active: active.to_string(),
-            active_sort: format!("{:0>6}", active),
+            active_sort: format!("{active:0>6}"),
             errors: errors.to_string(),
-            errors_sort: format!("{:0>6}", errors),
+            errors_sort: format!("{errors:0>6}"),
         }
     }
 

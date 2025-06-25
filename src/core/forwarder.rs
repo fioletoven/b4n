@@ -232,8 +232,8 @@ impl PortForwardTask {
                                     )
                                     .await;
                                 },
-                                Err(e) => accept_error(e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
-                            };
+                                Err(e) => accept_error(&e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
+                            }
                         }
                     }
                 }
@@ -278,12 +278,12 @@ pub struct TaskStatistics {
 }
 
 fn accept_error(
-    error: std::io::Error,
+    error: &std::io::Error,
     events_tx: &UnboundedSender<PortForwardEvent>,
     footer_tx: &UnboundedSender<FooterMessage>,
     connection_errors: &Arc<AtomicI32>,
 ) {
-    let msg = format!("error accepting port forward connection: {}", error);
+    let msg = format!("error accepting port forward connection: {error}");
 
     warn!(msg);
     footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
@@ -337,11 +337,11 @@ async fn forward_connection(
 
         drop(upstream_conn);
         match forwarder.join().await {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(error) => {
                 if error
                     .source()
-                    .is_some_and(|e| format!("{:?}", e) == "Protocol(SendAfterClosing)")
+                    .is_some_and(|e| format!("{e:?}") == "Protocol(SendAfterClosing)")
                 {
                     Ok(())
                 } else {

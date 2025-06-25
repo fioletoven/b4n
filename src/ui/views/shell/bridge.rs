@@ -137,7 +137,7 @@ impl ShellBridge {
         }
     }
 
-    /// Retunrs name of the shell that this bridge is/was attached to.
+    /// Returns name of the shell that this bridge is/was attached to.
     pub fn shell(&self) -> Option<&str> {
         self.shell.as_deref()
     }

@@ -19,6 +19,7 @@ As the project is in its early stages, for this moment the only supported functi
 - viewing logs for the highlighted container
 - opening a shell for the highlighted container
 - deleting selected resources
+- port forwarding
 
 ### Planned
 
@@ -27,7 +28,6 @@ General planned features:
 - describing resources
 - viewing combined logs for a pod
 - editing resources (YAML)
-- port forwarding
 
 ## Key Bindings
 

@@ -1,10 +1,7 @@
 use anyhow::Result;
 use crossterm::event::KeyCode;
 use kube::discovery::Scope;
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
 use crate::{
@@ -202,8 +199,7 @@ impl ViewsManager {
     }
 
     pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
-        self.resources
-            .set_resources_info(context.clone(), namespace.clone(), version, scope);
+        self.resources.set_resources_info(context, namespace, version, scope);
     }
 
     /// Resets all data for views.
@@ -251,7 +247,7 @@ impl ViewsManager {
 
         self.resources.deselect_all();
         self.footer
-            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 1_500));
+            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 2_000));
     }
 
     /// Displays a list of available contexts to choose from.
@@ -335,7 +331,7 @@ impl ViewsManager {
     }
 
     /// Draws namespace / resource selector located on the left / right of the views.
-    fn draw_selectors(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw_selectors(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if self.ns_selector.is_visible || self.res_selector.is_visible {
             let bottom = Layout::default()
                 .direction(Direction::Vertical)

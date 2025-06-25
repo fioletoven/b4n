@@ -130,7 +130,7 @@ impl ShellView {
 impl View for ShellView {
     fn process_tick(&mut self) -> ResponseEvent {
         if self.bridge.is_finished() {
-            // we try to fallback to 'sh' if ShellBridge has an error and was initially started as 'bash'
+            // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
                 self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
                 self.size = DEFAULT_SIZE;

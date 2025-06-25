@@ -36,12 +36,12 @@ impl InputValidator {
         if self.last_validated == input {
             if let Some(index) = self.last_error {
                 return Err(index);
-            } else {
-                return Ok(());
             }
+
+            return Ok(());
         }
 
-        self.last_validated = input.to_owned();
+        input.clone_into(&mut self.last_validated);
 
         if input.is_empty() {
             self.last_error = None;
@@ -70,12 +70,12 @@ impl InputValidator {
         if self.last_validated == input {
             if let Some(index) = self.last_error {
                 return Err(index);
-            } else {
-                return Ok(());
             }
+
+            return Ok(());
         }
 
-        self.last_validated = input.to_owned();
+        input.clone_into(&mut self.last_validated);
 
         if input.is_empty() {
             self.last_error = None;

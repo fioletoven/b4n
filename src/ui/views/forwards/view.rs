@@ -12,7 +12,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListPane, PortForwardsList, View, forwards::HeaderPane, utils},
-        widgets::{ActionsListBuilder, Button, CommandPalette, Dialog, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, FooterMessage},
     },
 };
 
@@ -56,7 +56,11 @@ impl ForwardsView {
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let builder = ActionsListBuilder::default().with_close().with_quit();
+            let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
+                ActionItem::new("stop")
+                    .with_description("stops selected port forwarding rules")
+                    .with_response(ResponseEvent::Action("stop_selected")),
+            );
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
@@ -65,7 +69,7 @@ impl ForwardsView {
         }
     }
 
-    /// Shows stop port forwards dialog if anything is selected.
+    /// Shows dialog to stop port forwarding rules if anything is selected.
     fn ask_stop_port_forwards(&mut self) {
         if self.list.table.is_anything_selected() {
             self.modal = self.new_stop_dialog();
@@ -73,12 +77,19 @@ impl ForwardsView {
         }
     }
 
-    /// Stops selected port forwards.
+    /// Stops selected port forwarding rules.
     fn stop_selected_port_forwards(&mut self) {
         self.worker
             .borrow_mut()
             .stop_port_forwards(&self.list.table.table.list.get_selected_uids());
         self.list.table.table.list.deselect_all();
+
+        self.footer_tx
+            .send(FooterMessage::info(
+                " Selected port forwarding rules have been stopped…",
+                2_000,
+            ))
+            .unwrap();
     }
 
     /// Creates new stop dialog.
@@ -118,10 +129,6 @@ impl View for ForwardsView {
         self.header.set_count(self.list.table.len());
     }
 
-    fn process_disconnection(&mut self) {
-        self.command_palette.hide();
-    }
-
     fn process_tick(&mut self) -> ResponseEvent {
         let mut worker = self.worker.borrow_mut();
         if worker.is_port_forward_list_changed() {
@@ -130,6 +137,10 @@ impl View for ForwardsView {
         }
 
         ResponseEvent::Handled
+    }
+
+    fn process_disconnection(&mut self) {
+        self.command_palette.hide();
     }
 
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
@@ -148,7 +159,10 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return self.command_palette.process_key(key);
+            return self.command_palette.process_key(key).when_action_then("stop_selected", || {
+                self.ask_stop_port_forwards();
+                ResponseEvent::Handled
+            });
         }
 
         if self.process_command_palette_events(key) {
