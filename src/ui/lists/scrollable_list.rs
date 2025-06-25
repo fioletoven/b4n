@@ -217,6 +217,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Selects items by provided uids.
+    pub fn select_uids(&mut self, uids: &[impl AsRef<str>]) {
+        if let Some(items) = &mut self.items {
+            items
+                .iter_mut()
+                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid().unwrap_or_default()));
+        }
+    }
+
     /// Returns selected item names grouped in [`HashMap`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         if let Some(items) = &self.items {
@@ -239,6 +248,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Returns selected item uids as [`Vec`].
+    pub fn get_selected_uids(&self) -> Vec<&str> {
+        if let Some(items) = &self.items {
+            items.iter().filter(|i| i.is_selected).flat_map(|i| i.data.uid()).collect()
+        } else {
+            Vec::default()
+        }
+    }
+
     /// Returns `true` if anything is selected.
     pub fn is_anything_selected(&self) -> bool {
         if let Some(items) = &self.items {
@@ -256,6 +274,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Gets highlighted element name.
     pub fn get_highlighted_item_name(&self) -> Option<&str> {
         self.get_highlighted_item().map(|i| i.data.name())
+    }
+
+    /// Gets highlighted element `uid`.
+    pub fn get_highlighted_item_uid(&self) -> Option<&str> {
+        self.get_highlighted_item().and_then(|i| i.data.uid())
     }
 
     /// Gets highlighted element.
@@ -288,6 +311,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Highlights first element on the list which name starts with `text`.
     pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
         self.highlight_item_by(|i| i.data.starts_with(text))
+    }
+
+    /// Highlights element on list by its `uid`.
+    pub fn highlight_item_by_uid(&mut self, uid: &str) -> bool {
+        self.highlight_item_by(|i| i.data.uid().is_some_and(|u| u == uid))
     }
 
     /// Highlights first item on the list, returns `true` on success.

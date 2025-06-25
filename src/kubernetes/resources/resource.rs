@@ -6,11 +6,9 @@ use kube::{
 use std::collections::BTreeMap;
 
 use crate::{
-    kubernetes,
     ui::{
-        ViewType,
         colors::TextColors,
-        lists::{AGE_COLUMN_WIDTH, FilterContext, Filterable, Header, Row},
+        lists::{FilterContext, Filterable, Header, Row},
         theme::Theme,
     },
     utils::{
@@ -20,10 +18,6 @@ use crate::{
 };
 
 use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
-
-#[cfg(test)]
-#[path = "./resource.tests.rs"]
-mod resource_tests;
 
 /// Represents kubernetes resource of any kind.
 #[derive(Default)]
@@ -103,75 +97,6 @@ impl ResourceItem {
         }
     }
 
-    /// Builds and returns the whole row of values for this kubernetes resource.
-    pub fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
-        let mut row = String::with_capacity(width + 2);
-        match view {
-            ViewType::Name => row.push_cell(&self.name, width, false),
-            ViewType::Compact => self.get_compact_text(&mut row, header, name_width),
-            ViewType::Full => self.get_full_text(&mut row, header, namespace_width, name_width),
-        }
-
-        if row.chars().count() > width {
-            truncate(row.as_str(), width).to_owned()
-        } else {
-            row
-        }
-    }
-
-    fn get_compact_text(&self, row: &mut String, header: &Header, name_width: usize) {
-        row.push_cell(&self.name, name_width, false);
-        row.push(' ');
-        self.push_inner_text(row, header);
-        row.push(' ');
-        row.push_cell(
-            self.creation_timestamp
-                .as_ref()
-                .map(kubernetes::utils::format_timestamp)
-                .as_deref()
-                .unwrap_or("n/a"),
-            AGE_COLUMN_WIDTH + 1,
-            true,
-        );
-    }
-
-    fn get_full_text(&self, row: &mut String, header: &Header, namespace_width: usize, name_width: usize) {
-        row.push_cell(self.namespace.as_deref().unwrap_or("n/a"), namespace_width, false);
-        row.push(' ');
-        self.get_compact_text(row, header, name_width);
-    }
-
-    fn push_inner_text(&self, row: &mut String, header: &Header) {
-        let Some(columns) = header.get_extra_columns() else {
-            return;
-        };
-        if let Some(values) = self.get_extra_values() {
-            if values.len() != columns.len() {
-                return;
-            }
-
-            for i in 0..columns.len() {
-                if i > 0 {
-                    row.push(' ');
-                }
-
-                row.push_cell(
-                    values[i].text.as_deref().unwrap_or("n/a"),
-                    columns[i].len(),
-                    columns[i].to_right,
-                );
-            }
-        } else {
-            for (i, column) in columns.iter().enumerate() {
-                if i > 0 {
-                    row.push(' ');
-                }
-
-                (0..column.len()).for_each(|_| row.push(' '));
-            }
-        }
-    }
-
     fn get_extra_values(&self) -> Option<&[ResourceValue]> {
         self.data.as_ref().map(|data| &*data.extra_values)
     }
@@ -188,6 +113,10 @@ impl Row for ResourceItem {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn creation_timestamp(&self) -> Option<&Time> {
+        self.creation_timestamp.as_ref()
     }
 
     fn get_name(&self, width: usize) -> String {
@@ -285,29 +214,4 @@ fn flatten_metadata(items: &BTreeMap<String, String>) -> Vec<String> {
         .iter()
         .map(|(k, v)| [k.to_ascii_lowercase(), v.to_ascii_lowercase()].join(": "))
         .collect::<Vec<String>>()
-}
-
-/// Extension methods for string.
-pub trait StringExtensions {
-    /// Appends a given cell text onto the end of this `String`.
-    fn push_cell(&mut self, s: &str, len: usize, to_right: bool);
-}
-
-impl StringExtensions for String {
-    fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
-        if len == 0 || s.is_empty() {
-            return;
-        }
-
-        let padding_len = len.saturating_sub(s.chars().count());
-        if to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
-        }
-
-        self.push_str(truncate(s, len));
-
-        if !to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
-        }
-    }
 }

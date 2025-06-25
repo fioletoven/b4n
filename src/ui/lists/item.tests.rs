@@ -1,6 +1,5 @@
+use crate::kubernetes::resources::{ResourceData, ResourceItem};
 use rstest::rstest;
-
-use crate::kubernetes::resources::data;
 
 use super::*;
 
@@ -12,13 +11,13 @@ use super::*;
 #[case("really long nam", "really long name", 15)]
 fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let resource = ResourceItem::new(resource);
+    let item = Item::new(ResourceItem::new(resource));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
     assert_eq!(
         expected,
-        resource.get_text(
+        item.get_text(
             ViewType::Name,
             &header,
             terminal_width,
@@ -36,13 +35,13 @@ fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] te
 #[case("test         n/a", "test", 16)]
 fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let resource = ResourceItem::new(resource);
+    let item = Item::new(ResourceItem::new(resource));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
     assert_eq!(
         expected,
-        resource.get_text(
+        item.get_text(
             ViewType::Compact,
             &header,
             terminal_width,
@@ -62,13 +61,13 @@ fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case]
 #[case("n/a  test             n/a", "test", 25)]
 fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let resource = ResourceItem::new(resource);
+    let item = Item::new(ResourceItem::new(resource));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
     assert_eq!(
         expected,
-        resource.get_text(
+        item.get_text(
             ViewType::Full,
             &header,
             terminal_width,
@@ -85,7 +84,7 @@ fn get_text_pod_test() {
 
     let terminal_width = 100;
 
-    let mut header = data::pod::header();
+    let mut header = crate::kubernetes::resources::pod::header();
     header.set_data_length(0, 11);
     header.set_data_length(1, 39);
     header.set_data_length(2, 3);
@@ -95,11 +94,11 @@ fn get_text_pod_test() {
     header.set_data_length(6, 6);
     header.set_sort_info(2, false);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_full_widths(terminal_width);
+    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
-    let mut resource = ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5");
-    resource.namespace = Some("kube-system".to_owned());
-    resource.data = Some(ResourceData {
+    let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5"));
+    item.data.namespace = Some("kube-system".to_owned());
+    item.data.data = Some(ResourceData {
         extra_values: vec![
             Some("5".to_owned()).into(),
             Some("1/1".to_owned()).into(),
@@ -115,12 +114,12 @@ fn get_text_pod_test() {
 
     assert_eq!(
         " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE ",
-        header.get_text(ViewType::Full, namespace_width, name_width, terminal_width)
+        header.get_text(ViewType::Full, terminal_width)
     );
 
     assert_eq!(
         "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a",
-        resource.get_text(
+        item.get_text(
             ViewType::Full,
             &header,
             terminal_width,

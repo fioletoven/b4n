@@ -3,16 +3,16 @@ use kube::{
     api::ApiResource,
     discovery::{ApiCapabilities, Scope, verbs},
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 use thiserror;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    core::commands::ListResourcePortsCommand,
+    core::{PortForwarder, commands::ListResourcePortsCommand},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
     },
-    ui::widgets::FooterMessage,
+    ui::{views::PortForwardItem, widgets::FooterMessage},
 };
 
 use super::{
@@ -40,6 +40,7 @@ pub struct BgWorker {
     pub resources: BgObserver,
     discovery: BgDiscovery,
     executor: BgExecutor,
+    forwarder: PortForwarder,
     client: Option<KubernetesClient>,
     list: Option<Vec<(ApiResource, ApiCapabilities)>>,
 }
@@ -50,8 +51,9 @@ impl BgWorker {
         Self {
             namespaces: BgObserver::new(footer_tx.clone()),
             resources: BgObserver::new(footer_tx.clone()),
-            discovery: BgDiscovery::new(footer_tx),
+            discovery: BgDiscovery::new(footer_tx.clone()),
             executor: BgExecutor::default(),
+            forwarder: PortForwarder::new(footer_tx),
             client: None,
             list: None,
         }
@@ -130,6 +132,7 @@ impl BgWorker {
         self.namespaces.stop();
         self.resources.stop();
         self.discovery.stop();
+        self.forwarder.stop_all();
     }
 
     /// Stops all background tasks running in the application.
@@ -138,6 +141,7 @@ impl BgWorker {
         self.resources.stop();
         self.executor.stop_all();
         self.discovery.stop();
+        self.forwarder.stop_all();
     }
 
     /// Cancels all background tasks running in the application.
@@ -146,6 +150,7 @@ impl BgWorker {
         self.resources.cancel();
         self.executor.cancel_all();
         self.discovery.cancel();
+        self.forwarder.stop_all();
     }
 
     /// Returns [`KubernetesClient`].
@@ -164,6 +169,28 @@ impl BgWorker {
         })
     }
 
+    /// Returns list of [`PortForwardItem`] items.\
+    /// **Note** that it also removes all finished tasks in forwarder.
+    pub fn get_port_forwards_list(&mut self, namespace: &Namespace) -> Vec<PortForwardItem> {
+        self.forwarder.cleanup_tasks();
+        self.forwarder
+            .tasks()
+            .iter()
+            .filter(|t| namespace.is_all() || t.resource.namespace == *namespace)
+            .map(PortForwardItem::from)
+            .collect()
+    }
+
+    /// Returns `true` if there was a change in the port forwards list since the last check.
+    pub fn is_port_forward_list_changed(&mut self) -> bool {
+        let mut list_changed = false;
+        while self.forwarder.try_next().is_some() {
+            list_changed = true;
+        }
+
+        list_changed
+    }
+
     /// Checks and updates discovered resources list, returns `true` if discovery was updated.
     pub fn update_discovery_list(&mut self) -> bool {
         let discovery = self.discovery.try_next();
@@ -173,6 +200,37 @@ impl BgWorker {
         } else {
             false
         }
+    }
+
+    /// Sends the provided command to the background executor.
+    pub fn run_command(&mut self, command: Command) -> String {
+        self.executor.run_task(command)
+    }
+
+    /// Cancels command with the specified ID.
+    pub fn cancel_command(&mut self, command_id: Option<&str>) {
+        if let Some(id) = command_id {
+            self.executor.cancel_task(id);
+        }
+    }
+
+    /// Returns first waiting command result from the background executor.
+    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
+        self.executor.try_next()
+    }
+
+    /// Returns all waiting command results from the background executor.
+    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
+        let mut commands = Vec::new();
+        while let Some(command) = self.check_command_result() {
+            commands.push(command);
+        }
+        commands
+    }
+
+    /// Returns `true` if there are connection problems.
+    pub fn has_errors(&self) -> bool {
+        self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 
     /// Saves the provided app history to a file.
@@ -221,35 +279,18 @@ impl BgWorker {
         }
     }
 
-    /// Sends the provided command to the background executor.
-    pub fn run_command(&mut self, command: Command) -> String {
-        self.executor.run_task(command)
-    }
-
-    /// Cancels command with the specified ID.
-    pub fn cancel_command(&mut self, command_id: Option<&str>) {
-        if let Some(id) = command_id {
-            self.executor.cancel_task(id);
+    /// Starts port forwarding for the specified resource, port and address.
+    pub fn start_port_forward(&mut self, resource: ResourceRef, port: u16, address: SocketAddr) {
+        if let Some(client) = &self.client {
+            let _ = self.forwarder.start(client, resource, port, address);
         }
     }
 
-    /// Returns first waiting command result from the background executor.
-    pub fn check_command_result(&mut self) -> Option<Box<TaskResult>> {
-        self.executor.try_next()
-    }
-
-    /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
-        let mut commands = Vec::new();
-        while let Some(command) = self.check_command_result() {
-            commands.push(command);
+    /// Stops all specified port forwards.
+    pub fn stop_port_forwards(&mut self, uids: &[&str]) {
+        for uid in uids {
+            self.forwarder.stop(uid);
         }
-        commands
-    }
-
-    /// Returns `true` if there are connection problems.
-    pub fn has_errors(&self) -> bool {
-        self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 }
 

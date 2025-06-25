@@ -5,16 +5,22 @@ use crate::core::commands::CommandResult;
 
 use super::{ResponseEvent, TuiEvent};
 
+pub use self::forwards::{ForwardsView, PortForwardItem, PortForwardsList};
+pub use self::list::ListPane;
 pub use self::logs::LogsView;
 pub use self::resources::ResourcesView;
 pub use self::shell::ShellView;
+pub use self::utils::*;
 pub use self::yaml::YamlView;
 
 mod content;
+mod forwards;
 mod header;
+mod list;
 mod logs;
 mod resources;
 mod shell;
+mod utils;
 mod yaml;
 
 /// TUI view with pages and widgets.
@@ -28,6 +34,28 @@ pub trait View {
     fn command_id_match(&self, command_id: &str) -> bool {
         self.command_id().is_some_and(|id| id == command_id)
     }
+
+    /// Returns `true` if namespaces selector can be displayed on the view.
+    fn is_namespaces_selector_allowed(&self) -> bool {
+        false
+    }
+
+    /// Returns `true` if resources selector can be displayed on the view.
+    fn is_resources_selector_allowed(&self) -> bool {
+        false
+    }
+
+    /// Returns name of the namespace displayed on the view.\
+    /// **Note** that this is used e.g. in side selector to highlight current namespace.
+    fn displayed_namespace(&self) -> &str {
+        ""
+    }
+
+    /// Processes namespace change.
+    fn process_namespace_change(&mut self) {}
+
+    /// Processes resource's kind change.
+    fn process_kind_change(&mut self) {}
 
     /// Processes result from the command.
     fn process_command_result(&mut self, result: CommandResult) {

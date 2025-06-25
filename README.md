@@ -19,6 +19,7 @@ As the project is in its early stages, for this moment the only supported functi
 - viewing logs for the highlighted container
 - opening a shell for the highlighted container
 - deleting selected resources
+- port forwarding
 
 ### Planned
 
@@ -27,7 +28,6 @@ General planned features:
 - describing resources
 - viewing combined logs for a pod
 - editing resources (YAML)
-- port forwarding
 
 ## Key Bindings
 
@@ -37,15 +37,17 @@ General planned features:
 | Copy YAML to the clipboard              | `c`             | Works only in YAML view                                      |
 | Decode highlighted secret               | `x`             |                                                              |
 | Delete selected resources               | `CTRL` + `d`    | Displays a confirmation dialog                               |
+| Forward container's port                | `f`             | Works only in containers view                                |
 | Go back to namespaces; clear filter     | `ESC`           | Also clears input in the filter widget                       |
 | Quit the application                    | `CTRL` + `c`    |                                                              |
-| Reverse selection                       | `CTRL` + ` `    |  (`CTRL` + `SPACE`)                                          |
+| Reverse selection                       | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                           |
 | Select resource                         | ` `             | (`SPACE`)                                                    |
 | Show / hide log timestamps              | `t`             | Works only in logs view                                      |
 | Show command palette                    | `:`             | For example, entering `:q`↲ quits the app                    |
 | Show filter input                       | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
 | Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |
 | Show namespaces selector                | `←`             | To select `all` quickly press `←` again                      |
+| Show port forwards                      | `CTRL` + `f`    | Displays all active port forwards                            |
 | Show resources selector                 | `→`             | To select the first item quickly press `→` again             |
 | Show YAML for the highlighted resource  | `y`             |                                                              |
 | Sort column                             | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |

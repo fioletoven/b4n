@@ -41,8 +41,10 @@ impl Table for ActionsList {
             fn sort(&mut self, column_no: usize, is_descending: bool);
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
+            fn get_highlighted_item_uid(&self) -> Option<&str>;
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
             fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
+            fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
@@ -79,6 +81,11 @@ pub struct ActionsListBuilder {
 }
 
 impl ActionsListBuilder {
+    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
+    pub fn from(actions: Vec<ActionItem>) -> Self {
+        ActionsListBuilder { actions }
+    }
+
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
     pub fn from_kinds(kinds: &ScrollableList<KindItem, BasicFilterContext>) -> Self {
         ActionsListBuilder {
@@ -122,6 +129,11 @@ impl ActionsListBuilder {
         }
     }
 
+    /// Returns vector of [`ActionItem`]s that can be used later to build [`ActionsList`].
+    pub fn to_vec(self) -> Vec<ActionItem> {
+        self.actions
+    }
+
     /// Adds custom action.
     pub fn with_action(mut self, action: ActionItem) -> Self {
         self.actions.push(action);
@@ -130,7 +142,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_quit();
+        let builder = self.with_context().with_quit().with_forwards();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
@@ -174,6 +186,17 @@ impl ActionsListBuilder {
                 .with_description("deletes selected resources")
                 .with_aliases(&["del"])
                 .with_response(ResponseEvent::AskDeleteResources),
+        );
+        self
+    }
+
+    /// Adds `show port forwards` action.
+    pub fn with_forwards(mut self) -> Self {
+        self.actions.push(
+            ActionItem::new("show port forwards")
+                .with_description("shows active port forwards")
+                .with_aliases(&["port", "pf", "forward"])
+                .with_response(ResponseEvent::ShowPortForwards),
         );
         self
     }

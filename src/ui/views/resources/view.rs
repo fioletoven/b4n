@@ -1,26 +1,21 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-};
+use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     core::{ObserverResult, SharedAppData, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
-        kinds::{KindItem, KindsList},
-        resources::{CONTAINERS, Port, ResourceItem, ResourcesList, SECRETS},
+        kinds::KindItem,
+        resources::{CONTAINERS, Port, ResourceItem, SECRETS},
     },
     ui::{
         Responsive, Table, ViewType,
+        lists::{BasicFilterContext, ScrollableList},
         tui::{ResponseEvent, TuiEvent},
-        widgets::{
-            ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, Position, SideSelect, StepBuilder,
-            ValidatorKind,
-        },
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
 };
 
@@ -28,12 +23,11 @@ use super::ResourcesTable;
 
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
+    pub table: ResourcesTable,
     app_data: SharedAppData,
-    table: ResourcesTable,
+    kinds_list: Vec<ActionItem>,
     modal: Dialog,
     command_palette: CommandPalette,
-    ns_selector: SideSelect<ResourcesList>,
-    res_selector: SideSelect<KindsList>,
     filter: Filter,
 }
 
@@ -41,31 +35,14 @@ impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker) -> Self {
         let table = ResourcesTable::new(Rc::clone(&app_data));
-        let ns_selector = SideSelect::new(
-            "NAMESPACE",
-            Rc::clone(&app_data),
-            ResourcesList::default(),
-            Position::Left,
-            ResponseEvent::ChangeNamespace,
-            30,
-        );
-        let res_selector = SideSelect::new(
-            "RESOURCE",
-            Rc::clone(&app_data),
-            KindsList::default(),
-            Position::Right,
-            ResponseEvent::ChangeKind,
-            35,
-        );
         let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
 
         Self {
-            app_data,
             table,
+            app_data,
+            kinds_list: Vec::default(),
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
-            ns_selector,
-            res_selector,
             filter,
         }
     }
@@ -87,35 +64,20 @@ impl ResourcesView {
         }
     }
 
-    /// Resets all data for a resources view.
-    pub fn reset(&mut self) {
-        self.table.reset();
-        self.filter.reset();
-        self.ns_selector.select.items.clear();
-        self.ns_selector.hide();
-        self.res_selector.select.items.clear();
-        self.res_selector.hide();
-    }
-
     /// Clears data in the list.
     pub fn clear_list_data(&mut self) {
         self.table.reset();
         self.filter.reset();
     }
 
-    /// Updates namespaces list with a new data from [`ObserverResult`].
-    pub fn update_namespaces_list(&mut self, result: ObserverResult) {
-        self.ns_selector.select.items.update(result);
-    }
-
     /// Updates kinds list with a new data.
-    pub fn update_kinds_list(&mut self, kinds: Option<Vec<KindItem>>) {
-        self.res_selector.select.items.update(kinds, 1, false);
+    pub fn update_kinds_list(&mut self, kinds: &ScrollableList<KindItem, BasicFilterContext>) {
+        self.kinds_list = ActionsListBuilder::from_kinds(kinds).to_vec();
     }
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.table.list.items.is_anything_selected() && !self.table.has_containers() {
+        if self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
@@ -178,7 +140,8 @@ impl ResourcesView {
                 .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
                 .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
                 .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))));
+                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))))
+                .when_action_then("port_forward", || self.table.process_key(KeyEvent::from(KeyCode::Char('f'))));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -186,27 +149,8 @@ impl ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.ns_selector.is_visible {
-            return self.ns_selector.process_key(key);
-        }
-
-        if self.res_selector.is_visible {
-            return self.res_selector.process_key(key);
-        }
-
         if self.filter.is_visible {
             return self.filter.process_key(key);
-        }
-
-        if key.code == KeyCode::Left && self.table.scope() == &Scope::Namespaced && !self.table.has_containers() {
-            self.ns_selector
-                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
-            return ResponseEvent::Handled;
-        }
-
-        if key.code == KeyCode::Right {
-            self.res_selector.show_selected(self.table.kind_plural(), self.table.group());
-            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
@@ -231,8 +175,6 @@ impl ResourcesView {
 
     /// Processes disconnection state.
     pub fn process_disconnection(&mut self) {
-        self.ns_selector.hide();
-        self.res_selector.hide();
         self.command_palette.hide();
     }
 
@@ -244,21 +186,11 @@ impl ResourcesView {
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
         self.filter.draw(frame, frame.area());
-
-        self.draw_selectors(frame, area);
     }
 
-    /// Draws namespace / resource selector located on the left / right of the resources list.
-    fn draw_selectors(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        if self.ns_selector.is_visible || self.res_selector.is_visible {
-            let bottom = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-                .split(area);
-
-            self.ns_selector.draw(frame, bottom[1]);
-            self.res_selector.draw(frame, bottom[1]);
-        }
+    /// Returns `true` if namespaces selector can be displayed.
+    pub fn is_namespaces_selector_allowed(&self) -> bool {
+        self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
     }
 
     fn process_command_palette_events(&mut self, key: KeyEvent) {
@@ -274,8 +206,7 @@ impl ResourcesView {
         }
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
-        let mut builder =
-            ActionsListBuilder::from_kinds(&self.res_selector.select.items.list).with_resources_actions(!is_containers);
+        let mut builder = ActionsListBuilder::from(self.kinds_list.clone()).with_resources_actions(!is_containers);
 
         if is_containers {
             builder = builder
@@ -295,12 +226,18 @@ impl ResourcesView {
                     ActionItem::new("shell")
                         .with_description("opens container shell")
                         .with_response(ResponseEvent::Action("open_shell")),
+                )
+                .with_action(
+                    ActionItem::new("forward port")
+                        .with_description("forwards container port")
+                        .with_aliases(&["port", "pf"])
+                        .with_response(ResponseEvent::Action("port_forward")),
                 );
         } else {
             builder = builder.with_action(
                 ActionItem::new("show YAML")
                     .with_description("shows YAML of the selected resource")
-                    .with_aliases(&["yaml"])
+                    .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
             );
         }
@@ -339,7 +276,6 @@ impl ResourcesView {
 }
 
 fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
-    tracing::info!("got port forward build request: {:?}", input);
     if input.len() == 3 {
         let container_port = input[0].parse::<u16>().unwrap_or_default();
         let local_port = input[1].parse::<u16>().unwrap_or_default();

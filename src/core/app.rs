@@ -1,24 +1,20 @@
 use anyhow::Result;
 use kube::discovery::Scope;
-use std::{cell::RefCell, rc::Rc};
-use tracing::warn;
+use std::{
+    cell::RefCell,
+    net::{IpAddr, SocketAddr},
+    rc::Rc,
+};
 
 use crate::{
+    core::ViewsManager,
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{
-        ResponseEvent, Tui, TuiEvent, ViewType,
-        theme::Theme,
-        views::{LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterMessage},
-    },
+    ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
 };
 
 use super::{
     AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
-    commands::{
-        Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ResourceYamlError,
-        ResourceYamlResult,
-    },
+    commands::{Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand},
 };
 
 /// Application execution flow.
@@ -32,14 +28,12 @@ pub enum ExecutionFlow {
 pub struct App {
     data: SharedAppData,
     tui: Tui,
-    resources: ResourcesView,
-    view: Option<Box<dyn View>>,
-    footer: Footer,
     worker: SharedBgWorker,
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
     theme_watcher: ConfigWatcher<Theme>,
     client_manager: KubernetesClientManager,
+    views_manager: ViewsManager,
 }
 
 impl App {
@@ -51,18 +45,17 @@ impl App {
         let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_messages_sender());
+        let views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
 
         Ok(Self {
             data,
             tui: Tui::new()?,
-            resources,
-            view: None,
-            footer,
             worker,
             config_watcher: Config::watcher(),
             history_watcher: History::watcher(),
             theme_watcher: ConfigWatcher::new(theme_path),
             client_manager,
+            views_manager,
         })
     }
 
@@ -70,8 +63,8 @@ impl App {
     pub fn start(&mut self, context: String, kind: Kind, namespace: Namespace) -> Result<()> {
         self.client_manager
             .request_new_client(context.clone(), kind, namespace.clone());
-        self.resources
-            .set_resources_info(context, namespace, String::default(), Scope::Cluster);
+        self.views_manager
+            .process_context_change(context, namespace, String::default(), Scope::Cluster);
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
@@ -117,10 +110,9 @@ impl App {
 
         self.process_commands_results();
         self.process_connection_events();
-        self.update_lists();
-
-        if let Some(ResponseEvent::Cancelled) = self.process_view_events() {
-            self.view = None;
+        self.views_manager.update_lists();
+        if self.views_manager.process_events() == ResponseEvent::ExitApplication {
+            return Ok(ExecutionFlow::Stop);
         }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
@@ -132,75 +124,40 @@ impl App {
         Ok(ExecutionFlow::Continue)
     }
 
-    /// Draws UI page on terminal frame.
+    /// Draws UI page on a terminal frame.
     pub fn draw_frame(&mut self) -> Result<()> {
         self.tui.terminal.draw(|frame| {
-            let layout = Footer::get_layout(frame.area());
-            self.footer.draw(frame, layout[1]);
-
-            if let Some(view) = &mut self.view {
-                view.draw(frame, layout[0]);
-            } else {
-                self.resources.draw(frame, layout[0]);
-            }
+            self.views_manager.draw(frame);
         })?;
 
         Ok(())
     }
 
-    /// Updates page lists with observed resources.
-    fn update_lists(&mut self) {
-        let mut worker = self.worker.borrow_mut();
-        if worker.update_discovery_list() {
-            self.resources.update_kinds_list(worker.get_kinds_list());
-        }
-
-        while let Some(update_result) = worker.namespaces.try_next() {
-            self.resources.update_namespaces_list(*update_result);
-        }
-
-        while let Some(update_result) = worker.resources.try_next() {
-            self.resources.update_resources_list(*update_result);
-        }
-    }
-
-    /// Process TUI event.
+    /// Processes single TUI event.
     fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
-        if let Some(view) = &mut self.view {
-            match view.process_event(event) {
-                ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-                ResponseEvent::Cancelled => self.view = None,
-                _ => (),
-            }
-        } else {
-            match self.resources.process_event(event) {
-                ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-                ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,
-                ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
-                ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
-                ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
-                ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
-                ResponseEvent::ViewNamespaces => self.view_namespaces()?,
-                ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
-                ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
-                ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
-                ResponseEvent::AskDeleteResources => self.resources.ask_delete_resources(),
-                ResponseEvent::DeleteResources => self.delete_resources(),
-                ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
-                ResponseEvent::ViewLogs(container) => self.view_logs(container, false),
-                ResponseEvent::ViewPreviousLogs(container) => self.view_logs(container, true),
-                ResponseEvent::OpenShell(container) => self.open_shell(container),
-                ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, address),
-                _ => (),
-            }
+        match self.views_manager.process_event(event) {
+            ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
+            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,
+            ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
+            ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
+            ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
+            ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
+            ResponseEvent::ViewNamespaces => self.view_namespaces()?,
+            ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
+            ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
+            ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
+            ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
+            ResponseEvent::DeleteResources => self.views_manager.delete_resources(),
+            ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
+            ResponseEvent::ViewLogs(container) => self.views_manager.show_logs(container, false),
+            ResponseEvent::ViewPreviousLogs(container) => self.views_manager.show_logs(container, true),
+            ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container),
+            ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
+            ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
+            _ => (),
         }
 
         Ok(ResponseEvent::Handled)
-    }
-
-    /// Processes additional view events.
-    fn process_view_events(&mut self) -> Option<ResponseEvent> {
-        self.view.as_mut().map(|view| view.process_tick())
     }
 
     /// Processes results from commands execution.
@@ -208,10 +165,10 @@ impl App {
         let commands = self.worker.borrow_mut().get_all_waiting_results();
         for command in commands {
             match command.result {
-                CommandResult::ContextsList(list) => self.resources.show_contexts_list(list),
-                CommandResult::ResourcePortsList(list) => self.resources.show_ports_list(list),
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
-                CommandResult::ResourceYaml(result) => self.show_yaml(&command.id, result),
+                CommandResult::ResourceYaml(result) => self.views_manager.update_yaml(&command.id, result),
+                CommandResult::ContextsList(list) => self.views_manager.show_contexts_list(list),
+                CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(list),
             }
         }
     }
@@ -221,17 +178,15 @@ impl App {
         self.data.borrow_mut().is_connected = !self.worker.borrow().has_errors();
         self.client_manager.process_request_overdue();
         if self.client_manager.should_process_disconnection() {
-            self.resources.process_disconnection();
-            if let Some(view) = &mut self.view {
-                view.process_disconnection();
-            }
+            self.views_manager.process_disconnection();
         }
     }
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) || self.data.borrow().current.kind != kind {
-            self.resources.set_namespace(namespace.clone());
+            self.views_manager.process_kind_change(None);
+            self.views_manager.process_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), Some(scope));
@@ -248,9 +203,9 @@ impl App {
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind.as_str() == NAMESPACES {
                 let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
-                self.resources.highlight_next(to_select);
+                self.views_manager.process_kind_change(to_select);
             } else {
-                self.resources.highlight_next(to_select);
+                self.views_manager.process_kind_change(to_select);
             }
             self.process_resources_change(Some(kind.into()), None, Some(scope));
         }
@@ -262,7 +217,7 @@ impl App {
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
             self.process_resources_change(None, Some(namespace.clone().into()), None);
-            self.resources.set_namespace(namespace.clone());
+            self.views_manager.process_namespace_change(namespace.clone());
             self.worker.borrow_mut().restart_new_namespace(namespace)?;
         }
 
@@ -271,8 +226,8 @@ impl App {
 
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.resources.clear_list_data();
-        self.resources.set_view(ViewType::Compact);
+        self.views_manager.clear_page_view();
+        self.views_manager.set_page_view(&Scope::Cluster);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -300,40 +255,20 @@ impl App {
 
             let scope = self.worker.borrow_mut().start(result.client, result.discovery, resource);
             if let Ok(scope) = scope {
-                self.resources
-                    .set_resources_info(context, result.namespace.clone(), version, scope.clone());
+                self.views_manager
+                    .process_context_change(context, result.namespace.clone(), version, scope.clone());
                 self.process_resources_change(Some(result.kind.into()), Some(result.namespace.into()), Some(scope));
             }
         }
     }
 
-    /// Deletes resources that are currently selected on [`ResourcesView`].
-    fn delete_resources(&mut self) {
-        let list = self.resources.get_selected_items();
-        for key in list.keys() {
-            let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
-            let namespace = if self.resources.scope() == &Scope::Cluster {
-                Namespace::all()
-            } else {
-                Namespace::from((*key).to_owned())
-            };
-            self.worker
-                .borrow_mut()
-                .delete_resources(resources, namespace, &self.resources.get_kind());
-        }
-
-        self.resources.deselect_all();
-        self.footer
-            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 1_500));
-    }
-
     /// Performs all necessary actions needed when resources view changes.\
     /// **Note** that this means the resource list will change soon.
     fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>) {
-        self.resources.clear_list_data();
+        self.views_manager.clear_page_view();
         self.update_history_data(kind, namespace);
         if let Some(scope) = scope {
-            self.set_page_view(&scope);
+            self.views_manager.set_page_view(&scope);
         }
     }
 
@@ -349,15 +284,6 @@ impl App {
         self.worker.borrow_mut().save_history(self.data.borrow().history.clone());
     }
 
-    /// Sets page view from resource scope.
-    fn set_page_view(&mut self, result: &Scope) {
-        if *result == Scope::Cluster {
-            self.resources.set_view(ViewType::Compact);
-        } else if self.data.borrow().current.is_all_namespace() {
-            self.resources.set_view(ViewType::Full);
-        }
-    }
-
     /// Requests new kubernetes client with configured kind and namespace.
     fn request_kubernetes_client(&mut self, context: String) {
         if self.data.borrow().current.context == context {
@@ -368,9 +294,9 @@ impl App {
         self.worker.borrow_mut().stop();
 
         let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
-        self.resources.reset();
-        self.resources
-            .set_resources_info(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
+        self.views_manager.reset();
+        self.views_manager
+            .process_context_change(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
 
         self.client_manager.request_new_client(context, kind, namespace);
     }
@@ -385,76 +311,15 @@ impl App {
             decode,
         );
 
-        self.view = Some(Box::new(YamlView::new(
-            Rc::clone(&self.data),
-            Rc::clone(&self.worker),
-            command_id,
-            resource.name.unwrap_or_default(),
-            resource.namespace,
-            resource.kind,
-            self.footer.get_messages_sender(),
-        )));
+        self.views_manager.show_yaml(command_id, resource);
     }
 
-    /// Shows returned resource's YAML in a separate view.
-    fn show_yaml(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
-        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
-            return;
+    /// Creates port forward task for the specified resource.
+    fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: &str) {
+        if let Ok(ip_addr) = local_address.parse::<IpAddr>() {
+            let address = SocketAddr::from((ip_addr, local_port));
+            self.worker.borrow_mut().start_port_forward(resource, container_port, address);
         }
-
-        if let Err(error) = result {
-            self.view = None;
-            let msg = format!("View YAML error: {error}");
-            warn!("{}", msg);
-            self.footer.send_message(FooterMessage::error(msg, 0));
-        } else if let Some(view) = &mut self.view {
-            view.process_command_result(CommandResult::ResourceYaml(result));
-        }
-    }
-
-    /// Shows logs for the specified container.
-    fn view_logs(&mut self, resource: ResourceRef, previous: bool) {
-        if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = LogsView::new(
-                Rc::clone(&self.data),
-                client,
-                resource.name.unwrap_or_default(),
-                resource.namespace,
-                resource.container,
-                previous,
-            ) {
-                self.view = Some(Box::new(view));
-            }
-        }
-    }
-
-    /// Opens shell for the specified container.
-    fn open_shell(&mut self, resource: ResourceRef) {
-        if let Some(client) = self.worker.borrow().kubernetes_client() {
-            let view = ShellView::new(
-                Rc::clone(&self.data),
-                client,
-                resource.name.unwrap_or_default(),
-                resource.namespace,
-                resource.container,
-                self.footer.get_messages_sender(),
-            );
-            self.view = Some(Box::new(view));
-        }
-    }
-
-    /// Creates port forward for the specified resource.
-    fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: String) {
-        self.footer.send_message(FooterMessage::info(
-            format!(
-                "Port forward for {}:  {}:{} -> {}",
-                resource.name.as_deref().unwrap_or_default(),
-                local_address,
-                local_port,
-                container_port
-            ),
-            10_000,
-        ))
     }
 }
 

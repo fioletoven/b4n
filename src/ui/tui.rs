@@ -57,6 +57,7 @@ pub enum ResponseEvent {
     ViewPreviousLogs(ResourceRef),
 
     OpenShell(ResourceRef),
+    ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
 }
 
