@@ -36,9 +36,9 @@ impl Header {
     /// Creates new [`Header`] instance with provided columns.\
     /// **Note** that `sort_symbols` must be uppercase ASCII characters.
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
-        let extra_columns_text = get_extra_columns_text(&extra_columns, false);
+        let extra_columns_text = get_extra_columns_text(extra_columns.as_deref(), false);
         let extra_width = extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
-        let extra_space = get_extra_space(&extra_columns);
+        let extra_space = get_extra_space(extra_columns.as_deref());
 
         Self {
             group: group_column.ensure_can_be_first_column(),
@@ -108,9 +108,9 @@ impl Header {
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.cache.invalidate();
-        self.extra_columns_text = get_extra_columns_text(&self.extra_columns, self.is_sorted_descending);
+        self.extra_columns_text = get_extra_columns_text(self.extra_columns.as_deref(), self.is_sorted_descending);
         self.all_extra_width = self.extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
-        self.extra_space = get_extra_space(&self.extra_columns);
+        self.extra_space = get_extra_space(self.extra_columns.as_deref());
     }
 
     /// Resets `data_len` in each not fixed column.
@@ -322,8 +322,8 @@ impl HeaderCache {
 }
 
 /// Builds extra columns text.
-fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>, is_descending: bool) -> String {
-    let Some(columns) = &extra_columns else {
+fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool) -> String {
+    let Some(columns) = extra_columns else {
         return String::new();
     };
 
@@ -351,8 +351,8 @@ fn get_extra_columns_text(extra_columns: &Option<Box<[Column]>>, is_descending: 
 ///       ^^^^^
 /// ```
 /// In this case extra space is equal 5 as `restarts` column has 5 spare spaces before data starts.
-fn get_extra_space(extra_columns: &Option<Box<[Column]>>) -> usize {
-    let Some(columns) = &extra_columns else {
+fn get_extra_space(extra_columns: Option<&[Column]>) -> usize {
+    let Some(columns) = extra_columns else {
         return 0;
     };
 

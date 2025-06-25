@@ -63,7 +63,7 @@ pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, 
     };
 
     path.append(&mut vec![
-        Span::styled(format!(" {}{} ", count_icon, count), &colors.count),
+        Span::styled(format!(" {count_icon}{count} "), &colors.count),
         Span::styled("", Style::new().fg(colors.count.bg)),
     ]);
 

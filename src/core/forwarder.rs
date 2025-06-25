@@ -229,8 +229,7 @@ impl PortForwardTask {
                                         _events_tx.clone(),
                                         _statistics.clone(),
                                         _cancellation_token.clone(),
-                                    )
-                                    .await;
+                                    );
                                 },
                                 Err(e) => accept_error(&e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
                             }
@@ -292,7 +291,7 @@ fn accept_error(
     events_tx.send(PortForwardEvent::ConnectionError).unwrap();
 }
 
-async fn accept_connection(
+fn accept_connection(
     api: &Api<Pod>,
     pod_name: &str,
     port: u16,

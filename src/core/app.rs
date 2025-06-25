@@ -153,7 +153,7 @@ impl App {
             ResponseEvent::ViewPreviousLogs(container) => self.views_manager.show_logs(container, true),
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
-            ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, address),
+            ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
             _ => (),
         }
 
@@ -315,7 +315,7 @@ impl App {
     }
 
     /// Creates port forward task for the specified resource.
-    fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: String) {
+    fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: &str) {
         if let Ok(ip_addr) = local_address.parse::<IpAddr>() {
             let address = SocketAddr::from((ip_addr, local_port));
             self.worker.borrow_mut().start_port_forward(resource, container_port, address);
