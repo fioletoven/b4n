@@ -280,9 +280,16 @@ impl BgWorker {
     }
 
     /// Starts port forwarding for the specified resource, port and address.
-    pub fn port_forward(&mut self, resource: ResourceRef, port: u16, address: SocketAddr) {
+    pub fn start_port_forward(&mut self, resource: ResourceRef, port: u16, address: SocketAddr) {
         if let Some(client) = &self.client {
             let _ = self.forwarder.start(client, resource, port, address);
+        }
+    }
+
+    /// Stops all specified port forwards.
+    pub fn stop_port_forwards(&mut self, uids: &[&str]) {
+        for uid in uids {
+            self.forwarder.stop(uid);
         }
     }
 }

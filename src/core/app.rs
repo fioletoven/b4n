@@ -318,7 +318,7 @@ impl App {
     fn port_forward(&mut self, resource: ResourceRef, container_port: u16, local_port: u16, local_address: String) {
         if let Ok(ip_addr) = local_address.parse::<IpAddr>() {
             let address = SocketAddr::from((ip_addr, local_port));
-            self.worker.borrow_mut().port_forward(resource, container_port, address);
+            self.worker.borrow_mut().start_port_forward(resource, container_port, address);
         }
     }
 }

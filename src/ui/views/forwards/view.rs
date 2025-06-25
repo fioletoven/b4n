@@ -12,7 +12,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListPane, PortForwardsList, View, forwards::HeaderPane, utils},
-        widgets::{ActionsListBuilder, CommandPalette, FooterMessage},
+        widgets::{ActionsListBuilder, Button, CommandPalette, Dialog, FooterMessage},
     },
 };
 
@@ -23,9 +23,10 @@ pub struct ForwardsView {
     pub header: HeaderPane,
     pub list: ListPane<PortForwardsList>,
     app_data: SharedAppData,
+    namespace: Namespace,
     worker: SharedBgWorker,
     command_palette: CommandPalette,
-    namespace: Namespace,
+    modal: Dialog,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
@@ -39,19 +40,16 @@ impl ForwardsView {
             ViewType::Compact
         };
         let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), view);
-        list.table.update(
-            worker
-                .borrow_mut()
-                .get_port_forwards_list(&app_data.borrow().current.namespace),
-        );
+        list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
 
         Self {
             header: HeaderPane::new(Rc::clone(&app_data), list.table.len()),
             list,
             app_data,
+            namespace,
             worker,
             command_palette: CommandPalette::default(),
-            namespace,
+            modal: Dialog::default(),
             footer_tx,
         }
     }
@@ -65,6 +63,41 @@ impl ForwardsView {
         } else {
             false
         }
+    }
+
+    /// Shows stop port forwards dialog if anything is selected.
+    fn ask_stop_port_forwards(&mut self) {
+        if self.list.table.is_anything_selected() {
+            self.modal = self.new_stop_dialog();
+            self.modal.show();
+        }
+    }
+
+    /// Stops selected port forwards.
+    fn stop_selected_port_forwards(&mut self) {
+        self.worker
+            .borrow_mut()
+            .stop_port_forwards(&self.list.table.table.list.get_selected_uids());
+        self.list.table.table.list.deselect_all();
+    }
+
+    /// Creates new stop dialog.
+    fn new_stop_dialog(&mut self) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "Are you sure you want to stop the selected port forwarding rules?".to_owned(),
+            vec![
+                Button::new(
+                    "Stop".to_owned(),
+                    ResponseEvent::DeleteResources,
+                    colors.modal.btn_delete.clone(),
+                ),
+                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
+            ],
+            60,
+            colors.modal.text,
+        )
     }
 }
 
@@ -92,9 +125,7 @@ impl View for ForwardsView {
     fn process_tick(&mut self) -> ResponseEvent {
         let mut worker = self.worker.borrow_mut();
         if worker.is_port_forward_list_changed() {
-            self.list
-                .table
-                .update(worker.get_port_forwards_list(&self.app_data.borrow().current.namespace));
+            self.list.table.update(worker.get_port_forwards_list(&self.namespace));
             self.header.set_count(self.list.table.len());
         }
 
@@ -106,6 +137,14 @@ impl View for ForwardsView {
 
         if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
             return ResponseEvent::ExitApplication;
+        }
+
+        if self.modal.is_visible {
+            if self.modal.process_key(key) == ResponseEvent::DeleteResources {
+                self.stop_selected_port_forwards();
+            }
+
+            return ResponseEvent::Handled;
         }
 
         if self.command_palette.is_visible {
@@ -120,6 +159,11 @@ impl View for ForwardsView {
             return ResponseEvent::Cancelled;
         }
 
+        if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
+            self.ask_stop_port_forwards();
+            return ResponseEvent::Handled;
+        }
+
         self.list.process_key(key)
     }
 
@@ -132,6 +176,7 @@ impl View for ForwardsView {
         self.header.draw(frame, layout[0]);
         self.list.draw(frame, layout[1]);
 
+        self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
     }
 }

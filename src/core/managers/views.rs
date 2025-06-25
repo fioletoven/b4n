@@ -116,41 +116,48 @@ impl ViewsManager {
             return ResponseEvent::Handled;
         };
 
-        if key.code == KeyCode::Left && view.is_namespaces_selector_allowed() {
-            self.ns_selector.show_selected(view.displayed_namespace(), "");
-            return ResponseEvent::Handled;
+        let response = view.process_event(event);
+
+        if response == ResponseEvent::NotHandled {
+            if key.code == KeyCode::Left && view.is_namespaces_selector_allowed() {
+                self.ns_selector.show_selected(view.displayed_namespace(), "");
+                return ResponseEvent::Handled;
+            }
+
+            if key.code == KeyCode::Right && view.is_resources_selector_allowed() {
+                self.res_selector
+                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+                return ResponseEvent::Handled;
+            }
         }
 
-        if key.code == KeyCode::Right && view.is_resources_selector_allowed() {
-            self.res_selector
-                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
-            return ResponseEvent::Handled;
-        }
-
-        let result = view.process_event(event);
-        if result == ResponseEvent::Cancelled {
+        if response == ResponseEvent::Cancelled {
             self.view = None;
         }
 
-        result
+        response
     }
 
     fn process_resources_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
-            self.ns_selector
-                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
-            return ResponseEvent::Handled;
+        let response = self.resources.process_event(event);
+
+        if response == ResponseEvent::NotHandled {
+            if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
+                self.ns_selector
+                    .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+                return ResponseEvent::Handled;
+            }
+
+            if key.code == KeyCode::Right {
+                self.res_selector
+                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+                return ResponseEvent::Handled;
+            }
         }
 
-        if key.code == KeyCode::Right {
-            self.res_selector
-                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
-            return ResponseEvent::Handled;
-        }
-
-        self.resources.process_event(event)
+        response
     }
 
     /// Process all waiting events.
