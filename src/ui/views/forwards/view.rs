@@ -33,8 +33,8 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
-        let namespace = utils::get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
-        let view = if app_data.borrow().current.namespace.is_all() {
+        let namespace: Namespace = utils::get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
+        let view = if namespace.is_all() {
             ViewType::Full
         } else {
             ViewType::Compact
@@ -123,6 +123,11 @@ impl View for ForwardsView {
 
     fn process_namespace_change(&mut self) {
         self.namespace = utils::get_breadcumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
+        self.list.view = if self.namespace.is_all() {
+            ViewType::Full
+        } else {
+            ViewType::Compact
+        };
         self.list
             .table
             .update(self.worker.borrow_mut().get_port_forwards_list(&self.namespace));
