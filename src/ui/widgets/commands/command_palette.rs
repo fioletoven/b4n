@@ -110,12 +110,12 @@ impl CommandPalette {
         {
             let colors = &self.app_data.borrow().theme.colors;
             self.clear_area(frame, area, colors.command_palette.normal.bg);
-            if area.top() > 0 {
-                if let Some(header) = self.header.as_deref() {
-                    let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-                    self.clear_area(frame, area, colors.command_palette.header.bg);
-                    self.draw_header(frame, area, header);
-                }
+            if area.top() > 0
+                && let Some(header) = self.header.as_deref()
+            {
+                let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
+                self.clear_area(frame, area, colors.command_palette.header.bg);
+                self.draw_header(frame, area, header);
             }
         }
 
@@ -219,16 +219,17 @@ impl Responsive for CommandPalette {
 
             if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
                 self.is_visible = false;
-                if self.steps.len() == self.index + 1 {
-                    if let Some(response) = self.response.take() {
-                        return (response)(self.build_response());
-                    }
+
+                if self.steps.len() == self.index + 1
+                    && let Some(response) = self.response.take()
+                {
+                    return (response)(self.build_response());
                 }
 
-                if let Some(index) = self.select().items.list.get_highlighted_item_index() {
-                    if let Some(items) = &self.select().items.list.items {
-                        return items[index].data.response.clone();
-                    }
+                if let Some(index) = self.select().items.list.get_highlighted_item_index()
+                    && let Some(items) = &self.select().items.list.items
+                {
+                    return items[index].data.response.clone();
                 }
             }
 

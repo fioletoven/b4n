@@ -46,13 +46,13 @@ impl ListResourcePortsCommand {
         );
 
         match client.get(self.resource.name.as_deref().unwrap_or_default()).await {
-            Ok(resource) => Some(CommandResult::ResourcePortsList(list_ports(&self.resource, resource))),
+            Ok(resource) => Some(CommandResult::ResourcePortsList(list_ports(&self.resource, &resource))),
             Err(_) => None,
         }
     }
 }
 
-fn list_ports(r: &ResourceRef, resource: DynamicObject) -> Vec<Port> {
+fn list_ports(r: &ResourceRef, resource: &DynamicObject) -> Vec<Port> {
     if r.is_container() {
         let ports = resource.data["spec"]["containers"]
             .as_array()
@@ -73,7 +73,7 @@ fn get_container_ports(name: &str, containers: &[Value]) -> Option<Vec<Port>> {
         .map(|p| {
             p.iter()
                 .map(|p| Port {
-                    port: p["containerPort"].as_u64().unwrap_or_default() as u16,
+                    port: p["containerPort"].as_u64().map_or(0, |p| u16::try_from(p).unwrap_or(0)),
                     name: p["name"].as_str().unwrap_or_default().to_owned(),
                     protocol: PortProtocol::from(p["protocol"].as_str()),
                 })

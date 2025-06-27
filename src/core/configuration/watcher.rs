@@ -73,12 +73,10 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                 sleep(Duration::from_millis(500)).await;
 
                 let mut configuration_modified = false;
-                while let Ok(res) = _rx.try_recv() {
-                    if let Ok(res) = res {
-                        if let EventKind::Modify(_) = res.kind {
-                            configuration_modified = true;
-                        }
-                    }
+                while let Ok(Ok(res)) = _rx.try_recv()
+                    && let EventKind::Modify(_) = res.kind
+                {
+                    configuration_modified = true;
                 }
 
                 if (configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
