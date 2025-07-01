@@ -6,28 +6,30 @@
 
 ## Prerequisites
 
-The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with Nerd Font symbols, is required for proper display of the user interface in the terminal.
+The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols, is required for proper display of the user interface in the terminal.
 
 ## Features
 
-### Currently supported
+### Currently Supported
 
-As the project is in its early stages, for this moment the only supported functions are:
+As the project is in its early stages, the following features are currently supported:
 
-- viewing a list of kubernetes resources
-- displaying YAML of the highlighted resource
-- viewing logs for the highlighted container
-- opening a shell for the highlighted container
-- deleting selected resources
-- port forwarding
+- View a list of Kubernetes resources.
+- Display the YAML configuration of the highlighted resource.
+- View logs for the highlighted container.
+- Open a shell session in the highlighted container.
+- Delete selected resources.
+- Enable port forwarding for the highlighted container.
 
 ### Planned
 
-General planned features:
+The following features are planned for future development:
 
-- describing resources
-- viewing combined logs for a pod
-- editing resources (YAML)
+- Display columns defined in custom resources.
+- Search within YAML configurations and logs.
+- View combined logs for all containers in a pod.
+- Edit Kubernetes resources (YAML).
+- Describe Kubernetes resources.
 
 ## Key Bindings
 
@@ -47,7 +49,7 @@ General planned features:
 | Show filter input                       | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
 | Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |
 | Show namespaces selector                | `←`             | To select `all` quickly press `←` again                      |
-| Show port forwards                      | `CTRL` + `f`    | Displays all active port forwards                            |
+| Show / hide port forwards               | `CTRL` + `f`    | Displays all active port forwarding rules                    |
 | Show resources selector                 | `→`             | To select the first item quickly press `→` again             |
 | Show YAML for the highlighted resource  | `y`             |                                                              |
 | Sort column                             | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |

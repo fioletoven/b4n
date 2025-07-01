@@ -56,7 +56,7 @@ impl ResourceRef {
         }
     }
 
-    /// Returns `true` if [`ResourceRef`] points to a specific container or conatainers.
+    /// Returns `true` if [`ResourceRef`] points to a specific container or containers.
     pub fn is_container(&self) -> bool {
         self.is_any_container || self.container.is_some()
     }
