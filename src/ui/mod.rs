@@ -48,7 +48,7 @@ pub trait Table: Responsive {
         self.len() == 0
     }
 
-    /// Returns `true` if list is filtered.
+    /// Returns `true` if the list is filtered.
     fn is_filtered(&self) -> bool;
 
     /// Filters list.

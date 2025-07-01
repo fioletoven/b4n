@@ -76,7 +76,7 @@ impl<T: Table> Select<T> {
         self.update_items_filter();
     }
 
-    /// Rturns `true` if anyting on the select list is highlighted.
+    /// Returns `true` if anything on the select list is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
         self.items.get_highlighted_item_name().is_some()
     }

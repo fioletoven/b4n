@@ -55,11 +55,12 @@ impl InputValidator {
             }
         }
 
-        if let Ok(x) = input.parse::<usize>() {
-            if x >= min && x <= max {
-                self.last_error = None;
-                return Ok(());
-            }
+        if let Ok(x) = input.parse::<usize>()
+            && x >= min
+            && x <= max
+        {
+            self.last_error = None;
+            return Ok(());
         }
 
         self.last_error = Some(0);

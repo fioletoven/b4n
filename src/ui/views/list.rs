@@ -11,24 +11,24 @@ use crate::{
     ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
-/// List pane for table items.
-pub struct ListPane<T: Table> {
+/// List viewer.
+pub struct ListViewer<T: Table> {
     pub table: T,
     pub view: ViewType,
     app_data: SharedAppData,
 }
 
-impl<T: Table> ListPane<T> {
-    /// Creates new [`ListPane`] instance.
+impl<T: Table> ListViewer<T> {
+    /// Creates new [`ListViewer`] instance.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
-        ListPane {
+        ListViewer {
             table: list,
             view,
             app_data,
         }
     }
 
-    /// Draws [`ListPane`] on the provided frame area.\
+    /// Draws [`ListViewer`] on the provided frame area.\
     /// It draws only the visible elements respecting the height of the `area`.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let layout = Layout::default()
@@ -70,7 +70,7 @@ impl<T: Table> ListPane<T> {
     }
 }
 
-impl<T: Table> Responsive for ListPane<T> {
+impl<T: Table> Responsive for ListViewer<T> {
     fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
         if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
             return ResponseEvent::Handled;

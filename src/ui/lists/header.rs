@@ -135,10 +135,10 @@ impl Header {
     /// Sets data length for the provided column.
     pub fn set_data_length(&mut self, column_no: usize, new_data_len: usize) {
         self.cache.invalidate();
-        if let Some(column) = self.column_mut(column_no) {
-            if !column.is_fixed {
-                column.data_len = new_data_len;
-            }
+        if let Some(column) = self.column_mut(column_no)
+            && !column.is_fixed
+        {
+            column.data_len = new_data_len;
         }
     }
 
@@ -211,10 +211,11 @@ impl Header {
             ViewType::Full => self.get_full_text(group_width, name_width, area_width),
         };
 
-        if area_width > 0 && header.chars().count() > area_width {
-            if let Some(truncated) = try_truncate(header.as_str(), area_width) {
-                return truncated.to_owned();
-            }
+        if area_width > 0
+            && header.chars().count() > area_width
+            && let Some(truncated) = try_truncate(header.as_str(), area_width)
+        {
+            return truncated.to_owned();
         }
 
         header

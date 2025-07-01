@@ -119,21 +119,20 @@ impl ShellBridge {
 
     /// Sends user input bytes to the attached process.
     pub fn send(&self, data: Vec<u8>) {
-        if self.is_running() {
-            if let Some(tx) = &self.input_tx {
-                if let Err(err) = tx.send(data) {
-                    warn!("Cannot send data to the attached process: {}", err);
-                }
-            }
+        if self.is_running()
+            && let Some(tx) = &self.input_tx
+            && let Err(err) = tx.send(data)
+        {
+            warn!("Cannot send data to the attached process: {}", err);
         }
     }
 
     /// Sets size of the bridged terminal.
     pub fn set_terminal_size(&mut self, width: u16, height: u16) {
-        if self.is_running() {
-            if let Some(tx) = &self.size_tx {
-                let _ = tx.send(TerminalSize { width, height });
-            }
+        if self.is_running()
+            && let Some(tx) = &self.size_tx
+        {
+            let _ = tx.send(TerminalSize { width, height });
         }
     }
 

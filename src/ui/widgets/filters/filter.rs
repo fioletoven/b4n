@@ -148,10 +148,10 @@ impl Responsive for Filter {
                 self.is_visible = false;
                 self.patterns.set_value(self.current.clone());
                 return ResponseEvent::Cancelled;
-            } else {
-                self.patterns.reset();
-                return ResponseEvent::Handled;
             }
+
+            self.patterns.reset();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Enter {

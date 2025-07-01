@@ -17,7 +17,7 @@ use crate::{
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
-        views::{View, header::HeaderPane},
+        views::{View, content_header::ContentHeader},
         widgets::{Button, Dialog, FooterMessage},
     },
 };
@@ -31,7 +31,7 @@ const DEFAULT_SIZE: TerminalSize = TerminalSize { width: 80, height: 24 };
 /// Pod's shell view.
 pub struct ShellView {
     app_data: SharedAppData,
-    header: HeaderPane,
+    header: ContentHeader,
     bridge: ShellBridge,
     parser: Arc<RwLock<vt100::Parser>>,
     size: TerminalSize,
@@ -58,7 +58,7 @@ impl ShellView {
             namespace: pod_namespace.clone(),
             container: pod_container.clone(),
         };
-        let mut header = HeaderPane::new(Rc::clone(&app_data), false);
+        let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 

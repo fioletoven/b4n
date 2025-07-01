@@ -157,12 +157,12 @@ impl Input {
         let mut count = 0;
         if let Some(prompt) = &self.prompt {
             for (i, char) in prompt.0.chars().enumerate() {
-                let x = x + i as u16;
+                let x = x + u16::try_from(i).unwrap_or(0);
                 if x >= max_x {
                     break;
                 }
 
-                count = i as u16 + 1;
+                count = u16::try_from(i).unwrap_or(0) + 1;
 
                 if self.error_mode == ErrorHighlightMode::PromptAndIndex && self.error_index.is_some() {
                     if let Some(colors) = self.error {
@@ -184,7 +184,7 @@ impl Input {
         }
 
         for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
-            let x = x + i as u16;
+            let x = x + u16::try_from(i).unwrap_or(0);
             if x >= max_x {
                 return;
             }

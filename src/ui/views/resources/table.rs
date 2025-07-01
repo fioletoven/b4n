@@ -13,15 +13,18 @@ use crate::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
     },
-    ui::{Responsive, Table, ViewType, lists::Row, tui::ResponseEvent, views::ListPane},
+    ui::{
+        Responsive, Table, ViewType,
+        lists::Row,
+        tui::ResponseEvent,
+        views::{ListHeader, ListViewer},
+    },
 };
-
-use super::HeaderPane;
 
 /// Resources table.
 pub struct ResourcesTable {
-    pub header: HeaderPane,
-    pub list: ListPane<ResourcesList>,
+    pub header: ListHeader,
+    pub list: ListViewer<ResourcesList>,
     app_data: SharedAppData,
     highlight_next: Option<String>,
 }
@@ -29,12 +32,12 @@ pub struct ResourcesTable {
 impl ResourcesTable {
     /// Creates a new resources table.
     pub fn new(app_data: SharedAppData) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data));
-        let list = ListPane::new(
+        let list = ListViewer::new(
             Rc::clone(&app_data),
             ResourcesList::default().with_filter_settings(Some("e")),
             ViewType::Compact,
         );
+        let header = ListHeader::new(Rc::clone(&app_data), None, list.table.len());
 
         Self {
             header,
@@ -47,6 +50,7 @@ impl ResourcesTable {
     /// Resets all table data.
     pub fn reset(&mut self) {
         self.list.table.clear();
+        self.header.set_count(0);
         self.header.show_filtered_icon(false);
     }
 
@@ -128,11 +132,11 @@ impl ResourcesTable {
         if value.is_empty() {
             if self.list.table.is_filtered() {
                 self.list.table.filter(None);
-                self.app_data.borrow_mut().current.count = self.list.table.len();
+                self.header.set_count(self.list.table.len());
             }
         } else if !self.list.table.is_filtered() || self.list.table.get_filter().is_some_and(|f| f != value) {
             self.list.table.filter(Some(value.to_owned()));
-            self.app_data.borrow_mut().current.count = self.list.table.len();
+            self.header.set_count(self.list.table.len());
         }
     }
 
@@ -148,9 +152,9 @@ impl ResourcesTable {
         if self.list.table.update(result) {
             let current = &mut self.app_data.borrow_mut().current;
             current.update_from(&self.list.table.data);
-            current.count = self.list.table.table.list.len();
+            self.header.set_count(self.list.table.len());
         } else {
-            self.app_data.borrow_mut().current.count = self.list.table.table.list.len();
+            self.header.set_count(self.list.table.len());
         }
     }
 

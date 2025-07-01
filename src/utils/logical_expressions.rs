@@ -220,7 +220,7 @@ fn tokenize(expression: &str) -> Result<Vec<Token>, ParserError> {
     let mut open_start = 0;
     let mut open_count = 0;
 
-    for (index, char) in expression.chars().enumerate() {
+    for (index, char) in expression.char_indices() {
         if let Some(token) = match char {
             '&' => Some(Token::And),
             '|' => Some(Token::Or),
@@ -286,24 +286,23 @@ fn update_brackets_count(token: Token, index: usize, open_count: &mut i32, open_
 }
 
 fn push_token<'a>(tokens: &mut Vec<Token<'a>>, token: Token<'a>) {
-    if token == Token::Open {
-        if let Some(last) = tokens.last_mut() {
-            if *last == Token::Not {
-                *last = Token::NotOpen;
-                return;
-            }
-        }
+    if token == Token::Open
+        && let Some(last) = tokens.last_mut()
+        && *last == Token::Not
+    {
+        *last = Token::NotOpen;
+        return;
     }
 
     tokens.push(token);
 }
 
 fn push_value<'a>(tokens: &mut Vec<Token<'a>>, value: &'a str) {
-    if let Some(last) = tokens.last_mut() {
-        if *last == Token::Not {
-            *last = Token::NotValue(value);
-            return;
-        }
+    if let Some(last) = tokens.last_mut()
+        && *last == Token::Not
+    {
+        *last = Token::NotValue(value);
+        return;
     }
 
     tokens.push(Token::Value(value));

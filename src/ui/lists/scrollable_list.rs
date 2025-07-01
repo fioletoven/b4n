@@ -208,12 +208,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Selects / deselects currently highlighted item.
     pub fn select_highlighted_item(&mut self) {
-        if let Some(items) = &mut self.items {
-            if let Some(highlighted) = self.highlighted {
-                if highlighted < items.len() {
-                    items[highlighted].is_selected = !items[highlighted].is_selected;
-                }
-            }
+        if let Some(items) = &mut self.items
+            && let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+        {
+            items[highlighted].is_selected = !items[highlighted].is_selected;
         }
     }
 
@@ -251,7 +250,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Returns selected item uids as [`Vec`].
     pub fn get_selected_uids(&self) -> Vec<&str> {
         if let Some(items) = &self.items {
-            items.iter().filter(|i| i.is_selected).flat_map(|i| i.data.uid()).collect()
+            items.iter().filter(|i| i.is_selected).filter_map(|i| i.data.uid()).collect()
         } else {
             Vec::default()
         }
@@ -283,15 +282,14 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Gets highlighted element.
     pub fn get_highlighted_item(&self) -> Option<&Item<T, Fc>> {
-        if let Some(items) = &self.items {
-            if let Some(highlighted) = self.highlighted {
-                if highlighted < items.len() {
-                    return Some(&items[highlighted]);
-                }
-            }
+        if let Some(items) = &self.items
+            && let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+        {
+            Some(&items[highlighted])
+        } else {
+            None
         }
-
-        None
     }
 
     /// Gets the highlighted item index from the `is_active` property.
@@ -327,10 +325,10 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             return false;
         }
 
-        if let Some(highlighted) = self.highlighted {
-            if highlighted < items.len() {
-                items[highlighted].is_active = false;
-            }
+        if let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+        {
+            items[highlighted].is_active = false;
         }
 
         items[0].is_active = true;

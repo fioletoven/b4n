@@ -56,12 +56,12 @@ impl YamlView {
 
     fn copy_yaml_to_clipboard(&mut self) {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
-        if let Ok(mut ctx) = result {
-            if ctx.set_contents(self.lines.join("")).is_ok() {
-                self.footer_tx
-                    .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
-                    .unwrap();
-            }
+        if let Ok(mut ctx) = result
+            && ctx.set_contents(self.lines.join("")).is_ok()
+        {
+            self.footer_tx
+                .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
+                .unwrap();
         }
     }
 

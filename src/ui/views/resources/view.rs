@@ -150,7 +150,9 @@ impl ResourcesView {
         }
 
         if self.filter.is_visible {
-            return self.filter.process_key(key);
+            let result = self.filter.process_key(key);
+            self.table.set_filter(self.filter.value());
+            return result;
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
@@ -160,6 +162,7 @@ impl ResourcesView {
 
         if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
             self.filter.reset();
+            self.table.set_filter(self.filter.value());
             return ResponseEvent::Handled;
         }
 
@@ -180,7 +183,6 @@ impl ResourcesView {
 
     /// Draws [`ResourcesView`] on the provided frame and area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.table.set_filter(self.filter.value());
         self.table.draw(frame, area);
 
         self.modal.draw(frame, frame.area());

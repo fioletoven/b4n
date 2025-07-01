@@ -14,7 +14,7 @@ use crate::{
     ui::{ResponseEvent, utils::center},
 };
 
-use super::header::HeaderPane;
+use super::content_header::ContentHeader;
 
 pub type StyledLine = Vec<(Style, String)>;
 
@@ -29,7 +29,7 @@ pub trait Content {
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
-    pub header: HeaderPane,
+    pub header: ContentHeader,
     app_data: SharedAppData,
 
     content: Option<T>,
@@ -46,7 +46,7 @@ pub struct ContentViewer<T: Content> {
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData) -> Self {
-        let header = HeaderPane::new(Rc::clone(&app_data), true);
+        let header = ContentHeader::new(Rc::clone(&app_data), true);
 
         Self {
             header,
