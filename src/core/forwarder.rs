@@ -208,34 +208,44 @@ impl PortForwardTask {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _pod_name = resource.name.as_deref().unwrap_or_default().to_owned();
+        let _bind_address = self.bind_address.clone();
         let _events_tx = self.events_tx.clone();
         let _footer_tx = self.footer_tx.clone();
         let _statistics = self.statistics.clone();
 
         let task = tokio::spawn(async move {
             _events_tx.send(PortForwardEvent::TaskStarted).unwrap();
-            if let Ok(listener) = TcpListener::bind(address).await {
-                while !_cancellation_token.is_cancelled() {
-                    tokio::select! {
-                        () = _cancellation_token.cancelled() => (),
-                        result = listener.accept() => {
-                            match result {
-                                Ok((stream, _)) => {
-                                    accept_connection(
-                                        &pods,
-                                        &_pod_name,
-                                        port,
-                                        stream,
-                                        _events_tx.clone(),
-                                        _statistics.clone(),
-                                        _cancellation_token.clone(),
-                                    );
-                                },
-                                Err(e) => accept_error(&e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
+            match TcpListener::bind(address).await {
+                Ok(listener) => {
+                    while !_cancellation_token.is_cancelled() {
+                        tokio::select! {
+                            () = _cancellation_token.cancelled() => (),
+                            result = listener.accept() => {
+                                match result {
+                                    Ok((stream, _)) => {
+                                        accept_connection(
+                                            &pods,
+                                            &_pod_name,
+                                            port,
+                                            stream,
+                                            _events_tx.clone(),
+                                            _statistics.clone(),
+                                            _cancellation_token.clone(),
+                                        );
+                                    },
+                                    Err(e) => accept_error(&e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
+                                }
                             }
                         }
                     }
-                }
+                },
+                Err(error) => {
+                    let msg = format!("Port forward for {_pod_name}: cannot bind to {_bind_address}");
+                    warn!("{msg}: {error}");
+                    _footer_tx
+                        .send(FooterMessage::error(msg, 10_000))
+                        .expect("footer channel should be always open");
+                },
             }
 
             _events_tx.send(PortForwardEvent::TaskStopped).unwrap();

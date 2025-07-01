@@ -204,7 +204,7 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Esc {
+        if key.code == KeyCode::Esc || (key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL) {
             return ResponseEvent::Cancelled;
         }
 
