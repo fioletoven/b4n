@@ -11,7 +11,7 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ListPane, PortForwardsList, View, forwards::HeaderPane, utils},
+        views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, FooterMessage},
     },
 };
@@ -20,8 +20,8 @@ pub const VIEW_NAME: &str = "port forwards";
 
 /// Port forwards view.
 pub struct ForwardsView {
-    pub header: HeaderPane,
-    pub list: ListPane<PortForwardsList>,
+    pub header: ListHeader,
+    pub list: ListViewer<PortForwardsList>,
     app_data: SharedAppData,
     namespace: Namespace,
     worker: SharedBgWorker,
@@ -33,17 +33,17 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
-        let namespace: Namespace = utils::get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
+        let namespace: Namespace = get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
         let view = if namespace.is_all() {
             ViewType::Full
         } else {
             ViewType::Compact
         };
-        let mut list = ListPane::new(Rc::clone(&app_data), PortForwardsList::default(), view);
+        let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);
         list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
 
         Self {
-            header: HeaderPane::new(Rc::clone(&app_data), list.table.len()),
+            header: ListHeader::new(Rc::clone(&app_data), Some(VIEW_NAME), list.table.len()),
             list,
             app_data,
             namespace,
@@ -122,7 +122,7 @@ impl View for ForwardsView {
     }
 
     fn process_namespace_change(&mut self) {
-        self.namespace = utils::get_breadcumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
+        self.namespace = get_breadcumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
         self.list.view = if self.namespace.is_all() {
             ViewType::Full
         } else {

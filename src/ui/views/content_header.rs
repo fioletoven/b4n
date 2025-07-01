@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Header pane that shows resource namespace, kind and name.
-pub struct HeaderPane {
+pub struct ContentHeader {
     pub title: &'static str,
     pub icon: char,
     pub namespace: Namespace,
@@ -24,7 +24,7 @@ pub struct HeaderPane {
     position_y: usize,
 }
 
-impl HeaderPane {
+impl ContentHeader {
     /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData, show_coordinates: bool) -> Self {
         Self {
@@ -66,7 +66,7 @@ impl HeaderPane {
         self.position_y = y;
     }
 
-    /// Draws [`HeaderPane`] on the provided frame area.
+    /// Draws [`ContentHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let coordinates = if self.app_data.borrow().is_connected {
             format!("  Ln {}, Col {} ", self.position_y, self.position_x)

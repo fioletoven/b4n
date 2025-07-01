@@ -21,7 +21,6 @@ pub struct ResourcesInfo {
     pub name: Option<String>,
     pub kind: Kind,
     pub scope: Scope,
-    pub count: usize,
     is_all_namespace: bool,
 }
 
@@ -34,7 +33,6 @@ impl Default for ResourcesInfo {
             name: None,
             kind: Kind::default(),
             scope: Scope::Cluster,
-            count: Default::default(),
             is_all_namespace: false,
         }
     }
