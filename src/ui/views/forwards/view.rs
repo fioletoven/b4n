@@ -12,7 +12,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcumbs_namespace},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterMessage},
     },
 };
 
@@ -26,6 +26,7 @@ pub struct ForwardsView {
     namespace: Namespace,
     worker: SharedBgWorker,
     command_palette: CommandPalette,
+    filter: Filter,
     modal: Dialog,
     footer_tx: UnboundedSender<FooterMessage>,
 }
@@ -39,6 +40,7 @@ impl ForwardsView {
         } else {
             ViewType::Compact
         };
+        let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
         let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);
         list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
 
@@ -49,6 +51,7 @@ impl ForwardsView {
             namespace,
             worker,
             command_palette: CommandPalette::default(),
+            filter,
             modal: Dialog::default(),
             footer_tx,
         }
@@ -66,6 +69,21 @@ impl ForwardsView {
             true
         } else {
             false
+        }
+    }
+
+    /// Sets filter on the port forwards list.
+    pub fn set_filter(&mut self) {
+        let value = self.filter.value();
+        self.header.show_filtered_icon(!value.is_empty());
+        if value.is_empty() {
+            if self.list.table.is_filtered() {
+                self.list.table.filter(None);
+                self.header.set_count(self.list.table.len());
+            }
+        } else if !self.list.table.is_filtered() || self.list.table.get_filter().is_some_and(|f| f != value) {
+            self.list.table.filter(Some(value.to_owned()));
+            self.header.set_count(self.list.table.len());
         }
     }
 
@@ -155,6 +173,12 @@ impl View for ForwardsView {
             return ResponseEvent::ExitApplication;
         }
 
+        if self.filter.is_visible {
+            let result = self.filter.process_key(key);
+            self.set_filter();
+            return result;
+        }
+
         if self.modal.is_visible {
             if self.modal.process_key(key) == ResponseEvent::DeleteResources {
                 self.stop_selected_port_forwards();
@@ -174,12 +198,23 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
+            self.filter.reset();
+            self.set_filter();
+            return ResponseEvent::Handled;
+        }
+
         if key.code == KeyCode::Esc {
             return ResponseEvent::Cancelled;
         }
 
         if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
             self.ask_stop_port_forwards();
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('/') {
+            self.filter.show();
             return ResponseEvent::Handled;
         }
 
@@ -197,5 +232,6 @@ impl View for ForwardsView {
 
         self.modal.draw(frame, frame.area());
         self.command_palette.draw(frame, frame.area());
+        self.filter.draw(frame, frame.area());
     }
 }
