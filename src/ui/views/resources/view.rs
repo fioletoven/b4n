@@ -60,7 +60,6 @@ impl ResourcesView {
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn set_namespace(&mut self, namespace: Namespace);
             pub fn set_view(&mut self, view: ViewType);
-            pub fn update_resources_list(&mut self, result: ObserverResult);
         }
     }
 
@@ -73,6 +72,16 @@ impl ResourcesView {
     /// Updates kinds list with a new data.
     pub fn update_kinds_list(&mut self, kinds: &ScrollableList<KindItem, BasicFilterContext>) {
         self.kinds_list = ActionsListBuilder::from_kinds(kinds).to_vec();
+    }
+
+    /// Updates resources list with a new data from [`ObserverResult`].
+    pub fn update_resources_list(&mut self, result: ObserverResult) {
+        if matches!(result, ObserverResult::Init(_)) {
+            self.filter.reset();
+            self.table.set_filter("");
+        }
+
+        self.table.update_resources_list(result);
     }
 
     /// Shows delete resources dialog if anything is selected.
@@ -162,7 +171,7 @@ impl ResourcesView {
 
         if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
             self.filter.reset();
-            self.table.set_filter(self.filter.value());
+            self.table.set_filter("");
             return ResponseEvent::Handled;
         }
 

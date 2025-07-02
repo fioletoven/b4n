@@ -63,6 +63,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(items) = &mut self.items {
             items.clear();
         }
+
+        self.filter.set_pattern(None::<String>);
     }
 
     /// Returns the number of elements in the filtered out scrollable list.
