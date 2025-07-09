@@ -36,7 +36,7 @@ impl KindsList {
         }
     }
 
-    /// Returns vector of cloned [`KindItem`]s from this list.
+    /// Returns cloned [`KindItem`]s as a vector.
     pub fn to_vec(&self) -> Option<Vec<KindItem>> {
         self.list
             .items

@@ -93,11 +93,21 @@ impl ViewsManager {
         let TuiEvent::Key(key) = event;
 
         if self.ns_selector.is_visible {
-            return self.ns_selector.process_key(key);
+            let result = self.ns_selector.process_key(key);
+            if let Some(view) = &mut self.view {
+                view.handle_namespaces_selector_event(&result);
+            }
+
+            return result;
         }
 
         if self.res_selector.is_visible {
-            return self.res_selector.process_key(key);
+            let result = self.res_selector.process_key(key);
+            if let Some(view) = &mut self.view {
+                view.handle_resources_selector_event(&result);
+            }
+
+            return result;
         }
 
         if self.view.is_some() {
@@ -182,19 +192,19 @@ impl ViewsManager {
         }
     }
 
-    /// Processes namespace change.
-    pub fn process_namespace_change(&mut self, namespace: Namespace) {
+    /// Handles namespace change.
+    pub fn handle_namespace_change(&mut self, namespace: Namespace) {
         self.resources.set_namespace(namespace);
         if let Some(view) = &mut self.view {
-            view.process_namespace_change();
+            view.handle_namespace_change();
         }
     }
 
-    /// Processes kind change.
-    pub fn process_kind_change(&mut self, resource_to_select: Option<String>) {
+    /// Handles kind change.
+    pub fn handle_kind_change(&mut self, resource_to_select: Option<String>) {
         self.resources.highlight_next(resource_to_select);
         if let Some(view) = &mut self.view {
-            view.process_kind_change();
+            view.handle_kind_change();
         }
     }
 
