@@ -10,13 +10,18 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     core::{PortForwarder, commands::ListResourcePortsCommand},
     kubernetes::{
-        Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
+        Kind, NAMESPACES, Namespace, ResourceRef,
+        client::KubernetesClient,
+        kinds::KindItem,
+        resources::PODS,
+        utils::get_resource,
+        watchers::{BgObserverError, ResourceObserver},
     },
     ui::{views::PortForwardItem, widgets::FooterMessage},
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, History, SyntaxData, TaskResult,
     commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
 };
 
@@ -36,8 +41,8 @@ pub enum BgWorkerError {
 
 /// Keeps together all application background workers.
 pub struct BgWorker {
-    pub namespaces: BgObserver,
-    pub resources: BgObserver,
+    pub namespaces: ResourceObserver,
+    pub resources: ResourceObserver,
     discovery: BgDiscovery,
     executor: BgExecutor,
     forwarder: PortForwarder,
@@ -49,8 +54,8 @@ impl BgWorker {
     /// Creates new [`BgWorker`] instance.
     pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         Self {
-            namespaces: BgObserver::new(footer_tx.clone()),
-            resources: BgObserver::new(footer_tx.clone()),
+            namespaces: ResourceObserver::new(footer_tx.clone()),
+            resources: ResourceObserver::new(footer_tx.clone()),
             discovery: BgDiscovery::new(footer_tx.clone()),
             executor: BgExecutor::default(),
             forwarder: PortForwarder::new(footer_tx),

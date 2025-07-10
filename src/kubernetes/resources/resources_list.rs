@@ -3,10 +3,10 @@ use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{InitData, ObserverResult},
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
         resources::{CONTAINERS, ResourceFilterContext, ResourceItem},
+        watchers::{InitData, ObserverResult},
     },
     ui::{
         ResponseEvent, Responsive, Table, ViewType,
@@ -32,7 +32,7 @@ impl ResourcesList {
 
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.\
     /// Returns `true` if the kind was changed during the update.
-    pub fn update(&mut self, result: ObserverResult) -> bool {
+    pub fn update(&mut self, result: ObserverResult<ResourceItem>) -> bool {
         let (sort_by, is_descending) = self.table.header.sort_info();
         match result {
             ObserverResult::Init(init) => {

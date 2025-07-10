@@ -3,11 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
-    kubernetes::{Kind, Namespace, kinds::KindItem},
+    kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
     ui::theme::Theme,
 };
 
-use super::{Config, History, InitData};
+use super::{Config, History};
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 

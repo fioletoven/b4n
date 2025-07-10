@@ -1,5 +1,4 @@
 use futures::TryStreamExt;
-use k8s_openapi::serde_json::Value;
 use kube::{
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
@@ -25,15 +24,14 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 
 use crate::{
+    core::utils::wait_for_task,
     kubernetes::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
-        resources::{CONTAINERS, PODS, ResourceItem},
+        resources::{CONTAINERS, PODS},
     },
     ui::widgets::FooterMessage,
 };
-
-use super::utils::wait_for_task;
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -46,16 +44,16 @@ pub enum BgObserverError {
 }
 
 /// Background observer result.
-pub enum ObserverResult {
+pub enum ObserverResult<T> {
     Init(InitData),
     InitDone,
-    Apply(ResourceItem),
-    Delete(ResourceItem),
+    Apply(T),
+    Delete(T),
 }
 
-impl ObserverResult {
+impl<T> ObserverResult<T> {
     /// Creates new [`ObserverResult`] for resource.
-    pub fn new(resource: ResourceItem, is_delete: bool) -> Self {
+    pub fn new(resource: T, is_delete: bool) -> Self {
         if is_delete {
             Self::Delete(resource)
         } else {
@@ -115,12 +113,13 @@ impl InitData {
 
 /// Background k8s resource observer.
 pub struct BgObserver {
-    resource: ResourceRef,
-    scope: Scope,
+    pub resource: ResourceRef,
+    pub init: Option<InitData>,
+    pub scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<Box<ObserverResult>>,
-    context_rx: UnboundedReceiver<Box<ObserverResult>>,
+    context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
+    context_rx: UnboundedReceiver<Box<ObserverResult<DynamicObject>>>,
     footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
 }
@@ -131,6 +130,7 @@ impl BgObserver {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
+            init: None,
             scope: Scope::Cluster,
             task: None,
             cancellation_token: None,
@@ -158,9 +158,9 @@ impl BgObserver {
         self.scope = cap.scope.clone();
         self.has_error.store(false, Ordering::Relaxed);
 
+        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone());
         let mut _processor = EventsProcessor {
-            init_data: InitData::new(&self.resource, &ar, cap.scope.clone()),
-            is_container: self.resource.is_container(),
+            init_data: init_data.clone(),
             context_tx: self.context_tx.clone(),
             footer_tx: self.footer_tx.clone(),
             has_error: Arc::clone(&self.has_error),
@@ -201,6 +201,7 @@ impl BgObserver {
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
+        self.init = Some(init_data);
 
         Ok(self.scope.clone())
     }
@@ -259,22 +260,6 @@ impl BgObserver {
         Ok(self.scope.clone())
     }
 
-    /// Restarts [`BgObserver`] task to show pod containers.
-    pub fn restart_containers(
-        &mut self,
-        client: &KubernetesClient,
-        pod_name: String,
-        pod_namespace: Namespace,
-        discovery: Option<(ApiResource, ApiCapabilities)>,
-    ) -> Result<Scope, BgObserverError> {
-        if !self.resource.is_container() || self.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
-            let resource = ResourceRef::containers(pod_name, pod_namespace);
-            self.start(client, resource, discovery)?;
-        }
-
-        Ok(self.scope.clone())
-    }
-
     /// Cancels [`BgObserver`] task.
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
@@ -287,12 +272,12 @@ impl BgObserver {
     /// Cancels [`BgObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "discovery");
+        wait_for_task(self.task.take(), "background observer");
         self.drain();
     }
 
     /// Tries to get next [`ObserverResult`].
-    pub fn try_next(&mut self) -> Option<Box<ObserverResult>> {
+    pub fn try_next(&mut self) -> Option<Box<ObserverResult<DynamicObject>>> {
         self.context_rx.try_recv().ok()
     }
 
@@ -304,6 +289,11 @@ impl BgObserver {
     /// Returns currently observed resource kind.
     pub fn get_resource_kind(&self) -> &Kind {
         &self.resource.kind
+    }
+
+    /// Returns `true` if the observed resource is a container.
+    pub fn is_container(&self) -> bool {
+        self.resource.is_container()
     }
 
     /// Returns `true` if observer is not running or is in an error state.
@@ -322,8 +312,7 @@ impl Drop for BgObserver {
 #[derive(Debug)]
 struct EventsProcessor {
     init_data: InitData,
-    is_container: bool,
-    context_tx: UnboundedSender<Box<ObserverResult>>,
+    context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
     footer_tx: UnboundedSender<FooterMessage>,
     has_error: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
@@ -342,8 +331,8 @@ impl EventsProcessor {
                         self.send_init_result();
                     },
                     Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
-                    Some(Event::InitApply(o) | Event::Apply(o)) => self.send_results(o, false),
-                    Some(Event::Delete(o)) => self.send_results(o, true),
+                    Some(Event::InitApply(o) | Event::Apply(o)) => self.send_result(o, false),
+                    Some(Event::Delete(o)) => self.send_result(o, true),
                     _ => (),
                 }
 
@@ -387,54 +376,9 @@ impl EventsProcessor {
             .unwrap();
     }
 
-    fn send_results(&self, object: DynamicObject, is_delete: bool) {
-        if self.is_container {
-            self.send_containers(&object, "initContainers", "initContainerStatuses", true, is_delete);
-            self.send_containers(&object, "containers", "containerStatuses", false, is_delete);
-        } else {
-            self.send_resource(object, is_delete);
-        }
+    fn send_result(&self, object: DynamicObject, is_delete: bool) {
+        self.context_tx
+            .send(Box::new(ObserverResult::new(object, is_delete)))
+            .unwrap();
     }
-
-    fn send_containers(&self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
-        if let Some(containers) = get_containers(object, array) {
-            for c in containers {
-                let result = get_container_result(c, object, statuses_array, is_init, is_delete);
-                self.context_tx.send(Box::new(result)).unwrap();
-            }
-        }
-    }
-
-    fn send_resource(&self, object: DynamicObject, is_delete: bool) {
-        let result = ObserverResult::new(ResourceItem::from(&self.init_data.kind, object), is_delete);
-        self.context_tx.send(Box::new(result)).unwrap();
-    }
-}
-
-fn get_containers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a Vec<Value>> {
-    object
-        .data
-        .get("spec")
-        .and_then(|s| s.get(array_name))
-        .and_then(|c| c.as_array())
-}
-
-fn get_container_result(
-    container: &Value,
-    object: &DynamicObject,
-    statuses_array: &str,
-    is_init_container: bool,
-    is_delete: bool,
-) -> ObserverResult {
-    let status = object
-        .data
-        .get("status")
-        .and_then(|s| s.get(statuses_array))
-        .and_then(|s| s.as_array())
-        .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
-
-    ObserverResult::new(
-        ResourceItem::from_container(container, status, &object.metadata, is_init_container),
-        is_delete,
-    )
 }

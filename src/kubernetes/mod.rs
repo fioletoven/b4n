@@ -6,6 +6,7 @@ pub mod client;
 pub mod kinds;
 pub mod resources;
 pub mod utils;
+pub mod watchers;
 
 mod kind;
 mod namespace;

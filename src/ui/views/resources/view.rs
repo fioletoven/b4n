@@ -5,10 +5,11 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{ObserverResult, SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
         resources::{CONTAINERS, Port, ResourceItem, SECRETS},
+        watchers::ObserverResult,
     },
     ui::{
         Responsive, Table, ViewType,
@@ -66,7 +67,7 @@ impl ResourcesView {
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: ObserverResult) {
+    pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         if matches!(result, ObserverResult::Init(_)) {
             self.filter.reset();
             self.table.set_filter("");
