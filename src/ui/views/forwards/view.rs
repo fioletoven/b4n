@@ -208,7 +208,10 @@ impl View for ForwardsView {
 
         if self.command_palette.is_visible {
             return match self.command_palette.process_key(key) {
-                ResponseEvent::ChangeKind(_) => ResponseEvent::Cancelled,
+                ResponseEvent::ChangeKind(kind) => {
+                    self.is_closing = true;
+                    ResponseEvent::ChangeKind(kind)
+                },
                 ResponseEvent::Action("stop_selected") => {
                     self.ask_stop_port_forwards();
                     ResponseEvent::Handled

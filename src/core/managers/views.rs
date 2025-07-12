@@ -60,6 +60,7 @@ impl ViewsManager {
     /// Updates page lists with observed resources.
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
+        worker.update_crds_list();
         if worker.update_discovery_list() {
             self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
             self.app_data.borrow_mut().kinds = self.res_selector.select.items.to_vec();

@@ -15,7 +15,7 @@ use crate::{
         kinds::KindItem,
         resources::PODS,
         utils::get_resource,
-        watchers::{BgObserverError, ResourceObserver},
+        watchers::{BgObserverError, CRDS, CrdObserver, ResourceObserver},
     },
     ui::{views::PortForwardItem, widgets::FooterMessage},
 };
@@ -44,6 +44,7 @@ pub struct BgWorker {
     pub namespaces: ResourceObserver,
     pub resources: ResourceObserver,
     discovery: BgDiscovery,
+    crds: CrdObserver,
     executor: BgExecutor,
     forwarder: PortForwarder,
     client: Option<KubernetesClient>,
@@ -57,6 +58,7 @@ impl BgWorker {
             namespaces: ResourceObserver::new(footer_tx.clone()),
             resources: ResourceObserver::new(footer_tx.clone()),
             discovery: BgDiscovery::new(footer_tx.clone()),
+            crds: CrdObserver::new(footer_tx.clone()),
             executor: BgExecutor::default(),
             forwarder: PortForwarder::new(footer_tx),
             client: None,
@@ -81,6 +83,9 @@ impl BgWorker {
 
         let discovery = get_resource(self.list.as_ref(), &resource.kind);
         let scope = self.resources.start(&client, resource, discovery)?;
+
+        let discovery = get_resource(self.list.as_ref(), &Kind::from(CRDS));
+        self.crds.start(&client, discovery)?;
 
         self.client = Some(client);
 
@@ -137,6 +142,7 @@ impl BgWorker {
         self.namespaces.stop();
         self.resources.stop();
         self.discovery.stop();
+        self.crds.stop();
         self.forwarder.stop_all();
     }
 
@@ -146,6 +152,7 @@ impl BgWorker {
         self.resources.stop();
         self.executor.stop_all();
         self.discovery.stop();
+        self.crds.stop();
         self.forwarder.stop_all();
     }
 
@@ -155,6 +162,7 @@ impl BgWorker {
         self.resources.cancel();
         self.executor.cancel_all();
         self.discovery.cancel();
+        self.crds.cancel();
         self.forwarder.stop_all();
     }
 
@@ -205,6 +213,11 @@ impl BgWorker {
         } else {
             false
         }
+    }
+
+    /// Updates CRDs list.
+    pub fn update_crds_list(&mut self) {
+        self.crds.update_list();
     }
 
     /// Sends the provided command to the background executor.

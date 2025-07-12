@@ -25,11 +25,7 @@ use tracing::{error, warn};
 
 use crate::{
     core::utils::wait_for_task,
-    kubernetes::{
-        Kind, Namespace, ResourceRef,
-        client::KubernetesClient,
-        resources::{CONTAINERS, PODS},
-    },
+    kubernetes::{Kind, Namespace, ResourceRef, client::KubernetesClient, resources::CONTAINERS},
     ui::widgets::FooterMessage,
 };
 
@@ -215,46 +211,6 @@ impl BgObserver {
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource {
             self.start(client, new_resource, discovery)?;
-        }
-
-        Ok(self.scope.clone())
-    }
-
-    /// Restarts [`BgObserver`] task if `new_kind` is different from the current one.\
-    /// **Note** that it uses `new_namespace` if resource is namespaced.
-    pub fn restart_new_kind(
-        &mut self,
-        client: &KubernetesClient,
-        new_kind: Kind,
-        new_namespace: Namespace,
-        discovery: Option<(ApiResource, ApiCapabilities)>,
-    ) -> Result<Scope, BgObserverError> {
-        if self.resource.kind != new_kind || self.resource.is_container() != new_kind.is_containers() {
-            let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
-                ResourceRef::new(new_kind, new_namespace)
-            } else {
-                ResourceRef::new(new_kind, Namespace::all())
-            };
-
-            self.start(client, resource, discovery)?;
-        }
-
-        Ok(self.scope.clone())
-    }
-
-    /// Restarts [`BgObserver`] task if `new_namespace` is different than the current one.
-    pub fn restart_new_namespace(
-        &mut self,
-        client: &KubernetesClient,
-        new_namespace: Namespace,
-        discovery: Option<(ApiResource, ApiCapabilities)>,
-    ) -> Result<Scope, BgObserverError> {
-        if self.resource.is_container() {
-            let resource = ResourceRef::new(PODS.into(), new_namespace);
-            self.start(client, resource, discovery)?;
-        } else if self.resource.namespace != new_namespace {
-            let resource = ResourceRef::new(self.resource.kind.clone(), new_namespace);
-            self.start(client, resource, discovery)?;
         }
 
         Ok(self.scope.clone())
