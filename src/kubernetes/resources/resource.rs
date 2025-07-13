@@ -6,6 +6,7 @@ use kube::{
 use std::collections::BTreeMap;
 
 use crate::{
+    kubernetes::resources::CrdColumns,
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -42,8 +43,8 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, object: DynamicObject) -> Self {
-        let data = Some(get_resource_data(kind, &object));
+    pub fn from(kind: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
+        let data = Some(get_resource_data(kind, crd, &object));
         let filter = get_filter_metadata(&object);
 
         Self {
@@ -84,8 +85,8 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str) -> Header {
-        get_header_data(kind)
+    pub fn header(kind: &str, crd: Option<&CrdColumns>) -> Header {
+        get_header_data(kind, crd)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.

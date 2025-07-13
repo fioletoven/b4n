@@ -1,4 +1,4 @@
-pub use self::crd::{CRDS, CrdObserver};
+pub use self::crd::CrdObserver;
 pub use self::observer::{BgObserverError, InitData, ObserverResult};
 pub use self::resource::ResourceObserver;
 

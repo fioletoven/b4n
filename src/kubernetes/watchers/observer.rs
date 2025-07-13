@@ -25,7 +25,11 @@ use tracing::{error, warn};
 
 use crate::{
     core::utils::wait_for_task,
-    kubernetes::{Kind, Namespace, ResourceRef, client::KubernetesClient, resources::CONTAINERS},
+    kubernetes::{
+        Kind, Namespace, ResourceRef,
+        client::KubernetesClient,
+        resources::{CONTAINERS, CrdColumns},
+    },
     ui::widgets::FooterMessage,
 };
 
@@ -67,6 +71,7 @@ pub struct InitData {
     pub group: String,
     pub scope: Scope,
     pub namespace: Namespace,
+    pub crd: Option<CrdColumns>,
 }
 
 impl Default for InitData {
@@ -78,13 +83,14 @@ impl Default for InitData {
             group: String::new(),
             scope: Scope::Cluster,
             namespace: Namespace::default(),
+            crd: None,
         }
     }
 }
 
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
-    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope) -> Self {
+    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>) -> Self {
         if rt.is_container() {
             Self {
                 name: rt.name.clone(),
@@ -93,6 +99,7 @@ impl InitData {
                 group: ar.group.clone(),
                 scope,
                 namespace: rt.namespace.clone(),
+                crd,
             }
         } else {
             Self {
@@ -102,6 +109,7 @@ impl InitData {
                 group: ar.group.clone(),
                 scope,
                 namespace: rt.namespace.clone(),
+                crd,
             }
         }
     }
@@ -154,7 +162,7 @@ impl BgObserver {
         self.scope = cap.scope.clone();
         self.has_error.store(false, Ordering::Relaxed);
 
-        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone());
+        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None);
         let mut _processor = EventsProcessor {
             init_data: init_data.clone(),
             context_tx: self.context_tx.clone(),

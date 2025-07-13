@@ -77,7 +77,7 @@ impl ResourcesList {
 
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
-        self.table.header = ResourceItem::header(&self.data.kind);
+        self.table.header = ResourceItem::header(&self.data.kind, self.data.crd.as_ref());
         self.table.list.clear();
         if self.data.kind_plural == NAMESPACES {
             self.table.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));

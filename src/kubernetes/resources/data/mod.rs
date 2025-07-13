@@ -2,7 +2,7 @@ use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 
 use crate::{
-    kubernetes::utils::format_datetime,
+    kubernetes::{resources::CrdColumns, utils::format_datetime},
     ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 
@@ -21,7 +21,7 @@ pub mod service;
 pub mod stateful_set;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
-pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
+pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicObject) -> ResourceData {
     match kind {
         "ConfigMap" => config_map::data(object),
         "DaemonSet" => daemon_set::data(object),
@@ -40,7 +40,7 @@ pub fn get_resource_data(kind: &str, object: &DynamicObject) -> ResourceData {
 }
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str) -> Header {
+pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
     match kind {
         "ConfigMap" => config_map::header(),
         "DaemonSet" => daemon_set::header(),

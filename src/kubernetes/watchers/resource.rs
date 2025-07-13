@@ -8,11 +8,12 @@ use std::collections::VecDeque;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
+    core::SharedCrdsList,
     kubernetes::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
-        resources::{PODS, ResourceItem},
-        watchers::{BgObserverError, ObserverResult, observer::BgObserver},
+        resources::{CrdColumns, PODS, ResourceItem},
+        watchers::{BgObserverError, InitData, ObserverResult, observer::BgObserver},
     },
     ui::widgets::FooterMessage,
 };
@@ -21,14 +22,18 @@ use crate::{
 pub struct ResourceObserver {
     observer: BgObserver,
     queue: VecDeque<Box<ObserverResult<ResourceItem>>>,
+    crds: SharedCrdsList,
+    crd: Option<CrdColumns>,
 }
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(crds: SharedCrdsList, footer_tx: UnboundedSender<FooterMessage>) -> Self {
         Self {
             observer: BgObserver::new(footer_tx),
             queue: VecDeque::with_capacity(200),
+            crds,
+            crd: None,
         }
     }
 
@@ -120,8 +125,9 @@ impl ResourceObserver {
 
         if let Some(result) = self.observer.try_next() {
             match *result {
-                ObserverResult::Init(init_data) => {
+                ObserverResult::Init(mut init_data) => {
                     self.queue.clear();
+                    self.init_crd_kind(&mut init_data);
                     Some(Box::new(ObserverResult::Init(init_data)))
                 },
                 ObserverResult::InitDone => Some(Box::new(ObserverResult::InitDone)),
@@ -164,8 +170,14 @@ impl ResourceObserver {
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
         let kind = self.observer.init.as_ref().map(|i| i.kind.as_str()).unwrap_or("");
-        let result = ObserverResult::new(ResourceItem::from(kind, object), is_delete);
+        let result = ObserverResult::new(ResourceItem::from(kind, self.crd.as_ref(), object), is_delete);
         self.queue.push_back(Box::new(result));
+    }
+
+    fn init_crd_kind(&mut self, init_data: &mut InitData) {
+        let kind = Kind::new(&init_data.kind_plural, &init_data.group);
+        self.crd = self.crds.borrow().iter().find(|i| i.name == kind.as_str()).cloned();
+        init_data.crd = self.crd.clone();
     }
 }
 
