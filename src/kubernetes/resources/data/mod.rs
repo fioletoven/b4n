@@ -8,6 +8,7 @@ use crate::{
 
 pub mod config_map;
 pub mod container;
+pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
 pub mod deployment;
@@ -22,6 +23,10 @@ pub mod stateful_set;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
 pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicObject) -> ResourceData {
+    if let Some(crd) = crd {
+        return custom_resource::data(crd, object);
+    }
+
     match kind {
         "ConfigMap" => config_map::data(object),
         "DaemonSet" => daemon_set::data(object),
@@ -41,6 +46,10 @@ pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicO
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
 pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
+    if let Some(crd) = crd {
+        return custom_resource::header(crd);
+    }
+
     match kind {
         "ConfigMap" => config_map::header(),
         "DaemonSet" => daemon_set::header(),
