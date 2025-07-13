@@ -57,6 +57,7 @@ impl ResourceObserver {
             pub fn stop(&mut self);
             pub fn get_resource_kind(&self) -> &Kind;
             pub fn is_container(&self) -> bool;
+            pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
         }
     }

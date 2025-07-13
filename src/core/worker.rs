@@ -219,6 +219,11 @@ impl BgWorker {
         }
     }
 
+    /// Returns `true` if CRDs list is ready.
+    pub fn is_crds_list_ready(&self) -> bool {
+        self.crds.is_ready()
+    }
+
     /// Updates CRDs list.
     pub fn update_crds_list(&mut self) {
         let mut list = self.crds_list.borrow_mut();

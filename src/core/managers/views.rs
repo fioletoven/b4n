@@ -60,7 +60,16 @@ impl ViewsManager {
     /// Updates page lists with observed resources.
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
+
+        // Wait for the CRD list to become ready before polling anything else.
+        // This ensures that the header for the current resource (if it's a CR)
+        // is shown only after all columns are known.
+        if !worker.is_crds_list_ready() {
+            return;
+        }
+
         worker.update_crds_list();
+
         if worker.update_discovery_list() {
             self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
             self.app_data.borrow_mut().kinds = self.res_selector.select.items.to_vec();

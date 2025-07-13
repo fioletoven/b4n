@@ -21,5 +21,5 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
 /// Returns [`Header`] for default kubernetes resource.
 pub fn header() -> Header {
-    Header::from(NAMESPACE.clone(), None, Rc::new([' ', 'N', 'A']))
+    Header::from(NAMESPACE, None, Rc::new([' ', 'N', 'A']))
 }

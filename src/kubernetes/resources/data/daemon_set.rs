@@ -36,7 +36,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `daemonset` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::fixed("DESIRED", 3, true),
             Column::fixed("CURRENT", 8, true),

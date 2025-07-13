@@ -29,7 +29,7 @@ pub fn header(crd: &CrdColumns) -> Header {
     let symbols = get_sort_symbols(&columns);
 
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(columns.into_boxed_slice()),
         Rc::from(symbols.into_boxed_slice()),
     )

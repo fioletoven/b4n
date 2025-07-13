@@ -26,7 +26,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `configmap` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([Column::fixed("DATA", 5, true)])),
         Rc::new([' ', 'N', 'D', 'A']),
     )

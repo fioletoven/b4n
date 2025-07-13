@@ -54,7 +54,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
 /// Returns [`Header`] for the pod's `container`.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::fixed("RESTARTS", 3, true),
             Column::fixed("READY", 7, false),

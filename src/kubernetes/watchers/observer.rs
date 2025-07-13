@@ -125,6 +125,7 @@ pub struct BgObserver {
     context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
     context_rx: UnboundedReceiver<Box<ObserverResult<DynamicObject>>>,
     footer_tx: UnboundedSender<FooterMessage>,
+    is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
 }
 
@@ -141,6 +142,7 @@ impl BgObserver {
             context_tx,
             context_rx,
             footer_tx,
+            is_ready: Arc::new(AtomicBool::new(false)),
             has_error: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -160,6 +162,7 @@ impl BgObserver {
 
         self.resource = resource;
         self.scope = cap.scope.clone();
+        self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
 
         let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None);
@@ -167,6 +170,7 @@ impl BgObserver {
             init_data: init_data.clone(),
             context_tx: self.context_tx.clone(),
             footer_tx: self.footer_tx.clone(),
+            is_ready: Arc::clone(&self.is_ready),
             has_error: Arc::clone(&self.has_error),
             last_watch_error: None,
         };
@@ -260,7 +264,12 @@ impl BgObserver {
         self.resource.is_container()
     }
 
-    /// Returns `true` if observer is not running or is in an error state.
+    /// Returns `true` if the observer has received the initial list of resources.
+    pub fn is_ready(&self) -> bool {
+        self.is_ready.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if the observer is not running or is in an error state.
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }
@@ -278,6 +287,7 @@ struct EventsProcessor {
     init_data: InitData,
     context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
     footer_tx: UnboundedSender<FooterMessage>,
+    is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
 }
@@ -292,9 +302,13 @@ impl EventsProcessor {
                 match event {
                     Some(Event::Init) => {
                         reset_error = false; // Init is also emitted after a forced restart of the watcher
+                        self.is_ready.store(false, Ordering::Relaxed);
                         self.send_init_result();
                     },
-                    Some(Event::InitDone) => self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap(),
+                    Some(Event::InitDone) => {
+                        self.is_ready.store(true, Ordering::Relaxed);
+                        self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap();
+                    },
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_result(o, false),
                     Some(Event::Delete(o)) => self.send_result(o, true),
                     _ => (),

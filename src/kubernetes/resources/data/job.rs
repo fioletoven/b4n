@@ -34,7 +34,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `job` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::fixed("COMPLETIONS", 7, true),
             Column::fixed("DURATION", 9, true),

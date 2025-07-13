@@ -15,8 +15,8 @@ use crate::{
     ui::widgets::FooterMessage,
 };
 
+/// Custom resource definitions observer.
 pub struct CrdObserver {
-    pub is_ready: bool,
     observer: BgObserver,
 }
 
@@ -24,18 +24,18 @@ impl CrdObserver {
     /// Creates new [`CrdObserver`] instance.
     pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
         Self {
-            is_ready: false,
             observer: BgObserver::new(footer_tx),
         }
     }
 
+    /// Starts new [`CrdObserver`] task.\
+    /// **Note** that it stops the old task if it is running.
     pub fn start(
         &mut self,
         client: &KubernetesClient,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         let resource = ResourceRef::new(Kind::from(CRDS), Namespace::all());
-        self.is_ready = false;
         self.observer.start(client, resource, discovery)
     }
 
@@ -44,20 +44,19 @@ impl CrdObserver {
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
             pub fn get_resource_kind(&self) -> &Kind;
+            pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
         }
     }
 
+    /// Updates provided [`CrdColumns`] list with waiting data.
     pub fn update_list(&mut self, list: &mut Vec<CrdColumns>) -> bool {
         let mut updated = false;
         while let Some(item) = self.observer.try_next() {
             updated = true;
             match *item {
-                ObserverResult::Init(_) => {
-                    self.is_ready = false;
-                    list.clear();
-                },
-                ObserverResult::InitDone => self.is_ready = true,
+                ObserverResult::Init(_) => list.clear(),
+                ObserverResult::InitDone => (),
                 ObserverResult::Apply(item) => apply(list, item),
                 ObserverResult::Delete(item) => delete(list, item),
             }

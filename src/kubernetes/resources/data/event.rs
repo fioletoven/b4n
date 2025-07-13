@@ -40,7 +40,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `event` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::fixed("COUNT", 6, true),
             Column::bound("TYPE", 6, 7, false),

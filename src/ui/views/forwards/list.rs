@@ -115,7 +115,7 @@ impl Table for PortForwardsList {
 /// Returns [`Header`] for the port forward task.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::bound("LOCAL", 14, 22, false),
             Column::fixed("REMOTE", 8, true),

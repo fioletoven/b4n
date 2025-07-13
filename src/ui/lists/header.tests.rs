@@ -106,7 +106,7 @@ fn get_text_extra_columns_sized_test() {
     ];
 
     let mut header = Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(vec![Column::fixed("FIRST", 10, false), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
         Rc::new([]),
     );
@@ -130,7 +130,7 @@ fn get_text_extra_columns_to_right_test() {
     ];
 
     let mut header = Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(vec![Column::fixed("FIRST", 10, true), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
         Rc::new([]),
     );

@@ -1,7 +1,10 @@
 use std::rc::Rc;
 
 use crate::{
-    ui::{ViewType, lists::ColumnStringExtensions},
+    ui::{
+        ViewType,
+        lists::{ColumnStringExtensions, NAMESPACE},
+    },
     utils::try_truncate,
 };
 
@@ -28,7 +31,7 @@ pub struct Header {
 
 impl Default for Header {
     fn default() -> Self {
-        Self::from(Column::new("N/A"), None, Rc::new([' ', 'N', 'A']))
+        Self::from(NAMESPACE, None, Rc::new([' ', 'N', 'A']))
     }
 }
 
@@ -42,8 +45,8 @@ impl Header {
 
         Self {
             group: group_column.ensure_can_be_first_column(),
-            name: NAME.clone(),
-            age: AGE.clone(),
+            name: NAME,
+            age: AGE,
             extra_columns,
             extra_columns_text,
             all_extra_width: extra_width,

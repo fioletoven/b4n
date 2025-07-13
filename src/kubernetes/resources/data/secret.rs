@@ -27,7 +27,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `secret` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::bound("TYPE", 8, 25, false),
             Column::fixed("DATA", 5, true),
