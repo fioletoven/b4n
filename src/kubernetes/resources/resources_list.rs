@@ -36,7 +36,7 @@ impl ResourcesList {
         let (sort_by, is_descending) = self.table.header.sort_info();
         match result {
             ObserverResult::Init(init) => {
-                self.update_kind(init);
+                self.update_kind(*init);
                 let (sort_by, is_descending) = self.table.header.sort_info();
                 self.sort(sort_by, is_descending);
                 true

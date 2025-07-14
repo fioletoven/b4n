@@ -69,6 +69,7 @@ pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
 }
 
 /// Value for the resource extra data.
+#[derive(Default)]
 pub struct ResourceValue {
     pub text: Option<String>,
     pub number: Option<String>,
@@ -122,6 +123,16 @@ impl From<String> for ResourceValue {
     fn from(value: String) -> Self {
         ResourceValue {
             text: Some(value),
+            number: None,
+            is_numeric: false,
+        }
+    }
+}
+
+impl From<Option<&str>> for ResourceValue {
+    fn from(value: Option<&str>) -> Self {
+        ResourceValue {
+            text: value.map(String::from),
             number: None,
             is_numeric: false,
         }

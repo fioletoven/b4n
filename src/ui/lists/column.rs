@@ -110,7 +110,7 @@ impl Column {
         Self {
             name: Cow::Owned(column.name.to_uppercase()),
             is_fixed: false,
-            to_right: column.field_type != "string",
+            to_right: column.field_type == "integer", // TODO: fix to right behaviour for different types than integer
             is_sorted: false,
             has_reversed_order: false,
             data_len: 10,

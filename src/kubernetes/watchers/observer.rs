@@ -45,7 +45,7 @@ pub enum BgObserverError {
 
 /// Background observer result.
 pub enum ObserverResult<T> {
-    Init(InitData),
+    Init(Box<InitData>),
     InitDone,
     Apply(T),
     Delete(T),
@@ -350,7 +350,7 @@ impl EventsProcessor {
 
     fn send_init_result(&self) {
         self.context_tx
-            .send(Box::new(ObserverResult::Init(self.init_data.clone())))
+            .send(Box::new(ObserverResult::Init(Box::new(self.init_data.clone()))))
             .unwrap();
     }
 

@@ -1,7 +1,7 @@
 use k8s_openapi::serde_json::Value;
 use kube::{ResourceExt, api::DynamicObject};
 
-const DEFAULT_COLUMNS: [&str; 3] = [".metadata.name", ".metadata.namespace", ".metadata.creationTimestamp"];
+const DEFAULT_PATHS: [&str; 3] = [".metadata.name", ".metadata.namespace", ".metadata.creationTimestamp"];
 
 /// Holds data about custom columns defined in CRD resource.
 #[derive(Debug, Clone)]
@@ -9,21 +9,29 @@ pub struct CrdColumns {
     pub uid: Option<String>,
     pub name: String,
     pub columns: Option<Vec<CrdColumn>>,
+    pub has_metadata_pointer: bool,
 }
 
 impl CrdColumns {
     /// Creates new [`CrdColumns`] instance from [`DynamicObject`] resource.\
     /// **Note** that it skips default columns that will be shown anyway.
     pub fn from(object: DynamicObject) -> Self {
+        // TODO: implement priority (show only columns with priority `0`?)
+
         let columns = get_stored_version(&object)
             .and_then(|v| v.get("additionalPrinterColumns"))
             .and_then(|c| c.as_array())
             .map(|c| c.iter().filter(|c| !is_default(c)).map(CrdColumn::from).collect::<Vec<_>>());
 
+        let has_metadata_pointer = columns
+            .as_ref()
+            .is_some_and(|c| c.iter().any(|c| c.pointer.starts_with("/metadata")));
+
         Self {
             uid: object.uid(),
             name: object.name_any(),
             columns,
+            has_metadata_pointer,
         }
     }
 }
@@ -32,7 +40,7 @@ impl CrdColumns {
 #[derive(Debug, Clone)]
 pub struct CrdColumn {
     pub name: String,
-    pub json_path: String,
+    pub pointer: String,
     pub field_type: String,
 }
 
@@ -41,7 +49,7 @@ impl CrdColumn {
     pub fn from(value: &Value) -> Self {
         Self {
             name: get_string(value, "name"),
-            json_path: get_string(value, "jsonPath"),
+            pointer: to_json_pointer(get_str(value, "jsonPath")),
             field_type: get_string(value, "type"),
         }
     }
@@ -73,8 +81,32 @@ fn get_string(value: &Value, field_name: &str) -> String {
         .unwrap_or_default()
 }
 
+fn get_str<'a>(value: &'a Value, field_name: &str) -> &'a str {
+    value.get(field_name).and_then(|n| n.as_str()).unwrap_or_default()
+}
+
 fn is_default(column: &Value) -> bool {
     column
         .get("jsonPath")
-        .is_some_and(|p| p.as_str().is_some_and(|s| DEFAULT_COLUMNS.contains(&s)))
+        .is_some_and(|p| p.as_str().is_some_and(|s| DEFAULT_PATHS.contains(&s)))
+}
+
+fn to_json_pointer(jsonpath: &str) -> String {
+    let mut result = String::with_capacity(jsonpath.len());
+
+    for ch in jsonpath.chars() {
+        if ch == '.' || ch == '[' {
+            result.push('/');
+        } else if ch == '~' {
+            result.push('~');
+            result.push('0');
+        } else if ch == '/' {
+            result.push('~');
+            result.push('1');
+        } else if ch != ']' && ch != '$' {
+            result.push(ch);
+        }
+    }
+
+    result
 }
