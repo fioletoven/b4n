@@ -1,4 +1,10 @@
-use k8s_openapi::chrono::{DateTime, Utc};
+use std::borrow::Cow;
+
+use k8s_openapi::{
+    apimachinery::pkg::apis::meta::v1::Time,
+    chrono::{DateTime, Utc},
+    serde_json::{Value, from_value},
+};
 use kube::api::DynamicObject;
 
 use crate::{
@@ -71,40 +77,69 @@ pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
 /// Value for the resource extra data.
 #[derive(Default)]
 pub struct ResourceValue {
-    pub text: Option<String>,
-    pub number: Option<String>,
-    pub is_numeric: bool,
+    text: Option<String>,
+    sort_text: Option<String>,
+    time: Option<Time>,
+    is_time: bool,
 }
 
 impl ResourceValue {
-    /// Creates new [`ResourceValue`] instance as a numeric value.
-    pub fn numeric(value: Option<impl Into<String>>, len: usize) -> Self {
-        let text = value.map(Into::into);
-        let numeric = text.as_deref().map(|v| format!("{v:0>len$}"));
+    /// Creates new [`ResourceValue`] instance as a number value.
+    pub fn number(value: Option<f64>, len: usize) -> Self {
+        let value = value.unwrap_or_default();
+        let sort_value = value + (len.pow(10) as f64);
+        let sort = format!("{:0width$.precision$}", sort_value, width = len + 7, precision = 5);
         Self {
-            text,
-            number: numeric,
-            is_numeric: true,
+            text: Some(value.to_string()),
+            sort_text: Some(sort),
+            ..Default::default()
         }
     }
 
-    /// Creates new [`ResourceValue`] instance as a datetime value.
-    pub fn datetime(value: Option<&DateTime<Utc>>) -> Self {
-        let text = value.map(format_datetime);
-        let numeric = value.map(|v| v.timestamp_millis().to_string());
+    /// Creates new [`ResourceValue`] instance as an integer value.
+    pub fn integer(value: Option<i64>, len: usize) -> Self {
+        let value = value.unwrap_or_default();
+        let sort_value = value + (len.pow(10) as i64);
+        let sort = format!("{:0width$}", sort_value, width = len + 1);
         Self {
-            text,
-            number: numeric,
-            is_numeric: true,
+            text: Some(value.to_string()),
+            sort_text: Some(sort),
+            ..Default::default()
         }
     }
 
-    /// Returns resource value.
-    pub fn value(&self) -> &str {
-        if self.is_numeric {
-            self.number.as_deref().unwrap_or("NaN")
+    /// Creates new [`ResourceValue`] instance as a time value.
+    pub fn time(value: Value) -> Self {
+        let time = from_value::<Time>(value).ok();
+        let sort = time.as_ref().map(|t| t.0.timestamp().to_string());
+        Self {
+            time,
+            sort_text: sort,
+            is_time: true,
+            ..Default::default()
+        }
+    }
+
+    /// Returns resource value that can be used for sorting.
+    pub fn sort_text(&self) -> &str {
+        if let Some(sort_text) = &self.sort_text {
+            sort_text
         } else {
             self.text.as_deref().unwrap_or("n/a")
+        }
+    }
+
+    /// Returns resource text.
+    pub fn text<'a>(&'a self) -> Cow<'a, str> {
+        if self.is_time {
+            Cow::Owned(
+                self.time
+                    .as_ref()
+                    .map(crate::kubernetes::utils::format_timestamp)
+                    .unwrap_or("n/a".to_owned()),
+            )
+        } else {
+            Cow::Borrowed(self.text.as_deref().unwrap_or("n/a"))
         }
     }
 }
@@ -113,8 +148,7 @@ impl From<Option<String>> for ResourceValue {
     fn from(value: Option<String>) -> Self {
         ResourceValue {
             text: value,
-            number: None,
-            is_numeric: false,
+            ..Default::default()
         }
     }
 }
@@ -123,8 +157,7 @@ impl From<String> for ResourceValue {
     fn from(value: String) -> Self {
         ResourceValue {
             text: Some(value),
-            number: None,
-            is_numeric: false,
+            ..Default::default()
         }
     }
 }
@@ -133,8 +166,7 @@ impl From<Option<&str>> for ResourceValue {
     fn from(value: Option<&str>) -> Self {
         ResourceValue {
             text: value.map(String::from),
-            number: None,
-            is_numeric: false,
+            ..Default::default()
         }
     }
 }
@@ -143,8 +175,7 @@ impl From<&str> for ResourceValue {
     fn from(value: &str) -> Self {
         ResourceValue {
             text: Some(value.into()),
-            number: None,
-            is_numeric: false,
+            ..Default::default()
         }
     }
 }
@@ -153,8 +184,19 @@ impl From<bool> for ResourceValue {
     fn from(value: bool) -> Self {
         ResourceValue {
             text: Some(value.to_string()),
-            number: None,
-            is_numeric: false,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Option<&DateTime<Utc>>> for ResourceValue {
+    fn from(value: Option<&DateTime<Utc>>) -> Self {
+        let text = value.map(format_datetime);
+        let sort = value.map(|v| v.timestamp_millis().to_string());
+        Self {
+            text,
+            sort_text: sort,
+            ..Default::default()
         }
     }
 }

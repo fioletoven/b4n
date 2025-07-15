@@ -1,4 +1,4 @@
-use k8s_openapi::serde_json::Value;
+use k8s_openapi::serde_json::{Value, to_value};
 use kube::api::DynamicObject;
 use std::{collections::HashSet, rc::Rc};
 
@@ -11,9 +11,14 @@ use crate::{
 pub fn data(crd: &CrdColumns, object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let extra_values = if crd.has_metadata_pointer {
-        serialize_and_get_data(crd, object)
+        // we need to serialize DynamicObject as metadata part is not directly accesible using pointer method
+        if let Ok(value) = to_value(object) {
+            get_data(crd, &value)
+        } else {
+            Box::default()
+        }
     } else {
-        get_data(crd, object)
+        get_data(crd, &object.data)
     };
 
     ResourceData {
@@ -41,12 +46,11 @@ pub fn header(crd: &CrdColumns) -> Header {
     )
 }
 
-fn get_data(crd: &CrdColumns, object: &DynamicObject) -> Box<[ResourceValue]> {
-    // TODO: fix ResourceValue::from("")
+fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
     let mut data = Vec::with_capacity(crd.columns.as_ref().map(|c| c.len()).unwrap_or_default());
     if let Some(columns) = &crd.columns {
         for column in columns {
-            if let Some(value) = object.data.pointer(&column.pointer) {
+            if let Some(value) = object_data.pointer(&column.pointer) {
                 data.push(get_resource_value(value, &column.field_type));
             } else {
                 data.push(ResourceValue::from(" "));
@@ -57,19 +61,13 @@ fn get_data(crd: &CrdColumns, object: &DynamicObject) -> Box<[ResourceValue]> {
     data.into_boxed_slice()
 }
 
-fn serialize_and_get_data(crd: &CrdColumns, object: &DynamicObject) -> Box<[ResourceValue]> {
-    // TODO: serialize DynamicObject to include metadata part as json Value and then applly pointer on it
-    Box::default()
-}
-
 fn get_resource_value(value: &Value, field_type: &str) -> ResourceValue {
-    // TODO: fix negative integer and number behaviour
     match field_type {
         "boolean" => ResourceValue::from(value.as_bool().unwrap_or_default()),
-        "integer" => ResourceValue::numeric(value.as_i64().map(|i| i.to_string()), 10),
-        "number" => ResourceValue::numeric(value.as_f64().map(|i| i.to_string()), 10),
+        "integer" => ResourceValue::integer(value.as_i64(), 10),
+        "number" => ResourceValue::number(value.as_f64(), 10),
         "string" => ResourceValue::from(value.as_str()),
-        "date" => ResourceValue::from(value.as_str()),
+        "date" => ResourceValue::time(value.clone()),
         _ => ResourceValue::from(" "),
     }
 }

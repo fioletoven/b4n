@@ -16,12 +16,16 @@ impl CrdColumns {
     /// Creates new [`CrdColumns`] instance from [`DynamicObject`] resource.\
     /// **Note** that it skips default columns that will be shown anyway.
     pub fn from(object: DynamicObject) -> Self {
-        // TODO: implement priority (show only columns with priority `0`?)
-
         let columns = get_stored_version(&object)
             .and_then(|v| v.get("additionalPrinterColumns"))
             .and_then(|c| c.as_array())
-            .map(|c| c.iter().filter(|c| !is_default(c)).map(CrdColumn::from).collect::<Vec<_>>());
+            .map(|c| {
+                c.iter()
+                    .filter(|c| !is_default(c))
+                    .map(CrdColumn::from)
+                    .filter(|c| c.priority == 0)
+                    .collect::<Vec<_>>()
+            });
 
         let has_metadata_pointer = columns
             .as_ref()
@@ -42,6 +46,7 @@ pub struct CrdColumn {
     pub name: String,
     pub pointer: String,
     pub field_type: String,
+    pub priority: i64,
 }
 
 impl CrdColumn {
@@ -51,6 +56,7 @@ impl CrdColumn {
             name: get_string(value, "name"),
             pointer: to_json_pointer(get_str(value, "jsonPath")),
             field_type: get_string(value, "type"),
+            priority: get_integer(value, "priority"),
         }
     }
 }
@@ -71,6 +77,10 @@ fn get_stored_version(object: &DynamicObject) -> Option<&Value> {
 fn is_stored_version(version: &Value) -> bool {
     version.get("served").and_then(|s| s.as_bool()).unwrap_or_default()
         && version.get("storage").and_then(|s| s.as_bool()).unwrap_or_default()
+}
+
+fn get_integer(value: &Value, field_name: &str) -> i64 {
+    value.get(field_name).and_then(|n| n.as_i64()).unwrap_or_default()
 }
 
 fn get_string(value: &Value, field_name: &str) -> String {

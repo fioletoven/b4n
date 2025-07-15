@@ -9,19 +9,19 @@ use crate::{
 /// Returns [`ResourceData`] for the `daemonset` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let status = &object.data["status"];
-    let desired = status["desiredNumberScheduled"].as_u64().unwrap_or_default();
-    let current = status["currentNumberScheduled"].as_u64().unwrap_or_default();
-    let ready = status["numberReady"].as_u64().unwrap_or_default();
-    let updated = status["updatedNumberScheduled"].as_u64().unwrap_or_default();
-    let available = status["numberAvailable"].as_u64().unwrap_or_default();
+    let desired = status["desiredNumberScheduled"].as_i64();
+    let current = status["currentNumberScheduled"].as_i64();
+    let ready = status["numberReady"].as_i64();
+    let updated = status["updatedNumberScheduled"].as_i64();
+    let available = status["numberAvailable"].as_i64();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 5] = [
-        ResourceValue::numeric(Some(desired.to_string()), 5),
-        ResourceValue::numeric(Some(current.to_string()), 5),
-        ResourceValue::numeric(Some(ready.to_string()), 5),
-        ResourceValue::numeric(Some(updated.to_string()), 5),
-        ResourceValue::numeric(Some(available.to_string()), 5),
+        ResourceValue::integer(desired, 5),
+        ResourceValue::integer(current, 5),
+        ResourceValue::integer(ready, 5),
+        ResourceValue::integer(updated, 5),
+        ResourceValue::integer(available, 5),
     ];
 
     ResourceData {

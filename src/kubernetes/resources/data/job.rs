@@ -19,7 +19,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 2] = [
         format!("{succeeded}/{completions}").into(),
-        ResourceValue::datetime(duration.as_ref()),
+        ResourceValue::from(duration.as_ref()),
     ];
 
     ResourceData {

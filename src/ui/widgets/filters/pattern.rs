@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime};
+use std::{
+    borrow::Cow,
+    time::{Duration, SystemTime},
+};
 
 use crate::{
     ui::lists::{BasicFilterContext, Filterable, Row},
@@ -74,16 +77,20 @@ impl Row for PatternItem {
         format!("{1:<0$} [TAB to insert]", width, truncate(&self.value, width))
     }
 
-    fn column_text(&self, column: usize) -> &str {
+    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+        Cow::Borrowed(match column {
+            0 => "n/a",
+            1 => &self.value,
+            _ => "n/a",
+        })
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
         match column {
             0 => "n/a",
             1 => &self.value,
             _ => "n/a",
         }
-    }
-
-    fn column_sort_text(&self, column: usize) -> &str {
-        self.column_text(column)
     }
 }
 

@@ -26,7 +26,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     };
 
     let values = [
-        ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
+        ResourceValue::integer(restarts, 5),
         ready_str.into(),
         if is_terminating {
             "Terminating".into()
@@ -61,11 +61,11 @@ pub fn header() -> Header {
     )
 }
 
-fn get_restarts(containers: &[Value]) -> u64 {
+fn get_restarts(containers: &[Value]) -> i64 {
     containers
         .iter()
-        .map(|c| c["restartCount"].as_u64().unwrap_or(0))
-        .sum::<u64>()
+        .map(|c| c["restartCount"].as_i64().unwrap_or(0))
+        .sum::<i64>()
 }
 
 fn get_ready(containers: &[Value]) -> (String, bool) {

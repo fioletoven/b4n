@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use kube::config::NamedContext;
 
 use crate::{
@@ -146,16 +148,20 @@ impl Row for ActionItem {
         text
     }
 
-    fn column_text(&self, column: usize) -> &str {
+    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+        Cow::Borrowed(match column {
+            0 => &self.group,
+            1 => &self.name,
+            _ => "n/a",
+        })
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
         match column {
             0 => &self.group,
             1 => &self.name,
             _ => "n/a",
         }
-    }
-
-    fn column_sort_text(&self, column: usize) -> &str {
-        self.column_text(column)
     }
 
     /// Returns `true` if the given `pattern` is found in the action name or its aliases.

@@ -10,10 +10,10 @@ use crate::{
 /// Returns [`ResourceData`] for the `secret` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let secret_type = object.data["type"].as_str().map(ToOwned::to_owned);
-    let data_count = object.data["data"].as_object().map_or(0, Map::len).to_string();
+    let data_count = object.data["data"].as_object().map_or(0, Map::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [secret_type.into(), ResourceValue::numeric(Some(data_count), 5)];
+    let values: [ResourceValue; 2] = [secret_type.into(), ResourceValue::integer(Some(data_count as i64), 5)];
 
     ResourceData {
         extra_values: Box::new(values),

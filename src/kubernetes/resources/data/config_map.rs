@@ -9,10 +9,10 @@ use crate::{
 
 /// Returns [`ResourceData`] for the `configmap` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
-    let data_count = object.data["data"].as_object().map_or(0, Map::len).to_string();
+    let data_count = object.data["data"].as_object().map_or(0, Map::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 1] = [ResourceValue::numeric(Some(data_count), 5)];
+    let values: [ResourceValue; 1] = [ResourceValue::integer(Some(data_count as i64), 5)];
 
     ResourceData {
         extra_values: Box::new(values),

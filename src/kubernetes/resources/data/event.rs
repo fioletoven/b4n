@@ -8,7 +8,7 @@ use crate::{
 
 /// Returns [`ResourceData`] for the `event` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
-    let count = object.data["count"].as_u64().unwrap_or_default();
+    let count = object.data["count"].as_i64().unwrap_or_default();
     let r#type = object.data["type"].as_str().map(ToOwned::to_owned);
     let reason = object.data["reason"].as_str().map(ToOwned::to_owned);
     let obj = &object.data["involvedObject"];
@@ -22,7 +22,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 4] = [
-        ResourceValue::numeric(Some(count.to_string()), 6),
+        ResourceValue::integer(Some(count), 6),
         r#type.into(),
         reason.into(),
         obj.into(),
