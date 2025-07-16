@@ -88,10 +88,9 @@ impl ResourceValue {
     pub fn number(value: Option<f64>, len: usize) -> Self {
         let value = value.unwrap_or_default();
         let sort_value = value + (len.pow(10) as f64);
-        let sort = format!("{:0width$.precision$}", sort_value, width = len + 7, precision = 5);
         Self {
-            text: Some(value.to_string()),
-            sort_text: Some(sort),
+            text: Some(format!("{:0.precision$}", value, precision = 3)),
+            sort_text: Some(format!("{:0width$.precision$}", sort_value, width = len + 5, precision = 3)),
             ..Default::default()
         }
     }

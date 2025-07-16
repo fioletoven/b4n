@@ -112,7 +112,7 @@ impl Column {
             is_fixed: false,
             to_right: column.field_type != "string",
             is_sorted: false,
-            has_reversed_order: false,
+            has_reversed_order: column.field_type == "date",
             data_len: 10,
             min_len,
             max_len: 50,

@@ -181,7 +181,7 @@ pub trait RowStringExtensions {
 
 impl RowStringExtensions for String {
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
-        if len == 0 || s.is_empty() {
+        if len == 0 {
             return;
         }
 

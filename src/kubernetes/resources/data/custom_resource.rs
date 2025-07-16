@@ -53,7 +53,7 @@ fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
             if let Some(value) = object_data.pointer(&column.pointer) {
                 data.push(get_resource_value(value, &column.field_type));
             } else {
-                data.push(ResourceValue::from(" "));
+                data.push(ResourceValue::from(""));
             }
         }
     }
