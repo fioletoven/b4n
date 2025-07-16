@@ -135,11 +135,7 @@ impl Column {
     /// Returns the current length of a [`Column`].
     #[inline]
     pub fn len(&self) -> usize {
-        if self.is_fixed {
-            self.data_len
-        } else {
-            self.data_len.clamp(self.min_len(), self.max_len())
-        }
+        self.data_len.clamp(self.min_len(), self.max_len())
     }
 
     /// Returns `true` if [`Column`] has a current length of zero bytes.

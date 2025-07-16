@@ -150,7 +150,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Item<T, Fc> {
                 row.push(' ');
             }
 
-            row.push_cell(self.data.column_text(i + 2).as_ref(), columns[i].len(), columns[i].to_right);
+            let len = if i == 0 && columns[i].to_right {
+                columns[i].data_len
+            } else {
+                columns[i].len()
+            };
+
+            row.push_cell(self.data.column_text(i + 2).as_ref(), len, columns[i].to_right);
         }
     }
 }
