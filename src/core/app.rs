@@ -9,7 +9,12 @@ use std::{
 use crate::{
     core::ViewsManager,
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
+    ui::{
+        ResponseEvent, Tui, TuiEvent,
+        theme::Theme,
+        views::ResourcesView,
+        widgets::{Footer, FooterMessage},
+    },
 };
 
 use super::{
@@ -116,8 +121,16 @@ impl App {
         }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
-            if self.process_event(event)? == ResponseEvent::ExitApplication {
-                return Ok(ExecutionFlow::Stop);
+            match self.process_event(event) {
+                Ok(response) => {
+                    if response == ResponseEvent::ExitApplication {
+                        return Ok(ExecutionFlow::Stop);
+                    }
+                },
+                Err(error) => {
+                    self.views_manager
+                        .display_footer_message(FooterMessage::error(error.to_string(), 0));
+                },
             }
         }
 

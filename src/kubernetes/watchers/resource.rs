@@ -78,7 +78,7 @@ impl ResourceObserver {
                 ResourceRef::new(new_kind, Namespace::all())
             };
 
-            self.start(client, resource, discovery)?;
+            self.restart(client, resource, discovery)?;
         }
 
         Ok(self.observer.scope.clone())
@@ -93,10 +93,10 @@ impl ResourceObserver {
     ) -> Result<Scope, BgObserverError> {
         if self.observer.resource.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
-            self.start(client, resource, discovery)?;
+            self.restart(client, resource, discovery)?;
         } else if self.observer.resource.namespace != new_namespace {
             let resource = ResourceRef::new(self.observer.resource.kind.clone(), new_namespace);
-            self.start(client, resource, discovery)?;
+            self.restart(client, resource, discovery)?;
         }
 
         Ok(self.observer.scope.clone())
@@ -112,7 +112,7 @@ impl ResourceObserver {
     ) -> Result<Scope, BgObserverError> {
         if !self.observer.resource.is_container() || self.observer.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
             let resource = ResourceRef::containers(pod_name, pod_namespace);
-            self.observer.start(client, resource, discovery)?;
+            self.restart(client, resource, discovery)?;
         }
 
         Ok(self.observer.scope.clone())

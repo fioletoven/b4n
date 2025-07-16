@@ -57,6 +57,11 @@ impl ViewsManager {
         }
     }
 
+    /// Displays specified message in the footer.
+    pub fn display_footer_message(&mut self, message: FooterMessage) {
+        self.footer.send_message(message);
+    }
+
     /// Updates page lists with observed resources.
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
