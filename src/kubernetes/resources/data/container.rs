@@ -9,7 +9,7 @@ use crate::{
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, is_terminating: bool) -> ResourceData {
     let image = container["image"].as_str().map(ToOwned::to_owned);
-    let restarts = status.and_then(|s| s.get("restartCount")).and_then(Value::as_u64);
+    let restarts = status.and_then(|s| s.get("restartCount")).and_then(Value::as_i64);
     let ready = status
         .and_then(|s| s.get("ready"))
         .and_then(Value::as_bool)
@@ -35,7 +35,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
     };
 
     let values: [ResourceValue; 5] = [
-        ResourceValue::numeric(restarts.map(|r| r.to_string()), 5),
+        ResourceValue::integer(restarts, 5),
         ready.into(),
         phase.into(),
         is_init_container.into(),
@@ -54,7 +54,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
 /// Returns [`Header`] for the pod's `container`.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::fixed("RESTARTS", 3, true),
             Column::fixed("READY", 7, false),

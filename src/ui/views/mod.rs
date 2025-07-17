@@ -37,6 +37,12 @@ pub trait View {
         self.command_id().is_some_and(|id| id == command_id)
     }
 
+    /// Returns name of the namespace displayed on the view.\
+    /// **Note** that this is used e.g. in side selector to highlight current namespace.
+    fn displayed_namespace(&self) -> &str {
+        ""
+    }
+
     /// Returns `true` if namespaces selector can be displayed on the view.
     fn is_namespaces_selector_allowed(&self) -> bool {
         false
@@ -47,17 +53,21 @@ pub trait View {
         false
     }
 
-    /// Returns name of the namespace displayed on the view.\
-    /// **Note** that this is used e.g. in side selector to highlight current namespace.
-    fn displayed_namespace(&self) -> &str {
-        ""
+    /// Handles event returned by the namespaces' selector.
+    fn handle_namespaces_selector_event(&mut self, event: &ResponseEvent) {
+        let _ = event;
     }
 
-    /// Processes namespace change.
-    fn process_namespace_change(&mut self) {}
+    /// Handles event returned by the resources' selector.
+    fn handle_resources_selector_event(&mut self, event: &ResponseEvent) {
+        let _ = event;
+    }
 
-    /// Processes resource's kind change.
-    fn process_kind_change(&mut self) {}
+    /// Handles a namespace change event.
+    fn handle_namespace_change(&mut self) {}
+
+    /// Handles a resource's kind change event.
+    fn handle_kind_change(&mut self) {}
 
     /// Processes result from the command.
     fn process_command_result(&mut self, result: CommandResult) {

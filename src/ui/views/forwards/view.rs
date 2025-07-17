@@ -11,7 +11,7 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcumbs_namespace},
+        views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterMessage},
     },
 };
@@ -29,12 +29,13 @@ pub struct ForwardsView {
     filter: Filter,
     modal: Dialog,
     footer_tx: UnboundedSender<FooterMessage>,
+    is_closing: bool,
 }
 
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
-        let namespace: Namespace = get_breadcumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
+        let namespace: Namespace = get_breadcrumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
         let view = if namespace.is_all() {
             ViewType::Full
         } else {
@@ -54,16 +55,20 @@ impl ForwardsView {
             filter,
             modal: Dialog::default(),
             footer_tx,
+            is_closing: false,
         }
     }
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                ActionItem::new("stop")
-                    .with_description("stops selected port forwarding rules")
-                    .with_response(ResponseEvent::Action("stop_selected")),
-            );
+            let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
+                .with_close()
+                .with_quit()
+                .with_action(
+                    ActionItem::new("stop")
+                        .with_description("stops selected port forwarding rules")
+                        .with_response(ResponseEvent::Action("stop_selected")),
+                );
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
@@ -131,16 +136,26 @@ impl ForwardsView {
 }
 
 impl View for ForwardsView {
-    fn is_namespaces_selector_allowed(&self) -> bool {
-        true
-    }
-
     fn displayed_namespace(&self) -> &str {
         self.namespace.as_str()
     }
 
-    fn process_namespace_change(&mut self) {
-        self.namespace = get_breadcumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
+    fn is_namespaces_selector_allowed(&self) -> bool {
+        true
+    }
+
+    fn is_resources_selector_allowed(&self) -> bool {
+        true
+    }
+
+    fn handle_resources_selector_event(&mut self, event: &ResponseEvent) {
+        if matches!(event, ResponseEvent::ChangeKind(_)) {
+            self.is_closing = true;
+        }
+    }
+
+    fn handle_namespace_change(&mut self) {
+        self.namespace = get_breadcrumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
         self.list.view = if self.namespace.is_all() {
             ViewType::Full
         } else {
@@ -153,6 +168,10 @@ impl View for ForwardsView {
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
+        if self.is_closing {
+            return ResponseEvent::Cancelled;
+        }
+
         let mut worker = self.worker.borrow_mut();
         if worker.is_port_forward_list_changed() {
             self.list.table.update(worker.get_port_forwards_list(&self.namespace));
@@ -174,9 +193,9 @@ impl View for ForwardsView {
         }
 
         if self.filter.is_visible {
-            let result = self.filter.process_key(key);
+            self.filter.process_key(key);
             self.set_filter();
-            return result;
+            return ResponseEvent::Handled;
         }
 
         if self.modal.is_visible {
@@ -188,10 +207,17 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return self.command_palette.process_key(key).when_action_then("stop_selected", || {
-                self.ask_stop_port_forwards();
-                ResponseEvent::Handled
-            });
+            return match self.command_palette.process_key(key) {
+                ResponseEvent::ChangeKind(kind) => {
+                    self.is_closing = true;
+                    ResponseEvent::ChangeKind(kind)
+                },
+                ResponseEvent::Action("stop_selected") => {
+                    self.ask_stop_port_forwards();
+                    ResponseEvent::Handled
+                },
+                response_event => response_event,
+            };
         }
 
         if self.process_command_palette_events(key) {

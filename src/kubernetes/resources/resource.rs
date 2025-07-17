@@ -3,9 +3,10 @@ use kube::{
     ResourceExt,
     api::{DynamicObject, ObjectMeta},
 };
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
+    kubernetes::resources::CrdColumns,
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -42,8 +43,8 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, object: DynamicObject) -> Self {
-        let data = Some(get_resource_data(kind, &object));
+    pub fn from(kind: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
+        let data = Some(get_resource_data(kind, crd, &object));
         let filter = get_filter_metadata(&object);
 
         Self {
@@ -84,8 +85,8 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str) -> Header {
-        get_header_data(kind)
+    pub fn header(kind: &str, crd: Option<&CrdColumns>) -> Header {
+        get_header_data(kind, crd)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
@@ -123,7 +124,30 @@ impl Row for ResourceItem {
         format!("{1:<0$}", width, truncate(self.name.as_str(), width))
     }
 
-    fn column_text(&self, column: usize) -> &str {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
+        let Some(values) = self.get_extra_values() else {
+            return match column {
+                0 => Cow::Borrowed(self.namespace.as_deref().unwrap_or("n/a")),
+                1 => Cow::Borrowed(self.name.as_str()),
+                2 => Cow::Borrowed(self.age.as_deref().unwrap_or("n/a")),
+                _ => Cow::Borrowed("n/a"),
+            };
+        };
+
+        if column == 0 {
+            Cow::Borrowed(self.namespace.as_deref().unwrap_or("n/a"))
+        } else if column == 1 {
+            Cow::Borrowed(self.name.as_str())
+        } else if column >= 2 && column <= values.len() + 1 {
+            values[column - 2].text()
+        } else if column == values.len() + 2 {
+            Cow::Borrowed(self.age.as_deref().unwrap_or("n/a"))
+        } else {
+            Cow::Borrowed("n/a")
+        }
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
         let Some(values) = self.get_extra_values() else {
             return match column {
                 0 => self.namespace.as_deref().unwrap_or("n/a"),
@@ -138,22 +162,12 @@ impl Row for ResourceItem {
         } else if column == 1 {
             self.name.as_str()
         } else if column >= 2 && column <= values.len() + 1 {
-            values[column - 2].text.as_deref().unwrap_or("n/a")
+            values[column - 2].sort_text()
         } else if column == values.len() + 2 {
             self.age.as_deref().unwrap_or("n/a")
         } else {
             "n/a"
         }
-    }
-
-    fn column_sort_text(&self, column: usize) -> &str {
-        if let Some(values) = self.get_extra_values() {
-            if column >= 2 && column <= values.len() + 1 {
-                return values[column - 2].value();
-            }
-        }
-
-        self.column_text(column)
     }
 }
 

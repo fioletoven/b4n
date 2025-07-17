@@ -1,9 +1,12 @@
+use std::borrow::Cow;
+
 use crate::{
     ui::lists::{BasicFilterContext, Filterable, Row},
     utils::truncate,
 };
 
 /// Represents kubernetes kind.
+#[derive(Clone)]
 pub struct KindItem {
     pub uid: Option<String>,
     pub group: String,
@@ -54,17 +57,22 @@ impl Row for KindItem {
         }
     }
 
-    fn column_text(&self, column: usize) -> &str {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
+        Cow::Borrowed(match column {
+            0 => &self.group,
+            1 => self.name(),
+            2 => &self.version,
+            _ => "n/a",
+        })
+    }
+
+    fn column_sort_text(&self, column: usize) -> &str {
         match column {
             0 => &self.group,
             1 => self.name(),
             2 => &self.version,
             _ => "n/a",
         }
-    }
-
-    fn column_sort_text(&self, column: usize) -> &str {
-        self.column_text(column)
     }
 }
 

@@ -10,17 +10,23 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     core::{PortForwarder, commands::ListResourcePortsCommand},
     kubernetes::{
-        Kind, NAMESPACES, Namespace, ResourceRef, client::KubernetesClient, kinds::KindItem, resources::PODS, utils::get_resource,
+        Kind, NAMESPACES, Namespace, ResourceRef,
+        client::KubernetesClient,
+        kinds::KindItem,
+        resources::{CRDS, CrdColumns, PODS},
+        utils::get_resource,
+        watchers::{BgObserverError, CrdObserver, ResourceObserver},
     },
     ui::{views::PortForwardItem, widgets::FooterMessage},
 };
 
 use super::{
-    BgDiscovery, BgExecutor, BgObserver, BgObserverError, History, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, History, SyntaxData, TaskResult,
     commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
+pub type SharedCrdsList = Rc<RefCell<Vec<CrdColumns>>>;
 
 /// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]
@@ -34,28 +40,33 @@ pub enum BgWorkerError {
     BgObserverError(#[from] BgObserverError),
 }
 
-/// Keeps together all application background workers.
+/// Keeps together all application background tasks.
 pub struct BgWorker {
-    pub namespaces: BgObserver,
-    pub resources: BgObserver,
-    discovery: BgDiscovery,
-    executor: BgExecutor,
+    pub namespaces: ResourceObserver,
+    pub resources: ResourceObserver,
+    crds: CrdObserver,
+    crds_list: SharedCrdsList,
     forwarder: PortForwarder,
+    executor: BgExecutor,
+    discovery: BgDiscovery,
+    discovery_list: Option<Vec<(ApiResource, ApiCapabilities)>>,
     client: Option<KubernetesClient>,
-    list: Option<Vec<(ApiResource, ApiCapabilities)>>,
 }
 
 impl BgWorker {
     /// Creates new [`BgWorker`] instance.
     pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+        let crds_list = Rc::new(RefCell::new(Vec::new()));
         Self {
-            namespaces: BgObserver::new(footer_tx.clone()),
-            resources: BgObserver::new(footer_tx.clone()),
-            discovery: BgDiscovery::new(footer_tx.clone()),
+            namespaces: ResourceObserver::new(Rc::clone(&crds_list), footer_tx.clone()),
+            resources: ResourceObserver::new(Rc::clone(&crds_list), footer_tx.clone()),
+            crds: CrdObserver::new(footer_tx.clone()),
+            crds_list,
+            forwarder: PortForwarder::new(footer_tx.clone()),
             executor: BgExecutor::default(),
-            forwarder: PortForwarder::new(footer_tx),
+            discovery: BgDiscovery::new(footer_tx),
+            discovery_list: None,
             client: None,
-            list: None,
         }
     }
 
@@ -66,16 +77,19 @@ impl BgWorker {
         initial_discovery_list: Vec<(ApiResource, ApiCapabilities)>,
         resource: ResourceRef,
     ) -> Result<Scope, BgWorkerError> {
-        self.list = Some(initial_discovery_list);
+        self.discovery_list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
         let namespaces = Kind::from(NAMESPACES);
-        let discovery = get_resource(self.list.as_ref(), &namespaces);
+        let discovery = get_resource(self.discovery_list.as_ref(), &namespaces);
         self.namespaces
             .start(&client, ResourceRef::new(namespaces, Namespace::default()), discovery)?;
 
-        let discovery = get_resource(self.list.as_ref(), &resource.kind);
+        let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
         let scope = self.resources.start(&client, resource, discovery)?;
+
+        let discovery = get_resource(self.discovery_list.as_ref(), &Kind::from(CRDS));
+        self.crds.start(&client, discovery)?;
 
         self.client = Some(client);
 
@@ -85,7 +99,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource and namespace.
     pub fn restart(&mut self, resource: ResourceRef) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), &resource.kind);
+            let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
             Ok(self.resources.restart(client, resource, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -95,7 +109,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource kind.
     pub fn restart_new_kind(&mut self, kind: Kind, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), &kind);
+            let discovery = get_resource(self.discovery_list.as_ref(), &kind);
             Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
@@ -105,9 +119,9 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let mut discovery = get_resource(self.list.as_ref(), self.resources.get_resource_kind());
+            let mut discovery = get_resource(self.discovery_list.as_ref(), self.resources.get_resource_kind());
             if discovery.is_none() {
-                discovery = get_resource(self.list.as_ref(), &PODS.into());
+                discovery = get_resource(self.discovery_list.as_ref(), &PODS.into());
             }
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
         } else {
@@ -118,7 +132,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to show pod containers.
     pub fn restart_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), &PODS.into());
+            let discovery = get_resource(self.discovery_list.as_ref(), &PODS.into());
             Ok(self
                 .resources
                 .restart_containers(client, pod_name, pod_namespace, discovery)?)
@@ -132,6 +146,7 @@ impl BgWorker {
         self.namespaces.stop();
         self.resources.stop();
         self.discovery.stop();
+        self.crds.stop();
         self.forwarder.stop_all();
     }
 
@@ -141,6 +156,7 @@ impl BgWorker {
         self.resources.stop();
         self.executor.stop_all();
         self.discovery.stop();
+        self.crds.stop();
         self.forwarder.stop_all();
     }
 
@@ -150,6 +166,7 @@ impl BgWorker {
         self.resources.cancel();
         self.executor.cancel_all();
         self.discovery.cancel();
+        self.crds.cancel();
         self.forwarder.stop_all();
     }
 
@@ -160,7 +177,7 @@ impl BgWorker {
 
     /// Returns list of discovered kubernetes kinds.
     pub fn get_kinds_list(&self) -> Option<Vec<KindItem>> {
-        self.list.as_ref().map(|discovery| {
+        self.discovery_list.as_ref().map(|discovery| {
             discovery
                 .iter()
                 .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
@@ -195,11 +212,22 @@ impl BgWorker {
     pub fn update_discovery_list(&mut self) -> bool {
         let discovery = self.discovery.try_next();
         if discovery.is_some() {
-            self.list = discovery;
+            self.discovery_list = discovery;
             true
         } else {
             false
         }
+    }
+
+    /// Returns `true` if CRDs list is ready.
+    pub fn is_crds_list_ready(&self) -> bool {
+        self.crds.is_ready()
+    }
+
+    /// Updates CRDs list.
+    pub fn update_crds_list(&mut self) {
+        let mut list = self.crds_list.borrow_mut();
+        self.crds.update_list(&mut list);
     }
 
     /// Sends the provided command to the background executor.
@@ -242,7 +270,7 @@ impl BgWorker {
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
     pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind) {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), kind);
+            let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
         }
@@ -251,7 +279,7 @@ impl BgWorker {
     /// Sends [`ListResourcePortsCommand`] to the background executor.
     pub fn list_resource_ports(&mut self, resource: ResourceRef) {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), &resource.kind);
+            let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
             let command = ListResourcePortsCommand::new(resource, discovery, client.get_client());
             self.executor.run_task(Command::ListResourcePorts(Box::new(command)));
         }
@@ -267,7 +295,7 @@ impl BgWorker {
         decode: bool,
     ) -> Option<String> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.list.as_ref(), kind);
+            let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = if decode {
                 GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), syntax)
             } else {

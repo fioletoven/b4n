@@ -27,7 +27,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `service` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([
             Column::bound("TYPE", 8, 12, false),
             Column::bound("CLUSTER-IP", 11, 16, false),

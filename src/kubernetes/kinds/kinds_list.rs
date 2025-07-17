@@ -35,6 +35,14 @@ impl KindsList {
             self.list.sort(sort_by, is_descending);
         }
     }
+
+    /// Returns cloned [`KindItem`]s as a vector.
+    pub fn to_vec(&self) -> Option<Vec<KindItem>> {
+        self.list
+            .items
+            .as_ref()
+            .map(|list| list.full_iter().map(|i| i.data.clone()).collect())
+    }
 }
 
 impl Responsive for KindsList {

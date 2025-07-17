@@ -1,5 +1,5 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use std::sync::atomic::Ordering;
+use std::{borrow::Cow, sync::atomic::Ordering};
 
 use crate::{
     core::PortForwardTask,
@@ -81,8 +81,8 @@ impl Row for PortForwardItem {
         format!("{1:<0$}", width, truncate(self.name.as_str(), width))
     }
 
-    fn column_text(&self, column: usize) -> &str {
-        match column {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
+        Cow::Borrowed(match column {
             0 => self.group(),
             1 => self.name(),
             2 => self.bind_address.as_str(),
@@ -92,7 +92,7 @@ impl Row for PortForwardItem {
             6 => self.overall.as_str(),
             7 => self.age.as_deref().unwrap_or("n/a"),
             _ => "n/a",
-        }
+        })
     }
 
     fn column_sort_text(&self, column: usize) -> &str {

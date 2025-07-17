@@ -4,7 +4,6 @@ pub use self::data::*;
 pub use self::discovery::BgDiscovery;
 pub use self::forwarder::*;
 pub use self::managers::*;
-pub use self::observer::*;
 pub use self::tasks::*;
 pub use self::worker::*;
 
@@ -17,6 +16,5 @@ mod configuration;
 mod data;
 mod forwarder;
 mod managers;
-mod observer;
 mod tasks;
 mod worker;

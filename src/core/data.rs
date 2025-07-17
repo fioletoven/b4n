@@ -3,11 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
-    kubernetes::{Kind, Namespace},
+    kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
     ui::theme::Theme,
 };
 
-use super::{Config, History, InitData};
+use super::{Config, History};
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 
@@ -119,6 +119,9 @@ pub struct AppData {
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
 
+    /// Holds all discovered kinds.
+    pub kinds: Option<Vec<KindItem>>,
+
     /// Syntax set for syntax highlighting.
     pub syntax_set: SyntaxSet,
 
@@ -134,6 +137,7 @@ impl AppData {
             history,
             theme,
             current: ResourcesInfo::default(),
+            kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             is_connected: false,
         }

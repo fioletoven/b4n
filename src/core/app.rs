@@ -9,7 +9,12 @@ use std::{
 use crate::{
     core::ViewsManager,
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
+    ui::{
+        ResponseEvent, Tui, TuiEvent,
+        theme::Theme,
+        views::ResourcesView,
+        widgets::{Footer, FooterMessage},
+    },
 };
 
 use super::{
@@ -116,8 +121,16 @@ impl App {
         }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
-            if self.process_event(event)? == ResponseEvent::ExitApplication {
-                return Ok(ExecutionFlow::Stop);
+            match self.process_event(event) {
+                Ok(response) => {
+                    if response == ResponseEvent::ExitApplication {
+                        return Ok(ExecutionFlow::Stop);
+                    }
+                },
+                Err(error) => {
+                    self.views_manager
+                        .display_footer_message(FooterMessage::error(error.to_string(), 0));
+                },
             }
         }
 
@@ -185,8 +198,8 @@ impl App {
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) || self.data.borrow().current.kind != kind {
-            self.views_manager.process_kind_change(None);
-            self.views_manager.process_namespace_change(namespace.clone());
+            self.views_manager.handle_kind_change(None);
+            self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), Some(scope));
@@ -203,9 +216,9 @@ impl App {
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind.as_str() == NAMESPACES {
                 let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
-                self.views_manager.process_kind_change(to_select);
+                self.views_manager.handle_kind_change(to_select);
             } else {
-                self.views_manager.process_kind_change(to_select);
+                self.views_manager.handle_kind_change(to_select);
             }
             self.process_resources_change(Some(kind.into()), None, Some(scope));
         }
@@ -217,7 +230,7 @@ impl App {
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
             self.process_resources_change(None, Some(namespace.clone().into()), None);
-            self.views_manager.process_namespace_change(namespace.clone());
+            self.views_manager.handle_namespace_change(namespace.clone());
             self.worker.borrow_mut().restart_new_namespace(namespace)?;
         }
 

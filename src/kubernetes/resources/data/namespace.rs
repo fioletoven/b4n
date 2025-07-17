@@ -26,7 +26,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 /// Returns [`Header`] for the `namespace` kubernetes resource.
 pub fn header() -> Header {
     Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(Box::new([Column::bound("STATUS", 10, 20, false)])),
         Rc::new([' ', 'N', 'S', 'A']),
     )

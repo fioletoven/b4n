@@ -1,5 +1,5 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use std::marker::PhantomData;
+use std::{borrow::Cow, marker::PhantomData};
 
 use crate::{
     ui::{
@@ -41,7 +41,7 @@ pub trait Row {
     }
 
     /// Returns text value for the specified column number.
-    fn column_text(&self, column: usize) -> &str;
+    fn column_text(&self, column: usize) -> Cow<'_, str>;
 
     /// Returns text value for the specified column number that can be properly sorted.
     fn column_sort_text(&self, column: usize) -> &str;
@@ -135,7 +135,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Item<T, Fc> {
     }
 
     fn get_full_text(&self, row: &mut String, header: &Header, namespace_width: usize, name_width: usize) {
-        row.push_cell(self.data.column_text(0), namespace_width, false);
+        row.push_cell(self.data.column_text(0).as_ref(), namespace_width, false);
         row.push(' ');
         self.get_compact_text(row, header, name_width);
     }
@@ -150,7 +150,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Item<T, Fc> {
                 row.push(' ');
             }
 
-            row.push_cell(self.data.column_text(i + 2), columns[i].len(), columns[i].to_right);
+            let len = if i == 0 && columns[i].to_right {
+                columns[i].data_len
+            } else {
+                columns[i].len()
+            };
+
+            row.push_cell(self.data.column_text(i + 2).as_ref(), len, columns[i].to_right);
         }
     }
 }
@@ -175,7 +181,7 @@ pub trait RowStringExtensions {
 
 impl RowStringExtensions for String {
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
-        if len == 0 || s.is_empty() {
+        if len == 0 {
             return;
         }
 

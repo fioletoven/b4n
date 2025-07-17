@@ -1,6 +1,6 @@
-use std::cmp::max;
+use std::{borrow::Cow, cmp::max};
 
-use crate::utils::truncate;
+use crate::{kubernetes::resources::CrdColumn, utils::truncate};
 
 #[cfg(test)]
 #[path = "./column.tests.rs"]
@@ -10,7 +10,7 @@ pub const AGE_COLUMN_WIDTH: usize = 6;
 
 /// Default `NAMESPACE` column.
 pub const NAMESPACE: Column = Column {
-    name: "NAMESPACE",
+    name: Cow::Borrowed("NAMESPACE"),
     is_fixed: false,
     to_right: false,
     is_sorted: false,
@@ -22,7 +22,7 @@ pub const NAMESPACE: Column = Column {
 
 /// Default `NAME` column.
 pub const NAME: Column = Column {
-    name: "NAME",
+    name: Cow::Borrowed("NAME"),
     is_fixed: false,
     to_right: false,
     is_sorted: true,
@@ -34,7 +34,7 @@ pub const NAME: Column = Column {
 
 /// Default `AGE` column.
 pub const AGE: Column = Column {
-    name: "AGE",
+    name: Cow::Borrowed("AGE"),
     is_fixed: true,
     to_right: true,
     is_sorted: false,
@@ -47,7 +47,7 @@ pub const AGE: Column = Column {
 /// Column for the list header.
 #[derive(Clone)]
 pub struct Column {
-    pub name: &'static str,
+    pub name: Cow<'static, str>,
     pub is_fixed: bool,
     pub to_right: bool,
     pub is_sorted: bool,
@@ -60,43 +60,62 @@ pub struct Column {
 impl Column {
     /// Creates new [`Column`] instance.
     pub fn new(name: &'static str) -> Self {
+        let len = name.chars().count();
         Self {
-            name,
+            name: Cow::Borrowed(name),
             is_fixed: false,
             to_right: false,
             is_sorted: false,
             has_reversed_order: false,
-            data_len: name.chars().count(),
-            min_len: name.chars().count(),
-            max_len: name.chars().count(),
+            data_len: len,
+            min_len: len,
+            max_len: len,
         }
     }
 
     /// Creates new [`Column`] instance bound with provided lengths.
     pub fn bound(name: &'static str, min_len: usize, max_len: usize, to_right: bool) -> Self {
+        let len = name.chars().count();
         Self {
-            name,
+            name: Cow::Borrowed(name),
             is_fixed: false,
             to_right,
             is_sorted: false,
             has_reversed_order: false,
-            data_len: name.chars().count(),
-            min_len: max(name.chars().count(), min_len),
-            max_len: max(name.chars().count(), max_len),
+            data_len: len,
+            min_len: max(len, min_len),
+            max_len: max(len, max_len),
         }
     }
 
     /// Creates new fixed size [`Column`] instance.
     pub fn fixed(name: &'static str, len: usize, to_right: bool) -> Self {
+        let constrained_len = max(name.chars().count(), len);
         Self {
-            name,
+            name: Cow::Borrowed(name),
             is_fixed: true,
             to_right,
             is_sorted: false,
             has_reversed_order: false,
             data_len: len,
-            min_len: max(name.chars().count(), len),
-            max_len: max(name.chars().count(), len),
+            min_len: constrained_len,
+            max_len: constrained_len,
+        }
+    }
+
+    /// Creates new [`Column`] instance from custom resource column definition.
+    pub fn from(column: &CrdColumn) -> Self {
+        let min_len = column.name.chars().count().clamp(10, 20);
+
+        Self {
+            name: Cow::Owned(column.name.to_uppercase()),
+            is_fixed: false,
+            to_right: column.field_type != "string",
+            is_sorted: false,
+            has_reversed_order: column.field_type == "date",
+            data_len: 10,
+            min_len,
+            max_len: 50,
         }
     }
 
@@ -116,11 +135,7 @@ impl Column {
     /// Returns the current length of a [`Column`].
     #[inline]
     pub fn len(&self) -> usize {
-        if self.is_fixed {
-            self.data_len
-        } else {
-            self.data_len.clamp(self.min_len(), self.max_len())
-        }
+        self.data_len.clamp(self.min_len(), self.max_len())
     }
 
     /// Returns `true` if [`Column`] has a current length of zero bytes.
@@ -167,7 +182,7 @@ impl ColumnStringExtensions for String {
             (0..padding_len).for_each(|_| self.push(' '));
         }
 
-        for ch in truncate(column.name, len - usize::from(column.is_sorted)).chars() {
+        for ch in truncate(column.name.as_ref(), len - usize::from(column.is_sorted)).chars() {
             self.push(if ch == ' ' { ' ' } else { ch });
         }
 

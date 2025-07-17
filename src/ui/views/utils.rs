@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
-pub fn get_breadcumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a str {
+pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a str {
     if data.scope == Scope::Namespaced || kind == PODS {
         let force_all = kind != PODS && data.is_all_namespace();
         let namespace = if force_all { ALL_NAMESPACES } else { data.namespace.as_str() };
@@ -35,7 +35,7 @@ pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, 
     if data.scope == Scope::Namespaced || kind == PODS {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-            Span::styled(format!(" {} ", get_breadcumbs_namespace(data, kind)), &colors.namespace),
+            Span::styled(format!(" {} ", get_breadcrumbs_namespace(data, kind)), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {

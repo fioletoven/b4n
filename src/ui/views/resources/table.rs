@@ -8,10 +8,11 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{ObserverResult, ResourcesInfo, SharedAppData},
+    core::{ResourcesInfo, SharedAppData},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
+        watchers::ObserverResult,
     },
     ui::{
         Responsive, Table, ViewType,
@@ -141,7 +142,7 @@ impl ResourcesTable {
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
-    pub fn update_resources_list(&mut self, result: ObserverResult) {
+    pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         if matches!(result, ObserverResult::InitDone) {
             if let Some(name) = self.highlight_next.as_deref() {
                 self.list.table.highlight_item_by_name(name);

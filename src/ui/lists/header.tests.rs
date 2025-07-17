@@ -15,12 +15,12 @@ fn get_widths_test() {
 
 #[test]
 fn get_full_widths_test() {
-    assert_eq!((4, 6, 0), Header::default().get_full_widths(0));
-    assert_eq!((4, 6, 0), Header::default().get_full_widths(10));
-    assert_eq!((4, 6, 0), Header::default().get_full_widths(20));
-    assert_eq!((4, 7, 0), Header::default().get_full_widths(21));
-    assert_eq!((4, 11, 0), Header::default().get_full_widths(25));
-    assert_eq!((4, 16, 0), Header::default().get_full_widths(30));
+    assert_eq!((11, 6, 0), Header::default().get_full_widths(0));
+    assert_eq!((11, 6, 0), Header::default().get_full_widths(10));
+    assert_eq!((11, 6, 0), Header::default().get_full_widths(27));
+    assert_eq!((11, 7, 0), Header::default().get_full_widths(28));
+    assert_eq!((11, 9, 0), Header::default().get_full_widths(30));
+    assert_eq!((11, 14, 0), Header::default().get_full_widths(35));
 }
 
 #[test]
@@ -60,11 +60,12 @@ fn get_text_compact_test() {
 #[test]
 fn get_text_full_test() {
     let test_cases = vec![
-        (" N/A NAM", 8),
-        (" N/A NAME↑     ", 15),
-        (" N/A NAME↑      AGE ", 0),
-        (" N/A NAME↑      AGE ", 20),
-        (" N/A NAME↑        AGE ", 22),
+        (" NAMESPA", 8),
+        (" NAMESPACE  NAM", 15),
+        (" NAMESPACE  NAME↑     ", 22),
+        (" NAMESPACE  NAME↑      AGE ", 0),
+        (" NAMESPACE  NAME↑      AGE ", 27),
+        (" NAMESPACE  NAME↑        AGE ", 29),
     ];
 
     let mut header = Header::default();
@@ -106,7 +107,7 @@ fn get_text_extra_columns_sized_test() {
     ];
 
     let mut header = Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(vec![Column::fixed("FIRST", 10, false), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
         Rc::new([]),
     );
@@ -130,7 +131,7 @@ fn get_text_extra_columns_to_right_test() {
     ];
 
     let mut header = Header::from(
-        NAMESPACE.clone(),
+        NAMESPACE,
         Some(vec![Column::fixed("FIRST", 10, true), Column::bound("SECOND", 7, 10, false)].into_boxed_slice()),
         Rc::new([]),
     );
