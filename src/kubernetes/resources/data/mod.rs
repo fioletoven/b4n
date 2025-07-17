@@ -129,13 +129,12 @@ impl ResourceValue {
     }
 
     /// Returns resource text.
-    pub fn text<'a>(&'a self) -> Cow<'a, str> {
+    pub fn text(&self) -> Cow<'_, str> {
         if self.is_time {
             Cow::Owned(
                 self.time
                     .as_ref()
-                    .map(crate::kubernetes::utils::format_timestamp)
-                    .unwrap_or("n/a".to_owned()),
+                    .map_or("n/a".to_owned(), crate::kubernetes::utils::format_timestamp),
             )
         } else {
             Cow::Borrowed(self.text.as_deref().unwrap_or("n/a"))

@@ -15,8 +15,8 @@ pub struct CrdColumns {
 impl CrdColumns {
     /// Creates new [`CrdColumns`] instance from [`DynamicObject`] resource.\
     /// **Note** that it skips default columns that will be shown anyway.
-    pub fn from(object: DynamicObject) -> Self {
-        let columns = get_stored_version(&object)
+    pub fn from(object: &DynamicObject) -> Self {
+        let columns = get_stored_version(object)
             .and_then(|v| v.get("additionalPrinterColumns"))
             .and_then(|c| c.as_array())
             .map(|c| {
@@ -75,12 +75,12 @@ fn get_stored_version(object: &DynamicObject) -> Option<&Value> {
 }
 
 fn is_stored_version(version: &Value) -> bool {
-    version.get("served").and_then(|s| s.as_bool()).unwrap_or_default()
-        && version.get("storage").and_then(|s| s.as_bool()).unwrap_or_default()
+    version.get("served").and_then(Value::as_bool).unwrap_or_default()
+        && version.get("storage").and_then(Value::as_bool).unwrap_or_default()
 }
 
 fn get_integer(value: &Value, field_name: &str) -> i64 {
-    value.get(field_name).and_then(|n| n.as_i64()).unwrap_or_default()
+    value.get(field_name).and_then(Value::as_i64).unwrap_or_default()
 }
 
 fn get_string(value: &Value, field_name: &str) -> String {

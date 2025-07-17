@@ -57,8 +57,8 @@ impl CrdObserver {
             match *item {
                 ObserverResult::Init(_) => list.clear(),
                 ObserverResult::InitDone => (),
-                ObserverResult::Apply(item) => apply(list, item),
-                ObserverResult::Delete(item) => delete(list, item),
+                ObserverResult::Apply(item) => apply(list, &item),
+                ObserverResult::Delete(item) => delete(list, &item),
             }
         }
 
@@ -66,7 +66,7 @@ impl CrdObserver {
     }
 }
 
-fn apply(list: &mut Vec<CrdColumns>, item: DynamicObject) {
+fn apply(list: &mut Vec<CrdColumns>, item: &DynamicObject) {
     let item = CrdColumns::from(item);
     if let Some(position) = position(list, &item) {
         list[position] = item;
@@ -75,7 +75,7 @@ fn apply(list: &mut Vec<CrdColumns>, item: DynamicObject) {
     }
 }
 
-fn delete(list: &mut Vec<CrdColumns>, item: DynamicObject) {
+fn delete(list: &mut Vec<CrdColumns>, item: &DynamicObject) {
     let item = CrdColumns::from(item);
     if let Some(position) = position(list, &item) {
         list.remove(position);

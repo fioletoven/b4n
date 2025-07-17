@@ -41,7 +41,7 @@ pub trait Row {
     }
 
     /// Returns text value for the specified column number.
-    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str>;
+    fn column_text(&self, column: usize) -> Cow<'_, str>;
 
     /// Returns text value for the specified column number that can be properly sorted.
     fn column_sort_text(&self, column: usize) -> &str;

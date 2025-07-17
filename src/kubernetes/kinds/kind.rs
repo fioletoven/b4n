@@ -57,7 +57,7 @@ impl Row for KindItem {
         }
     }
 
-    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(match column {
             0 => &self.group,
             1 => self.name(),

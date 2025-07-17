@@ -15,17 +15,16 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 As the project is in its early stages, the following features are currently supported:
 
 - View a list of Kubernetes resources.
+- Delete selected resources.
 - Display the YAML configuration of the highlighted resource.
 - View logs for the highlighted container.
 - Open a shell session in the highlighted container.
-- Delete selected resources.
 - Enable port forwarding for the highlighted container.
 
 ### Planned
 
 The following features are planned for future development:
 
-- Display columns defined in custom resources.
 - Search within YAML configurations and logs.
 - View combined logs for all containers in a pod.
 - Edit Kubernetes resources (YAML).

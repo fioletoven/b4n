@@ -170,7 +170,7 @@ impl ResourceObserver {
     }
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
-        let kind = self.observer.init.as_ref().map(|i| i.kind.as_str()).unwrap_or("");
+        let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
         let result = ObserverResult::new(ResourceItem::from(kind, self.crd.as_ref(), object), is_delete);
         self.queue.push_back(Box::new(result));
     }
@@ -178,7 +178,7 @@ impl ResourceObserver {
     fn init_crd_kind(&mut self, init_data: &mut InitData) {
         let kind = Kind::new(&init_data.kind_plural, &init_data.group);
         self.crd = self.crds.borrow().iter().find(|i| i.name == kind.as_str()).cloned();
-        init_data.crd = self.crd.clone();
+        init_data.crd.clone_from(&self.crd);
     }
 }
 

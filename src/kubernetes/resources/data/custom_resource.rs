@@ -11,7 +11,7 @@ use crate::{
 pub fn data(crd: &CrdColumns, object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let extra_values = if crd.has_metadata_pointer {
-        // we need to serialize DynamicObject as metadata part is not directly accesible using pointer method
+        // we need to serialize DynamicObject as metadata part is not directly accessible using pointer method
         if let Ok(value) = to_value(object) {
             get_data(crd, &value)
         } else {
@@ -47,7 +47,7 @@ pub fn header(crd: &CrdColumns) -> Header {
 }
 
 fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
-    let mut data = Vec::with_capacity(crd.columns.as_ref().map(|c| c.len()).unwrap_or_default());
+    let mut data = Vec::with_capacity(crd.columns.as_ref().map(Vec::len).unwrap_or_default());
     if let Some(columns) = &crd.columns {
         for column in columns {
             if let Some(value) = object_data.pointer(&column.pointer) {

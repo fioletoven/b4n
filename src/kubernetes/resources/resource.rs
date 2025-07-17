@@ -124,7 +124,7 @@ impl Row for ResourceItem {
         format!("{1:<0$}", width, truncate(self.name.as_str(), width))
     }
 
-    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
         let Some(values) = self.get_extra_values() else {
             return match column {
                 0 => Cow::Borrowed(self.namespace.as_deref().unwrap_or("n/a")),

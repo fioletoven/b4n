@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.7 - 2025-07-17
+
+### Features
+
+- display columns defined in custom resources
+
 ## 0.1.6 - 2025-07-01
 
 ### Features

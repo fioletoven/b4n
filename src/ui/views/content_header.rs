@@ -92,10 +92,10 @@ impl ContentHeader {
     /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
     fn get_path(&self) -> Line {
         let colors = &self.app_data.borrow().theme.colors.header;
-        let title = if self.icon != ' ' {
-            format!(" {} {} ", self.title, self.icon)
-        } else {
+        let title = if self.icon == ' ' {
             format!(" {} ", self.title)
+        } else {
+            format!(" {} {} ", self.title, self.icon)
         };
 
         let mut path = vec![

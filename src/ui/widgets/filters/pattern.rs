@@ -77,7 +77,7 @@ impl Row for PatternItem {
         format!("{1:<0$} [TAB to insert]", width, truncate(&self.value, width))
     }
 
-    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(match column {
             0 => "n/a",
             1 => &self.value,

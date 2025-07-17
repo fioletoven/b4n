@@ -81,7 +81,7 @@ impl Row for PortForwardItem {
         format!("{1:<0$}", width, truncate(self.name.as_str(), width))
     }
 
-    fn column_text<'a>(&'a self, column: usize) -> Cow<'a, str> {
+    fn column_text(&self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(match column {
             0 => self.group(),
             1 => self.name(),
