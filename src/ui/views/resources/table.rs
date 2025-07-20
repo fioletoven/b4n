@@ -147,6 +147,8 @@ impl ResourcesTable {
             if let Some(name) = self.highlight_next.as_deref() {
                 self.list.table.highlight_item_by_name(name);
                 self.highlight_next = None;
+            } else {
+                self.list.table.highlight_first_item();
             }
         }
 
@@ -191,6 +193,10 @@ impl ResourcesTable {
 
                 if key.code == KeyCode::Char('s') {
                     return self.process_open_shell(highlighted_resource);
+                }
+
+                if key.code == KeyCode::Char('y') {
+                    return self.process_view_yaml(highlighted_resource, false);
                 }
             } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
                 return self.process_view_yaml(highlighted_resource, key.code == KeyCode::Char('x'));
