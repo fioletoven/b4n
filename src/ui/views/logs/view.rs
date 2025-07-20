@@ -1,6 +1,8 @@
+use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect, style::Style};
 use std::rc::Rc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::SharedAppData,
@@ -12,7 +14,7 @@ use crate::{
             View,
             content::{Content, ContentViewer, StyledLine},
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage},
     },
 };
 
@@ -29,6 +31,7 @@ pub struct LogsView {
     observer: LogsObserver,
     command_palette: CommandPalette,
     bound_to_bottom: bool,
+    footer_tx: UnboundedSender<FooterMessage>,
 }
 
 impl LogsView {
@@ -40,6 +43,7 @@ impl LogsView {
         pod_namespace: Namespace,
         pod_container: Option<String>,
         previous: bool,
+        footer_tx: UnboundedSender<FooterMessage>,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
             name: pod_name.clone(),
@@ -64,16 +68,25 @@ impl LogsView {
             observer,
             command_palette: CommandPalette::default(),
             bound_to_bottom: true,
+            footer_tx,
         })
     }
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                ActionItem::new("timestamps")
-                    .with_description("toggles the display of timestamps")
-                    .with_response(ResponseEvent::Action("timestamps")),
-            );
+            let builder = ActionsListBuilder::default()
+                .with_close()
+                .with_quit()
+                .with_action(
+                    ActionItem::new("timestamps")
+                        .with_description("toggles the display of timestamps")
+                        .with_response(ResponseEvent::Action("timestamps")),
+                )
+                .with_action(
+                    ActionItem::new("copy")
+                        .with_description("copies logs to the clipboard")
+                        .with_response(ResponseEvent::Action("copy")),
+                );
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
@@ -92,6 +105,38 @@ impl LogsView {
             }
 
             self.logs.reset_horizontal_scroll();
+        }
+    }
+
+    fn copy_logs_to_clipboard(&self) {
+        if self.logs.content().is_some() {
+            let result: Result<ClipboardContext, _> = ClipboardProvider::new();
+            if let Ok(mut ctx) = result
+                && ctx.set_contents(self.get_logs_as_string()).is_ok()
+            {
+                self.footer_tx
+                    .send(FooterMessage::info(" resource's logs copied to the clipboard…", 1_500))
+                    .unwrap();
+            }
+        }
+    }
+
+    fn get_logs_as_string(&self) -> String {
+        if let Some(content) = self.logs.content() {
+            let mut result = String::new();
+            for line in &content.lines {
+                if content.show_timestamps {
+                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                    result.push(' ');
+                }
+
+                result.push_str(&line.message);
+                result.push('\n');
+            }
+
+            result
+        } else {
+            String::default()
         }
     }
 }
@@ -163,6 +208,11 @@ impl View for LogsView {
 
         if key.code == KeyCode::Char('t') {
             self.toggle_timestamps();
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('c') {
+            self.copy_logs_to_clipboard();
             return ResponseEvent::Handled;
         }
 

@@ -88,6 +88,11 @@ impl<T: Content> ContentViewer<T> {
         self.max_width = max_width;
     }
 
+    /// Returns content as reference.
+    pub fn content(&self) -> Option<&T> {
+        self.content.as_ref()
+    }
+
     /// Returns content as mutable reference.
     pub fn content_mut(&mut self) -> Option<&mut T> {
         self.content.as_mut()

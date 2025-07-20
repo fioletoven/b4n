@@ -290,6 +290,7 @@ impl ViewsManager {
                 resource.namespace,
                 resource.container,
                 previous,
+                self.footer.get_messages_sender(),
             ) {
                 self.view = Some(Box::new(view));
             }

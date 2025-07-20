@@ -54,7 +54,7 @@ impl YamlView {
         }
     }
 
-    fn copy_yaml_to_clipboard(&mut self) {
+    fn copy_yaml_to_clipboard(&self) {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
         if let Ok(mut ctx) = result
             && ctx.set_contents(self.lines.join("")).is_ok()
