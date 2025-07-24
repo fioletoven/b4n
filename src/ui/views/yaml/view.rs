@@ -13,19 +13,20 @@ use crate::{
             View,
             content::{Content, ContentViewer, StyledLine},
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage, Search},
     },
 };
 
 /// YAML view.
 pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
+    lines: Vec<String>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
-    lines: Vec<String>,
     is_decoded: bool,
     command_id: Option<String>,
     command_palette: CommandPalette,
+    search: Search,
     footer_tx: UnboundedSender<FooterMessage>,
 }
 
@@ -41,15 +42,17 @@ impl YamlView {
         footer_tx: UnboundedSender<FooterMessage>,
     ) -> Self {
         let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind, name, None);
+        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
 
         Self {
             yaml,
+            lines: Vec::new(),
             app_data,
             worker,
-            lines: Vec::new(),
             is_decoded: false,
             command_id,
             command_palette: CommandPalette::default(),
+            search,
             footer_tx,
         }
     }
@@ -143,8 +146,16 @@ impl View for YamlView {
             return response;
         }
 
+        if self.search.is_visible {
+            return self.search.process_key(key);
+        }
+
         if self.process_command_palette_events(key) {
             return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('/') {
+            self.search.show();
         }
 
         if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
@@ -167,6 +178,7 @@ impl View for YamlView {
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.yaml.draw(frame, area);
         self.command_palette.draw(frame, frame.area());
+        self.search.draw(frame, frame.area());
     }
 }
 

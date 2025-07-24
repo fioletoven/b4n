@@ -20,6 +20,7 @@ pub struct ContextInfo {
     pub namespace: String,
     pub kind: String,
     pub filter_history: Vec<String>,
+    pub search_history: Vec<String>,
 }
 
 impl ContextInfo {
@@ -38,6 +39,7 @@ impl ContextInfo {
             namespace: info.namespace.as_str().into(),
             kind: info.kind.as_str().to_owned(),
             filter_history: Vec::new(),
+            search_history: Vec::new(),
         }
     }
 
@@ -72,6 +74,8 @@ impl KubeConfig {
         }
     }
 }
+
+static EMPTY_LIST: Vec<String> = Vec::new();
 
 /// Application history.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -168,23 +172,43 @@ impl History {
         }
     }
 
-    /// Gets copy of `filter_history` from the specified `context` of the current kube config.
-    pub fn get_filter_history(&mut self, context: &str) -> Vec<String> {
-        if let Some(config) = self.current_config_mut() {
-            if let Some(index) = config.contexts.iter().position(|c| c.name == context) {
-                return config.contexts[index].filter_history.clone();
-            }
+    /// Gets `filter_history` from the specified `context` of the current kube config.
+    pub fn get_filter_history(&mut self, context: &str) -> &[String] {
+        if let Some(config) = self.current_config_mut()
+            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
+        {
+            &config.contexts[index].filter_history
+        } else {
+            &EMPTY_LIST
         }
-
-        Vec::new()
     }
 
     /// Updates `filter_history` in the specified `context` of the current kube config.
     pub fn update_filter_history(&mut self, context: &str, filter_history: Vec<String>) {
-        if let Some(config) = self.current_config_mut() {
-            if let Some(index) = config.contexts.iter().position(|c| c.name == context) {
-                config.contexts[index].filter_history = filter_history;
-            }
+        if let Some(config) = self.current_config_mut()
+            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
+        {
+            config.contexts[index].filter_history = filter_history;
+        }
+    }
+
+    /// Gets `search_history` from the specified `context` of the current kube config.
+    pub fn get_search_history(&mut self, context: &str) -> &[String] {
+        if let Some(config) = self.current_config_mut()
+            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
+        {
+            &config.contexts[index].search_history
+        } else {
+            &EMPTY_LIST
+        }
+    }
+
+    /// Updates `search_history` in the specified `context` of the current kube config.
+    pub fn update_search_history(&mut self, context: &str, search_history: Vec<String>) {
+        if let Some(config) = self.current_config_mut()
+            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
+        {
+            config.contexts[index].search_history = search_history;
         }
     }
 

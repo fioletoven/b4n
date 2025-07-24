@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::ui::{
     ResponseEvent, Responsive, Table, ViewType,
     colors::TextColors,
-    lists::{BasicFilterContext, ScrollableList},
+    lists::{BasicFilterContext, FilterableList, ScrollableList},
     theme::Theme,
 };
 
@@ -18,22 +18,50 @@ pub struct PatternsList {
 
 impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
-    pub fn from(filter_history: Vec<String>) -> Self {
-        let mut list = ScrollableList::from(filter_history.into_iter().map(PatternItem::from).collect());
+    pub fn from(filter_history: &[String]) -> Self {
+        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.as_str().into()).collect());
         list.sort(1, false);
         Self { list }
     }
 
+    /// Adds the pattern to the list if it does not already exist. Ensures the list does not exceed `max_list_size`.\
+    /// Returns `true` if the pattern was added to the list.
+    pub fn add(&mut self, pattern: PatternItem, max_list_size: usize) -> bool {
+        if !pattern.value.is_empty() && !self.contains(&pattern) {
+            self.list.push(pattern);
+
+            let len = self.list.items.as_ref().map(FilterableList::full_len);
+            if len.unwrap_or_default() > max_list_size {
+                self.remove_oldest();
+            }
+
+            self.list.sort(1, false);
+
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Returns [`PatternsList`] as a vector of strings that can be saved in the app history data.
+    pub fn to_vec(&self) -> Vec<String> {
+        if let Some(list) = &self.list.items {
+            list.full_iter().map(|i| i.data.to_string()).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Returns `true` if the [`PatternsList`] contains an element with the given value.
-    pub fn contains(&self, value: &str) -> bool {
+    fn contains(&self, pattern: &PatternItem) -> bool {
         self.list
             .items
             .as_ref()
-            .is_some_and(|l| l.full_iter().any(|i| i.data.value == value))
+            .is_some_and(|l| l.full_iter().any(|i| i.data.value == pattern.value))
     }
 
     /// Removes the oldest element from a list.
-    pub fn remove_oldest(&mut self) {
+    fn remove_oldest(&mut self) {
         if let Some(list) = &mut self.list.items {
             let index = list
                 .full_iter()
@@ -43,15 +71,6 @@ impl PatternsList {
             if let Some(index) = index {
                 list.full_remove(index);
             }
-        }
-    }
-
-    /// Returns [`PatternsList`] as a filter history that can be saved in the app history data.
-    pub fn get_filter_history(&self) -> Vec<String> {
-        if let Some(list) = &self.list.items {
-            list.full_iter().map(|i| i.data.to_string()).collect()
-        } else {
-            Vec::new()
         }
     }
 }
