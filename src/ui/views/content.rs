@@ -11,7 +11,11 @@ use std::{rc::Rc, time::Instant};
 use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
-    ui::{ResponseEvent, utils::center},
+    ui::{
+        ResponseEvent,
+        utils::center,
+        views::search::{MatchPosition, highlight_search_matches},
+    },
 };
 
 use super::content_header::ContentHeader;
@@ -190,6 +194,15 @@ impl<T: Content> ContentViewer<T> {
                 .collect::<Vec<_>>();
 
             frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), area);
+
+            highlight_search_matches(
+                frame,
+                self.page_hstart,
+                self.page_vstart,
+                Some(vec![MatchPosition::new(5, 3, 12), MatchPosition::new(12, 9, 25)]),
+                area,
+                ratatui::style::Color::LightYellow,
+            );
         } else if self.creation_time.elapsed().as_millis() > 80 {
             let colors = &self.app_data.borrow().theme.colors;
             let line = Line::styled(" waiting for data…", &colors.text);

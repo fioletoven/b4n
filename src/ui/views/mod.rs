@@ -21,6 +21,7 @@ mod list;
 mod list_header;
 mod logs;
 mod resources;
+mod search;
 mod shell;
 mod utils;
 mod yaml;
