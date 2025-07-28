@@ -12,6 +12,7 @@ use crate::{
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
+            content_search::MatchPosition,
         },
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage, Search},
     },
@@ -20,7 +21,6 @@ use crate::{
 /// YAML view.
 pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
-    lines: Vec<String>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
     is_decoded: bool,
@@ -46,7 +46,6 @@ impl YamlView {
 
         Self {
             yaml,
-            lines: Vec::new(),
             app_data,
             worker,
             is_decoded: false,
@@ -60,7 +59,9 @@ impl YamlView {
     fn copy_yaml_to_clipboard(&self) {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
         if let Ok(mut ctx) = result
-            && ctx.set_contents(self.lines.join("")).is_ok()
+            && ctx
+                .set_contents(self.yaml.content().map(|c| c.plain.join("")).unwrap_or_default())
+                .is_ok()
         {
             self.footer_tx
                 .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
@@ -114,11 +115,14 @@ impl View for YamlView {
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
+            let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
             self.yaml.set_content(
-                YamlContent { lines: result.styled },
-                result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
+                YamlContent {
+                    styled: result.styled,
+                    plain: result.yaml,
+                },
+                max_width,
             );
-            self.lines = result.yaml;
         }
     }
 
@@ -147,7 +151,9 @@ impl View for YamlView {
         }
 
         if self.search.is_visible {
-            return self.search.process_key(key);
+            let result = self.search.process_key(key);
+            self.yaml.search(self.search.value());
+            return result;
         }
 
         if self.process_command_palette_events(key) {
@@ -184,21 +190,33 @@ impl View for YamlView {
 
 /// Styled YAML content.
 struct YamlContent {
-    lines: Vec<StyledLine>,
+    pub styled: Vec<StyledLine>,
+    pub plain: Vec<String>,
 }
 
 impl Content for YamlContent {
     fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
-        if start >= self.lines.len() {
+        if start >= self.styled.len() {
             &[]
-        } else if start + count >= self.lines.len() {
-            &self.lines[start..]
+        } else if start + count >= self.styled.len() {
+            &self.styled[start..]
         } else {
-            &self.lines[start..start + count]
+            &self.styled[start..start + count]
         }
     }
 
     fn len(&self) -> usize {
-        self.lines.len()
+        self.styled.len()
+    }
+
+    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
+        let mut matches = Vec::new();
+        for (y, line) in self.plain.iter().enumerate() {
+            for (x, _) in line.match_indices(pattern) {
+                matches.push(MatchPosition::new(x, y.saturating_add(1), pattern.len()));
+            }
+        }
+
+        matches
     }
 }

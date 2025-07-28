@@ -13,6 +13,7 @@ use crate::{
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
+            content_search::MatchPosition,
         },
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage},
     },
@@ -312,5 +313,9 @@ impl Content for LogsContent {
 
     fn len(&self) -> usize {
         self.lines.len()
+    }
+
+    fn search(&self, _pattern: &str) -> Vec<MatchPosition> {
+        Vec::new()
     }
 }

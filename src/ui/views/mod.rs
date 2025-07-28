@@ -16,12 +16,12 @@ pub use self::yaml::YamlView;
 
 mod content;
 mod content_header;
+mod content_search;
 mod forwards;
 mod list;
 mod list_header;
 mod logs;
 mod resources;
-mod search;
 mod shell;
 mod utils;
 mod yaml;

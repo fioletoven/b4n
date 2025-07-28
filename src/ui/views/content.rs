@@ -14,7 +14,7 @@ use crate::{
     ui::{
         ResponseEvent,
         utils::center,
-        views::search::{MatchPosition, highlight_search_matches},
+        views::content_search::{MatchPosition, highlight_search_matches},
     },
 };
 
@@ -29,6 +29,9 @@ pub trait Content {
 
     /// Returns the length of a [`Content`].
     fn len(&self) -> usize;
+
+    /// Searches content for the specified pattern.
+    fn search(&self, pattern: &str) -> Vec<MatchPosition>;
 }
 
 /// Content viewer with header.
@@ -45,6 +48,8 @@ pub struct ContentViewer<T: Content> {
     page_hstart: usize,
 
     creation_time: Instant,
+    search_pattern: Option<String>,
+    search_matches: Option<Vec<MatchPosition>>,
 }
 
 impl<T: Content> ContentViewer<T> {
@@ -62,6 +67,8 @@ impl<T: Content> ContentViewer<T> {
             page_vstart: 0,
             page_hstart: 0,
             creation_time: Instant::now(),
+            search_pattern: None,
+            search_matches: None,
         }
     }
 
@@ -90,6 +97,8 @@ impl<T: Content> ContentViewer<T> {
     pub fn set_content(&mut self, content: T, max_width: usize) {
         self.content = Some(content);
         self.max_width = max_width;
+        self.search_pattern = None;
+        self.search_matches = None;
     }
 
     /// Returns content as reference.
@@ -140,6 +149,21 @@ impl<T: Content> ContentViewer<T> {
     /// Resets horizontal scroll to start position.
     pub fn reset_horizontal_scroll(&mut self) {
         self.page_hstart = 0;
+    }
+
+    /// Searches content for the specified pattern.
+    pub fn search(&mut self, pattern: &str) {
+        if let Some(content) = &self.content
+            && self.search_pattern.as_ref().is_none_or(|p| p != pattern)
+        {
+            self.search_pattern = Some(pattern.to_owned());
+            let matches = content.search(pattern);
+            if !matches.is_empty() {
+                self.search_matches = Some(matches);
+            } else {
+                self.search_matches = None;
+            }
+        }
     }
 
     /// Process UI key event.
@@ -199,7 +223,7 @@ impl<T: Content> ContentViewer<T> {
                 frame,
                 self.page_hstart,
                 self.page_vstart,
-                Some(vec![MatchPosition::new(5, 3, 12), MatchPosition::new(12, 9, 25)]),
+                self.search_matches.as_deref(),
                 area,
                 ratatui::style::Color::LightYellow,
             );

@@ -4,7 +4,7 @@ use ratatui::{
     style::Color,
 };
 
-/// Contains match position in content.
+/// Describes a match in the content.
 pub struct MatchPosition {
     pub x: usize,
     pub y: usize,
@@ -31,7 +31,7 @@ pub fn highlight_search_matches(
     frame: &mut Frame<'_>,
     x: usize,
     y: usize,
-    matches: Option<Vec<MatchPosition>>,
+    matches: Option<&[MatchPosition]>,
     area: Rect,
     color: Color,
 ) {
