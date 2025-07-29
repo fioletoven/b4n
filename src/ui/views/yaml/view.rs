@@ -116,10 +116,12 @@ impl View for YamlView {
             self.yaml.header.set_icon(icon);
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
             let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+            let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
             self.yaml.set_content(
                 YamlContent {
                     styled: result.styled,
                     plain: result.yaml,
+                    lowercase,
                 },
                 max_width,
             );
@@ -192,6 +194,7 @@ impl View for YamlView {
 struct YamlContent {
     pub styled: Vec<StyledLine>,
     pub plain: Vec<String>,
+    pub lowercase: Vec<String>,
 }
 
 impl Content for YamlContent {
@@ -210,10 +213,11 @@ impl Content for YamlContent {
     }
 
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
+        let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
-        for (y, line) in self.plain.iter().enumerate() {
-            for (x, _) in line.match_indices(pattern) {
-                matches.push(MatchPosition::new(x, y.saturating_add(1), pattern.len()));
+        for (y, line) in self.lowercase.iter().enumerate() {
+            for (x, _) in line.match_indices(&pattern) {
+                matches.push(MatchPosition::new(x, y, pattern.len()));
             }
         }
 

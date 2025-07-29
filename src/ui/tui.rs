@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::cursor::SetCursorStyle;
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     Terminal,
@@ -109,6 +110,7 @@ impl Tui {
     pub fn enter_terminal(&mut self) -> Result<()> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
+        crossterm::execute!(stdout(), SetCursorStyle::SteadyBar)?;
         self.start_events_loop();
 
         Ok(())
@@ -119,6 +121,7 @@ impl Tui {
         self.stop_events_loop()?;
         if crossterm::terminal::is_raw_mode_enabled()? {
             self.terminal.flush()?;
+            crossterm::execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
             crossterm::execute!(stdout(), LeaveAlternateScreen, cursor::Show)?;
             crossterm::terminal::disable_raw_mode()?;
         }
