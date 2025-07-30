@@ -28,7 +28,7 @@ impl Search {
     /// Creates new [`Search`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.filter.clone();
-        let patterns = Select::new(PatternsList::default(), colors, false, true).with_prompt(" ");
+        let patterns = Select::new(PatternsList::default(), colors, false, true).with_prompt(" ");
 
         Self {
             is_visible: false,

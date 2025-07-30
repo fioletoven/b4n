@@ -151,19 +151,34 @@ impl<T: Content> ContentViewer<T> {
         self.page_hstart = 0;
     }
 
-    /// Searches content for the specified pattern.
-    pub fn search(&mut self, pattern: &str) {
+    /// Searches content for the specified pattern.\
+    /// Returns `true` if the search was updated.
+    pub fn search(&mut self, pattern: &str) -> bool {
         if let Some(content) = &self.content
             && self.search_pattern.as_ref().is_none_or(|p| p != pattern)
         {
-            self.search_pattern = Some(pattern.to_owned());
-            let matches = content.search(pattern);
-            if !matches.is_empty() {
-                self.search_matches = Some(matches);
-            } else {
+            if pattern.is_empty() {
+                self.search_pattern = None;
                 self.search_matches = None;
+            } else {
+                self.search_pattern = Some(pattern.to_owned());
+                let matches = content.search(pattern);
+                if !matches.is_empty() {
+                    self.search_matches = Some(matches);
+                } else {
+                    self.search_matches = None;
+                }
             }
+
+            true
+        } else {
+            false
         }
+    }
+
+    /// Returns the number of search matches.
+    pub fn search_matches_count(&self) -> Option<usize> {
+        self.search_matches.as_ref().map(|m| m.len())
     }
 
     /// Process UI key event.

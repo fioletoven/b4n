@@ -303,10 +303,9 @@ impl ViewsManager {
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             command_id,
-            resource.name.unwrap_or_default(),
-            resource.namespace,
-            resource.kind,
+            resource,
             self.footer.get_messages_sender(),
+            self.footer.get_icons_sender(),
         )));
     }
 

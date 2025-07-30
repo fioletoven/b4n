@@ -6,7 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker, commands::CommandResult},
-    kubernetes::{Kind, Namespace, resources::SECRETS},
+    kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{
@@ -14,7 +14,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIcon, FooterIconAction, FooterMessage, Search},
     },
 };
 
@@ -27,7 +27,8 @@ pub struct YamlView {
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
-    footer_tx: UnboundedSender<FooterMessage>,
+    messages_tx: UnboundedSender<FooterMessage>,
+    icons_tx: UnboundedSender<(FooterIconAction, FooterIcon)>,
 }
 
 impl YamlView {
@@ -36,12 +37,18 @@ impl YamlView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         command_id: Option<String>,
-        name: String,
-        namespace: Namespace,
-        kind: Kind,
-        footer_tx: UnboundedSender<FooterMessage>,
+        resource: ResourceRef,
+        messages_tx: UnboundedSender<FooterMessage>,
+        icons_tx: UnboundedSender<(FooterIconAction, FooterIcon)>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind, name, None);
+        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header(
+            "YAML",
+            '',
+            resource.namespace,
+            resource.kind,
+            resource.name.unwrap_or_default(),
+            None,
+        );
         let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
 
         Self {
@@ -52,7 +59,8 @@ impl YamlView {
             command_id,
             command_palette: CommandPalette::default(),
             search,
-            footer_tx,
+            messages_tx,
+            icons_tx,
         }
     }
 
@@ -63,7 +71,7 @@ impl YamlView {
                 .set_contents(self.yaml.content().map(|c| c.plain.join("")).unwrap_or_default())
                 .is_ok()
         {
-            self.footer_tx
+            self.messages_tx
                 .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
                 .unwrap();
         }
@@ -101,6 +109,28 @@ impl YamlView {
             self.app_data.borrow().get_syntax_data(),
             !self.is_decoded,
         );
+    }
+
+    fn clear_search(&mut self) {
+        self.yaml.search("");
+        self.update_search_count();
+    }
+
+    fn update_search_count(&self) {
+        if let Some(count) = self.yaml.search_matches_count() {
+            self.set_footer_icon(FooterIconAction::Add, count);
+        } else {
+            self.set_footer_icon(FooterIconAction::Remove, 0);
+        }
+    }
+
+    fn set_footer_icon(&self, action: FooterIconAction, count: usize) {
+        let icon = if count > 0 {
+            FooterIcon::text("yaml_search", format!(" {count}"))
+        } else {
+            FooterIcon::empty("yaml_search")
+        };
+        let _ = self.icons_tx.send((action, icon));
     }
 }
 
@@ -141,7 +171,9 @@ impl View for YamlView {
 
         if self.command_palette.is_visible {
             let response = self.command_palette.process_key(key);
-            if response.is_action("copy") {
+            if response == ResponseEvent::Cancelled {
+                self.clear_search();
+            } else if response.is_action("copy") {
                 self.copy_yaml_to_clipboard();
                 return ResponseEvent::Handled;
             } else if response.is_action("decode") {
@@ -154,7 +186,10 @@ impl View for YamlView {
 
         if self.search.is_visible {
             let result = self.search.process_key(key);
-            self.yaml.search(self.search.value());
+            if self.yaml.search(self.search.value()) {
+                self.update_search_count();
+            }
+
             return result;
         }
 
@@ -168,6 +203,7 @@ impl View for YamlView {
 
         if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
+            self.clear_search();
             return ResponseEvent::Handled;
         }
 
@@ -177,6 +213,7 @@ impl View for YamlView {
         }
 
         if key.code == KeyCode::Esc {
+            self.clear_search();
             return ResponseEvent::Cancelled;
         }
 
