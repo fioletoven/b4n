@@ -72,7 +72,7 @@ impl YamlView {
                 .is_ok()
         {
             self.messages_tx
-                .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
+                .send(FooterMessage::info(" YAML content copied to clipboard…", 1_500))
                 .unwrap();
         }
     }
@@ -113,6 +113,7 @@ impl YamlView {
 
     fn clear_search(&mut self) {
         self.yaml.search("");
+        self.search.reset();
         self.update_search_count();
     }
 
@@ -221,8 +222,12 @@ impl View for YamlView {
         }
 
         if key.code == KeyCode::Esc {
-            self.clear_search();
-            return ResponseEvent::Cancelled;
+            if self.search.value().is_empty() {
+                return ResponseEvent::Cancelled;
+            } else {
+                self.clear_search();
+                return ResponseEvent::Handled;
+            }
         }
 
         self.yaml.process_key(key)

@@ -116,7 +116,7 @@ impl LogsView {
                 && ctx.set_contents(self.get_logs_as_string()).is_ok()
             {
                 self.footer_tx
-                    .send(FooterMessage::info(" resource's logs copied to the clipboard…", 1_500))
+                    .send(FooterMessage::info(" container logs copied to clipboard…", 1_500))
                     .unwrap();
             }
         }
