@@ -14,7 +14,7 @@ use crate::{
     ui::{
         ResponseEvent,
         utils::center,
-        views::content_search::{MatchPosition, highlight_search_matches},
+        views::content_search::{MatchPosition, SearchData, highlight_search_matches},
     },
 };
 
@@ -40,6 +40,7 @@ pub struct ContentViewer<T: Content> {
     app_data: SharedAppData,
 
     content: Option<T>,
+    search: SearchData,
     max_width: usize,
 
     page_height: usize,
@@ -48,8 +49,6 @@ pub struct ContentViewer<T: Content> {
     page_hstart: usize,
 
     creation_time: Instant,
-    search_pattern: Option<String>,
-    search_matches: Option<Vec<MatchPosition>>,
 }
 
 impl<T: Content> ContentViewer<T> {
@@ -61,14 +60,13 @@ impl<T: Content> ContentViewer<T> {
             header,
             app_data,
             content: None,
+            search: SearchData::default(),
             max_width: 0,
             page_height: 0,
             page_width: 0,
             page_vstart: 0,
             page_hstart: 0,
             creation_time: Instant::now(),
-            search_pattern: None,
-            search_matches: None,
         }
     }
 
@@ -97,8 +95,7 @@ impl<T: Content> ContentViewer<T> {
     pub fn set_content(&mut self, content: T, max_width: usize) {
         self.content = Some(content);
         self.max_width = max_width;
-        self.search_pattern = None;
-        self.search_matches = None;
+        self.search = SearchData::default();
     }
 
     /// Returns content as reference.
@@ -136,6 +133,29 @@ impl<T: Content> ContentViewer<T> {
         self.update_page_starts();
     }
 
+    /// Scrolls content to the specified line if it is not visible already.
+    pub fn scroll_to_if_not_visible(&mut self, line: usize) {
+        if line < self.page_vstart || line > self.page_vstart + self.page_height.saturating_sub(1) {
+            let max_vstart = self.max_vstart();
+            if line > max_vstart {
+                self.page_vstart = max_vstart;
+            } else {
+                self.page_vstart = line;
+            }
+        }
+    }
+
+    /// Scrolls content to the current search match.
+    pub fn scroll_to_current_match(&mut self) {
+        if let Some(matches) = &self.search.matches {
+            if let Some(current) = self.search.current {
+                self.scroll_to_if_not_visible(matches[current.saturating_sub(1)].y);
+            } else {
+                self.scroll_to_if_not_visible(matches[0].y);
+            }
+        }
+    }
+
     /// Scrolls content to the end.
     pub fn scroll_to_end(&mut self) {
         self.page_vstart = self.max_vstart();
@@ -155,21 +175,22 @@ impl<T: Content> ContentViewer<T> {
     /// Returns `true` if the search was updated.
     pub fn search(&mut self, pattern: &str) -> bool {
         if let Some(content) = &self.content
-            && self.search_pattern.as_ref().is_none_or(|p| p != pattern)
+            && self.search.pattern.as_ref().is_none_or(|p| p != pattern)
         {
             if pattern.is_empty() {
-                self.search_pattern = None;
-                self.search_matches = None;
+                self.search = SearchData::default();
             } else {
-                self.search_pattern = Some(pattern.to_owned());
+                self.search.pattern = Some(pattern.to_owned());
+                self.search.current = None;
                 let matches = content.search(pattern);
                 if !matches.is_empty() {
-                    self.search_matches = Some(matches);
+                    self.search.matches = Some(matches);
                 } else {
-                    self.search_matches = None;
+                    self.search.matches = None;
                 }
             }
 
+            self.scroll_to_current_match();
             true
         } else {
             false
@@ -178,7 +199,31 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns the number of search matches.
     pub fn search_matches_count(&self) -> Option<usize> {
-        self.search_matches.as_ref().map(|m| m.len())
+        self.search.matches.as_ref().map(|m| m.len())
+    }
+
+    /// Updates the current match index in the search results based on navigation direction.\
+    /// **Note** that updated index will start from 1.
+    pub fn navigate_match(&mut self, move_next: bool) {
+        let total = self.search.matches.as_ref().map_or(0, |m| m.len());
+        if total == 0 {
+            return;
+        }
+
+        self.search.current = match self.search.current {
+            Some(current) => {
+                if move_next {
+                    let current = current.saturating_add(1);
+                    if current > total { None } else { Some(current) }
+                } else {
+                    let current = current.saturating_sub(1);
+                    if current == 0 { None } else { Some(current) }
+                }
+            },
+            None => Some(if move_next { 1 } else { total }),
+        };
+
+        self.scroll_to_current_match();
     }
 
     /// Process UI key event.
@@ -238,7 +283,7 @@ impl<T: Content> ContentViewer<T> {
                 frame,
                 self.page_hstart,
                 self.page_vstart,
-                self.search_matches.as_deref(),
+                &self.search,
                 area,
                 ratatui::style::Color::LightYellow,
             );

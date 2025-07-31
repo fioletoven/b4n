@@ -28,7 +28,7 @@ pub struct YamlView {
     command_palette: CommandPalette,
     search: Search,
     messages_tx: UnboundedSender<FooterMessage>,
-    icons_tx: UnboundedSender<(FooterIconAction, FooterIcon)>,
+    icons_tx: UnboundedSender<FooterIconAction>,
 }
 
 impl YamlView {
@@ -39,7 +39,7 @@ impl YamlView {
         command_id: Option<String>,
         resource: ResourceRef,
         messages_tx: UnboundedSender<FooterMessage>,
-        icons_tx: UnboundedSender<(FooterIconAction, FooterIcon)>,
+        icons_tx: UnboundedSender<FooterIconAction>,
     ) -> Self {
         let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header(
             "YAML",
@@ -118,19 +118,19 @@ impl YamlView {
 
     fn update_search_count(&self) {
         if let Some(count) = self.yaml.search_matches_count() {
-            self.set_footer_icon(FooterIconAction::Add, count);
+            self.set_footer_icon(Some(count));
         } else {
-            self.set_footer_icon(FooterIconAction::Remove, 0);
+            self.set_footer_icon(None);
         }
     }
 
-    fn set_footer_icon(&self, action: FooterIconAction, count: usize) {
-        let icon = if count > 0 {
-            FooterIcon::text("yaml_search", format!(" {count}"))
+    fn set_footer_icon(&self, count: Option<usize>) {
+        if let Some(count) = count {
+            let icon = FooterIcon::text("yaml_search", format!(" {count}"));
+            let _ = self.icons_tx.send(FooterIconAction::Add(icon));
         } else {
-            FooterIcon::empty("yaml_search")
+            let _ = self.icons_tx.send(FooterIconAction::Remove("yaml_search"));
         };
-        let _ = self.icons_tx.send((action, icon));
     }
 }
 
@@ -210,6 +210,14 @@ impl View for YamlView {
         if key.code == KeyCode::Char('c') {
             self.copy_yaml_to_clipboard();
             return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('n') && self.yaml.search_matches_count().is_some() {
+            self.yaml.navigate_match(true);
+        }
+
+        if key.code == KeyCode::Char('p') && self.yaml.search_matches_count().is_some() {
+            self.yaml.navigate_match(false);
         }
 
         if key.code == KeyCode::Esc {

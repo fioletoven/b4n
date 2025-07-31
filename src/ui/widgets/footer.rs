@@ -41,8 +41,8 @@ impl FooterMessage {
 
 /// Defines possible actions for managing Footer icons.
 pub enum FooterIconAction {
-    Add,
-    Remove,
+    Add(FooterIcon),
+    Remove(&'static str),
 }
 
 /// Footer icon to show.
@@ -59,15 +59,6 @@ impl FooterIcon {
             id,
             icon: Some(icon),
             text: Some(text),
-        }
-    }
-
-    /// Creates new empty [`FooterIcon`] instance.
-    pub fn empty(id: &'static str) -> Self {
-        Self {
-            id,
-            icon: None,
-            text: None,
         }
     }
 
@@ -98,8 +89,8 @@ pub struct Footer {
     messages_rx: UnboundedReceiver<FooterMessage>,
     message_received_time: Instant,
     icons: Vec<FooterIcon>,
-    icons_tx: UnboundedSender<(FooterIconAction, FooterIcon)>,
-    icons_rx: UnboundedReceiver<(FooterIconAction, FooterIcon)>,
+    icons_tx: UnboundedSender<FooterIconAction>,
+    icons_rx: UnboundedReceiver<FooterIconAction>,
 }
 
 impl Footer {
@@ -131,13 +122,13 @@ impl Footer {
     }
 
     /// Returns [`FooterIcon`]s unbounded sender.
-    pub fn get_icons_sender(&self) -> UnboundedSender<(FooterIconAction, FooterIcon)> {
+    pub fn get_icons_sender(&self) -> UnboundedSender<FooterIconAction> {
         self.icons_tx.clone()
     }
 
     /// Sends [`FooterIcon`] at the end of the queue.
-    pub fn send_icon(&mut self, action: FooterIconAction, icon: FooterIcon) {
-        self.icons_tx.send((action, icon)).unwrap();
+    pub fn send_icon(&mut self, action: FooterIconAction) {
+        self.icons_tx.send(action).unwrap();
     }
 
     /// Returns layout that can be used to draw [`Footer`].\
@@ -257,16 +248,16 @@ impl Footer {
 
     /// Updates all currently visible icons with the ones from the icons channel.
     fn update_current_icons(&mut self) {
-        while let Ok(current) = self.icons_rx.try_recv() {
-            match current.0 {
-                FooterIconAction::Add => {
-                    if let Some(index) = self.icons.iter().position(|i| i.id == current.1.id) {
-                        self.icons[index] = current.1;
+        while let Ok(action) = self.icons_rx.try_recv() {
+            match action {
+                FooterIconAction::Add(icon) => {
+                    if let Some(index) = self.icons.iter().position(|i| i.id == icon.id) {
+                        self.icons[index] = icon;
                     } else {
-                        self.icons.push(current.1);
+                        self.icons.push(icon);
                     }
                 },
-                FooterIconAction::Remove => self.icons.retain(|i| i.id != current.1.id),
+                FooterIconAction::Remove(id) => self.icons.retain(|i| i.id != id),
             }
         }
     }
