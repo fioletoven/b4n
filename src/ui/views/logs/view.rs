@@ -51,7 +51,8 @@ impl LogsView {
             namespace: pod_namespace.clone(),
             container: pod_container.clone(),
         };
-        let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
+        let color = app_data.borrow().theme.colors.syntax.logs.search;
+        let logs = ContentViewer::new(Rc::clone(&app_data), color).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
             pod_namespace,

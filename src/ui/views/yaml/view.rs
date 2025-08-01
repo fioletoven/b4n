@@ -41,7 +41,8 @@ impl YamlView {
         messages_tx: UnboundedSender<FooterMessage>,
         icons_tx: UnboundedSender<FooterIconAction>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header(
+        let color = app_data.borrow().theme.colors.syntax.yaml.search;
+        let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
             "YAML",
             '',
             resource.namespace,
@@ -117,12 +118,10 @@ impl YamlView {
         self.update_search_count();
     }
 
-    fn update_search_count(&self) {
-        if let Some(count) = self.yaml.search_matches_count() {
-            self.set_footer_icon(Some(count));
-        } else {
-            self.set_footer_icon(None);
-        }
+    fn update_search_count(&mut self) {
+        let count = self.yaml.search_matches_count();
+        self.set_footer_icon(count);
+        self.search.set_matches(count);
     }
 
     fn set_footer_icon(&self, count: Option<usize>) {

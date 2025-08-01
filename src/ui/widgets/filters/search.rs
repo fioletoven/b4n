@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::Rect,
-    style::Style,
-    widgets::{Block, Clear},
+    layout::{Margin, Rect},
+    style::{Color, Style},
+    widgets::{Block, Clear, Paragraph},
 };
 
 use crate::{
@@ -13,6 +13,8 @@ use crate::{
 use super::PatternsList;
 
 const HISTORY_SIZE: usize = 20;
+const SEARCH_HINT: &str = " Type to search. Hit Enter, then navigate with n and p.";
+const NOT_FOUND_HINT: &str = " No matches found.";
 
 /// Search widget for TUI.
 pub struct Search {
@@ -20,7 +22,7 @@ pub struct Search {
     app_data: SharedAppData,
     worker: Option<SharedBgWorker>,
     patterns: Select<PatternsList>,
-    current: String,
+    matches: Option<usize>,
     width: u16,
 }
 
@@ -35,7 +37,7 @@ impl Search {
             app_data,
             worker,
             patterns,
-            current: String::new(),
+            matches: None,
             width,
         }
     }
@@ -57,7 +59,12 @@ impl Search {
     /// Resets the Search value.
     pub fn reset(&mut self) {
         self.patterns.reset();
-        self.current = String::new();
+        self.matches = None;
+    }
+
+    /// Sets the number of matches to display in the hint.
+    pub fn set_matches(&mut self, matches: Option<usize>) {
+        self.matches = matches;
     }
 
     /// Draws [`Search`] on the provided frame area.
@@ -66,20 +73,43 @@ impl Search {
             return;
         }
 
-        let colors = &self.app_data.borrow().theme.colors.filter;
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
-        let block = Block::new().style(Style::default().bg(colors.normal.bg));
 
-        frame.render_widget(Clear, area);
-        frame.render_widget(block, area);
+        let colors = &self.app_data.borrow().theme.colors.filter;
+        self.clear_area(frame, area, colors.normal.bg);
+        if area.top() > 0 {
+            let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
+            self.clear_area(frame, area, colors.header.bg);
+            self.draw_header(frame, area);
+        }
 
         self.patterns.draw(frame, area);
     }
 
+    fn clear_area(&self, frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
+        let block = Block::new().style(Style::default().bg(color));
+
+        frame.render_widget(Clear, area);
+        frame.render_widget(block, area);
+    }
+
+    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        let colors = &self.app_data.borrow().theme.colors.filter;
+        let area = area.inner(Margin::new(1, 0));
+
+        if let Some(matches) = self.matches {
+            let text = format!(" Total matches: {matches}");
+            frame.render_widget(Paragraph::new(text).style(&colors.header), area);
+        } else if self.patterns.value().is_empty() {
+            frame.render_widget(Paragraph::new(SEARCH_HINT).style(&colors.header), area);
+        } else {
+            frame.render_widget(Paragraph::new(NOT_FOUND_HINT).style(&colors.header), area);
+        }
+    }
+
     fn remember_pattern(&mut self) {
         let pattern = self.patterns.value();
-        self.current = pattern.to_owned();
         if self.patterns.items.add(pattern.into(), HISTORY_SIZE) {
             let context = self.app_data.borrow().current.context.clone();
             self.app_data

@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect},
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span},
     widgets::Paragraph,
 };
@@ -41,6 +41,7 @@ pub struct ContentViewer<T: Content> {
 
     content: Option<T>,
     search: SearchData,
+    search_color: Color,
     max_width: usize,
 
     page_height: usize,
@@ -53,7 +54,7 @@ pub struct ContentViewer<T: Content> {
 
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
-    pub fn new(app_data: SharedAppData) -> Self {
+    pub fn new(app_data: SharedAppData, search_color: Color) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
 
         Self {
@@ -61,6 +62,7 @@ impl<T: Content> ContentViewer<T> {
             app_data,
             content: None,
             search: SearchData::default(),
+            search_color,
             max_width: 0,
             page_height: 0,
             page_width: 0,
@@ -133,15 +135,14 @@ impl<T: Content> ContentViewer<T> {
         self.update_page_starts();
     }
 
-    /// Scrolls content to the specified line if it is not visible already.
-    pub fn scroll_to_if_not_visible(&mut self, line: usize) {
+    /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
+    pub fn scroll_to(&mut self, line: usize, col: usize) {
         if line < self.page_vstart || line > self.page_vstart + self.page_height.saturating_sub(1) {
-            let max_vstart = self.max_vstart();
-            if line > max_vstart {
-                self.page_vstart = max_vstart;
-            } else {
-                self.page_vstart = line;
-            }
+            self.page_vstart = line.min(self.max_vstart());
+        }
+
+        if col < self.page_hstart || col > self.page_hstart + self.page_width.saturating_sub(1) {
+            self.page_hstart = col.min(self.max_hstart());
         }
     }
 
@@ -149,9 +150,10 @@ impl<T: Content> ContentViewer<T> {
     pub fn scroll_to_current_match(&mut self) {
         if let Some(matches) = &self.search.matches {
             if let Some(current) = self.search.current {
-                self.scroll_to_if_not_visible(matches[current.saturating_sub(1)].y);
+                let r#match = &matches[current.saturating_sub(1)];
+                self.scroll_to(r#match.y, r#match.x);
             } else {
-                self.scroll_to_if_not_visible(matches[0].y);
+                self.scroll_to(matches[0].y, matches[0].x);
             }
         }
     }
@@ -285,7 +287,7 @@ impl<T: Content> ContentViewer<T> {
                 self.page_vstart,
                 &self.search,
                 area,
-                ratatui::style::Color::LightYellow,
+                self.search_color,
             );
         } else if self.creation_time.elapsed().as_millis() > 80 {
             let colors = &self.app_data.borrow().theme.colors;
