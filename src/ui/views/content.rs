@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect, Size},
     style::{Color, Style},
     text::{Line, Span},
     widgets::Paragraph,
@@ -14,7 +14,8 @@ use crate::{
     ui::{
         ResponseEvent,
         utils::center,
-        views::content_search::{MatchPosition, SearchData, highlight_search_matches},
+        views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
+        widgets::{FooterIcon, FooterIconAction, FooterMessage},
     },
 };
 
@@ -177,16 +178,19 @@ impl<T: Content> ContentViewer<T> {
 
     /// Searches content for the specified pattern.\
     /// Returns `true` if the search was updated.
-    pub fn search(&mut self, pattern: &str) -> bool {
+    pub fn search(&mut self, pattern: &str, force: bool) -> bool {
+        let is_pattern_changed = self.search.pattern.as_ref().is_none_or(|p| p != pattern);
         if let Some(content) = &self.content
-            && self.search.pattern.as_ref().is_none_or(|p| p != pattern)
+            && (force || is_pattern_changed)
         {
             if pattern.is_empty() {
                 self.search = SearchData::default();
             } else {
                 self.search.pattern = Some(pattern.to_owned());
-                self.search.current = None;
                 let matches = content.search(pattern);
+                if is_pattern_changed || self.search.current.unwrap_or_default() > matches.len() {
+                    self.search.current = None;
+                };
                 if !matches.is_empty() {
                     self.search.matches = Some(matches);
                 } else {
@@ -194,7 +198,6 @@ impl<T: Content> ContentViewer<T> {
                 }
             }
 
-            self.scroll_to_current_match();
             true
         } else {
             false
@@ -219,20 +222,51 @@ impl<T: Content> ContentViewer<T> {
             return;
         }
 
-        self.search.current = match self.search.current {
-            Some(current) => {
-                if forward {
-                    let current = current.saturating_add(1);
-                    if current > total { None } else { Some(current) }
-                } else {
-                    let current = current.saturating_sub(1);
-                    if current == 0 { None } else { Some(current) }
-                }
-            },
-            None => Some(if forward { 1 } else { total }),
-        };
+        if total > 1 {
+            self.search.current = match self.search.current {
+                Some(current) => {
+                    if forward {
+                        let current = current.saturating_add(1);
+                        if current > total { None } else { Some(current) }
+                    } else {
+                        let current = current.saturating_sub(1);
+                        if current == 0 { None } else { Some(current) }
+                    }
+                },
+                None => Some(if forward { 1 } else { total }),
+            };
+        }
 
-        self.scroll_to_current_match();
+        if self.search.current.is_some() {
+            self.scroll_to_current_match();
+        } else if total == 1
+            && let Some(matches) = self.search.matches.as_ref()
+        {
+            self.scroll_to(matches[0].y, matches[0].x);
+        }
+    }
+
+    /// Creates [`FooterIconAction`] for the current search state.
+    pub fn get_footer_action(&self, icon_id: &'static str) -> FooterIconAction {
+        if let Some(count) = self.matches_count() {
+            let icon = if let Some(current) = self.current_match() {
+                FooterIcon::text(icon_id, format!(" {current}:{count}"))
+            } else {
+                FooterIcon::text(icon_id, format!(" :{count}"))
+            };
+            FooterIconAction::Add(icon)
+        } else {
+            FooterIconAction::Remove(icon_id)
+        }
+    }
+
+    /// Creates [`FooterMessage`] for the current search state.
+    pub fn get_footer_message(&self, forward: bool) -> Option<FooterMessage> {
+        if self.matches_count().is_some() && self.current_match().is_none_or(|c| c == 0) {
+            Some(FooterMessage::info(get_search_wrapped_message(forward), 0))
+        } else {
+            None
+        }
     }
 
     /// Process UI key event.
@@ -263,8 +297,10 @@ impl<T: Content> ContentViewer<T> {
         ResponseEvent::Handled
     }
 
-    /// Draws [`ContentViewer`] on the provided frame and area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    /// Draws the [`ContentViewer`] onto the given frame within the specified area.
+    ///
+    /// `highlight_offset` - used to adjust the position of search highlights.
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Size>) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
@@ -295,6 +331,7 @@ impl<T: Content> ContentViewer<T> {
                 &self.search,
                 area,
                 self.search_color,
+                highlight_offset,
             );
         } else if self.creation_time.elapsed().as_millis() > 80 {
             let colors = &self.app_data.borrow().theme.colors;

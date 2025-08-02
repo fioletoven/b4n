@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Position, Rect},
+    layout::{Position, Rect, Size},
     style::Color,
 };
 
@@ -23,19 +23,53 @@ impl MatchPosition {
     pub fn new(x: usize, y: usize, length: usize) -> Self {
         Self { x, y, length }
     }
+
+    /// Returns a new [`MatchPosition`] with its `x` and `y` coordinates offset by the given amount.
+    pub fn adjust_by(&self, offset: Size) -> Self {
+        Self {
+            x: self.x.saturating_add(usize::from(offset.width)),
+            y: self.y.saturating_add(usize::from(offset.height)),
+            length: self.length,
+        }
+    }
+}
+
+/// Returns an appropriate search message based on the search direction.
+pub fn get_search_wrapped_message(forward: bool) -> &'static str {
+    if forward {
+        "Reached end of search results."
+    } else {
+        "Reached start of search results."
+    }
 }
 
 /// Highlights all search matches within the specified area, adjusted by the given scroll offsets `x` and `y`.
-pub fn highlight_search_matches(frame: &mut Frame<'_>, x: usize, y: usize, data: &SearchData, area: Rect, color: Color) {
+pub fn highlight_search_matches(
+    frame: &mut Frame<'_>,
+    x: usize,
+    y: usize,
+    data: &SearchData,
+    area: Rect,
+    color: Color,
+    offset: Option<Size>,
+) {
     let Some(matches) = data.matches.as_deref() else {
         return;
     };
 
     if let Some(current) = data.current {
-        highlight_match(frame, x, y, &matches[current.saturating_sub(1)], area, color);
+        if let Some(offset) = offset {
+            let r#match = &matches[current.saturating_sub(1)].adjust_by(offset);
+            highlight_match(frame, x, y, r#match, area, color);
+        } else {
+            highlight_match(frame, x, y, &matches[current.saturating_sub(1)], area, color);
+        };
     } else {
-        for m in matches.iter().filter(|m| m.y >= y && m.x.saturating_add(m.length) > x) {
-            highlight_match(frame, x, y, m, area, color);
+        for m in matches.iter() {
+            let m = if let Some(offset) = offset { &m.adjust_by(offset) } else { m };
+            if m.y >= y && m.x.saturating_add(m.length) > x {
+                highlight_match(frame, x, y, m, area, color);
+            }
         }
     }
 }

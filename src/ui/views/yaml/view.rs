@@ -14,7 +14,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIcon, FooterIconAction, FooterMessage, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIconAction, FooterMessage, Search},
     },
 };
 
@@ -113,39 +113,21 @@ impl YamlView {
     }
 
     fn clear_search(&mut self) {
-        self.yaml.search("");
+        self.yaml.search("", false);
         self.search.reset();
         self.update_search_count();
     }
 
     fn update_search_count(&mut self) {
-        self.update_footer_icon();
+        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
         self.search.set_matches(self.yaml.matches_count());
-    }
-
-    fn update_footer_icon(&self) {
-        if let Some(count) = self.yaml.matches_count() {
-            let icon = if let Some(current) = self.yaml.current_match() {
-                FooterIcon::text("yaml_search", format!(" {current}:{count}"))
-            } else {
-                FooterIcon::text("yaml_search", format!(" :{count}"))
-            };
-            let _ = self.icons_tx.send(FooterIconAction::Add(icon));
-        } else {
-            let _ = self.icons_tx.send(FooterIconAction::Remove("yaml_search"));
-        };
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.yaml.navigate_match(forward);
-        self.update_footer_icon();
-        if self.yaml.matches_count().is_some() && self.yaml.current_match().is_none_or(|c| c == 0) {
-            let message = if forward {
-                "Reached end of search results. Wrapped to first match."
-            } else {
-                "Reached start of search results."
-            };
-            let _ = self.messages_tx.send(FooterMessage::info(message, 0));
+        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
+        if let Some(message) = self.yaml.get_footer_message(forward) {
+            let _ = self.messages_tx.send(message);
         }
     }
 }
@@ -202,7 +184,8 @@ impl View for YamlView {
 
         if self.search.is_visible {
             let result = self.search.process_key(key);
-            if self.yaml.search(self.search.value()) {
+            if self.yaml.search(self.search.value(), false) {
+                self.yaml.scroll_to_current_match();
                 self.update_search_count();
             }
 
@@ -249,7 +232,7 @@ impl View for YamlView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.yaml.draw(frame, area);
+        self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
     }
