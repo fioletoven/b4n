@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.1.8 - 2025-08-02
+
+### Features
+
+- search within YAML configurations and logs
+
 ## 0.1.7 - 2025-07-17
 
 ### Features
