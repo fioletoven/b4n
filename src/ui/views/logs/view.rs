@@ -67,7 +67,7 @@ impl LogsView {
             resource.container,
         );
 
-        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
+        let search = Search::new(Rc::clone(&app_data), Some(worker), 60);
         let mut observer = LogsObserver::new();
         observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
 
@@ -263,10 +263,10 @@ impl View for LogsView {
         if key.code == KeyCode::Esc {
             if self.search.value().is_empty() {
                 return ResponseEvent::Cancelled;
-            } else {
-                self.clear_search();
-                return ResponseEvent::Handled;
             }
+
+            self.clear_search();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('t') {

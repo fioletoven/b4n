@@ -222,10 +222,10 @@ impl View for YamlView {
         if key.code == KeyCode::Esc {
             if self.search.value().is_empty() {
                 return ResponseEvent::Cancelled;
-            } else {
-                self.clear_search();
-                return ResponseEvent::Handled;
             }
+
+            self.clear_search();
+            return ResponseEvent::Handled;
         }
 
         self.yaml.process_key(key)

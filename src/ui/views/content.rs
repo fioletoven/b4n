@@ -190,7 +190,7 @@ impl<T: Content> ContentViewer<T> {
                 let matches = content.search(pattern);
                 if is_pattern_changed || self.search.current.unwrap_or_default() > matches.len() {
                     self.search.current = None;
-                };
+                }
                 if !matches.is_empty() {
                     self.search.matches = Some(matches);
                 } else {
@@ -206,7 +206,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns the number of search matches.
     pub fn matches_count(&self) -> Option<usize> {
-        self.search.matches.as_ref().map(|m| m.len())
+        self.search.matches.as_ref().map(Vec::len)
     }
 
     /// Returns currently highlighted match.
@@ -217,7 +217,7 @@ impl<T: Content> ContentViewer<T> {
     /// Updates the current match index in the search results based on navigation direction.\
     /// **Note** that updated index will start from 1.
     pub fn navigate_match(&mut self, forward: bool) {
-        let total = self.search.matches.as_ref().map_or(0, |m| m.len());
+        let total = self.search.matches.as_ref().map_or(0, Vec::len);
         if total == 0 {
             return;
         }

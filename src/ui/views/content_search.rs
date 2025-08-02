@@ -63,9 +63,9 @@ pub fn highlight_search_matches(
             highlight_match(frame, x, y, r#match, area, color);
         } else {
             highlight_match(frame, x, y, &matches[current.saturating_sub(1)], area, color);
-        };
+        }
     } else {
-        for m in matches.iter() {
+        for m in matches {
             let m = if let Some(offset) = offset { &m.adjust_by(offset) } else { m };
             if m.y >= y && m.x.saturating_add(m.length) > x {
                 highlight_match(frame, x, y, m, area, color);
