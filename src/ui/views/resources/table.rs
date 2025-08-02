@@ -178,7 +178,9 @@ impl ResourcesTable {
                 return self.process_enter_key(highlighted_resource);
             }
 
-            if self.kind_plural() == CONTAINERS {
+            if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
+                return self.process_view_yaml(highlighted_resource, key.code == KeyCode::Char('x'));
+            } else if self.kind_plural() == CONTAINERS {
                 if key.code == KeyCode::Char('f') {
                     return self.process_view_ports(highlighted_resource);
                 }
@@ -194,12 +196,10 @@ impl ResourcesTable {
                 if key.code == KeyCode::Char('s') {
                     return self.process_open_shell(highlighted_resource);
                 }
-
-                if key.code == KeyCode::Char('y') {
-                    return self.process_view_yaml(highlighted_resource, false);
-                }
-            } else if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
-                return self.process_view_yaml(highlighted_resource, key.code == KeyCode::Char('x'));
+            } else if self.kind_plural() == PODS
+                && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('l') || key.code == KeyCode::Char('p'))
+            {
+                return self.process_enter_key(highlighted_resource);
             }
         }
 
