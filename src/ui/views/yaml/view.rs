@@ -6,14 +6,15 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker, commands::CommandResult},
-    kubernetes::{Kind, Namespace, resources::SECRETS},
+    kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
+            content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIconAction, FooterMessage, Search},
     },
 };
 
@@ -22,11 +23,12 @@ pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
-    lines: Vec<String>,
     is_decoded: bool,
     command_id: Option<String>,
     command_palette: CommandPalette,
-    footer_tx: UnboundedSender<FooterMessage>,
+    search: Search,
+    messages_tx: UnboundedSender<FooterMessage>,
+    icons_tx: UnboundedSender<FooterIconAction>,
 }
 
 impl YamlView {
@@ -35,32 +37,43 @@ impl YamlView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         command_id: Option<String>,
-        name: String,
-        namespace: Namespace,
-        kind: Kind,
-        footer_tx: UnboundedSender<FooterMessage>,
+        resource: ResourceRef,
+        messages_tx: UnboundedSender<FooterMessage>,
+        icons_tx: UnboundedSender<FooterIconAction>,
     ) -> Self {
-        let yaml = ContentViewer::new(Rc::clone(&app_data)).with_header("YAML", '', namespace, kind, name, None);
+        let color = app_data.borrow().theme.colors.syntax.yaml.search;
+        let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
+            "YAML",
+            '',
+            resource.namespace,
+            resource.kind,
+            resource.name.unwrap_or_default(),
+            None,
+        );
+        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
 
         Self {
             yaml,
             app_data,
             worker,
-            lines: Vec::new(),
             is_decoded: false,
             command_id,
             command_palette: CommandPalette::default(),
-            footer_tx,
+            search,
+            messages_tx,
+            icons_tx,
         }
     }
 
-    fn copy_yaml_to_clipboard(&mut self) {
+    fn copy_yaml_to_clipboard(&self) {
         let result: Result<ClipboardContext, _> = ClipboardProvider::new();
         if let Ok(mut ctx) = result
-            && ctx.set_contents(self.lines.join("")).is_ok()
+            && ctx
+                .set_contents(self.yaml.content().map(|c| c.plain.join("")).unwrap_or_default())
+                .is_ok()
         {
-            self.footer_tx
-                .send(FooterMessage::info(" YAML content copied to the clipboard…", 1_500))
+            self.messages_tx
+                .send(FooterMessage::info(" YAML content copied to clipboard…", 1_500))
                 .unwrap();
         }
     }
@@ -98,6 +111,25 @@ impl YamlView {
             !self.is_decoded,
         );
     }
+
+    fn clear_search(&mut self) {
+        self.yaml.search("", false);
+        self.search.reset();
+        self.update_search_count();
+    }
+
+    fn update_search_count(&mut self) {
+        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
+        self.search.set_matches(self.yaml.matches_count());
+    }
+
+    fn navigate_match(&mut self, forward: bool) {
+        self.yaml.navigate_match(forward);
+        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
+        if let Some(message) = self.yaml.get_footer_message(forward) {
+            let _ = self.messages_tx.send(message);
+        }
+    }
 }
 
 impl View for YamlView {
@@ -111,11 +143,16 @@ impl View for YamlView {
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
+            let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+            let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
             self.yaml.set_content(
-                YamlContent { lines: result.styled },
-                result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0),
+                YamlContent {
+                    styled: result.styled,
+                    plain: result.yaml,
+                    lowercase,
+                },
+                max_width,
             );
-            self.lines = result.yaml;
         }
     }
 
@@ -132,7 +169,9 @@ impl View for YamlView {
 
         if self.command_palette.is_visible {
             let response = self.command_palette.process_key(key);
-            if response.is_action("copy") {
+            if response == ResponseEvent::Cancelled {
+                self.clear_search();
+            } else if response.is_action("copy") {
                 self.copy_yaml_to_clipboard();
                 return ResponseEvent::Handled;
             } else if response.is_action("decode") {
@@ -143,12 +182,27 @@ impl View for YamlView {
             return response;
         }
 
+        if self.search.is_visible {
+            let result = self.search.process_key(key);
+            if self.yaml.search(self.search.value(), false) {
+                self.yaml.scroll_to_current_match();
+                self.update_search_count();
+            }
+
+            return result;
+        }
+
         if self.process_command_palette_events(key) {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Char('/') {
+            self.search.show();
+        }
+
         if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
             self.toggle_yaml_decode();
+            self.clear_search();
             return ResponseEvent::Handled;
         }
 
@@ -157,36 +211,64 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Char('n') && self.yaml.matches_count().is_some() {
+            self.navigate_match(true);
+        }
+
+        if key.code == KeyCode::Char('p') && self.yaml.matches_count().is_some() {
+            self.navigate_match(false);
+        }
+
         if key.code == KeyCode::Esc {
-            return ResponseEvent::Cancelled;
+            if self.search.value().is_empty() {
+                return ResponseEvent::Cancelled;
+            }
+
+            self.clear_search();
+            return ResponseEvent::Handled;
         }
 
         self.yaml.process_key(key)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.yaml.draw(frame, area);
+        self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
+        self.search.draw(frame, frame.area());
     }
 }
 
 /// Styled YAML content.
 struct YamlContent {
-    lines: Vec<StyledLine>,
+    pub styled: Vec<StyledLine>,
+    pub plain: Vec<String>,
+    pub lowercase: Vec<String>,
 }
 
 impl Content for YamlContent {
     fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
-        if start >= self.lines.len() {
+        if start >= self.styled.len() {
             &[]
-        } else if start + count >= self.lines.len() {
-            &self.lines[start..]
+        } else if start + count >= self.styled.len() {
+            &self.styled[start..]
         } else {
-            &self.lines[start..start + count]
+            &self.styled[start..start + count]
         }
     }
 
     fn len(&self) -> usize {
-        self.lines.len()
+        self.styled.len()
+    }
+
+    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
+        let pattern = pattern.to_ascii_lowercase();
+        let mut matches = Vec::new();
+        for (y, line) in self.lowercase.iter().enumerate() {
+            for (x, _) in line.match_indices(&pattern) {
+                matches.push(MatchPosition::new(x, y, pattern.len()));
+            }
+        }
+
+        matches
     }
 }

@@ -25,7 +25,7 @@ As the project is in its early stages, the following features are currently supp
 
 The following features are planned for future development:
 
-- Search within YAML configurations and logs.
+- Show CPU/memory metrics for pods and clusters.
 - View combined logs for all containers in a pod.
 - Edit Kubernetes resources (YAML).
 - Describe Kubernetes resources.
@@ -45,7 +45,7 @@ The following features are planned for future development:
 | Select resource                         | ` `             | (`SPACE`)                                                    |
 | Show / hide log timestamps              | `t`             | Works only in logs view                                      |
 | Show command palette                    | `:`             | For example, entering `:q`↲ quits the app                    |
-| Show filter input                       | `/`             | Possible operators: and `&`, or `\|`, negation `!`, `(`, `)` |
+| Show filter / search input              | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`   |
 | Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |
 | Show namespaces selector                | `←`             | To select `all` quickly press `←` again                      |
 | Show / hide port forwards               | `CTRL` + `f`    | Displays all active port forwarding rules                    |

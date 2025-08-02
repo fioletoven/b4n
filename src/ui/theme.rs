@@ -89,6 +89,7 @@ pub struct YamlSyntaxColors {
     pub numeric: TextColors,
     pub language: TextColors,
     pub timestamp: TextColors,
+    pub search: Color,
 }
 
 /// Represents colors for logs syntax highlighting.
@@ -97,6 +98,7 @@ pub struct LogsSyntaxColors {
     pub string: TextColors,
     pub error: TextColors,
     pub timestamp: TextColors,
+    pub search: Color,
 }
 
 /// All colors in theme.
@@ -143,12 +145,12 @@ impl Default for Theme {
                 filter: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    header: TextColors::bg(Color::DarkGray, Color::Gray),
                     filter: FilterColors {
                         input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
                         prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
                     },
-                    ..Default::default()
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
@@ -214,11 +216,13 @@ impl Default for Theme {
                         numeric: TextColors::new(Color::Blue),
                         language: TextColors::new(Color::LightBlue),
                         timestamp: TextColors::new(Color::Magenta),
+                        search: Color::Rgb(135, 114, 72),
                     },
                     logs: LogsSyntaxColors {
                         string: TextColors::new(Color::Gray),
                         error: TextColors::new(Color::Red),
                         timestamp: TextColors::new(Color::Magenta),
+                        search: Color::Rgb(135, 114, 72),
                     },
                 },
             },

@@ -12,7 +12,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let data_count = object.data["data"].as_object().map_or(0, Map::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 1] = [ResourceValue::integer(Some(data_count as i64), 5)];
+    let values: [ResourceValue; 1] = [ResourceValue::integer(i64::try_from(data_count).ok(), 5)];
 
     ResourceData {
         extra_values: Box::new(values),

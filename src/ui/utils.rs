@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::cursor::SetCursorStyle;
 use ratatui::{
     crossterm::{
         ExecutableCommand,
@@ -50,6 +51,7 @@ pub fn init_panic_hook() {
 
 /// Leaves alternate screen mode.
 fn restore_terminal() -> Result<()> {
+    stdout().execute(SetCursorStyle::DefaultUserShape)?;
     stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
 

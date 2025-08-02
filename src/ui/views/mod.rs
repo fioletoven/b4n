@@ -16,6 +16,7 @@ pub use self::yaml::YamlView;
 
 mod content;
 mod content_header;
+mod content_search;
 mod forwards;
 mod list;
 mod list_header;

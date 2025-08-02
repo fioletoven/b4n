@@ -1,18 +1,25 @@
+use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{Frame, layout::Rect, style::Style};
+use ratatui::{
+    Frame,
+    layout::{Rect, Size},
+    style::Style,
+};
 use std::rc::Rc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    core::SharedAppData,
-    kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
+    core::{SharedAppData, SharedBgWorker},
+    kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
+            content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIconAction, FooterMessage, Search},
     },
 };
 
@@ -28,6 +35,9 @@ pub struct LogsView {
     app_data: SharedAppData,
     observer: LogsObserver,
     command_palette: CommandPalette,
+    search: Search,
+    messages_tx: UnboundedSender<FooterMessage>,
+    icons_tx: UnboundedSender<FooterIconAction>,
     bound_to_bottom: bool,
 }
 
@@ -35,26 +45,29 @@ impl LogsView {
     /// Creates new [`LogsView`] instance.
     pub fn new(
         app_data: SharedAppData,
+        worker: SharedBgWorker,
         client: &KubernetesClient,
-        pod_name: String,
-        pod_namespace: Namespace,
-        pod_container: Option<String>,
+        resource: ResourceRef,
         previous: bool,
+        messages_tx: UnboundedSender<FooterMessage>,
+        icons_tx: UnboundedSender<FooterIconAction>,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
-            name: pod_name.clone(),
-            namespace: pod_namespace.clone(),
-            container: pod_container.clone(),
+            name: resource.name.clone().unwrap_or_default(),
+            namespace: resource.namespace.clone(),
+            container: resource.container.clone(),
         };
-        let logs = ContentViewer::new(Rc::clone(&app_data)).with_header(
+        let color = app_data.borrow().theme.colors.syntax.logs.search;
+        let logs = ContentViewer::new(Rc::clone(&app_data), color).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
-            pod_namespace,
+            resource.namespace,
             PODS.into(),
-            pod_name,
-            pod_container,
+            resource.name.unwrap_or_default(),
+            resource.container,
         );
 
+        let search = Search::new(Rc::clone(&app_data), Some(worker), 60);
         let mut observer = LogsObserver::new();
         observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
 
@@ -63,17 +76,28 @@ impl LogsView {
             app_data,
             observer,
             command_palette: CommandPalette::default(),
+            search,
+            messages_tx,
+            icons_tx,
             bound_to_bottom: true,
         })
     }
 
     fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
-            let builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                ActionItem::new("timestamps")
-                    .with_description("toggles the display of timestamps")
-                    .with_response(ResponseEvent::Action("timestamps")),
-            );
+            let builder = ActionsListBuilder::default()
+                .with_close()
+                .with_quit()
+                .with_action(
+                    ActionItem::new("timestamps")
+                        .with_description("toggles the display of timestamps")
+                        .with_response(ResponseEvent::Action("timestamps")),
+                )
+                .with_action(
+                    ActionItem::new("copy")
+                        .with_description("copies logs to the clipboard")
+                        .with_response(ResponseEvent::Action("copy")),
+                );
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
             self.command_palette.show();
             true
@@ -92,6 +116,63 @@ impl LogsView {
             }
 
             self.logs.reset_horizontal_scroll();
+        }
+    }
+
+    fn copy_logs_to_clipboard(&self) {
+        if self.logs.content().is_some() {
+            let result: Result<ClipboardContext, _> = ClipboardProvider::new();
+            if let Ok(mut ctx) = result
+                && ctx.set_contents(self.get_logs_as_string()).is_ok()
+            {
+                self.messages_tx
+                    .send(FooterMessage::info(" container logs copied to clipboard…", 1_500))
+                    .unwrap();
+            }
+        }
+    }
+
+    fn get_logs_as_string(&self) -> String {
+        if let Some(content) = self.logs.content() {
+            let mut result = String::new();
+            for line in &content.lines {
+                if content.show_timestamps {
+                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                    result.push(' ');
+                }
+
+                result.push_str(&line.message);
+                result.push('\n');
+            }
+
+            result
+        } else {
+            String::default()
+        }
+    }
+
+    fn update_bound_to_bottom(&mut self) {
+        self.bound_to_bottom = self.search.value().is_empty() && self.logs.is_at_end();
+        self.logs.header.set_icon(if self.bound_to_bottom { '' } else { '' });
+    }
+
+    fn clear_search(&mut self) {
+        self.logs.search("", false);
+        self.search.reset();
+        self.update_search_count();
+        self.update_bound_to_bottom();
+    }
+
+    fn update_search_count(&mut self) {
+        let _ = self.icons_tx.send(self.logs.get_footer_action("logs_search"));
+        self.search.set_matches(self.logs.matches_count());
+    }
+
+    fn navigate_match(&mut self, forward: bool) {
+        self.logs.navigate_match(forward);
+        let _ = self.icons_tx.send(self.logs.get_footer_action("logs_search"));
+        if let Some(message) = self.logs.get_footer_message(forward) {
+            let _ = self.messages_tx.send(message);
         }
     }
 }
@@ -119,6 +200,7 @@ impl View for LogsView {
                         max_width = width;
                     }
 
+                    content.lowercase.push(line.message.to_ascii_lowercase());
                     content.lines.push(line);
                 }
             }
@@ -126,6 +208,10 @@ impl View for LogsView {
             self.logs.update_max_width(max_width);
             if self.bound_to_bottom {
                 self.logs.scroll_to_end();
+            }
+
+            if self.logs.search(self.search.value(), true) {
+                self.update_search_count();
             }
         }
 
@@ -145,7 +231,9 @@ impl View for LogsView {
 
         if self.command_palette.is_visible {
             let response = self.command_palette.process_key(key);
-            if response.is_action("timestamps") {
+            if response == ResponseEvent::Cancelled {
+                self.clear_search();
+            } else if response.is_action("timestamps") {
                 self.toggle_timestamps();
                 return ResponseEvent::Handled;
             }
@@ -153,12 +241,32 @@ impl View for LogsView {
             return response;
         }
 
+        if self.search.is_visible {
+            let result = self.search.process_key(key);
+            if self.logs.search(self.search.value(), false) {
+                self.logs.scroll_to_current_match();
+                self.update_search_count();
+            }
+
+            self.update_bound_to_bottom();
+            return result;
+        }
+
         if self.process_command_palette_events(key) {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Char('/') {
+            self.search.show();
+        }
+
         if key.code == KeyCode::Esc {
-            return ResponseEvent::Cancelled;
+            if self.search.value().is_empty() {
+                return ResponseEvent::Cancelled;
+            }
+
+            self.clear_search();
+            return ResponseEvent::Handled;
         }
 
         if key.code == KeyCode::Char('t') {
@@ -166,21 +274,39 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
+        if key.code == KeyCode::Char('c') {
+            self.copy_logs_to_clipboard();
+            return ResponseEvent::Handled;
+        }
+
+        if key.code == KeyCode::Char('n') && self.logs.matches_count().is_some() {
+            self.navigate_match(true);
+        }
+
+        if key.code == KeyCode::Char('p') && self.logs.matches_count().is_some() {
+            self.navigate_match(false);
+        }
+
         if (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown) && self.logs.is_at_end() {
-            self.bound_to_bottom = true;
-            self.logs.header.set_icon('');
+            self.update_bound_to_bottom();
             self.logs.process_key(key);
         } else if self.logs.process_key(key) == ResponseEvent::Handled {
-            self.bound_to_bottom = false;
-            self.logs.header.set_icon('');
+            self.update_bound_to_bottom();
         }
 
         ResponseEvent::Handled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.logs.draw(frame, area);
+        let offset = if self.logs.content().is_some_and(|c| c.show_timestamps) {
+            Some(Size::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
+        } else {
+            None
+        };
+
+        self.logs.draw(frame, area, offset);
         self.command_palette.draw(frame, frame.area());
+        self.search.draw(frame, frame.area());
     }
 }
 
@@ -195,6 +321,7 @@ struct LogsContent {
     show_timestamps: bool,
     colors: LogsSyntaxColors,
     lines: Vec<LogLine>,
+    lowercase: Vec<String>,
     page: Vec<StyledLine>,
     start: usize,
     count: usize,
@@ -207,6 +334,7 @@ impl LogsContent {
             show_timestamps: true,
             colors,
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
+            lowercase: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
             start: 0,
             count: 0,
@@ -262,5 +390,17 @@ impl Content for LogsContent {
 
     fn len(&self) -> usize {
         self.lines.len()
+    }
+
+    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
+        let pattern = pattern.to_ascii_lowercase();
+        let mut matches = Vec::new();
+        for (y, line) in self.lowercase.iter().enumerate() {
+            for (x, _) in line.match_indices(&pattern) {
+                matches.push(MatchPosition::new(x, y, pattern.len()));
+            }
+        }
+
+        matches
     }
 }

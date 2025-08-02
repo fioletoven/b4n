@@ -37,8 +37,8 @@ impl std::fmt::Display for PatternItem {
     }
 }
 
-impl From<String> for PatternItem {
-    fn from(value: String) -> Self {
+impl From<&str> for PatternItem {
+    fn from(value: &str) -> Self {
         if value.contains("::") {
             let mut split = value.splitn(2, "::");
             Self {
@@ -48,7 +48,7 @@ impl From<String> for PatternItem {
             }
         } else {
             Self {
-                value,
+                value: value.to_owned(),
                 creation_time: SystemTime::now(),
             }
         }

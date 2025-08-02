@@ -209,8 +209,18 @@ impl ResourcesView {
         }
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
-        let mut builder =
-            ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref()).with_resources_actions(!is_containers);
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
+            .with_resources_actions(!is_containers)
+            .with_action(
+                ActionItem::new("show YAML")
+                    .with_description(if is_containers {
+                        "shows YAML of the current resource"
+                    } else {
+                        "shows YAML of the selected resource"
+                    })
+                    .with_aliases(&["yaml", "yml"])
+                    .with_response(ResponseEvent::Action("show_yaml")),
+            );
 
         if is_containers {
             builder = builder
@@ -237,13 +247,6 @@ impl ResourcesView {
                         .with_aliases(&["port", "pf"])
                         .with_response(ResponseEvent::Action("port_forward")),
                 );
-        } else {
-            builder = builder.with_action(
-                ActionItem::new("show YAML")
-                    .with_description("shows YAML of the selected resource")
-                    .with_aliases(&["yaml", "yml"])
-                    .with_response(ResponseEvent::Action("show_yaml")),
-            );
         }
 
         if self.table.kind_plural() == SECRETS {

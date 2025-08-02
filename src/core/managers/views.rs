@@ -285,11 +285,12 @@ impl ViewsManager {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
             if let Ok(view) = LogsView::new(
                 Rc::clone(&self.app_data),
+                Rc::clone(&self.worker),
                 client,
-                resource.name.unwrap_or_default(),
-                resource.namespace,
-                resource.container,
+                resource,
                 previous,
+                self.footer.get_messages_sender(),
+                self.footer.get_icons_sender(),
             ) {
                 self.view = Some(Box::new(view));
             }
@@ -302,10 +303,9 @@ impl ViewsManager {
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             command_id,
-            resource.name.unwrap_or_default(),
-            resource.namespace,
-            resource.kind,
+            resource,
             self.footer.get_messages_sender(),
+            self.footer.get_icons_sender(),
         )));
     }
 
