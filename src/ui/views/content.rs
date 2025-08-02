@@ -138,10 +138,12 @@ impl<T: Content> ContentViewer<T> {
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
     pub fn scroll_to(&mut self, line: usize, col: usize) {
         if line < self.page_vstart || line > self.page_vstart + self.page_height.saturating_sub(1) {
+            let line = line.saturating_sub(self.page_height.saturating_div(2));
             self.page_vstart = line.min(self.max_vstart());
         }
 
         if col < self.page_hstart || col > self.page_hstart + self.page_width.saturating_sub(1) {
+            let col = col.saturating_sub(self.page_width.saturating_sub(2));
             self.page_hstart = col.min(self.max_hstart());
         }
     }
@@ -200,13 +202,18 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Returns the number of search matches.
-    pub fn search_matches_count(&self) -> Option<usize> {
+    pub fn matches_count(&self) -> Option<usize> {
         self.search.matches.as_ref().map(|m| m.len())
+    }
+
+    /// Returns currently highlighted match.
+    pub fn current_match(&self) -> Option<usize> {
+        self.search.current
     }
 
     /// Updates the current match index in the search results based on navigation direction.\
     /// **Note** that updated index will start from 1.
-    pub fn navigate_match(&mut self, move_next: bool) {
+    pub fn navigate_match(&mut self, forward: bool) {
         let total = self.search.matches.as_ref().map_or(0, |m| m.len());
         if total == 0 {
             return;
@@ -214,7 +221,7 @@ impl<T: Content> ContentViewer<T> {
 
         self.search.current = match self.search.current {
             Some(current) => {
-                if move_next {
+                if forward {
                     let current = current.saturating_add(1);
                     if current > total { None } else { Some(current) }
                 } else {
@@ -222,7 +229,7 @@ impl<T: Content> ContentViewer<T> {
                     if current == 0 { None } else { Some(current) }
                 }
             },
-            None => Some(if move_next { 1 } else { total }),
+            None => Some(if forward { 1 } else { total }),
         };
 
         self.scroll_to_current_match();

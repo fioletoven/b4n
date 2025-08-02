@@ -14,7 +14,7 @@ use super::PatternsList;
 
 const HISTORY_SIZE: usize = 20;
 const SEARCH_HINT: &str = " Type to search. Hit Enter, then navigate with n and p.";
-const NOT_FOUND_HINT: &str = " No matches found.";
+const NOT_FOUND_HINT: &str = " No matches found.";
 
 /// Search widget for TUI.
 pub struct Search {

@@ -119,18 +119,34 @@ impl YamlView {
     }
 
     fn update_search_count(&mut self) {
-        let count = self.yaml.search_matches_count();
-        self.set_footer_icon(count);
-        self.search.set_matches(count);
+        self.update_footer_icon();
+        self.search.set_matches(self.yaml.matches_count());
     }
 
-    fn set_footer_icon(&self, count: Option<usize>) {
-        if let Some(count) = count {
-            let icon = FooterIcon::text("yaml_search", format!(" {count}"));
+    fn update_footer_icon(&self) {
+        if let Some(count) = self.yaml.matches_count() {
+            let icon = if let Some(current) = self.yaml.current_match() {
+                FooterIcon::text("yaml_search", format!(" {current}:{count}"))
+            } else {
+                FooterIcon::text("yaml_search", format!(" :{count}"))
+            };
             let _ = self.icons_tx.send(FooterIconAction::Add(icon));
         } else {
             let _ = self.icons_tx.send(FooterIconAction::Remove("yaml_search"));
         };
+    }
+
+    fn navigate_match(&mut self, forward: bool) {
+        self.yaml.navigate_match(forward);
+        self.update_footer_icon();
+        if self.yaml.matches_count().is_some() && self.yaml.current_match().is_none_or(|c| c == 0) {
+            let message = if forward {
+                "Reached end of search results. Wrapped to first match."
+            } else {
+                "Reached start of search results."
+            };
+            let _ = self.messages_tx.send(FooterMessage::info(message, 0));
+        }
     }
 }
 
@@ -212,12 +228,12 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('n') && self.yaml.search_matches_count().is_some() {
-            self.yaml.navigate_match(true);
+        if key.code == KeyCode::Char('n') && self.yaml.matches_count().is_some() {
+            self.navigate_match(true);
         }
 
-        if key.code == KeyCode::Char('p') && self.yaml.search_matches_count().is_some() {
-            self.yaml.navigate_match(false);
+        if key.code == KeyCode::Char('p') && self.yaml.matches_count().is_some() {
+            self.navigate_match(false);
         }
 
         if key.code == KeyCode::Esc {

@@ -109,7 +109,7 @@ impl ForwardsView {
 
         self.footer_tx
             .send(FooterMessage::info(
-                " Selected port forwarding rules have been stopped…",
+                " Selected port forwarding rules have been stopped…",
                 2_000,
             ))
             .unwrap();
