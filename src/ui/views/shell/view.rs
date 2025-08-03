@@ -9,7 +9,6 @@ use std::{
     sync::{Arc, RwLock},
     time::Instant,
 };
-use tokio::sync::mpsc::UnboundedSender;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
@@ -18,7 +17,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, TuiEvent,
         views::{View, content_header::ContentHeader},
-        widgets::{Button, Dialog, FooterMessage},
+        widgets::{Button, Dialog, FooterTx},
     },
 };
 
@@ -40,7 +39,7 @@ pub struct ShellView {
     modal: Dialog,
     esc_count: u8,
     esc_time: Instant,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
 }
 
 impl ShellView {
@@ -51,7 +50,7 @@ impl ShellView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
-        footer_tx: UnboundedSender<FooterMessage>,
+        footer_tx: FooterTx,
     ) -> Self {
         let pod = PodRef {
             name: pod_name.clone(),
@@ -138,11 +137,7 @@ impl View for ShellView {
             } else {
                 if self.bridge.has_error() {
                     self.footer_tx
-                        .send(FooterMessage::error(
-                            "Unable to attach to the shell process of the selected container",
-                            0,
-                        ))
-                        .unwrap();
+                        .show_error("Unable to attach to the shell process of the selected container", 0);
                 }
                 ResponseEvent::Cancelled
             }

@@ -12,72 +12,46 @@ use crate::core::SharedAppData;
 const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
 const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
 
-/// Footer message to show.
-pub struct FooterMessage {
-    pub text: String,
-    pub is_error: bool,
-    pub duration: u16,
+/// Footer transmitter for messages and icons.
+#[derive(Debug, Clone)]
+pub struct FooterTx {
+    messages_tx: UnboundedSender<FooterMessage>,
+    icons_tx: UnboundedSender<FooterIconAction>,
 }
 
-impl FooterMessage {
-    /// Creates new info [`FooterMessage`] instance.
-    pub fn info(text: impl Into<String>, duration: u16) -> Self {
-        Self {
-            text: text.into(),
-            is_error: false,
-            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
-        }
+impl FooterTx {
+    /// Displays an informational message in the footer for the specified duration (in milliseconds).
+    pub fn show_info(&self, text: impl Into<String>, duration: u16) {
+        let _ = self.messages_tx.send(FooterMessage::new(text.into(), false, duration));
     }
 
-    /// Creates new error [`FooterMessage`] instance.
-    pub fn error(text: impl Into<String>, duration: u16) -> Self {
-        Self {
-            text: text.into(),
-            is_error: true,
-            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
-        }
-    }
-}
-
-/// Defines possible actions for managing Footer icons.
-pub enum FooterIconAction {
-    Add(FooterIcon),
-    Remove(&'static str),
-}
-
-/// Footer icon to show.
-pub struct FooterIcon {
-    pub id: &'static str,
-    pub icon: Option<char>,
-    pub text: Option<String>,
-}
-
-impl FooterIcon {
-    /// Creates new [`FooterIcon`] instance.
-    pub fn new(id: &'static str, icon: char, text: String) -> Self {
-        Self {
-            id,
-            icon: Some(icon),
-            text: Some(text),
-        }
+    /// Displays an error message in the footer for the specified duration (in milliseconds).
+    pub fn show_error(&self, text: impl Into<String>, duration: u16) {
+        let _ = self.messages_tx.send(FooterMessage::new(text.into(), true, duration));
     }
 
-    /// Creates new icon [`FooterIcon`] instance.
-    pub fn icon(id: &'static str, icon: char) -> Self {
-        Self {
-            id,
-            icon: Some(icon),
-            text: None,
-        }
+    /// Adds, updates, or removes an icon in the footer by its `id`.
+    ///
+    /// Pass `Some(icon)` to add or update, or `None` to remove the icon.
+    pub fn set_icon(&self, id: &'static str, icon: Option<char>) {
+        let action = if let Some(icon) = icon {
+            FooterIconAction::Add(FooterIcon::new(id).with_icon(icon))
+        } else {
+            FooterIconAction::Remove(id)
+        };
+        let _ = self.icons_tx.send(action);
     }
 
-    /// Creates new text [`FooterIcon`] instance.
-    pub fn text(id: &'static str, text: String) -> Self {
-        Self {
-            id,
-            icon: None,
-            text: Some(text),
-        }
+    /// Adds, updates, or removes a text label in the footer by its `id`.
+    ///
+    /// Pass `Some(text)` to add or update, or `None` to remove the text label.
+    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>) {
+        let action = if let Some(text) = text {
+            FooterIconAction::Add(FooterIcon::new(id).with_text(text))
+        } else {
+            FooterIconAction::Remove(id)
+        };
+        let _ = self.icons_tx.send(action);
     }
 }
 
@@ -85,12 +59,11 @@ impl FooterIcon {
 pub struct Footer {
     app_data: SharedAppData,
     message: Option<FooterMessage>,
-    messages_tx: UnboundedSender<FooterMessage>,
     messages_rx: UnboundedReceiver<FooterMessage>,
     message_received_time: Instant,
     icons: Vec<FooterIcon>,
-    icons_tx: UnboundedSender<FooterIconAction>,
     icons_rx: UnboundedReceiver<FooterIconAction>,
+    footer_tx: FooterTx,
 }
 
 impl Footer {
@@ -98,37 +71,25 @@ impl Footer {
     pub fn new(app_data: SharedAppData) -> Self {
         let (messages_tx, messages_rx) = mpsc::unbounded_channel();
         let (icons_tx, icons_rx) = mpsc::unbounded_channel();
+        let footer_tx = FooterTx { messages_tx, icons_tx };
 
         Footer {
             app_data,
             message: None,
-            messages_tx,
             messages_rx,
             message_received_time: Instant::now(),
             icons: Vec::new(),
-            icons_tx,
             icons_rx,
+            footer_tx,
         }
     }
 
-    /// Returns [`FooterMessage`]s unbounded sender.
-    pub fn get_messages_sender(&self) -> UnboundedSender<FooterMessage> {
-        self.messages_tx.clone()
+    pub fn transmitter(&self) -> &FooterTx {
+        &self.footer_tx
     }
 
-    /// Sends [`FooterMessage`] at the end of the queue.
-    pub fn send_message(&mut self, message: FooterMessage) {
-        self.messages_tx.send(message).unwrap();
-    }
-
-    /// Returns [`FooterIcon`]s unbounded sender.
-    pub fn get_icons_sender(&self) -> UnboundedSender<FooterIconAction> {
-        self.icons_tx.clone()
-    }
-
-    /// Sends [`FooterIcon`] at the end of the queue.
-    pub fn send_icon(&mut self, action: FooterIconAction) {
-        self.icons_tx.send(action).unwrap();
+    pub fn get_transmitter(&self) -> FooterTx {
+        self.footer_tx.clone()
     }
 
     /// Returns layout that can be used to draw [`Footer`].\
@@ -260,5 +221,59 @@ impl Footer {
                 FooterIconAction::Remove(id) => self.icons.retain(|i| i.id != id),
             }
         }
+    }
+}
+
+/// Footer message to show.
+struct FooterMessage {
+    text: String,
+    is_error: bool,
+    duration: u16,
+}
+
+impl FooterMessage {
+    /// Creates new [`FooterMessage`] instance.
+    fn new(text: String, is_error: bool, duration: u16) -> Self {
+        Self {
+            text,
+            is_error,
+            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
+        }
+    }
+}
+
+/// Defines possible actions for managing Footer icons.
+enum FooterIconAction {
+    Add(FooterIcon),
+    Remove(&'static str),
+}
+
+/// Footer icon to show.
+struct FooterIcon {
+    id: &'static str,
+    icon: Option<char>,
+    text: Option<String>,
+}
+
+impl FooterIcon {
+    /// Creates new [`FooterIcon`] instance.
+    fn new(id: &'static str) -> Self {
+        Self {
+            id,
+            icon: None,
+            text: None,
+        }
+    }
+
+    /// Adds icon.
+    fn with_icon(mut self, icon: char) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
+    /// Adds text.
+    fn with_text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
     }
 }

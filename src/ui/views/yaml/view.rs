@@ -2,7 +2,6 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker, commands::CommandResult},
@@ -14,7 +13,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIconAction, FooterMessage, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, Search},
     },
 };
 
@@ -27,8 +26,7 @@ pub struct YamlView {
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
-    messages_tx: UnboundedSender<FooterMessage>,
-    icons_tx: UnboundedSender<FooterIconAction>,
+    footer: FooterTx,
 }
 
 impl YamlView {
@@ -38,8 +36,7 @@ impl YamlView {
         worker: SharedBgWorker,
         command_id: Option<String>,
         resource: ResourceRef,
-        messages_tx: UnboundedSender<FooterMessage>,
-        icons_tx: UnboundedSender<FooterIconAction>,
+        footer: FooterTx,
     ) -> Self {
         let color = app_data.borrow().theme.colors.syntax.yaml.search;
         let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
@@ -60,8 +57,7 @@ impl YamlView {
             command_id,
             command_palette: CommandPalette::default(),
             search,
-            messages_tx,
-            icons_tx,
+            footer,
         }
     }
 
@@ -72,9 +68,7 @@ impl YamlView {
                 .set_contents(self.yaml.content().map(|c| c.plain.join("")).unwrap_or_default())
                 .is_ok()
         {
-            self.messages_tx
-                .send(FooterMessage::info(" YAML content copied to clipboard…", 1_500))
-                .unwrap();
+            self.footer.show_info(" YAML content copied to clipboard…", 1_500);
         }
     }
 
@@ -119,15 +113,15 @@ impl YamlView {
     }
 
     fn update_search_count(&mut self) {
-        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
+        self.footer.set_text("yaml_search", self.yaml.get_footer_text());
         self.search.set_matches(self.yaml.matches_count());
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.yaml.navigate_match(forward);
-        let _ = self.icons_tx.send(self.yaml.get_footer_action("yaml_search"));
+        self.footer.set_text("yaml_search", self.yaml.get_footer_text());
         if let Some(message) = self.yaml.get_footer_message(forward) {
-            let _ = self.messages_tx.send(message);
+            self.footer.show_info(message, 0);
         }
     }
 }

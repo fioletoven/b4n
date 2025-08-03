@@ -4,7 +4,6 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
 };
 use std::rc::Rc;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
@@ -12,7 +11,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterMessage},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
 };
 
@@ -28,13 +27,13 @@ pub struct ForwardsView {
     command_palette: CommandPalette,
     filter: Filter,
     modal: Dialog,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
     is_closing: bool,
 }
 
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
         let namespace: Namespace = get_breadcrumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
         let view = if namespace.is_all() {
             ViewType::Full
@@ -108,11 +107,7 @@ impl ForwardsView {
         self.list.table.table.list.deselect_all();
 
         self.footer_tx
-            .send(FooterMessage::info(
-                " Selected port forwarding rules have been stopped…",
-                2_000,
-            ))
-            .unwrap();
+            .show_info(" Selected port forwarding rules have been stopped…", 2_000);
     }
 
     /// Creates new stop dialog.

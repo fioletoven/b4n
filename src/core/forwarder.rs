@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::{
     core::utils::wait_for_task,
     kubernetes::{ResourceRef, client::KubernetesClient, resources::PODS},
-    ui::widgets::FooterMessage,
+    ui::widgets::FooterTx,
 };
 
 /// Possible errors from [`PortForwarder`].
@@ -60,12 +60,12 @@ pub struct PortForwarder {
     tasks: Vec<PortForwardTask>,
     events_tx: UnboundedSender<PortForwardEvent>,
     events_rx: UnboundedReceiver<PortForwardEvent>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
 }
 
 impl PortForwarder {
     /// Creates new [`PortForwarder`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(footer_tx: FooterTx) -> Self {
         let (events_tx, events_rx) = mpsc::unbounded_channel();
         Self {
             tasks: Vec::default(),
@@ -97,17 +97,15 @@ impl PortForwarder {
             return Err(PortForwardError::UnsupportedResource);
         }
 
-        self.footer_tx
-            .send(FooterMessage::info(
-                format!(
-                    "Port forward for {}:  {} -> {}",
-                    resource.name.as_deref().unwrap_or_default(),
-                    address,
-                    port
-                ),
-                10_000,
-            ))
-            .unwrap();
+        self.footer_tx.show_info(
+            format!(
+                "Port forward for {}:  {} -> {}",
+                resource.name.as_deref().unwrap_or_default(),
+                address,
+                port
+            ),
+            10_000,
+        );
 
         let pods: Api<Pod> = Api::namespaced(client.get_client(), resource.namespace.as_str());
 
@@ -171,12 +169,12 @@ pub struct PortForwardTask {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     events_tx: UnboundedSender<PortForwardEvent>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
 }
 
 impl PortForwardTask {
     /// Creates new [`PortForwardTask`] instance.
-    fn new(events_tx: UnboundedSender<PortForwardEvent>, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    fn new(events_tx: UnboundedSender<PortForwardEvent>, footer_tx: FooterTx) -> Self {
         let statistics = TaskStatistics {
             active_connections: Arc::new(AtomicI16::new(0)),
             overall_connections: Arc::new(AtomicI32::new(0)),
@@ -242,9 +240,7 @@ impl PortForwardTask {
                 Err(error) => {
                     let msg = format!("Port forward for {_pod_name}: cannot bind to {_bind_address}");
                     warn!("{msg}: {error}");
-                    _footer_tx
-                        .send(FooterMessage::error(msg, 10_000))
-                        .expect("footer channel should be always open");
+                    _footer_tx.show_error(msg, 10_000);
                 },
             }
 
@@ -289,13 +285,13 @@ pub struct TaskStatistics {
 fn accept_error(
     error: &std::io::Error,
     events_tx: &UnboundedSender<PortForwardEvent>,
-    footer_tx: &UnboundedSender<FooterMessage>,
+    footer_tx: &FooterTx,
     connection_errors: &Arc<AtomicI32>,
 ) {
     let msg = format!("error accepting port forward connection: {error}");
 
     warn!(msg);
-    footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+    footer_tx.show_error(msg, 0);
 
     connection_errors.fetch_add(1, Ordering::Relaxed);
     events_tx.send(PortForwardEvent::ConnectionError).unwrap();

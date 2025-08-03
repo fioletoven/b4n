@@ -6,7 +6,6 @@ use ratatui::{
     style::Style,
 };
 use std::rc::Rc;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
@@ -19,7 +18,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterIconAction, FooterMessage, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, Search},
     },
 };
 
@@ -36,8 +35,7 @@ pub struct LogsView {
     observer: LogsObserver,
     command_palette: CommandPalette,
     search: Search,
-    messages_tx: UnboundedSender<FooterMessage>,
-    icons_tx: UnboundedSender<FooterIconAction>,
+    footer: FooterTx,
     bound_to_bottom: bool,
 }
 
@@ -49,8 +47,7 @@ impl LogsView {
         client: &KubernetesClient,
         resource: ResourceRef,
         previous: bool,
-        messages_tx: UnboundedSender<FooterMessage>,
-        icons_tx: UnboundedSender<FooterIconAction>,
+        footer: FooterTx,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
             name: resource.name.clone().unwrap_or_default(),
@@ -77,8 +74,7 @@ impl LogsView {
             observer,
             command_palette: CommandPalette::default(),
             search,
-            messages_tx,
-            icons_tx,
+            footer,
             bound_to_bottom: true,
         })
     }
@@ -125,9 +121,7 @@ impl LogsView {
             if let Ok(mut ctx) = result
                 && ctx.set_contents(self.get_logs_as_string()).is_ok()
             {
-                self.messages_tx
-                    .send(FooterMessage::info(" container logs copied to clipboard…", 1_500))
-                    .unwrap();
+                self.footer.show_info(" container logs copied to clipboard…", 1_500);
             }
         }
     }
@@ -164,15 +158,15 @@ impl LogsView {
     }
 
     fn update_search_count(&mut self) {
-        let _ = self.icons_tx.send(self.logs.get_footer_action("logs_search"));
+        self.footer.set_text("logs_search", self.logs.get_footer_text());
         self.search.set_matches(self.logs.matches_count());
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.logs.navigate_match(forward);
-        let _ = self.icons_tx.send(self.logs.get_footer_action("logs_search"));
+        self.footer.set_text("logs_search", self.logs.get_footer_text());
         if let Some(message) = self.logs.get_footer_message(forward) {
-            let _ = self.messages_tx.send(message);
+            self.footer.show_info(message, 0);
         }
     }
 }

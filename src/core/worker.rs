@@ -5,7 +5,6 @@ use kube::{
 };
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 use thiserror;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::{PortForwarder, commands::ListResourcePortsCommand},
@@ -17,7 +16,7 @@ use crate::{
         utils::get_resource,
         watchers::{BgObserverError, CrdObserver, ResourceObserver},
     },
-    ui::{views::PortForwardItem, widgets::FooterMessage},
+    ui::{views::PortForwardItem, widgets::FooterTx},
 };
 
 use super::{
@@ -55,7 +54,7 @@ pub struct BgWorker {
 
 impl BgWorker {
     /// Creates new [`BgWorker`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(footer_tx: FooterTx) -> Self {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
         Self {
             namespaces: ResourceObserver::new(Rc::clone(&crds_list), footer_tx.clone()),

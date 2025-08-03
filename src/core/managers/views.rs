@@ -13,7 +13,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterMessage, Position, SideSelect},
+        widgets::{Footer, FooterTx, Position, SideSelect},
     },
 };
 
@@ -57,9 +57,9 @@ impl ViewsManager {
         }
     }
 
-    /// Displays specified message in the footer.
-    pub fn display_footer_message(&mut self, message: FooterMessage) {
-        self.footer.send_message(message);
+    /// Returns footer transmitter.
+    pub fn footer(&self) -> &FooterTx {
+        self.footer.transmitter()
     }
 
     /// Updates page lists with observed resources.
@@ -272,7 +272,8 @@ impl ViewsManager {
 
         self.resources.deselect_all();
         self.footer
-            .send_message(FooterMessage::info(" Selected resources marked for deletion…", 2_000));
+            .transmitter()
+            .show_info(" Selected resources marked for deletion…", 2_000);
     }
 
     /// Displays a list of available contexts to choose from.
@@ -289,8 +290,7 @@ impl ViewsManager {
                 client,
                 resource,
                 previous,
-                self.footer.get_messages_sender(),
-                self.footer.get_icons_sender(),
+                self.footer.get_transmitter(),
             ) {
                 self.view = Some(Box::new(view));
             }
@@ -304,8 +304,7 @@ impl ViewsManager {
             Rc::clone(&self.worker),
             command_id,
             resource,
-            self.footer.get_messages_sender(),
-            self.footer.get_icons_sender(),
+            self.footer.get_transmitter(),
         )));
     }
 
@@ -319,7 +318,7 @@ impl ViewsManager {
             self.view = None;
             let msg = format!("View YAML error: {error}");
             tracing::warn!("{}", msg);
-            self.footer.send_message(FooterMessage::error(msg, 0));
+            self.footer.transmitter().show_error(msg, 0);
         } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::ResourceYaml(result));
         }
@@ -334,7 +333,7 @@ impl ViewsManager {
                 resource.name.unwrap_or_default(),
                 resource.namespace,
                 resource.container,
-                self.footer.get_messages_sender(),
+                self.footer.get_transmitter(),
             );
             self.view = Some(Box::new(view));
         }
@@ -350,7 +349,7 @@ impl ViewsManager {
         let view = ForwardsView::new(
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
-            self.footer.get_messages_sender(),
+            self.footer.get_transmitter(),
         );
         self.view = Some(Box::new(view));
     }

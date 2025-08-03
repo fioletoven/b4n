@@ -5,7 +5,6 @@ use kube::{
     discovery::{ApiCapabilities, Scope},
 };
 use std::collections::VecDeque;
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::SharedCrdsList,
@@ -15,7 +14,7 @@ use crate::{
         resources::{CrdColumns, PODS, ResourceItem},
         watchers::{BgObserverError, InitData, ObserverResult, observer::BgObserver},
     },
-    ui::widgets::FooterMessage,
+    ui::widgets::FooterTx,
 };
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
@@ -28,7 +27,7 @@ pub struct ResourceObserver {
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(crds: SharedCrdsList, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(crds: SharedCrdsList, footer_tx: FooterTx) -> Self {
         Self {
             observer: BgObserver::new(footer_tx),
             queue: VecDeque::with_capacity(200),
