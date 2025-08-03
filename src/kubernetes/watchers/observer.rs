@@ -30,7 +30,7 @@ use crate::{
         client::KubernetesClient,
         resources::{CONTAINERS, CrdColumns},
     },
-    ui::widgets::FooterMessage,
+    ui::widgets::FooterTx,
 };
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
@@ -124,14 +124,14 @@ pub struct BgObserver {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
     context_rx: UnboundedReceiver<Box<ObserverResult<DynamicObject>>>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
 }
 
 impl BgObserver {
     /// Creates new [`BgObserver`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(footer_tx: FooterTx) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
@@ -286,7 +286,7 @@ impl Drop for BgObserver {
 struct EventsProcessor {
     init_data: InitData,
     context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
@@ -322,7 +322,7 @@ impl EventsProcessor {
             Err(error) => {
                 let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
                 warn!("{}", msg);
-                self.footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+                self.footer_tx.show_error(msg, 0);
 
                 match error {
                     Error::WatchStartFailed(_) | Error::WatchFailed(_) => {

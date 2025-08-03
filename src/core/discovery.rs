@@ -19,7 +19,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterMessage};
+use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
 
 use super::utils::{build_default_backoff, wait_for_task};
 
@@ -31,13 +31,13 @@ pub struct BgDiscovery {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<Vec<(ApiResource, ApiCapabilities)>>,
     context_rx: UnboundedReceiver<Vec<(ApiResource, ApiCapabilities)>>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
     has_error: Arc<AtomicBool>,
 }
 
 impl BgDiscovery {
     /// Creates new [`BgDiscovery`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(footer_tx: FooterTx) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             task: None,
@@ -85,7 +85,7 @@ impl BgDiscovery {
                             Err(error) => {
                                 let msg = format!("Discovery error: {error}");
                                 warn!("{}", msg);
-                                _footer_tx.send(FooterMessage::error(msg, 0)).unwrap();
+                                _footer_tx.show_error(msg, 0);
                                 if !_has_error.swap(true, Ordering::Relaxed) || backoff.start_time.elapsed().as_secs() > 120 {
                                     backoff.reset();
                                 }

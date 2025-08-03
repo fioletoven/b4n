@@ -9,12 +9,7 @@ use std::{
 use crate::{
     core::ViewsManager,
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{
-        ResponseEvent, Tui, TuiEvent,
-        theme::Theme,
-        views::ResourcesView,
-        widgets::{Footer, FooterMessage},
-    },
+    ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
 };
 
 use super::{
@@ -47,9 +42,9 @@ impl App {
         let theme_path = config.theme_path();
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
-        let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_messages_sender())));
+        let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_transmitter())));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
-        let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_messages_sender());
+        let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter());
         let views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
 
         Ok(Self {
@@ -128,8 +123,7 @@ impl App {
                     }
                 },
                 Err(error) => {
-                    self.views_manager
-                        .display_footer_message(FooterMessage::error(error.to_string(), 0));
+                    self.views_manager.footer().show_error(error.to_string(), 0);
                 },
             }
         }

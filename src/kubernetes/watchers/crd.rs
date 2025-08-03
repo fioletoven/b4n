@@ -3,7 +3,6 @@ use kube::{
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
 };
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     kubernetes::{
@@ -12,7 +11,7 @@ use crate::{
         resources::{CRDS, CrdColumns},
         watchers::{BgObserverError, ObserverResult, observer::BgObserver},
     },
-    ui::widgets::FooterMessage,
+    ui::widgets::FooterTx,
 };
 
 /// Custom resource definitions observer.
@@ -22,7 +21,7 @@ pub struct CrdObserver {
 
 impl CrdObserver {
     /// Creates new [`CrdObserver`] instance.
-    pub fn new(footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(footer_tx: FooterTx) -> Self {
         Self {
             observer: BgObserver::new(footer_tx),
         }

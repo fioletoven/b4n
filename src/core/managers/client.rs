@@ -1,5 +1,4 @@
 use std::time::Instant;
-use tokio::sync::mpsc::UnboundedSender;
 use tracing::warn;
 
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
         utils::StateChangeTracker,
     },
     kubernetes::{Kind, Namespace},
-    ui::widgets::FooterMessage,
+    ui::widgets::FooterTx,
 };
 
 const ERROR_DURATION: u16 = 10_000;
@@ -40,13 +39,13 @@ pub struct KubernetesClientManager {
     app_data: SharedAppData,
     worker: SharedBgWorker,
     request: Option<RequestInfo>,
-    footer_tx: UnboundedSender<FooterMessage>,
+    footer_tx: FooterTx,
     connection_state: StateChangeTracker<bool>,
 }
 
 impl KubernetesClientManager {
     /// Creates new [`KubernetesClientManager`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: UnboundedSender<FooterMessage>) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
         Self {
             app_data,
             worker,
@@ -63,7 +62,7 @@ impl KubernetesClientManager {
         }
 
         let msg = format!("Requested kubernetes client for '{context}'.");
-        self.footer_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
+        self.footer_tx.show_info(msg, 5_000);
         self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 
@@ -95,7 +94,7 @@ impl KubernetesClientManager {
 
                 let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
                 warn!("{}", msg);
-                self.footer_tx.send(FooterMessage::error(msg, ERROR_DURATION)).unwrap();
+                self.footer_tx.show_error(msg, ERROR_DURATION);
                 self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
             }
         }
@@ -112,14 +111,14 @@ impl KubernetesClientManager {
                 Ok(result) => {
                     self.request = None;
                     let msg = format!("Connected to '{}'.", result.client.context());
-                    self.footer_tx.send(FooterMessage::info(msg, 5_000)).unwrap();
+                    self.footer_tx.show_info(msg, 5_000);
                     Some(result)
                 },
                 Err(err) => {
                     self.set_request_as_faulty();
                     let msg = format!("Requested client error: {err}.");
                     warn!("{}", msg);
-                    self.footer_tx.send(FooterMessage::error(msg, ERROR_DURATION)).unwrap();
+                    self.footer_tx.show_error(msg, ERROR_DURATION);
                     None
                 },
             }

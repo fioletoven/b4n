@@ -15,7 +15,6 @@ use crate::{
         ResponseEvent,
         utils::center,
         views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
-        widgets::{FooterIcon, FooterIconAction, FooterMessage},
     },
 };
 
@@ -246,24 +245,23 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    /// Creates [`FooterIconAction`] for the current search state.
-    pub fn get_footer_action(&self, icon_id: &'static str) -> FooterIconAction {
+    /// Gets footer icon text for the current search state.
+    pub fn get_footer_text(&self) -> Option<String> {
         if let Some(count) = self.matches_count() {
-            let icon = if let Some(current) = self.current_match() {
-                FooterIcon::text(icon_id, format!(" {current}:{count}"))
+            if let Some(current) = self.current_match() {
+                Some(format!(" {current}:{count}"))
             } else {
-                FooterIcon::text(icon_id, format!(" :{count}"))
-            };
-            FooterIconAction::Add(icon)
+                Some(format!(" :{count}"))
+            }
         } else {
-            FooterIconAction::Remove(icon_id)
+            None
         }
     }
 
-    /// Creates [`FooterMessage`] for the current search state.
-    pub fn get_footer_message(&self, forward: bool) -> Option<FooterMessage> {
+    /// Gets footer message for the current search state.
+    pub fn get_footer_message(&self, forward: bool) -> Option<&'static str> {
         if self.matches_count().is_some() && self.current_match().is_none_or(|c| c == 0) {
-            Some(FooterMessage::info(get_search_wrapped_message(forward), 0))
+            Some(get_search_wrapped_message(forward))
         } else {
             None
         }
