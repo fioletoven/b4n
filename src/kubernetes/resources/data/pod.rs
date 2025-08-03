@@ -42,8 +42,9 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         extra_values: Box::new(values),
         is_job: has_job_reference(object),
         is_completed,
-        is_ready: if is_terminating { false } else { is_ready },
+        is_ready: !is_terminating && is_ready,
         is_terminating,
+        one_container: get_single_container(&object.data["spec"]["containers"]),
     }
 }
 
@@ -94,5 +95,12 @@ fn has_job_reference(object: &DynamicObject) -> bool {
         references.iter().any(|r| r.kind == "Job")
     } else {
         false
+    }
+}
+
+fn get_single_container(containers: &Value) -> Option<String> {
+    match containers.as_array()?.as_slice() {
+        [one] => one.as_object()?.get("name")?.as_str().map(String::from),
+        _ => None,
     }
 }

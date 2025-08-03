@@ -24,13 +24,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         ResourceValue::integer(available, 5),
     ];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `daemonset` kubernetes resource.

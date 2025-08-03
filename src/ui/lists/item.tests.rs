@@ -112,10 +112,7 @@ fn get_text_pod_test() {
             Some("10.42.1.201".to_owned()).into(),
         ]
         .into_boxed_slice(),
-        is_job: false,
-        is_completed: false,
-        is_ready: false,
-        is_terminating: false,
+        ..Default::default()
     });
 
     assert_eq!(
@@ -164,10 +161,7 @@ fn align_column_to_right_test() {
     item.data.namespace = Some("kube-system".to_owned());
     item.data.data = Some(ResourceData {
         extra_values: vec![Some("555555".to_owned()).into(), Some("10.42.1.201".to_owned()).into()].into_boxed_slice(),
-        is_job: false,
-        is_completed: false,
-        is_ready: false,
-        is_terminating: false,
+        ..Default::default()
     });
 
     assert_eq!(

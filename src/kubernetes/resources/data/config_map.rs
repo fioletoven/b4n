@@ -14,13 +14,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 1] = [ResourceValue::integer(i64::try_from(data_count).ok(), 5)];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `configmap` kubernetes resource.

@@ -95,7 +95,7 @@ impl ResourcesView {
 
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: Vec<Port>) {
-        if let Some(resource) = self.table.get_resource_ref() {
+        if let Some(resource) = self.table.get_resource_ref(true) {
             let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
                 .with_header(format!(

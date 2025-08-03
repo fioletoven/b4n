@@ -101,11 +101,11 @@ impl ResourcesTable {
     }
 
     /// Returns [`ResourceRef`] for currently highlighted item.
-    pub fn get_resource_ref(&self) -> Option<ResourceRef> {
+    pub fn get_resource_ref(&self, prefer_container: bool) -> Option<ResourceRef> {
         self.list
             .table
             .get_highlighted_resource()
-            .and_then(|r| self.resource_ref_from(r))
+            .and_then(|r| self.resource_ref_from(r, prefer_container))
     }
 
     /// Sets namespace for [`ResourcesTable`].
@@ -173,33 +173,37 @@ impl ResourcesTable {
             return ResponseEvent::ShowPortForwards;
         }
 
-        if let Some(highlighted_resource) = self.list.table.get_highlighted_resource() {
+        if let Some(resource) = self.list.table.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
-                return self.process_enter_key(highlighted_resource);
+                return self.process_enter_key(resource);
             }
 
             if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
-                return self.process_view_yaml(highlighted_resource, key.code == KeyCode::Char('x'));
-            } else if self.kind_plural() == CONTAINERS {
+                return self.process_view_yaml(resource, key.code == KeyCode::Char('x'));
+            }
+
+            let is_container_name_known = self.kind_plural() == CONTAINERS
+                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.one_container.is_some()));
+            if is_container_name_known {
                 if key.code == KeyCode::Char('f') {
-                    return self.process_view_ports(highlighted_resource);
+                    return self.process_view_ports(resource);
                 }
 
                 if key.code == KeyCode::Char('l') {
-                    return self.process_view_logs(highlighted_resource, false);
+                    return self.process_view_logs(resource, false);
                 }
 
                 if key.code == KeyCode::Char('p') {
-                    return self.process_view_logs(highlighted_resource, true);
+                    return self.process_view_logs(resource, true);
                 }
 
                 if key.code == KeyCode::Char('s') {
-                    return self.process_open_shell(highlighted_resource);
+                    return self.process_open_shell(resource);
                 }
             } else if self.kind_plural() == PODS
                 && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('l') || key.code == KeyCode::Char('p'))
             {
-                return self.process_enter_key(highlighted_resource);
+                return self.process_enter_key(resource);
             }
         }
 
@@ -238,12 +242,12 @@ impl ResourcesTable {
     }
 
     fn process_view_ports(&self, resource: &ResourceItem) -> ResponseEvent {
-        self.resource_ref_from(resource)
+        self.resource_ref_from(resource, true)
             .map_or(ResponseEvent::NotHandled, ResponseEvent::ListResourcePorts)
     }
 
     fn process_view_logs(&self, resource: &ResourceItem, previous: bool) -> ResponseEvent {
-        let resource = self.resource_ref_from(resource);
+        let resource = self.resource_ref_from(resource, true);
         if previous {
             resource.map_or(ResponseEvent::NotHandled, ResponseEvent::ViewPreviousLogs)
         } else {
@@ -252,22 +256,30 @@ impl ResourcesTable {
     }
 
     fn process_open_shell(&self, resource: &ResourceItem) -> ResponseEvent {
-        self.resource_ref_from(resource)
+        self.resource_ref_from(resource, true)
             .map_or(ResponseEvent::NotHandled, ResponseEvent::OpenShell)
     }
 
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool) -> ResponseEvent {
-        self.resource_ref_from(resource)
+        self.resource_ref_from(resource, false)
             .map_or(ResponseEvent::NotHandled, |r| ResponseEvent::ViewYaml(r, decode))
     }
 
-    fn resource_ref_from(&self, resource: &ResourceItem) -> Option<ResourceRef> {
+    fn resource_ref_from(&self, resource: &ResourceItem, prefer_container: bool) -> Option<ResourceRef> {
         if self.kind_plural() == CONTAINERS {
             if let Some(name) = self.app_data.borrow().current.name.clone() {
                 return Some(ResourceRef::container(
                     name,
                     resource.namespace.clone().into(),
                     resource.name.clone(),
+                ));
+            }
+        } else if self.kind_plural() == PODS && prefer_container {
+            if let Some(container) = resource.data.as_ref().and_then(|d| d.one_container.as_deref()) {
+                return Some(ResourceRef::container(
+                    resource.name.clone(),
+                    resource.namespace.clone().into(),
+                    container.to_owned(),
                 ));
             }
         } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
