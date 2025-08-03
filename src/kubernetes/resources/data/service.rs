@@ -15,13 +15,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 2] = [service_type.into(), cluster_ip.into()];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `service` kubernetes resource.

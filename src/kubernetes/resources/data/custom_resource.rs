@@ -21,13 +21,7 @@ pub fn data(crd: &CrdColumns, object: &DynamicObject) -> ResourceData {
         get_data(crd, &object.data)
     };
 
-    ResourceData {
-        extra_values,
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(extra_values, is_terminating)
 }
 
 /// Returns [`Header`] for the custom resource.

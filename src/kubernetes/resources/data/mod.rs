@@ -200,15 +200,27 @@ impl From<Option<&DateTime<Utc>>> for ResourceValue {
 }
 
 /// Extra data for the kubernetes resource.
+#[derive(Default)]
 pub struct ResourceData {
     pub is_job: bool,
     pub is_completed: bool,
     pub is_ready: bool,
     pub is_terminating: bool,
     pub extra_values: Box<[ResourceValue]>,
+    pub one_container: Option<String>,
 }
 
 impl ResourceData {
+    /// Creates new [`ResourceData`] instance.
+    pub fn new(values: Box<[ResourceValue]>, is_terminating: bool) -> Self {
+        Self {
+            extra_values: values,
+            is_ready: !is_terminating,
+            is_terminating,
+            ..Default::default()
+        }
+    }
+
     /// Returns [`TextColors`] for the current resource state.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {

@@ -44,10 +44,10 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
 
     ResourceData {
         extra_values: Box::new(values),
-        is_job: false,
         is_completed: completed.is_some(),
         is_ready: is_running,
         is_terminating,
+        ..Default::default()
     }
 }
 

@@ -15,13 +15,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 2] = [secret_type.into(), ResourceValue::integer(Some(data_count as i64), 5)];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `secret` kubernetes resource.

@@ -9,14 +9,7 @@ use crate::{
 /// Returns [`ResourceData`] for any kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
-
-    ResourceData {
-        extra_values: Box::default(),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::default(), is_terminating)
 }
 
 /// Returns [`Header`] for default kubernetes resource.

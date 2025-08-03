@@ -22,13 +22,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         ResourceValue::from(duration.as_ref()),
     ];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `job` kubernetes resource.

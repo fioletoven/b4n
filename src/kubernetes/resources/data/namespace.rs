@@ -14,13 +14,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 1] = [if is_terminating { "Terminating".into() } else { phase.into() }];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_job: false,
-        is_completed: false,
-        is_ready: !is_terminating,
-        is_terminating,
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 /// Returns [`Header`] for the `namespace` kubernetes resource.
