@@ -13,7 +13,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterTx, Position, SideSelect},
+        widgets::{Footer, FooterTx, Position, SideSelect, StatusKind},
     },
 };
 
@@ -196,14 +196,19 @@ impl ViewsManager {
         }
     }
 
-    /// Processes disconnection state.
-    pub fn process_disconnection(&mut self) {
-        self.ns_selector.hide();
-        self.res_selector.hide();
+    /// Processes connection event.
+    pub fn process_connection_event(&mut self, is_connected: bool) {
+        if is_connected {
+            self.footer().set_icon("context_connected", Some('󰐥'), StatusKind::Success);
+        } else {
+            self.footer().set_icon("context_connected", Some('󰐥'), StatusKind::Error);
+            self.ns_selector.hide();
+            self.res_selector.hide();
 
-        self.resources.process_disconnection();
-        if let Some(view) = &mut self.view {
-            view.process_disconnection();
+            self.resources.process_disconnection();
+            if let Some(view) = &mut self.view {
+                view.process_disconnection();
+            }
         }
     }
 

@@ -12,6 +12,13 @@ use crate::core::SharedAppData;
 const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
 const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
 
+/// Represents footer icon or text kind.
+pub enum StatusKind {
+    Default,
+    Success,
+    Error,
+}
+
 /// Footer transmitter for messages and icons.
 #[derive(Debug, Clone)]
 pub struct FooterTx {
@@ -33,9 +40,9 @@ impl FooterTx {
     /// Adds, updates, or removes an icon in the footer by its `id`.
     ///
     /// Pass `Some(icon)` to add or update, or `None` to remove the icon.
-    pub fn set_icon(&self, id: &'static str, icon: Option<char>) {
+    pub fn set_icon(&self, id: &'static str, icon: Option<char>, kind: StatusKind) {
         let action = if let Some(icon) = icon {
-            FooterIconAction::Add(FooterIcon::new(id).with_icon(icon))
+            FooterIconAction::Add(FooterIcon::new(id).with_icon(icon).with_kind(kind))
         } else {
             FooterIconAction::Remove(id)
         };
@@ -45,9 +52,9 @@ impl FooterTx {
     /// Adds, updates, or removes a text label in the footer by its `id`.
     ///
     /// Pass `Some(text)` to add or update, or `None` to remove the text label.
-    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>) {
+    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>, kind: StatusKind) {
         let action = if let Some(text) = text {
-            FooterIconAction::Add(FooterIcon::new(id).with_text(text))
+            FooterIconAction::Add(FooterIcon::new(id).with_text(text).with_kind(kind))
         } else {
             FooterIconAction::Remove(id)
         };
@@ -188,23 +195,33 @@ impl Footer {
 
     /// Returns formatted icons to show.
     fn get_icons(&self, width: usize) -> Line<'_> {
-        let mut icons = String::new();
-        for icon in &self.icons {
-            if let Some(icon) = icon.icon.as_ref() {
-                icons.push(*icon);
-            }
-            if let Some(text) = icon.text.as_deref() {
-                icons.push_str(text);
-                icons.push(' ');
-            }
-        }
-
-        if !icons.ends_with(' ') {
-            icons.push(' ');
-        }
-
         let colors = &self.app_data.borrow().theme.colors;
-        Line::from(Span::styled(format!("{icons:>width$}"), &colors.footer.text))
+        let mut spans = Vec::with_capacity(self.icons.len());
+        let mut total = 0;
+
+        for icon in &self.icons {
+            let color = match icon.kind {
+                StatusKind::Default => &colors.footer.text,
+                StatusKind::Success => &colors.footer.info,
+                StatusKind::Error => &colors.footer.error,
+            };
+
+            if let Some(icon) = icon.icon.as_ref() {
+                spans.push(Span::styled(icon.to_string(), color));
+                total += 1;
+            }
+
+            if let Some(text) = icon.text.as_deref() {
+                spans.push(Span::styled(text, color));
+                total += text.chars().count();
+            }
+
+            spans.push(Span::styled(" ", &colors.footer.text));
+            total += 1;
+        }
+
+        spans.insert(0, Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
+        Line::from(spans)
     }
 
     /// Updates all currently visible icons with the ones from the icons channel.
@@ -253,6 +270,7 @@ struct FooterIcon {
     id: &'static str,
     icon: Option<char>,
     text: Option<String>,
+    kind: StatusKind,
 }
 
 impl FooterIcon {
@@ -262,6 +280,7 @@ impl FooterIcon {
             id,
             icon: None,
             text: None,
+            kind: StatusKind::Default,
         }
     }
 
@@ -274,6 +293,12 @@ impl FooterIcon {
     /// Adds text.
     fn with_text(mut self, text: impl Into<String>) -> Self {
         self.text = Some(text.into());
+        self
+    }
+
+    /// Sets kind.
+    fn with_kind(mut self, kind: StatusKind) -> Self {
+        self.kind = kind;
         self
     }
 }

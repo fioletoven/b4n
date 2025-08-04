@@ -18,7 +18,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, Search, StatusKind},
     },
 };
 
@@ -158,13 +158,15 @@ impl LogsView {
     }
 
     fn update_search_count(&mut self) {
-        self.footer.set_text("logs_search", self.logs.get_footer_text());
+        self.footer
+            .set_text("logs_search", self.logs.get_footer_text(), StatusKind::Default);
         self.search.set_matches(self.logs.matches_count());
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.logs.navigate_match(forward);
-        self.footer.set_text("logs_search", self.logs.get_footer_text());
+        self.footer
+            .set_text("logs_search", self.logs.get_footer_text(), StatusKind::Default);
         if let Some(message) = self.logs.get_footer_message(forward) {
             self.footer.show_info(message, 0);
         }
