@@ -13,7 +13,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterTx, Position, SideSelect, StatusKind},
+        widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
     },
 };
 
@@ -199,9 +199,9 @@ impl ViewsManager {
     /// Processes connection event.
     pub fn process_connection_event(&mut self, is_connected: bool) {
         if is_connected {
-            self.footer().set_icon("context_connected", Some('󰐥'), StatusKind::Success);
+            self.footer().reset("connected");
         } else {
-            self.footer().set_icon("context_connected", Some('󰐥'), StatusKind::Error);
+            self.footer().set_icon("connected", Some(''), IconKind::Error);
             self.ns_selector.hide();
             self.res_selector.hide();
 

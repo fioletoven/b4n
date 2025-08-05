@@ -13,7 +13,7 @@ use crate::{
             content::{Content, ContentViewer, StyledLine},
             content_search::MatchPosition,
         },
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, Search, StatusKind},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
 };
 
@@ -114,14 +114,14 @@ impl YamlView {
 
     fn update_search_count(&mut self) {
         self.footer
-            .set_text("yaml_search", self.yaml.get_footer_text(), StatusKind::Default);
+            .set_text("yaml_search", self.yaml.get_footer_text(), IconKind::Default);
         self.search.set_matches(self.yaml.matches_count());
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.yaml.navigate_match(forward);
         self.footer
-            .set_text("yaml_search", self.yaml.get_footer_text(), StatusKind::Default);
+            .set_text("yaml_search", self.yaml.get_footer_text(), IconKind::Default);
         if let Some(message) = self.yaml.get_footer_message(forward) {
             self.footer.show_info(message, 0);
         }

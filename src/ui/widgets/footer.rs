@@ -13,7 +13,7 @@ const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", en
 const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
 
 /// Represents footer icon or text kind.
-pub enum StatusKind {
+pub enum IconKind {
     Default,
     Success,
     Error,
@@ -38,9 +38,7 @@ impl FooterTx {
     }
 
     /// Adds, updates, or removes an icon in the footer by its `id`.
-    ///
-    /// Pass `Some(icon)` to add or update, or `None` to remove the icon.
-    pub fn set_icon(&self, id: &'static str, icon: Option<char>, kind: StatusKind) {
+    pub fn set_icon(&self, id: &'static str, icon: Option<char>, kind: IconKind) {
         let action = if let Some(icon) = icon {
             FooterIconAction::Add(FooterIcon::new(id).with_icon(icon).with_kind(kind))
         } else {
@@ -50,15 +48,18 @@ impl FooterTx {
     }
 
     /// Adds, updates, or removes a text label in the footer by its `id`.
-    ///
-    /// Pass `Some(text)` to add or update, or `None` to remove the text label.
-    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>, kind: StatusKind) {
+    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>, kind: IconKind) {
         let action = if let Some(text) = text {
             FooterIconAction::Add(FooterIcon::new(id).with_text(text).with_kind(kind))
         } else {
             FooterIconAction::Remove(id)
         };
         let _ = self.icons_tx.send(action);
+    }
+
+    /// Removes an icon or a text label from the footer by its `id`.
+    pub fn reset(&self, id: &'static str) {
+        let _ = self.icons_tx.send(FooterIconAction::Remove(id));
     }
 }
 
@@ -201,9 +202,9 @@ impl Footer {
 
         for icon in &self.icons {
             let color = match icon.kind {
-                StatusKind::Default => &colors.footer.text,
-                StatusKind::Success => &colors.footer.info,
-                StatusKind::Error => &colors.footer.error,
+                IconKind::Default => &colors.footer.text,
+                IconKind::Success => &colors.footer.info,
+                IconKind::Error => &colors.footer.error,
             };
 
             if let Some(icon) = icon.icon.as_ref() {
@@ -270,7 +271,7 @@ struct FooterIcon {
     id: &'static str,
     icon: Option<char>,
     text: Option<String>,
-    kind: StatusKind,
+    kind: IconKind,
 }
 
 impl FooterIcon {
@@ -280,7 +281,7 @@ impl FooterIcon {
             id,
             icon: None,
             text: None,
-            kind: StatusKind::Default,
+            kind: IconKind::Default,
         }
     }
 
@@ -297,7 +298,7 @@ impl FooterIcon {
     }
 
     /// Sets kind.
-    fn with_kind(mut self, kind: StatusKind) -> Self {
+    fn with_kind(mut self, kind: IconKind) -> Self {
         self.kind = kind;
         self
     }
