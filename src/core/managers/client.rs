@@ -51,7 +51,7 @@ impl KubernetesClientManager {
             worker,
             request: None,
             footer_tx,
-            connection_state: StateChangeTracker::new(false),
+            connection_state: StateChangeTracker::new(None),
         }
     }
 

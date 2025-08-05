@@ -199,9 +199,9 @@ impl ViewsManager {
     /// Processes connection event.
     pub fn process_connection_event(&mut self, is_connected: bool) {
         if is_connected {
-            self.footer().reset("connected");
+            self.footer().reset("disconnected");
         } else {
-            self.footer().set_icon("connected", Some(''), IconKind::Error);
+            self.footer().set_icon("disconnected", Some(''), IconKind::Error);
             self.ns_selector.hide();
             self.res_selector.hide();
 
