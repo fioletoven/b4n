@@ -62,6 +62,14 @@ impl Config {
         ConfigWatcher::new(Config::default_path())
     }
 
+    /// Returns path to the themes directory.
+    pub fn themes_dir() -> PathBuf {
+        match std::env::home_dir() {
+            Some(path) => path.join(format!(".{APP_NAME}")).join("themes"),
+            None => PathBuf::from("themes"),
+        }
+    }
+
     /// Loads the configuration from a file or creates a default one if the file does not exist.
     pub async fn load_or_create() -> Result<Self, ConfigError> {
         load_or_create_default(&Self::default_path()).await
@@ -70,31 +78,23 @@ impl Config {
     /// Loads the theme specified in the configuration.\
     /// **Note**, if the theme does not exist, a default one is created.
     pub async fn load_or_create_theme(&self) -> Result<Theme, ConfigError> {
-        tokio::fs::create_dir_all(self.theme_dir()).await?;
+        tokio::fs::create_dir_all(Config::themes_dir()).await?;
         load_or_create_default(&self.theme_path()).await
-    }
-
-    /// Returns path to the themes directory.
-    pub fn theme_dir(&self) -> PathBuf {
-        match home::home_dir() {
-            Some(path) => path.join(format!(".{APP_NAME}")).join("themes"),
-            None => PathBuf::from("themes"),
-        }
     }
 
     /// Returns path to the [`Theme`] set in the configuration.
     pub fn theme_path(&self) -> PathBuf {
-        let path = self.theme_dir().join(format!("{}.yaml", self.theme));
+        let path = Config::themes_dir().join(format!("{}.yaml", self.theme));
         if path.exists() {
             path
         } else {
-            self.theme_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
+            Config::themes_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
         }
     }
 
     /// Returns the default configuration path: `HOME/b4n/config.yaml`.
     pub fn default_path() -> PathBuf {
-        match home::home_dir() {
+        match std::env::home_dir() {
             Some(path) => path.join(format!(".{APP_NAME}")).join("config.yaml"),
             None => PathBuf::from("config.yaml"),
         }

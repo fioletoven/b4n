@@ -109,7 +109,7 @@ impl History {
 
     /// Returns the default history file path: `HOME/b4n/history.yaml`.
     pub fn default_path() -> PathBuf {
-        match home::home_dir() {
+        match std::env::home_dir() {
             Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),
             None => PathBuf::from("history.yaml"),
         }

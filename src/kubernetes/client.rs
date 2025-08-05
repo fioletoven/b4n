@@ -222,7 +222,7 @@ fn get_context_internal(kube_config: &Kubeconfig, kube_context: Option<&str>) ->
 /// Returns kube config.
 async fn get_kube_config(kube_config_path: Option<&str>) -> Result<(Kubeconfig, Option<String>), ClientError> {
     let path = kube_config_path.map_or(
-        dirs::home_dir()
+        std::env::home_dir()
             .map(|h| h.join(".kube").join("config"))
             .ok_or(ClientError::HomeDirNotFound)?,
         PathBuf::from,
