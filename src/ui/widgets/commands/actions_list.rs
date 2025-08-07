@@ -1,6 +1,6 @@
 use delegate::delegate;
 use kube::config::NamedContext;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     kubernetes::{
@@ -104,6 +104,13 @@ impl ActionsListBuilder {
         }
     }
 
+    /// Creates new [`ActionsListBuilder`] instance from the list of [`PathBuf`]s.
+    pub fn from_paths(themes: Vec<PathBuf>) -> Self {
+        ActionsListBuilder {
+            actions: themes.into_iter().map(ActionItem::from_path).collect::<Vec<ActionItem>>(),
+        }
+    }
+
     /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
     pub fn from_resource_ports(ports: &[Port]) -> Self {
         ActionsListBuilder {
@@ -139,7 +146,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_quit().with_forwards();
+        let builder = self.with_context().with_forwards().with_theme().with_quit();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
@@ -172,6 +179,16 @@ impl ActionsListBuilder {
                 .with_description("changes the current kube context")
                 .with_aliases(&["ctx"])
                 .with_response(ResponseEvent::ListKubeContexts),
+        );
+        self
+    }
+
+    /// Adds `theme` action.
+    pub fn with_theme(mut self) -> Self {
+        self.actions.push(
+            ActionItem::new("theme")
+                .with_description("selects the theme used by the application")
+                .with_response(ResponseEvent::ListThemes),
         );
         self
     }

@@ -286,17 +286,23 @@ impl ViewsManager {
         self.resources.show_contexts_list(list);
     }
 
+    /// Displays a list of available themes to choose from.
+    pub fn show_themes_list(&mut self, list: Vec<std::path::PathBuf>) {
+        self.resources.show_themes_list(list);
+    }
+
     /// Shows logs for the specified container.
     pub fn show_logs(&mut self, resource: ResourceRef, previous: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
-            if let Ok(view) = LogsView::new(
+            let view = LogsView::new(
                 Rc::clone(&self.app_data),
                 Rc::clone(&self.worker),
                 client,
                 resource,
                 previous,
                 self.footer.get_transmitter(),
-            ) {
+            );
+            if let Ok(view) = view {
                 self.view = Some(Box::new(view));
             }
         }

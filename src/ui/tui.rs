@@ -10,7 +10,7 @@ use ratatui::{
     },
     prelude::CrosstermBackend,
 };
-use std::io::stdout;
+use std::{io::stdout, path::PathBuf};
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
@@ -44,10 +44,12 @@ pub enum ResponseEvent {
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
+    ChangeTheme(PathBuf),
     ViewContainers(String, String),
     ViewNamespaces,
 
     ListKubeContexts,
+    ListThemes,
     ListResourcePorts(ResourceRef),
 
     AskDeleteResources,
@@ -174,9 +176,9 @@ impl Drop for Tui {
 }
 
 fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>) {
-    if let Event::Key(key) = event {
-        if key.kind == KeyEventKind::Press {
-            sender.send(TuiEvent::Key(key)).unwrap();
-        }
+    if let Event::Key(key) = event
+        && key.kind == KeyEventKind::Press
+    {
+        sender.send(TuiEvent::Key(key)).unwrap();
     }
 }

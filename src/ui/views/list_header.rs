@@ -55,7 +55,7 @@ impl ListHeader {
 
     /// Returns formatted resource path as breadcrumbs:\
     /// \> `context name` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `resources count` \>
-    fn get_path(&self) -> Line {
+    fn get_path(&self) -> Line<'_> {
         let data = &self.app_data.borrow();
         let kind = match self.fixed_kind.as_ref() {
             Some(kind) => kind,
@@ -78,7 +78,7 @@ impl ListHeader {
 
     /// Returns formatted k8s version info as breadcrumbs:\
     /// \< `k8s version` \<
-    fn get_version(&self) -> Line {
+    fn get_version(&self) -> Line<'_> {
         let data = &self.app_data.borrow();
         let (text, colors) = super::get_version_text(data);
         super::get_right_breadcrumbs(text, colors)

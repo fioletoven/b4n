@@ -364,10 +364,10 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(items) = &mut self.items {
             let maybe_index = items.iter().position(f);
             if let Some(index) = maybe_index {
-                if let Some(highlighted) = self.highlighted {
-                    if highlighted < items.len() {
-                        items[highlighted].is_active = false;
-                    }
+                if let Some(highlighted) = self.highlighted
+                    && highlighted < items.len()
+                {
+                    items[highlighted].is_active = false;
                 }
 
                 items[index].is_active = true;

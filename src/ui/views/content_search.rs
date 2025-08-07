@@ -83,10 +83,10 @@ fn highlight_match(frame: &mut Frame<'_>, x: usize, y: usize, m: &MatchPosition,
         length -= 1;
 
         let position = Position::new(x.saturating_add(area.x).saturating_sub(1), y.saturating_add(area.y));
-        if area.contains(position) {
-            if let Some(cell) = frame.buffer_mut().cell_mut(position) {
-                cell.bg = color;
-            }
+        if area.contains(position)
+            && let Some(cell) = frame.buffer_mut().cell_mut(position)
+        {
+            cell.bg = color;
         }
     }
 }

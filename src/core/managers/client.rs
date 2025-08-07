@@ -69,10 +69,8 @@ impl KubernetesClientManager {
     /// Clears the current Kubernetes request data.\
     /// **Note** that the request can be canceled first with `cancel_first`.
     pub fn erase_request(&mut self, cancel_first: bool) {
-        if cancel_first {
-            if let Some(connecting) = &self.request {
-                self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
-            }
+        if cancel_first && let Some(connecting) = &self.request {
+            self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
         }
 
         self.request = None;
@@ -88,15 +86,15 @@ impl KubernetesClientManager {
 
     /// Checks if current Kubernetes request is overdue and creates new one if it is.
     pub fn process_request_overdue(&mut self) {
-        if self.request.as_ref().is_some_and(RequestInfo::is_overdue) {
-            if let Some(connecting) = self.request.take() {
-                self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
+        if self.request.as_ref().is_some_and(RequestInfo::is_overdue)
+            && let Some(connecting) = self.request.take()
+        {
+            self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
 
-                let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
-                warn!("{}", msg);
-                self.footer_tx.show_error(msg, ERROR_DURATION);
-                self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
-            }
+            let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
+            warn!("{}", msg);
+            self.footer_tx.show_error(msg, ERROR_DURATION);
+            self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
         }
     }
 

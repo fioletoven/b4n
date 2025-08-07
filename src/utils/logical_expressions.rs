@@ -210,7 +210,7 @@ fn parse_tokens(tokens: Vec<Token>) -> Expression {
 }
 
 /// Tokenizes provided logical expression string.
-fn tokenize(expression: &str) -> Result<Vec<Token>, ParserError> {
+fn tokenize(expression: &str) -> Result<Vec<Token<'_>>, ParserError> {
     let mut result = Vec::with_capacity(expression.len() / 2);
 
     let mut token_start = 0;

@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    core::ViewsManager,
+    core::{ViewsManager, commands::ListThemesCommand},
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
     ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
 };
@@ -151,6 +151,7 @@ impl App {
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
+            ResponseEvent::ListThemes => self.list_app_themes(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
             ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
@@ -175,6 +176,7 @@ impl App {
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
                 CommandResult::ResourceYaml(result) => self.views_manager.update_yaml(&command.id, result),
                 CommandResult::ContextsList(list) => self.views_manager.show_contexts_list(list),
+                CommandResult::ThemesList(list) => self.views_manager.show_themes_list(list),
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(list),
             }
         }
@@ -251,6 +253,11 @@ impl App {
         self.worker
             .borrow_mut()
             .run_command(Command::ListKubeContexts(ListKubeContextsCommand { kube_config_path }));
+    }
+
+    /// Runs command to list themes from the themes directory.
+    fn list_app_themes(&self) {
+        self.worker.borrow_mut().run_command(Command::ListThemes(ListThemesCommand));
     }
 
     /// Changes kubernetes client to the new one.

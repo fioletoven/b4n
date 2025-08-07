@@ -164,11 +164,12 @@ impl Input {
 
                 count = u16::try_from(i).unwrap_or(0) + 1;
 
-                if self.error_mode == ErrorHighlightMode::PromptAndIndex && self.error_index.is_some() {
-                    if let Some(colors) = self.error {
-                        buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
-                        continue;
-                    }
+                if self.error_mode == ErrorHighlightMode::PromptAndIndex
+                    && self.error_index.is_some()
+                    && let Some(colors) = self.error
+                {
+                    buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
+                    continue;
                 }
 
                 buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
@@ -192,11 +193,10 @@ impl Input {
             if self
                 .error_index
                 .is_some_and(|p| self.error_mode == ErrorHighlightMode::Value || p - scroll == i)
+                && let Some(colors) = self.error
             {
-                if let Some(colors) = self.error {
-                    buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
-                    continue;
-                }
+                buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
+                continue;
             }
 
             if self.accent_chars.as_deref().is_some_and(|a| a.contains(char)) {

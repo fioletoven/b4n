@@ -79,12 +79,11 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                     configuration_modified = true;
                 }
 
-                if (configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
-                    || _force_reload.swap(false, Ordering::Relaxed)
+                if ((configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
+                    || _force_reload.swap(false, Ordering::Relaxed))
+                    && let Ok(config) = T::load(&_path).await
                 {
-                    if let Ok(config) = T::load(&_path).await {
-                        _config_tx.send(config).unwrap();
-                    }
+                    _config_tx.send(config).unwrap();
                 }
             }
         });

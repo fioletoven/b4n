@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, path::PathBuf};
 
 use kube::config::NamedContext;
 
@@ -58,6 +58,17 @@ impl ActionItem {
             name: context.name.clone(),
             response: ResponseEvent::ChangeContext(context.name.clone()),
             description: context.context.as_ref().map(|c| c.cluster.clone()),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new [`ActionItem`] instance from [`PathBuf`].
+    pub fn from_path(path: PathBuf) -> Self {
+        Self {
+            uid: Some(path.as_os_str().to_string_lossy().to_string()),
+            group: "path".to_owned(),
+            name: path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(),
+            response: ResponseEvent::ChangeTheme(path),
             ..Default::default()
         }
     }

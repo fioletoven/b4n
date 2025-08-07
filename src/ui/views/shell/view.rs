@@ -197,15 +197,15 @@ impl View for ShellView {
             return;
         }
 
-        if self.size.width != layout[1].width || self.size.height != layout[1].height {
-            if let Ok(mut parser) = self.parser.write() {
-                parser.set_size(layout[1].height, layout[1].width);
-                self.bridge.set_terminal_size(layout[1].width, layout[1].height);
-                self.size = TerminalSize {
-                    width: layout[1].width,
-                    height: layout[1].height,
-                };
-            }
+        if (self.size.width != layout[1].width || self.size.height != layout[1].height)
+            && let Ok(mut parser) = self.parser.write()
+        {
+            parser.set_size(layout[1].height, layout[1].width);
+            self.bridge.set_terminal_size(layout[1].width, layout[1].height);
+            self.size = TerminalSize {
+                width: layout[1].width,
+                height: layout[1].height,
+            };
         }
 
         if let Ok(parser) = self.parser.read() {
