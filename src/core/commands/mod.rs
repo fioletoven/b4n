@@ -1,6 +1,8 @@
 use kube::config::NamedContext;
 use std::path::PathBuf;
 
+use crate::core::Config;
+use crate::core::History;
 use crate::kubernetes::resources::Port;
 
 pub use self::delete_resources::*;
@@ -9,7 +11,7 @@ pub use self::list_contexts::*;
 pub use self::list_resource_ports::*;
 pub use self::list_themes::*;
 pub use self::new_kubernetes_client::*;
-pub use self::save_history::*;
+pub use self::save_configuration::*;
 
 mod delete_resources;
 mod get_yaml;
@@ -17,7 +19,7 @@ mod list_contexts;
 mod list_resource_ports;
 mod list_themes;
 mod new_kubernetes_client;
-mod save_history;
+mod save_configuration;
 
 /// List of all possible commands for [`BgExecutor`](super::BgExecutor).
 pub enum Command {
@@ -25,7 +27,8 @@ pub enum Command {
     ListResourcePorts(Box<ListResourcePortsCommand>),
     ListThemes(ListThemesCommand),
     NewKubernetesClient(Box<NewKubernetesClientCommand>),
-    SaveHistory(Box<SaveHistoryCommand>),
+    SaveConfig(Box<SaveConfigurationCommand<Config>>),
+    SaveHistory(Box<SaveConfigurationCommand<History>>),
     DeleteResource(Box<DeleteResourcesCommand>),
     GetYaml(Box<GetResourceYamlCommand>),
 }

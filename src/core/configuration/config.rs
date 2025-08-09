@@ -12,7 +12,7 @@ use super::ConfigWatcher;
 
 pub const APP_NAME: &str = env!("CARGO_CRATE_NAME");
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-const DEFAULT_THEME_NAME: &str = "default";
+pub const DEFAULT_THEME_NAME: &str = "default";
 
 /// Possible errors from [`Config`] manipulation.
 #[derive(thiserror::Error, Debug)]
@@ -27,6 +27,9 @@ pub enum ConfigError {
 }
 
 pub trait Persistable<T> {
+    /// Returns the default configuration path.
+    fn default_path() -> PathBuf;
+
     /// Loads configuration from the default file.
     fn load(path: &Path) -> impl Future<Output = Result<T, ConfigError>> + Send;
 
@@ -91,17 +94,17 @@ impl Config {
             Config::themes_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
         }
     }
+}
 
+impl Persistable<Config> for Config {
     /// Returns the default configuration path: `HOME/b4n/config.yaml`.
-    pub fn default_path() -> PathBuf {
+    fn default_path() -> PathBuf {
         match std::env::home_dir() {
             Some(path) => path.join(format!(".{APP_NAME}")).join("config.yaml"),
             None => PathBuf::from("config.yaml"),
         }
     }
-}
 
-impl Persistable<Config> for Config {
     async fn load(path: &Path) -> Result<Config, ConfigError> {
         let mut file = File::open(path).await?;
 

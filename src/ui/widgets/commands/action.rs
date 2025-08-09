@@ -64,11 +64,12 @@ impl ActionItem {
 
     /// Creates new [`ActionItem`] instance from [`PathBuf`].
     pub fn from_path(path: PathBuf) -> Self {
+        let name = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
         Self {
             uid: Some(path.as_os_str().to_string_lossy().to_string()),
             group: "path".to_owned(),
-            name: path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(),
-            response: ResponseEvent::ChangeTheme(path),
+            name: name.clone(),
+            response: ResponseEvent::ChangeTheme(name),
             ..Default::default()
         }
     }

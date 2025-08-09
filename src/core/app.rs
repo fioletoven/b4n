@@ -154,6 +154,7 @@ impl App {
             ResponseEvent::ListThemes => self.list_app_themes(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
             ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
+            ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources => self.views_manager.delete_resources(),
             ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
@@ -284,6 +285,14 @@ impl App {
         if let Some(scope) = scope {
             self.views_manager.set_page_view(&scope);
         }
+    }
+
+    /// Changes app theme.
+    fn process_theme_change(&mut self, theme: String) {
+        self.data.borrow_mut().config.theme = theme;
+        let _ = self.theme_watcher.change_file(self.data.borrow().config.theme_path());
+        self.config_watcher.skip_next();
+        self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
     }
 
     /// Updates `kind` and `namespace` in the app history data and saves it to a file.

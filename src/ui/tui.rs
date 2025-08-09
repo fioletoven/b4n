@@ -10,7 +10,7 @@ use ratatui::{
     },
     prelude::CrosstermBackend,
 };
-use std::{io::stdout, path::PathBuf};
+use std::io::stdout;
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
@@ -44,7 +44,7 @@ pub enum ResponseEvent {
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
-    ChangeTheme(PathBuf),
+    ChangeTheme(String),
     ViewContainers(String, String),
     ViewNamespaces,
 
