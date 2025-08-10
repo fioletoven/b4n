@@ -138,7 +138,7 @@ impl Footer {
 
         frame.render_widget(
             Paragraph::new(Line::from(vec![
-                Span::styled("", Style::new().fg(colors.footer.text.bg)),
+                Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
                 Span::styled(" ", &colors.footer.text),
                 Span::styled(FOOTER_APP_VERSION, &colors.footer.text),
             ])),
@@ -154,7 +154,7 @@ impl Footer {
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled(" ", &colors.footer.text),
-                Span::styled("", Style::new().fg(colors.footer.text.bg)),
+                Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
             ])),
             layout[2],
         );

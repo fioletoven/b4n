@@ -1,6 +1,10 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use serde_yaml::Value;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
@@ -35,7 +39,8 @@ pub struct FooterColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct FilterColors {
     pub input: TextColors,
-    pub prompt: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<TextColors>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<TextColors>,
 }
@@ -69,7 +74,8 @@ pub struct ModalColors {
 pub struct SelectColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub header: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header: Option<TextColors>,
     pub filter: FilterColors,
 }
 
@@ -108,11 +114,19 @@ pub struct ThemeColors {
     pub header: HeaderColors,
     pub footer: FooterColors,
     pub filter: SelectColors,
-    pub modal: ModalColors,
+    pub search: SelectColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
+    pub modal: ModalColors,
     pub line: ResourceColors,
     pub syntax: SyntaxColors,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+struct ColorsDefinition {
+    #[serde(skip_serializing)]
+    pub palette: Option<HashMap<String, String>>,
+    pub colors: Value,
 }
 
 /// Theme used in the application.
@@ -124,9 +138,20 @@ pub struct Theme {
 impl Default for Theme {
     /// Returns TUI default theme for the application.
     fn default() -> Self {
+        let filter = SelectColors {
+            normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+            normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+            header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+            filter: FilterColors {
+                input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+                prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
+                error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+            },
+        };
+
         Theme {
             colors: ThemeColors {
-                text: TextColors::new(Color::DarkGray),
+                text: TextColors::bg(Color::DarkGray, Color::Reset),
                 header: HeaderColors {
                     text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
                     context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
@@ -142,15 +167,17 @@ impl Default for Theme {
                     info: TextColors::bg(Color::LightGreen, Color::DarkGray),
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
                 },
-                filter: SelectColors {
+                filter: filter.clone(),
+                search: filter.clone(),
+                command_palette: filter,
+                side_select: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-                    header: TextColors::bg(Color::DarkGray, Color::Gray),
                     filter: FilterColors {
-                        input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
-                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                        error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
+                        ..Default::default()
                     },
+                    ..Default::default()
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
@@ -162,25 +189,6 @@ impl Default for Theme {
                         normal: TextColors::bg(Color::White, Color::DarkGray),
                         focused: TextColors::bg(Color::White, Color::LightGreen),
                     },
-                },
-                command_palette: SelectColors {
-                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
-                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-                    header: TextColors::bg(Color::DarkGray, Color::Gray),
-                    filter: FilterColors {
-                        input: TextColors::bg(Color::LightCyan, Color::DarkGray),
-                        prompt: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                        error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
-                    },
-                },
-                side_select: SelectColors {
-                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
-                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-                    filter: FilterColors {
-                        input: TextColors::bg(Color::LightBlue, Color::DarkGray),
-                        ..Default::default()
-                    },
-                    ..Default::default()
                 },
                 line: ResourceColors {
                     ready: LineColors {
@@ -264,6 +272,14 @@ impl Persistable<Theme> for Theme {
         let mut theme_str = String::new();
         file.read_to_string(&mut theme_str).await?;
 
+        let mut definitions = serde_yaml::from_str::<ColorsDefinition>(&theme_str)?;
+        if let Some(palette) = &definitions.palette
+            && !palette.is_empty()
+        {
+            update_colors(&mut definitions.colors, palette);
+            theme_str = serde_yaml::to_string(&definitions)?;
+        }
+
         Ok(serde_yaml::from_str::<Theme>(&theme_str)?)
     }
 
@@ -286,5 +302,32 @@ fn get_theme_item(scope: &str, colors: TextColors) -> syntect::highlighting::The
             background: Some(to_syntect_color(colors.bg)),
             font_style: None,
         },
+    }
+}
+
+fn update_colors(colors: &mut Value, palette: &HashMap<String, String>) {
+    let mut stack = vec![colors];
+
+    while let Some(current) = stack.pop() {
+        match current {
+            Value::Mapping(map) => {
+                for v in map.values_mut() {
+                    stack.push(v);
+                }
+            },
+            Value::Sequence(sequence) => {
+                for v in sequence {
+                    stack.push(v);
+                }
+            },
+            Value::String(string) => {
+                *string = string
+                    .split(':')
+                    .map(|c| if palette.contains_key(c) { &palette[c] } else { c })
+                    .collect::<Vec<&str>>()
+                    .join(":");
+            },
+            _ => (),
+        }
     }
 }

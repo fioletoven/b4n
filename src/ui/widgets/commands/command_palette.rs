@@ -114,7 +114,7 @@ impl CommandPalette {
                 && let Some(header) = self.header.as_deref()
             {
                 let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-                self.clear_area(frame, area, colors.command_palette.header.bg);
+                self.clear_area(frame, area, colors.command_palette.header.unwrap_or_default().bg);
                 self.draw_header(frame, area, header);
             }
         }
@@ -132,7 +132,10 @@ impl CommandPalette {
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, text: &str) {
         let colors = &self.app_data.borrow().theme.colors;
         let area = area.inner(Margin::new(1, 0));
-        frame.render_widget(Paragraph::new(text).style(&colors.command_palette.header), area);
+        frame.render_widget(
+            Paragraph::new(text).style(&colors.command_palette.header.unwrap_or_default()),
+            area,
+        );
     }
 
     #[inline]

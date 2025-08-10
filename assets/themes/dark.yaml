@@ -1,0 +1,100 @@
+# colors palette
+palette:
+  text: DarkGray
+  text_light: Gray
+  no_bg: Reset
+  fg_dark: Gray
+  bg_dark: DarkGray
+  fg_light: DarkGray
+  bg_light: Gray
+  white: White
+  red: Red
+  green: Green
+  blue: Blue
+  yellow: Yellow
+  magenta: Magenta
+  light_red: LightRed
+  light_green: LightGreen
+  light_blue: LightBlue
+  light_yellow: LightYellow
+  light_magenta: LightMagenta
+  light_cyan: LightCyan
+  dark_yellow: '#877248'
+
+# style anchors
+filter: &filter
+  normal: fg_dark:yellow:bg_dark
+  normal_hl: fg_light:blue:bg_light
+  header: fg_light:bg_light
+  filter:
+    input: light_cyan:light_yellow:bg_dark
+    prompt: light_blue:bg_dark
+    error: light_red:bg_dark
+
+# theme itself
+colors:
+  text: text_light:no_bg
+  header:
+    text: fg_dark:light_yellow:bg_dark
+    context: white:#D80060
+    namespace: text:#FDCA4F
+    resource: text:#5CA6E3
+    name: text:#E5E9F0
+    count: text:#AAD92E
+    info: white:#9971C3
+    disconnected: white:light_red
+  footer:
+    text: fg_dark:bg_dark
+    info: light_green:bg_dark
+    error: light_red:bg_dark
+  filter: *filter
+  search: *filter
+  command_palette: *filter
+  modal:
+    text: fg_dark:bg_dark
+    btn_delete:
+      normal: white:bg_dark
+      focused: white:light_red
+    btn_cancel:
+      normal: white:bg_dark
+      focused: white:light_green
+  side_select:
+    normal: fg_dark:yellow:bg_dark
+    normal_hl: fg_light:blue:bg_light
+    filter:
+      input: light_blue:bg_dark
+  line:
+    ready:
+      normal: light_blue:no_bg
+      normal_hl: text:light_blue
+      selected: light_green:no_bg
+      selected_hl: text:light_green
+    in_progress:
+      normal: red:no_bg
+      normal_hl: text:light_red
+      selected: light_green:no_bg
+      selected_hl: text:light_green
+    terminating:
+      normal: magenta:no_bg
+      normal_hl: text:light_magenta
+      selected: light_green:no_bg
+      selected_hl: text:light_green
+    completed:
+      normal: text_light:no_bg
+      normal_hl: text_light:bg_dark
+      selected: light_green:no_bg
+      selected_hl: text:light_green
+  syntax:
+    yaml:
+      normal: text:no_bg
+      property: green:no_bg
+      string: text_light:no_bg
+      numeric: blue:no_bg
+      language: light_blue:no_bg
+      timestamp: magenta:no_bg
+      search: dark_yellow
+    logs:
+      string: text_light:no_bg
+      error: red:no_bg
+      timestamp: magenta:no_bg
+      search: dark_yellow

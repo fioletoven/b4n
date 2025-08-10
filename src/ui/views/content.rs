@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect, Size},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::Paragraph,
+    widgets::{Block, Paragraph},
 };
 use std::{rc::Rc, time::Instant};
 
@@ -305,6 +305,7 @@ impl<T: Content> ContentViewer<T> {
             .split(area);
 
         self.header.draw(frame, layout[0]);
+        frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), layout[1]);
 
         if self.content.is_some() {
             let area = layout[1].inner(Margin::new(1, 0));

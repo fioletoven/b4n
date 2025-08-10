@@ -29,7 +29,7 @@ pub struct Search {
 impl Search {
     /// Creates new [`Search`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        let colors = app_data.borrow().theme.colors.filter.clone();
+        let colors = app_data.borrow().theme.colors.search.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true).with_prompt(" ");
 
         Self {
@@ -52,7 +52,7 @@ impl Search {
         let context = self.app_data.borrow().current.context.clone();
         self.patterns.items = PatternsList::from(self.app_data.borrow_mut().history.get_search_history(&context));
         self.patterns.update_items_filter();
-        self.patterns.set_colors(self.app_data.borrow().theme.colors.filter.clone());
+        self.patterns.set_colors(self.app_data.borrow().theme.colors.search.clone());
         self.is_visible = true;
     }
 
@@ -76,11 +76,11 @@ impl Search {
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
 
-        let colors = &self.app_data.borrow().theme.colors.filter;
+        let colors = &self.app_data.borrow().theme.colors.search;
         self.clear_area(frame, area, colors.normal.bg);
         if area.top() > 0 {
             let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-            self.clear_area(frame, area, colors.header.bg);
+            self.clear_area(frame, area, colors.header.unwrap_or_default().bg);
             self.draw_header(frame, area);
         }
 
@@ -95,16 +95,16 @@ impl Search {
     }
 
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let colors = &self.app_data.borrow().theme.colors.filter;
+        let header = &self.app_data.borrow().theme.colors.search.header.unwrap_or_default();
         let area = area.inner(Margin::new(1, 0));
 
         if let Some(matches) = self.matches {
             let text = format!(" Total matches: {matches}");
-            frame.render_widget(Paragraph::new(text).style(&colors.header), area);
+            frame.render_widget(Paragraph::new(text).style(header), area);
         } else if self.patterns.value().is_empty() {
-            frame.render_widget(Paragraph::new(SEARCH_HINT).style(&colors.header), area);
+            frame.render_widget(Paragraph::new(SEARCH_HINT).style(header), area);
         } else {
-            frame.render_widget(Paragraph::new(NOT_FOUND_HINT).style(&colors.header), area);
+            frame.render_widget(Paragraph::new(NOT_FOUND_HINT).style(header), area);
         }
     }
 

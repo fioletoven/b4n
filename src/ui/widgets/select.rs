@@ -48,13 +48,14 @@ impl<T: Table> Select<T> {
 
     /// Sets prompt for the filter input.
     pub fn set_prompt(&mut self, prompt: impl Into<String>) {
-        self.filter.set_prompt(Some((prompt, self.colors.filter.prompt)));
+        self.filter
+            .set_prompt(Some((prompt, self.colors.filter.prompt.unwrap_or_default())));
     }
 
     /// Sets colors for the filter input and list lines.
     pub fn set_colors(&mut self, colors: SelectColors) {
         self.filter.set_colors(colors.filter.input);
-        self.filter.set_prompt_colors(colors.filter.prompt);
+        self.filter.set_prompt_colors(colors.filter.prompt.unwrap_or_default());
         self.filter.set_error_colors(colors.filter.error);
         self.colors = colors;
     }
