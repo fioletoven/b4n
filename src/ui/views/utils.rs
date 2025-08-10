@@ -1,6 +1,6 @@
 use kube::discovery::Scope;
 use ratatui::{
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span},
 };
 
@@ -23,12 +23,12 @@ pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a
 
 /// Returns formatted text as left breadcrumbs:\
 /// \> `context` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `count` \>
-pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, count: usize, is_filtered: bool) -> Line<'a> {
-    let colors = &data.theme.colors.header;
-    let data = &data.current;
+pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&str>, count: usize, is_filtered: bool) -> Line<'a> {
+    let colors = &app_data.theme.colors.header;
+    let data = &app_data.current;
 
     let mut path = vec![
-        Span::styled("", Style::new().fg(colors.context.bg)),
+        Span::styled("", Style::new().fg(colors.context.bg).bg(app_data.theme.colors.text.bg)),
         Span::styled(format!(" {} ", data.context), &colors.context),
     ];
 
@@ -64,7 +64,7 @@ pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, 
 
     path.append(&mut vec![
         Span::styled(format!(" {count_icon}{count} "), &colors.count),
-        Span::styled("", Style::new().fg(colors.count.bg)),
+        Span::styled("", Style::new().fg(colors.count.bg).bg(app_data.theme.colors.text.bg)),
     ]);
 
     Line::from(path)
@@ -72,11 +72,11 @@ pub fn get_left_breadcrumbs<'a>(data: &AppData, kind: &str, name: Option<&str>, 
 
 /// Returns formatted text as right breadcrumbs:\
 /// \< `text` \<
-pub fn get_right_breadcrumbs<'a>(text: String, colors: &TextColors) -> Line<'a> {
+pub fn get_right_breadcrumbs<'a>(text: String, colors: &TextColors, bg: Color) -> Line<'a> {
     Line::from(vec![
-        Span::styled("", Style::new().fg(colors.bg)),
+        Span::styled("", Style::new().fg(colors.bg).bg(bg)),
         Span::styled(text, colors),
-        Span::styled("", Style::new().fg(colors.bg)),
+        Span::styled("", Style::new().fg(colors.bg).bg(bg)),
     ])
     .right_aligned()
 }

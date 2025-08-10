@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style, Stylize},
     text::Line,
-    widgets::{Paragraph, Widget},
+    widgets::{Block, Paragraph, Widget},
 };
 
 use crate::{
@@ -36,13 +36,16 @@ impl<T: Table> ListViewer<T> {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
+        let theme = &self.app_data.borrow().theme;
+        frame.render_widget(Block::new().style(&theme.colors.text), area);
         let area = layout[1].inner(Margin::new(1, 0));
 
         {
             let sort_symbols = self.table.get_sort_symbols();
             let mut header = HeaderWidget {
                 header: self.table.get_header(self.view, usize::from(area.width)),
-                colors: &self.app_data.borrow().theme.colors.header.text,
+                colors: &theme.colors.header.text,
+                background: theme.colors.text.bg,
                 view: self.view,
                 sort_symbols: &sort_symbols,
             };
@@ -50,11 +53,8 @@ impl<T: Table> ListViewer<T> {
         }
 
         self.table.update_page(area.height);
-        if let Some(list) = self
-            .table
-            .get_paged_items(&self.app_data.borrow().theme, self.view, usize::from(area.width))
-        {
-            frame.render_widget(Paragraph::new(get_items(&list)), area);
+        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(area.width)) {
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), area);
         }
     }
 }
@@ -99,6 +99,7 @@ impl<T: Table> Responsive for ListViewer<T> {
 struct HeaderWidget<'a> {
     pub header: &'a str,
     pub colors: &'a TextColors,
+    pub background: Color,
     pub view: ViewType,
     pub sort_symbols: &'a [char],
 }
@@ -112,8 +113,8 @@ impl Widget for &mut HeaderWidget<'_> {
         let y = area.top();
         let max_x = area.left() + buf.area.width - 1;
 
-        buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
-        buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(Color::Reset);
+        buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;

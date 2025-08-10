@@ -1,7 +1,7 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Position, Rect},
-    widgets::Widget,
+    widgets::{Block, Widget},
 };
 use tui_input::backend::crossterm::EventHandler;
 
@@ -146,6 +146,7 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        frame.render_widget(Block::new().style(&self.colors), area);
         frame.render_widget(&mut *self, area);
 
         if self.show_cursor {

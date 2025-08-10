@@ -39,8 +39,9 @@ impl ListHeader {
             .constraints(vec![Constraint::Fill(1), Constraint::Length(version.width() as u16)])
             .split(area);
 
-        frame.render_widget(Paragraph::new(path), layout[0]);
-        frame.render_widget(Paragraph::new(version), layout[1]);
+        let text = &self.app_data.borrow().theme.colors.text;
+        frame.render_widget(Paragraph::new(path).style(text), layout[0]);
+        frame.render_widget(Paragraph::new(version).style(text), layout[1]);
     }
 
     /// Sets new value for the header count.
@@ -81,6 +82,6 @@ impl ListHeader {
     fn get_version(&self) -> Line<'_> {
         let data = &self.app_data.borrow();
         let (text, colors) = super::get_version_text(data);
-        super::get_right_breadcrumbs(text, colors)
+        super::get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
 }

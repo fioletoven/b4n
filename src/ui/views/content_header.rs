@@ -82,15 +82,17 @@ impl ContentHeader {
             ])
             .split(area);
 
-        frame.render_widget(Paragraph::new(self.get_path()), layout[0]);
+        let text = &self.app_data.borrow().theme.colors.text;
+        frame.render_widget(Paragraph::new(self.get_path()).style(text), layout[0]);
         if self.show_coordinates {
-            frame.render_widget(Paragraph::new(self.get_right_text(coordinates)), layout[1]);
+            frame.render_widget(Paragraph::new(self.get_right_text(coordinates)).style(text), layout[1]);
         }
     }
 
     /// Returns formatted header path as breadcrumbs:\
     /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
     fn get_path(&self) -> Line<'_> {
+        let bg = self.app_data.borrow().theme.colors.text.bg;
         let colors = &self.app_data.borrow().theme.colors.header;
         let title = if self.icon == ' ' {
             format!(" {} ", self.title)
@@ -99,7 +101,7 @@ impl ContentHeader {
         };
 
         let mut path = vec![
-            Span::styled("", Style::new().fg(colors.text.bg)),
+            Span::styled("", Style::new().fg(colors.text.bg).bg(bg)),
             Span::styled(title, &colors.text),
             Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
@@ -113,10 +115,10 @@ impl ContentHeader {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.name.bg).bg(colors.count.bg)),
                 Span::styled(format!(" {} ", self.descr.as_ref().unwrap()), &colors.count),
-                Span::styled("", Style::new().fg(colors.count.bg)),
+                Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {
-            path.push(Span::styled("", Style::new().fg(colors.name.bg)));
+            path.push(Span::styled("", Style::new().fg(colors.name.bg).bg(bg)));
         }
 
         Line::from(path)
@@ -131,6 +133,6 @@ impl ContentHeader {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        crate::ui::views::get_right_breadcrumbs(text, colors)
+        crate::ui::views::get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
     }
 }

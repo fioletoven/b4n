@@ -129,8 +129,12 @@ async fn load_or_create_default<T: Persistable<T> + Default>(path: &Path) -> Res
     let configuration = T::load(path).await;
     match configuration {
         Ok(configuration) => Ok(configuration),
-        Err(ConfigError::SerializationError(_)) => Ok(T::default()),
-        Err(_) => {
+        Err(ConfigError::SerializationError(error)) => {
+            tracing::error!("Cannot deserialize config: {}", error);
+            Ok(T::default())
+        },
+        Err(error) => {
+            tracing::error!("Cannot load config: {}", error);
             let configuration = T::default();
             configuration.save(path).await?;
             Ok(configuration)

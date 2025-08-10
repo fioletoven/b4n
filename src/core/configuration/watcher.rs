@@ -79,11 +79,13 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                     configuration_modified = true;
                 }
 
-                if ((configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
-                    || _force_reload.swap(false, Ordering::Relaxed))
-                    && let Ok(config) = T::load(&_path).await
+                if (configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
+                    || _force_reload.swap(false, Ordering::Relaxed)
                 {
-                    _config_tx.send(config).unwrap();
+                    match T::load(&_path).await {
+                        Ok(config) => _config_tx.send(config).unwrap(),
+                        Err(error) => tracing::warn!("Cannot re-load config file: {}", error),
+                    }
                 }
             }
         });
