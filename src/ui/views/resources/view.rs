@@ -98,7 +98,7 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_paths(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("theme")
-            .with_selected(&self.app_data.borrow().current.context);
+            .with_selected(&self.app_data.borrow().config.theme);
         self.command_palette.show();
     }
 

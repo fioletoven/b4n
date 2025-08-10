@@ -287,12 +287,16 @@ impl App {
         }
     }
 
-    /// Changes app theme.
+    /// Changes application theme.
     fn process_theme_change(&mut self, theme: String) {
-        self.data.borrow_mut().config.theme = theme;
-        let _ = self.theme_watcher.change_file(self.data.borrow().config.theme_path());
-        self.config_watcher.skip_next();
-        self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+        if self.data.borrow().config.theme != theme {
+            let msg = format!("Theme changed to '{theme}'…");
+            self.data.borrow_mut().config.theme = theme;
+            let _ = self.theme_watcher.change_file(self.data.borrow().config.theme_path());
+            self.config_watcher.skip_next();
+            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+            self.views_manager.footer().show_info(msg, 0);
+        }
     }
 
     /// Updates `kind` and `namespace` in the app history data and saves it to a file.
