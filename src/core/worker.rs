@@ -7,7 +7,7 @@ use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 use thiserror;
 
 use crate::{
-    core::{PortForwarder, commands::ListResourcePortsCommand},
+    core::{Config, PortForwarder, commands::ListResourcePortsCommand},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         client::KubernetesClient,
@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     BgDiscovery, BgExecutor, History, SyntaxData, TaskResult,
-    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveHistoryCommand},
+    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
@@ -260,10 +260,16 @@ impl BgWorker {
         self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 
+    /// Saves the provided app configuration to a file.
+    pub fn save_config(&mut self, config: Config) {
+        self.executor
+            .run_task(Command::SaveConfig(Box::new(SaveConfigurationCommand::new(config))));
+    }
+
     /// Saves the provided app history to a file.
     pub fn save_history(&mut self, history: History) {
         self.executor
-            .run_task(Command::SaveHistory(Box::new(SaveHistoryCommand::new(history))));
+            .run_task(Command::SaveHistory(Box::new(SaveConfigurationCommand::new(history))));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.

@@ -97,7 +97,7 @@ impl Visitor<'_> for TextColorsVisitor {
         }
 
         let Ok(col3) = Color::from_str(parts[2].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value on pos 3: {}", parts[3])));
+            return Err(de::Error::custom(format_args!("invalid color value on pos 3: {}", parts[2])));
         };
 
         Ok(TextColors::dim(col1, col2, col3))

@@ -113,13 +113,13 @@ impl Footer {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         self.draw_footer(frame, area);
 
-        if self.has_message_to_show() {
-            if let Some(message) = &self.message {
-                let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
-                    .flex(Flex::Center)
-                    .areas(area.inner(Margin::new(2, 0)));
-                frame.render_widget(self.get_message(&message.text, message.is_error), area);
-            }
+        if self.has_message_to_show()
+            && let Some(message) = &self.message
+        {
+            let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
+                .flex(Flex::Center)
+                .areas(area.inner(Margin::new(2, 0)));
+            frame.render_widget(self.get_message(&message.text, message.is_error), area);
         }
     }
 

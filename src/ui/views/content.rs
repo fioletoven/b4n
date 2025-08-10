@@ -190,10 +190,10 @@ impl<T: Content> ContentViewer<T> {
                 if is_pattern_changed || self.search.current.unwrap_or_default() > matches.len() {
                     self.search.current = None;
                 }
-                if !matches.is_empty() {
-                    self.search.matches = Some(matches);
-                } else {
+                if matches.is_empty() {
                     self.search.matches = None;
+                } else {
+                    self.search.matches = Some(matches);
                 }
             }
 

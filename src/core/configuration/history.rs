@@ -107,14 +107,6 @@ impl History {
         }
     }
 
-    /// Returns the default history file path: `HOME/b4n/history.yaml`.
-    pub fn default_path() -> PathBuf {
-        match std::env::home_dir() {
-            Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),
-            None => PathBuf::from("history.yaml"),
-        }
-    }
-
     /// Returns a kind stored in the history under a specific context name.
     pub fn get_kind(&self, context: &str) -> Option<&str> {
         if let Some(index) = self.context_index(context) {
@@ -240,6 +232,14 @@ impl History {
 }
 
 impl Persistable<History> for History {
+    /// Returns the default history file path: `HOME/b4n/history.yaml`.
+    fn default_path() -> PathBuf {
+        match std::env::home_dir() {
+            Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),
+            None => PathBuf::from("history.yaml"),
+        }
+    }
+
     async fn load(path: &Path) -> Result<History, ConfigError> {
         let mut file = File::open(path).await?;
 

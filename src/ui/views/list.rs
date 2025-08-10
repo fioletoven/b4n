@@ -54,20 +54,20 @@ impl<T: Table> ListViewer<T> {
             .table
             .get_paged_items(&self.app_data.borrow().theme, self.view, usize::from(area.width))
         {
-            frame.render_widget(Paragraph::new(self.get_items(list)), area);
+            frame.render_widget(Paragraph::new(get_items(&list)), area);
         }
     }
+}
 
-    /// Returns formatted items rows.
-    fn get_items(&self, items: Vec<(String, TextColors)>) -> Vec<Line> {
-        let mut result = Vec::with_capacity(items.len());
+/// Returns formatted items rows.
+fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
+    let mut result = Vec::with_capacity(items.len());
 
-        for (text, colors) in items {
-            result.push(Line::styled(text, &colors));
-        }
-
-        result
+    for (text, colors) in items {
+        result.push(Line::styled(text, colors));
     }
+
+    result
 }
 
 impl<T: Table> Responsive for ListViewer<T> {

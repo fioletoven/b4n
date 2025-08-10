@@ -1,12 +1,12 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::core::{ConfigError, Persistable};
+use crate::core::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
 use super::colors::{LineColors, TextColors, to_syntect_color};
 
@@ -253,6 +253,11 @@ impl Theme {
 }
 
 impl Persistable<Theme> for Theme {
+    /// Returns the default theme file path: `HOME/b4n/themes/default.yaml`.
+    fn default_path() -> PathBuf {
+        Config::themes_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
+    }
+
     async fn load(path: &Path) -> Result<Theme, ConfigError> {
         let mut file = File::open(path).await?;
 

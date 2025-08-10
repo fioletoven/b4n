@@ -90,7 +90,7 @@ impl ContentHeader {
 
     /// Returns formatted header path as breadcrumbs:\
     /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
-    fn get_path(&self) -> Line {
+    fn get_path(&self) -> Line<'_> {
         let colors = &self.app_data.borrow().theme.colors.header;
         let title = if self.icon == ' ' {
             format!(" {} ", self.title)
@@ -124,7 +124,7 @@ impl ContentHeader {
 
     /// Returns formatted text as right breadcrumbs:\
     /// \< `text` \<
-    fn get_right_text(&self, text: String) -> Line {
+    fn get_right_text(&self, text: String) -> Line<'_> {
         let colors = if self.app_data.borrow().is_connected {
             &self.app_data.borrow().theme.colors.header.text
         } else {

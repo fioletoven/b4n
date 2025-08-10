@@ -44,23 +44,24 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     }
 
     pub fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
-        if key.modifiers == KeyModifiers::ALT && key.code != KeyCode::Char(' ') {
-            if let KeyCode::Char(code) = key.code {
-                if code.is_numeric() {
-                    let (column_no, is_descending) = self.header.sort_info();
-                    let sort_by = code.to_digit(10).unwrap() as usize;
-                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
-                    return ResponseEvent::Handled;
-                }
+        if key.modifiers == KeyModifiers::ALT
+            && key.code != KeyCode::Char(' ')
+            && let KeyCode::Char(code) = key.code
+        {
+            if code.is_numeric() {
+                let (column_no, is_descending) = self.header.sort_info();
+                let sort_by = code.to_digit(10).unwrap() as usize;
+                self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                return ResponseEvent::Handled;
+            }
 
-                let sort_symbols = self.header.get_sort_symbols();
-                let uppercase = code.to_ascii_uppercase();
-                let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
-                if let Some(sort_by) = sort_by {
-                    let (column_no, is_descending) = self.header.sort_info();
-                    self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
-                    return ResponseEvent::Handled;
-                }
+            let sort_symbols = self.header.get_sort_symbols();
+            let uppercase = code.to_ascii_uppercase();
+            let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
+            if let Some(sort_by) = sort_by {
+                let (column_no, is_descending) = self.header.sort_info();
+                self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                return ResponseEvent::Handled;
             }
         }
 
