@@ -164,11 +164,19 @@ impl LogsView {
     }
 
     fn navigate_match(&mut self, forward: bool) {
-        self.logs.navigate_match(forward);
+        self.logs.navigate_match(forward, self.get_offset());
         self.footer
             .set_text("logs_search", self.logs.get_footer_text(), IconKind::Default);
         if let Some(message) = self.logs.get_footer_message(forward) {
             self.footer.show_info(message, 0);
+        }
+    }
+
+    fn get_offset(&self) -> Option<Size> {
+        if self.logs.content().is_some_and(|c| c.show_timestamps) {
+            Some(Size::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
+        } else {
+            None
         }
     }
 }
@@ -240,7 +248,7 @@ impl View for LogsView {
         if self.search.is_visible {
             let result = self.search.process_key(key);
             if self.logs.search(self.search.value(), false) {
-                self.logs.scroll_to_current_match();
+                self.logs.scroll_to_current_match(self.get_offset());
                 self.update_search_count();
             }
 
@@ -294,13 +302,7 @@ impl View for LogsView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let offset = if self.logs.content().is_some_and(|c| c.show_timestamps) {
-            Some(Size::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
-        } else {
-            None
-        };
-
-        self.logs.draw(frame, area, offset);
+        self.logs.draw(frame, area, self.get_offset());
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
     }
