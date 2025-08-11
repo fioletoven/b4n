@@ -173,6 +173,15 @@ impl ResourcesTable {
             return ResponseEvent::ShowPortForwards;
         }
 
+        let response = self.list.process_key(key);
+        if response != ResponseEvent::NotHandled {
+            response
+        } else {
+            self.process_highlighted_resource_key(key)
+        }
+    }
+
+    fn process_highlighted_resource_key(&mut self, key: KeyEvent) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
                 return self.process_enter_key(resource);
@@ -207,7 +216,7 @@ impl ResourcesTable {
             }
         }
 
-        self.list.process_key(key)
+        ResponseEvent::NotHandled
     }
 
     /// Draws [`ResourcesTable`] on the provided frame and area.

@@ -8,7 +8,7 @@ use crate::{
     core::{SharedAppData, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
-        resources::{CONTAINERS, Port, ResourceItem, SECRETS},
+        resources::{CONTAINERS, PODS, Port, ResourceItem, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
@@ -218,8 +218,10 @@ impl ResourcesView {
         }
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
+        let is_pods = self.table.kind_plural() == PODS;
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers)
+            .with_forwards()
             .with_action(
                 ActionItem::new("show YAML")
                     .with_description(if is_containers {
@@ -231,7 +233,7 @@ impl ResourcesView {
                     .with_response(ResponseEvent::Action("show_yaml")),
             );
 
-        if is_containers {
+        if is_containers || is_pods {
             builder = builder
                 .with_action(
                     ActionItem::new("show logs")

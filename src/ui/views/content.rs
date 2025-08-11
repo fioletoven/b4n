@@ -136,26 +136,35 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
-    pub fn scroll_to(&mut self, line: usize, col: usize) {
+    pub fn scroll_to(&mut self, line: usize, col: usize, width: usize) {
         if line < self.page_vstart || line > self.page_vstart + self.page_height.saturating_sub(1) {
             let line = line.saturating_sub(self.page_height.saturating_div(2));
             self.page_vstart = line.min(self.max_vstart());
         }
 
-        if col < self.page_hstart || col > self.page_hstart + self.page_width.saturating_sub(1) {
-            let col = col.saturating_sub(self.page_width.saturating_sub(2));
+        if col < self.page_hstart || col.saturating_add(width) > self.page_hstart + self.page_width.saturating_sub(1) {
+            let col = col.saturating_sub(self.page_width.saturating_div(2));
             self.page_hstart = col.min(self.max_hstart());
         }
     }
 
     /// Scrolls content to the current search match.
-    pub fn scroll_to_current_match(&mut self) {
+    pub fn scroll_to_current_match(&mut self, offset: Option<Size>) {
         if let Some(matches) = &self.search.matches {
+            let offset = offset.unwrap_or_default();
             if let Some(current) = self.search.current {
                 let r#match = &matches[current.saturating_sub(1)];
-                self.scroll_to(r#match.y, r#match.x);
+                self.scroll_to(
+                    r#match.y.saturating_add(offset.height.into()),
+                    r#match.x.saturating_add(offset.width.into()),
+                    r#match.length,
+                );
             } else {
-                self.scroll_to(matches[0].y, matches[0].x);
+                self.scroll_to(
+                    matches[0].y.saturating_add(offset.height.into()),
+                    matches[0].x.saturating_add(offset.width.into()),
+                    matches[0].length,
+                );
             }
         }
     }
@@ -215,7 +224,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Updates the current match index in the search results based on navigation direction.\
     /// **Note** that updated index will start from 1.
-    pub fn navigate_match(&mut self, forward: bool) {
+    pub fn navigate_match(&mut self, forward: bool, offset: Option<Size>) {
         let total = self.search.matches.as_ref().map_or(0, Vec::len);
         if total == 0 {
             return;
@@ -237,11 +246,16 @@ impl<T: Content> ContentViewer<T> {
         }
 
         if self.search.current.is_some() {
-            self.scroll_to_current_match();
+            self.scroll_to_current_match(offset);
         } else if total == 1
             && let Some(matches) = self.search.matches.as_ref()
         {
-            self.scroll_to(matches[0].y, matches[0].x);
+            let offset = offset.unwrap_or_default();
+            self.scroll_to(
+                matches[0].y.saturating_add(offset.height.into()),
+                matches[0].x.saturating_add(offset.width.into()),
+                matches[0].length,
+            );
         }
     }
 

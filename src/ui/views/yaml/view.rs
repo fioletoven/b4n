@@ -119,7 +119,7 @@ impl YamlView {
     }
 
     fn navigate_match(&mut self, forward: bool) {
-        self.yaml.navigate_match(forward);
+        self.yaml.navigate_match(forward, None);
         self.footer
             .set_text("yaml_search", self.yaml.get_footer_text(), IconKind::Default);
         if let Some(message) = self.yaml.get_footer_message(forward) {
@@ -181,7 +181,7 @@ impl View for YamlView {
         if self.search.is_visible {
             let result = self.search.process_key(key);
             if self.yaml.search(self.search.value(), false) {
-                self.yaml.scroll_to_current_match();
+                self.yaml.scroll_to_current_match(None);
                 self.update_search_count();
             }
 

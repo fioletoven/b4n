@@ -79,7 +79,7 @@ colors:
       selected: light_green:no_bg
       selected_hl: text:light_green
     completed:
-      normal: text_light:no_bg
+      normal: text:no_bg
       normal_hl: text_light:bg_dark
       selected: light_green:no_bg
       selected_hl: text:light_green
