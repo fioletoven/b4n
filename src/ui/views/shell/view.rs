@@ -26,6 +26,7 @@ use super::bridge::ShellBridge;
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
 const DEFAULT_SIZE: TerminalSize = TerminalSize { width: 80, height: 24 };
+const SCROLLBACK_LEN: usize = 1_000;
 
 /// Pod's shell view.
 pub struct ShellView {
@@ -37,6 +38,7 @@ pub struct ShellView {
     client: Client,
     pod: PodRef,
     modal: Dialog,
+    scrollback_rows: usize,
     esc_count: u8,
     esc_time: Instant,
     footer_tx: FooterTx,
@@ -61,7 +63,11 @@ impl ShellView {
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
 
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(DEFAULT_SIZE.height, DEFAULT_SIZE.width, 0)));
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(
+            DEFAULT_SIZE.height,
+            DEFAULT_SIZE.width,
+            SCROLLBACK_LEN,
+        )));
         let mut bridge = ShellBridge::new(parser.clone());
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
 
@@ -74,6 +80,7 @@ impl ShellView {
             client: client.get_client(),
             pod,
             modal: Dialog::default(),
+            scrollback_rows: 0,
             esc_count: 0,
             esc_time: Instant::now(),
             footer_tx,
@@ -113,15 +120,37 @@ impl ShellView {
         if self.esc_time.elapsed().as_millis() < (200 * u128::from(times)) {
             self.esc_count += 1;
         } else {
-            self.esc_count = 0;
+            self.esc_count = 1;
             self.esc_time = Instant::now();
         }
 
-        if self.esc_count == (times - 1) {
+        if self.esc_count == times {
             self.esc_count = 0;
             true
         } else {
             false
+        }
+    }
+
+    fn set_scrollback(&mut self, offset: u16, is_up: bool) -> ResponseEvent {
+        if is_up {
+            self.scrollback_rows = self.scrollback_rows.saturating_add(usize::from(offset));
+        } else {
+            self.scrollback_rows = self.scrollback_rows.saturating_sub(usize::from(offset));
+        }
+
+        if let Ok(mut parser) = self.parser.write() {
+            parser.set_scrollback(self.scrollback_rows);
+            self.scrollback_rows = parser.screen().scrollback();
+        }
+
+        ResponseEvent::Handled
+    }
+
+    fn reset_scrollback(&mut self) {
+        self.scrollback_rows = 0;
+        if let Ok(mut parser) = self.parser.write() {
+            parser.set_scrollback(0);
         }
     }
 }
@@ -162,6 +191,17 @@ impl View for ShellView {
             return ResponseEvent::Handled;
         }
 
+        if key.modifiers == KeyModifiers::CONTROL {
+            match key.code {
+                KeyCode::Up => return self.set_scrollback(1, true),
+                KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
+                KeyCode::Down => return self.set_scrollback(1, false),
+                KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
+                _ => (),
+            }
+        }
+
+        let mut key_processed = true;
         match key.code {
             KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
             KeyCode::Esc => self.bridge.send(vec![27]),
@@ -179,7 +219,11 @@ impl View for ShellView {
             KeyCode::BackTab => self.bridge.send(vec![27, 91, 90]),
             KeyCode::Delete => self.bridge.send(vec![27, 91, 51, 126]),
             KeyCode::Insert => self.bridge.send(vec![27, 91, 50, 126]),
-            _ => (),
+            _ => key_processed = false,
+        }
+
+        if key_processed && self.scrollback_rows > 0 {
+            self.reset_scrollback();
         }
 
         ResponseEvent::Handled
