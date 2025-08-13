@@ -6,6 +6,7 @@ use theme::Theme;
 pub use self::tui::*;
 
 pub mod colors;
+pub mod key_bindings;
 pub mod lists;
 pub mod theme;
 pub mod utils;
