@@ -143,32 +143,28 @@ impl Serialize for KeyCommand {
 }
 
 impl<'de> Deserialize<'de> for KeyCommand {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(KeyCommandVisitor)
-    }
-}
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct KeyCommandVisitor;
 
-/// Internal [`Visitor`] for deserializing [`KeyCommand`].
-struct KeyCommandVisitor;
+        impl Visitor<'_> for KeyCommandVisitor {
+            type Value = KeyCommand;
 
-impl Visitor<'_> for KeyCommandVisitor {
-    type Value = KeyCommand;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing key command")
+            }
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string containing key command")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<KeyCommand, E>
-    where
-        E: de::Error,
-    {
-        match KeyCommand::from_str(value) {
-            Ok(command) => Ok(command),
-            Err(_) => Err(de::Error::invalid_value(Unexpected::Str(value), &self)),
+            fn visit_str<E>(self, value: &str) -> Result<KeyCommand, E>
+            where
+                E: de::Error,
+            {
+                match KeyCommand::from_str(value) {
+                    Ok(command) => Ok(command),
+                    Err(_) => Err(de::Error::invalid_value(Unexpected::Str(value), &self)),
+                }
+            }
         }
+
+        deserializer.deserialize_str(KeyCommandVisitor)
     }
 }
 

@@ -115,32 +115,28 @@ impl Serialize for KeyCombination {
 }
 
 impl<'de> Deserialize<'de> for KeyCombination {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(KeyCombinationVisitor)
-    }
-}
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct KeyCombinationVisitor;
 
-/// Internal [`Visitor`] for deserializing [`KeyCombination`].
-struct KeyCombinationVisitor;
+        impl Visitor<'_> for KeyCombinationVisitor {
+            type Value = KeyCombination;
 
-impl Visitor<'_> for KeyCombinationVisitor {
-    type Value = KeyCombination;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing key combination")
+            }
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string containing key combination")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<KeyCombination, E>
-    where
-        E: de::Error,
-    {
-        match KeyCombination::from_str(value) {
-            Ok(key) => Ok(key),
-            Err(_) => Err(de::Error::invalid_value(Unexpected::Str(value), &self)),
+            fn visit_str<E>(self, value: &str) -> Result<KeyCombination, E>
+            where
+                E: de::Error,
+            {
+                match KeyCombination::from_str(value) {
+                    Ok(key) => Ok(key),
+                    Err(_) => Err(de::Error::invalid_value(Unexpected::Str(value), &self)),
+                }
+            }
         }
+
+        deserializer.deserialize_str(KeyCombinationVisitor)
     }
 }
 
