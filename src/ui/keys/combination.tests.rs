@@ -6,8 +6,8 @@ fn from_str_test() {
     assert!(KeyCombination::from_str("++").is_err());
     assert!(KeyCombination::from_str("++++").is_err());
     assert!(KeyCombination::from_str("Ctrl").is_err());
+    assert!(KeyCombination::from_str("Alt+++").is_err());
     assert!(KeyCombination::from_str("Ctrl+").is_err());
-    assert!(KeyCombination::from_str("Alt++").is_err());
     assert!(KeyCombination::from_str("Alt+++++").is_err());
     assert!(KeyCombination::from_str("unknown+").is_err());
     assert!(KeyCombination::from_str("unknown+aa").is_err());
@@ -16,6 +16,10 @@ fn from_str_test() {
     assert_eq!(
         KeyCombination::new(KeyModifiers::NONE, KeyCode::Char('+')),
         KeyCombination::from_str("+").unwrap()
+    );
+    assert_eq!(
+        KeyCombination::new(KeyModifiers::ALT, KeyCode::Char('+')),
+        KeyCombination::from_str("Alt++").unwrap()
     );
     assert_eq!(
         KeyCombination::new(KeyModifiers::ALT, KeyCode::Char('D')),

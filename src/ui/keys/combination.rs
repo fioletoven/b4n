@@ -5,8 +5,8 @@ use std::fmt::{self};
 use std::str::FromStr;
 
 #[cfg(test)]
-#[path = "./key_bindings.tests.rs"]
-mod key_bindings_tests;
+#[path = "./combination.tests.rs"]
+mod combination_tests;
 
 /// Possible errors from [`KeyCombination`] parsing.
 #[derive(thiserror::Error, Debug)]
@@ -20,6 +20,7 @@ pub enum KeyCombinationError {
     UnknownCode,
 }
 
+/// Represents a specific key combination (key code + modifiers) used in a UI key binding.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct KeyCombination {
     pub code: KeyCode,
@@ -29,6 +30,12 @@ pub struct KeyCombination {
 impl From<KeyEvent> for KeyCombination {
     fn from(value: KeyEvent) -> Self {
         KeyCombination::new(value.modifiers, value.code)
+    }
+}
+
+impl From<&str> for KeyCombination {
+    fn from(value: &str) -> Self {
+        KeyCombination::from_str(value).unwrap_or_else(|_| KeyCombination::new(KeyModifiers::NONE, KeyCode::Null))
     }
 }
 
@@ -44,17 +51,17 @@ impl FromStr for KeyCombination {
                 KeyModifiers::NONE,
                 KeyCode::Char(value.chars().next().unwrap().to_ascii_lowercase()),
             ));
-        } else if value.contains("++") {
+        } else if value.contains("+++") {
             return Err(KeyCombinationError::UnknownCode);
         }
 
-        let plus = value.ends_with('+');
+        let plus = value.ends_with("++");
         let elements = value.split('+').filter(|s| !s.is_empty()).collect::<Vec<_>>();
 
         if elements.is_empty() {
             Err(KeyCombinationError::UnknownModifier)
         } else if elements.len() == 1 && plus {
-            Err(KeyCombinationError::UnknownCode)
+            Ok(KeyCombination::try_from(&elements, "+")?)
         } else if elements.len() == 1 {
             Ok(KeyCombination::try_from(&[], elements[0])?)
         } else {
@@ -65,6 +72,7 @@ impl FromStr for KeyCombination {
 }
 
 impl KeyCombination {
+    /// Creates new [`KeyCombination`] instance.
     pub fn new(modifiers: KeyModifiers, code: KeyCode) -> Self {
         let code = if let KeyCode::Char(c) = code {
             KeyCode::Char(c.to_ascii_uppercase())
@@ -75,6 +83,7 @@ impl KeyCombination {
         Self { code, modifiers }
     }
 
+    /// Tries to create new [`KeyCombination`] instance from `modifiers` and `code` strings.
     pub fn try_from(modifiers: &[&str], code: &str) -> Result<Self, KeyCombinationError> {
         let code = match code.chars().count() {
             0 => KeyCode::Null,
@@ -135,6 +144,7 @@ impl Visitor<'_> for KeyCombinationVisitor {
     }
 }
 
+// TODO: can be changed to KeyModifiers.to_string() when upgrades to crossterm 0.29
 fn get_string_from_modifiers(modifiers: &KeyModifiers) -> String {
     let mut result = String::new();
     let mut first = true;

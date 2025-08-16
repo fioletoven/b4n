@@ -3,16 +3,17 @@ use crossterm::event::KeyEvent;
 use std::{collections::HashMap, rc::Rc};
 use theme::Theme;
 
+pub use self::keys::*;
 pub use self::tui::*;
 
 pub mod colors;
-pub mod key_bindings;
 pub mod lists;
 pub mod theme;
 pub mod utils;
 pub mod views;
 pub mod widgets;
 
+mod keys;
 mod tui;
 
 /// Indicates which columns in the list should be displayed.
