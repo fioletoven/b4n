@@ -6,7 +6,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::ui::theme::Theme;
+use crate::ui::{KeyBindings, theme::Theme};
 
 use super::ConfigWatcher;
 
@@ -48,6 +48,7 @@ pub struct Logs {
 pub struct Config {
     pub logs: Logs,
     pub theme: String,
+    pub key_bindings: Option<KeyBindings>,
 }
 
 impl Default for Config {
@@ -55,6 +56,7 @@ impl Default for Config {
         Self {
             logs: Logs { lines: Some(400) },
             theme: DEFAULT_THEME_NAME.to_owned(),
+            key_bindings: Some(KeyBindings::default()),
         }
     }
 }

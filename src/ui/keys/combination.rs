@@ -21,7 +21,7 @@ pub enum KeyCombinationError {
 }
 
 /// Represents a specific key combination (key code + modifiers) used in a UI key binding.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct KeyCombination {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,

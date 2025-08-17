@@ -11,15 +11,14 @@ fn serialize_test() {
 
 #[test]
 fn merge_test() {
-    let mut bindings = KeyBindings::default();
+    let bindings = KeyBindings::default();
+    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "exit-app".into());
 
     let mut other = KeyBindings::empty();
     other.insert("Ctrl+C", "yaml.open");
     other.insert("Alt+A", "exit-app");
 
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "exit-app".into());
-
-    bindings.merge(other);
+    let bindings = KeyBindings::default_with(Some(other));
 
     assert!(bindings.bindings.contains_key(&"Ctrl+C".into()));
     assert_eq!(bindings.bindings[&"Ctrl+C".into()], "yaml.open".into());

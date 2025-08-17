@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
-    ui::theme::Theme,
+    ui::{KeyBindings, theme::Theme},
 };
 
 use super::{Config, History};
@@ -110,6 +110,9 @@ pub struct AppData {
     /// Application configuration.
     pub config: Config,
 
+    /// UI key bindings.
+    pub key_bindings: KeyBindings,
+
     /// Application history data.
     pub history: History,
 
@@ -132,8 +135,10 @@ pub struct AppData {
 impl AppData {
     /// Creates new [`AppData`] instance.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
+        let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
         Self {
             config,
+            key_bindings,
             history,
             theme,
             current: ResourcesInfo::default(),

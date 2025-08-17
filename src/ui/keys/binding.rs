@@ -12,7 +12,7 @@ use crate::ui::{KeyCombination, KeyCommand};
 mod binding_tests;
 
 /// Key bindings for the UI.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct KeyBindings {
     bindings: HashMap<KeyCombination, KeyCommand>,
 }
@@ -38,17 +38,22 @@ impl KeyBindings {
         }
     }
 
+    /// Creates default [`KeyBindings`] instance updated with `other` key bindings sequence.
+    pub fn default_with(other: Option<KeyBindings>) -> Self {
+        let mut result = KeyBindings::default();
+        if let Some(other) = other {
+            for (combination, command) in other.bindings {
+                result.bindings.insert(combination, command);
+            }
+        }
+
+        result
+    }
+
     /// Adds a new key binding or updates an existing one in the list.\
     /// **Note** that this uses the infallible `From<&str>` conversion.
     pub fn insert(&mut self, combination: &str, command: &str) {
         self.bindings.insert(combination.into(), command.into());
-    }
-
-    /// Merges `other` key bindings sequence with this one.
-    pub fn merge(&mut self, other: KeyBindings) {
-        for (combination, command) in other.bindings {
-            self.bindings.insert(combination, command);
-        }
     }
 }
 
@@ -64,10 +69,16 @@ impl Serialize for KeyBindings {
             .map(|(command, combinations)| (command, combinations.join(", ")))
             .collect::<HashMap<_, _>>();
 
+        let mut keys = inverted.keys().collect::<Vec<_>>();
+        keys.sort();
+
         let mut map = serializer.serialize_map(Some(inverted.len()))?;
-        for (k, v) in &inverted {
-            map.serialize_entry(k, v)?;
+        for key in keys {
+            if let Some(value) = inverted.get(key) {
+                map.serialize_entry(key, value)?;
+            }
         }
+
         map.end()
     }
 }

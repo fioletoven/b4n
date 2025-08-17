@@ -9,7 +9,7 @@ use std::{
 use crate::{
     core::{ViewsManager, commands::ListThemesCommand},
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
+    ui::{KeyBindings, ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
 };
 
 use super::{
@@ -97,7 +97,9 @@ impl App {
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         if let Some(config) = self.config_watcher.try_next() {
             self.theme_watcher.change_file(config.theme_path())?;
-            self.data.borrow_mut().config = config;
+            let mut data = self.data.borrow_mut();
+            data.key_bindings = KeyBindings::default_with(config.key_bindings.clone());
+            data.config = config;
         }
 
         if let Some(history) = self.history_watcher.try_next() {
