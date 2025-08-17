@@ -1,9 +1,9 @@
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
-    de::{SeqAccess, Visitor},
-    ser::SerializeSeq,
+    de::{self},
+    ser::SerializeMap,
 };
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, str::FromStr};
 
 use crate::ui::{KeyCombination, KeyCommand};
 
@@ -19,9 +19,7 @@ pub struct KeyBindings {
 
 impl Default for KeyBindings {
     fn default() -> Self {
-        let mut result = Self {
-            bindings: HashMap::new(),
-        };
+        let mut result = Self::empty();
 
         result.insert("Ctrl+C", "exit-app");
         result.insert("Shift+:", "command-palette.open");
@@ -33,14 +31,15 @@ impl Default for KeyBindings {
 }
 
 impl KeyBindings {
-    /// Creates new [`KeyBindings`] instance.
-    pub fn new() -> Self {
+    /// Creates empty [`KeyBindings`] instance.
+    pub fn empty() -> Self {
         Self {
             bindings: HashMap::new(),
         }
     }
 
-    /// Adds new or updates key binding to the list.
+    /// Adds a new key binding or updates an existing one in the list.\
+    /// **Note** that this uses the infallible `From<&str>` conversion.
     pub fn insert(&mut self, combination: &str, command: &str) {
         self.bindings.insert(combination.into(), command.into());
     }
@@ -55,50 +54,40 @@ impl KeyBindings {
 
 impl Serialize for KeyBindings {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        #[derive(Serialize)]
-        struct Binding<'a> {
-            command: &'a KeyCommand,
-            combination: &'a KeyCombination,
-        }
-
-        let mut result = serializer.serialize_seq(Some(self.bindings.len()))?;
-
+        let mut inverted: HashMap<String, Vec<String>> = HashMap::new();
         for (combination, command) in &self.bindings {
-            result.serialize_element(&Binding { command, combination })?;
+            inverted.entry(command.to_string()).or_default().push(combination.to_string());
         }
 
-        result.end()
+        let inverted = inverted
+            .into_iter()
+            .map(|(command, combinations)| (command, combinations.join(", ")))
+            .collect::<HashMap<_, _>>();
+
+        let mut map = serializer.serialize_map(Some(inverted.len()))?;
+        for (k, v) in &inverted {
+            map.serialize_entry(k, v)?;
+        }
+        map.end()
     }
 }
 
 impl<'de> Deserialize<'de> for KeyBindings {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        struct Binding {
-            command: KeyCommand,
-            combination: KeyCombination,
-        }
+        let map: HashMap<String, String> = HashMap::deserialize(deserializer)?;
 
-        struct KeyBindingsVisitor;
+        let mut bindings = HashMap::new();
+        for (command_str, combination_str) in map {
+            let command = KeyCommand::from_str(&command_str)
+                .map_err(|_| de::Error::custom(format_args!("invalid command: {}", command_str)))?;
 
-        impl<'de> Visitor<'de> for KeyBindingsVisitor {
-            type Value = KeyBindings;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a sequence of {command, combination} objects")
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut bindings = HashMap::new();
-
-                while let Some(binding) = seq.next_element::<Binding>()? {
-                    bindings.insert(binding.combination, binding.command);
-                }
-
-                Ok(KeyBindings { bindings })
+            for combination in combination_str.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                let key_combination = KeyCombination::from_str(combination)
+                    .map_err(|_| de::Error::custom(format_args!("invalid key combination: {}", combination)))?;
+                bindings.insert(key_combination, command.clone());
             }
         }
 
-        deserializer.deserialize_seq(KeyBindingsVisitor)
+        Ok(KeyBindings { bindings })
     }
 }

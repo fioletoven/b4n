@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self};
+use std::fmt::{self, Display, Write};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -25,6 +25,33 @@ pub enum KeyCombinationError {
 pub struct KeyCombination {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,
+}
+
+impl Display for KeyCombination {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO: can be changed to KeyModifiers.to_string() when upgrades to crossterm 0.29
+        if !self.modifiers.is_empty() {
+            let mut first = true;
+
+            for modifier in self.modifiers.iter() {
+                if !first {
+                    f.write_char('+')?;
+                }
+
+                first = false;
+                match modifier {
+                    KeyModifiers::SHIFT => f.write_str("Shift")?,
+                    KeyModifiers::ALT => f.write_str("Alt")?,
+                    KeyModifiers::CONTROL => f.write_str("Ctrl")?,
+                    _ => (),
+                };
+            }
+
+            f.write_char('+')?
+        }
+
+        write!(f, "{}", self.code)
+    }
 }
 
 impl From<KeyEvent> for KeyCombination {
@@ -105,12 +132,7 @@ impl KeyCombination {
 
 impl Serialize for KeyCombination {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let modifiers = get_string_from_modifiers(&self.modifiers);
-        if modifiers.is_empty() {
-            serializer.serialize_str(&self.code.to_string())
-        } else {
-            serializer.serialize_str(&format!("{}+{}", modifiers, self.code))
-        }
+        serializer.serialize_str(&self.to_string())
     }
 }
 
@@ -138,28 +160,6 @@ impl<'de> Deserialize<'de> for KeyCombination {
 
         deserializer.deserialize_str(KeyCombinationVisitor)
     }
-}
-
-// TODO: can be changed to KeyModifiers.to_string() when upgrades to crossterm 0.29
-fn get_string_from_modifiers(modifiers: &KeyModifiers) -> String {
-    let mut result = String::new();
-    let mut first = true;
-
-    for modifier in modifiers.iter() {
-        if !first {
-            result.push('+');
-        }
-
-        first = false;
-        match modifier {
-            KeyModifiers::SHIFT => result.push_str("Shift"),
-            KeyModifiers::ALT => result.push_str("Alt"),
-            KeyModifiers::CONTROL => result.push_str("Ctrl"),
-            _ => (),
-        };
-    }
-
-    result
 }
 
 fn get_modifier_from_name(modifier: &str) -> Result<KeyModifiers, KeyCombinationError> {

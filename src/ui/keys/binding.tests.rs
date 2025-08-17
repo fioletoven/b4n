@@ -13,7 +13,7 @@ fn serialize_test() {
 fn merge_test() {
     let mut bindings = KeyBindings::default();
 
-    let mut other = KeyBindings::new();
+    let mut other = KeyBindings::empty();
     other.insert("Ctrl+C", "yaml.open");
     other.insert("Alt+A", "exit-app");
 

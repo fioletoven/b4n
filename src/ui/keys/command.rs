@@ -16,7 +16,7 @@ pub enum KeyCommandError {
 }
 
 /// Defines what part of the UI the command targets.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum CommandTarget {
     System,
     CommandPalette,
@@ -56,7 +56,7 @@ impl CommandTarget {
 }
 
 /// Defines what action should be performed on a target.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum CommandAction {
     ExitApp,
     Open,
@@ -95,10 +95,20 @@ impl FromStr for CommandAction {
 }
 
 /// The UI command specification.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct KeyCommand {
     pub kind: CommandTarget,
     pub command: CommandAction,
+}
+
+impl Display for KeyCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.kind == CommandTarget::System {
+            write!(f, "{}", self.command)
+        } else {
+            write!(f, "{}.{}", self.kind, self.command)
+        }
+    }
 }
 
 impl From<&str> for KeyCommand {
@@ -133,12 +143,7 @@ impl KeyCommand {
 
 impl Serialize for KeyCommand {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let kind = self.kind.to_string();
-        if kind.is_empty() {
-            serializer.serialize_str(&self.command.to_string())
-        } else {
-            serializer.serialize_str(&format!("{}.{}", kind, self.command))
-        }
+        serializer.serialize_str(&self.to_string())
     }
 }
 
