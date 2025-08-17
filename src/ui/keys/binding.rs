@@ -5,7 +5,7 @@ use serde::{
 };
 use std::{collections::HashMap, str::FromStr};
 
-use crate::ui::{KeyCombination, KeyCommand};
+use crate::ui::{CommandAction, CommandTarget, KeyCombination, KeyCommand};
 
 #[cfg(test)]
 #[path = "./binding.tests.rs"]
@@ -21,7 +21,7 @@ impl Default for KeyBindings {
     fn default() -> Self {
         let mut result = Self::empty();
 
-        result.insert("Ctrl+C", "exit-app");
+        result.insert("Ctrl+C", "app.exit");
         result.insert("Shift+:", "command-palette.open");
         result.insert("Shift+>", "command-palette.open");
         result.insert("/", "filter.open");
@@ -54,6 +54,15 @@ impl KeyBindings {
     /// **Note** that this uses the infallible `From<&str>` conversion.
     pub fn insert(&mut self, combination: &str, command: &str) {
         self.bindings.insert(combination.into(), command.into());
+    }
+
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`CommandTarget`] and [`CommandAction`].
+    pub fn has_binding(&self, combination: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool {
+        if let Some(command) = self.bindings.get(combination) {
+            command.target == target && command.action == action
+        } else {
+            false
+        }
     }
 }
 

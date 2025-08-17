@@ -1,5 +1,6 @@
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -18,16 +19,16 @@ pub enum KeyCommandError {
 /// Defines what part of the UI the command targets.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum CommandTarget {
-    System,
+    Application,
     CommandPalette,
     Filter,
-    View(String),
+    View(Cow<'static, str>),
 }
 
 impl Display for CommandTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CommandTarget::System => (),
+            CommandTarget::Application => f.write_str("app")?,
             CommandTarget::CommandPalette => f.write_str("command-palette")?,
             CommandTarget::Filter => f.write_str("filter")?,
             CommandTarget::View(v) => f.write_str(&v.to_lowercase())?,
@@ -40,17 +41,17 @@ impl From<&str> for CommandTarget {
     fn from(value: &str) -> Self {
         let value = value.to_lowercase();
         match value.as_str() {
-            "" | "system" => CommandTarget::System,
+            "" | "application" | "app" => CommandTarget::Application,
             "command-palette" => CommandTarget::CommandPalette,
             "filter" => CommandTarget::Filter,
-            _ => CommandTarget::View(value),
+            _ => CommandTarget::View(value.into()),
         }
     }
 }
 
 impl CommandTarget {
     /// Creates a [`CommandTarget::View`] variant of the [`CommandTarget`].
-    pub fn view(value: impl Into<String>) -> Self {
+    pub fn view(value: impl Into<Cow<'static, str>>) -> Self {
         CommandTarget::View(value.into())
     }
 }
@@ -58,19 +59,19 @@ impl CommandTarget {
 /// Defines what action should be performed on a target.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum CommandAction {
-    ExitApp,
     Open,
     Close,
+    Exit,
     Search,
-    Action(String),
+    Action(Cow<'static, str>),
 }
 
 impl Display for CommandAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CommandAction::ExitApp => f.write_str("exit-app")?,
-            CommandAction::Close => f.write_str("close")?,
             CommandAction::Open => f.write_str("open")?,
+            CommandAction::Close => f.write_str("close")?,
+            CommandAction::Exit => f.write_str("exit")?,
             CommandAction::Search => f.write_str("search")?,
             CommandAction::Action(a) => f.write_str(&a.to_lowercase())?,
         }
@@ -85,37 +86,40 @@ impl FromStr for CommandAction {
         let value = s.to_lowercase();
         match value.as_str() {
             "" => Err(KeyCommandError::MissingCommandValue),
-            "exit-app" => Ok(CommandAction::ExitApp),
             "open" => Ok(CommandAction::Open),
             "close" => Ok(CommandAction::Close),
+            "exit" => Ok(CommandAction::Exit),
             "search" => Ok(CommandAction::Search),
-            _ => Ok(CommandAction::Action(value)),
+            _ => Ok(CommandAction::Action(value.into())),
         }
+    }
+}
+
+impl CommandAction {
+    /// Creates a [`CommandAction::Action`] variant of the [`CommandAction`].
+    pub fn action(value: impl Into<Cow<'static, str>>) -> Self {
+        CommandAction::Action(value.into())
     }
 }
 
 /// The UI command specification.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct KeyCommand {
-    pub kind: CommandTarget,
-    pub command: CommandAction,
+    pub target: CommandTarget,
+    pub action: CommandAction,
 }
 
 impl Display for KeyCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.kind == CommandTarget::System {
-            write!(f, "{}", self.command)
-        } else {
-            write!(f, "{}.{}", self.kind, self.command)
-        }
+        write!(f, "{}.{}", self.target, self.action)
     }
 }
 
 impl From<&str> for KeyCommand {
     fn from(value: &str) -> Self {
         KeyCommand::from_str(value).unwrap_or_else(|_| KeyCommand {
-            kind: CommandTarget::System,
-            command: CommandAction::Action(String::new()),
+            target: CommandTarget::Application,
+            action: CommandAction::Action("".into()),
         })
     }
 }
@@ -128,7 +132,10 @@ impl FromStr for KeyCommand {
         let (kind, command) = get_command_elements(&value);
         let kind = CommandTarget::from(kind);
         match CommandAction::from_str(command) {
-            Ok(command) => Ok(KeyCommand { kind, command }),
+            Ok(command) => Ok(KeyCommand {
+                target: kind,
+                action: command,
+            }),
             Err(error) => Err(error),
         }
     }
@@ -137,7 +144,10 @@ impl FromStr for KeyCommand {
 impl KeyCommand {
     /// Creates new [`KeyCommand`] instance.
     pub fn new(kind: CommandTarget, command: CommandAction) -> Self {
-        Self { kind, command }
+        Self {
+            target: kind,
+            action: command,
+        }
     }
 }
 

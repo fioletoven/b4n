@@ -5,14 +5,14 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, Port, ResourceItem, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
-        Responsive, Table, ViewType,
+        CommandAction, CommandTarget, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -133,8 +133,9 @@ impl ResourcesView {
     /// Process TUI event.
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
+        let key_combo = key.into();
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has(&key_combo, CommandTarget::Application, CommandAction::Exit) {
             return ResponseEvent::ExitApplication;
         }
 

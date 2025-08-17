@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     ui::{
         ViewType,
-        lists::{ColumnStringExtensions, NAMESPACE},
+        lists::{ColumnStringExt, NAMESPACE},
     },
     utils::try_truncate,
 };

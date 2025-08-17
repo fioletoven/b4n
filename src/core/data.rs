@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
-    ui::{KeyBindings, theme::Theme},
+    ui::{CommandAction, CommandTarget, KeyBindings, KeyCombination, theme::Theme},
 };
 
 use super::{Config, History};
@@ -166,5 +166,18 @@ impl AppData {
             syntax_set: self.syntax_set.clone(),
             yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
+    }
+}
+
+/// Extension methods for the [`SharedAppData`] type.
+pub trait SharedAppDataExt {
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`CommandTarget`] and
+    /// [`CommandAction`] in [`KeyBindings`] in [`SharedAppData`].
+    fn has(&self, key: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool;
+}
+
+impl SharedAppDataExt for SharedAppData {
+    fn has(&self, key: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool {
+        self.borrow().key_bindings.has_binding(key, target, action)
     }
 }

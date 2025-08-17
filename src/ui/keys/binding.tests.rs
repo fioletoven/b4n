@@ -26,3 +26,29 @@ fn merge_test() {
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));
     assert_eq!(bindings.bindings[&"Alt+A".into()], "exit-app".into());
 }
+
+#[test]
+fn has_binding_test() {
+    let bindings = KeyBindings::default();
+    assert!(bindings.has_binding(&"Ctrl+C".into(), CommandTarget::Application, CommandAction::Exit));
+    assert!(!bindings.has_binding(&"Ctrl+C".into(), CommandTarget::Application, CommandAction::Open));
+    assert!(!bindings.has_binding(&"Ctrl+D".into(), CommandTarget::Application, CommandAction::Exit));
+
+    let mut other = KeyBindings::empty();
+    other.insert("Ctrl+A", "yaml.describe");
+    assert!(other.has_binding(
+        &"Ctrl+A".into(),
+        CommandTarget::view("yaml"),
+        CommandAction::action("describe")
+    ));
+    assert!(!other.has_binding(
+        &"Ctrl+A".into(),
+        CommandTarget::view("yaml"),
+        CommandAction::action("not-describe")
+    ));
+    assert!(!other.has_binding(
+        &"Ctrl+B".into(),
+        CommandTarget::view("yaml"),
+        CommandAction::action("describe")
+    ));
+}

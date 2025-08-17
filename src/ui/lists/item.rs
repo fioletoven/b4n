@@ -174,12 +174,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Filterable<Fc> for Item<T, Fc> 
 }
 
 /// Extension methods for string.
-pub trait RowStringExtensions {
+pub trait RowStringExt {
     /// Appends a given cell text onto the end of this `String`.
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool);
 }
 
-impl RowStringExtensions for String {
+impl RowStringExt for String {
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
         if len == 0 {
             return;
