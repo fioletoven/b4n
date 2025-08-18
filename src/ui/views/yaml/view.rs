@@ -7,7 +7,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
-        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, TuiEvent,
+        COMMAND_APP_EXIT, KeyCombination, ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
@@ -159,7 +159,7 @@ impl View for YamlView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
+        if self.app_data.has_binding(&key, &COMMAND_APP_EXIT) {
             return ResponseEvent::ExitApplication;
         }
 

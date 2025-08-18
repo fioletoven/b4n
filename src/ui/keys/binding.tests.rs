@@ -12,11 +12,9 @@ fn serialize_test() {
 #[test]
 fn merge_test() {
     let bindings = KeyBindings::default();
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "exit-app".into());
+    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "app.exit".into());
 
-    let mut other = KeyBindings::empty();
-    other.insert("Ctrl+C", "yaml.open");
-    other.insert("Alt+A", "exit-app");
+    let other = KeyBindings::empty().with("Ctrl+C", "yaml.open").with("Alt+A", "app.exit");
 
     let bindings = KeyBindings::default_with(Some(other));
 
@@ -24,31 +22,27 @@ fn merge_test() {
     assert_eq!(bindings.bindings[&"Ctrl+C".into()], "yaml.open".into());
 
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));
-    assert_eq!(bindings.bindings[&"Alt+A".into()], "exit-app".into());
+    assert_eq!(bindings.bindings[&"Alt+A".into()], "app.exit".into());
 }
 
 #[test]
 fn has_binding_test() {
     let bindings = KeyBindings::default();
-    assert!(bindings.has_binding(&"Ctrl+C".into(), CommandTarget::Application, CommandAction::Exit));
-    assert!(!bindings.has_binding(&"Ctrl+C".into(), CommandTarget::Application, CommandAction::Open));
-    assert!(!bindings.has_binding(&"Ctrl+D".into(), CommandTarget::Application, CommandAction::Exit));
+    assert!(bindings.has_binding(
+        &"Ctrl+C".into(),
+        &KeyCommand::new(CommandTarget::Application, CommandAction::Exit)
+    ));
+    assert!(!bindings.has_binding(
+        &"Ctrl+C".into(),
+        &KeyCommand::new(CommandTarget::Application, CommandAction::Open)
+    ));
+    assert!(!bindings.has_binding(
+        &"Ctrl+D".into(),
+        &KeyCommand::new(CommandTarget::Application, CommandAction::Exit)
+    ));
 
-    let mut other = KeyBindings::empty();
-    other.insert("Ctrl+A", "yaml.describe");
-    assert!(other.has_binding(
-        &"Ctrl+A".into(),
-        CommandTarget::view("yaml"),
-        CommandAction::action("describe")
-    ));
-    assert!(!other.has_binding(
-        &"Ctrl+A".into(),
-        CommandTarget::view("yaml"),
-        CommandAction::action("not-describe")
-    ));
-    assert!(!other.has_binding(
-        &"Ctrl+B".into(),
-        CommandTarget::view("yaml"),
-        CommandAction::action("describe")
-    ));
+    let other = KeyBindings::empty().with("Ctrl+A", "yaml.describe");
+    assert!(other.has_binding(&"Ctrl+A".into(), &"yaml.describe".into()));
+    assert!(!other.has_binding(&"Ctrl+A".into(), &"yaml.not-describe".into()));
+    assert!(!other.has_binding(&"Ctrl+B".into(), &"yaml.describe".into()));
 }

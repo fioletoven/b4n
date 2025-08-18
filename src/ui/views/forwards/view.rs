@@ -9,7 +9,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        COMMAND_APP_EXIT, KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -183,7 +183,7 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
+        if self.app_data.has_binding(&key, &COMMAND_APP_EXIT) {
             return ResponseEvent::ExitApplication;
         }
 

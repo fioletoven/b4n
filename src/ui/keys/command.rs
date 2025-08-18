@@ -51,8 +51,8 @@ impl From<&str> for CommandTarget {
 
 impl CommandTarget {
     /// Creates a [`CommandTarget::View`] variant of the [`CommandTarget`].
-    pub fn view(value: impl Into<Cow<'static, str>>) -> Self {
-        CommandTarget::View(value.into())
+    pub const fn view(value: &'static str) -> Self {
+        CommandTarget::View(Cow::Borrowed(value))
     }
 }
 
@@ -97,8 +97,8 @@ impl FromStr for CommandAction {
 
 impl CommandAction {
     /// Creates a [`CommandAction::Action`] variant of the [`CommandAction`].
-    pub fn action(value: impl Into<Cow<'static, str>>) -> Self {
-        CommandAction::Action(value.into())
+    pub const fn action(value: &'static str) -> Self {
+        CommandAction::Action(Cow::Borrowed(value))
     }
 }
 
@@ -143,7 +143,7 @@ impl FromStr for KeyCommand {
 
 impl KeyCommand {
     /// Creates new [`KeyCommand`] instance.
-    pub fn new(kind: CommandTarget, command: CommandAction) -> Self {
+    pub const fn new(kind: CommandTarget, command: CommandAction) -> Self {
         Self {
             target: kind,
             action: command,

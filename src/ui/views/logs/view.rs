@@ -11,7 +11,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
-        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, TuiEvent,
+        COMMAND_APP_EXIT, KeyCombination, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
@@ -229,7 +229,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
+        if self.app_data.has_binding(&key, &COMMAND_APP_EXIT) {
             return ResponseEvent::ExitApplication;
         }
 

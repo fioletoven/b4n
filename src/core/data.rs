@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
-    ui::{CommandAction, CommandTarget, KeyBindings, KeyCombination, theme::Theme},
+    ui::{KeyBindings, KeyCombination, KeyCommand, theme::Theme},
 };
 
 use super::{Config, History};
@@ -171,13 +171,20 @@ impl AppData {
 
 /// Extension methods for the [`SharedAppData`] type.
 pub trait SharedAppDataExt {
-    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`CommandTarget`] and
-    /// [`CommandAction`] in [`KeyBindings`] in [`SharedAppData`].
-    fn has(&self, key: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool;
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`] within
+    /// the [`KeyBindings`] stored in [`SharedAppData`].
+    fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool;
+
+    /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
+    fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination>;
 }
 
 impl SharedAppDataExt for SharedAppData {
-    fn has(&self, key: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool {
-        self.borrow().key_bindings.has_binding(key, target, action)
+    fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool {
+        self.borrow().key_bindings.has_binding(key, command)
+    }
+
+    fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination> {
+        self.borrow().key_bindings.get_key(command)
     }
 }

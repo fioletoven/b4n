@@ -11,6 +11,8 @@ use crate::ui::{CommandAction, CommandTarget, KeyCombination, KeyCommand};
 #[path = "./binding.tests.rs"]
 mod binding_tests;
 
+pub const COMMAND_APP_EXIT: KeyCommand = KeyCommand::new(CommandTarget::Application, CommandAction::Exit);
+
 /// Key bindings for the UI.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeyBindings {
@@ -19,14 +21,11 @@ pub struct KeyBindings {
 
 impl Default for KeyBindings {
     fn default() -> Self {
-        let mut result = Self::empty();
-
-        result.insert("Ctrl+C", "app.exit");
-        result.insert("Shift+:", "command-palette.open");
-        result.insert("Shift+>", "command-palette.open");
-        result.insert("/", "filter.open");
-
-        result
+        Self::empty()
+            .with("Ctrl+C", "app.exit")
+            .with("Shift+:", "command-palette.open")
+            .with("Shift+>", "command-palette.open")
+            .with("/", "filter.open")
     }
 }
 
@@ -50,19 +49,29 @@ impl KeyBindings {
         result
     }
 
-    /// Adds a new key binding or updates an existing one in the list.\
-    /// **Note** that this uses the infallible `From<&str>` conversion.
-    pub fn insert(&mut self, combination: &str, command: &str) {
+    /// Inserts the given key `combination` and associated `command` into the [`KeyBindings`],
+    /// returning the updated instance.
+    pub fn with(mut self, combination: &str, command: &str) -> Self {
         self.bindings.insert(combination.into(), command.into());
+        self
     }
 
-    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`CommandTarget`] and [`CommandAction`].
-    pub fn has_binding(&self, combination: &KeyCombination, target: CommandTarget, action: CommandAction) -> bool {
-        if let Some(command) = self.bindings.get(combination) {
-            command.target == target && command.action == action
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`].
+    pub fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool {
+        if let Some(supposed) = self.bindings.get(key) {
+            supposed.target == command.target && supposed.action == command.action
         } else {
             false
         }
+    }
+
+    /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`].
+    pub fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination> {
+        self.bindings
+            .iter()
+            .find(|(_, cmd)| *cmd == command)
+            .map(|(combination, _)| combination)
+            .copied()
     }
 }
 

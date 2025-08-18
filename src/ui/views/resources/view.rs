@@ -12,7 +12,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        CommandAction, CommandTarget, KeyCombination, Responsive, Table, ViewType,
+        COMMAND_APP_EXIT, KeyCombination, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -134,7 +134,7 @@ impl ResourcesView {
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
+        if self.app_data.has_binding(&key, &COMMAND_APP_EXIT) {
             return ResponseEvent::ExitApplication;
         }
 
