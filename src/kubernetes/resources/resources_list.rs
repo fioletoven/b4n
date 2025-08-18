@@ -1,4 +1,3 @@
-use crossterm::event::KeyEvent;
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
@@ -9,7 +8,7 @@ use crate::{
         watchers::{InitData, ObserverResult},
     },
     ui::{
-        ResponseEvent, Responsive, Table, ViewType,
+        KeyCombination, ResponseEvent, Responsive, Table, ViewType,
         colors::TextColors,
         lists::{FilterableList, Item, Row, TabularList},
         theme::Theme,
@@ -106,7 +105,7 @@ impl ResourcesList {
 }
 
 impl Responsive for ResourcesList {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         self.table.process_key(key)
     }
 }

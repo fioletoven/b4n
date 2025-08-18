@@ -1,5 +1,5 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
     layout::{Rect, Size},
@@ -8,10 +8,10 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
+        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
@@ -79,7 +79,7 @@ impl LogsView {
         })
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let builder = ActionsListBuilder::default()
                 .with_close()
@@ -229,7 +229,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
             return ResponseEvent::ExitApplication;
         }
 

@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display, Write};
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -21,10 +22,40 @@ pub enum KeyCombinationError {
 }
 
 /// Represents a specific key combination (key code + modifiers) used in a UI key binding.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct KeyCombination {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,
+}
+
+impl PartialEq for KeyCombination {
+    fn eq(&self, other: &Self) -> bool {
+        if self.modifiers != other.modifiers {
+            return false;
+        }
+
+        if let KeyCode::Char(sch) = self.code
+            && let KeyCode::Char(och) = other.code
+        {
+            KeyCode::Char(sch.to_ascii_uppercase()) == KeyCode::Char(och.to_ascii_uppercase())
+        } else {
+            self.code == other.code
+        }
+    }
+}
+
+impl Eq for KeyCombination {}
+
+impl Hash for KeyCombination {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if let KeyCode::Char(ch) = self.code {
+            KeyCode::Char(ch.to_ascii_uppercase()).hash(state);
+            self.modifiers.hash(state);
+        } else {
+            self.code.hash(state);
+            self.modifiers.hash(state);
+        }
+    }
 }
 
 impl Display for KeyCombination {
@@ -50,19 +81,42 @@ impl Display for KeyCombination {
             f.write_char('+')?
         }
 
-        write!(f, "{}", self.code)
+        let code = if let KeyCode::Char(c) = self.code {
+            KeyCode::Char(c.to_ascii_uppercase())
+        } else {
+            self.code
+        };
+        write!(f, "{}", code)
+    }
+}
+
+impl From<KeyCombination> for KeyEvent {
+    fn from(value: KeyCombination) -> Self {
+        KeyEvent::new(value.code, value.modifiers)
     }
 }
 
 impl From<KeyEvent> for KeyCombination {
     fn from(value: KeyEvent) -> Self {
-        KeyCombination::new(value.modifiers, value.code)
+        KeyCombination::new(value.code, value.modifiers)
+    }
+}
+
+impl From<KeyCode> for KeyCombination {
+    fn from(value: KeyCode) -> Self {
+        KeyCombination::new(value, KeyModifiers::NONE)
+    }
+}
+
+impl From<char> for KeyCombination {
+    fn from(value: char) -> Self {
+        KeyCombination::new(KeyCode::Char(value), KeyModifiers::NONE)
     }
 }
 
 impl From<&str> for KeyCombination {
     fn from(value: &str) -> Self {
-        KeyCombination::from_str(value).unwrap_or_else(|_| KeyCombination::new(KeyModifiers::NONE, KeyCode::Null))
+        KeyCombination::from_str(value).unwrap_or_else(|_| KeyCombination::new(KeyCode::Null, KeyModifiers::NONE))
     }
 }
 
@@ -75,8 +129,8 @@ impl FromStr for KeyCombination {
             return Err(KeyCombinationError::UnknownCode);
         } else if len == 1 {
             return Ok(KeyCombination::new(
+                KeyCode::Char(value.chars().next().unwrap().to_ascii_uppercase()),
                 KeyModifiers::NONE,
-                KeyCode::Char(value.chars().next().unwrap().to_ascii_lowercase()),
             ));
         } else if value.contains("+++") {
             return Err(KeyCombinationError::UnknownCode);
@@ -100,13 +154,7 @@ impl FromStr for KeyCombination {
 
 impl KeyCombination {
     /// Creates new [`KeyCombination`] instance.
-    pub fn new(modifiers: KeyModifiers, code: KeyCode) -> Self {
-        let code = if let KeyCode::Char(c) = code {
-            KeyCode::Char(c.to_ascii_uppercase())
-        } else {
-            code
-        };
-
+    pub fn new(code: KeyCode, modifiers: KeyModifiers) -> Self {
         Self { code, modifiers }
     }
 

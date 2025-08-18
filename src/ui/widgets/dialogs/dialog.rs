@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
@@ -7,7 +7,7 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{ResponseEvent, Responsive, colors::TextColors, utils::center};
+use crate::ui::{KeyCombination, ResponseEvent, Responsive, colors::TextColors, utils::center};
 
 use super::{Button, ButtonsGroup};
 
@@ -81,7 +81,7 @@ impl Dialog {
 }
 
 impl Responsive for Dialog {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }

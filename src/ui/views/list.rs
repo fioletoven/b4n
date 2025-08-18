@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style, Stylize},
@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     core::SharedAppData,
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
+    ui::{KeyCombination, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
 /// List viewer.
@@ -71,7 +71,7 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 }
 
 impl<T: Table> Responsive for ListViewer<T> {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
             return ResponseEvent::Handled;
         }

@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::Rect,
     style::Style,
@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
-    ui::{ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    ui::{KeyCombination, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };
 
@@ -124,7 +124,7 @@ impl Filter {
 }
 
 impl Responsive for Filter {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }

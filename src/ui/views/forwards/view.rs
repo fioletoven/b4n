@@ -6,10 +6,10 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -58,7 +58,7 @@ impl ForwardsView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
                 .with_close()
@@ -183,7 +183,7 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
             return ResponseEvent::ExitApplication;
         }
 

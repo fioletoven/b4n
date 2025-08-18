@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect, Size},
@@ -12,7 +12,7 @@ use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{
-        ResponseEvent,
+        KeyCombination, ResponseEvent,
         utils::center,
         views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
     },
@@ -282,7 +282,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         match key {
             // horizontal scroll
             x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,

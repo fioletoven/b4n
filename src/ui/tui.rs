@@ -5,7 +5,7 @@ use ratatui::{
     Terminal,
     crossterm::{
         self, cursor,
-        event::{Event, KeyEvent, KeyEventKind},
+        event::{Event, KeyEventKind},
         terminal::{EnterAlternateScreen, LeaveAlternateScreen},
     },
     prelude::CrosstermBackend,
@@ -17,14 +17,14 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{core::utils::wait_for_task, kubernetes::ResourceRef};
+use crate::{core::utils::wait_for_task, kubernetes::ResourceRef, ui::KeyCombination};
 
 use super::utils::init_panic_hook;
 
 /// Terminal UI Event.
 #[derive(Clone)]
 pub enum TuiEvent {
-    Key(KeyEvent),
+    Key(KeyCombination),
 }
 
 /// Terminal UI Response Event.
@@ -179,6 +179,6 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>) {
     if let Event::Key(key) = event
         && key.kind == KeyEventKind::Press
     {
-        sender.send(TuiEvent::Key(key)).unwrap();
+        sender.send(TuiEvent::Key(key.into())).unwrap();
     }
 }

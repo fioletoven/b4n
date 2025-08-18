@@ -1,11 +1,11 @@
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Position, Rect},
     widgets::{Block, Widget},
 };
 use tui_input::backend::crossterm::EventHandler;
 
-use crate::ui::{ResponseEvent, Responsive, colors::TextColors};
+use crate::ui::{KeyCombination, ResponseEvent, Responsive, colors::TextColors};
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]
@@ -210,7 +210,7 @@ impl Input {
 }
 
 impl Responsive for Input {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.code == KeyCode::Esc {
             return ResponseEvent::Cancelled;
         }
@@ -224,7 +224,7 @@ impl Responsive for Input {
             return ResponseEvent::Handled;
         }
 
-        self.input.handle_event(&Event::Key(key));
+        self.input.handle_event(&Event::Key(key.into()));
 
         ResponseEvent::Handled
     }

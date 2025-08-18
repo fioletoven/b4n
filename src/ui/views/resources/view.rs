@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
@@ -12,7 +12,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        CommandAction, CommandTarget, Responsive, Table, ViewType,
+        CommandAction, CommandTarget, KeyCombination, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -133,9 +133,8 @@ impl ResourcesView {
     /// Process TUI event.
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
-        let key_combo = key.into();
 
-        if self.app_data.has(&key_combo, CommandTarget::Application, CommandAction::Exit) {
+        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -147,12 +146,12 @@ impl ResourcesView {
             return self
                 .command_palette
                 .process_key(key)
-                .when_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
-                .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
-                .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
-                .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))))
-                .when_action_then("port_forward", || self.table.process_key(KeyEvent::from(KeyCode::Char('f'))));
+                .when_action_then("show_yaml", || self.table.process_key(KeyCombination::from('y')))
+                .when_action_then("decode_yaml", || self.table.process_key(KeyCombination::from('x')))
+                .when_action_then("show_logs", || self.table.process_key(KeyCombination::from('l')))
+                .when_action_then("show_plogs", || self.table.process_key(KeyCombination::from('p')))
+                .when_action_then("open_shell", || self.table.process_key(KeyCombination::from('s')))
+                .when_action_then("port_forward", || self.table.process_key(KeyCombination::from('f')));
         }
 
         if !self.app_data.borrow().is_connected {
@@ -206,7 +205,7 @@ impl ResourcesView {
         self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
     }
 
-    fn process_command_palette_events(&mut self, key: KeyEvent) {
+    fn process_command_palette_events(&mut self, key: KeyCombination) {
         if key.code != KeyCode::Char(':') && key.code != KeyCode::Char('>') {
             return;
         }

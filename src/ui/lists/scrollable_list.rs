@@ -1,7 +1,7 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::ui::ResponseEvent;
+use crate::ui::{KeyCombination, ResponseEvent};
 
 use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
@@ -144,8 +144,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.set_settings(settings);
     }
 
-    /// Process [`KeyEvent`] to move over the list.
-    pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    /// Process [`KeyCombination`] to move over the list.
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         match key.code {
             KeyCode::Home => self.move_highlighted(i32::MIN),
             KeyCode::Up => self.move_highlighted(-1),

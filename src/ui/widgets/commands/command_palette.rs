@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -8,7 +8,7 @@ use ratatui::{
 use crate::{
     core::SharedAppData,
     ui::{
-        ResponseEvent, Responsive, Table,
+        KeyCombination, ResponseEvent, Responsive, Table,
         theme::SelectColors,
         utils::center_horizontal,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
@@ -201,7 +201,7 @@ impl CommandPalette {
 }
 
 impl Responsive for CommandPalette {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.code == KeyCode::Esc {
             if self.index > 0 {
                 self.index -= 1;

@@ -1,13 +1,13 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker, commands::CommandResult},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
+        CommandAction, CommandTarget, KeyCombination, ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
@@ -72,7 +72,7 @@ impl YamlView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
         if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
             let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
                 ActionItem::new("copy")
@@ -159,7 +159,7 @@ impl View for YamlView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has(&key, CommandTarget::Application, CommandAction::Exit) {
             return ResponseEvent::ExitApplication;
         }
 

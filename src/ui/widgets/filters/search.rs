@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedBgWorker},
-    ui::{ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    ui::{KeyCombination, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
 };
 
 use super::PatternsList;
@@ -125,7 +125,7 @@ impl Search {
 }
 
 impl Responsive for Search {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }

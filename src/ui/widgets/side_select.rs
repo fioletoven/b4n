@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use crate::{
     core::SharedAppData,
-    ui::{ResponseEvent, Responsive, Table},
+    ui::{KeyCombination, ResponseEvent, Responsive, Table},
 };
 
 use super::Select;
@@ -141,7 +141,7 @@ impl<T: Table> SideSelect<T> {
 }
 
 impl<T: Table> Responsive for SideSelect<T> {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }

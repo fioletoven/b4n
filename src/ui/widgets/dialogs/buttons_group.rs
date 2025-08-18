@@ -1,7 +1,7 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
-use crate::ui::{ResponseEvent, Responsive};
+use crate::ui::{KeyCombination, ResponseEvent, Responsive};
 
 use super::Button;
 
@@ -103,7 +103,7 @@ impl ButtonsGroup {
 }
 
 impl Responsive for ButtonsGroup {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
         }
@@ -133,7 +133,7 @@ impl Responsive for ButtonsGroup {
     }
 }
 
-fn map_key_to_event(key: KeyEvent) -> ButtonEvent {
+fn map_key_to_event(key: KeyCombination) -> ButtonEvent {
     match key.code {
         KeyCode::Tab => ButtonEvent::FocusNext,
         KeyCode::Right => ButtonEvent::FocusNext,

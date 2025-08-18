@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
@@ -15,7 +15,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        Responsive, Table, ViewType,
+        KeyCombination, Responsive, Table, ViewType,
         lists::Row,
         tui::ResponseEvent,
         views::{ListHeader, ListViewer},
@@ -162,7 +162,7 @@ impl ResourcesTable {
     }
 
     /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         self.highlight_next = None;
 
         if key.code == KeyCode::Esc {
@@ -181,7 +181,7 @@ impl ResourcesTable {
         }
     }
 
-    fn process_highlighted_resource_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_highlighted_resource_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
             if key.code == KeyCode::Enter {
                 return self.process_enter_key(resource);
