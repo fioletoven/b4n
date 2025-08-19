@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use super::*;
 
 #[test]
@@ -12,17 +14,16 @@ fn serialize_test() {
 #[test]
 fn merge_test() {
     let bindings = KeyBindings::default();
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "app.exit".into());
+    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once("app.exit".into()).collect());
 
     let other = KeyBindings::empty().with("Ctrl+C", "yaml.open").with("Alt+A", "app.exit");
-
     let bindings = KeyBindings::default_with(Some(other));
 
     assert!(bindings.bindings.contains_key(&"Ctrl+C".into()));
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], "yaml.open".into());
+    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once("yaml.open".into()).collect());
 
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));
-    assert_eq!(bindings.bindings[&"Alt+A".into()], "app.exit".into());
+    assert_eq!(bindings.bindings[&"Alt+A".into()], once("app.exit".into()).collect());
 }
 
 #[test]

@@ -3,7 +3,10 @@ use serde::{
     de::{self},
     ser::SerializeMap,
 };
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use crate::ui::{CommandAction, CommandTarget, KeyCombination, KeyCommand};
 
@@ -16,7 +19,7 @@ pub const COMMAND_APP_EXIT: KeyCommand = KeyCommand::new(CommandTarget::Applicat
 /// Key bindings for the UI.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeyBindings {
-    bindings: HashMap<KeyCombination, KeyCommand>,
+    bindings: HashMap<KeyCombination, HashSet<KeyCommand>>,
 }
 
 impl Default for KeyBindings {
@@ -25,7 +28,9 @@ impl Default for KeyBindings {
             .with("Ctrl+C", "app.exit")
             .with("Shift+:", "command-palette.open")
             .with("Shift+>", "command-palette.open")
+            .with("Esc", "command-palette.close")
             .with("/", "filter.open")
+            .with("Esc", "filter.close")
     }
 }
 
@@ -52,14 +57,14 @@ impl KeyBindings {
     /// Inserts the given key `combination` and associated `command` into the [`KeyBindings`],
     /// returning the updated instance.
     pub fn with(mut self, combination: &str, command: &str) -> Self {
-        self.bindings.insert(combination.into(), command.into());
+        self.bindings.entry(combination.into()).or_default().insert(command.into());
         self
     }
 
     /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`].
     pub fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool {
-        if let Some(supposed) = self.bindings.get(key) {
-            supposed.target == command.target && supposed.action == command.action
+        if let Some(commands) = self.bindings.get(key) {
+            commands.contains(command)
         } else {
             false
         }
@@ -69,7 +74,7 @@ impl KeyBindings {
     pub fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination> {
         self.bindings
             .iter()
-            .find(|(_, cmd)| *cmd == command)
+            .find(|(_, commands)| commands.contains(command))
             .map(|(combination, _)| combination)
             .copied()
     }
@@ -78,8 +83,10 @@ impl KeyBindings {
 impl Serialize for KeyBindings {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut inverted: HashMap<String, Vec<String>> = HashMap::new();
-        for (combination, command) in &self.bindings {
-            inverted.entry(command.to_string()).or_default().push(combination.to_string());
+        for (combination, commands) in &self.bindings {
+            for command in commands {
+                inverted.entry(command.to_string()).or_default().push(combination.to_string());
+            }
         }
 
         let inverted = inverted
@@ -105,7 +112,7 @@ impl<'de> Deserialize<'de> for KeyBindings {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let map: HashMap<String, String> = HashMap::deserialize(deserializer)?;
 
-        let mut bindings = HashMap::new();
+        let mut bindings: HashMap<KeyCombination, HashSet<KeyCommand>> = HashMap::new();
         for (command_str, combination_str) in map {
             let command = KeyCommand::from_str(&command_str)
                 .map_err(|_| de::Error::custom(format_args!("invalid command: {}", command_str)))?;
@@ -113,7 +120,7 @@ impl<'de> Deserialize<'de> for KeyBindings {
             for combination in combination_str.split(',').map(str::trim).filter(|s| !s.is_empty()) {
                 let key_combination = KeyCombination::from_str(combination)
                     .map_err(|_| de::Error::custom(format_args!("invalid key combination: {}", combination)))?;
-                bindings.insert(key_combination, command.clone());
+                bindings.entry(key_combination).or_default().insert(command.clone());
             }
         }
 
