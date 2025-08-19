@@ -14,36 +14,35 @@ fn serialize_test() {
 #[test]
 fn merge_test() {
     let bindings = KeyBindings::default();
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once("app.exit".into()).collect());
+    assert_eq!(
+        bindings.bindings[&"Ctrl+C".into()],
+        once(KeyCommand::ApplicationExit).collect()
+    );
 
-    let other = KeyBindings::empty().with("Ctrl+C", "yaml.open").with("Alt+A", "app.exit");
+    let other = KeyBindings::empty()
+        .with("Ctrl+C", KeyCommand::FilterOpen)
+        .with("Alt+A", KeyCommand::ApplicationExit);
     let bindings = KeyBindings::default_with(Some(other));
 
     assert!(bindings.bindings.contains_key(&"Ctrl+C".into()));
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once("yaml.open".into()).collect());
+    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once(KeyCommand::FilterOpen).collect());
 
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));
-    assert_eq!(bindings.bindings[&"Alt+A".into()], once("app.exit".into()).collect());
+    assert_eq!(
+        bindings.bindings[&"Alt+A".into()],
+        once(KeyCommand::ApplicationExit).collect()
+    );
 }
 
 #[test]
 fn has_binding_test() {
     let bindings = KeyBindings::default();
-    assert!(bindings.has_binding(
-        &"Ctrl+C".into(),
-        &KeyCommand::new(CommandTarget::Application, CommandAction::Exit)
-    ));
-    assert!(!bindings.has_binding(
-        &"Ctrl+C".into(),
-        &KeyCommand::new(CommandTarget::Application, CommandAction::Open)
-    ));
-    assert!(!bindings.has_binding(
-        &"Ctrl+D".into(),
-        &KeyCommand::new(CommandTarget::Application, CommandAction::Exit)
-    ));
+    assert!(bindings.has_binding(&"Ctrl+C".into(), KeyCommand::ApplicationExit));
+    assert!(!bindings.has_binding(&"Ctrl+C".into(), KeyCommand::SearchOpen));
+    assert!(!bindings.has_binding(&"Ctrl+D".into(), KeyCommand::ApplicationExit));
 
-    let other = KeyBindings::empty().with("Ctrl+A", "yaml.describe");
-    assert!(other.has_binding(&"Ctrl+A".into(), &"yaml.describe".into()));
-    assert!(!other.has_binding(&"Ctrl+A".into(), &"yaml.not-describe".into()));
-    assert!(!other.has_binding(&"Ctrl+B".into(), &"yaml.describe".into()));
+    let other = KeyBindings::empty().with("Ctrl+A", KeyCommand::ResourcesDelete);
+    assert!(other.has_binding(&"Ctrl+A".into(), KeyCommand::ResourcesDelete));
+    assert!(!other.has_binding(&"Ctrl+A".into(), KeyCommand::FilterReset));
+    assert!(!other.has_binding(&"Ctrl+B".into(), KeyCommand::ResourcesDelete));
 }

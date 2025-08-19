@@ -12,10 +12,10 @@ use std::{
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
-    core::SharedAppData,
+    core::{SharedAppData, SharedAppDataExt},
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, ResponseEvent, Responsive, TuiEvent,
         views::{View, content_header::ContentHeader},
         widgets::{Button, Dialog, FooterTx},
     },
@@ -186,7 +186,7 @@ impl View for ShellView {
             return self.modal.process_key(key);
         }
 
-        if key.code == KeyCode::Esc && self.is_esc_key_pressed_times(3) {
+        if self.app_data.has_binding(&key, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
             self.ask_close_shell_forcibly();
             return ResponseEvent::Handled;
         }

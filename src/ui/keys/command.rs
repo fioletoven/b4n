@@ -1,6 +1,5 @@
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -11,116 +10,61 @@ mod command_tests;
 /// Possible errors from [`KeyCommand`] parsing.
 #[derive(thiserror::Error, Debug)]
 pub enum KeyCommandError {
-    /// Command value is missing.
-    #[error("command value is missing")]
-    MissingCommandValue,
+    /// Unknown key binding command.
+    #[error("unknown key binding command")]
+    UnknownCommand,
 }
 
 /// Defines what part of the UI the command targets.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum CommandTarget {
-    Application,
-    CommandPalette,
-    Filter,
-    View(Cow<'static, str>),
-}
-
-impl Display for CommandTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CommandTarget::Application => f.write_str("app")?,
-            CommandTarget::CommandPalette => f.write_str("command-palette")?,
-            CommandTarget::Filter => f.write_str("filter")?,
-            CommandTarget::View(v) => f.write_str(&v.to_lowercase())?,
-        }
-        Ok(())
-    }
-}
-
-impl From<&str> for CommandTarget {
-    fn from(value: &str) -> Self {
-        let value = value.to_lowercase();
-        match value.as_str() {
-            "" | "application" | "app" => CommandTarget::Application,
-            "command-palette" => CommandTarget::CommandPalette,
-            "filter" => CommandTarget::Filter,
-            _ => CommandTarget::View(value.into()),
-        }
-    }
-}
-
-impl CommandTarget {
-    /// Creates a [`CommandTarget::View`] variant of the [`CommandTarget`].
-    pub const fn view(value: &'static str) -> Self {
-        CommandTarget::View(Cow::Borrowed(value))
-    }
-}
-
-/// Defines what action should be performed on a target.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum CommandAction {
-    Open,
-    Close,
-    Exit,
-    Search,
-    Action(Cow<'static, str>),
-}
-
-impl Display for CommandAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CommandAction::Open => f.write_str("open")?,
-            CommandAction::Close => f.write_str("close")?,
-            CommandAction::Exit => f.write_str("exit")?,
-            CommandAction::Search => f.write_str("search")?,
-            CommandAction::Action(a) => f.write_str(&a.to_lowercase())?,
-        }
-        Ok(())
-    }
-}
-
-impl FromStr for CommandAction {
-    type Err = KeyCommandError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = s.to_lowercase();
-        match value.as_str() {
-            "" => Err(KeyCommandError::MissingCommandValue),
-            "open" => Ok(CommandAction::Open),
-            "close" => Ok(CommandAction::Close),
-            "exit" => Ok(CommandAction::Exit),
-            "search" => Ok(CommandAction::Search),
-            _ => Ok(CommandAction::Action(value.into())),
-        }
-    }
-}
-
-impl CommandAction {
-    /// Creates a [`CommandAction::Action`] variant of the [`CommandAction`].
-    pub const fn action(value: &'static str) -> Self {
-        CommandAction::Action(Cow::Borrowed(value))
-    }
-}
-
-/// The UI command specification.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct KeyCommand {
-    pub target: CommandTarget,
-    pub action: CommandAction,
+pub enum KeyCommand {
+    ApplicationExit,
+    NavigateInto,
+    NavigateBack,
+    NavigateSelect,
+    NavigateInvertSelection,
+    CommandPaletteOpen,
+    CommandPaletteReset,
+    FilterOpen,
+    FilterReset,
+    SearchOpen,
+    SearchReset,
+    ResourcesDelete,
+    YamlOpen,
+    YamlDecode,
+    PreviousLogsOpen,
+    LogsOpen,
+    ShellOpen,
+    ShellEscape,
+    PortForwardsOpen,
+    PortForwardsCreate,
 }
 
 impl Display for KeyCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}", self.target, self.action)
-    }
-}
-
-impl From<&str> for KeyCommand {
-    fn from(value: &str) -> Self {
-        KeyCommand::from_str(value).unwrap_or_else(|_| KeyCommand {
-            target: CommandTarget::Application,
-            action: CommandAction::Action("".into()),
-        })
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyCommand::ApplicationExit => f.write_str("app.exit")?,
+            KeyCommand::NavigateInto => f.write_str("navigate.into")?,
+            KeyCommand::NavigateBack => f.write_str("navigate.back")?,
+            KeyCommand::NavigateSelect => f.write_str("navigate.select")?,
+            KeyCommand::NavigateInvertSelection => f.write_str("navigate.invert-selection")?,
+            KeyCommand::CommandPaletteOpen => f.write_str("command-palette.open")?,
+            KeyCommand::CommandPaletteReset => f.write_str("command-palette.close")?,
+            KeyCommand::FilterOpen => f.write_str("filter.open")?,
+            KeyCommand::FilterReset => f.write_str("filter.reset")?,
+            KeyCommand::SearchOpen => f.write_str("search.open")?,
+            KeyCommand::SearchReset => f.write_str("search.reset")?,
+            KeyCommand::ResourcesDelete => f.write_str("resources.delete")?,
+            KeyCommand::YamlOpen => f.write_str("yaml.open")?,
+            KeyCommand::YamlDecode => f.write_str("yaml.decode")?,
+            KeyCommand::PreviousLogsOpen => f.write_str("previous-logs.open")?,
+            KeyCommand::LogsOpen => f.write_str("logs.open")?,
+            KeyCommand::ShellOpen => f.write_str("shell.open")?,
+            KeyCommand::ShellEscape => f.write_str("shell.escape")?,
+            KeyCommand::PortForwardsOpen => f.write_str("port-forwards.open")?,
+            KeyCommand::PortForwardsCreate => f.write_str("port-forwards.create")?,
+        }
+        Ok(())
     }
 }
 
@@ -128,25 +72,28 @@ impl FromStr for KeyCommand {
     type Err = KeyCommandError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = s.to_lowercase();
-        let (kind, command) = get_command_elements(&value);
-        let kind = CommandTarget::from(kind);
-        match CommandAction::from_str(command) {
-            Ok(command) => Ok(KeyCommand {
-                target: kind,
-                action: command,
-            }),
-            Err(error) => Err(error),
-        }
-    }
-}
-
-impl KeyCommand {
-    /// Creates new [`KeyCommand`] instance.
-    pub const fn new(kind: CommandTarget, command: CommandAction) -> Self {
-        Self {
-            target: kind,
-            action: command,
+        match s {
+            "app.exit" => Ok(KeyCommand::ApplicationExit),
+            "navigate.into" => Ok(KeyCommand::NavigateInto),
+            "navigate.back" => Ok(KeyCommand::NavigateBack),
+            "navigate.select" => Ok(KeyCommand::NavigateSelect),
+            "navigate.invert-selection" => Ok(KeyCommand::NavigateInvertSelection),
+            "command-palette.open" => Ok(KeyCommand::CommandPaletteOpen),
+            "command-palette.close" => Ok(KeyCommand::CommandPaletteReset),
+            "filter.open" => Ok(KeyCommand::FilterOpen),
+            "filter.reset" => Ok(KeyCommand::FilterReset),
+            "search.open" => Ok(KeyCommand::SearchOpen),
+            "search.reset" => Ok(KeyCommand::SearchReset),
+            "resources.delete" => Ok(KeyCommand::ResourcesDelete),
+            "yaml.open" => Ok(KeyCommand::YamlOpen),
+            "yaml.decode" => Ok(KeyCommand::YamlDecode),
+            "logs.open" => Ok(KeyCommand::LogsOpen),
+            "previous-logs.open" => Ok(KeyCommand::PreviousLogsOpen),
+            "shell.open" => Ok(KeyCommand::ShellOpen),
+            "shell.escape" => Ok(KeyCommand::ShellEscape),
+            "port-forwards.open" => Ok(KeyCommand::PortForwardsOpen),
+            "port-forwards.create" => Ok(KeyCommand::PortForwardsCreate),
+            _ => Err(KeyCommandError::UnknownCommand),
         }
     }
 }
@@ -180,14 +127,5 @@ impl<'de> Deserialize<'de> for KeyCommand {
         }
 
         deserializer.deserialize_str(KeyCommandVisitor)
-    }
-}
-
-fn get_command_elements(value: &str) -> (&str, &str) {
-    let elements = value.splitn(2, '.').collect::<Vec<_>>();
-    if elements.len() == 1 {
-        ("", elements[0])
-    } else {
-        (elements[0], elements[1])
     }
 }

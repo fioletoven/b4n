@@ -8,13 +8,11 @@ use std::{
     str::FromStr,
 };
 
-use crate::ui::{CommandAction, CommandTarget, KeyCombination, KeyCommand};
+use crate::ui::{KeyCombination, KeyCommand};
 
 #[cfg(test)]
 #[path = "./binding.tests.rs"]
 mod binding_tests;
-
-pub const COMMAND_APP_EXIT: KeyCommand = KeyCommand::new(CommandTarget::Application, CommandAction::Exit);
 
 /// Key bindings for the UI.
 #[derive(Debug, PartialEq, Clone)]
@@ -25,12 +23,27 @@ pub struct KeyBindings {
 impl Default for KeyBindings {
     fn default() -> Self {
         Self::empty()
-            .with("Ctrl+C", "app.exit")
-            .with("Shift+:", "command-palette.open")
-            .with("Shift+>", "command-palette.open")
-            .with("Esc", "command-palette.close")
-            .with("/", "filter.open")
-            .with("Esc", "filter.close")
+            .with("Ctrl+C", KeyCommand::ApplicationExit)
+            .with("Enter", KeyCommand::NavigateInto)
+            .with("Esc", KeyCommand::NavigateBack)
+            .with("Space", KeyCommand::NavigateSelect)
+            .with("Ctrl+Space", KeyCommand::NavigateInvertSelection)
+            .with("Shift+:", KeyCommand::CommandPaletteOpen)
+            .with("Shift+>", KeyCommand::CommandPaletteOpen)
+            .with("Esc", KeyCommand::CommandPaletteReset)
+            .with("/", KeyCommand::FilterOpen)
+            .with("Esc", KeyCommand::FilterReset)
+            .with("/", KeyCommand::SearchOpen)
+            .with("Esc", KeyCommand::SearchReset)
+            .with("Ctrl+D", KeyCommand::ResourcesDelete)
+            .with("Y", KeyCommand::YamlOpen)
+            .with("X", KeyCommand::YamlDecode)
+            .with("L", KeyCommand::LogsOpen)
+            .with("P", KeyCommand::PreviousLogsOpen)
+            .with("S", KeyCommand::ShellOpen)
+            .with("Esc", KeyCommand::ShellEscape)
+            .with("Ctrl+F", KeyCommand::PortForwardsOpen)
+            .with("F", KeyCommand::PortForwardsCreate)
     }
 }
 
@@ -56,25 +69,25 @@ impl KeyBindings {
 
     /// Inserts the given key `combination` and associated `command` into the [`KeyBindings`],
     /// returning the updated instance.
-    pub fn with(mut self, combination: &str, command: &str) -> Self {
-        self.bindings.entry(combination.into()).or_default().insert(command.into());
+    pub fn with(mut self, combination: &str, command: KeyCommand) -> Self {
+        self.bindings.entry(combination.into()).or_default().insert(command);
         self
     }
 
     /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`].
-    pub fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool {
+    pub fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
         if let Some(commands) = self.bindings.get(key) {
-            commands.contains(command)
+            commands.contains(&command)
         } else {
             false
         }
     }
 
     /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`].
-    pub fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination> {
+    pub fn get_key(&self, command: KeyCommand) -> Option<KeyCombination> {
         self.bindings
             .iter()
-            .find(|(_, commands)| commands.contains(command))
+            .find(|(_, commands)| commands.contains(&command))
             .map(|(combination, _)| combination)
             .copied()
     }

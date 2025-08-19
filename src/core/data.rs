@@ -173,18 +173,18 @@ impl AppData {
 pub trait SharedAppDataExt {
     /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`] within
     /// the [`KeyBindings`] stored in [`SharedAppData`].
-    fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool;
+    fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool;
 
     /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
-    fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination>;
+    fn get_key(&self, command: KeyCommand) -> KeyCombination;
 }
 
 impl SharedAppDataExt for SharedAppData {
-    fn has_binding(&self, key: &KeyCombination, command: &KeyCommand) -> bool {
+    fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
         self.borrow().key_bindings.has_binding(key, command)
     }
 
-    fn get_key(&self, command: &KeyCommand) -> Option<KeyCombination> {
-        self.borrow().key_bindings.get_key(command)
+    fn get_key(&self, command: KeyCommand) -> KeyCombination {
+        self.borrow().key_bindings.get_key(command).unwrap_or_default()
     }
 }

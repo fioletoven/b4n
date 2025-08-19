@@ -28,6 +28,12 @@ pub struct KeyCombination {
     pub modifiers: KeyModifiers,
 }
 
+impl Default for KeyCombination {
+    fn default() -> Self {
+        KeyCombination::new(KeyCode::Null, KeyModifiers::NONE)
+    }
+}
+
 impl PartialEq for KeyCombination {
     fn eq(&self, other: &Self) -> bool {
         if self.modifiers != other.modifiers {
@@ -116,7 +122,7 @@ impl From<char> for KeyCombination {
 
 impl From<&str> for KeyCombination {
     fn from(value: &str) -> Self {
-        KeyCombination::from_str(value).unwrap_or_else(|_| KeyCombination::new(KeyCode::Null, KeyModifiers::NONE))
+        KeyCombination::from_str(value).unwrap_or_default()
     }
 }
 
@@ -238,6 +244,7 @@ fn get_code_from_name(code: &str) -> Result<KeyCode, KeyCombinationError> {
 
     match code {
         "backspace" => Ok(KeyCode::Backspace),
+        "space" => Ok(KeyCode::Char(' ')),
         "enter" => Ok(KeyCode::Enter),
         "left" => Ok(KeyCode::Left),
         "right" => Ok(KeyCode::Right),

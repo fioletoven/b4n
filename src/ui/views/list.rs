@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use crate::{
-    core::SharedAppData,
-    ui::{KeyCombination, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
+    core::{SharedAppData, SharedAppDataExt},
+    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
 /// List viewer.
@@ -80,13 +80,13 @@ impl<T: Table> Responsive for ListViewer<T> {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char(' ') {
-            if key.modifiers == KeyModifiers::CONTROL {
-                self.table.invert_selection();
-            } else {
-                self.table.select_highlighted_item();
-            }
+        if self.app_data.has_binding(&key, KeyCommand::NavigateSelect) {
+            self.table.select_highlighted_item();
+            return ResponseEvent::Handled;
+        }
 
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInvertSelection) {
+            self.table.invert_selection();
             return ResponseEvent::Handled;
         }
 

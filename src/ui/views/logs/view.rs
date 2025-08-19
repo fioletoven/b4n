@@ -11,7 +11,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
-        COMMAND_APP_EXIT, KeyCombination, ResponseEvent, Responsive, TuiEvent,
+        KeyCombination, KeyCommand, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
@@ -80,7 +80,7 @@ impl LogsView {
     }
 
     fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
             let builder = ActionsListBuilder::default()
                 .with_close()
                 .with_quit()
@@ -229,7 +229,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if self.app_data.has_binding(&key, &COMMAND_APP_EXIT) {
+        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -260,17 +260,17 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('/') {
+        if self.app_data.has_binding(&key, KeyCommand::SearchOpen) {
             self.search.show();
         }
 
-        if key.code == KeyCode::Esc {
-            if self.search.value().is_empty() {
-                return ResponseEvent::Cancelled;
-            }
-
+        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.search.value().is_empty() {
             self.clear_search();
             return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            return ResponseEvent::Cancelled;
         }
 
         if key.code == KeyCode::Char('t') {
