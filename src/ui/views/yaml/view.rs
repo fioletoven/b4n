@@ -1,5 +1,4 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crossterm::event::KeyCode;
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -214,16 +213,16 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('c') {
+        if self.app_data.has_binding(&key, KeyCommand::ContentCopy) {
             self.copy_yaml_to_clipboard();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('n') && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateNext) && self.yaml.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if key.code == KeyCode::Char('p') && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::NavigatePrevious) && self.yaml.matches_count().is_some() {
             self.navigate_match(false);
         }
 

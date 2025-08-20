@@ -273,21 +273,21 @@ impl View for LogsView {
             return ResponseEvent::Cancelled;
         }
 
-        if key.code == KeyCode::Char('t') {
+        if self.app_data.has_binding(&key, KeyCommand::LogsTimestamps) {
             self.toggle_timestamps();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('c') {
+        if self.app_data.has_binding(&key, KeyCommand::ContentCopy) {
             self.copy_logs_to_clipboard();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('n') && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateNext) && self.logs.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if key.code == KeyCode::Char('p') && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::NavigatePrevious) && self.logs.matches_count().is_some() {
             self.navigate_match(false);
         }
 

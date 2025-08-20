@@ -230,7 +230,7 @@ impl View for ForwardsView {
             return ResponseEvent::Cancelled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::ResourcesDelete) {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
             self.ask_stop_port_forwards();
             return ResponseEvent::Handled;
         }

@@ -179,7 +179,7 @@ impl ResourcesView {
             return result;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::ResourcesDelete) {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
             return ResponseEvent::Handled;
         }

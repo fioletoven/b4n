@@ -6,8 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
-    ui::{KeyCombination, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
+    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };
 
@@ -129,23 +129,18 @@ impl Responsive for Filter {
             return ResponseEvent::NotHandled;
         }
 
-        if key.code == KeyCode::Esc && !self.patterns.value().is_empty() {
+        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.patterns.value().is_empty() {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Esc {
-            if self.patterns.value().is_empty() {
-                self.is_visible = false;
-                self.patterns.set_value(self.current.clone());
-                return ResponseEvent::Cancelled;
-            }
-
-            self.patterns.reset();
-            return ResponseEvent::Handled;
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            self.is_visible = false;
+            self.patterns.set_value(self.current.clone());
+            return ResponseEvent::Cancelled;
         }
 
-        if key.code == KeyCode::Enter {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
             if self.patterns.has_error() {
                 return ResponseEvent::Handled;
             }

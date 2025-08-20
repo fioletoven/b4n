@@ -41,8 +41,8 @@ fn has_binding_test() {
     assert!(!bindings.has_binding(&"Ctrl+C".into(), KeyCommand::SearchOpen));
     assert!(!bindings.has_binding(&"Ctrl+D".into(), KeyCommand::ApplicationExit));
 
-    let other = KeyBindings::empty().with("Ctrl+A", KeyCommand::ResourcesDelete);
-    assert!(other.has_binding(&"Ctrl+A".into(), KeyCommand::ResourcesDelete));
+    let other = KeyBindings::empty().with("Ctrl+A", KeyCommand::NavigateDelete);
+    assert!(other.has_binding(&"Ctrl+A".into(), KeyCommand::NavigateDelete));
     assert!(!other.has_binding(&"Ctrl+A".into(), KeyCommand::FilterReset));
-    assert!(!other.has_binding(&"Ctrl+B".into(), KeyCommand::ResourcesDelete));
+    assert!(!other.has_binding(&"Ctrl+B".into(), KeyCommand::NavigateDelete));
 }

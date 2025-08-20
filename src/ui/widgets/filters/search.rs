@@ -6,8 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
-    ui::{KeyCombination, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
+    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
 };
 
 use super::PatternsList;
@@ -130,16 +130,17 @@ impl Responsive for Search {
             return ResponseEvent::NotHandled;
         }
 
-        if key.code == KeyCode::Esc {
-            if self.patterns.value().is_empty() {
-                self.is_visible = false;
-            }
-
+        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.patterns.value().is_empty() {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Enter {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            self.is_visible = false;
+            return ResponseEvent::Cancelled;
+        }
+
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
             self.is_visible = false;
             self.remember_pattern();
 
