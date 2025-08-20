@@ -137,7 +137,7 @@ impl Responsive for Search {
 
         if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
             self.is_visible = false;
-            return ResponseEvent::Cancelled;
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {

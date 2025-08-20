@@ -39,12 +39,11 @@ impl std::fmt::Display for PatternItem {
 
 impl From<&str> for PatternItem {
     fn from(value: &str) -> Self {
-        if value.contains("::") {
-            let mut split = value.splitn(2, "::");
+        let elements = value.splitn(2, "::").collect::<Vec<_>>();
+        if elements.len() == 2 {
             Self {
-                value: split.next().map(String::from).unwrap(),
-                creation_time: SystemTime::UNIX_EPOCH
-                    + Duration::from_secs(split.next().map_or(0, |d| d.parse::<u64>().unwrap_or(0))),
+                value: elements[0].to_string(),
+                creation_time: SystemTime::UNIX_EPOCH + Duration::from_secs(elements[1].parse::<u64>().unwrap_or(0)),
             }
         } else {
             Self {
