@@ -39,12 +39,11 @@ impl std::fmt::Display for PatternItem {
 
 impl From<&str> for PatternItem {
     fn from(value: &str) -> Self {
-        if value.contains("::") {
-            let mut split = value.splitn(2, "::");
+        let elements = value.splitn(2, "::").collect::<Vec<_>>();
+        if elements.len() == 2 {
             Self {
-                value: split.next().map(String::from).unwrap(),
-                creation_time: SystemTime::UNIX_EPOCH
-                    + Duration::from_secs(split.next().map_or(0, |d| d.parse::<u64>().unwrap_or(0))),
+                value: elements[0].to_string(),
+                creation_time: SystemTime::UNIX_EPOCH + Duration::from_secs(elements[1].parse::<u64>().unwrap_or(0)),
             }
         } else {
             Self {
@@ -72,9 +71,10 @@ impl Row for PatternItem {
         add_padding(&self.value, width)
     }
 
-    fn get_name_for_highlighted(&self, width: usize) -> String {
-        let width = width.saturating_sub(14);
-        format!("{1:<0$} [TAB to insert]", width, truncate(&self.value, width))
+    fn get_name_with_description(&self, width: usize, description: &str) -> String {
+        let description = truncate(description, width.saturating_sub(1));
+        let width = width.saturating_sub(description.len().saturating_add(1));
+        format!("{1:<0$} [{2}]", width, truncate(&self.value, width), description)
     }
 
     fn column_text(&self, column: usize) -> Cow<'_, str> {

@@ -1,17 +1,16 @@
 use anyhow::Result;
-use crossterm::event::KeyCode;
 use kube::discovery::Scope;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
 use crate::{
     core::{
-        SharedAppData, SharedBgWorker,
+        SharedAppData, SharedAppDataExt, SharedBgWorker,
         commands::{CommandResult, ResourceYamlError, ResourceYamlResult},
     },
     kubernetes::{Namespace, ResourceRef, kinds::KindsList, resources::ResourcesList},
     ui::{
-        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
     },
@@ -141,12 +140,12 @@ impl ViewsManager {
         let response = view.process_event(event);
 
         if response == ResponseEvent::NotHandled {
-            if key.code == KeyCode::Left && view.is_namespaces_selector_allowed() {
+            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && view.is_namespaces_selector_allowed() {
                 self.ns_selector.show_selected(view.displayed_namespace(), "");
                 return ResponseEvent::Handled;
             }
 
-            if key.code == KeyCode::Right && view.is_resources_selector_allowed() {
+            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) && view.is_resources_selector_allowed() {
                 self.res_selector
                     .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
                 return ResponseEvent::Handled;
@@ -166,13 +165,13 @@ impl ViewsManager {
         let response = self.resources.process_event(event);
 
         if response == ResponseEvent::NotHandled {
-            if key.code == KeyCode::Left && self.resources.is_namespaces_selector_allowed() {
+            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && self.resources.is_namespaces_selector_allowed() {
                 self.ns_selector
                     .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
                 return ResponseEvent::Handled;
             }
 
-            if key.code == KeyCode::Right {
+            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) {
                 self.res_selector
                     .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
                 return ResponseEvent::Handled;

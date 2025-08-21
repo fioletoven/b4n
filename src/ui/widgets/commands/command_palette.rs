@@ -1,4 +1,3 @@
-use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -6,9 +5,9 @@ use ratatui::{
 };
 
 use crate::{
-    core::SharedAppData,
+    core::{SharedAppData, SharedAppDataExt},
     ui::{
-        ResponseEvent, Responsive, Table,
+        KeyCombination, KeyCommand, ResponseEvent, Responsive, Table,
         theme::SelectColors,
         utils::center_horizontal,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
@@ -201,23 +200,28 @@ impl CommandPalette {
 }
 
 impl Responsive for CommandPalette {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
-        if key.code == KeyCode::Esc {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteReset) {
             if self.index > 0 {
                 self.index -= 1;
-            } else {
-                self.is_visible = false;
+                return ResponseEvent::Handled;
+            } else if !self.select().value().is_empty() {
+                self.select_mut().reset();
+                return ResponseEvent::Handled;
             }
+        }
 
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Tab {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
             self.insert_highlighted_value(true);
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Enter {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
             self.insert_highlighted_value(false);
 
             if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {

@@ -1,5 +1,5 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
     layout::{Rect, Size},
@@ -8,10 +8,10 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
+        KeyCombination, KeyCommand, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
@@ -79,8 +79,8 @@ impl LogsView {
         })
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
             let builder = ActionsListBuilder::default()
                 .with_close()
                 .with_quit()
@@ -229,7 +229,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -260,34 +260,34 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('/') {
+        if self.app_data.has_binding(&key, KeyCommand::SearchOpen) {
             self.search.show();
         }
 
-        if key.code == KeyCode::Esc {
-            if self.search.value().is_empty() {
-                return ResponseEvent::Cancelled;
-            }
-
+        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.search.value().is_empty() {
             self.clear_search();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('t') {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            return ResponseEvent::Cancelled;
+        }
+
+        if self.app_data.has_binding(&key, KeyCommand::LogsTimestamps) {
             self.toggle_timestamps();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('c') {
+        if self.app_data.has_binding(&key, KeyCommand::ContentCopy) {
             self.copy_logs_to_clipboard();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('n') && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if key.code == KeyCode::Char('p') && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
             self.navigate_match(false);
         }
 

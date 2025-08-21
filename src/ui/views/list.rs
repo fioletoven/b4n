@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style, Stylize},
@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use crate::{
-    core::SharedAppData,
-    ui::{ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
+    core::{SharedAppData, SharedAppDataExt},
+    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
 };
 
 /// List viewer.
@@ -71,7 +71,7 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 }
 
 impl<T: Table> Responsive for ListViewer<T> {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
             return ResponseEvent::Handled;
         }
@@ -80,13 +80,13 @@ impl<T: Table> Responsive for ListViewer<T> {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char(' ') {
-            if key.modifiers == KeyModifiers::CONTROL {
-                self.table.invert_selection();
-            } else {
-                self.table.select_highlighted_item();
-            }
+        if self.app_data.has_binding(&key, KeyCommand::NavigateSelect) {
+            self.table.select_highlighted_item();
+            return ResponseEvent::Handled;
+        }
 
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInvertSelection) {
+            self.table.invert_selection();
             return ResponseEvent::Handled;
         }
 

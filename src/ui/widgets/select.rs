@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -6,7 +6,9 @@ use ratatui::{
 };
 use std::rc::Rc;
 
-use crate::ui::{ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode};
+use crate::ui::{
+    KeyCombination, ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode,
+};
 
 use super::Input;
 
@@ -145,7 +147,7 @@ impl<T: Table> Select<T> {
 }
 
 impl<T: Table> Responsive for Select<T> {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.modifiers == KeyModifiers::ALT {
             return ResponseEvent::Handled;
         }

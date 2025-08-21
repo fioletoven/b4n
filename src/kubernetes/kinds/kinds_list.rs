@@ -2,7 +2,7 @@ use delegate::delegate;
 use std::collections::{HashMap, HashSet};
 
 use crate::ui::{
-    ResponseEvent, Responsive, Table, ViewType,
+    KeyCombination, ResponseEvent, Responsive, Table, ViewType,
     colors::TextColors,
     lists::{BasicFilterContext, FilterableList, Item, Row, ScrollableList},
     theme::Theme,
@@ -46,7 +46,7 @@ impl KindsList {
 }
 
 impl Responsive for KindsList {
-    fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         self.list.process_key(key)
     }
 }

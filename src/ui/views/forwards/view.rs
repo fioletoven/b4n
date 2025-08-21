@@ -1,4 +1,3 @@
-use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -6,10 +5,10 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -58,8 +57,8 @@ impl ForwardsView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
             let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
                 .with_close()
                 .with_quit()
@@ -183,7 +182,7 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -219,22 +218,24 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.set_filter();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Esc || (key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL) {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack)
+            || self.app_data.has_binding(&key, KeyCommand::PortForwardsOpen)
+        {
             return ResponseEvent::Cancelled;
         }
 
-        if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
             self.ask_stop_port_forwards();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('/') {
+        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
             self.filter.show();
             return ResponseEvent::Handled;
         }

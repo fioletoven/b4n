@@ -1,18 +1,17 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, Port, ResourceItem, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
-        Responsive, Table, ViewType,
+        KeyCommand, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -134,7 +133,7 @@ impl ResourcesView {
     pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -146,16 +145,31 @@ impl ResourcesView {
             return self
                 .command_palette
                 .process_key(key)
-                .when_action_then("show_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('y'))))
-                .when_action_then("decode_yaml", || self.table.process_key(KeyEvent::from(KeyCode::Char('x'))))
-                .when_action_then("show_logs", || self.table.process_key(KeyEvent::from(KeyCode::Char('l'))))
-                .when_action_then("show_plogs", || self.table.process_key(KeyEvent::from(KeyCode::Char('p'))))
-                .when_action_then("open_shell", || self.table.process_key(KeyEvent::from(KeyCode::Char('s'))))
-                .when_action_then("port_forward", || self.table.process_key(KeyEvent::from(KeyCode::Char('f'))));
+                .when_action_then("show_yaml", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlOpen))
+                })
+                .when_action_then("decode_yaml", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlDecode))
+                })
+                .when_action_then("show_logs", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::LogsOpen))
+                })
+                .when_action_then("show_plogs", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::PreviousLogsOpen))
+                })
+                .when_action_then("open_shell", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::ShellOpen))
+                })
+                .when_action_then("port_forward", || {
+                    self.table.process_key(self.app_data.get_key(KeyCommand::PortForwardsCreate))
+                });
         }
 
         if !self.app_data.borrow().is_connected {
-            self.process_command_palette_events(key);
+            if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
+                self.show_command_palette();
+            }
+
             return ResponseEvent::Handled;
         }
 
@@ -165,23 +179,25 @@ impl ResourcesView {
             return result;
         }
 
-        if key.code == KeyCode::Char('d') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Esc && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.table.set_filter("");
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('/') {
+        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
             self.filter.show();
             return ResponseEvent::Handled;
         }
 
-        self.process_command_palette_events(key);
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette();
+        }
 
         self.table.process_key(key)
     }
@@ -205,11 +221,7 @@ impl ResourcesView {
         self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
     }
 
-    fn process_command_palette_events(&mut self, key: KeyEvent) {
-        if key.code != KeyCode::Char(':') && key.code != KeyCode::Char('>') {
-            return;
-        }
-
+    fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);

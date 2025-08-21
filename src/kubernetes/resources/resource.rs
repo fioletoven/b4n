@@ -13,7 +13,7 @@ use crate::{
         theme::Theme,
     },
     utils::{
-        logical_expressions::{Expression, ExpressionExtensions, parse},
+        logical_expressions::{Expression, ExpressionExt, parse},
         truncate,
     },
 };

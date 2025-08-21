@@ -4,7 +4,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
-    ui::theme::Theme,
+    ui::{KeyBindings, KeyCombination, KeyCommand, theme::Theme},
 };
 
 use super::{Config, History};
@@ -110,6 +110,9 @@ pub struct AppData {
     /// Application configuration.
     pub config: Config,
 
+    /// UI key bindings.
+    pub key_bindings: KeyBindings,
+
     /// Application history data.
     pub history: History,
 
@@ -132,8 +135,10 @@ pub struct AppData {
 impl AppData {
     /// Creates new [`AppData`] instance.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
+        let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
         Self {
             config,
+            key_bindings,
             history,
             theme,
             current: ResourcesInfo::default(),
@@ -161,5 +166,25 @@ impl AppData {
             syntax_set: self.syntax_set.clone(),
             yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
+    }
+}
+
+/// Extension methods for the [`SharedAppData`] type.
+pub trait SharedAppDataExt {
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`] within
+    /// the [`KeyBindings`] stored in [`SharedAppData`].
+    fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool;
+
+    /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
+    fn get_key(&self, command: KeyCommand) -> KeyCombination;
+}
+
+impl SharedAppDataExt for SharedAppData {
+    fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
+        self.borrow().key_bindings.has_binding(key, command)
+    }
+
+    fn get_key(&self, command: KeyCommand) -> KeyCombination {
+        self.borrow().key_bindings.get_key(command).unwrap_or_default()
     }
 }

@@ -36,10 +36,7 @@ impl From<&TextColors> for Style {
 }
 
 impl Serialize for TextColors {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let text_colors = if self.bg == Color::Reset && self.dim == Color::Reset {
             format!("{}", self.fg)
         } else if self.dim == Color::Reset {
@@ -52,55 +49,51 @@ impl Serialize for TextColors {
 }
 
 impl<'de> Deserialize<'de> for TextColors {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct TextColorsVisitor;
+
+        impl Visitor<'_> for TextColorsVisitor {
+            type Value = TextColors;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing 1-3 colors each separated by a comma")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<TextColors, E>
+            where
+                E: de::Error,
+            {
+                let parts: Vec<&str> = value.split(':').collect();
+
+                if parts.is_empty() || parts.len() > 3 {
+                    return Err(de::Error::invalid_length(parts.len(), &self));
+                }
+
+                let Ok(col1) = Color::from_str(parts[0].trim()) else {
+                    return Err(de::Error::custom(format_args!("invalid color value on pos 1: {}", parts[0])));
+                };
+
+                if parts.len() == 1 {
+                    return Ok(TextColors::new(col1));
+                }
+
+                let Ok(col2) = Color::from_str(parts[1].trim()) else {
+                    return Err(de::Error::custom(format_args!("invalid color value on pos 2: {}", parts[1])));
+                };
+
+                if parts.len() == 2 {
+                    return Ok(TextColors::bg(col1, col2));
+                }
+
+                let Ok(col3) = Color::from_str(parts[2].trim()) else {
+                    return Err(de::Error::custom(format_args!("invalid color value on pos 3: {}", parts[2])));
+                };
+
+                Ok(TextColors::dim(col1, col2, col3))
+            }
+        }
+
         deserializer.deserialize_str(TextColorsVisitor)
-    }
-}
-
-/// Internal [`Visitor`] for deserializing [`TextColors`].
-struct TextColorsVisitor;
-
-impl Visitor<'_> for TextColorsVisitor {
-    type Value = TextColors;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string containing 1-3 colors each separated by a comma")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<TextColors, E>
-    where
-        E: de::Error,
-    {
-        let parts: Vec<&str> = value.split(':').collect();
-
-        if parts.is_empty() || parts.len() > 3 {
-            return Err(de::Error::invalid_length(parts.len(), &self));
-        }
-
-        let Ok(col1) = Color::from_str(parts[0].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value on pos 1: {}", parts[0])));
-        };
-
-        if parts.len() == 1 {
-            return Ok(TextColors::new(col1));
-        }
-
-        let Ok(col2) = Color::from_str(parts[1].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value on pos 2: {}", parts[1])));
-        };
-
-        if parts.len() == 2 {
-            return Ok(TextColors::bg(col1, col2));
-        }
-
-        let Ok(col3) = Color::from_str(parts[2].trim()) else {
-            return Err(de::Error::custom(format_args!("invalid color value on pos 3: {}", parts[2])));
-        };
-
-        Ok(TextColors::dim(col1, col2, col3))
     }
 }
 

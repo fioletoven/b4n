@@ -34,9 +34,10 @@ pub trait Row {
     /// Returns `name` of the item respecting provided `width`.
     fn get_name(&self, width: usize) -> String;
 
-    /// Returns `name` for the highlighted item respecting provided `width`.
+    /// Returns the item's name with an added description, formatted to fit the given `width`.\
+    /// **Note** that the `description` must not contain `[` or `]` characters.
     #[inline]
-    fn get_name_for_highlighted(&self, width: usize) -> String {
+    fn get_name_with_description(&self, width: usize, _description: &str) -> String {
         self.get_name(width)
     }
 
@@ -174,12 +175,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Filterable<Fc> for Item<T, Fc> 
 }
 
 /// Extension methods for string.
-pub trait RowStringExtensions {
+pub trait RowStringExt {
     /// Appends a given cell text onto the end of this `String`.
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool);
 }
 
-impl RowStringExtensions for String {
+impl RowStringExt for String {
     fn push_cell(&mut self, s: &str, len: usize, to_right: bool) {
         if len == 0 {
             return;

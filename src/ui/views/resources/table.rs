@@ -1,4 +1,3 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
@@ -8,14 +7,14 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{ResourcesInfo, SharedAppData},
+    core::{ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
-        Responsive, Table, ViewType,
+        KeyCombination, KeyCommand, Responsive, Table, ViewType,
         lists::Row,
         tui::ResponseEvent,
         views::{ListHeader, ListViewer},
@@ -162,14 +161,14 @@ impl ResourcesTable {
     }
 
     /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         self.highlight_next = None;
 
-        if key.code == KeyCode::Esc {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
             return self.process_esc_key();
         }
 
-        if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('f') {
+        if self.app_data.has_binding(&key, KeyCommand::PortForwardsOpen) {
             return ResponseEvent::ShowPortForwards;
         }
 
@@ -181,36 +180,41 @@ impl ResourcesTable {
         }
     }
 
-    fn process_highlighted_resource_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_highlighted_resource_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
-            if key.code == KeyCode::Enter {
+            if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
                 return self.process_enter_key(resource);
             }
 
-            if key.code == KeyCode::Char('y') || (key.code == KeyCode::Char('x') && self.kind_plural() == SECRETS) {
-                return self.process_view_yaml(resource, key.code == KeyCode::Char('x'));
+            if self.app_data.has_binding(&key, KeyCommand::YamlOpen)
+                || (self.app_data.has_binding(&key, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
+            {
+                return self.process_view_yaml(resource, self.app_data.has_binding(&key, KeyCommand::YamlDecode));
             }
 
             let is_container_name_known = self.kind_plural() == CONTAINERS
                 || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.one_container.is_some()));
             if is_container_name_known {
-                if key.code == KeyCode::Char('f') {
+                if self.app_data.has_binding(&key, KeyCommand::PortForwardsCreate) {
                     return self.process_view_ports(resource);
                 }
 
-                if key.code == KeyCode::Char('l') {
+                if self.app_data.has_binding(&key, KeyCommand::LogsOpen) {
                     return self.process_view_logs(resource, false);
                 }
 
-                if key.code == KeyCode::Char('p') {
+                if self.app_data.has_binding(&key, KeyCommand::PreviousLogsOpen) {
                     return self.process_view_logs(resource, true);
                 }
 
-                if key.code == KeyCode::Char('s') {
+                if self.app_data.has_binding(&key, KeyCommand::ShellOpen) {
                     return self.process_open_shell(resource);
                 }
             } else if self.kind_plural() == PODS
-                && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('l') || key.code == KeyCode::Char('p'))
+                && (self.app_data.has_binding(&key, KeyCommand::PortForwardsCreate)
+                    || self.app_data.has_binding(&key, KeyCommand::LogsOpen)
+                    || self.app_data.has_binding(&key, KeyCommand::PreviousLogsOpen)
+                    || self.app_data.has_binding(&key, KeyCommand::ShellOpen))
             {
                 return self.process_enter_key(resource);
             }

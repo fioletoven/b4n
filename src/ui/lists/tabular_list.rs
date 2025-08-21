@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::ui::{
-    ResponseEvent,
+    KeyCombination, ResponseEvent,
     lists::{FilterContext, Filterable, Header, Row, ScrollableList},
 };
 
@@ -43,7 +43,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.header.recalculate_extra_columns();
     }
 
-    pub fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if key.modifiers == KeyModifiers::ALT
             && key.code != KeyCode::Char(' ')
             && let KeyCode::Char(code) = key.code

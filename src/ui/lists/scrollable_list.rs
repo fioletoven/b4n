@@ -1,7 +1,7 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::ui::ResponseEvent;
+use crate::ui::{KeyCombination, ResponseEvent};
 
 use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
@@ -144,8 +144,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.set_settings(settings);
     }
 
-    /// Process [`KeyEvent`] to move over the list.
-    pub fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    /// Process [`KeyCombination`] to move over the list.
+    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         match key.code {
             KeyCode::Home => self.move_highlighted(i32::MIN),
             KeyCode::Up => self.move_highlighted(-1),
@@ -338,22 +338,26 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         true
     }
 
-    /// Returns item names from the current page together with indication if item is active.
+    /// Returns the names of items on the current page along with their active status.
     pub fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
-        if let Some(list) = self.get_page() {
+        self.get_paged_names_with_description(width, "")
+    }
+
+    /// Returns the names of items on the current page along with their active status.\
+    /// **Note** that the highlighted (active) item may include an additional `description`.
+    pub fn get_paged_names_with_description(&self, width: usize, description: &str) -> Option<Vec<(String, bool)>> {
+        self.get_page().map(|list| {
             let mut result = Vec::with_capacity(self.page_height.into());
             for item in list {
-                if item.is_active {
-                    result.push((item.data.get_name_for_highlighted(width), true));
+                if item.is_active && !description.is_empty() {
+                    result.push((item.data.get_name_with_description(width, description), true));
                 } else {
-                    result.push((item.data.get_name(width), false));
+                    result.push((item.data.get_name(width), item.is_active));
                 }
             }
 
-            return Some(result);
-        }
-
-        None
+            result
+        })
     }
 
     /// Tries to highlight item finding it by closure.

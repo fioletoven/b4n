@@ -1,13 +1,12 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedBgWorker, commands::CommandResult},
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
-        ResponseEvent, Responsive, TuiEvent,
+        KeyCombination, KeyCommand, ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
@@ -72,8 +71,8 @@ impl YamlView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: crossterm::event::KeyEvent) -> bool {
-        if key.code == KeyCode::Char(':') || key.code == KeyCode::Char('>') {
+    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
+        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
             let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
                 ActionItem::new("copy")
                     .with_description("copies YAML to the clipboard")
@@ -159,7 +158,7 @@ impl View for YamlView {
     fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
         let TuiEvent::Key(key) = event;
 
-        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
             return ResponseEvent::ExitApplication;
         }
 
@@ -192,36 +191,39 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('/') {
+        if self.app_data.has_binding(&key, KeyCommand::SearchOpen) {
             self.search.show();
         }
 
-        if key.code == KeyCode::Char('x') && self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
+        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.search.value().is_empty() {
+            self.clear_search();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+            return ResponseEvent::Cancelled;
+        }
+
+        if self.app_data.has_binding(&key, KeyCommand::YamlDecode)
+            && self.yaml.header.kind.as_str() == SECRETS
+            && self.app_data.borrow().is_connected
+        {
             self.toggle_yaml_decode();
             self.clear_search();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('c') {
+        if self.app_data.has_binding(&key, KeyCommand::ContentCopy) {
             self.copy_yaml_to_clipboard();
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Char('n') && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if key.code == KeyCode::Char('p') && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
             self.navigate_match(false);
-        }
-
-        if key.code == KeyCode::Esc {
-            if self.search.value().is_empty() {
-                return ResponseEvent::Cancelled;
-            }
-
-            self.clear_search();
-            return ResponseEvent::Handled;
         }
 
         self.yaml.process_key(key)

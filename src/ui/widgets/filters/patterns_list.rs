@@ -2,7 +2,7 @@ use delegate::delegate;
 use std::collections::HashMap;
 
 use crate::ui::{
-    ResponseEvent, Responsive, Table, ViewType,
+    KeyCombination, ResponseEvent, Responsive, Table, ViewType,
     colors::TextColors,
     lists::{BasicFilterContext, FilterableList, ScrollableList},
     theme::Theme,
@@ -14,14 +14,16 @@ use super::PatternItem;
 #[derive(Default)]
 pub struct PatternsList {
     pub list: ScrollableList<PatternItem, BasicFilterContext>,
+    description: Option<String>,
 }
 
 impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
-    pub fn from(filter_history: &[String]) -> Self {
+    pub fn from(filter_history: &[String], key_name: Option<&str>) -> Self {
+        let description = key_name.map(|d| format!("{d} to insert"));
         let mut list = ScrollableList::from(filter_history.iter().map(|p| p.as_str().into()).collect());
         list.sort(1, false);
-        Self { list }
+        Self { list, description }
     }
 
     /// Adds the pattern to the list if it does not already exist. Ensures the list does not exceed `max_list_size`.\
@@ -76,7 +78,7 @@ impl PatternsList {
 }
 
 impl Responsive for PatternsList {
-    fn process_key(&mut self, key: crossterm::event::KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         self.list.process_key(key)
     }
 }
@@ -103,7 +105,14 @@ impl Table for PatternsList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+        }
+    }
+
+    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
+        if let Some(description) = &self.description {
+            self.list.get_paged_names_with_description(width, description)
+        } else {
+            self.list.get_paged_names(width)
         }
     }
 

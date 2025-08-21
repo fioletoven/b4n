@@ -1,4 +1,3 @@
-use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
@@ -8,8 +7,8 @@ use ratatui::{
 use std::time::Instant;
 
 use crate::{
-    core::SharedAppData,
-    ui::{ResponseEvent, Responsive, Table},
+    core::{SharedAppData, SharedAppDataExt},
+    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table},
 };
 
 use super::Select;
@@ -141,19 +140,21 @@ impl<T: Table> SideSelect<T> {
 }
 
 impl<T: Table> Responsive for SideSelect<T> {
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent {
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }
 
-        if (key.code == KeyCode::Left && self.position == Position::Right)
-            || (key.code == KeyCode::Right && self.position == Position::Left || key.code == KeyCode::Esc)
+        if (self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && self.position == Position::Right)
+            || (self.app_data.has_binding(&key, KeyCommand::SelectorRight) && self.position == Position::Left)
+            || self.app_data.has_binding(&key, KeyCommand::NavigateBack)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Left || key.code == KeyCode::Right {
+        if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) || self.app_data.has_binding(&key, KeyCommand::SelectorRight)
+        {
             if self.is_key_pressed || self.showup_time.elapsed().as_millis() > 500 {
                 self.is_visible = false;
             } else {
@@ -166,7 +167,7 @@ impl<T: Table> Responsive for SideSelect<T> {
 
         self.is_key_pressed = true;
 
-        if key.code == KeyCode::Enter {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
             self.is_visible = false;
             if let Some(selected_name) = self.select.items.get_highlighted_item_name() {
                 return (self.result)(selected_name.to_owned());

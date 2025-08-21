@@ -1,8 +1,8 @@
 use colors::TextColors;
-use crossterm::event::KeyEvent;
 use std::{collections::HashMap, rc::Rc};
 use theme::Theme;
 
+pub use self::keys::*;
 pub use self::tui::*;
 
 pub mod colors;
@@ -12,6 +12,7 @@ pub mod utils;
 pub mod views;
 pub mod widgets;
 
+mod keys;
 mod tui;
 
 /// Indicates which columns in the list should be displayed.
@@ -32,7 +33,7 @@ pub enum ViewType {
 /// UI object that is responsive and can process key events.
 pub trait Responsive {
     /// Process UI key event.
-    fn process_key(&mut self, key: KeyEvent) -> ResponseEvent;
+    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent;
 }
 
 /// UI object that behaves like table.

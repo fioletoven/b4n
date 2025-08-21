@@ -120,19 +120,19 @@ impl Drop for Expression {
 }
 
 /// Extensions trait for [`Expression`].
-pub trait ExpressionExtensions {
+pub trait ExpressionExt {
     /// Evaluates provided [`Expression`] against self.
     fn evaluate(&self, expression: &Expression) -> bool;
 }
 
-impl ExpressionExtensions for Vec<String> {
+impl ExpressionExt for Vec<String> {
     /// Evaluates provided [`Expression`] against vector of strings.
     fn evaluate(&self, expression: &Expression) -> bool {
         evaluate(expression, self)
     }
 }
 
-impl ExpressionExtensions for Vec<&String> {
+impl ExpressionExt for Vec<&String> {
     /// Evaluates provided [`Expression`] against vector of string references.
     fn evaluate(&self, expression: &Expression) -> bool {
         evaluate(expression, self)
