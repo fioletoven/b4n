@@ -1,4 +1,3 @@
-use crossterm::event::KeyCode;
 use ratatui::{
     layout::Rect,
     style::Style,
@@ -57,7 +56,15 @@ impl Filter {
     /// Marks [`Filter`] as visible.
     pub fn show(&mut self) {
         let context = self.app_data.borrow().current.context.clone();
-        self.patterns.items = PatternsList::from(self.app_data.borrow_mut().history.get_filter_history(&context));
+        let key_name = self
+            .app_data
+            .get_key(KeyCommand::NavigateComplete)
+            .to_string()
+            .to_ascii_uppercase();
+        self.patterns.items = PatternsList::from(
+            self.app_data.borrow_mut().history.get_filter_history(&context),
+            Some(&key_name),
+        );
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.app_data.borrow().theme.colors.filter.clone());
         self.is_visible = true;
@@ -151,7 +158,7 @@ impl Responsive for Filter {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Tab {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
             if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
                 self.last_validated.clone_from(&pattern);
                 self.patterns.set_value(pattern);

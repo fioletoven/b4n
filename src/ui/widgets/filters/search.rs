@@ -1,4 +1,3 @@
-use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -13,7 +12,6 @@ use crate::{
 use super::PatternsList;
 
 const HISTORY_SIZE: usize = 20;
-const SEARCH_HINT: &str = " Type to search. Hit Enter, then navigate with n and p.";
 const NOT_FOUND_HINT: &str = " No matches found.";
 
 /// Search widget for TUI.
@@ -24,6 +22,7 @@ pub struct Search {
     patterns: Select<PatternsList>,
     matches: Option<usize>,
     width: u16,
+    search_hint: String,
 }
 
 impl Search {
@@ -31,6 +30,9 @@ impl Search {
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.search.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true).with_prompt(" ");
+        let enter = app_data.get_key(KeyCommand::NavigateInto).to_string().to_ascii_uppercase();
+        let next = app_data.get_key(KeyCommand::MatchNext).to_string().to_ascii_uppercase();
+        let prev = app_data.get_key(KeyCommand::MatchPrevious).to_string().to_ascii_uppercase();
 
         Self {
             is_visible: false,
@@ -39,6 +41,7 @@ impl Search {
             patterns,
             matches: None,
             width,
+            search_hint: format!(" {} to accept, {} and {} to navigate.", enter, next, prev),
         }
     }
 
@@ -50,7 +53,15 @@ impl Search {
     /// Marks [`Search`] as visible.
     pub fn show(&mut self) {
         let context = self.app_data.borrow().current.context.clone();
-        self.patterns.items = PatternsList::from(self.app_data.borrow_mut().history.get_search_history(&context));
+        let key_name = self
+            .app_data
+            .get_key(KeyCommand::NavigateComplete)
+            .to_string()
+            .to_ascii_uppercase();
+        self.patterns.items = PatternsList::from(
+            self.app_data.borrow_mut().history.get_search_history(&context),
+            Some(&key_name),
+        );
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.app_data.borrow().theme.colors.search.clone());
         self.is_visible = true;
@@ -102,7 +113,7 @@ impl Search {
             let text = format!(" Total matches: {matches}");
             frame.render_widget(Paragraph::new(text).style(header), area);
         } else if self.patterns.value().is_empty() {
-            frame.render_widget(Paragraph::new(SEARCH_HINT).style(header), area);
+            frame.render_widget(Paragraph::new(self.search_hint.as_str()).style(header), area);
         } else {
             frame.render_widget(Paragraph::new(NOT_FOUND_HINT).style(header), area);
         }
@@ -147,7 +158,7 @@ impl Responsive for Search {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Tab {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
             if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
                 self.patterns.set_value(pattern);
             }

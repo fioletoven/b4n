@@ -34,9 +34,10 @@ pub trait Row {
     /// Returns `name` of the item respecting provided `width`.
     fn get_name(&self, width: usize) -> String;
 
-    /// Returns `name` for the highlighted item respecting provided `width`.
+    /// Returns the item's name with an added description, formatted to fit the given `width`.\
+    /// **Note** that the `description` must not contain `[` or `]` characters.
     #[inline]
-    fn get_name_for_highlighted(&self, width: usize) -> String {
+    fn get_name_with_description(&self, width: usize, _description: &str) -> String {
         self.get_name(width)
     }
 

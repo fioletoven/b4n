@@ -21,16 +21,19 @@ fn merge_test() {
 
     let other = KeyBindings::empty()
         .with("Ctrl+C", KeyCommand::FilterOpen)
-        .with("Alt+A", KeyCommand::ApplicationExit);
+        .with("Alt+A", KeyCommand::NavigateComplete);
     let bindings = KeyBindings::default_with(Some(other));
 
     assert!(bindings.bindings.contains_key(&"Ctrl+C".into()));
-    assert_eq!(bindings.bindings[&"Ctrl+C".into()], once(KeyCommand::FilterOpen).collect());
+    assert_eq!(
+        bindings.bindings[&"Ctrl+C".into()],
+        [KeyCommand::FilterOpen, KeyCommand::ApplicationExit].into_iter().collect()
+    );
 
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));
     assert_eq!(
         bindings.bindings[&"Alt+A".into()],
-        once(KeyCommand::ApplicationExit).collect()
+        once(KeyCommand::NavigateComplete).collect()
     );
 }
 

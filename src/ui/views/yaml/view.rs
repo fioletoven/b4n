@@ -218,11 +218,11 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateNext) && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigatePrevious) && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
             self.navigate_match(false);
         }
 

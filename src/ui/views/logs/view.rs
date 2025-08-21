@@ -283,11 +283,11 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateNext) && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigatePrevious) && self.logs.matches_count().is_some() {
+        if self.app_data.has_binding(&key, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
             self.navigate_match(false);
         }
 

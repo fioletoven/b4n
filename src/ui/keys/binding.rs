@@ -28,9 +28,8 @@ impl Default for KeyBindings {
             .with("Esc", KeyCommand::NavigateBack)
             .with("Space", KeyCommand::NavigateSelect)
             .with("Ctrl+Space", KeyCommand::NavigateInvertSelection)
+            .with("Tab", KeyCommand::NavigateComplete)
             .with("Ctrl+D", KeyCommand::NavigateDelete)
-            .with("N", KeyCommand::NavigateNext)
-            .with("P", KeyCommand::NavigatePrevious)
             .with("C", KeyCommand::ContentCopy)
             .with("Left", KeyCommand::SelectorLeft)
             .with("Right", KeyCommand::SelectorRight)
@@ -41,6 +40,8 @@ impl Default for KeyBindings {
             .with("Esc", KeyCommand::FilterReset)
             .with("/", KeyCommand::SearchOpen)
             .with("Esc", KeyCommand::SearchReset)
+            .with("N", KeyCommand::MatchNext)
+            .with("P", KeyCommand::MatchPrevious)
             .with("Y", KeyCommand::YamlOpen)
             .with("X", KeyCommand::YamlDecode)
             .with("L", KeyCommand::LogsOpen)
@@ -63,14 +64,12 @@ impl KeyBindings {
 
     /// Creates default [`KeyBindings`] instance updated with `other` key bindings sequence.
     pub fn default_with(other: Option<KeyBindings>) -> Self {
-        let mut result = KeyBindings::default();
+        let result = KeyBindings::default();
         if let Some(other) = other {
-            for (combination, command) in other.bindings {
-                result.bindings.insert(combination, command);
-            }
+            merge(result, other)
+        } else {
+            result
         }
-
-        result
     }
 
     /// Inserts the given key `combination` and associated `command` into the [`KeyBindings`],
@@ -145,4 +144,31 @@ impl<'de> Deserialize<'de> for KeyBindings {
 
         Ok(KeyBindings { bindings })
     }
+}
+
+fn merge(left: KeyBindings, right: KeyBindings) -> KeyBindings {
+    let mut result = invert(left);
+    for (command, combinations) in invert(right) {
+        result.insert(command, combinations);
+    }
+
+    let mut bindings: HashMap<KeyCombination, HashSet<KeyCommand>> = HashMap::new();
+    for (command, combinations) in result {
+        for combination in combinations {
+            bindings.entry(combination).or_default().insert(command.clone());
+        }
+    }
+
+    KeyBindings { bindings }
+}
+
+fn invert(bindings: KeyBindings) -> HashMap<KeyCommand, HashSet<KeyCombination>> {
+    let mut inverted: HashMap<KeyCommand, HashSet<KeyCombination>> = HashMap::new();
+    for (combination, commands) in bindings.bindings {
+        for command in commands {
+            inverted.entry(command).or_default().insert(combination);
+        }
+    }
+
+    inverted
 }

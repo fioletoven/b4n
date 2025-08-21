@@ -1,3 +1,4 @@
+use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::core::AppData;

@@ -1,4 +1,3 @@
-use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -217,7 +216,7 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if key.code == KeyCode::Tab {
+        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
             self.insert_highlighted_value(true);
             return ResponseEvent::Handled;
         }
