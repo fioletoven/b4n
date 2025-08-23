@@ -1,4 +1,3 @@
-use clipboard::{ClipboardContext, ClipboardProvider};
 use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
@@ -116,13 +115,11 @@ impl LogsView {
     }
 
     fn copy_logs_to_clipboard(&self) {
-        if self.logs.content().is_some() {
-            let result: Result<ClipboardContext, _> = ClipboardProvider::new();
-            if let Ok(mut ctx) = result
-                && ctx.set_contents(self.get_logs_as_string()).is_ok()
-            {
-                self.footer.show_info(" container logs copied to clipboard…", 1_500);
-            }
+        if self.logs.content().is_some()
+            && let Ok(mut clipboard) = arboard::Clipboard::new()
+            && clipboard.set_text(self.get_logs_as_string()).is_ok()
+        {
+            self.footer.show_info(" container logs copied to clipboard…", 1_500);
         }
     }
 
