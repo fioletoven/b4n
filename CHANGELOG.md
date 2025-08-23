@@ -1,5 +1,17 @@
 # Change Log
 
+## 0.1.9 - 2025-08-23
+
+### Features
+
+- customizable key bindings
+- added Linux build to the release workflow
+
+### Bug fixes
+
+- fixed issue with navigating to the next highlighted search match
+- port forward can now be correctly removed from the list
+
 ## 0.1.8 - 2025-08-02
 
 ### Features
