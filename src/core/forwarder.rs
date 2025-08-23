@@ -313,7 +313,7 @@ fn accept_connection(
         statistics.active_connections.fetch_add(1, Ordering::Relaxed);
         events_tx.send(PortForwardEvent::ConnectionAccepted).unwrap();
 
-        if let Err(error) = forward_connection(&api, &pod_name, port, client_conn).await {
+        if let Err(error) = forward_connection(&api, &pod_name, port, client_conn, cancellation_token.clone()).await {
             warn!("failed to forward connection: {}", error);
             statistics.connection_errors.fetch_add(1, Ordering::Relaxed);
 
@@ -335,26 +335,26 @@ async fn forward_connection(
     pod_name: &str,
     port: u16,
     mut client_conn: tokio::net::TcpStream,
+    cancellation_token: CancellationToken,
 ) -> Result<(), PortForwardError> {
     let mut forwarder = api.portforward(pod_name, &[port]).await?;
-    if let Some(mut upstream_conn) = forwarder.take_stream(port) {
-        tokio::io::copy_bidirectional(&mut client_conn, &mut upstream_conn).await?;
+    let Some(mut upstream_conn) = forwarder.take_stream(port) else {
+        return Err(PortForwardError::PortNotFound);
+    };
 
-        drop(upstream_conn);
-        match forwarder.join().await {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                if error
-                    .source()
-                    .is_some_and(|e| format!("{e:?}") == "Protocol(SendAfterClosing)")
-                {
-                    Ok(())
-                } else {
-                    Err(PortForwardError::PortforwardError(error.to_string()))
-                }
-            },
-        }
-    } else {
-        Err(PortForwardError::PortNotFound)
+    tokio::select! {
+        () = cancellation_token.cancelled() => Ok(()),
+        result = tokio::io::copy_bidirectional(&mut client_conn, &mut upstream_conn) => {
+            result.map(|_| ()).map_err(|error| {
+                PortForwardError::PortforwardError(error.to_string())
+            })
+        },
+    }?;
+
+    drop(upstream_conn);
+    match forwarder.join().await {
+        Ok(()) => Ok(()),
+        Err(error) if matches!(error.source(), Some(e) if format!("{e:?}") == "Protocol(SendAfterClosing)") => Ok(()),
+        Err(error) => Err(PortForwardError::PortforwardError(error.to_string())),
     }
 }
