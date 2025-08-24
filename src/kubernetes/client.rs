@@ -40,6 +40,15 @@ pub enum ClientError {
     KubeError(#[from] kube::Error),
 }
 
+/// Options for the Kubernetes client.
+pub struct ClientOptions {
+    /// Fallback to the default context in case of an error.
+    pub fallback_to_default: bool,
+
+    /// Allow insecure connections (do not verify TLS certificate).
+    pub allow_insecure: bool,
+}
+
 /// Wrapper for the kubernetes [`Client`].
 pub struct KubernetesClient {
     /// Kubernetes client.
@@ -60,10 +69,10 @@ impl KubernetesClient {
     pub async fn new(
         kube_config_path: Option<&str>,
         kube_context: Option<&str>,
-        fallback_to_default: bool,
+        options: ClientOptions,
     ) -> Result<Self, ClientError> {
         let (kube_config, kube_config_path) = get_kube_config(kube_config_path).await?;
-        let (client, context) = get_client_fallback(kube_config, kube_context, fallback_to_default).await?;
+        let (client, context) = get_client_fallback(kube_config, kube_context, options).await?;
         let k8s_version = client.apiserver_version().await?.git_version.clone();
 
         Ok(Self {
@@ -75,9 +84,9 @@ impl KubernetesClient {
     }
 
     /// Changes kube context for [`KubernetesClient`] which results in creating new kubernetes client.
-    pub async fn change_context(&mut self, new_kube_context: Option<&str>) -> Result<(), ClientError> {
+    pub async fn change_context(&mut self, new_kube_context: Option<&str>, allow_insecure: bool) -> Result<(), ClientError> {
         let (kube_config, _) = get_kube_config(self.kube_config_path.as_deref()).await?;
-        let (client, context) = get_client(kube_config, new_kube_context).await?;
+        let (client, context) = get_client(kube_config, new_kube_context, allow_insecure).await?;
 
         self.k8s_version.clone_from(&client.apiserver_version().await?.git_version);
         self.context = context;
@@ -176,35 +185,47 @@ pub fn get_dynamic_api(
 async fn get_client_fallback(
     kube_config: Kubeconfig,
     kube_context: Option<&str>,
-    try_default: bool,
+    options: ClientOptions,
 ) -> Result<(Client, String), ClientError> {
     if let Some(context) = get_context_internal(&kube_config, kube_context) {
-        Ok((get_client_for_context(kube_config, &context).await?, context))
-    } else if try_default {
+        Ok((
+            get_client_for_context(kube_config, &context, options.allow_insecure).await?,
+            context,
+        ))
+    } else if options.fallback_to_default {
         error!("context '{:?}' not found, fallback to the default one", kube_context);
-        get_client(kube_config, None).await
+        get_client(kube_config, None, options.allow_insecure).await
     } else {
         Err(ClientError::ContextNotFound)
     }
 }
 
 /// Creates kubernetes client and returns it together with used context.
-async fn get_client(kube_config: Kubeconfig, kube_context: Option<&str>) -> Result<(Client, String), ClientError> {
+async fn get_client(
+    kube_config: Kubeconfig,
+    kube_context: Option<&str>,
+    allow_insecure: bool,
+) -> Result<(Client, String), ClientError> {
     if let Some(context) = get_context_internal(&kube_config, kube_context) {
-        Ok((get_client_for_context(kube_config, &context).await?, context))
+        Ok((get_client_for_context(kube_config, &context, allow_insecure).await?, context))
     } else {
         Err(ClientError::ContextNotFound)
     }
 }
 
 /// Creates kubernetes client for the provided [`Kubeconfig`] and context.
-async fn get_client_for_context(kube_config: Kubeconfig, kube_context: &str) -> Result<Client, ClientError> {
+async fn get_client_for_context(
+    kube_config: Kubeconfig,
+    kube_context: &str,
+    allow_insecure: bool,
+) -> Result<Client, ClientError> {
     let kube_config_options = kube::config::KubeConfigOptions {
         context: Some(String::from(kube_context)),
         user: None,
         cluster: None,
     };
-    let config = Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
+    let mut config = Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
+    config.accept_invalid_certs = allow_insecure;
 
     Ok(Client::try_from(config)?)
 }

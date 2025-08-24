@@ -7,7 +7,12 @@ use thiserror;
 
 use crate::{
     core::discovery::convert_to_vector,
-    kubernetes::{Kind, NAMESPACES, Namespace, client::KubernetesClient, resources::PODS, utils::get_resource},
+    kubernetes::{
+        Kind, NAMESPACES, Namespace,
+        client::{ClientOptions, KubernetesClient},
+        resources::PODS,
+        utils::get_resource,
+    },
 };
 
 use super::CommandResult;
@@ -42,22 +47,39 @@ pub struct NewKubernetesClientCommand {
     pub context: String,
     pub kind: Kind,
     pub namespace: Namespace,
+    pub allow_insecure: bool,
 }
 
 impl NewKubernetesClientCommand {
     /// Creates new [`NewKubernetesClientCommand`] instance.
-    pub fn new(kube_config_path: Option<String>, context: String, kind: Kind, namespace: Namespace) -> Self {
+    pub fn new(
+        kube_config_path: Option<String>,
+        context: String,
+        kind: Kind,
+        namespace: Namespace,
+        allow_insecure: bool,
+    ) -> Self {
         Self {
             kube_config_path,
             context,
             kind,
             namespace,
+            allow_insecure,
         }
     }
 
     /// Creates new kubernetes client and returns it.
     pub async fn execute(self) -> Option<CommandResult> {
-        let client = match KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), false).await {
+        let client = KubernetesClient::new(
+            self.kube_config_path.as_deref(),
+            Some(&self.context),
+            ClientOptions {
+                fallback_to_default: false,
+                allow_insecure: self.allow_insecure,
+            },
+        )
+        .await;
+        let client = match client {
             Ok(client) => client,
             Err(err) => return Some(CommandResult::KubernetesClient(Err(err.into()))),
         };

@@ -55,7 +55,7 @@ async fn run_application(args: cli::Args) -> Result<()> {
 
     let config = Config::load_or_create().await?;
     let theme = config.load_or_create_theme().await?;
-    let mut app = App::new(config, history, theme)?;
+    let mut app = App::new(config, history, theme, args.insecure)?;
     app.start(context, kind, namespace)?;
 
     loop {
