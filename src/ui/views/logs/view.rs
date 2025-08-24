@@ -115,11 +115,14 @@ impl LogsView {
     }
 
     fn copy_logs_to_clipboard(&self) {
-        if self.logs.content().is_some()
-            && let Ok(mut clipboard) = arboard::Clipboard::new()
-            && clipboard.set_text(self.get_logs_as_string()).is_ok()
-        {
-            self.footer.show_info(" container logs copied to clipboard…", 1_500);
+        if self.logs.content().is_some() {
+            if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
+                && clipboard.set_text(self.get_logs_as_string()).is_ok()
+            {
+                self.footer.show_info(" container logs copied to clipboard…", 1_500);
+            } else {
+                self.footer.show_error(" unable to access clipboard functionality…", 2_000);
+            }
         }
     }
 
