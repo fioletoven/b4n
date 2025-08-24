@@ -38,13 +38,14 @@ pub struct App {
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(config: Config, history: History, theme: Theme) -> Result<Self> {
+    pub fn new(config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
         let theme_path = config.theme_path();
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
         let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_transmitter())));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
-        let client_manager = KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter());
+        let client_manager =
+            KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
         let views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
 
         Ok(Self {

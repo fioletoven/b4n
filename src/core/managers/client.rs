@@ -41,17 +41,19 @@ pub struct KubernetesClientManager {
     request: Option<RequestInfo>,
     footer_tx: FooterTx,
     connection_state: StateChangeTracker<bool>,
+    allow_insecure: bool,
 }
 
 impl KubernetesClientManager {
     /// Creates new [`KubernetesClientManager`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx, allow_insecure: bool) -> Self {
         Self {
             app_data,
             worker,
             request: None,
             footer_tx,
             connection_state: StateChangeTracker::new(None),
+            allow_insecure,
         }
     }
 
@@ -146,7 +148,13 @@ impl KubernetesClientManager {
     /// Sends command to create new Kubernetes client to the background executor.
     fn new_kubernetes_client(&mut self, context: String, kind: Kind, namespace: Namespace) -> RequestInfo {
         let kube_config_path = self.app_data.borrow().history.kube_config_path().map(String::from);
-        let cmd = NewKubernetesClientCommand::new(kube_config_path, context.clone(), kind.clone(), namespace.clone());
+        let cmd = NewKubernetesClientCommand::new(
+            kube_config_path,
+            context.clone(),
+            kind.clone(),
+            namespace.clone(),
+            self.allow_insecure,
+        );
 
         RequestInfo {
             request_id: Some(

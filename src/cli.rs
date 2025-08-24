@@ -2,29 +2,33 @@ use clap::Parser;
 
 use crate::kubernetes::ALL_NAMESPACES;
 
-/// Simple program to list resources in kubernetes.
+/// Simple program to view resources in a Kubernetes cluster.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// Path to the kube config file.
+    /// Path to the kubeconfig file.
     #[arg(long)]
     pub kube_config: Option<String>,
 
-    /// Context to use, defined in kube config
+    /// Context to use, as defined in the kubeconfig.
     #[arg(long)]
     pub context: Option<String>,
 
-    /// Kubernetes resource to list
+    /// Kubernetes resource to view (e.g., pods, services).
     #[arg()]
     pub resource: Option<String>,
 
-    /// Kubernetes namespace for the resource to list
+    /// Namespace of the resource to view.
     #[arg(long, short)]
     pub namespace: Option<String>,
 
-    /// List resource in all namespaces
+    /// View resources in all namespaces.
     #[arg(long)]
     pub all_namespaces: bool,
+
+    /// Allow insecure connections (skip TLS verification).
+    #[arg(long)]
+    pub insecure: bool,
 }
 
 impl Args {
