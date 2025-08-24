@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use kube::discovery::Scope;
 use std::{cell::RefCell, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
@@ -128,6 +129,9 @@ pub struct AppData {
     /// Syntax set for syntax highlighting.
     pub syntax_set: SyntaxSet,
 
+    /// Holds clipboard object.
+    pub clipboard: Option<Clipboard>,
+
     /// Indicates if application is connected to the kubernetes api.
     pub is_connected: bool,
 }
@@ -144,6 +148,7 @@ impl AppData {
             current: ResourcesInfo::default(),
             kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
+            clipboard: Clipboard::new().ok(),
             is_connected: false,
         }
     }
