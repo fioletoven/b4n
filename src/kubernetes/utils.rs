@@ -22,6 +22,17 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
     Ok(yaml)
 }
 
+/// Gets [`DynamicObject`]'s UID.
+pub fn get_object_uid(object: &DynamicObject) -> String {
+    object.uid().clone().unwrap_or_else(|| {
+        format!(
+            "_{}{}_",
+            object.name_any(),
+            object.metadata.namespace.as_deref().unwrap_or_default()
+        )
+    })
+}
+
 /// Formats kubernetes timestamp to a human-readable string.
 #[inline]
 pub fn format_timestamp(time: &Time) -> String {

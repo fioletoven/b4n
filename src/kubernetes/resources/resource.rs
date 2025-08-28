@@ -6,7 +6,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::resources::CrdColumns,
+    kubernetes::{resources::CrdColumns, utils::get_object_uid},
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -23,7 +23,7 @@ use super::{ResourceData, ResourceValue, container, get_header_data, get_resourc
 /// Represents kubernetes resource of any kind.
 #[derive(Default)]
 pub struct ResourceItem {
-    pub uid: Option<String>,
+    pub uid: String,
     pub name: String,
     pub namespace: Option<String>,
     pub age: Option<String>,
@@ -36,7 +36,7 @@ impl ResourceItem {
     /// Creates light [`ResourceItem`] version just with name.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_{name}_")),
+            uid: format!("_{name}_"),
             name: name.to_owned(),
             ..Default::default()
         }
@@ -46,17 +46,15 @@ impl ResourceItem {
     pub fn from(kind: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
         let data = Some(get_resource_data(kind, crd, &object));
         let filter = get_filter_metadata(&object);
+        let uid = get_object_uid(&object);
+        let creation_timestamp = get_age_time(&object.metadata);
 
         Self {
-            age: object
-                .metadata
-                .creation_timestamp
-                .as_ref()
-                .map(|t| t.0.timestamp().to_string()),
+            age: get_age_string(&object.metadata),
             name: object.name_any(),
             namespace: object.metadata.namespace,
-            uid: object.metadata.uid,
-            creation_timestamp: object.metadata.creation_timestamp,
+            uid,
+            creation_timestamp,
             filter_metadata: filter,
             data,
         }
@@ -65,15 +63,25 @@ impl ResourceItem {
     /// Creates [`ResourceItem`] from kubernetes pod container and its metadata.
     pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
+        let uid = pod_metadata
+            .uid
+            .as_ref()
+            .map(|u| format!("{}.{}.{}", u, container_name, if is_init_container { "I" } else { "M" }))
+            .unwrap_or_else(|| {
+                format!(
+                    "{}.{}.{}",
+                    pod_metadata.name.as_deref().unwrap_or_default(),
+                    container_name,
+                    if is_init_container { "I" } else { "M" }
+                )
+            });
+
         Self {
-            age: pod_metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string()),
+            age: get_age_string(pod_metadata),
             name: container_name.clone(),
             namespace: pod_metadata.namespace.clone(),
-            uid: pod_metadata
-                .uid
-                .as_ref()
-                .map(|u| format!("{}.{}.{}", u, container_name, if is_init_container { "I" } else { "M" })),
-            creation_timestamp: pod_metadata.creation_timestamp.clone(),
+            uid,
+            creation_timestamp: get_age_time(pod_metadata),
             filter_metadata: vec![container_name],
             data: Some(container::data(
                 container,
@@ -103,9 +111,25 @@ impl ResourceItem {
     }
 }
 
+fn get_age_string(metadata: &ObjectMeta) -> Option<String> {
+    if metadata.resource_version.is_some() {
+        metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string())
+    } else {
+        None
+    }
+}
+
+fn get_age_time(metadata: &ObjectMeta) -> Option<Time> {
+    if metadata.resource_version.is_some() {
+        metadata.creation_timestamp.clone()
+    } else {
+        None
+    }
+}
+
 impl Row for ResourceItem {
-    fn uid(&self) -> Option<&str> {
-        self.uid.as_deref()
+    fn uid(&self) -> &str {
+        &self.uid
     }
 
     fn group(&self) -> &str {

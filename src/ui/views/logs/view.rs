@@ -119,9 +119,9 @@ impl LogsView {
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
                 && clipboard.set_text(self.get_logs_as_string()).is_ok()
             {
-                self.footer.show_info(" container logs copied to clipboard…", 1_500);
+                self.footer.show_info(" Container logs copied to clipboard…", 1_500);
             } else {
-                self.footer.show_error(" unable to access clipboard functionality…", 2_000);
+                self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
         }
     }

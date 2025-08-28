@@ -68,7 +68,7 @@ impl YamlView {
             {
                 self.footer.show_info(" YAML content copied to clipboard…", 1_500);
             } else {
-                self.footer.show_error(" unable to access clipboard functionality…", 2_000);
+                self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
         }
     }

@@ -223,7 +223,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(items) = &mut self.items {
             items
                 .iter_mut()
-                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid().unwrap_or_default()));
+                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid()));
         }
     }
 
@@ -252,7 +252,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Returns selected item uids as [`Vec`].
     pub fn get_selected_uids(&self) -> Vec<&str> {
         if let Some(items) = &self.items {
-            items.iter().filter(|i| i.is_selected).filter_map(|i| i.data.uid()).collect()
+            items.iter().filter(|i| i.is_selected).map(|i| i.data.uid()).collect()
         } else {
             Vec::default()
         }
@@ -279,7 +279,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Gets highlighted element `uid`.
     pub fn get_highlighted_item_uid(&self) -> Option<&str> {
-        self.get_highlighted_item().and_then(|i| i.data.uid())
+        self.get_highlighted_item().map(|i| i.data.uid())
     }
 
     /// Gets highlighted element.
@@ -315,7 +315,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Highlights element on list by its `uid`.
     pub fn highlight_item_by_uid(&mut self, uid: &str) -> bool {
-        self.highlight_item_by(|i| i.data.uid().is_some_and(|u| u == uid))
+        self.highlight_item_by(|i| i.data.uid() == uid)
     }
 
     /// Highlights first item on the list, returns `true` on success.
