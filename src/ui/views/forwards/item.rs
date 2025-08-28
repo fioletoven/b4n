@@ -13,7 +13,7 @@ use crate::{
 
 /// Represents port forward list item.
 pub struct PortForwardItem {
-    pub uid: Option<String>,
+    pub uid: String,
     group: String,
     name: String,
     age: Option<String>,
@@ -37,7 +37,7 @@ impl PortForwardItem {
         let errors = task.statistics.connection_errors.load(Ordering::Relaxed);
 
         Self {
-            uid: Some(task.uuid.clone()),
+            uid: task.uuid.clone(),
             group: task.resource.namespace.as_str().to_owned(),
             name: task.resource.name.as_deref().unwrap_or_default().to_owned(),
             age: task.start_time.as_ref().map(|t| t.0.timestamp().to_string()),
@@ -61,8 +61,8 @@ impl PortForwardItem {
 }
 
 impl Row for PortForwardItem {
-    fn uid(&self) -> Option<&str> {
-        self.uid.as_deref()
+    fn uid(&self) -> &str {
+        &self.uid
     }
 
     fn group(&self) -> &str {

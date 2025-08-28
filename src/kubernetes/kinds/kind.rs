@@ -8,7 +8,7 @@ use crate::{
 /// Represents kubernetes kind.
 #[derive(Clone)]
 pub struct KindItem {
-    pub uid: Option<String>,
+    pub uid: String,
     pub group: String,
     pub name: String,
     pub full_name: String,
@@ -26,7 +26,7 @@ impl KindItem {
         };
 
         Self {
-            uid: Some(format!("_{group}:{name}:{version}_")),
+            uid: format!("_{group}:{name}:{version}_"),
             group,
             name,
             full_name,
@@ -37,8 +37,8 @@ impl KindItem {
 }
 
 impl Row for KindItem {
-    fn uid(&self) -> Option<&str> {
-        self.uid.as_deref()
+    fn uid(&self) -> &str {
+        &self.uid
     }
 
     fn group(&self) -> &str {
@@ -82,6 +82,10 @@ impl Filterable<BasicFilterContext> for KindItem {
     }
 
     fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
-        self.name.contains(&context.pattern)
+        if self.multiple {
+            self.full_name.contains(&context.pattern)
+        } else {
+            self.name.contains(&context.pattern)
+        }
     }
 }

@@ -14,7 +14,7 @@ use crate::{
 /// Command palette action.
 #[derive(Default, Clone)]
 pub struct ActionItem {
-    pub uid: Option<String>,
+    pub uid: String,
     pub group: String,
     pub name: String,
     pub response: ResponseEvent,
@@ -27,7 +27,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: Some(format!("_action:{name}_")),
+            uid: format!("_action:{name}_"),
             group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some("".to_owned()),
@@ -38,7 +38,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance from [`KindItem`].
     pub fn from_kind(kind: &KindItem) -> Self {
         Self {
-            uid: kind.uid().map(String::from),
+            uid: kind.uid().to_owned(),
             group: "resource".to_owned(),
             name: kind.name().to_owned(),
             response: ResponseEvent::ChangeKind(kind.name().to_owned()),
@@ -49,11 +49,11 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance from [`NamedContext`].
     pub fn from_context(context: &NamedContext) -> Self {
         Self {
-            uid: Some(format!(
+            uid: format!(
                 "_{}:{}_",
                 context.name,
                 context.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default()
-            )),
+            ),
             group: "context".to_owned(),
             name: context.name.clone(),
             response: ResponseEvent::ChangeContext(context.name.clone()),
@@ -66,7 +66,7 @@ impl ActionItem {
     pub fn from_path(path: PathBuf) -> Self {
         let name = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
         Self {
-            uid: Some(path.as_os_str().to_string_lossy().to_string()),
+            uid: path.as_os_str().to_string_lossy().to_string(),
             group: "path".to_owned(),
             name: name.clone(),
             response: ResponseEvent::ChangeTheme(name),
@@ -77,7 +77,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance from [`Port`].
     pub fn from_port(port: &Port) -> Self {
         Self {
-            uid: Some(format!("_{}:{}:{}_", port.port, port.name, port.protocol)),
+            uid: format!("_{}:{}:{}_", port.port, port.name, port.protocol),
             group: "resource port".to_owned(),
             name: port.port.to_string(),
             description: Some(format!("{} ({})", port.name, port.protocol)),
@@ -119,8 +119,8 @@ impl ActionItem {
 }
 
 impl Row for ActionItem {
-    fn uid(&self) -> Option<&str> {
-        self.uid.as_deref()
+    fn uid(&self) -> &str {
+        &self.uid
     }
 
     fn group(&self) -> &str {

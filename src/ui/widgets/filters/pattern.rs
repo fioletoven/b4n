@@ -55,8 +55,8 @@ impl From<&str> for PatternItem {
 }
 
 impl Row for PatternItem {
-    fn uid(&self) -> Option<&str> {
-        Some(&self.value)
+    fn uid(&self) -> &str {
+        &self.value
     }
 
     fn group(&self) -> &str {

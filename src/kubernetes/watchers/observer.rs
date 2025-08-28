@@ -1,24 +1,27 @@
 use futures::TryStreamExt;
 use kube::{
-    api::{ApiResource, DynamicObject},
-    discovery::{ApiCapabilities, Scope},
+    Api,
+    api::{ApiResource, DynamicObject, ObjectList},
+    discovery::{ApiCapabilities, Scope, verbs},
     runtime::{
         WatchStreamExt,
         watcher::{self, Error, Event, watcher},
     },
 };
 use std::{
+    collections::HashMap,
     pin::pin,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 use thiserror;
 use tokio::{
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
+    time::sleep,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
@@ -29,6 +32,7 @@ use crate::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
         resources::{CONTAINERS, CrdColumns},
+        utils::get_object_uid,
     },
     ui::widgets::FooterTx,
 };
@@ -41,6 +45,10 @@ pub enum BgObserverError {
     /// Resource was not found in k8s cluster
     #[error("kubernetes resource not found")]
     ResourceNotFound,
+
+    /// Resource cannot be watched or listed
+    #[error("resource cannot be watched or listed")]
+    UnsupportedOperation,
 }
 
 /// Background observer result.
@@ -115,6 +123,9 @@ impl InitData {
     }
 }
 
+type ObserverResultSender = UnboundedSender<Box<ObserverResult<DynamicObject>>>;
+type ObserverResultReceiver = UnboundedReceiver<Box<ObserverResult<DynamicObject>>>;
+
 /// Background k8s resource observer.
 pub struct BgObserver {
     pub resource: ResourceRef,
@@ -122,8 +133,8 @@ pub struct BgObserver {
     pub scope: Scope,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
-    context_rx: UnboundedReceiver<Box<ObserverResult<DynamicObject>>>,
+    context_tx: ObserverResultSender,
+    context_rx: ObserverResultReceiver,
     footer_tx: FooterTx,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
@@ -166,46 +177,20 @@ impl BgObserver {
         self.has_error.store(false, Ordering::Relaxed);
 
         let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None);
-        let mut _processor = EventsProcessor {
-            init_data: init_data.clone(),
-            context_tx: self.context_tx.clone(),
-            footer_tx: self.footer_tx.clone(),
-            is_ready: Arc::clone(&self.is_ready),
-            has_error: Arc::clone(&self.has_error),
-            last_watch_error: None,
-        };
-        let _api_client = client.get_api(
+        let api_client = client.get_api(
             &ar,
             &cap,
             self.resource.namespace.as_option(),
             self.resource.namespace.is_all(),
         );
-        let _cancellation_token = cancellation_token.clone();
-        let _resource_name = self.resource.name.clone();
 
-        let task = tokio::spawn(async move {
-            while !_cancellation_token.is_cancelled() {
-                let mut config = watcher::Config::default();
-                if let Some(name) = _resource_name.as_ref() {
-                    let fields = format!("metadata.name={name}");
-                    config = config.fields(&fields);
-                }
-                let watch = watcher(_api_client.clone(), config).default_backoff();
-                let mut watch = pin!(watch);
-
-                while !_cancellation_token.is_cancelled() {
-                    tokio::select! {
-                        () = _cancellation_token.cancelled() => (),
-                        result = watch.try_next() => {
-                            if !_processor.process_event(result) {
-                                // we need to restart watcher, so go up one while loop
-                                break;
-                            }
-                        },
-                    }
-                }
-            }
-        });
+        let task = if cap.supports_operation(verbs::WATCH) {
+            self.watch(api_client, init_data.clone(), cancellation_token.clone())
+        } else if cap.supports_operation(verbs::LIST) {
+            self.list(api_client, init_data.clone(), cancellation_token.clone())
+        } else {
+            return Err(BgObserverError::UnsupportedOperation);
+        };
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
@@ -273,6 +258,110 @@ impl BgObserver {
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }
+
+    fn watch(
+        &mut self,
+        client: Api<DynamicObject>,
+        init_data: InitData,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<()> {
+        tokio::spawn({
+            let mut processor = EventsProcessor {
+                init_data,
+                context_tx: self.context_tx.clone(),
+                footer_tx: self.footer_tx.clone(),
+                is_ready: Arc::clone(&self.is_ready),
+                has_error: Arc::clone(&self.has_error),
+                last_watch_error: None,
+            };
+            let resource_name = self.resource.name.clone();
+
+            async move {
+                while !cancellation_token.is_cancelled() {
+                    let mut config = watcher::Config::default();
+                    if let Some(name) = resource_name.as_ref() {
+                        let fields = format!("metadata.name={name}");
+                        config = config.fields(&fields);
+                    }
+                    let watch = watcher(client.clone(), config).default_backoff();
+                    let mut watch = pin!(watch);
+
+                    while !cancellation_token.is_cancelled() {
+                        tokio::select! {
+                            () = cancellation_token.cancelled() => (),
+                            result = watch.try_next() => {
+                                if !processor.process_event(result) {
+                                    // we need to restart watcher, so go up one while loop
+                                    break;
+                                }
+                            },
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    fn list(&mut self, client: Api<DynamicObject>, init_data: InitData, cancellation_token: CancellationToken) -> JoinHandle<()> {
+        tokio::spawn({
+            let is_ready = Arc::clone(&self.is_ready);
+            let has_error = Arc::clone(&self.has_error);
+            let context_tx = self.context_tx.clone();
+            let mut results = None;
+
+            async move {
+                while !cancellation_token.is_cancelled() {
+                    let resources = client.list(&Default::default()).await;
+                    match resources {
+                        Ok(objects) => {
+                            results = emit_results(objects, results, &init_data, &context_tx);
+                            is_ready.store(true, Ordering::Relaxed);
+                            has_error.store(false, Ordering::Relaxed);
+                        },
+                        Err(error) => {
+                            results = None;
+                            warn!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
+                            is_ready.store(false, Ordering::Relaxed);
+                            has_error.store(true, Ordering::Relaxed);
+                        },
+                    }
+
+                    tokio::select! {
+                        _ = cancellation_token.cancelled() => (),
+                        _ = sleep(Duration::from_millis(5_000)) => (),
+                    }
+                }
+            }
+        })
+    }
+}
+
+fn emit_results(
+    objects: ObjectList<DynamicObject>,
+    prev_results: Option<HashMap<String, DynamicObject>>,
+    init_data: &InitData,
+    context_tx: &ObserverResultSender,
+) -> Option<HashMap<String, DynamicObject>> {
+    let result = objects.items.iter().map(|o| (get_object_uid(o), o.clone())).collect();
+    if let Some(mut prev_results) = prev_results {
+        for object in objects {
+            prev_results.remove(&get_object_uid(&object));
+            let _ = context_tx.send(Box::new(ObserverResult::new(object, false)));
+        }
+
+        for (_, object) in prev_results {
+            let _ = context_tx.send(Box::new(ObserverResult::new(object, true)));
+        }
+    } else {
+        let _ = context_tx.send(Box::new(ObserverResult::Init(Box::new(init_data.clone()))));
+        for object in objects {
+            let _ = context_tx.send(Box::new(ObserverResult::new(object, false)));
+        }
+
+        let _ = context_tx.send(Box::new(ObserverResult::InitDone));
+    }
+
+    Some(result)
 }
 
 impl Drop for BgObserver {
@@ -285,7 +374,7 @@ impl Drop for BgObserver {
 #[derive(Debug)]
 struct EventsProcessor {
     init_data: InitData,
-    context_tx: UnboundedSender<Box<ObserverResult<DynamicObject>>>,
+    context_tx: ObserverResultSender,
     footer_tx: FooterTx,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
@@ -349,14 +438,12 @@ impl EventsProcessor {
     }
 
     fn send_init_result(&self) {
-        self.context_tx
-            .send(Box::new(ObserverResult::Init(Box::new(self.init_data.clone()))))
-            .unwrap();
+        let _ = self
+            .context_tx
+            .send(Box::new(ObserverResult::Init(Box::new(self.init_data.clone()))));
     }
 
     fn send_result(&self, object: DynamicObject, is_delete: bool) {
-        self.context_tx
-            .send(Box::new(ObserverResult::new(object, is_delete)))
-            .unwrap();
+        let _ = self.context_tx.send(Box::new(ObserverResult::new(object, is_delete)));
     }
 }
