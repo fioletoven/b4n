@@ -14,6 +14,7 @@ use crate::{
 
 pub mod config_map;
 pub mod container;
+pub mod crd;
 pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
@@ -35,6 +36,7 @@ pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicO
 
     match kind {
         "ConfigMap" => config_map::data(object),
+        "CustomResourceDefinition" => crd::data(object),
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
         "Event" => event::data(object),
@@ -58,6 +60,7 @@ pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
 
     match kind {
         "ConfigMap" => config_map::header(),
+        "CustomResourceDefinition" => crd::header(),
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
         "Event" => event::header(),
