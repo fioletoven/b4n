@@ -43,8 +43,8 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
-        let data = Some(get_resource_data(kind, crd, &object));
+    pub fn from(kind: &str, group: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
+        let data = Some(get_resource_data(kind, group, crd, &object));
         let filter = get_filter_metadata(&object);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
@@ -93,8 +93,8 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str, crd: Option<&CrdColumns>) -> Header {
-        get_header_data(kind, crd)
+    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>) -> Header {
+        get_header_data(kind, group, crd)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.

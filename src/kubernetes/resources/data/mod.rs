@@ -1,11 +1,10 @@
-use std::borrow::Cow;
-
 use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::Time,
     chrono::{DateTime, Utc},
     serde_json::{Value, from_value},
 };
 use kube::api::DynamicObject;
+use std::borrow::Cow;
 
 use crate::{
     kubernetes::{resources::CrdColumns, utils::format_datetime},
@@ -22,14 +21,16 @@ pub mod deployment;
 pub mod event;
 pub mod job;
 pub mod namespace;
+pub mod node_metrics;
 pub mod pod;
+pub mod pod_metrics;
 pub mod replica_set;
 pub mod secret;
 pub mod service;
 pub mod stateful_set;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
-pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicObject) -> ResourceData {
+pub fn get_resource_data(kind: &str, group: &str, crd: Option<&CrdColumns>, object: &DynamicObject) -> ResourceData {
     if let Some(crd) = crd {
         return custom_resource::data(crd, object);
     }
@@ -42,7 +43,9 @@ pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicO
         "Event" => event::data(object),
         "Job" => job::data(object),
         "Namespace" => namespace::data(object),
+        "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
         "Pod" => pod::data(object),
+        "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::data(object),
         "ReplicaSet" => replica_set::data(object),
         "Secret" => secret::data(object),
         "Service" => service::data(object),
@@ -53,7 +56,7 @@ pub fn get_resource_data(kind: &str, crd: Option<&CrdColumns>, object: &DynamicO
 }
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
+pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>) -> Header {
     if let Some(crd) = crd {
         return custom_resource::header(crd);
     }
@@ -66,7 +69,9 @@ pub fn get_header_data(kind: &str, crd: Option<&CrdColumns>) -> Header {
         "Event" => event::header(),
         "Job" => job::header(),
         "Namespace" => namespace::header(),
+        "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
         "Pod" => pod::header(),
+        "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),
         "ReplicaSet" => replica_set::header(),
         "Secret" => secret::header(),
         "Service" => service::header(),

@@ -21,6 +21,7 @@ use crate::{
 pub struct ResourceObserver {
     observer: BgObserver,
     queue: VecDeque<Box<ObserverResult<ResourceItem>>>,
+    group: String,
     crds: SharedCrdsList,
     crd: Option<CrdColumns>,
 }
@@ -31,6 +32,7 @@ impl ResourceObserver {
         Self {
             observer: BgObserver::new(footer_tx),
             queue: VecDeque::with_capacity(200),
+            group: String::default(),
             crds,
             crd: None,
         }
@@ -128,6 +130,7 @@ impl ResourceObserver {
                 ObserverResult::Init(mut init_data) => {
                     self.queue.clear();
                     self.init_crd_kind(&mut init_data);
+                    self.group = init_data.group.clone();
                     Some(Box::new(ObserverResult::Init(init_data)))
                 },
                 ObserverResult::InitDone => Some(Box::new(ObserverResult::InitDone)),
@@ -170,7 +173,10 @@ impl ResourceObserver {
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
         let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
-        let result = ObserverResult::new(ResourceItem::from(kind, self.crd.as_ref(), object), is_delete);
+        let result = ObserverResult::new(
+            ResourceItem::from(kind, self.group.as_str(), self.crd.as_ref(), object),
+            is_delete,
+        );
         self.queue.push_back(Box::new(result));
     }
 
