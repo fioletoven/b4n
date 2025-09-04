@@ -1,3 +1,5 @@
+use kube::api::ApiResource;
+
 use crate::kubernetes::{Kind, Namespace, resources::PODS};
 
 /// Points to the specific kubernetes resource.\
@@ -59,5 +61,17 @@ impl ResourceRef {
     /// Returns `true` if [`ResourceRef`] points to a specific container or containers.
     pub fn is_container(&self) -> bool {
         self.is_any_container || self.container.is_some()
+    }
+}
+
+impl From<&ApiResource> for ResourceRef {
+    fn from(value: &ApiResource) -> Self {
+        Self {
+            kind: Kind::new(&value.plural, &value.group),
+            namespace: Namespace::all(),
+            name: None,
+            container: None,
+            is_any_container: false,
+        }
     }
 }

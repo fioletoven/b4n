@@ -7,7 +7,7 @@ use kube::api::DynamicObject;
 use std::borrow::Cow;
 
 use crate::{
-    kubernetes::{resources::CrdColumns, utils::format_datetime},
+    kubernetes::{resources::CrdColumns, utils::format_datetime, watchers::Statistics},
     ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 
@@ -21,6 +21,7 @@ pub mod deployment;
 pub mod event;
 pub mod job;
 pub mod namespace;
+pub mod node;
 pub mod node_metrics;
 pub mod pod;
 pub mod pod_metrics;
@@ -30,7 +31,13 @@ pub mod service;
 pub mod stateful_set;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
-pub fn get_resource_data(kind: &str, group: &str, crd: Option<&CrdColumns>, object: &DynamicObject) -> ResourceData {
+pub fn get_resource_data(
+    kind: &str,
+    group: &str,
+    crd: Option<&CrdColumns>,
+    stats: &Statistics,
+    object: &DynamicObject,
+) -> ResourceData {
     if let Some(crd) = crd {
         return custom_resource::data(crd, object);
     }
@@ -43,6 +50,7 @@ pub fn get_resource_data(kind: &str, group: &str, crd: Option<&CrdColumns>, obje
         "Event" => event::data(object),
         "Job" => job::data(object),
         "Namespace" => namespace::data(object),
+        "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
         "Pod" => pod::data(object),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::data(object),
@@ -56,7 +64,7 @@ pub fn get_resource_data(kind: &str, group: &str, crd: Option<&CrdColumns>, obje
 }
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>) -> Header {
+pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, _has_metrics: bool) -> Header {
     if let Some(crd) = crd {
         return custom_resource::header(crd);
     }
@@ -69,6 +77,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>) -> Hea
         "Event" => event::header(),
         "Job" => job::header(),
         "Namespace" => namespace::header(),
+        "Node" => node::header(),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
         "Pod" => pod::header(),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),

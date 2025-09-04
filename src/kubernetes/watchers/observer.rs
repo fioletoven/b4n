@@ -80,6 +80,7 @@ pub struct InitData {
     pub scope: Scope,
     pub namespace: Namespace,
     pub crd: Option<CrdColumns>,
+    pub has_metrics: bool,
 }
 
 impl Default for InitData {
@@ -92,13 +93,14 @@ impl Default for InitData {
             scope: Scope::Cluster,
             namespace: Namespace::default(),
             crd: None,
+            has_metrics: false,
         }
     }
 }
 
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
-    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>) -> Self {
+    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
         if rt.is_container() {
             Self {
                 name: rt.name.clone(),
@@ -108,6 +110,7 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
                 crd,
+                has_metrics,
             }
         } else {
             Self {
@@ -118,6 +121,7 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
                 crd,
+                has_metrics,
             }
         }
     }
@@ -176,7 +180,7 @@ impl BgObserver {
         self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
 
-        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None);
+        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None, false);
         let api_client = client.get_api(
             &ar,
             &cap,

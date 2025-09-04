@@ -1,12 +1,8 @@
-use kube::{
-    Discovery,
-    api::{ApiResource, ListParams},
-    discovery::ApiCapabilities,
-};
+use kube::{Discovery, api::ListParams};
 use thiserror;
 
 use crate::{
-    core::discovery::convert_to_vector,
+    core::{DiscoveryList, discovery::convert_to_vector},
     kubernetes::{
         Kind, NAMESPACES, Namespace,
         client::{ClientOptions, KubernetesClient},
@@ -38,7 +34,7 @@ pub struct KubernetesClientResult {
     pub client: KubernetesClient,
     pub kind: Kind,
     pub namespace: Namespace,
-    pub discovery: Vec<(ApiResource, ApiCapabilities)>,
+    pub discovery: DiscoveryList,
 }
 
 /// Command that creates new kubernetes client.

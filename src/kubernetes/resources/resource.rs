@@ -6,7 +6,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{resources::CrdColumns, utils::get_object_uid},
+    kubernetes::{resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -43,8 +43,8 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, group: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
-        let data = Some(get_resource_data(kind, group, crd, &object));
+    pub fn from(kind: &str, group: &str, crd: Option<&CrdColumns>, stats: &Statistics, object: DynamicObject) -> Self {
+        let data = Some(get_resource_data(kind, group, crd, stats, &object));
         let filter = get_filter_metadata(&object);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
@@ -93,8 +93,8 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>) -> Header {
-        get_header_data(kind, group, crd)
+    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool) -> Header {
+        get_header_data(kind, group, crd, has_metrics)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.

@@ -8,6 +8,8 @@ use kube::{
     discovery::ApiCapabilities,
 };
 
+use crate::core::DiscoveryList;
+
 use super::Kind;
 
 /// Serializes kubernetes resource to YAML.
@@ -64,7 +66,7 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
 
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.\
 /// Kind value can be in the format `kind.group`.
-pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &Kind) -> Option<(ApiResource, ApiCapabilities)> {
+pub fn get_resource(list: Option<&DiscoveryList>, kind: &Kind) -> Option<(ApiResource, ApiCapabilities)> {
     if kind.has_group() {
         get_resource_with_group(list, kind.name(), kind.group())
     } else {
@@ -73,11 +75,7 @@ pub fn get_resource(list: Option<&Vec<(ApiResource, ApiCapabilities)>>, kind: &K
 }
 
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` and `group`.
-fn get_resource_with_group(
-    list: Option<&Vec<(ApiResource, ApiCapabilities)>>,
-    kind: &str,
-    group: &str,
-) -> Option<(ApiResource, ApiCapabilities)> {
+fn get_resource_with_group(list: Option<&DiscoveryList>, kind: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
     if group.is_empty() {
         get_resource_no_group(list, kind)
     } else {
@@ -94,10 +92,7 @@ fn get_resource_with_group(
 }
 
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` ignoring `group`.
-fn get_resource_no_group(
-    list: Option<&Vec<(ApiResource, ApiCapabilities)>>,
-    kind: &str,
-) -> Option<(ApiResource, ApiCapabilities)> {
+fn get_resource_no_group(list: Option<&DiscoveryList>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
     list.and_then(|discovery| {
         discovery
             .iter()

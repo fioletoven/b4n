@@ -12,7 +12,7 @@ use crate::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
         resources::{CrdColumns, PODS, ResourceItem},
-        watchers::{BgObserverError, InitData, ObserverResult, observer::BgObserver},
+        watchers::{BgObserverError, InitData, ObserverResult, SharedStatistics, observer::BgObserver},
     },
     ui::widgets::FooterTx,
 };
@@ -24,17 +24,19 @@ pub struct ResourceObserver {
     group: String,
     crds: SharedCrdsList,
     crd: Option<CrdColumns>,
+    statistics: SharedStatistics,
 }
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(crds: SharedCrdsList, footer_tx: FooterTx) -> Self {
+    pub fn new(crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: FooterTx) -> Self {
         Self {
             observer: BgObserver::new(footer_tx),
             queue: VecDeque::with_capacity(200),
             group: String::default(),
             crds,
             crd: None,
+            statistics,
         }
     }
 
@@ -129,7 +131,7 @@ impl ResourceObserver {
             match *result {
                 ObserverResult::Init(mut init_data) => {
                     self.queue.clear();
-                    self.init_crd_kind(&mut init_data);
+                    self.inject_init_data(&mut init_data);
                     self.group = init_data.group.clone();
                     Some(Box::new(ObserverResult::Init(init_data)))
                 },
@@ -174,16 +176,24 @@ impl ResourceObserver {
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
         let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
         let result = ObserverResult::new(
-            ResourceItem::from(kind, self.group.as_str(), self.crd.as_ref(), object),
+            ResourceItem::from(
+                kind,
+                self.group.as_str(),
+                self.crd.as_ref(),
+                &self.statistics.borrow(),
+                object,
+            ),
             is_delete,
         );
         self.queue.push_back(Box::new(result));
     }
 
-    fn init_crd_kind(&mut self, init_data: &mut InitData) {
+    /// Injects additional data to the [`InitData`] for observed resources.
+    fn inject_init_data(&mut self, init_data: &mut InitData) {
         let kind = Kind::new(&init_data.kind_plural, &init_data.group);
         self.crd = self.crds.borrow().iter().find(|i| i.name == kind.as_str()).cloned();
         init_data.crd.clone_from(&self.crd);
+        init_data.has_metrics = self.statistics.borrow().has_metrics;
     }
 }
 

@@ -167,7 +167,7 @@ impl View for ForwardsView {
         }
 
         let mut worker = self.worker.borrow_mut();
-        if worker.is_port_forward_list_changed() {
+        if worker.check_port_forward_list_changed() {
             self.list.table.update(worker.get_port_forwards_list(&self.namespace));
             self.header.set_count(self.list.table.len());
         }

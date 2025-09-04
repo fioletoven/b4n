@@ -30,7 +30,7 @@ const BINARY_BASE: [u64; 6] = [EIB, PIB, TIB, GIB, MIB, KIB];
 const BINARY_STR: [&str; 6] = ["Ei", "Pi", "Ti", "Gi", "Mi", "Ki"];
 
 /// Memory usage metrics.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct MemoryMetrics {
     pub value: u64,
     pub is_binary: bool,
@@ -99,7 +99,7 @@ impl FromStr for MemoryMetrics {
 }
 
 /// CPU usage metrics.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CpuMetrics {
     pub value: u64,
 }
@@ -145,6 +145,33 @@ impl FromStr for CpuMetrics {
             "" | "n" => Ok(CpuMetrics::new(value)),
             _ => Err(MetricsError::ParseError),
         }
+    }
+}
+
+/// Memory and CPU usage metrics.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct Metrics {
+    pub memory: MemoryMetrics,
+    pub cpu: CpuMetrics,
+}
+
+impl Add for Metrics {
+    type Output = Metrics;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Metrics {
+            memory: self.memory + rhs.memory,
+            cpu: self.cpu + rhs.cpu,
+        }
+    }
+}
+
+impl Sum for Metrics {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Metrics::default(), |acc, item| Metrics {
+            memory: acc.memory + item.memory,
+            cpu: acc.cpu + item.cpu,
+        })
     }
 }
 
