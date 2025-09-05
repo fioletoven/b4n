@@ -64,7 +64,7 @@ pub fn get_resource_data(
 }
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, _has_metrics: bool) -> Header {
+pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool) -> Header {
     if let Some(crd) = crd {
         return custom_resource::header(crd);
     }
@@ -77,7 +77,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, _has_m
         "Event" => event::header(),
         "Job" => job::header(),
         "Namespace" => namespace::header(),
-        "Node" => node::header(),
+        "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
         "Pod" => pod::header(),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),

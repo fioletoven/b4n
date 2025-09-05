@@ -15,14 +15,14 @@ use crate::{
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 
-/// Holds `Node` statistics.
+/// Holds `node` statistics.
 #[derive(Debug)]
 pub struct NodeStats {
     pub metrics: Option<Metrics>,
     pub pods: Vec<PodStats>,
 }
 
-/// Holds `Pod` statistics.
+/// Holds `pod` statistics.
 #[derive(Debug)]
 pub struct PodStats {
     pub name: String,
@@ -53,7 +53,7 @@ impl PodStats {
     }
 }
 
-/// Holds `Container` statistics.
+/// Holds `container` statistics.
 #[derive(Debug)]
 pub struct ContainerStats {
     pub name: String,
@@ -98,6 +98,24 @@ impl Statistics {
             .map(|node| node.pods.iter().map(|p| p.containers.len()).sum())
             .unwrap_or_default()
     }
+
+    /// Returns CPU usage for the Kubernetes node.
+    pub fn node_cpu(&self, node_name: &str) -> u64 {
+        self.data
+            .get(node_name)
+            .and_then(|node| node.metrics)
+            .map(|metrics| metrics.cpu.value)
+            .unwrap_or_default()
+    }
+
+    /// Returns Memory usage for the Kubernetes node.
+    pub fn node_memory(&self, node_name: &str) -> u64 {
+        self.data
+            .get(node_name)
+            .and_then(|node| node.metrics)
+            .map(|metrics| metrics.memory.value)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -119,8 +137,8 @@ impl From<&DynamicObject> for PodData {
     }
 }
 
-/// Collects and stores pod and node metrics for the Kubernetes cluster,
-/// it runs background observers for tracking updates.
+/// Collects and stores pod and node metrics for the Kubernetes cluster.\
+/// **Note** that it runs up to 3 background observers for tracking changes.
 pub struct BgStatistics {
     stats: SharedStatistics,
     pods: BgObserver,
@@ -152,7 +170,10 @@ impl BgStatistics {
         }
     }
 
+    /// Starts new [`BgStatistics`] task.\
+    /// **Note** that it stops the old tasks if any is running.
     pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>) {
+        self.stop();
         self.has_metrics = false;
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, ""))
@@ -174,6 +195,22 @@ impl BgStatistics {
                 .start(client, (&discovery.0).into(), Some(discovery))
                 .is_ok();
         }
+    }
+
+    /// Cancels [`BgStatistics`] task.
+    pub fn cancel(&mut self) {
+        self.pods.cancel();
+        self.pods_metrics.cancel();
+        self.nodes_metrics.cancel();
+    }
+
+    /// Cancels [`BgStatistics`] task and waits until it is finished.
+    pub fn stop(&mut self) {
+        self.cancel();
+
+        self.pods.stop();
+        self.pods_metrics.stop();
+        self.nodes_metrics.stop();
     }
 
     pub fn update_statistics(&mut self) {

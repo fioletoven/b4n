@@ -144,7 +144,8 @@ impl FromStr for CpuMetrics {
         };
 
         match unit.to_ascii_lowercase().as_str() {
-            "" | "n" => Ok(CpuMetrics::new(value)),
+            "" => Ok(CpuMetrics::new(value.saturating_mul(1_000_000_000))),
+            "n" => Ok(CpuMetrics::new(value)),
             _ => Err(MetricsError::ParseError),
         }
     }
