@@ -43,6 +43,14 @@ impl MemoryMetrics {
     pub fn new(value: u64, is_binary: bool) -> Self {
         Self { value, is_binary }
     }
+
+    pub fn rounded(&self) -> String {
+        if self.is_binary {
+            get_memory_rounded(self.value, &BINARY_BASE, &BINARY_STR)
+        } else {
+            get_memory_rounded(self.value, &DECIMAL_BASE, &DECIMAL_STR)
+        }
+    }
 }
 
 impl Add for MemoryMetrics {
@@ -210,7 +218,7 @@ fn split_unit(input: &str) -> Result<(u64, &str), MetricsError> {
 }
 
 fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], units: &[&str; 6]) -> std::fmt::Result {
-    if value > KB {
+    if value > *base.last().unwrap_or(&0) {
         for (i, b) in base.iter().enumerate() {
             if value % b == 0 {
                 return f.write_fmt(format_args!("{}{}", value / b, units[i]));
@@ -219,4 +227,16 @@ fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], unit
     }
 
     f.write_fmt(format_args!("{}B", value))
+}
+
+fn get_memory_rounded(value: u64, base: &[u64; 6], units: &[&str; 6]) -> String {
+    if value > *base.last().unwrap_or(&0) {
+        for (i, b) in base.iter().enumerate() {
+            if value > *b {
+                return format!("{}{}", (value as f64 / *b as f64).round(), units[i]);
+            }
+        }
+    }
+
+    format!("{}B", value)
 }

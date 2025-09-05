@@ -99,6 +99,11 @@ impl Statistics {
             .unwrap_or_default()
     }
 
+    /// Returns specified node from the statistics.
+    pub fn node(&self, node_name: &str) -> Option<&NodeStats> {
+        self.data.get(node_name)
+    }
+
     /// Returns CPU usage for the Kubernetes node.
     pub fn node_cpu(&self, node_name: &str) -> u64 {
         self.data

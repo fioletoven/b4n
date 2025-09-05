@@ -33,10 +33,13 @@ pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
     ];
 
     if stats.has_metrics {
+        let memory = status["allocatable"]["memory"].as_str();
         let cpu = get_cpu_usage(stats, name, status["allocatable"]["cpu"].as_str());
-        let mem = get_mem_usage(stats, name, status["allocatable"]["memory"].as_str());
+        let mem = get_mem_usage(stats, name, memory);
+
         values.push(ResourceValue::number(cpu, 7));
         values.push(ResourceValue::number(mem, 7));
+        values.push(get_rounded_memory(stats, name).into());
     }
 
     ResourceData {
@@ -63,9 +66,11 @@ pub fn header(has_metrics: bool) -> Header {
     if has_metrics {
         columns.push(Column::fixed("%CPU", 7, true));
         columns.push(Column::fixed("%MEM", 7, true));
+        columns.push(Column::bound("MEM", 6, 20, true));
 
         sort_symbols.push('C');
         sort_symbols.push('M');
+        sort_symbols.push('E');
     }
 
     sort_symbols.push('A');
@@ -106,4 +111,8 @@ fn get_mem_usage(stats: &Statistics, node_name: &str, total_mem: Option<&str>) -
     let total = total_mem?.parse::<MemoryMetrics>().ok()?;
 
     Some((memory as f64) * 100.0 / total.value as f64)
+}
+
+fn get_rounded_memory(stats: &Statistics, node_name: &str) -> Option<String> {
+    stats.node(node_name).and_then(|n| n.metrics).map(|m| m.memory.rounded())
 }
