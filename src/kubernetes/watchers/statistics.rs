@@ -15,12 +15,14 @@ use crate::{
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 
+/// Holds `Node` statistics.
 #[derive(Debug)]
 pub struct NodeStats {
     pub metrics: Option<Metrics>,
     pub pods: Vec<PodStats>,
 }
 
+/// Holds `Pod` statistics.
 #[derive(Debug)]
 pub struct PodStats {
     pub name: String,
@@ -29,13 +31,76 @@ pub struct PodStats {
     pub containers: Vec<ContainerStats>,
 }
 
+impl PodStats {
+    fn from(pod: &PodData, has_metrics: bool) -> Self {
+        PodStats {
+            name: pod.name.clone(),
+            namespace: pod.namespace.clone(),
+            metrics: if has_metrics {
+                Some(pod.containers.values().filter_map(|c| *c).sum())
+            } else {
+                None
+            },
+            containers: pod
+                .containers
+                .iter()
+                .map(|(name, metrics)| ContainerStats {
+                    name: name.clone(),
+                    metrics: *metrics,
+                })
+                .collect(),
+        }
+    }
+}
+
+/// Holds `Container` statistics.
 #[derive(Debug)]
 pub struct ContainerStats {
     pub name: String,
     pub metrics: Option<Metrics>,
 }
 
-#[derive(Default)]
+/// Holds all statistics for the Kubernetes cluster.
+#[derive(Debug)]
+pub struct Statistics {
+    pub has_metrics: bool,
+    data: HashMap<String, NodeStats>,
+}
+
+impl Statistics {
+    /// Returns number of nodes in the Kubernetes cluster.
+    pub fn all_nodes_count(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Returns number of pods in the Kubernetes cluster.
+    pub fn all_pods_count(&self) -> usize {
+        self.data.values().map(|n| n.pods.len()).sum()
+    }
+
+    /// Returns nuber of containers in the Kubernetes cluster.
+    pub fn all_containers_count(&self) -> usize {
+        self.data
+            .values()
+            .map(|n| n.pods.iter().map(|p| p.containers.len()).sum::<usize>())
+            .sum()
+    }
+
+    /// Returns number of pods in the Kubernetes node.
+    pub fn pods_count(&self, node_name: &str) -> usize {
+        self.data.get(node_name).map(|node| node.pods.len()).unwrap_or_default()
+    }
+
+    /// Returns number of containers in the Kubernetes node.
+    pub fn containers_count(&self, node_name: &str) -> usize {
+        self.data
+            .get(node_name)
+            .map(|node| node.pods.iter().map(|p| p.containers.len()).sum())
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Default, Debug)]
 struct PodData {
     node_name: String,
     name: String,
@@ -54,49 +119,22 @@ impl From<&DynamicObject> for PodData {
     }
 }
 
-pub struct Statistics {
-    pub has_metrics: bool,
-    data: HashMap<String, NodeStats>,
-}
-
-impl Statistics {
-    pub fn all_nodes_count(&self) -> usize {
-        self.data.len()
-    }
-
-    pub fn all_pods_count(&self) -> usize {
-        self.data.values().map(|n| n.pods.len()).sum()
-    }
-
-    pub fn all_containers_count(&self) -> usize {
-        self.data
-            .values()
-            .map(|n| n.pods.iter().map(|p| p.containers.len()).sum::<usize>())
-            .sum()
-    }
-
-    pub fn pods_count(&self, node_name: &str) -> usize {
-        self.data.get(node_name).map(|node| node.pods.len()).unwrap_or_default()
-    }
-
-    pub fn containers_count(&self, node_name: &str) -> usize {
-        self.data
-            .get(node_name)
-            .map(|node| node.pods.iter().map(|p| p.containers.len()).sum())
-            .unwrap_or_default()
-    }
-}
-
+/// Collects and stores pod and node metrics for the Kubernetes cluster,
+/// it runs background observers for tracking updates.
 pub struct BgStatistics {
     stats: SharedStatistics,
     pods: BgObserver,
-    data: HashMap<String, PodData>,
+    pods_metrics: BgObserver,
+    nodes_metrics: BgObserver,
+    pod_data: HashMap<String, PodData>,
+    node_data: HashMap<String, Option<Metrics>>,
     footer_tx: FooterTx,
     is_dirty: bool,
     has_metrics: bool,
 }
 
 impl BgStatistics {
+    /// Creates new [`BgStatistics`] instance.
     pub fn new(footer_tx: FooterTx) -> Self {
         Self {
             stats: Rc::new(RefCell::new(Statistics {
@@ -104,7 +142,10 @@ impl BgStatistics {
                 has_metrics: false,
             })),
             pods: BgObserver::new(footer_tx.clone()),
-            data: HashMap::new(),
+            pods_metrics: BgObserver::new(footer_tx.clone()),
+            nodes_metrics: BgObserver::new(footer_tx.clone()),
+            pod_data: HashMap::new(),
+            node_data: HashMap::new(),
             footer_tx,
             is_dirty: false,
             has_metrics: false,
@@ -112,10 +153,26 @@ impl BgStatistics {
     }
 
     pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>) {
+        self.has_metrics = false;
+
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, ""))
             && self.pods.start(client, (&discovery.0).into(), Some(discovery)).is_err()
         {
             self.footer_tx.show_error("Cannot run statistics task", 0);
+        }
+
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io")) {
+            self.has_metrics = self
+                .pods_metrics
+                .start(client, (&discovery.0).into(), Some(discovery))
+                .is_ok();
+        }
+
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new("nodes", "metrics.k8s.io")) {
+            self.has_metrics = self
+                .nodes_metrics
+                .start(client, (&discovery.0).into(), Some(discovery))
+                .is_ok();
         }
     }
 
@@ -127,6 +184,18 @@ impl BgStatistics {
                     super::ObserverResult::Apply(result) => self.add_pod_data(&result),
                     super::ObserverResult::Delete(result) => self.del_pod_data(&result),
                     _ => (),
+                }
+            }
+
+            while let Some(result) = self.pods_metrics.try_next() {
+                if let super::ObserverResult::Apply(result) = *result {
+                    self.add_pod_metrics(&result)
+                }
+            }
+
+            while let Some(result) = self.nodes_metrics.try_next() {
+                if let super::ObserverResult::Apply(result) = *result {
+                    self.add_node_metrics(&result)
                 }
             }
         }
@@ -142,7 +211,7 @@ impl BgStatistics {
 
     fn recalculate_statistics(&mut self) {
         let mut new_stats = self
-            .data
+            .pod_data
             .values()
             .map(|pod| {
                 (
@@ -155,31 +224,17 @@ impl BgStatistics {
             })
             .collect::<HashMap<_, _>>();
 
-        for pod in self.data.values() {
+        for pod in self.pod_data.values() {
             if let Some(node) = new_stats.get_mut(&pod.node_name) {
-                node.pods.push(PodStats {
-                    name: pod.name.clone(),
-                    namespace: pod.namespace.clone(),
-                    metrics: if self.has_metrics {
-                        Some(pod.containers.values().filter_map(|c| *c).sum())
-                    } else {
-                        None
-                    },
-                    containers: pod
-                        .containers
-                        .iter()
-                        .map(|(name, metrics)| ContainerStats {
-                            name: name.clone(),
-                            metrics: *metrics,
-                        })
-                        .collect(),
-                });
+                node.pods.push(PodStats::from(pod, self.has_metrics));
             }
         }
 
         if self.has_metrics {
-            for node in new_stats.values_mut() {
-                node.metrics = Some(node.pods.iter().filter_map(|p| p.metrics).sum());
+            for (name, node) in &mut new_stats {
+                if let Some(&metrics) = self.node_data.get(name) {
+                    node.metrics = metrics;
+                }
             }
         }
 
@@ -192,7 +247,7 @@ impl BgStatistics {
     fn add_pod_data(&mut self, resource: &DynamicObject) {
         let uid = get_uid(resource);
 
-        self.data
+        self.pod_data
             .entry(uid)
             .and_modify(|pod| update_containers(&mut pod.containers, resource))
             .or_insert_with(|| resource.into());
@@ -201,8 +256,32 @@ impl BgStatistics {
     }
 
     fn del_pod_data(&mut self, resource: &DynamicObject) {
-        self.data.remove(&get_uid(resource));
+        self.pod_data.remove(&get_uid(resource));
         self.is_dirty = true;
+    }
+
+    fn add_pod_metrics(&mut self, resource: &DynamicObject) {
+        let uid = get_uid(resource);
+        if let Some(pod) = self.pod_data.get_mut(&uid)
+            && let Some(containers) = resource.data["containers"].as_array()
+        {
+            for container in containers {
+                let name = container["name"].as_str().unwrap_or_default();
+                if let Some(metrics) = pod.containers.get_mut(name) {
+                    *metrics = Metrics::try_from(container).ok();
+                }
+            }
+
+            self.is_dirty = true;
+        }
+    }
+
+    fn add_node_metrics(&mut self, resource: &DynamicObject) {
+        let name = resource.name_any();
+        self.node_data
+            .entry(name)
+            .and_modify(|metrics| *metrics = Metrics::try_from(&resource.data).ok())
+            .or_insert_with(|| Metrics::try_from(&resource.data).ok());
     }
 }
 

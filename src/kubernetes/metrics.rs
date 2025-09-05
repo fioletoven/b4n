@@ -1,5 +1,7 @@
 use std::{fmt::Display, iter::Sum, ops::Add, str::FromStr};
 
+use k8s_openapi::serde_json::Value;
+
 #[cfg(test)]
 #[path = "./metrics.tests.rs"]
 mod metrics_tests;
@@ -153,6 +155,23 @@ impl FromStr for CpuMetrics {
 pub struct Metrics {
     pub memory: MemoryMetrics,
     pub cpu: CpuMetrics,
+}
+
+impl TryFrom<&Value> for Metrics {
+    type Error = MetricsError;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        let cpu = value["usage"]["cpu"].as_str().unwrap_or_default();
+        let memory = value["usage"]["memory"].as_str().unwrap_or_default();
+        if cpu.is_empty() && memory.is_empty() {
+            Err(MetricsError::ParseError)
+        } else {
+            Ok(Metrics {
+                memory: MemoryMetrics::from_str(memory)?,
+                cpu: CpuMetrics::from_str(cpu)?,
+            })
+        }
+    }
 }
 
 impl Add for Metrics {
