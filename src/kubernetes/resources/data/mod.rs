@@ -226,7 +226,7 @@ impl From<Option<&DateTime<Utc>>> for ResourceValue {
 
 impl From<Option<CpuMetrics>> for ResourceValue {
     fn from(value: Option<CpuMetrics>) -> Self {
-        value.map(|v| v.into()).unwrap_or_default()
+        value.map(Into::into).unwrap_or_default()
     }
 }
 
@@ -244,7 +244,7 @@ impl From<CpuMetrics> for ResourceValue {
 
 impl From<Option<MemoryMetrics>> for ResourceValue {
     fn from(value: Option<MemoryMetrics>) -> Self {
-        value.map(|v| v.into()).unwrap_or_default()
+        value.map(Into::into).unwrap_or_default()
     }
 }
 

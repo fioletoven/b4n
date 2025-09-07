@@ -25,9 +25,10 @@ As the project is in its early stages, the following features are currently supp
 
 The following features are planned for future development:
 
-- Show CPU/memory metrics for pods and clusters.
+- View events for selected pod.
 - View combined logs for all containers in a pod.
 - Edit Kubernetes resources (YAML).
+- Create Kubernetes resources (YAML).
 - Describe Kubernetes resources.
 
 ## Key Bindings

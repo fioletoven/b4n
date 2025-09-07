@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use kube::{
     Api,
-    api::{ApiResource, DynamicObject, ObjectList},
+    api::{ApiResource, DynamicObject, ListParams, ObjectList},
     discovery::{ApiCapabilities, Scope, verbs},
     runtime::{
         WatchStreamExt,
@@ -315,10 +315,10 @@ impl BgObserver {
 
             async move {
                 while !cancellation_token.is_cancelled() {
-                    let resources = client.list(&Default::default()).await;
+                    let resources = client.list(&ListParams::default()).await;
                     match resources {
                         Ok(objects) => {
-                            results = emit_results(objects, results, &init_data, &context_tx);
+                            results = Some(emit_results(objects, results, &init_data, &context_tx));
                             is_ready.store(true, Ordering::Relaxed);
                             has_error.store(false, Ordering::Relaxed);
                         },
@@ -331,8 +331,8 @@ impl BgObserver {
                     }
 
                     tokio::select! {
-                        _ = cancellation_token.cancelled() => (),
-                        _ = sleep(Duration::from_millis(5_000)) => (),
+                        () = cancellation_token.cancelled() => (),
+                        () = sleep(Duration::from_millis(5_000)) => (),
                     }
                 }
             }
@@ -345,7 +345,7 @@ fn emit_results(
     prev_results: Option<HashMap<String, DynamicObject>>,
     init_data: &InitData,
     context_tx: &ObserverResultSender,
-) -> Option<HashMap<String, DynamicObject>> {
+) -> HashMap<String, DynamicObject> {
     let result = objects.items.iter().map(|o| (get_object_uid(o), o.clone())).collect();
     if let Some(mut prev_results) = prev_results {
         for object in objects {
@@ -365,7 +365,7 @@ fn emit_results(
         let _ = context_tx.send(Box::new(ObserverResult::InitDone));
     }
 
-    Some(result)
+    result
 }
 
 impl Drop for BgObserver {

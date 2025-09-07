@@ -13,7 +13,7 @@ use crate::{
 pub fn data(
     container: &Value,
     status: Option<&Value>,
-    metrics: Option<&Metrics>,
+    metrics: Option<Metrics>,
     is_init_container: bool,
     is_terminating: bool,
 ) -> ResourceData {

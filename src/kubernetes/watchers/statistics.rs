@@ -244,13 +244,13 @@ impl BgStatistics {
 
             while let Some(result) = self.pods_metrics.try_next() {
                 if let super::ObserverResult::Apply(result) = *result {
-                    self.add_pod_metrics(&result)
+                    self.add_pod_metrics(&result);
                 }
             }
 
             while let Some(result) = self.nodes_metrics.try_next() {
                 if let super::ObserverResult::Apply(result) = *result {
-                    self.add_node_metrics(&result)
+                    self.add_node_metrics(&result);
                 }
             }
         }

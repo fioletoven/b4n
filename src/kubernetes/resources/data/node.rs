@@ -12,13 +12,13 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the `nodes` kubernetes resource.
-pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
+pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let status = &object.data["status"];
-    let taints = i64::try_from(object.data["spec"]["taints"].as_array().map(|t| t.len()).unwrap_or_default()).ok();
+    let taints = i64::try_from(object.data["spec"]["taints"].as_array().map(Vec::len).unwrap_or_default()).ok();
     let version = status["nodeInfo"]["kubeletVersion"].as_str();
     let name = object.metadata.name.as_deref().unwrap_or_default();
-    let pods = i64::try_from(stats.pods_count(name)).ok();
-    let containers = i64::try_from(stats.containers_count(name)).ok();
+    let pods = i64::try_from(statistics.pods_count(name)).ok();
+    let containers = i64::try_from(statistics.containers_count(name)).ok();
     let ready = get_first_status(status["conditions"].as_array());
     let is_ready = ready.is_some_and(|r| r == "Ready");
     let is_terminating = object.metadata.deletion_timestamp.is_some();
@@ -32,13 +32,13 @@ pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
         ready.into(),
     ];
 
-    if stats.has_metrics {
-        let cpu_usage = get_cpu_usage(stats, name, status["allocatable"]["cpu"].as_str());
-        let mem_usage = get_mem_usage(stats, name, status["allocatable"]["memory"].as_str());
+    if statistics.has_metrics {
+        let cpu_usage = get_cpu_usage(statistics, name, status["allocatable"]["cpu"].as_str());
+        let mem_usage = get_mem_usage(statistics, name, status["allocatable"]["memory"].as_str());
 
-        values.push(stats.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into());
+        values.push(statistics.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into());
+        values.push(statistics.node(name).and_then(|n| n.metrics).map(|m| m.memory).into());
         values.push(ResourceValue::number(cpu_usage, 7));
-        values.push(stats.node(name).and_then(|n| n.metrics).map(|m| m.memory).into());
         values.push(ResourceValue::number(mem_usage, 7));
     }
 
@@ -65,11 +65,11 @@ pub fn header(has_metrics: bool) -> Header {
 
     if has_metrics {
         columns.push(Column::bound("CPU", 6, 20, true));
-        columns.push(Column::fixed("%CPU", 7, true));
         columns.push(Column::bound("MEM", 6, 20, true));
+        columns.push(Column::fixed("%CPU", 7, true));
         columns.push(Column::fixed("%MEM", 7, true));
 
-        symbols.extend_from_slice(&['C', 'U', 'M', 'E']);
+        symbols.extend_from_slice(&['C', 'M', 'U', 'E']);
     }
 
     symbols.push('A');

@@ -65,22 +65,21 @@ impl ResourceItem {
         container: &Value,
         status: Option<&Value>,
         pod_metadata: &ObjectMeta,
-        metrics: Option<&Metrics>,
+        metrics: Option<Metrics>,
         is_init_container: bool,
     ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
-        let uid = pod_metadata
+        let id_prefix = pod_metadata
             .uid
-            .as_ref()
-            .map(|u| format!("{}.{}.{}", u, container_name, if is_init_container { "I" } else { "M" }))
-            .unwrap_or_else(|| {
-                format!(
-                    "{}.{}.{}",
-                    pod_metadata.name.as_deref().unwrap_or_default(),
-                    container_name,
-                    if is_init_container { "I" } else { "M" }
-                )
-            });
+            .as_deref()
+            .or(pod_metadata.name.as_deref())
+            .unwrap_or_default();
+        let uid = format!(
+            "{}.{}.{}",
+            id_prefix,
+            container_name,
+            if is_init_container { "I" } else { "M" }
+        );
 
         Self {
             age: get_age_string(pod_metadata),

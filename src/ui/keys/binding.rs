@@ -137,11 +137,11 @@ impl<'de> Deserialize<'de> for KeyBindings {
         let mut bindings: HashMap<KeyCombination, HashSet<KeyCommand>> = HashMap::new();
         for (command_str, combination_str) in map {
             let command = KeyCommand::from_str(&command_str)
-                .map_err(|_| de::Error::custom(format_args!("invalid command: {}", command_str)))?;
+                .map_err(|_| de::Error::custom(format_args!("invalid command: {command_str}")))?;
 
             for combination in combination_str.split(',').map(str::trim).filter(|s| !s.is_empty()) {
                 let key_combination = KeyCombination::from_str(combination)
-                    .map_err(|_| de::Error::custom(format_args!("invalid key combination: {}", combination)))?;
+                    .map_err(|_| de::Error::custom(format_args!("invalid key combination: {combination}")))?;
                 bindings.entry(key_combination).or_default().insert(command.clone());
             }
         }

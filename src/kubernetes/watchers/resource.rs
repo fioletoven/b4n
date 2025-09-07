@@ -133,7 +133,7 @@ impl ResourceObserver {
                 ObserverResult::Init(mut init_data) => {
                     self.queue.clear();
                     self.inject_init_data(&mut init_data);
-                    self.group = init_data.group.clone();
+                    self.group.clone_from(&init_data.group);
                     Some(Box::new(ObserverResult::Init(init_data)))
                 },
                 ObserverResult::InitDone => Some(Box::new(ObserverResult::InitDone)),
@@ -170,9 +170,7 @@ impl ResourceObserver {
             let stats = &self.statistics.borrow();
             let pod_stats = get_pod_statistics(object, stats);
             for c in containers {
-                let metrics = pod_stats
-                    .and_then(|s| c["name"].as_str().and_then(|n| s.container(n)))
-                    .and_then(|s| s.metrics.as_ref());
+                let metrics = get_container_metrics(c, pod_stats, stats.has_metrics);
                 let result = get_container_result(c, object, statuses_array, metrics, is_init, is_delete);
                 self.queue.push_back(Box::new(result));
             }
@@ -223,11 +221,22 @@ fn get_pod_statistics<'a>(object: &DynamicObject, statistics: &'a Statistics) ->
     }
 }
 
+fn get_container_metrics(container: &Value, pod_stats: Option<&PodStats>, has_metrics: bool) -> Option<Metrics> {
+    let name = container["name"].as_str()?;
+    let metrics = pod_stats.and_then(|pod| pod.container(name)).and_then(|c| c.metrics);
+
+    match (has_metrics, metrics) {
+        (false, Some(_)) => None,
+        (true, None) => Some(Metrics::default()),
+        _ => metrics,
+    }
+}
+
 fn get_container_result(
     container: &Value,
     object: &DynamicObject,
     statuses_array: &str,
-    metrics: Option<&Metrics>,
+    metrics: Option<Metrics>,
     is_init_container: bool,
     is_delete: bool,
 ) -> ObserverResult<ResourceItem> {

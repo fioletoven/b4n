@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the `pod` kubernetes resource.
-pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
+pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let status = &object.data["status"];
     let spec = &object.data["spec"];
     let ready = status["containerStatuses"].as_array().map(|c| get_ready(c));
@@ -42,11 +42,11 @@ pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
         },
     ];
 
-    if stats.has_metrics
+    if statistics.has_metrics
         && let Some(node_name) = node
         && let Some(pod_name) = object.metadata.name.as_deref()
         && let Some(pod_namespace) = object.metadata.namespace.as_deref()
-        && let Some(stats) = stats.pod(node_name, pod_name, pod_namespace)
+        && let Some(stats) = statistics.pod(node_name, pod_name, pod_namespace)
     {
         values.push(stats.metrics.map(|m| m.cpu).into());
         values.push(stats.metrics.map(|m| m.memory).into());

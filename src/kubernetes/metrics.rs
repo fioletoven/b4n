@@ -233,7 +233,7 @@ fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], unit
         }
     }
 
-    f.write_fmt(format_args!("{}B", value))
+    f.write_fmt(format_args!("{value}B"))
 }
 
 fn get_memory_rounded(value: u64, base: &[u64; 6], units: &[&str; 6]) -> String {
@@ -245,5 +245,5 @@ fn get_memory_rounded(value: u64, base: &[u64; 6], units: &[&str; 6]) -> String 
         }
     }
 
-    format!("{}B", value)
+    format!("{value}B")
 }
