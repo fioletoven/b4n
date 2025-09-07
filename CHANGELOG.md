@@ -1,5 +1,19 @@
 # Change Log
 
+## 0.2.0 - 2025-09-07
+
+### Features
+
+- show cpu and memory metrics for pods and nodes
+- allow insecure connections
+- add columns for CustomResourceDefinition kind
+- add columns for Node kind
+
+### Bug fixes
+
+- fix clipboard behaviour on Linux
+- fix observer to support resources that are not watchable
+
 ## 0.1.9 - 2025-08-23
 
 ### Features

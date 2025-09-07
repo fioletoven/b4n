@@ -2,7 +2,7 @@
 
 `b4n` is a terminal user interface for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io).
 
-![b4n screenshot](assets/b4n.png?raw=true "b4n")
+![b4n demo](assets/b4n.gif?raw=true "b4n")
 
 ## Prerequisites
 

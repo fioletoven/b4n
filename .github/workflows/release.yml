@@ -51,10 +51,12 @@ jobs:
           os: ubuntu-24.04
           rust: stable
           target: x86_64-unknown-linux-gnu
+          target-short: x86_64-linux
         - build: win-msvc
           os: windows-2022
           rust: stable
           target: x86_64-pc-windows-msvc
+          target-short: x86_64-windows
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
@@ -73,7 +75,9 @@ jobs:
       shell: bash
       run: |
         outdir="./target/${{ matrix.target }}/release"
-        staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.tag }}-${{ matrix.target }}"
+        version="${{ needs.create-release.outputs.tag }}"
+        version="${version#v}"
+        staging="${{ env.BIN_NAME }}-${version}-${{ matrix.target-short }}"
         mkdir -p "$staging/themes"
         cp {README.md,LICENSE,CHANGELOG.md} "$staging/"
         cp assets/themes/* "$staging/themes/"
