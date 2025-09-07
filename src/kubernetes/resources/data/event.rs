@@ -13,9 +13,6 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     } else {
         object.data["lastTimestamp"].clone()
     };
-    let count = object.data["count"].as_i64().unwrap_or_default();
-    let r#type = object.data["type"].as_str().map(ToOwned::to_owned);
-    let reason = object.data["reason"].as_str().map(ToOwned::to_owned);
     let obj = &object.data["involvedObject"];
     let kind = obj["kind"].as_str().unwrap_or_default().to_ascii_lowercase();
     let name = obj["name"].as_str().unwrap_or_default();
@@ -28,9 +25,9 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 5] = [
         ResourceValue::time(last),
-        ResourceValue::integer(Some(count), 6),
-        r#type.into(),
-        reason.into(),
+        ResourceValue::integer(object.data["count"].as_i64(), 6),
+        object.data["type"].as_str().into(),
+        object.data["reason"].as_str().into(),
         obj.into(),
     ];
 

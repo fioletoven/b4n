@@ -9,6 +9,7 @@ pub mod utils;
 pub mod watchers;
 
 mod kind;
+mod metrics;
 mod namespace;
 mod resource_ref;
 

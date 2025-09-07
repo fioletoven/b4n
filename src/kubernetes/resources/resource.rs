@@ -6,7 +6,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{resources::CrdColumns, utils::get_object_uid},
+    kubernetes::{metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -43,8 +43,8 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes [`DynamicObject`].
-    pub fn from(kind: &str, crd: Option<&CrdColumns>, object: DynamicObject) -> Self {
-        let data = Some(get_resource_data(kind, crd, &object));
+    pub fn from(kind: &str, group: &str, crd: Option<&CrdColumns>, stats: &Statistics, object: DynamicObject) -> Self {
+        let data = Some(get_resource_data(kind, group, crd, stats, &object));
         let filter = get_filter_metadata(&object);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
@@ -61,20 +61,25 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes pod container and its metadata.
-    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
+    pub fn from_container(
+        container: &Value,
+        status: Option<&Value>,
+        pod_metadata: &ObjectMeta,
+        metrics: Option<Metrics>,
+        is_init_container: bool,
+    ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
-        let uid = pod_metadata
+        let id_prefix = pod_metadata
             .uid
-            .as_ref()
-            .map(|u| format!("{}.{}.{}", u, container_name, if is_init_container { "I" } else { "M" }))
-            .unwrap_or_else(|| {
-                format!(
-                    "{}.{}.{}",
-                    pod_metadata.name.as_deref().unwrap_or_default(),
-                    container_name,
-                    if is_init_container { "I" } else { "M" }
-                )
-            });
+            .as_deref()
+            .or(pod_metadata.name.as_deref())
+            .unwrap_or_default();
+        let uid = format!(
+            "{}.{}.{}",
+            id_prefix,
+            container_name,
+            if is_init_container { "I" } else { "M" }
+        );
 
         Self {
             age: get_age_string(pod_metadata),
@@ -86,6 +91,7 @@ impl ResourceItem {
             data: Some(container::data(
                 container,
                 status,
+                metrics,
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
@@ -93,8 +99,8 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str, crd: Option<&CrdColumns>) -> Header {
-        get_header_data(kind, crd)
+    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool) -> Header {
+        get_header_data(kind, group, crd, has_metrics)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.

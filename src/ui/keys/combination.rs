@@ -81,10 +81,10 @@ impl Display for KeyCombination {
                     KeyModifiers::ALT => f.write_str("Alt")?,
                     KeyModifiers::CONTROL => f.write_str("Ctrl")?,
                     _ => (),
-                };
+                }
             }
 
-            f.write_char('+')?
+            f.write_char('+')?;
         }
 
         let code = if let KeyCode::Char(c) = self.code {
@@ -92,7 +92,8 @@ impl Display for KeyCombination {
         } else {
             self.code
         };
-        write!(f, "{}", code)
+
+        write!(f, "{code}")
     }
 }
 
@@ -219,10 +220,8 @@ impl<'de> Deserialize<'de> for KeyCombination {
 fn get_modifier_from_name(modifier: &str) -> Result<KeyModifiers, KeyCombinationError> {
     match modifier.to_ascii_lowercase().as_str() {
         "shift" => Ok(KeyModifiers::SHIFT),
-        "alt" => Ok(KeyModifiers::ALT),
-        "option" => Ok(KeyModifiers::ALT),
-        "ctrl" => Ok(KeyModifiers::CONTROL),
-        "control" => Ok(KeyModifiers::CONTROL),
+        "alt" | "option" => Ok(KeyModifiers::ALT),
+        "ctrl" | "control" => Ok(KeyModifiers::CONTROL),
         _ => Err(KeyCombinationError::UnknownModifier),
     }
 }
@@ -237,9 +236,9 @@ fn get_code_from_name(code: &str) -> Result<KeyCode, KeyCombinationError> {
     {
         if num > 0 && num <= 12 {
             return Ok(KeyCode::F(num));
-        } else {
-            return Err(KeyCombinationError::UnknownCode);
         }
+
+        return Err(KeyCombinationError::UnknownCode);
     }
 
     match code {

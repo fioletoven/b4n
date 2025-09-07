@@ -14,7 +14,7 @@ use crate::{
         kinds::KindItem,
         resources::{CRDS, CrdColumns, PODS},
         utils::get_resource,
-        watchers::{BgObserverError, CrdObserver, ResourceObserver},
+        watchers::{BgObserverError, BgStatistics, CrdObserver, ResourceObserver},
     },
     ui::{views::PortForwardItem, widgets::FooterTx},
 };
@@ -26,6 +26,7 @@ use super::{
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
 pub type SharedCrdsList = Rc<RefCell<Vec<CrdColumns>>>;
+pub type DiscoveryList = Vec<(ApiResource, ApiCapabilities)>;
 
 /// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]
@@ -43,12 +44,13 @@ pub enum BgWorkerError {
 pub struct BgWorker {
     pub namespaces: ResourceObserver,
     pub resources: ResourceObserver,
+    pub statistics: BgStatistics,
     crds: CrdObserver,
     crds_list: SharedCrdsList,
     forwarder: PortForwarder,
     executor: BgExecutor,
     discovery: BgDiscovery,
-    discovery_list: Option<Vec<(ApiResource, ApiCapabilities)>>,
+    discovery_list: Option<DiscoveryList>,
     client: Option<KubernetesClient>,
 }
 
@@ -56,9 +58,11 @@ impl BgWorker {
     /// Creates new [`BgWorker`] instance.
     pub fn new(footer_tx: FooterTx) -> Self {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
+        let statistics = BgStatistics::new(footer_tx.clone());
         Self {
-            namespaces: ResourceObserver::new(Rc::clone(&crds_list), footer_tx.clone()),
-            resources: ResourceObserver::new(Rc::clone(&crds_list), footer_tx.clone()),
+            namespaces: ResourceObserver::new(Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
+            resources: ResourceObserver::new(Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
+            statistics,
             crds: CrdObserver::new(footer_tx.clone()),
             crds_list,
             forwarder: PortForwarder::new(footer_tx.clone()),
@@ -73,7 +77,7 @@ impl BgWorker {
     pub fn start(
         &mut self,
         client: KubernetesClient,
-        initial_discovery_list: Vec<(ApiResource, ApiCapabilities)>,
+        initial_discovery_list: DiscoveryList,
         resource: ResourceRef,
     ) -> Result<Scope, BgWorkerError> {
         self.discovery_list = Some(initial_discovery_list);
@@ -89,6 +93,8 @@ impl BgWorker {
 
         let discovery = get_resource(self.discovery_list.as_ref(), &Kind::from(CRDS));
         self.crds.start(&client, discovery)?;
+
+        self.statistics.start(&client, self.discovery_list.as_ref());
 
         self.client = Some(client);
 
@@ -147,6 +153,7 @@ impl BgWorker {
         self.discovery.stop();
         self.crds.stop();
         self.forwarder.stop_all();
+        self.statistics.stop();
     }
 
     /// Stops all background tasks running in the application.
@@ -157,6 +164,7 @@ impl BgWorker {
         self.discovery.stop();
         self.crds.stop();
         self.forwarder.stop_all();
+        self.statistics.stop();
     }
 
     /// Cancels all background tasks running in the application.
@@ -167,6 +175,7 @@ impl BgWorker {
         self.discovery.cancel();
         self.crds.cancel();
         self.forwarder.stop_all();
+        self.statistics.cancel();
     }
 
     /// Returns [`KubernetesClient`].
@@ -198,7 +207,7 @@ impl BgWorker {
     }
 
     /// Returns `true` if there was a change in the port forwards list since the last check.
-    pub fn is_port_forward_list_changed(&mut self) -> bool {
+    pub fn check_port_forward_list_changed(&mut self) -> bool {
         let mut list_changed = false;
         while self.forwarder.try_next().is_some() {
             list_changed = true;
@@ -227,6 +236,12 @@ impl BgWorker {
     pub fn update_crds_list(&mut self) {
         let mut list = self.crds_list.borrow_mut();
         self.crds.update_list(&mut list);
+    }
+
+    /// Updates statistics for `nodes` and `pods`.\
+    /// **Note** that it also updates data from metrics server if available.
+    pub fn update_statistics(&mut self) {
+        self.statistics.update_statistics();
     }
 
     /// Sends the provided command to the background executor.

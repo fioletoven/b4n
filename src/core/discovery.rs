@@ -1,9 +1,5 @@
 use backoff::backoff::Backoff;
-use kube::{
-    Discovery,
-    api::ApiResource,
-    discovery::{ApiCapabilities, ApiGroup},
-};
+use kube::{Discovery, discovery::ApiGroup};
 use std::{
     sync::{
         Arc,
@@ -19,7 +15,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
+use crate::{core::DiscoveryList, kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
 
 use super::utils::{build_default_backoff, wait_for_task};
 
@@ -29,8 +25,8 @@ const DISCOVERY_INTERVAL: u64 = 6_000;
 pub struct BgDiscovery {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<Vec<(ApiResource, ApiCapabilities)>>,
-    context_rx: UnboundedReceiver<Vec<(ApiResource, ApiCapabilities)>>,
+    context_tx: UnboundedSender<DiscoveryList>,
+    context_rx: UnboundedReceiver<DiscoveryList>,
     footer_tx: FooterTx,
     has_error: Arc<AtomicBool>,
 }
@@ -126,7 +122,7 @@ impl BgDiscovery {
     }
 
     /// Tries to get next discovery result.
-    pub fn try_next(&mut self) -> Option<Vec<(ApiResource, ApiCapabilities)>> {
+    pub fn try_next(&mut self) -> Option<DiscoveryList> {
         self.context_rx.try_recv().ok()
     }
 
@@ -144,6 +140,6 @@ impl Drop for BgDiscovery {
 
 /// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`].
 #[inline]
-pub fn convert_to_vector(discovery: &Discovery) -> Vec<(ApiResource, ApiCapabilities)> {
+pub fn convert_to_vector(discovery: &Discovery) -> DiscoveryList {
     discovery.groups().flat_map(ApiGroup::resources_by_stability).collect()
 }

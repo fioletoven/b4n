@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use kube::{
     Api,
-    api::{ApiResource, DynamicObject, ObjectList},
+    api::{ApiResource, DynamicObject, ListParams, ObjectList},
     discovery::{ApiCapabilities, Scope, verbs},
     runtime::{
         WatchStreamExt,
@@ -80,6 +80,7 @@ pub struct InitData {
     pub scope: Scope,
     pub namespace: Namespace,
     pub crd: Option<CrdColumns>,
+    pub has_metrics: bool,
 }
 
 impl Default for InitData {
@@ -92,13 +93,14 @@ impl Default for InitData {
             scope: Scope::Cluster,
             namespace: Namespace::default(),
             crd: None,
+            has_metrics: false,
         }
     }
 }
 
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
-    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>) -> Self {
+    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
         if rt.is_container() {
             Self {
                 name: rt.name.clone(),
@@ -108,6 +110,7 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
                 crd,
+                has_metrics,
             }
         } else {
             Self {
@@ -118,6 +121,7 @@ impl InitData {
                 scope,
                 namespace: rt.namespace.clone(),
                 crd,
+                has_metrics,
             }
         }
     }
@@ -176,7 +180,7 @@ impl BgObserver {
         self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
 
-        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None);
+        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None, false);
         let api_client = client.get_api(
             &ar,
             &cap,
@@ -311,10 +315,10 @@ impl BgObserver {
 
             async move {
                 while !cancellation_token.is_cancelled() {
-                    let resources = client.list(&Default::default()).await;
+                    let resources = client.list(&ListParams::default()).await;
                     match resources {
                         Ok(objects) => {
-                            results = emit_results(objects, results, &init_data, &context_tx);
+                            results = Some(emit_results(objects, results, &init_data, &context_tx));
                             is_ready.store(true, Ordering::Relaxed);
                             has_error.store(false, Ordering::Relaxed);
                         },
@@ -327,8 +331,8 @@ impl BgObserver {
                     }
 
                     tokio::select! {
-                        _ = cancellation_token.cancelled() => (),
-                        _ = sleep(Duration::from_millis(5_000)) => (),
+                        () = cancellation_token.cancelled() => (),
+                        () = sleep(Duration::from_millis(5_000)) => (),
                     }
                 }
             }
@@ -341,7 +345,7 @@ fn emit_results(
     prev_results: Option<HashMap<String, DynamicObject>>,
     init_data: &InitData,
     context_tx: &ObserverResultSender,
-) -> Option<HashMap<String, DynamicObject>> {
+) -> HashMap<String, DynamicObject> {
     let result = objects.items.iter().map(|o| (get_object_uid(o), o.clone())).collect();
     if let Some(mut prev_results) = prev_results {
         for object in objects {
@@ -361,7 +365,7 @@ fn emit_results(
         let _ = context_tx.send(Box::new(ObserverResult::InitDone));
     }
 
-    Some(result)
+    result
 }
 
 impl Drop for BgObserver {

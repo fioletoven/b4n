@@ -11,8 +11,9 @@ use crate::{
     kubernetes::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
+        metrics::Metrics,
         resources::{CrdColumns, PODS, ResourceItem},
-        watchers::{BgObserverError, InitData, ObserverResult, observer::BgObserver},
+        watchers::{BgObserverError, InitData, ObserverResult, PodStats, SharedStatistics, Statistics, observer::BgObserver},
     },
     ui::widgets::FooterTx,
 };
@@ -21,18 +22,22 @@ use crate::{
 pub struct ResourceObserver {
     observer: BgObserver,
     queue: VecDeque<Box<ObserverResult<ResourceItem>>>,
+    group: String,
     crds: SharedCrdsList,
     crd: Option<CrdColumns>,
+    statistics: SharedStatistics,
 }
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(crds: SharedCrdsList, footer_tx: FooterTx) -> Self {
+    pub fn new(crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: FooterTx) -> Self {
         Self {
             observer: BgObserver::new(footer_tx),
             queue: VecDeque::with_capacity(200),
+            group: String::default(),
             crds,
             crd: None,
+            statistics,
         }
     }
 
@@ -127,7 +132,8 @@ impl ResourceObserver {
             match *result {
                 ObserverResult::Init(mut init_data) => {
                     self.queue.clear();
-                    self.init_crd_kind(&mut init_data);
+                    self.inject_init_data(&mut init_data);
+                    self.group.clone_from(&init_data.group);
                     Some(Box::new(ObserverResult::Init(init_data)))
                 },
                 ObserverResult::InitDone => Some(Box::new(ObserverResult::InitDone)),
@@ -161,8 +167,11 @@ impl ResourceObserver {
 
     fn queue_containers(&mut self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
         if let Some(containers) = get_containers(object, array) {
+            let stats = &self.statistics.borrow();
+            let pod_stats = get_pod_statistics(object, stats);
             for c in containers {
-                let result = get_container_result(c, object, statuses_array, is_init, is_delete);
+                let metrics = get_container_metrics(c, pod_stats, stats.has_metrics);
+                let result = get_container_result(c, object, statuses_array, metrics, is_init, is_delete);
                 self.queue.push_back(Box::new(result));
             }
         }
@@ -170,14 +179,25 @@ impl ResourceObserver {
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
         let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
-        let result = ObserverResult::new(ResourceItem::from(kind, self.crd.as_ref(), object), is_delete);
+        let result = ObserverResult::new(
+            ResourceItem::from(
+                kind,
+                self.group.as_str(),
+                self.crd.as_ref(),
+                &self.statistics.borrow(),
+                object,
+            ),
+            is_delete,
+        );
         self.queue.push_back(Box::new(result));
     }
 
-    fn init_crd_kind(&mut self, init_data: &mut InitData) {
+    /// Injects additional data to the [`InitData`] for observed resources.
+    fn inject_init_data(&mut self, init_data: &mut InitData) {
         let kind = Kind::new(&init_data.kind_plural, &init_data.group);
         self.crd = self.crds.borrow().iter().find(|i| i.name == kind.as_str()).cloned();
         init_data.crd.clone_from(&self.crd);
+        init_data.has_metrics = self.statistics.borrow().has_metrics;
     }
 }
 
@@ -189,22 +209,43 @@ fn get_containers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a
         .and_then(|c| c.as_array())
 }
 
+fn get_pod_statistics<'a>(object: &DynamicObject, statistics: &'a Statistics) -> Option<&'a PodStats> {
+    if statistics.has_metrics
+        && let Some(node_name) = object.data["spec"]["nodeName"].as_str()
+        && let Some(pod_name) = object.metadata.name.as_deref()
+        && let Some(pod_namespace) = object.metadata.namespace.as_deref()
+    {
+        statistics.pod(node_name, pod_name, pod_namespace)
+    } else {
+        None
+    }
+}
+
+fn get_container_metrics(container: &Value, pod_stats: Option<&PodStats>, has_metrics: bool) -> Option<Metrics> {
+    let name = container["name"].as_str()?;
+    let metrics = pod_stats.and_then(|pod| pod.container(name)).and_then(|c| c.metrics);
+
+    match (has_metrics, metrics) {
+        (false, Some(_)) => None,
+        (true, None) => Some(Metrics::default()),
+        _ => metrics,
+    }
+}
+
 fn get_container_result(
     container: &Value,
     object: &DynamicObject,
     statuses_array: &str,
+    metrics: Option<Metrics>,
     is_init_container: bool,
     is_delete: bool,
 ) -> ObserverResult<ResourceItem> {
-    let status = object
-        .data
-        .get("status")
-        .and_then(|s| s.get(statuses_array))
-        .and_then(|s| s.as_array())
+    let status = object.data["status"][statuses_array]
+        .as_array()
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        ResourceItem::from_container(container, status, &object.metadata, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, metrics, is_init_container),
         is_delete,
     )
 }

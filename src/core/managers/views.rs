@@ -73,6 +73,7 @@ impl ViewsManager {
         }
 
         worker.update_crds_list();
+        worker.update_statistics();
 
         if worker.update_discovery_list() {
             self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);

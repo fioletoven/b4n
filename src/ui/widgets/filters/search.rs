@@ -41,7 +41,7 @@ impl Search {
             patterns,
             matches: None,
             width,
-            search_hint: format!(" {} to accept, {} and {} to navigate.", enter, next, prev),
+            search_hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
         }
     }
 
