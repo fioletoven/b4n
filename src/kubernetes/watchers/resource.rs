@@ -11,8 +11,9 @@ use crate::{
     kubernetes::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
+        metrics::Metrics,
         resources::{CrdColumns, PODS, ResourceItem},
-        watchers::{BgObserverError, InitData, ObserverResult, SharedStatistics, Statistics, observer::BgObserver},
+        watchers::{BgObserverError, InitData, ObserverResult, PodStats, SharedStatistics, Statistics, observer::BgObserver},
     },
     ui::widgets::FooterTx,
 };
@@ -166,8 +167,13 @@ impl ResourceObserver {
 
     fn queue_containers(&mut self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
         if let Some(containers) = get_containers(object, array) {
+            let stats = &self.statistics.borrow();
+            let pod_stats = get_pod_statistics(object, stats);
             for c in containers {
-                let result = get_container_result(c, object, statuses_array, &self.statistics.borrow(), is_init, is_delete);
+                let metrics = pod_stats
+                    .and_then(|s| c["name"].as_str().and_then(|n| s.container(n)))
+                    .and_then(|s| s.metrics.as_ref());
+                let result = get_container_result(c, object, statuses_array, metrics, is_init, is_delete);
                 self.queue.push_back(Box::new(result));
             }
         }
@@ -205,11 +211,23 @@ fn get_containers<'a>(object: &'a DynamicObject, array_name: &str) -> Option<&'a
         .and_then(|c| c.as_array())
 }
 
+fn get_pod_statistics<'a>(object: &DynamicObject, statistics: &'a Statistics) -> Option<&'a PodStats> {
+    if statistics.has_metrics
+        && let Some(node_name) = object.data["spec"]["nodeName"].as_str()
+        && let Some(pod_name) = object.metadata.name.as_deref()
+        && let Some(pod_namespace) = object.metadata.namespace.as_deref()
+    {
+        statistics.pod(node_name, pod_name, pod_namespace)
+    } else {
+        None
+    }
+}
+
 fn get_container_result(
     container: &Value,
     object: &DynamicObject,
     statuses_array: &str,
-    statistics: &Statistics,
+    metrics: Option<&Metrics>,
     is_init_container: bool,
     is_delete: bool,
 ) -> ObserverResult<ResourceItem> {
@@ -218,7 +236,7 @@ fn get_container_result(
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        ResourceItem::from_container(container, status, &object.metadata, statistics, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, metrics, is_init_container),
         is_delete,
     )
 }

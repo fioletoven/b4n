@@ -32,6 +32,7 @@ pub struct PodStats {
 }
 
 impl PodStats {
+    /// Creates new [`PodStats`] instance from [`PodData`] reference.
     fn from(pod: &PodData, has_metrics: bool) -> Self {
         PodStats {
             name: pod.name.clone(),
@@ -50,6 +51,11 @@ impl PodStats {
                 })
                 .collect(),
         }
+    }
+
+    /// Returns specified container from the pod statistics.
+    pub fn container(&self, container_name: &str) -> Option<&ContainerStats> {
+        self.containers.iter().find(|c| c.name == container_name)
     }
 }
 

@@ -6,7 +6,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
+    kubernetes::{metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -65,7 +65,7 @@ impl ResourceItem {
         container: &Value,
         status: Option<&Value>,
         pod_metadata: &ObjectMeta,
-        stats: &Statistics,
+        metrics: Option<&Metrics>,
         is_init_container: bool,
     ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
@@ -92,7 +92,7 @@ impl ResourceItem {
             data: Some(container::data(
                 container,
                 status,
-                stats,
+                metrics,
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
