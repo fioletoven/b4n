@@ -7,7 +7,12 @@ use kube::api::DynamicObject;
 use std::borrow::Cow;
 
 use crate::{
-    kubernetes::{resources::CrdColumns, utils::format_datetime, watchers::Statistics},
+    kubernetes::{
+        metrics::{CpuMetrics, MemoryMetrics},
+        resources::CrdColumns,
+        utils::format_datetime,
+        watchers::Statistics,
+    },
     ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 
@@ -52,7 +57,7 @@ pub fn get_resource_data(
         "Namespace" => namespace::data(object),
         "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
-        "Pod" => pod::data(object),
+        "Pod" => pod::data(object, stats),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::data(object),
         "ReplicaSet" => replica_set::data(object),
         "Secret" => secret::data(object),
@@ -79,14 +84,14 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "Namespace" => namespace::header(),
         "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
-        "Pod" => pod::header(),
+        "Pod" => pod::header(has_metrics),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),
         "ReplicaSet" => replica_set::header(),
         "Secret" => secret::header(),
         "Service" => service::header(),
         "StatefulSet" => stateful_set::header(),
 
-        "Container" => container::header(),
+        "Container" => container::header(has_metrics),
         _ => default::header(),
     }
 }
@@ -102,21 +107,26 @@ pub struct ResourceValue {
 
 impl ResourceValue {
     /// Creates new [`ResourceValue`] instance as a number value.
-    pub fn number(value: Option<f64>, len: usize) -> Self {
+    pub fn number(value: Option<f64>, len: u32) -> Self {
         let value = value.unwrap_or_default();
-        let sort_value = value + (len.pow(10) as f64);
+        let sort_value = value + (10u64.pow(len) as f64);
         Self {
             text: Some(format!("{:0.precision$}", value, precision = 3)),
-            sort_text: Some(format!("{:0width$.precision$}", sort_value, width = len + 5, precision = 3)),
+            sort_text: Some(format!(
+                "{:0>width$.precision$}",
+                sort_value,
+                width = (len as usize) + 5,
+                precision = 3
+            )),
             ..Default::default()
         }
     }
 
     /// Creates new [`ResourceValue`] instance as an integer value.
-    pub fn integer(value: Option<i64>, len: usize) -> Self {
+    pub fn integer(value: Option<i64>, len: u32) -> Self {
         let value = value.unwrap_or_default();
-        let sort_value = value + (len.pow(10) as i64);
-        let sort = format!("{:0width$}", sort_value, width = len + 1);
+        let sort_value = value + 10i64.pow(len);
+        let sort = format!("{:0>width$}", sort_value, width = (len as usize) + 1);
         Self {
             text: Some(value.to_string()),
             sort_text: Some(sort),
@@ -206,11 +216,43 @@ impl From<bool> for ResourceValue {
 
 impl From<Option<&DateTime<Utc>>> for ResourceValue {
     fn from(value: Option<&DateTime<Utc>>) -> Self {
-        let text = value.map(format_datetime);
-        let sort = value.map(|v| v.timestamp_millis().to_string());
         Self {
-            text,
-            sort_text: sort,
+            text: value.map(format_datetime),
+            sort_text: value.map(|v| v.timestamp_millis().to_string()),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Option<CpuMetrics>> for ResourceValue {
+    fn from(value: Option<CpuMetrics>) -> Self {
+        value.map(|v| v.into()).unwrap_or_default()
+    }
+}
+
+impl From<CpuMetrics> for ResourceValue {
+    fn from(value: CpuMetrics) -> Self {
+        let text = value.millicores();
+        let sort = format!("{:0>width$}", text, width = 10);
+        Self {
+            text: Some(text),
+            sort_text: Some(sort),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Option<MemoryMetrics>> for ResourceValue {
+    fn from(value: Option<MemoryMetrics>) -> Self {
+        value.map(|v| v.into()).unwrap_or_default()
+    }
+}
+
+impl From<MemoryMetrics> for ResourceValue {
+    fn from(value: MemoryMetrics) -> Self {
+        Self {
+            text: Some(value.rounded()),
+            sort_text: Some(format!("{:0>width$}", value.value, width = 25)),
             ..Default::default()
         }
     }

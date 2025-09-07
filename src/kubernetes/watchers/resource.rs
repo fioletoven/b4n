@@ -12,7 +12,7 @@ use crate::{
         Kind, Namespace, ResourceRef,
         client::KubernetesClient,
         resources::{CrdColumns, PODS, ResourceItem},
-        watchers::{BgObserverError, InitData, ObserverResult, SharedStatistics, observer::BgObserver},
+        watchers::{BgObserverError, InitData, ObserverResult, SharedStatistics, Statistics, observer::BgObserver},
     },
     ui::widgets::FooterTx,
 };
@@ -167,7 +167,7 @@ impl ResourceObserver {
     fn queue_containers(&mut self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
         if let Some(containers) = get_containers(object, array) {
             for c in containers {
-                let result = get_container_result(c, object, statuses_array, is_init, is_delete);
+                let result = get_container_result(c, object, statuses_array, &self.statistics.borrow(), is_init, is_delete);
                 self.queue.push_back(Box::new(result));
             }
         }
@@ -209,18 +209,16 @@ fn get_container_result(
     container: &Value,
     object: &DynamicObject,
     statuses_array: &str,
+    statistics: &Statistics,
     is_init_container: bool,
     is_delete: bool,
 ) -> ObserverResult<ResourceItem> {
-    let status = object
-        .data
-        .get("status")
-        .and_then(|s| s.get(statuses_array))
-        .and_then(|s| s.as_array())
+    let status = object.data["status"][statuses_array]
+        .as_array()
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        ResourceItem::from_container(container, status, &object.metadata, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, statistics, is_init_container),
         is_delete,
     )
 }

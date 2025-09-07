@@ -44,6 +44,7 @@ impl MemoryMetrics {
         Self { value, is_binary }
     }
 
+    /// Returns memory metrics rounded to the closest unit as string.
     pub fn rounded(&self) -> String {
         if self.is_binary {
             get_memory_rounded(self.value, &BINARY_BASE, &BINARY_STR)
@@ -57,7 +58,7 @@ impl Add for MemoryMetrics {
     type Output = MemoryMetrics;
 
     fn add(self, rhs: Self) -> Self::Output {
-        MemoryMetrics::new(self.value + rhs.value, self.is_binary)
+        MemoryMetrics::new(self.value + rhs.value, rhs.is_binary)
     }
 }
 
@@ -119,6 +120,11 @@ impl CpuMetrics {
     pub fn new(value: u64) -> Self {
         Self { value }
     }
+
+    /// Returns current CPU metrics in millicores as string.
+    pub fn millicores(&self) -> String {
+        format!("{}m", self.value / 1_000_000)
+    }
 }
 
 impl Add for CpuMetrics {
@@ -153,6 +159,7 @@ impl FromStr for CpuMetrics {
 
         match unit.to_ascii_lowercase().as_str() {
             "" => Ok(CpuMetrics::new(value.saturating_mul(1_000_000_000))),
+            "m" => Ok(CpuMetrics::new(value.saturating_mul(1_000_000))),
             "n" => Ok(CpuMetrics::new(value)),
             _ => Err(MetricsError::ParseError),
         }

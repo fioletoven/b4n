@@ -61,7 +61,13 @@ impl ResourceItem {
     }
 
     /// Creates [`ResourceItem`] from kubernetes pod container and its metadata.
-    pub fn from_container(container: &Value, status: Option<&Value>, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
+    pub fn from_container(
+        container: &Value,
+        status: Option<&Value>,
+        pod_metadata: &ObjectMeta,
+        stats: &Statistics,
+        is_init_container: bool,
+    ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
         let uid = pod_metadata
             .uid
@@ -86,6 +92,7 @@ impl ResourceItem {
             data: Some(container::data(
                 container,
                 status,
+                stats,
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),

@@ -9,7 +9,7 @@ use crate::{
 /// Returns [`ResourceData`] for the `namespace` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let status = &object.data["status"];
-    let phase = status["phase"].as_str().map(ToOwned::to_owned);
+    let phase = status["phase"].as_str();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [ResourceValue; 1] = [if is_terminating { "Terminating".into() } else { phase.into() }];

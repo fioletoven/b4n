@@ -2,24 +2,28 @@ use k8s_openapi::serde_json::Value;
 use std::rc::Rc;
 
 use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
+    kubernetes::{
+        resources::{ResourceData, ResourceValue},
+        watchers::Statistics,
+    },
     ui::lists::{Column, Header, NAMESPACE},
 };
 
 /// Returns [`ResourceData`] for the pod's `container`.
-pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, is_terminating: bool) -> ResourceData {
-    let image = container["image"].as_str().map(ToOwned::to_owned);
+pub fn data(
+    container: &Value,
+    status: Option<&Value>,
+    stats: &Statistics,
+    is_init_container: bool,
+    is_terminating: bool,
+) -> ResourceData {
     let restarts = status.and_then(|s| s.get("restartCount")).and_then(Value::as_i64);
     let ready = status
         .and_then(|s| s.get("ready"))
         .and_then(Value::as_bool)
         .unwrap_or_default();
 
-    let completed = status
-        .and_then(|s| s.get("state"))
-        .and_then(|s| s.get("terminated"))
-        .and_then(|w| w.get("reason"))
-        .and_then(|r| r.as_str());
+    let completed = status.and_then(|s| s["state"]["terminated"]["reason"].as_str());
     let is_running = status.and_then(|s| s.get("state")).and_then(|s| s.get("running")).is_some();
     let phase = if is_running {
         "Running"
@@ -27,10 +31,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
         completed
     } else {
         status
-            .and_then(|s| s.get("state"))
-            .and_then(|s| s.get("waiting"))
-            .and_then(|w| w.get("reason"))
-            .and_then(|r| r.as_str())
+            .and_then(|s| s["state"]["waiting"]["reason"].as_str())
             .unwrap_or("Unknown")
     };
 
@@ -39,7 +40,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
         ready.into(),
         phase.into(),
         is_init_container.into(),
-        image.into(),
+        container["image"].as_str().into(),
     ];
 
     ResourceData {
@@ -52,7 +53,7 @@ pub fn data(container: &Value, status: Option<&Value>, is_init_container: bool, 
 }
 
 /// Returns [`Header`] for the pod's `container`.
-pub fn header() -> Header {
+pub fn header(has_metrics: bool) -> Header {
     Header::from(
         NAMESPACE,
         Some(Box::new([

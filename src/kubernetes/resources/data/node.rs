@@ -33,13 +33,13 @@ pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
     ];
 
     if stats.has_metrics {
-        let memory = status["allocatable"]["memory"].as_str();
-        let cpu = get_cpu_usage(stats, name, status["allocatable"]["cpu"].as_str());
-        let mem = get_mem_usage(stats, name, memory);
+        let cpu_usage = get_cpu_usage(stats, name, status["allocatable"]["cpu"].as_str());
+        let mem_usage = get_mem_usage(stats, name, status["allocatable"]["memory"].as_str());
 
-        values.push(ResourceValue::number(cpu, 7));
-        values.push(ResourceValue::number(mem, 7));
-        values.push(get_rounded_memory(stats, name).into());
+        values.push(stats.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into());
+        values.push(ResourceValue::number(cpu_usage, 7));
+        values.push(stats.node(name).and_then(|n| n.metrics).map(|m| m.memory).into());
+        values.push(ResourceValue::number(mem_usage, 7));
     }
 
     ResourceData {
@@ -61,23 +61,22 @@ pub fn header(has_metrics: bool) -> Header {
         Column::bound("STATUS", 8, 25, false),
     ];
 
-    let mut sort_symbols = vec![' ', 'N', 'T', 'R', 'V', 'P', 'O', 'S'];
+    let mut symbols = vec![' ', 'N', 'T', 'R', 'V', 'P', 'O', 'S'];
 
     if has_metrics {
+        columns.push(Column::bound("CPU", 6, 20, true));
         columns.push(Column::fixed("%CPU", 7, true));
-        columns.push(Column::fixed("%MEM", 7, true));
         columns.push(Column::bound("MEM", 6, 20, true));
+        columns.push(Column::fixed("%MEM", 7, true));
 
-        sort_symbols.push('C');
-        sort_symbols.push('M');
-        sort_symbols.push('E');
+        symbols.extend_from_slice(&['C', 'U', 'M', 'E']);
     }
 
-    sort_symbols.push('A');
+    symbols.push('A');
     Header::from(
         NAMESPACE,
         Some(columns.into_boxed_slice()),
-        Rc::from(sort_symbols.into_boxed_slice()),
+        Rc::from(symbols.into_boxed_slice()),
     )
 }
 
@@ -103,16 +102,12 @@ fn get_cpu_usage(stats: &Statistics, node_name: &str, total_cpu: Option<&str>) -
     let cpu = i64::try_from(stats.node_cpu(node_name)).ok()?;
     let total = total_cpu.unwrap_or_default().parse::<CpuMetrics>().ok()?;
 
-    Some((cpu as f64) * 100.0 / total.value as f64)
+    Some((cpu * 100) as f64 / total.value as f64)
 }
 
 fn get_mem_usage(stats: &Statistics, node_name: &str, total_mem: Option<&str>) -> Option<f64> {
     let memory = i64::try_from(stats.node_memory(node_name)).ok()?;
     let total = total_mem?.parse::<MemoryMetrics>().ok()?;
 
-    Some((memory as f64) * 100.0 / total.value as f64)
-}
-
-fn get_rounded_memory(stats: &Statistics, node_name: &str) -> Option<String> {
-    stats.node(node_name).and_then(|n| n.metrics).map(|m| m.memory.rounded())
+    Some((memory * 100) as f64 / total.value as f64)
 }

@@ -121,6 +121,13 @@ impl Statistics {
             .map(|metrics| metrics.memory.value)
             .unwrap_or_default()
     }
+
+    /// Returns specified pod from the statistics.
+    pub fn pod(&self, node_name: &str, pod_name: &str, pod_namespace: &str) -> Option<&PodStats> {
+        self.data
+            .get(node_name)
+            .and_then(|n| n.pods.iter().find(|p| p.name == pod_name && p.namespace == pod_namespace))
+    }
 }
 
 #[derive(Default, Debug)]

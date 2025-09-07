@@ -3,20 +3,25 @@ use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
+    kubernetes::{
+        resources::{ResourceData, ResourceValue},
+        watchers::Statistics,
+    },
     ui::lists::{Column, Header, NAMESPACE},
 };
 
 /// Returns [`ResourceData`] for the `pod` kubernetes resource.
-pub fn data(object: &DynamicObject) -> ResourceData {
+pub fn data(object: &DynamicObject, stats: &Statistics) -> ResourceData {
     let status = &object.data["status"];
+    let spec = &object.data["spec"];
     let ready = status["containerStatuses"].as_array().map(|c| get_ready(c));
-    let phase = status["phase"].as_str().map(ToOwned::to_owned);
+    let phase = status["phase"].as_str();
     let waiting = status["containerStatuses"]
         .as_array()
         .and_then(|c| get_first_waiting_reason(c));
     let restarts = status["containerStatuses"].as_array().map(|c| get_restarts(c));
-    let is_completed = if let Some(ph) = &phase { ph == "Succeeded" } else { false };
+    let node = spec["nodeName"].as_str();
+    let is_completed = if let Some(ph) = &phase { *ph == "Succeeded" } else { false };
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let (ready_str, is_ready) = if let Some(ready) = ready {
@@ -25,7 +30,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         (None, false)
     };
 
-    let values = [
+    let mut values = vec![
         ResourceValue::integer(restarts, 5),
         ready_str.into(),
         if is_terminating {
@@ -35,30 +40,59 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         } else {
             phase.into()
         },
-        status["podIP"].as_str().map(ToOwned::to_owned).into(),
     ];
 
+    if stats.has_metrics
+        && let Some(node_name) = node
+        && let Some(pod_name) = object.metadata.name.as_deref()
+        && let Some(pod_namespace) = object.metadata.namespace.as_deref()
+        && let Some(stats) = stats.pod(node_name, pod_name, pod_namespace)
+    {
+        values.push(stats.metrics.map(|m| m.cpu).into());
+        values.push(stats.metrics.map(|m| m.memory).into());
+    }
+
+    values.push(status["podIP"].as_str().into());
+    values.push(node.into());
+
     ResourceData {
-        extra_values: Box::new(values),
+        extra_values: values.into_boxed_slice(),
         is_job: has_job_reference(object),
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        one_container: get_single_container(&object.data["spec"]["containers"]),
+        one_container: get_single_container(&spec["containers"]),
     }
 }
 
 /// Returns [`Header`] for the `pod` kubernetes resource.
-pub fn header() -> Header {
+pub fn header(has_metrics: bool) -> Header {
+    let mut columns = vec![
+        Column::fixed("RESTARTS", 3, true),
+        Column::fixed("READY", 7, false),
+        Column::bound("STATUS", 10, 20, false),
+    ];
+
+    let mut symbols = vec![' ', 'N', 'R', 'E', 'S'];
+
+    if has_metrics {
+        columns.push(Column::bound("CPU", 5, 15, true));
+        columns.push(Column::bound("MEM", 5, 15, true));
+        symbols.push('C');
+        symbols.push('M');
+    }
+
+    columns.push(Column::bound("IP", 11, 16, false));
+    columns.push(Column::bound("NODE", 12, 25, false));
+
+    symbols.push('I');
+    symbols.push('O');
+    symbols.push('A');
+
     Header::from(
         NAMESPACE,
-        Some(Box::new([
-            Column::fixed("RESTARTS", 3, true),
-            Column::fixed("READY", 7, false),
-            Column::bound("STATUS", 10, 20, false),
-            Column::bound("IP", 11, 16, false),
-        ])),
-        Rc::new([' ', 'N', 'R', 'E', 'S', 'I', 'A']),
+        Some(columns.into_boxed_slice()),
+        Rc::from(symbols.into_boxed_slice()),
     )
 }
 

@@ -85,19 +85,20 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
 
 #[test]
 fn get_text_pod_test() {
-    // " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE "
-    // "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a"
+    // " NAMESPACE  NAME                                 RESTARTS↑ READY   STATUS       IP          NODE            AGE "
+    // "kube-system local-path-provisioner-84db5d44d9-kjjp5      5 1/1     Running      10.42.1.201 9764bc470abf     n/a"
 
-    let terminal_width = 100;
+    let terminal_width = 112;
 
-    let mut header = crate::kubernetes::resources::pod::header();
+    let mut header = crate::kubernetes::resources::pod::header(false);
     header.set_data_length(0, 11);
     header.set_data_length(1, 39);
     header.set_data_length(2, 3);
     header.set_data_length(3, 7);
     header.set_data_length(4, 12);
     header.set_data_length(5, 11);
-    header.set_data_length(6, 6);
+    header.set_data_length(6, 12);
+    header.set_data_length(7, 6);
     header.set_sort_info(2, false);
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
@@ -110,18 +111,19 @@ fn get_text_pod_test() {
             Some("1/1".to_owned()).into(),
             Some("Running".to_owned()).into(),
             Some("10.42.1.201".to_owned()).into(),
+            Some("9764bc470abf".to_owned()).into(),
         ]
         .into_boxed_slice(),
         ..Default::default()
     });
 
     assert_eq!(
-        " NAMESPACE  NAME                                  RESTARTS↑ READY   STATUS       IP             AGE ",
+        " NAMESPACE  NAME                                 RESTARTS↑ READY   STATUS       IP          NODE            AGE ",
         header.get_text(ViewType::Full, terminal_width)
     );
 
     assert_eq!(
-        "kube-system local-path-provisioner-84db5d44d9-kjjp5       5 1/1     Running      10.42.1.201     n/a",
+        "kube-system local-path-provisioner-84db5d44d9-kjjp5      5 1/1     Running      10.42.1.201 9764bc470abf     n/a",
         item.get_text(
             ViewType::Full,
             &header,
