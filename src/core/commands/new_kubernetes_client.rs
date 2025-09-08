@@ -18,15 +18,15 @@ use super::CommandResult;
 pub enum KubernetesClientError {
     /// Kubernetes client creation error.
     #[error(transparent)]
-    ClientError(#[from] crate::kubernetes::client::ClientError),
+    Client(#[from] crate::kubernetes::client::ClientError),
 
     /// Discovery run error.
     #[error("discovery run error")]
-    DiscoveryError,
+    DiscoveryFailure,
 
     /// Cannot get namespaces from the kubernetes cluster.
     #[error("cannot get namespaces from the kubernetes cluster")]
-    NamespacesError,
+    NamespaceFetchFailure,
 }
 
 /// Result for the [`NewKubernetesClientCommand`].
@@ -80,7 +80,7 @@ impl NewKubernetesClientCommand {
             Err(err) => return Some(CommandResult::KubernetesClient(Err(err.into()))),
         };
         let Ok(discovery) = Discovery::new(client.get_client()).run().await else {
-            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryError)));
+            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryFailure)));
         };
         let discovery = convert_to_vector(&discovery);
         let kind = if get_resource(Some(&discovery), &self.kind).is_some() {
@@ -89,11 +89,15 @@ impl NewKubernetesClientCommand {
             PODS.into()
         };
         let Some(namespaces) = get_resource(Some(&discovery), &NAMESPACES.into()) else {
-            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
+            return Some(CommandResult::KubernetesClient(Err(
+                KubernetesClientError::NamespaceFetchFailure,
+            )));
         };
         let namespaces = client.get_api(&namespaces.0, &namespaces.1, None, true);
         let Ok(namespaces) = namespaces.list(&ListParams::default()).await else {
-            return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::NamespacesError)));
+            return Some(CommandResult::KubernetesClient(Err(
+                KubernetesClientError::NamespaceFetchFailure,
+            )));
         };
         let namespace = if namespaces.iter().any(|n| self.namespace.is_equal(n.metadata.name.as_deref())) {
             self.namespace

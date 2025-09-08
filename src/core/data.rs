@@ -57,9 +57,13 @@ impl ResourcesInfo {
     /// This results in remembering if the `all` namespace was set by user or by [`InitData`].
     pub fn update_from(&mut self, data: &InitData) {
         self.name.clone_from(&data.name);
-        self.namespace = data.namespace.clone();
         self.kind = Kind::new(&data.kind_plural, &data.group);
         self.scope = data.scope.clone();
+
+        // change the namespace only if resource is namespaced
+        if self.scope == Scope::Namespaced {
+            self.namespace = data.namespace.clone();
+        }
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\

@@ -261,7 +261,6 @@ impl From<MemoryMetrics> for ResourceValue {
 /// Extra data for the kubernetes resource.
 #[derive(Default)]
 pub struct ResourceData {
-    pub is_job: bool,
     pub is_completed: bool,
     pub is_ready: bool,
     pub is_terminating: bool,

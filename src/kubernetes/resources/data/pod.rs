@@ -57,7 +57,6 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
 
     ResourceData {
         extra_values: values.into_boxed_slice(),
-        is_job: has_job_reference(object),
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
@@ -122,14 +121,6 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     }
 
     None
-}
-
-fn has_job_reference(object: &DynamicObject) -> bool {
-    if let Some(references) = &object.metadata.owner_references {
-        references.iter().any(|r| r.kind == "Job")
-    } else {
-        false
-    }
 }
 
 fn get_single_container(containers: &Value) -> Option<String> {
