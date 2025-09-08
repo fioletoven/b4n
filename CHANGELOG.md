@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.2.0 - 2025-09-07
+## 0.2.0 - 2025-09-08
 
 ### Features
 
@@ -13,6 +13,7 @@
 
 - fix clipboard behaviour on Linux
 - fix observer to support resources that are not watchable
+- preserve namespace for clustered resources
 
 ## 0.1.9 - 2025-08-23
 
