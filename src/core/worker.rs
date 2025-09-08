@@ -4,7 +4,6 @@ use kube::{
     discovery::{ApiCapabilities, Scope, verbs},
 };
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
-use thiserror;
 
 use crate::{
     core::{Config, PortForwarder, commands::ListResourcePortsCommand},
@@ -262,10 +261,10 @@ impl BgWorker {
     }
 
     /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<Box<TaskResult>> {
+    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
         let mut commands = Vec::new();
         while let Some(command) = self.check_command_result() {
-            commands.push(command);
+            commands.push(*command);
         }
         commands
     }

@@ -82,11 +82,6 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from(actions: Vec<ActionItem>) -> Self {
-        ActionsListBuilder { actions }
-    }
-
-    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
     pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
         ActionsListBuilder {
             actions: if let Some(items) = &kinds {
@@ -131,11 +126,6 @@ impl ActionsListBuilder {
             list,
             ..Default::default()
         }
-    }
-
-    /// Returns vector of [`ActionItem`]s that can be used later to build [`ActionsList`].
-    pub fn to_vec(self) -> Vec<ActionItem> {
-        self.actions
     }
 
     /// Adds custom action.
