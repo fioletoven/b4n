@@ -19,6 +19,7 @@ use std::{
 };
 use thiserror;
 use tokio::{
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
     time::sleep,
@@ -135,6 +136,7 @@ pub struct BgObserver {
     pub resource: ResourceRef,
     pub init: Option<InitData>,
     pub scope: Scope,
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     context_tx: ObserverResultSender,
@@ -146,12 +148,13 @@ pub struct BgObserver {
 
 impl BgObserver {
     /// Creates new [`BgObserver`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
             init: None,
             scope: Scope::Cluster,
+            runtime,
             task: None,
             cancellation_token: None,
             context_tx,
@@ -269,7 +272,7 @@ impl BgObserver {
         init_data: InitData,
         cancellation_token: CancellationToken,
     ) -> JoinHandle<()> {
-        tokio::spawn({
+        self.runtime.spawn({
             let mut processor = EventsProcessor {
                 init_data,
                 context_tx: self.context_tx.clone(),
@@ -307,7 +310,7 @@ impl BgObserver {
     }
 
     fn list(&mut self, client: Api<DynamicObject>, init_data: InitData, cancellation_token: CancellationToken) -> JoinHandle<()> {
-        tokio::spawn({
+        self.runtime.spawn({
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
             let context_tx = self.context_tx.clone();

@@ -2,8 +2,9 @@ use anyhow::Result;
 use clap::Parser;
 use core::{App, Config, ExecutionFlow, History};
 use kubernetes::{client::get_context, resources::PODS};
-use std::time::Duration;
-use tokio::time::sleep;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
+use tokio::runtime::Builder;
 use tracing::{error, info};
 
 pub mod cli;
@@ -13,14 +14,13 @@ pub mod logging;
 pub mod ui;
 pub mod utils;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = cli::Args::parse();
 
     let _logging_guard = logging::initialize()?;
     info!("{} v{} started", core::APP_NAME, core::APP_VERSION);
 
-    if let Err(error) = run_application(args).await {
+    if let Err(error) = run_application(args) {
         error!(
             "{} v{} terminated with an error: {}",
             core::APP_NAME,
@@ -34,14 +34,15 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn run_application(args: cli::Args) -> Result<()> {
-    let mut history = History::load_or_create().await?;
-    let (context, kube_config_path) = get_context(
+fn run_application(args: cli::Args) -> Result<()> {
+    let rt = Builder::new_multi_thread().enable_all().build()?;
+
+    let mut history = rt.block_on(History::load_or_create())?;
+    let (context, kube_config_path) = rt.block_on(get_context(
         args.kube_config.as_deref(),
         args.context(history.current_context()),
         args.context.is_none(),
-    )
-    .await?;
+    ))?;
     let Some(context) = context else {
         return Err(anyhow::anyhow!(format!(
             "Kube context '{}' not found in configuration.",
@@ -53,21 +54,34 @@ async fn run_application(args: cli::Args) -> Result<()> {
     let kind = args.kind(history.get_kind(&context)).unwrap_or(PODS).into();
     let namespace = args.namespace(history.get_namespace(&context)).map(String::from).into();
 
-    let config = Config::load_or_create().await?;
-    let theme = config.load_or_create_theme().await?;
-    let mut app = App::new(config, history, theme, args.insecure)?;
+    let config = rt.block_on(Config::load_or_create())?;
+    let theme = rt.block_on(config.load_or_create_theme())?;
+    let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
+
     app.start(context, kind, namespace)?;
+    application_loop(&mut app)?;
+    app.stop()?;
+
+    Ok(())
+}
+
+fn application_loop(app: &mut App) -> Result<(), anyhow::Error> {
+    const FPS: u64 = 20;
+    const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
 
     loop {
+        let frame_start = Instant::now();
         if app.process_events()? == ExecutionFlow::Stop {
             break;
         }
 
         app.draw_frame()?;
 
-        sleep(Duration::from_millis(50)).await;
+        let frame_time = frame_start.elapsed();
+        if frame_time < FRAME_DURATION {
+            sleep(FRAME_DURATION - frame_time);
+        }
     }
 
-    app.stop()?;
     Ok(())
 }

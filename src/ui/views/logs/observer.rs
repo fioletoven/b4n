@@ -8,6 +8,7 @@ use kube::{Api, api::LogParams};
 use std::time::Duration;
 use thiserror;
 use tokio::{
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
     time::sleep,
@@ -39,6 +40,7 @@ pub struct LogsChunk {
 }
 
 pub struct LogsObserver {
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<Box<LogsChunk>>,
@@ -46,9 +48,10 @@ pub struct LogsObserver {
 }
 
 impl LogsObserver {
-    pub fn new() -> Self {
+    pub fn new(runtime: Handle) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
+            runtime,
             task: None,
             cancellation_token: None,
             context_tx,
@@ -62,7 +65,7 @@ impl LogsObserver {
         let _client = client.get_client();
         let _context_tx = self.context_tx.clone();
 
-        let task = tokio::spawn(async move {
+        let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(_client, pod.namespace.as_str());
             let context = ObserverContext {
                 pod: &pod,

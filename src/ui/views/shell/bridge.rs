@@ -10,6 +10,7 @@ use std::sync::{
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
@@ -21,6 +22,7 @@ use crate::{core::utils::wait_for_task, kubernetes::PodRef};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     input_tx: Option<UnboundedSender<Vec<u8>>>,
@@ -34,8 +36,9 @@ pub struct ShellBridge {
 
 impl ShellBridge {
     /// Creates new [`ShellBridge`] instance.
-    pub fn new(parser: Arc<RwLock<vt100::Parser>>) -> Self {
+    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>) -> Self {
         Self {
+            runtime,
             task: None,
             cancellation_token: None,
             input_tx: None,
@@ -70,7 +73,7 @@ impl ShellBridge {
         let _has_error = Arc::clone(&self.has_error);
         let _is_running = Arc::clone(&self.is_running);
 
-        let task = tokio::spawn(async move {
+        let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
             let attach_params = AttachParams::interactive_tty();
 

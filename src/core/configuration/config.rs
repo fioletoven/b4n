@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
+    runtime::Handle,
 };
 
 use crate::ui::{KeyBindings, theme::Theme};
@@ -63,8 +64,8 @@ impl Default for Config {
 
 impl Config {
     /// Returns watcher for configuration.
-    pub fn watcher() -> ConfigWatcher<Config> {
-        ConfigWatcher::new(Config::default_path())
+    pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
+        ConfigWatcher::new(runtime, Config::default_path())
     }
 
     /// Returns path to the themes directory.

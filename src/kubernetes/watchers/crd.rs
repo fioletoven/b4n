@@ -3,6 +3,7 @@ use kube::{
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
 };
+use tokio::runtime::Handle;
 
 use crate::{
     kubernetes::{
@@ -21,9 +22,9 @@ pub struct CrdObserver {
 
 impl CrdObserver {
     /// Creates new [`CrdObserver`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         Self {
-            observer: BgObserver::new(footer_tx),
+            observer: BgObserver::new(runtime, footer_tx),
         }
     }
 

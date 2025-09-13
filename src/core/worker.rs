@@ -4,6 +4,7 @@ use kube::{
     discovery::{ApiCapabilities, Scope, verbs},
 };
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
+use tokio::runtime::Handle;
 
 use crate::{
     core::{Config, PortForwarder, commands::ListResourcePortsCommand},
@@ -44,6 +45,7 @@ pub struct BgWorker {
     pub namespaces: ResourceObserver,
     pub resources: ResourceObserver,
     pub statistics: BgStatistics,
+    runtime: Handle,
     crds: CrdObserver,
     crds_list: SharedCrdsList,
     forwarder: PortForwarder,
@@ -55,18 +57,19 @@ pub struct BgWorker {
 
 impl BgWorker {
     /// Creates new [`BgWorker`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
-        let statistics = BgStatistics::new(footer_tx.clone());
+        let statistics = BgStatistics::new(runtime.clone(), footer_tx.clone());
         Self {
-            namespaces: ResourceObserver::new(Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
-            resources: ResourceObserver::new(Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
+            namespaces: ResourceObserver::new(runtime.clone(), Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
+            resources: ResourceObserver::new(runtime.clone(), Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
             statistics,
-            crds: CrdObserver::new(footer_tx.clone()),
+            runtime: runtime.clone(),
+            crds: CrdObserver::new(runtime.clone(), footer_tx.clone()),
             crds_list,
-            forwarder: PortForwarder::new(footer_tx.clone()),
-            executor: BgExecutor::default(),
-            discovery: BgDiscovery::new(footer_tx),
+            forwarder: PortForwarder::new(runtime.clone(), footer_tx.clone()),
+            executor: BgExecutor::new(runtime.clone()),
+            discovery: BgDiscovery::new(runtime, footer_tx),
             discovery_list: None,
             client: None,
         }
@@ -175,6 +178,11 @@ impl BgWorker {
         self.crds.cancel();
         self.forwarder.stop_all();
         self.statistics.cancel();
+    }
+
+    /// Returns handle to the tokio runtime.
+    pub fn runtime_handle(&self) -> &Handle {
+        &self.runtime
     }
 
     /// Returns [`KubernetesClient`].

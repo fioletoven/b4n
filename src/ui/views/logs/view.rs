@@ -63,9 +63,9 @@ impl LogsView {
             resource.container,
         );
 
-        let search = Search::new(Rc::clone(&app_data), Some(worker), 60);
-        let mut observer = LogsObserver::new();
+        let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
         observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
+        let search = Search::new(Rc::clone(&app_data), Some(worker), 60);
 
         Ok(Self {
             logs,

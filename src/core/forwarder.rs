@@ -10,6 +10,7 @@ use std::{
 };
 use tokio::{
     net::TcpListener,
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
@@ -57,6 +58,7 @@ pub enum PortForwardEvent {
 
 /// Holds all port forwarding tasks for the current context.
 pub struct PortForwarder {
+    runtime: Handle,
     tasks: Vec<PortForwardTask>,
     events_tx: UnboundedSender<PortForwardEvent>,
     events_rx: UnboundedReceiver<PortForwardEvent>,
@@ -65,9 +67,10 @@ pub struct PortForwarder {
 
 impl PortForwarder {
     /// Creates new [`PortForwarder`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         let (events_tx, events_rx) = mpsc::unbounded_channel();
         Self {
+            runtime,
             tasks: Vec::default(),
             events_tx,
             events_rx,
@@ -109,7 +112,7 @@ impl PortForwarder {
 
         let pods: Api<Pod> = Api::namespaced(client.get_client(), resource.namespace.as_str());
 
-        let mut task = PortForwardTask::new(self.events_tx.clone(), self.footer_tx.clone());
+        let mut task = PortForwardTask::new(self.runtime.clone(), self.events_tx.clone(), self.footer_tx.clone());
         task.run(pods, resource, port, address)?;
 
         self.tasks.push(task);
@@ -166,6 +169,7 @@ pub struct PortForwardTask {
     pub port: u16,
     pub start_time: Option<Time>,
     pub statistics: TaskStatistics,
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     events_tx: UnboundedSender<PortForwardEvent>,
@@ -174,7 +178,7 @@ pub struct PortForwardTask {
 
 impl PortForwardTask {
     /// Creates new [`PortForwardTask`] instance.
-    fn new(events_tx: UnboundedSender<PortForwardEvent>, footer_tx: FooterTx) -> Self {
+    fn new(runtime: Handle, events_tx: UnboundedSender<PortForwardEvent>, footer_tx: FooterTx) -> Self {
         let statistics = TaskStatistics {
             active_connections: Arc::new(AtomicI16::new(0)),
             overall_connections: Arc::new(AtomicI32::new(0)),
@@ -191,6 +195,7 @@ impl PortForwardTask {
             port: 0,
             start_time: None,
             statistics,
+            runtime,
             task: None,
             cancellation_token: None,
             events_tx,
@@ -205,13 +210,14 @@ impl PortForwardTask {
 
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
+        let _runtime = self.runtime.clone();
         let _pod_name = resource.name.as_deref().unwrap_or_default().to_owned();
         let _bind_address = self.bind_address.clone();
         let _events_tx = self.events_tx.clone();
         let _footer_tx = self.footer_tx.clone();
         let _statistics = self.statistics.clone();
 
-        let task = tokio::spawn(async move {
+        let task = self.runtime.spawn(async move {
             _events_tx.send(PortForwardEvent::TaskStarted).unwrap();
             match TcpListener::bind(address).await {
                 Ok(listener) => {
@@ -221,15 +227,15 @@ impl PortForwardTask {
                             result = listener.accept() => {
                                 match result {
                                     Ok((stream, _)) => {
-                                        accept_connection(
-                                            &pods,
-                                            &_pod_name,
+                                        _runtime.spawn(accept_connection(
+                                            pods.clone(),
+                                            _pod_name.to_owned(),
                                             port,
                                             stream,
                                             _events_tx.clone(),
                                             _statistics.clone(),
                                             _cancellation_token.clone(),
-                                        );
+                                        ));
                                     },
                                     Err(e) => accept_error(&e, &_events_tx, &_footer_tx, &_statistics.connection_errors),
                                 }
@@ -297,37 +303,33 @@ fn accept_error(
     events_tx.send(PortForwardEvent::ConnectionError).unwrap();
 }
 
-fn accept_connection(
-    api: &Api<Pod>,
-    pod_name: &str,
+async fn accept_connection(
+    api: Api<Pod>,
+    pod_name: String,
     port: u16,
     client_conn: tokio::net::TcpStream,
     events_tx: UnboundedSender<PortForwardEvent>,
     statistics: TaskStatistics,
     cancellation_token: CancellationToken,
 ) {
-    let api = api.clone();
-    let pod_name = pod_name.to_owned();
-    tokio::spawn(async move {
-        statistics.overall_connections.fetch_add(1, Ordering::Relaxed);
-        statistics.active_connections.fetch_add(1, Ordering::Relaxed);
-        events_tx.send(PortForwardEvent::ConnectionAccepted).unwrap();
+    statistics.overall_connections.fetch_add(1, Ordering::Relaxed);
+    statistics.active_connections.fetch_add(1, Ordering::Relaxed);
+    events_tx.send(PortForwardEvent::ConnectionAccepted).unwrap();
 
-        if let Err(error) = forward_connection(&api, &pod_name, port, client_conn, cancellation_token.clone()).await {
-            warn!("failed to forward connection: {}", error);
-            statistics.connection_errors.fetch_add(1, Ordering::Relaxed);
+    if let Err(error) = forward_connection(&api, &pod_name, port, client_conn, cancellation_token.clone()).await {
+        warn!("failed to forward connection: {}", error);
+        statistics.connection_errors.fetch_add(1, Ordering::Relaxed);
 
-            match error {
-                PortForwardError::KubeError(_) | PortForwardError::PortNotFound => {
-                    cancellation_token.cancel();
-                },
-                _ => (),
-            }
+        match error {
+            PortForwardError::KubeError(_) | PortForwardError::PortNotFound => {
+                cancellation_token.cancel();
+            },
+            _ => (),
         }
+    }
 
-        statistics.active_connections.fetch_sub(1, Ordering::Relaxed);
-        events_tx.send(PortForwardEvent::ConnectionClosed).unwrap();
-    });
+    statistics.active_connections.fetch_sub(1, Ordering::Relaxed);
+    events_tx.send(PortForwardEvent::ConnectionClosed).unwrap();
 }
 
 async fn forward_connection(

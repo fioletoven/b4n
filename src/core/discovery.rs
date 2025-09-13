@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 use tokio::{
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
     time::sleep,
@@ -23,6 +24,7 @@ const DISCOVERY_INTERVAL: u64 = 6_000;
 
 /// Background Kubernetes API discovery.
 pub struct BgDiscovery {
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<DiscoveryList>,
@@ -33,9 +35,10 @@ pub struct BgDiscovery {
 
 impl BgDiscovery {
     /// Creates new [`BgDiscovery`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
+            runtime,
             task: None,
             cancellation_token: None,
             context_tx,
@@ -62,7 +65,7 @@ impl BgDiscovery {
 
         let _client = client.get_client();
 
-        let task = tokio::spawn(async move {
+        let task = self.runtime.spawn(async move {
             let mut backoff = build_default_backoff();
             let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 

@@ -5,6 +5,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     rc::Rc,
 };
+use tokio::runtime::Handle;
 
 use crate::{
     core::{ViewsManager, commands::ListThemesCommand},
@@ -28,6 +29,7 @@ pub enum ExecutionFlow {
 pub struct App {
     data: SharedAppData,
     tui: Tui,
+    runtime: Handle,
     worker: SharedBgWorker,
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
@@ -38,11 +40,11 @@ pub struct App {
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
+    pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
         let theme_path = config.theme_path();
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
-        let worker = Rc::new(RefCell::new(BgWorker::new(footer.get_transmitter())));
+        let worker = Rc::new(RefCell::new(BgWorker::new(runtime.clone(), footer.get_transmitter())));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager =
             KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
@@ -51,10 +53,11 @@ impl App {
         Ok(Self {
             data,
             tui: Tui::new()?,
+            runtime: runtime.clone(),
             worker,
-            config_watcher: Config::watcher(),
-            history_watcher: History::watcher(),
-            theme_watcher: ConfigWatcher::new(theme_path),
+            config_watcher: Config::watcher(runtime.clone()),
+            history_watcher: History::watcher(runtime.clone()),
+            theme_watcher: ConfigWatcher::new(runtime, theme_path),
             client_manager,
             views_manager,
         })
@@ -69,7 +72,7 @@ impl App {
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
-        self.tui.enter_terminal()?;
+        self.tui.enter_terminal(&self.runtime)?;
 
         Ok(())
     }

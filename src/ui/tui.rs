@@ -12,6 +12,7 @@ use ratatui::{
 };
 use std::io::stdout;
 use tokio::{
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
@@ -109,11 +110,11 @@ impl Tui {
     }
 
     /// Enters the alternate screen mode and starts terminal events loop.
-    pub fn enter_terminal(&mut self) -> Result<()> {
+    pub fn enter_terminal(&mut self, runtime: &Handle) -> Result<()> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
         crossterm::execute!(stdout(), SetCursorStyle::SteadyBar)?;
-        self.start_events_loop();
+        self.start_events_loop(runtime);
 
         Ok(())
     }
@@ -137,12 +138,12 @@ impl Tui {
     }
 
     /// Starts terminal events loop.
-    pub fn start_events_loop(&mut self) {
+    pub fn start_events_loop(&mut self, runtime: &Handle) {
         self.events_ct.cancel();
         self.events_ct = CancellationToken::new();
         let _cancellation_token = self.events_ct.clone();
         let _event_tx = self.event_tx.clone();
-        let task = tokio::spawn(async move {
+        let task = runtime.spawn(async move {
             let mut reader = crossterm::event::EventStream::new();
             loop {
                 let crossterm_event = reader.next().fuse();
