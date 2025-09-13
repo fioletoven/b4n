@@ -1,4 +1,4 @@
-use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use tokio::{runtime::Handle, sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -36,7 +36,7 @@ impl BgTask {
     }
 
     /// Starts executing an associated command.
-    pub fn run(&mut self, results_tx: UnboundedSender<Box<TaskResult>>) {
+    pub fn run(&mut self, runtime: &Handle, results_tx: UnboundedSender<Box<TaskResult>>) {
         let Some(_command) = self.command.take() else {
             return;
         };
@@ -45,7 +45,7 @@ impl BgTask {
         let _cancellation_token = cancellation_token.clone();
         let _task_id = self.id().to_owned();
 
-        let task = tokio::spawn(async move {
+        let task = runtime.spawn(async move {
             tokio::select! {
                 () = _cancellation_token.cancelled() => (),
                 result = run_command(_command) => {

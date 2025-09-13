@@ -9,6 +9,7 @@ use std::{
     sync::{Arc, RwLock},
     time::Instant,
 };
+use tokio::runtime::Handle;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
@@ -47,6 +48,7 @@ pub struct ShellView {
 impl ShellView {
     /// Creates new [`ShellView`] instance.
     pub fn new(
+        runtime: Handle,
         app_data: SharedAppData,
         client: &KubernetesClient,
         pod_name: String,
@@ -68,7 +70,7 @@ impl ShellView {
             DEFAULT_SIZE.width,
             SCROLLBACK_LEN,
         )));
-        let mut bridge = ShellBridge::new(parser.clone());
+        let mut bridge = ShellBridge::new(runtime, parser.clone());
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
 
         Self {

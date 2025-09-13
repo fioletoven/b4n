@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 use tokio::{
+    runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
     time::sleep,
@@ -23,6 +24,7 @@ use super::Persistable;
 pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
     path: PathBuf,
     watcher: Option<RecommendedWatcher>,
+    runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     config_tx: UnboundedSender<T>,
@@ -33,11 +35,12 @@ pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
 
 impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     /// Creates new [`ConfigWatcher`] instance.
-    pub fn new(config_to_watch: PathBuf) -> Self {
+    pub fn new(runtime: Handle, config_to_watch: PathBuf) -> Self {
         let (config_tx, config_rx) = mpsc::unbounded_channel();
         Self {
             path: config_to_watch,
             watcher: None,
+            runtime,
             task: None,
             cancellation_token: None,
             config_tx,
@@ -68,7 +71,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
         let _skip_next = Arc::clone(&self.skip_next);
         self.skip_next.store(false, Ordering::Relaxed);
 
-        let task = tokio::spawn(async move {
+        let task = self.runtime.spawn(async move {
             while !_cancellation_token.is_cancelled() {
                 sleep(Duration::from_millis(500)).await;
 

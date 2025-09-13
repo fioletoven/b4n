@@ -4,6 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
 };
+use tokio::runtime::Handle;
 
 use crate::{
     core::DiscoveryList,
@@ -171,15 +172,15 @@ pub struct BgStatistics {
 
 impl BgStatistics {
     /// Creates new [`BgStatistics`] instance.
-    pub fn new(footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         Self {
             stats: Rc::new(RefCell::new(Statistics {
                 data: HashMap::new(),
                 has_metrics: false,
             })),
-            pods: BgObserver::new(footer_tx.clone()),
-            pods_metrics: BgObserver::new(footer_tx.clone()),
-            nodes_metrics: BgObserver::new(footer_tx.clone()),
+            pods: BgObserver::new(runtime.clone(), footer_tx.clone()),
+            pods_metrics: BgObserver::new(runtime.clone(), footer_tx.clone()),
+            nodes_metrics: BgObserver::new(runtime.clone(), footer_tx.clone()),
             pod_data: HashMap::new(),
             node_data: HashMap::new(),
             footer_tx,

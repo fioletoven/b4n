@@ -5,6 +5,7 @@ use kube::{
     discovery::{ApiCapabilities, Scope},
 };
 use std::collections::VecDeque;
+use tokio::runtime::Handle;
 
 use crate::{
     core::SharedCrdsList,
@@ -30,9 +31,9 @@ pub struct ResourceObserver {
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: FooterTx) -> Self {
         Self {
-            observer: BgObserver::new(footer_tx),
+            observer: BgObserver::new(runtime, footer_tx),
             queue: VecDeque::with_capacity(200),
             group: String::default(),
             crds,

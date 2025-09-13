@@ -7,6 +7,7 @@ use std::{
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
+    runtime::Handle,
 };
 
 use crate::{core::ResourcesInfo, utils::calculate_hash};
@@ -89,8 +90,8 @@ pub struct History {
 
 impl History {
     /// Returns watcher for history.
-    pub fn watcher() -> ConfigWatcher<History> {
-        ConfigWatcher::new(History::default_path())
+    pub fn watcher(runtime: Handle) -> ConfigWatcher<History> {
+        ConfigWatcher::new(runtime, History::default_path())
     }
 
     /// Loads history from a file or creates default one if the file does not exist.

@@ -339,6 +339,7 @@ impl ViewsManager {
     pub fn open_shell(&mut self, resource: ResourceRef) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
             let view = ShellView::new(
+                self.worker.borrow().runtime_handle().clone(),
                 Rc::clone(&self.app_data),
                 client,
                 resource.name.unwrap_or_default(),
