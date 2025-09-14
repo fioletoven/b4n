@@ -323,6 +323,27 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.highlight_item_by(|i| i.data.uid() == uid)
     }
 
+    /// Highlights element on list by the visible line number.
+    pub fn highlight_item_by_line(&mut self, line_no: u16) -> bool {
+        let index = self.page_start + usize::from(line_no);
+        if let Some(items) = &mut self.items
+            && index < items.len()
+        {
+            if let Some(highlighted) = self.highlighted
+                && highlighted < items.len()
+            {
+                items[highlighted].is_active = false;
+            }
+
+            items[index].is_active = true;
+            self.highlighted = Some(index);
+
+            return true;
+        }
+
+        false
+    }
+
     /// Highlights first item on the list, returns `true` on success.
     pub fn highlight_first_item(&mut self) -> bool {
         let Some(items) = &mut self.items else {

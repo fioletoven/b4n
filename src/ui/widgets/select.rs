@@ -17,6 +17,7 @@ use super::Input;
 #[derive(Default)]
 pub struct Select<T: Table> {
     pub items: T,
+    pub area: Rect,
     colors: SelectColors,
     filter: Input,
     filter_auto_hide: bool,
@@ -31,6 +32,7 @@ impl<T: Table> Select<T> {
 
         Select {
             items: list,
+            area: Rect::default(),
             colors,
             filter,
             filter_auto_hide,
@@ -107,16 +109,16 @@ impl<T: Table> Select<T> {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let draw_filter = !self.filter_auto_hide || self.items.get_filter().is_some();
         let layout = get_layout(area, draw_filter);
-        let list_area = if draw_filter { layout[1] } else { layout[0] };
-        self.items.update_page(list_area.height);
-        if let Some(list) = self.items.get_paged_names(usize::from(list_area.width.max(2) - 2)) {
+        self.area = if draw_filter { layout[1] } else { layout[0] };
+        self.items.update_page(self.area.height);
+        if let Some(list) = self.items.get_paged_names(usize::from(self.area.width.max(2) - 2)) {
             frame.render_widget(
                 &mut ListWidget {
                     list,
                     normal: &self.colors.normal,
                     highlighted: &self.colors.normal_hl,
                 },
-                list_area,
+                self.area,
             );
         }
 

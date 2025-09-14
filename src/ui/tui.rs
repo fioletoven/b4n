@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::{
     cursor::SetCursorStyle,
-    event::{MouseEvent, MouseEventKind},
+    event::{KeyModifiers, MouseButton},
 };
 use futures::{FutureExt, StreamExt};
 use ratatui::{
@@ -11,9 +11,13 @@ use ratatui::{
         event::{Event, KeyEventKind},
         terminal::{EnterAlternateScreen, LeaveAlternateScreen},
     },
+    layout::{Position, Rect},
     prelude::CrosstermBackend,
 };
-use std::io::stdout;
+use std::{
+    io::stdout,
+    time::{Duration, Instant},
+};
 use tokio::{
     runtime::Handle,
     sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -25,11 +29,88 @@ use crate::{core::utils::wait_for_task, kubernetes::ResourceRef, ui::KeyCombinat
 
 use super::utils::init_panic_hook;
 
-/// Terminal UI Event.
-#[derive(Clone)]
+static DOUBLE_CLICK_DURATION: Duration = Duration::from_millis(250);
+
+/// TUI mouse event.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct MouseEvent {
+    pub kind: MouseEventKind,
+    pub column: u16,
+    pub row: u16,
+    pub modifiers: KeyModifiers,
+}
+
+impl From<crossterm::event::MouseEvent> for MouseEvent {
+    fn from(value: crossterm::event::MouseEvent) -> Self {
+        Self {
+            kind: match value.kind {
+                crossterm::event::MouseEventKind::Down(button) => match button {
+                    MouseButton::Left => MouseEventKind::LeftClick,
+                    MouseButton::Right => MouseEventKind::RightClick,
+                    MouseButton::Middle => MouseEventKind::MiddleClick,
+                },
+                crossterm::event::MouseEventKind::ScrollDown => MouseEventKind::ScrollDown,
+                crossterm::event::MouseEventKind::ScrollUp => MouseEventKind::ScrollUp,
+                crossterm::event::MouseEventKind::ScrollLeft => MouseEventKind::ScrollLeft,
+                crossterm::event::MouseEventKind::ScrollRight => MouseEventKind::ScrollRight,
+                _ => MouseEventKind::None,
+            },
+            column: value.column,
+            row: value.row,
+            modifiers: value.modifiers,
+        }
+    }
+}
+
+/// TUI mouse event kind.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum MouseEventKind {
+    None,
+    LeftClick,
+    LeftDoubleClick,
+    RightClick,
+    RightDoubleClick,
+    MiddleClick,
+    MiddleDoubleClick,
+    ScrollDown,
+    ScrollUp,
+    ScrollLeft,
+    ScrollRight,
+}
+
+/// TUI event.
+#[derive(Debug, Clone)]
 pub enum TuiEvent {
     Key(KeyCombination),
     Mouse(MouseEvent),
+}
+
+impl TuiEvent {
+    /// Returns `true` if this event is a left mouse click inside a specified area.
+    pub fn get_clicked_line_no(&self, area: Rect) -> Option<u16> {
+        if let TuiEvent::Mouse(mouse) = self
+            && mouse.kind == MouseEventKind::LeftClick
+            && area.contains(Position::new(mouse.column, mouse.row))
+        {
+            Some(mouse.row.saturating_sub(area.y))
+        } else {
+            None
+        }
+    }
+
+    /// Returns `true` if this event is a mouse dobule click inside a specified area.
+    pub fn is_double_click(&self, area: Rect) -> bool {
+        if let TuiEvent::Mouse(mouse) = self
+            && area.contains(Position::new(mouse.column, mouse.row))
+        {
+            matches!(
+                mouse.kind,
+                MouseEventKind::LeftDoubleClick | MouseEventKind::RightDoubleClick | MouseEventKind::MiddleDoubleClick
+            )
+        } else {
+            false
+        }
+    }
 }
 
 /// Terminal UI Response Event.
@@ -148,6 +229,10 @@ impl Tui {
         let _cancellation_token = self.events_ct.clone();
         let _event_tx = self.event_tx.clone();
         let task = runtime.spawn(async move {
+            let mut click = DblClickState {
+                button: MouseButton::Left,
+                time: None,
+            };
             let mut reader = crossterm::event::EventStream::new();
             loop {
                 let crossterm_event = reader.next().fuse();
@@ -156,7 +241,9 @@ impl Tui {
                         break;
                     },
                     maybe_event = crossterm_event => {
-                        if let Some(Ok(event)) = maybe_event { process_crossterm_event(event, &_event_tx) }
+                        if let Some(Ok(event)) = maybe_event {
+                            click = process_crossterm_event(event, &_event_tx, click);
+                        }
                     },
                 }
             }
@@ -180,17 +267,58 @@ impl Drop for Tui {
     }
 }
 
-fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>) {
+#[derive(Debug)]
+struct DblClickState {
+    button: MouseButton,
+    time: Option<Instant>,
+}
+
+fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, prev_click: DblClickState) -> DblClickState {
     match event {
-        Event::Key(key) if key.kind == KeyEventKind::Press => sender.send(TuiEvent::Key(key.into())).unwrap(),
-        Event::Mouse(mouse) => match &mouse.kind {
-            MouseEventKind::Down(_)
-            | MouseEventKind::ScrollDown
-            | MouseEventKind::ScrollUp
-            | MouseEventKind::ScrollLeft
-            | MouseEventKind::ScrollRight => sender.send(TuiEvent::Mouse(mouse)).unwrap(),
-            _ => (),
+        Event::Key(key) if key.kind == KeyEventKind::Press => {
+            let _ = sender.send(TuiEvent::Key(key.into()));
+            prev_click
         },
-        _ => (),
+
+        Event::Mouse(mouse_event) => {
+            let now = Instant::now();
+
+            match mouse_event.kind {
+                crossterm::event::MouseEventKind::Down(button) => {
+                    let is_double_click = prev_click
+                        .time
+                        .filter(|&t| now.duration_since(t) <= DOUBLE_CLICK_DURATION)
+                        .is_some()
+                        && prev_click.button == button;
+
+                    let mut event: MouseEvent = mouse_event.into();
+
+                    if is_double_click {
+                        event.kind = match button {
+                            MouseButton::Left => MouseEventKind::LeftDoubleClick,
+                            MouseButton::Right => MouseEventKind::RightDoubleClick,
+                            MouseButton::Middle => MouseEventKind::MiddleDoubleClick,
+                        };
+                        let _ = sender.send(TuiEvent::Mouse(event));
+                        DblClickState { time: None, button }
+                    } else {
+                        let _ = sender.send(TuiEvent::Mouse(event));
+                        DblClickState { time: Some(now), button }
+                    }
+                },
+
+                crossterm::event::MouseEventKind::ScrollUp
+                | crossterm::event::MouseEventKind::ScrollDown
+                | crossterm::event::MouseEventKind::ScrollLeft
+                | crossterm::event::MouseEventKind::ScrollRight => {
+                    let _ = sender.send(TuiEvent::Mouse(mouse_event.into()));
+                    prev_click
+                },
+
+                _ => prev_click,
+            }
+        },
+
+        _ => prev_click,
     }
 }

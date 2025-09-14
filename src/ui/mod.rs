@@ -85,6 +85,9 @@ pub trait Table: Responsive {
     /// Highlights element on list by its `uid`.
     fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
 
+    /// Highlights element on list by the visible line number.
+    fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
+
     /// Highlights first item on list, returns `true` on success.
     fn highlight_first_item(&mut self) -> bool;
 

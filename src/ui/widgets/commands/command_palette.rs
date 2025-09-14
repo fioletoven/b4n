@@ -221,7 +221,12 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
+        if let Some(line) = event.get_clicked_line_no(self.select().area) {
+            self.select_mut().items.highlight_item_by_line(line);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateInto) || event.is_double_click(self.select().area) {
             self.insert_highlighted_value(false);
 
             if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
