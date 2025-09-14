@@ -30,10 +30,10 @@ pub enum ViewType {
     Full,
 }
 
-/// UI object that is responsive and can process key events.
+/// UI object that is responsive and can process TUI key/mouse events.
 pub trait Responsive {
     /// Process UI key event.
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent;
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
 }
 
 /// UI object that behaves like table.

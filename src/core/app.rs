@@ -122,7 +122,7 @@ impl App {
         }
 
         while let Ok(event) = self.tui.event_rx.try_recv() {
-            match self.process_event(event) {
+            match self.process_event(&event) {
                 Ok(response) => {
                     if response == ResponseEvent::ExitApplication {
                         return Ok(ExecutionFlow::Stop);
@@ -147,7 +147,7 @@ impl App {
     }
 
     /// Processes single TUI event.
-    fn process_event(&mut self, event: TuiEvent) -> Result<ResponseEvent> {
+    fn process_event(&mut self, event: &TuiEvent) -> Result<ResponseEvent> {
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
             ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,

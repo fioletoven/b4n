@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, utils::center_horizontal, widgets::Select},
+    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal, widgets::Select},
 };
 
 use super::PatternsList;
@@ -136,29 +136,29 @@ impl Search {
 }
 
 impl Responsive for Search {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.patterns.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.patterns.value().is_empty() {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             self.is_visible = false;
             self.remember_pattern();
 
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
             if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
                 self.patterns.set_value(pattern);
             }
@@ -166,7 +166,7 @@ impl Responsive for Search {
             return ResponseEvent::Handled;
         }
 
-        self.patterns.process_key(key);
+        self.patterns.process_event(event);
 
         ResponseEvent::Handled
     }

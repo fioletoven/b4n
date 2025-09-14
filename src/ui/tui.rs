@@ -1,5 +1,8 @@
 use anyhow::Result;
-use crossterm::cursor::SetCursorStyle;
+use crossterm::{
+    cursor::SetCursorStyle,
+    event::{MouseEvent, MouseEventKind},
+};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     Terminal,
@@ -26,6 +29,7 @@ use super::utils::init_panic_hook;
 #[derive(Clone)]
 pub enum TuiEvent {
     Key(KeyCombination),
+    Mouse(MouseEvent),
 }
 
 /// Terminal UI Response Event.
@@ -177,9 +181,16 @@ impl Drop for Tui {
 }
 
 fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>) {
-    if let Event::Key(key) = event
-        && key.kind == KeyEventKind::Press
-    {
-        sender.send(TuiEvent::Key(key.into())).unwrap();
+    match event {
+        Event::Key(key) if key.kind == KeyEventKind::Press => sender.send(TuiEvent::Key(key.into())).unwrap(),
+        Event::Mouse(mouse) => match &mouse.kind {
+            MouseEventKind::Down(_)
+            | MouseEventKind::ScrollDown
+            | MouseEventKind::ScrollUp
+            | MouseEventKind::ScrollLeft
+            | MouseEventKind::ScrollRight => sender.send(TuiEvent::Mouse(mouse)).unwrap(),
+            _ => (),
+        },
+        _ => (),
     }
 }

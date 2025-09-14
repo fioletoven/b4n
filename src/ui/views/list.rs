@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
+    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors},
 };
 
 /// List viewer.
@@ -71,21 +71,25 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 }
 
 impl<T: Table> Responsive for ListViewer<T> {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if let TuiEvent::Key(key) = event
+            && key.code == KeyCode::Char('0')
+            && key.modifiers == KeyModifiers::ALT
+            && self.view != ViewType::Full
+        {
             return ResponseEvent::Handled;
         }
 
-        if self.table.process_key(key) == ResponseEvent::Handled {
+        if self.table.process_event(event) == ResponseEvent::Handled {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateSelect) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateSelect) {
             self.table.select_highlighted_item();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateInvertSelection) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateInvertSelection) {
             self.table.invert_selection();
             return ResponseEvent::Handled;
         }

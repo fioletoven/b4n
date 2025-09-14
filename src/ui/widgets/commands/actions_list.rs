@@ -8,7 +8,7 @@ use crate::{
         resources::{Port, PortProtocol},
     },
     ui::{
-        KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         colors::TextColors,
         lists::{BasicFilterContext, ScrollableList},
         theme::Theme,
@@ -25,8 +25,8 @@ pub struct ActionsList {
 }
 
 impl Responsive for ActionsList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.list.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.list.process_event(event)
     }
 }
 

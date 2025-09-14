@@ -2,7 +2,7 @@ use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::ui::{
-    KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+    ResponseEvent, Responsive, Table, TuiEvent, ViewType,
     colors::TextColors,
     lists::{BasicFilterContext, Column, FilterableList, Header, Item, NAMESPACE, TabularList},
     theme::Theme,
@@ -44,8 +44,8 @@ impl PortForwardsList {
 }
 
 impl Responsive for PortForwardsList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.table.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.table.process_event(event)
     }
 }
 

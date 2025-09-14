@@ -7,7 +7,8 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::ui::{
-    KeyCombination, ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode,
+    KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, colors::TextColors, theme::SelectColors,
+    widgets::ErrorHighlightMode,
 };
 
 use super::Input;
@@ -147,7 +148,12 @@ impl<T: Table> Select<T> {
 }
 
 impl<T: Table> Responsive for Select<T> {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let key = match event {
+            TuiEvent::Key(key) => key,
+            _ => &KeyCombination::default(),
+        };
+
         if key.modifiers == KeyModifiers::ALT {
             return ResponseEvent::Handled;
         }
@@ -155,9 +161,9 @@ impl<T: Table> Responsive for Select<T> {
         // Process Home and End keys directly by filter input if we show cursor
         // (that means move cursor to start or end of the filter input text).
         if (self.filter.is_cursor_visible() && (key.code == KeyCode::Home || key.code == KeyCode::End))
-            || self.items.process_key(key) == ResponseEvent::NotHandled
+            || self.items.process_event(event) == ResponseEvent::NotHandled
         {
-            self.filter.process_key(key);
+            self.filter.process_event(event);
             self.update_items_filter();
         }
 

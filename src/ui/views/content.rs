@@ -12,7 +12,7 @@ use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{
-        KeyCombination, ResponseEvent,
+        ResponseEvent, TuiEvent,
         utils::center,
         views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
     },
@@ -282,31 +282,36 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        match key {
-            // horizontal scroll
-            x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
-            x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
-                self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                match key {
+                    // horizontal scroll
+                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
+                    x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
+                        self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
+                    },
+                    x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
+                    x if x.code == KeyCode::Right => self.page_hstart += 1,
+                    x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
+                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = self.max_hstart(),
+
+                    // vertical scroll
+                    x if x.code == KeyCode::Home => self.page_vstart = 0,
+                    x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
+                    x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
+                    x if x.code == KeyCode::Down => self.page_vstart += 1,
+                    x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
+                    x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
+
+                    _ => return ResponseEvent::NotHandled,
+                }
+
+                self.update_page_starts();
+                ResponseEvent::Handled
             },
-            x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
-            x if x.code == KeyCode::Right => self.page_hstart += 1,
-            x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
-            x if x.code == KeyCode::End && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = self.max_hstart(),
-
-            // vertical scroll
-            x if x.code == KeyCode::Home => self.page_vstart = 0,
-            x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
-            x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
-            x if x.code == KeyCode::Down => self.page_vstart += 1,
-            x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
-            x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
-
-            _ => return ResponseEvent::NotHandled,
+            TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
         }
-
-        self.update_page_starts();
-        ResponseEvent::Handled
     }
 
     /// Draws the [`ContentViewer`] onto the given frame within the specified area.

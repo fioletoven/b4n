@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::ui::{KeyCombination, ResponseEvent};
+use crate::ui::{ResponseEvent, TuiEvent};
 
 use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
@@ -144,19 +144,24 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.set_settings(settings);
     }
 
-    /// Process [`KeyCombination`] to move over the list.
-    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        match key.code {
-            KeyCode::Home => self.move_highlighted(i32::MIN),
-            KeyCode::Up => self.move_highlighted(-1),
-            KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
-            KeyCode::Down => self.move_highlighted(1),
-            KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
-            KeyCode::End => self.move_highlighted(i32::MAX),
-            _ => return ResponseEvent::NotHandled,
-        }
+    /// Process [`TuiEvent`] to move over the list.
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                match key.code {
+                    KeyCode::Home => self.move_highlighted(i32::MIN),
+                    KeyCode::Up => self.move_highlighted(-1),
+                    KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
+                    KeyCode::Down => self.move_highlighted(1),
+                    KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
+                    KeyCode::End => self.move_highlighted(i32::MAX),
+                    _ => return ResponseEvent::NotHandled,
+                }
 
-        ResponseEvent::Handled
+                ResponseEvent::Handled
+            },
+            TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
+        }
     }
 
     /// Updates page start for the current page size and highlighted resource item.

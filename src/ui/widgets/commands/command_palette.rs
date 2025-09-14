@@ -7,7 +7,7 @@ use ratatui::{
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     ui::{
-        KeyCombination, KeyCommand, ResponseEvent, Responsive, Table,
+        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent,
         theme::SelectColors,
         utils::center_horizontal,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
@@ -200,8 +200,8 @@ impl CommandPalette {
 }
 
 impl Responsive for CommandPalette {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteReset) {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteReset) {
             if self.index > 0 {
                 self.index -= 1;
                 return ResponseEvent::Handled;
@@ -211,17 +211,17 @@ impl Responsive for CommandPalette {
             }
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateComplete) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
             self.insert_highlighted_value(true);
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             self.insert_highlighted_value(false);
 
             if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
@@ -243,7 +243,7 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        let response = self.select_mut().process_key(key);
+        let response = self.select_mut().process_event(event);
         self.steps[self.index].validate();
 
         response

@@ -5,7 +5,7 @@ use ratatui::{
 };
 use tui_input::backend::crossterm::EventHandler;
 
-use crate::ui::{KeyCombination, ResponseEvent, Responsive, colors::TextColors};
+use crate::ui::{ResponseEvent, Responsive, TuiEvent, colors::TextColors};
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]
@@ -210,23 +210,28 @@ impl Input {
 }
 
 impl Responsive for Input {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        if key.code == KeyCode::Esc {
-            return ResponseEvent::Cancelled;
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                if key.code == KeyCode::Esc {
+                    return ResponseEvent::Cancelled;
+                }
+
+                if key.code == KeyCode::Enter {
+                    return ResponseEvent::Accepted;
+                }
+
+                if key.code == KeyCode::Delete && key.modifiers == KeyModifiers::CONTROL {
+                    self.reset();
+                    return ResponseEvent::Handled;
+                }
+
+                self.input.handle_event(&Event::Key((*key).into()));
+
+                ResponseEvent::Handled
+            },
+            TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
         }
-
-        if key.code == KeyCode::Enter {
-            return ResponseEvent::Accepted;
-        }
-
-        if key.code == KeyCode::Delete && key.modifiers == KeyModifiers::CONTROL {
-            self.reset();
-            return ResponseEvent::Handled;
-        }
-
-        self.input.handle_event(&Event::Key(key.into()));
-
-        ResponseEvent::Handled
     }
 }
 

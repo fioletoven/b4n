@@ -8,7 +8,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -57,8 +57,8 @@ impl ForwardsView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
+    fn process_command_palette_events(&mut self, event: &TuiEvent) -> bool {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
                 .with_close()
                 .with_quit()
@@ -179,21 +179,19 @@ impl View for ForwardsView {
         self.command_palette.hide();
     }
 
-    fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.is_application_exit(event) {
             return ResponseEvent::ExitApplication;
         }
 
         if self.filter.is_visible {
-            self.filter.process_key(key);
+            self.filter.process_event(event);
             self.set_filter();
             return ResponseEvent::Handled;
         }
 
         if self.modal.is_visible {
-            if self.modal.process_key(key) == ResponseEvent::DeleteResources {
+            if self.modal.process_event(event) == ResponseEvent::DeleteResources {
                 self.stop_selected_port_forwards();
             }
 
@@ -201,7 +199,7 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return match self.command_palette.process_key(key) {
+            return match self.command_palette.process_event(event) {
                 ResponseEvent::ChangeKind(kind) => {
                     self.is_closing = true;
                     ResponseEvent::ChangeKind(kind)
@@ -214,33 +212,33 @@ impl View for ForwardsView {
             };
         }
 
-        if self.process_command_palette_events(key) {
+        if self.process_command_palette_events(event) {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.set_filter();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack)
-            || self.app_data.has_binding(&key, KeyCommand::PortForwardsOpen)
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || self.app_data.has_binding(event, KeyCommand::PortForwardsOpen)
         {
             return ResponseEvent::Cancelled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_stop_port_forwards();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
+        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
             self.filter.show();
             return ResponseEvent::Handled;
         }
 
-        self.list.process_key(key)
+        self.list.process_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

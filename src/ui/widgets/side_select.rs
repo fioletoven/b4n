@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table},
+    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent},
 };
 
 use super::Select;
@@ -140,20 +140,21 @@ impl<T: Table> SideSelect<T> {
 }
 
 impl<T: Table> Responsive for SideSelect<T> {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }
 
-        if (self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && self.position == Position::Right)
-            || (self.app_data.has_binding(&key, KeyCommand::SelectorRight) && self.position == Position::Left)
-            || self.app_data.has_binding(&key, KeyCommand::NavigateBack)
+        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) && self.position == Position::Right)
+            || (self.app_data.has_binding(event, KeyCommand::SelectorRight) && self.position == Position::Left)
+            || self.app_data.has_binding(event, KeyCommand::NavigateBack)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) || self.app_data.has_binding(&key, KeyCommand::SelectorRight)
+        if self.app_data.has_binding(event, KeyCommand::SelectorLeft)
+            || self.app_data.has_binding(event, KeyCommand::SelectorRight)
         {
             if self.is_key_pressed || self.showup_time.elapsed().as_millis() > 500 {
                 self.is_visible = false;
@@ -167,7 +168,7 @@ impl<T: Table> Responsive for SideSelect<T> {
 
         self.is_key_pressed = true;
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             self.is_visible = false;
             if let Some(selected_name) = self.select.items.get_highlighted_item_name() {
                 return (self.result)(selected_name.to_owned());
@@ -176,7 +177,7 @@ impl<T: Table> Responsive for SideSelect<T> {
             return ResponseEvent::Handled;
         }
 
-        self.select.process_key(key);
+        self.select.process_event(event);
         ResponseEvent::Handled
     }
 }

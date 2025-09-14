@@ -104,11 +104,9 @@ impl ViewsManager {
     }
 
     /// Processes single TUI event.
-    pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.ns_selector.is_visible {
-            let result = self.ns_selector.process_key(key);
+            let result = self.ns_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_namespaces_selector_event(&result);
             }
@@ -117,7 +115,7 @@ impl ViewsManager {
         }
 
         if self.res_selector.is_visible {
-            let result = self.res_selector.process_key(key);
+            let result = self.res_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_resources_selector_event(&result);
             }
@@ -132,8 +130,7 @@ impl ViewsManager {
         }
     }
 
-    fn process_view_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
+    fn process_view_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let Some(view) = &mut self.view else {
             return ResponseEvent::Handled;
         };
@@ -141,12 +138,12 @@ impl ViewsManager {
         let response = view.process_event(event);
 
         if response == ResponseEvent::NotHandled {
-            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && view.is_namespaces_selector_allowed() {
+            if self.app_data.has_binding(event, KeyCommand::SelectorLeft) && view.is_namespaces_selector_allowed() {
                 self.ns_selector.show_selected(view.displayed_namespace(), "");
                 return ResponseEvent::Handled;
             }
 
-            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) && view.is_resources_selector_allowed() {
+            if self.app_data.has_binding(event, KeyCommand::SelectorRight) && view.is_resources_selector_allowed() {
                 self.res_selector
                     .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
                 return ResponseEvent::Handled;
@@ -160,19 +157,16 @@ impl ViewsManager {
         response
     }
 
-    fn process_resources_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
+    fn process_resources_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.resources.process_event(event);
-
         if response == ResponseEvent::NotHandled {
-            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && self.resources.is_namespaces_selector_allowed() {
+            if self.app_data.has_binding(event, KeyCommand::SelectorLeft) && self.resources.is_namespaces_selector_allowed() {
                 self.ns_selector
                     .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
                 return ResponseEvent::Handled;
             }
 
-            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) {
+            if self.app_data.has_binding(event, KeyCommand::SelectorRight) {
                 self.res_selector
                     .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
                 return ResponseEvent::Handled;

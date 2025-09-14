@@ -7,7 +7,7 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{KeyCombination, ResponseEvent, Responsive, colors::TextColors, utils::center};
+use crate::ui::{ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center};
 
 use super::{Button, ButtonsGroup};
 
@@ -81,17 +81,19 @@ impl Dialog {
 }
 
 impl Responsive for Dialog {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }
 
-        if key.code == KeyCode::Esc {
+        if let TuiEvent::Key(key) = event
+            && key.code == KeyCode::Esc
+        {
             self.is_visible = false;
             return self.buttons.result(self.default_button);
         }
 
-        let result = self.buttons.process_key(key);
+        let result = self.buttons.process_event(event);
         if result != ResponseEvent::Handled {
             self.is_visible = false;
         }

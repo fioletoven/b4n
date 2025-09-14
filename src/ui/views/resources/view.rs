@@ -130,43 +130,43 @@ impl ResourcesView {
     }
 
     /// Process TUI event.
-    pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.is_application_exit(event) {
             return ResponseEvent::ExitApplication;
         }
 
         if self.modal.is_visible {
-            return self.modal.process_key(key);
+            return self.modal.process_event(event);
         }
 
         if self.command_palette.is_visible {
             return self
                 .command_palette
-                .process_key(key)
+                .process_event(event)
                 .when_action_then("show_yaml", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlOpen))
+                    self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
                 })
                 .when_action_then("decode_yaml", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlDecode))
+                    self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode))
                 })
                 .when_action_then("show_logs", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::LogsOpen))
+                    self.table.process_event(&self.app_data.get_event(KeyCommand::LogsOpen))
                 })
                 .when_action_then("show_plogs", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::PreviousLogsOpen))
+                    self.table
+                        .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen))
                 })
                 .when_action_then("open_shell", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::ShellOpen))
+                    self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen))
                 })
                 .when_action_then("port_forward", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::PortForwardsCreate))
+                    self.table
+                        .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
                 });
         }
 
         if !self.app_data.borrow().is_connected {
-            if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
                 self.show_command_palette();
             }
 
@@ -174,32 +174,32 @@ impl ResourcesView {
         }
 
         if self.filter.is_visible {
-            let result = self.filter.process_key(key);
+            let result = self.filter.process_event(event);
             self.table.set_filter(self.filter.value());
             return result;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.table.set_filter("");
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
+        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
             self.filter.show();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
         }
 
-        self.table.process_key(key)
+        self.table.process_event(event)
     }
 
     /// Processes disconnection state.

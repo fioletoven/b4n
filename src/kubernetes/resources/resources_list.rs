@@ -8,7 +8,7 @@ use crate::{
         watchers::{InitData, ObserverResult},
     },
     ui::{
-        KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         colors::TextColors,
         lists::{FilterableList, Item, Row, TabularList},
         theme::Theme,
@@ -110,8 +110,8 @@ impl ResourcesList {
 }
 
 impl Responsive for ResourcesList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.table.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.table.process_event(event)
     }
 }
 
