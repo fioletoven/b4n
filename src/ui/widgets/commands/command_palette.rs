@@ -7,7 +7,7 @@ use ratatui::{
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent,
         theme::SelectColors,
         utils::center_horizontal,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
@@ -137,12 +137,10 @@ impl CommandPalette {
         );
     }
 
-    #[inline]
     fn select(&self) -> &Select<ActionsList> {
         &self.steps[self.index].select
     }
 
-    #[inline]
     fn select_mut(&mut self) -> &mut Select<ActionsList> {
         &mut self.steps[self.index].select
     }
@@ -197,6 +195,28 @@ impl CommandPalette {
     fn build_response(&self) -> Vec<String> {
         self.steps.iter().map(|s| s.select.value().to_owned()).collect()
     }
+
+    fn process_enter_key(&mut self) -> ResponseEvent {
+        self.insert_highlighted_value(false);
+
+        if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
+            self.is_visible = false;
+
+            if self.steps.len() == self.index + 1
+                && let Some(response) = self.response.take()
+            {
+                return (response)(self.build_response());
+            }
+
+            if let Some(index) = self.select().items.list.get_highlighted_item_index()
+                && let Some(items) = &self.select().items.list.items
+            {
+                return items[index].data.response.clone();
+            }
+        }
+
+        ResponseEvent::Handled
+    }
 }
 
 impl Responsive for CommandPalette {
@@ -211,7 +231,9 @@ impl Responsive for CommandPalette {
             }
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || event.is_out(MouseEventKind::LeftClick, self.select().area)
+        {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
@@ -223,29 +245,11 @@ impl Responsive for CommandPalette {
 
         if let Some(line) = event.get_clicked_line_no(self.select().area) {
             self.select_mut().items.highlight_item_by_line(line);
-            return ResponseEvent::Handled;
+            return self.process_enter_key();
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateInto) || event.is_double_click(self.select().area) {
-            self.insert_highlighted_value(false);
-
-            if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
-                self.is_visible = false;
-
-                if self.steps.len() == self.index + 1
-                    && let Some(response) = self.response.take()
-                {
-                    return (response)(self.build_response());
-                }
-
-                if let Some(index) = self.select().items.list.get_highlighted_item_index()
-                    && let Some(items) = &self.select().items.list.items
-                {
-                    return items[index].data.response.clone();
-                }
-            }
-
-            return ResponseEvent::Handled;
+        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
+            return self.process_enter_key();
         }
 
         let response = self.select_mut().process_event(event);

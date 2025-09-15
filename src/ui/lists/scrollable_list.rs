@@ -160,7 +160,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
                 ResponseEvent::Handled
             },
-            TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
+            TuiEvent::Mouse(mouse) => {
+                match mouse.kind {
+                    crate::ui::MouseEventKind::ScrollUp => self.move_highlighted(-1),
+                    crate::ui::MouseEventKind::ScrollDown => self.move_highlighted(1),
+                    _ => return ResponseEvent::NotHandled,
+                }
+
+                ResponseEvent::Handled
+            },
         }
     }
 

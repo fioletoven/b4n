@@ -15,6 +15,7 @@ use crate::{
 pub struct ListViewer<T: Table> {
     pub table: T,
     pub view: ViewType,
+    pub area: Rect,
     app_data: SharedAppData,
 }
 
@@ -24,6 +25,7 @@ impl<T: Table> ListViewer<T> {
         ListViewer {
             table: list,
             view,
+            area: Rect::default(),
             app_data,
         }
     }
@@ -38,12 +40,12 @@ impl<T: Table> ListViewer<T> {
 
         let theme = &self.app_data.borrow().theme;
         frame.render_widget(Block::new().style(&theme.colors.text), area);
-        let area = layout[1].inner(Margin::new(1, 0));
+        self.area = layout[1].inner(Margin::new(1, 0));
 
         {
             let sort_symbols = self.table.get_sort_symbols();
             let mut header = HeaderWidget {
-                header: self.table.get_header(self.view, usize::from(area.width)),
+                header: self.table.get_header(self.view, usize::from(self.area.width)),
                 colors: &theme.colors.header.text,
                 background: theme.colors.text.bg,
                 view: self.view,
@@ -52,9 +54,9 @@ impl<T: Table> ListViewer<T> {
             frame.render_widget(&mut header, layout[0]);
         }
 
-        self.table.update_page(area.height);
-        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(area.width)) {
-            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), area);
+        self.table.update_page(self.area.height);
+        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }
     }
 }
@@ -77,6 +79,11 @@ impl<T: Table> Responsive for ListViewer<T> {
             && key.modifiers == KeyModifiers::ALT
             && self.view != ViewType::Full
         {
+            return ResponseEvent::Handled;
+        }
+
+        if let Some(line_no) = event.get_clicked_line_no(self.area) {
+            self.table.highlight_item_by_line(line_no);
             return ResponseEvent::Handled;
         }
 

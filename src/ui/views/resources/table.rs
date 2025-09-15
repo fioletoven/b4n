@@ -182,7 +182,7 @@ impl ResourcesTable {
 
     fn process_highlighted_resource_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
-            if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
+            if self.app_data.has_binding(event, KeyCommand::NavigateInto) || event.is_double_click(self.list.area) {
                 return self.process_enter_key(resource);
             }
 

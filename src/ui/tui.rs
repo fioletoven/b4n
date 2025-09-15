@@ -29,7 +29,7 @@ use crate::{core::utils::wait_for_task, kubernetes::ResourceRef, ui::KeyCombinat
 
 use super::utils::init_panic_hook;
 
-static DOUBLE_CLICK_DURATION: Duration = Duration::from_millis(250);
+static DOUBLE_CLICK_DURATION: Duration = Duration::from_millis(300);
 
 /// TUI mouse event.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -110,6 +110,21 @@ impl TuiEvent {
         } else {
             false
         }
+    }
+
+    /// Returns `true` if this event is a mouse event of a specified kind.
+    pub fn is(&self, kind: MouseEventKind) -> bool {
+        matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind)
+    }
+
+    /// Returns `true` if this event is a mouse event of a specified kind in a specified area.
+    pub fn is_in(&self, kind: MouseEventKind, area: Rect) -> bool {
+        matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && area.contains(Position::new(mouse.column, mouse.row)))
+    }
+
+    /// Returns `true` if this event is a mouse event of a specified kind outsied of a specified area.
+    pub fn is_out(&self, kind: MouseEventKind, area: Rect) -> bool {
+        matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && !area.contains(Position::new(mouse.column, mouse.row)))
     }
 }
 

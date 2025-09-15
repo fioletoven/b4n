@@ -10,7 +10,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{PodRef, ResourceRef, client::KubernetesClient, resources::PODS},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         views::{
             View,
@@ -78,27 +78,22 @@ impl LogsView {
         })
     }
 
-    fn process_command_palette_events(&mut self, event: &TuiEvent) -> bool {
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            let builder = ActionsListBuilder::default()
-                .with_close()
-                .with_quit()
-                .with_action(
-                    ActionItem::new("timestamps")
-                        .with_description("toggles the display of timestamps")
-                        .with_response(ResponseEvent::Action("timestamps")),
-                )
-                .with_action(
-                    ActionItem::new("copy")
-                        .with_description("copies logs to the clipboard")
-                        .with_response(ResponseEvent::Action("copy")),
-                );
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
-            true
-        } else {
-            false
-        }
+    fn show_command_palette(&mut self) {
+        let builder = ActionsListBuilder::default()
+            .with_close()
+            .with_quit()
+            .with_action(
+                ActionItem::new("timestamps")
+                    .with_description("toggles the display of timestamps")
+                    .with_response(ResponseEvent::Action("timestamps")),
+            )
+            .with_action(
+                ActionItem::new("copy")
+                    .with_description("copies logs to the clipboard")
+                    .with_response(ResponseEvent::Action("copy")),
+            );
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     fn toggle_timestamps(&mut self) {
@@ -254,7 +249,8 @@ impl View for LogsView {
             return result;
         }
 
-        if self.process_command_palette_events(event) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 

@@ -5,7 +5,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
@@ -73,28 +73,23 @@ impl YamlView {
         }
     }
 
-    fn process_command_palette_events(&mut self, event: &TuiEvent) -> bool {
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-                ActionItem::new("copy")
-                    .with_description("copies YAML to the clipboard")
-                    .with_response(ResponseEvent::Action("copy")),
+    fn show_command_palette(&mut self) {
+        let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
+            ActionItem::new("copy")
+                .with_description("copies YAML to the clipboard")
+                .with_response(ResponseEvent::Action("copy")),
+        );
+        if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
+            let action = if self.is_decoded { "encode" } else { "decode" };
+            builder = builder.with_action(
+                ActionItem::new(action)
+                    .with_description(&format!("{action}s the resource's data"))
+                    .with_response(ResponseEvent::Action("decode")),
             );
-            if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
-                let action = if self.is_decoded { "encode" } else { "decode" };
-                builder = builder.with_action(
-                    ActionItem::new(action)
-                        .with_description(&format!("{action}s the resource's data"))
-                        .with_response(ResponseEvent::Action("decode")),
-                );
-            }
-
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
-            true
-        } else {
-            false
         }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     fn toggle_yaml_decode(&mut self) {
@@ -187,7 +182,8 @@ impl View for YamlView {
             return result;
         }
 
-        if self.process_command_palette_events(event) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 

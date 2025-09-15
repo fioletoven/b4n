@@ -12,7 +12,7 @@ use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{
-        ResponseEvent, TuiEvent,
+        MouseEventKind, ResponseEvent, TuiEvent,
         utils::center,
         views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
     },
@@ -287,14 +287,16 @@ impl<T: Content> ContentViewer<T> {
             TuiEvent::Key(key) => {
                 match key {
                     // horizontal scroll
-                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
-                    x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
+                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = 0,
+                    x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
                         self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
                     },
                     x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
                     x if x.code == KeyCode::Right => self.page_hstart += 1,
-                    x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
-                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = self.max_hstart(),
+                    x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
+                        self.page_hstart += self.page_width
+                    },
+                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = self.max_hstart(),
 
                     // vertical scroll
                     x if x.code == KeyCode::Home => self.page_vstart = 0,
@@ -306,12 +308,26 @@ impl<T: Content> ContentViewer<T> {
 
                     _ => return ResponseEvent::NotHandled,
                 }
-
-                self.update_page_starts();
-                ResponseEvent::Handled
             },
-            TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
+            TuiEvent::Mouse(mouse) => match mouse {
+                // horizontal scroll
+                x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
+                    self.page_hstart = self.page_hstart.saturating_sub(1);
+                },
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_hstart += 1,
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_hstart = self.page_hstart.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_hstart += 1,
+
+                // vertical scroll
+                x if x.kind == MouseEventKind::ScrollUp => self.page_vstart = self.page_vstart.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_vstart += 1,
+
+                _ => return ResponseEvent::NotHandled,
+            },
         }
+
+        self.update_page_starts();
+        ResponseEvent::Handled
     }
 
     /// Draws the [`ContentViewer`] onto the given frame within the specified area.

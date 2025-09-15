@@ -168,7 +168,13 @@ impl<T: Table> Responsive for SideSelect<T> {
 
         self.is_key_pressed = true;
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
+        let mut navigate_into = false;
+        if let Some(line_no) = event.get_clicked_line_no(self.select.area) {
+            self.select.items.highlight_item_by_line(line_no);
+            navigate_into = true;
+        }
+
+        if navigate_into || self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             self.is_visible = false;
             if let Some(selected_name) = self.select.items.get_highlighted_item_name() {
                 return (self.result)(selected_name.to_owned());

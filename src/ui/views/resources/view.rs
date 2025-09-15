@@ -11,7 +11,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        KeyCommand, Responsive, Table, ViewType,
+        KeyCommand, MouseEventKind, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -129,6 +129,25 @@ impl ResourcesView {
         }
     }
 
+    /// Processes disconnection state.
+    pub fn process_disconnection(&mut self) {
+        self.command_palette.hide();
+    }
+
+    /// Returns `true` if namespaces selector can be displayed.
+    pub fn is_namespaces_selector_allowed(&self) -> bool {
+        self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
+    }
+
+    /// Draws [`ResourcesView`] on the provided frame and area.
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.table.draw(frame, area);
+
+        self.modal.draw(frame, frame.area());
+        self.command_palette.draw(frame, frame.area());
+        self.filter.draw(frame, frame.area());
+    }
+
     /// Process TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.app_data.is_application_exit(event) {
@@ -140,33 +159,11 @@ impl ResourcesView {
         }
 
         if self.command_palette.is_visible {
-            return self
-                .command_palette
-                .process_event(event)
-                .when_action_then("show_yaml", || {
-                    self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
-                })
-                .when_action_then("decode_yaml", || {
-                    self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode))
-                })
-                .when_action_then("show_logs", || {
-                    self.table.process_event(&self.app_data.get_event(KeyCommand::LogsOpen))
-                })
-                .when_action_then("show_plogs", || {
-                    self.table
-                        .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen))
-                })
-                .when_action_then("open_shell", || {
-                    self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen))
-                })
-                .when_action_then("port_forward", || {
-                    self.table
-                        .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
-                });
+            return self.process_command_palette_event(event);
         }
 
         if !self.app_data.borrow().is_connected {
-            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
                 self.show_command_palette();
             }
 
@@ -195,30 +192,36 @@ impl ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
             self.show_command_palette();
         }
 
         self.table.process_event(event)
     }
 
-    /// Processes disconnection state.
-    pub fn process_disconnection(&mut self) {
-        self.command_palette.hide();
-    }
-
-    /// Draws [`ResourcesView`] on the provided frame and area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.table.draw(frame, area);
-
-        self.modal.draw(frame, frame.area());
-        self.command_palette.draw(frame, frame.area());
-        self.filter.draw(frame, frame.area());
-    }
-
-    /// Returns `true` if namespaces selector can be displayed.
-    pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.command_palette
+            .process_event(event)
+            .when_action_then("show_yaml", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
+            })
+            .when_action_then("decode_yaml", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode))
+            })
+            .when_action_then("show_logs", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::LogsOpen))
+            })
+            .when_action_then("show_plogs", || {
+                self.table
+                    .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen))
+            })
+            .when_action_then("open_shell", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen))
+            })
+            .when_action_then("port_forward", || {
+                self.table
+                    .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
+            })
     }
 
     fn show_command_palette(&mut self) {

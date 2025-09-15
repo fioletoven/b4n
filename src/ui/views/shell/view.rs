@@ -16,7 +16,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt},
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         views::{View, content_header::ContentHeader},
         widgets::{Button, Dialog, FooterTx},
     },
@@ -189,6 +189,14 @@ impl View for ShellView {
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
             self.ask_close_shell_forcibly();
             return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event {
+            match mouse.kind {
+                MouseEventKind::ScrollUp => return self.set_scrollback(1, true),
+                MouseEventKind::ScrollDown => return self.set_scrollback(1, false),
+                _ => return ResponseEvent::Handled,
+            }
         }
 
         if let TuiEvent::Key(key) = event {

@@ -8,7 +8,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -57,24 +57,6 @@ impl ForwardsView {
         }
     }
 
-    fn process_command_palette_events(&mut self, event: &TuiEvent) -> bool {
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
-                .with_close()
-                .with_quit()
-                .with_action(
-                    ActionItem::new("stop")
-                        .with_description("stops selected port forwarding rules")
-                        .with_response(ResponseEvent::Action("stop_selected")),
-                );
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
-            true
-        } else {
-            false
-        }
-    }
-
     /// Sets filter on the port forwards list.
     pub fn set_filter(&mut self) {
         let value = self.filter.value();
@@ -88,6 +70,20 @@ impl ForwardsView {
             self.list.table.filter(Some(value.to_owned()));
             self.header.set_count(self.list.table.len());
         }
+    }
+
+    /// Shows command palette.
+    fn show_command_palette(&mut self) {
+        let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
+            .with_close()
+            .with_quit()
+            .with_action(
+                ActionItem::new("stop")
+                    .with_description("stops selected port forwarding rules")
+                    .with_response(ResponseEvent::Action("stop_selected")),
+            );
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     /// Shows dialog to stop port forwarding rules if anything is selected.
@@ -212,7 +208,8 @@ impl View for ForwardsView {
             };
         }
 
-        if self.process_command_palette_events(event) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 
