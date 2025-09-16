@@ -131,11 +131,11 @@ impl View for ForwardsView {
     }
 
     fn is_namespaces_selector_allowed(&self) -> bool {
-        true
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     fn is_resources_selector_allowed(&self) -> bool {
-        true
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     fn handle_resources_selector_event(&mut self, event: &ResponseEvent) {
@@ -208,7 +208,9 @@ impl View for ForwardsView {
             };
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.list.area)
+        {
             self.show_command_palette();
             return ResponseEvent::Handled;
         }

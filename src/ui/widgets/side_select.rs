@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
@@ -8,7 +9,7 @@ use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent},
+    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent},
 };
 
 use super::Select;
@@ -106,6 +107,11 @@ impl<T: Table> SideSelect<T> {
         self.select.draw(frame, layout[1]);
     }
 
+    /// Returns width of the [`SideSelect`].
+    pub fn width(&self) -> u16 {
+        self.width
+    }
+
     fn get_positioned_block(&mut self) -> Block<'_> {
         let colors = &self.app_data.borrow().theme.colors;
         let block = Block::new()
@@ -148,6 +154,7 @@ impl<T: Table> Responsive for SideSelect<T> {
         if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) && self.position == Position::Right)
             || (self.app_data.has_binding(event, KeyCommand::SelectorRight) && self.position == Position::Left)
             || self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || event.is_out(MouseEventKind::LeftClick, self.select.area)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;
@@ -169,7 +176,7 @@ impl<T: Table> Responsive for SideSelect<T> {
         self.is_key_pressed = true;
 
         let mut navigate_into = false;
-        if let Some(line_no) = event.get_clicked_line_no(self.select.area) {
+        if let Some(line_no) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select.area) {
             self.select.items.highlight_item_by_line(line_no);
             navigate_into = true;
         }

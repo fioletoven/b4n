@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
@@ -14,7 +15,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        KeyCommand, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, MouseEventKind, Responsive, Table, TuiEvent, ViewType,
         lists::Row,
         tui::ResponseEvent,
         views::{ListHeader, ListViewer},
@@ -182,7 +183,13 @@ impl ResourcesTable {
 
     fn process_highlighted_resource_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
-            if self.app_data.has_binding(event, KeyCommand::NavigateInto) || event.is_double_click(self.list.area) {
+            if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
+                return self.process_enter_key(resource);
+            }
+
+            if let Some(line_no) = event.get_clicked_line_no(MouseEventKind::LeftDoubleClick, KeyModifiers::NONE, self.list.area)
+                && usize::from(line_no) < self.list.table.len()
+            {
                 return self.process_enter_key(resource);
             }
 

@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
@@ -243,7 +244,7 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if let Some(line) = event.get_clicked_line_no(self.select().area) {
+        if let Some(line) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select().area) {
             self.select_mut().items.highlight_item_by_line(line);
             return self.process_enter_key();
         }

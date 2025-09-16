@@ -86,29 +86,16 @@ pub enum TuiEvent {
 }
 
 impl TuiEvent {
-    /// Returns `true` if this event is a left mouse click inside a specified area.
-    pub fn get_clicked_line_no(&self, area: Rect) -> Option<u16> {
+    /// Returns the line number if this is a mouse event inside a specified area.
+    pub fn get_clicked_line_no(&self, kind: MouseEventKind, modifiers: KeyModifiers, area: Rect) -> Option<u16> {
         if let TuiEvent::Mouse(mouse) = self
-            && mouse.kind == MouseEventKind::LeftClick
+            && mouse.kind == kind
+            && mouse.modifiers == modifiers
             && area.contains(Position::new(mouse.column, mouse.row))
         {
             Some(mouse.row.saturating_sub(area.y))
         } else {
             None
-        }
-    }
-
-    /// Returns `true` if this event is a mouse dobule click inside a specified area.
-    pub fn is_double_click(&self, area: Rect) -> bool {
-        if let TuiEvent::Mouse(mouse) = self
-            && area.contains(Position::new(mouse.column, mouse.row))
-        {
-            matches!(
-                mouse.kind,
-                MouseEventKind::LeftDoubleClick | MouseEventKind::RightDoubleClick | MouseEventKind::MiddleDoubleClick
-            )
-        } else {
-            false
         }
     }
 

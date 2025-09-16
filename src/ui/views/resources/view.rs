@@ -136,7 +136,12 @@ impl ResourcesView {
 
     /// Returns `true` if namespaces selector can be displayed.
     pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
+        self.table.scope() == &Scope::Namespaced && !self.table.has_containers() && self.is_resources_selector_allowed()
+    }
+
+    /// Returns `true` if resources selector can be displayed.
+    pub fn is_resources_selector_allowed(&self) -> bool {
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     /// Draws [`ResourcesView`] on the provided frame and area.
@@ -163,7 +168,9 @@ impl ResourcesView {
         }
 
         if !self.app_data.borrow().is_connected {
-            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+            {
                 self.show_command_palette();
             }
 
@@ -192,7 +199,9 @@ impl ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+        {
             self.show_command_palette();
         }
 

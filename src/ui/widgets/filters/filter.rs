@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::Rect,
     style::Style,
@@ -6,7 +7,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal, widgets::Select},
+    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal, widgets::Select},
     utils::logical_expressions::{ParserError, validate},
 };
 
@@ -128,6 +129,13 @@ impl Filter {
             }
         }
     }
+
+    fn complete_with_selected_item(&mut self) {
+        if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
+            self.last_validated.clone_from(&pattern);
+            self.patterns.set_value(pattern);
+        }
+    }
 }
 
 impl Responsive for Filter {
@@ -141,10 +149,26 @@ impl Responsive for Filter {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || event.is_out(MouseEventKind::LeftClick, self.patterns.area)
+        {
             self.is_visible = false;
             self.patterns.set_value(self.current.clone());
             return ResponseEvent::Cancelled;
+        }
+
+        if let Some(line) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
+            self.patterns.items.highlight_item_by_line(line);
+            self.complete_with_selected_item();
+            self.is_visible = false;
+            self.remember_pattern();
+
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
+            self.complete_with_selected_item();
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
@@ -154,15 +178,6 @@ impl Responsive for Filter {
 
             self.is_visible = false;
             self.remember_pattern();
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
-            if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
-                self.last_validated.clone_from(&pattern);
-                self.patterns.set_value(pattern);
-            }
 
             return ResponseEvent::Handled;
         }

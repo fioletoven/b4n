@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Style, Stylize},
     text::Line,
     widgets::{Block, Paragraph, Widget},
@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors},
+    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors},
 };
 
 /// List viewer.
@@ -82,11 +82,6 @@ impl<T: Table> Responsive for ListViewer<T> {
             return ResponseEvent::Handled;
         }
 
-        if let Some(line_no) = event.get_clicked_line_no(self.area) {
-            self.table.highlight_item_by_line(line_no);
-            return ResponseEvent::Handled;
-        }
-
         if self.table.process_event(event) == ResponseEvent::Handled {
             return ResponseEvent::Handled;
         }
@@ -98,6 +93,20 @@ impl<T: Table> Responsive for ListViewer<T> {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInvertSelection) {
             self.table.invert_selection();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::LeftClick
+            && self.area.contains(Position::new(mouse.column, mouse.row))
+        {
+            let line_no = mouse.row.saturating_sub(self.area.y);
+            self.table.highlight_item_by_line(line_no);
+
+            if mouse.modifiers == KeyModifiers::CONTROL {
+                self.table.select_highlighted_item();
+            }
+
             return ResponseEvent::Handled;
         }
 
