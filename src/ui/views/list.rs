@@ -101,9 +101,7 @@ impl<T: Table> Responsive for ListViewer<T> {
             && self.area.contains(Position::new(mouse.column, mouse.row))
         {
             let line_no = mouse.row.saturating_sub(self.area.y);
-            self.table.highlight_item_by_line(line_no);
-
-            if mouse.modifiers == KeyModifiers::CONTROL {
+            if self.table.highlight_item_by_line(line_no) && mouse.modifiers == KeyModifiers::CONTROL {
                 self.table.select_highlighted_item();
             }
 

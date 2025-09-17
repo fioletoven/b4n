@@ -89,6 +89,8 @@ impl ViewsManager {
         while let Some(update_result) = worker.resources.try_next() {
             self.resources.update_resources_list(*update_result);
         }
+
+        self.resources.update_statistics();
     }
 
     /// Draws visible views on the provided frame area.

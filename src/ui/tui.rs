@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::{
     cursor::SetCursorStyle,
-    event::{KeyModifiers, MouseButton},
+    event::{EnableMouseCapture, KeyModifiers, MouseButton},
 };
 use futures::{FutureExt, StreamExt};
 use ratatui::{
@@ -201,6 +201,9 @@ impl Tui {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
         crossterm::execute!(stdout(), SetCursorStyle::SteadyBar)?;
+
+        crossterm::execute!(stdout(), EnableMouseCapture)?;
+
         self.start_events_loop(runtime);
 
         Ok(())

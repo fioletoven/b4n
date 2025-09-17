@@ -7,8 +7,8 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
-        resources::{CONTAINERS, PODS, Port, ResourceItem, SECRETS},
-        watchers::ObserverResult,
+        resources::{CONTAINERS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
+        watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
         KeyCommand, MouseEventKind, Responsive, Table, ViewType,
@@ -23,6 +23,8 @@ use super::ResourcesTable;
 pub struct ResourcesView {
     pub table: ResourcesTable,
     app_data: SharedAppData,
+    stats: SharedStatistics,
+    generation: u16,
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
@@ -31,12 +33,16 @@ pub struct ResourcesView {
 impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker) -> Self {
+        let stats = worker.borrow().statistics.share();
+        let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
         let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
 
         Self {
             table,
             app_data,
+            stats,
+            generation,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
@@ -73,6 +79,26 @@ impl ResourcesView {
         }
 
         self.table.update_resources_list(result);
+    }
+
+    /// Updates statistics if current resource kind is `pods` or `nodes`.
+    pub fn update_statistics(&mut self) {
+        let stats = &self.stats.borrow();
+        if stats.generation == self.generation {
+            return;
+        }
+
+        if self.table.kind_plural() == PODS {
+            if let Some(items) = &mut self.table.list.table.table.list.items {
+                pod::update_statistics(items.full_iter_mut(), stats);
+            }
+        } else if self.table.kind_plural() == NODES
+            && let Some(items) = &mut self.table.list.table.table.list.items
+        {
+            node::update_statistics(items.full_iter_mut(), stats);
+        }
+
+        self.generation = stats.generation;
     }
 
     /// Shows delete resources dialog if anything is selected.

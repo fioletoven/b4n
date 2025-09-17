@@ -9,7 +9,12 @@ use tokio::runtime::Handle;
 use crate::{
     core::DiscoveryList,
     kubernetes::{
-        Kind, client::KubernetesClient, metrics::Metrics, resources::PODS, utils::get_resource, watchers::observer::BgObserver,
+        Kind,
+        client::KubernetesClient,
+        metrics::Metrics,
+        resources::{NODES, PODS},
+        utils::get_resource,
+        watchers::observer::BgObserver,
     },
     ui::widgets::FooterTx,
 };
@@ -70,6 +75,7 @@ pub struct ContainerStats {
 /// Holds all statistics for the Kubernetes cluster.
 #[derive(Debug)]
 pub struct Statistics {
+    pub generation: u16,
     pub has_metrics: bool,
     data: HashMap<String, NodeStats>,
 }
@@ -175,6 +181,7 @@ impl BgStatistics {
     pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         Self {
             stats: Rc::new(RefCell::new(Statistics {
+                generation: 0,
                 data: HashMap::new(),
                 has_metrics: false,
             })),
@@ -208,7 +215,7 @@ impl BgStatistics {
                 .is_ok();
         }
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new("nodes", "metrics.k8s.io")) {
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io")) {
             self.has_metrics = self
                 .nodes_metrics
                 .start(client, (&discovery.0).into(), Some(discovery))
@@ -232,6 +239,7 @@ impl BgStatistics {
         self.nodes_metrics.stop();
     }
 
+    /// Updates cached statistics object with new data from observers.
     pub fn update_statistics(&mut self) {
         self.is_dirty = false;
         if self.pods.is_ready() {
@@ -261,6 +269,7 @@ impl BgStatistics {
         }
     }
 
+    /// Returns cloned [`SharedStatistics`] object.
     pub fn share(&self) -> SharedStatistics {
         self.stats.clone()
     }
@@ -294,9 +303,11 @@ impl BgStatistics {
             }
         }
 
+        let generation = self.stats.borrow().generation.wrapping_add(1);
         self.stats.replace(Statistics {
-            data: new_stats,
+            generation,
             has_metrics: self.has_metrics,
+            data: new_stats,
         });
     }
 

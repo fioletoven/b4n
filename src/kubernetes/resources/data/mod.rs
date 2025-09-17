@@ -265,7 +265,7 @@ pub struct ResourceData {
     pub is_ready: bool,
     pub is_terminating: bool,
     pub extra_values: Box<[ResourceValue]>,
-    pub one_container: Option<String>,
+    pub tags: Box<[String]>,
 }
 
 impl ResourceData {

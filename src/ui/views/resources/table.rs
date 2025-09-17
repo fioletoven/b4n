@@ -200,7 +200,7 @@ impl ResourcesTable {
             }
 
             let is_container_name_known = self.kind_plural() == CONTAINERS
-                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.one_container.is_some()));
+                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
             if is_container_name_known {
                 if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
                     return self.process_view_ports(resource);
@@ -295,11 +295,13 @@ impl ResourcesTable {
                 ));
             }
         } else if self.kind_plural() == PODS && prefer_container {
-            if let Some(container) = resource.data.as_ref().and_then(|d| d.one_container.as_deref()) {
+            if let Some(data) = resource.data.as_ref()
+                && data.tags.len() == 1
+            {
                 return Some(ResourceRef::container(
                     resource.name.clone(),
                     resource.namespace.clone().into(),
-                    container.to_owned(),
+                    data.tags[0].clone(),
                 ));
             }
         } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
