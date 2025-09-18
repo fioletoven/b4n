@@ -8,9 +8,9 @@ use std::{
 use tokio::runtime::Handle;
 
 use crate::{
-    core::{ViewsManager, commands::ListThemesCommand},
+    core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{KeyBindings, ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
+    ui::{KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
 };
 
 use super::{
@@ -41,6 +41,7 @@ pub struct App {
 impl App {
     /// Creates new [`App`] instance.
     pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
+        let is_mouse_enabled = config.mouse;
         let theme_path = config.theme_path();
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
@@ -52,7 +53,7 @@ impl App {
 
         Ok(Self {
             data,
-            tui: Tui::new()?,
+            tui: Tui::new(is_mouse_enabled)?,
             runtime: runtime.clone(),
             worker,
             config_watcher: Config::watcher(runtime.clone()),
@@ -148,6 +149,10 @@ impl App {
 
     /// Processes single TUI event.
     fn process_event(&mut self, event: &TuiEvent) -> Result<ResponseEvent> {
+        if self.data.has_binding(event, KeyCommand::MouseSupportToggle) {
+            let _ = self.tui.toggle_mouse_support();
+        }
+
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
             ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,

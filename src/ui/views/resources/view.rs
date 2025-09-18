@@ -197,7 +197,7 @@ impl ResourcesView {
             if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
                 || event.is_in(MouseEventKind::RightClick, self.table.list.area)
             {
-                self.show_command_palette();
+                self.show_command_palette(true);
             }
 
             return ResponseEvent::Handled;
@@ -225,10 +225,12 @@ impl ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
-        {
-            self.show_command_palette();
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette(false);
+        }
+
+        if event.is_in(MouseEventKind::RightClick, self.table.list.area) {
+            self.show_command_palette(true);
         }
 
         self.table.process_event(event)
@@ -259,7 +261,7 @@ impl ResourcesView {
             })
     }
 
-    fn show_command_palette(&mut self) {
+    fn show_command_palette(&mut self, simplifed: bool) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
@@ -269,7 +271,7 @@ impl ResourcesView {
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
-        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplifed)
             .with_resources_actions(!is_containers)
             .with_forwards()
             .with_action(

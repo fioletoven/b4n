@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::{
     cursor::SetCursorStyle,
-    event::{EnableMouseCapture, KeyModifiers, MouseButton},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyModifiers, MouseButton},
 };
 use futures::{FutureExt, StreamExt};
 use ratatui::{
@@ -179,11 +179,12 @@ pub struct Tui {
     pub events_task: Option<JoinHandle<()>>,
     pub event_rx: UnboundedReceiver<TuiEvent>,
     pub event_tx: UnboundedSender<TuiEvent>,
+    is_mouse_enabled: bool,
 }
 
 impl Tui {
     /// Creates new [`Tui`] instance.
-    pub fn new() -> Result<Self> {
+    pub fn new(is_mouse_enabled: bool) -> Result<Self> {
         init_panic_hook();
 
         let (event_tx, event_rx) = mpsc::unbounded_channel();
@@ -193,16 +194,17 @@ impl Tui {
             events_task: None,
             event_rx,
             event_tx,
+            is_mouse_enabled,
         })
     }
 
     /// Enters the alternate screen mode and starts terminal events loop.
     pub fn enter_terminal(&mut self, runtime: &Handle) -> Result<()> {
         crossterm::terminal::enable_raw_mode()?;
-        crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
-        crossterm::execute!(stdout(), SetCursorStyle::SteadyBar)?;
-
-        crossterm::execute!(stdout(), EnableMouseCapture)?;
+        crossterm::execute!(stdout(), EnterAlternateScreen, SetCursorStyle::SteadyBar, cursor::Hide)?;
+        if self.is_mouse_enabled {
+            crossterm::execute!(stdout(), EnableMouseCapture)?;
+        }
 
         self.start_events_loop(runtime);
 
@@ -214,9 +216,25 @@ impl Tui {
         self.stop_events_loop()?;
         if crossterm::terminal::is_raw_mode_enabled()? {
             self.terminal.flush()?;
-            crossterm::execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
-            crossterm::execute!(stdout(), LeaveAlternateScreen, cursor::Show)?;
+            crossterm::execute!(stdout(), LeaveAlternateScreen, SetCursorStyle::DefaultUserShape, cursor::Show)?;
+            if self.is_mouse_enabled {
+                crossterm::execute!(stdout(), DisableMouseCapture)?;
+            }
+
             crossterm::terminal::disable_raw_mode()?;
+        }
+
+        Ok(())
+    }
+
+    /// Enables or disables mouse capture in terminal.
+    pub fn toggle_mouse_support(&mut self) -> Result<()> {
+        if crossterm::terminal::is_raw_mode_enabled()? {
+            self.is_mouse_enabled = !self.is_mouse_enabled;
+            match self.is_mouse_enabled {
+                true => crossterm::execute!(stdout(), EnableMouseCapture)?,
+                false => crossterm::execute!(stdout(), DisableMouseCapture)?,
+            }
         }
 
         Ok(())

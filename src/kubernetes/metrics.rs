@@ -227,7 +227,7 @@ fn split_unit(input: &str) -> Result<(u64, &str), MetricsError> {
 fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], units: &[&str; 6]) -> std::fmt::Result {
     if value > *base.last().unwrap_or(&0) {
         for (i, b) in base.iter().enumerate() {
-            if value % b == 0 {
+            if value.is_multiple_of(*b) {
                 return f.write_fmt(format_args!("{}{}", value / b, units[i]));
             }
         }

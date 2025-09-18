@@ -82,15 +82,17 @@ pub struct ActionsListBuilder {
 }
 
 impl ActionsListBuilder {
-    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
-        ActionsListBuilder {
-            actions: if let Some(items) = &kinds {
-                items.iter().map(ActionItem::from_kind).collect::<Vec<ActionItem>>()
-            } else {
-                Vec::new()
-            },
-        }
+    /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
+    /// If `primary_only` is `true`, only kinds without a group will be included.
+    pub fn from_kinds(kinds: Option<&[KindItem]>, primary_only: bool) -> Self {
+        let actions = kinds
+            .unwrap_or(&[])
+            .iter()
+            .filter(|item| !primary_only || item.group.is_empty())
+            .map(ActionItem::from_kind)
+            .collect();
+
+        ActionsListBuilder { actions }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.
