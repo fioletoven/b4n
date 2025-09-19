@@ -39,7 +39,7 @@ The following features are planned for future development:
 | Copy YAML to the clipboard              | `c`             | Works only in YAML view                                      |
 | Decode highlighted secret               | `x`             |                                                              |
 | Delete selected resources               | `CTRL` + `d`    | Displays a confirmation dialog                               |
-| Enable / disable mouse support          | `CTRL` + `m`    |                                                              |
+| Enable / disable mouse support          | `CTRL` + `n`    |                                                              |
 | Forward container's port                | `f`             | Works only in containers view                                |
 | Go back to namespaces; clear filter     | `ESC`           | Also clears input in the filter widget                       |
 | Quit the application                    | `CTRL` + `c`    |                                                              |
