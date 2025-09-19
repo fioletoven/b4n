@@ -91,6 +91,11 @@ impl LogsView {
                 ActionItem::new("copy")
                     .with_description("copies logs to the clipboard")
                     .with_response(ResponseEvent::Action("copy")),
+            )
+            .with_action(
+                ActionItem::new("search")
+                    .with_description("searches logs using the provided query")
+                    .with_response(ResponseEvent::Action("search")),
             );
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
         self.command_palette.show();
@@ -222,16 +227,18 @@ impl View for LogsView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.is_application_exit(event) {
-            return ResponseEvent::ExitApplication;
-        }
-
         if self.command_palette.is_visible {
             let response = self.command_palette.process_event(event);
             if response == ResponseEvent::Cancelled {
                 self.clear_search();
             } else if response.is_action("timestamps") {
                 self.toggle_timestamps();
+                return ResponseEvent::Handled;
+            } else if response.is_action("copy") {
+                self.copy_logs_to_clipboard();
+                return ResponseEvent::Handled;
+            } else if response.is_action("search") {
+                self.search.show();
                 return ResponseEvent::Handled;
             }
 
@@ -256,6 +263,7 @@ impl View for LogsView {
 
         if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
             self.search.show();
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {

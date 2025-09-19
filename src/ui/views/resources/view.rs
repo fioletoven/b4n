@@ -181,10 +181,6 @@ impl ResourcesView {
 
     /// Process TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.is_application_exit(event) {
-            return ResponseEvent::ExitApplication;
-        }
-
         if self.modal.is_visible {
             return self.modal.process_event(event);
         }
@@ -239,6 +235,9 @@ impl ResourcesView {
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.command_palette
             .process_event(event)
+            .when_action_then("filter", || {
+                self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
+            })
             .when_action_then("show_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
             })
@@ -283,6 +282,11 @@ impl ResourcesView {
                     })
                     .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
+            )
+            .with_action(
+                ActionItem::new("filter")
+                    .with_description("shows resources filter input")
+                    .with_response(ResponseEvent::Action("filter")),
             );
 
         if is_containers || is_pods {

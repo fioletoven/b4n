@@ -234,6 +234,7 @@ impl Responsive for CommandPalette {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
             || event.is_out(MouseEventKind::LeftClick, self.select().area)
+            || event.is(MouseEventKind::RightClick)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;

@@ -74,11 +74,19 @@ impl YamlView {
     }
 
     fn show_command_palette(&mut self) {
-        let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
-            ActionItem::new("copy")
-                .with_description("copies YAML to the clipboard")
-                .with_response(ResponseEvent::Action("copy")),
-        );
+        let mut builder = ActionsListBuilder::default()
+            .with_close()
+            .with_quit()
+            .with_action(
+                ActionItem::new("copy")
+                    .with_description("copies YAML to the clipboard")
+                    .with_response(ResponseEvent::Action("copy")),
+            )
+            .with_action(
+                ActionItem::new("search")
+                    .with_description("searches YAML using the provided query")
+                    .with_response(ResponseEvent::Action("search")),
+            );
         if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
             let action = if self.is_decoded { "encode" } else { "decode" };
             builder = builder.with_action(
@@ -153,10 +161,6 @@ impl View for YamlView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.is_application_exit(event) {
-            return ResponseEvent::ExitApplication;
-        }
-
         if self.command_palette.is_visible {
             let response = self.command_palette.process_event(event);
             if response == ResponseEvent::Cancelled {
@@ -166,6 +170,9 @@ impl View for YamlView {
                 return ResponseEvent::Handled;
             } else if response.is_action("decode") {
                 self.toggle_yaml_decode();
+                return ResponseEvent::Handled;
+            } else if response.is_action("search") {
+                self.search.show();
                 return ResponseEvent::Handled;
             }
 
@@ -189,6 +196,7 @@ impl View for YamlView {
 
         if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
             self.search.show();
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {

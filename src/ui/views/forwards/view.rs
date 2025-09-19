@@ -176,10 +176,6 @@ impl View for ForwardsView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.is_application_exit(event) {
-            return ResponseEvent::ExitApplication;
-        }
-
         if self.filter.is_visible {
             self.filter.process_event(event);
             self.set_filter();

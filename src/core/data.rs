@@ -1,6 +1,6 @@
 use arboard::Clipboard;
 use kube::discovery::Scope;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
@@ -117,6 +117,7 @@ pub struct AppData {
 
     /// UI key bindings.
     pub key_bindings: KeyBindings,
+    disabled_commands: HashSet<KeyCommand>,
 
     /// Application history data.
     pub history: History,
@@ -147,6 +148,7 @@ impl AppData {
         Self {
             config,
             key_bindings,
+            disabled_commands: HashSet::default(),
             history,
             theme,
             current: ResourcesInfo::default(),
@@ -180,12 +182,12 @@ impl AppData {
 
 /// Extension methods for the [`SharedAppData`] type.
 pub trait SharedAppDataExt {
-    /// Returns `true` if the given [`TuiEvent`] is an application exit event.
-    fn is_application_exit(&self, event: &TuiEvent) -> bool;
-
     /// Returns `true` if the given [`TuiEvent`] is a key event and is bound to the specified [`KeyCommand`] within
     /// the [`KeyBindings`] stored in [`SharedAppData`].
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool;
+
+    /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
+    fn disable_command(&self, command: KeyCommand, disable: bool);
 
     /// Returns the [`TuiEvent::Key`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
     fn get_event(&self, command: KeyCommand) -> TuiEvent;
@@ -195,15 +197,20 @@ pub trait SharedAppDataExt {
 }
 
 impl SharedAppDataExt for SharedAppData {
-    fn is_application_exit(&self, event: &TuiEvent) -> bool {
-        self.has_binding(event, KeyCommand::ApplicationExit)
-    }
-
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         if let TuiEvent::Key(key) = event {
-            self.borrow().key_bindings.has_binding(key, command)
+            let data = self.borrow();
+            !data.disabled_commands.contains(&command) && data.key_bindings.has_binding(key, command)
         } else {
             false
+        }
+    }
+
+    fn disable_command(&self, command: KeyCommand, hide: bool) {
+        if hide {
+            self.borrow_mut().disabled_commands.insert(command);
+        } else {
+            self.borrow_mut().disabled_commands.remove(&command);
         }
     }
 

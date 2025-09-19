@@ -73,6 +73,9 @@ impl ShellView {
         let mut bridge = ShellBridge::new(runtime, parser.clone());
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
 
+        app_data.disable_command(KeyCommand::ApplicationExit, true);
+        app_data.disable_command(KeyCommand::MouseSupportToggle, true);
+
         Self {
             app_data,
             header,
@@ -275,6 +278,8 @@ impl View for ShellView {
 impl Drop for ShellView {
     fn drop(&mut self) {
         self.bridge.stop();
+        self.app_data.disable_command(KeyCommand::ApplicationExit, false);
+        self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
     }
 }
 

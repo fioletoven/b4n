@@ -10,7 +10,12 @@ use tokio::runtime::Handle;
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
     kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
-    ui::{KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent, theme::Theme, views::ResourcesView, widgets::Footer},
+    ui::{
+        KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent,
+        theme::Theme,
+        views::ResourcesView,
+        widgets::{Footer, IconKind},
+    },
 };
 
 use super::{
@@ -74,6 +79,7 @@ impl App {
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
         self.tui.enter_terminal(&self.runtime)?;
+        self.update_mouse_icon();
 
         Ok(())
     }
@@ -149,8 +155,14 @@ impl App {
 
     /// Processes single TUI event.
     fn process_event(&mut self, event: &TuiEvent) -> Result<ResponseEvent> {
+        if self.data.has_binding(event, KeyCommand::ApplicationExit) {
+            return Ok(ResponseEvent::ExitApplication);
+        }
+
         if self.data.has_binding(event, KeyCommand::MouseSupportToggle) {
             let _ = self.tui.toggle_mouse_support();
+            self.update_mouse_icon();
+            return Ok(ResponseEvent::Handled);
         }
 
         match self.views_manager.process_event(event) {
@@ -358,6 +370,11 @@ impl App {
             let address = SocketAddr::from((ip_addr, local_port));
             self.worker.borrow_mut().start_port_forward(resource, container_port, address);
         }
+    }
+
+    fn update_mouse_icon(&self) {
+        let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
+        self.views_manager.footer().set_icon("mouse", icon, IconKind::Default);
     }
 }
 

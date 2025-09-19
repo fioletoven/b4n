@@ -240,6 +240,11 @@ impl Tui {
         Ok(())
     }
 
+    /// Returns `true` if mouse support is enabled in the terminal.
+    pub fn is_mouse_enabled(&self) -> bool {
+        self.is_mouse_enabled
+    }
+
     /// Cancels terminal events loop.
     pub fn cancel(&mut self) {
         self.events_ct.cancel();
