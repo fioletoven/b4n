@@ -98,11 +98,24 @@ impl<T: Table> Responsive for ListViewer<T> {
 
         if let TuiEvent::Mouse(mouse) = event
             && mouse.kind == MouseEventKind::LeftClick
-            && self.area.contains(Position::new(mouse.column, mouse.row))
         {
-            let line_no = mouse.row.saturating_sub(self.area.y);
-            if self.table.highlight_item_by_line(line_no) && mouse.modifiers == KeyModifiers::CONTROL {
-                self.table.select_highlighted_item();
+            if self.area.contains(Position::new(mouse.column, mouse.row)) {
+                // mouse click is inside list area
+                let line_no = mouse.row.saturating_sub(self.area.y);
+                if self.table.highlight_item_by_line(line_no) && mouse.modifiers == KeyModifiers::CONTROL {
+                    self.table.select_highlighted_item();
+                }
+            } else if Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
+                .contains(Position::new(mouse.column, mouse.row))
+            {
+                // mouse click is inside header area
+                let position = mouse.column.saturating_sub(self.area.x);
+                let header = self.table.get_header(self.view, usize::from(self.area.width));
+                let column_no = count_columns_up_to(header, usize::from(position))
+                    .saturating_add(if self.view == ViewType::Full { 0 } else { 1 })
+                    .saturating_sub(1);
+
+                self.table.toggle_sort(column_no);
             }
 
             return ResponseEvent::Handled;
@@ -110,6 +123,28 @@ impl<T: Table> Responsive for ListViewer<T> {
 
         ResponseEvent::NotHandled
     }
+}
+
+fn count_columns_up_to(text: &str, position: usize) -> usize {
+    let mut in_column = false;
+    let mut column_count = 0;
+
+    for (i, c) in text.chars().enumerate() {
+        if i > position {
+            break;
+        }
+
+        if !c.is_whitespace() {
+            if !in_column {
+                column_count += 1;
+                in_column = true;
+            }
+        } else {
+            in_column = false;
+        }
+    }
+
+    column_count
 }
 
 /// Widget that renders header for the items list pane.\

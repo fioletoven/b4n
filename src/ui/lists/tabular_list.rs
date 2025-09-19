@@ -43,6 +43,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.header.recalculate_extra_columns();
     }
 
+    /// Process UI key or mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let TuiEvent::Key(key) = event
             && key.modifiers == KeyModifiers::ALT
@@ -50,18 +51,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
             && let KeyCode::Char(code) = key.code
         {
             if code.is_numeric() {
-                let (column_no, is_descending) = self.header.sort_info();
                 let sort_by = code.to_digit(10).unwrap() as usize;
-                self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+                self.toggle_sort(sort_by);
                 return ResponseEvent::Handled;
             }
 
             let sort_symbols = self.header.get_sort_symbols();
             let uppercase = code.to_ascii_uppercase();
-            let sort_by = sort_symbols.iter().position(|c| *c == uppercase);
-            if let Some(sort_by) = sort_by {
-                let (column_no, is_descending) = self.header.sort_info();
-                self.sort(sort_by, if sort_by == column_no { !is_descending } else { false });
+            if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
+                self.toggle_sort(sort_by);
                 return ResponseEvent::Handled;
             }
         }
@@ -69,6 +67,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.list.process_event(event)
     }
 
+    /// Sorts the list.
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
         if column_no < self.header.get_columns_count() {
             self.header.set_sort_info(column_no, is_descending);
@@ -76,7 +75,14 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         }
     }
 
-    /// Sorts internal items list.
+    /// Toggles sorting for the specified column.\
+    /// **Note** that if the column is already being used for sorting, the sort direction is reversed.
+    pub fn toggle_sort(&mut self, column_no: usize) {
+        let (old_column_no, is_descending) = self.header.sort_info();
+        self.sort(column_no, if column_no == old_column_no { !is_descending } else { false });
+    }
+
+    /// Sorts the internal list.
     fn sort_internal_list(&mut self, column_no: usize, is_descending: bool) {
         let reverse = self.header.has_reversed_order(column_no);
         self.list

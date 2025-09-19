@@ -57,8 +57,12 @@ impl Table for ActionsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
-    /// **Note** that this is not implemented for [`ActionsList`].
+    /// Not implemented for [`ActionsList`].
+    fn toggle_sort(&mut self, _column_no: usize) {
+        // pass
+    }
+
+    /// Not implemented for [`ActionsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }

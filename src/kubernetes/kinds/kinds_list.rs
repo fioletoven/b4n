@@ -78,8 +78,12 @@ impl Table for KindsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
-    /// **Note** that this is not implemented for [`KindsList`].
+    /// Not implemented for [`KindsList`].
+    fn toggle_sort(&mut self, _column_no: usize) {
+        // pass
+    }
+
+    /// Not implemented for [`KindsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }

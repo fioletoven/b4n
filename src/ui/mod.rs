@@ -32,7 +32,7 @@ pub enum ViewType {
 
 /// UI object that is responsive and can process TUI key/mouse events.
 pub trait Responsive {
-    /// Process UI key event.
+    /// Process UI key or mouse event.
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
 }
 
@@ -60,6 +60,10 @@ pub trait Table: Responsive {
 
     /// Sorts items in the list by column number.
     fn sort(&mut self, column_no: usize, is_descending: bool);
+
+    /// Toggles sorting for the specified column.\
+    /// **Note** that if the column is already being used for sorting, the sort direction is reversed.
+    fn toggle_sort(&mut self, column_no: usize);
 
     /// Returns sorting symbols for the list.
     fn get_sort_symbols(&self) -> Rc<[char]> {

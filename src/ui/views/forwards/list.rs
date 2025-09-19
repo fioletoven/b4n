@@ -79,6 +79,10 @@ impl Table for PortForwardsList {
         self.table.sort(column_no, is_descending);
     }
 
+    fn toggle_sort(&mut self, column_no: usize) {
+        self.table.toggle_sort(column_no);
+    }
+
     fn get_sort_symbols(&self) -> Rc<[char]> {
         self.table.header.get_sort_symbols()
     }
