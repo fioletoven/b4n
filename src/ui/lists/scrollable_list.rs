@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::ui::{KeyCombination, ResponseEvent};
+use crate::ui::{ResponseEvent, TuiEvent};
 
 use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
@@ -144,19 +144,38 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.set_settings(settings);
     }
 
-    /// Process [`KeyCombination`] to move over the list.
-    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        match key.code {
-            KeyCode::Home => self.move_highlighted(i32::MIN),
-            KeyCode::Up => self.move_highlighted(-1),
-            KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
-            KeyCode::Down => self.move_highlighted(1),
-            KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
-            KeyCode::End => self.move_highlighted(i32::MAX),
-            _ => return ResponseEvent::NotHandled,
-        }
+    /// Process [`TuiEvent`] to move over the list.
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                match key.code {
+                    KeyCode::Home => self.move_highlighted(i32::MIN),
+                    KeyCode::Up => self.move_highlighted(-1),
+                    KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
+                    KeyCode::Down => self.move_highlighted(1),
+                    KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
+                    KeyCode::End => self.move_highlighted(i32::MAX),
+                    _ => return ResponseEvent::NotHandled,
+                }
 
-        ResponseEvent::Handled
+                ResponseEvent::Handled
+            },
+            TuiEvent::Mouse(mouse) => {
+                match mouse.kind {
+                    crate::ui::MouseEventKind::ScrollUp => {
+                        self.move_highlighted(-1);
+                        self.page_start = self.page_start.saturating_sub(1)
+                    },
+                    crate::ui::MouseEventKind::ScrollDown => {
+                        self.move_highlighted(1);
+                        self.page_start = self.page_start.saturating_add(1)
+                    },
+                    _ => return ResponseEvent::NotHandled,
+                }
+
+                ResponseEvent::Handled
+            },
+        }
     }
 
     /// Updates page start for the current page size and highlighted resource item.
@@ -316,6 +335,27 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Highlights element on list by its `uid`.
     pub fn highlight_item_by_uid(&mut self, uid: &str) -> bool {
         self.highlight_item_by(|i| i.data.uid() == uid)
+    }
+
+    /// Highlights element on list by the visible line number.
+    pub fn highlight_item_by_line(&mut self, line_no: u16) -> bool {
+        let index = self.page_start + usize::from(line_no);
+        if let Some(items) = &mut self.items
+            && index < items.len()
+        {
+            if let Some(highlighted) = self.highlighted
+                && highlighted < items.len()
+            {
+                items[highlighted].is_active = false;
+            }
+
+            items[index].is_active = true;
+            self.highlighted = Some(index);
+
+            return true;
+        }
+
+        false
     }
 
     /// Highlights first item on the list, returns `true` on success.

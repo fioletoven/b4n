@@ -1,5 +1,6 @@
 pub const CONTAINERS: &str = "containers";
 pub const PODS: &str = "pods";
+pub const NODES: &str = "nodes";
 pub const SECRETS: &str = "secrets";
 pub const CRDS: &str = "customresourcedefinitions";
 

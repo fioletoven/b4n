@@ -44,18 +44,33 @@ pub struct Logs {
     pub lines: Option<i64>,
 }
 
+impl Default for Logs {
+    fn default() -> Self {
+        Self { lines: Some(800) }
+    }
+}
+
 /// Application configuration.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
+    #[serde(default)]
     pub logs: Logs,
+    #[serde(default)]
+    pub mouse: bool,
+    #[serde(default = "default_theme_name")]
     pub theme: String,
     pub key_bindings: Option<KeyBindings>,
+}
+
+fn default_theme_name() -> String {
+    DEFAULT_THEME_NAME.to_owned()
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            logs: Logs { lines: Some(400) },
+            logs: Logs::default(),
+            mouse: false,
             theme: DEFAULT_THEME_NAME.to_owned(),
             key_bindings: Some(KeyBindings::default()),
         }

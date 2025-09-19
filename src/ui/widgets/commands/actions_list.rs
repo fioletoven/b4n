@@ -8,7 +8,7 @@ use crate::{
         resources::{Port, PortProtocol},
     },
     ui::{
-        KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         colors::TextColors,
         lists::{BasicFilterContext, ScrollableList},
         theme::Theme,
@@ -25,8 +25,8 @@ pub struct ActionsList {
 }
 
 impl Responsive for ActionsList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.list.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.list.process_event(event)
     }
 }
 
@@ -45,6 +45,7 @@ impl Table for ActionsList {
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
             fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
             fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
+            fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
@@ -56,8 +57,12 @@ impl Table for ActionsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
-    /// **Note** that this is not implemented for [`ActionsList`].
+    /// Not implemented for [`ActionsList`].
+    fn toggle_sort(&mut self, _column_no: usize) {
+        // pass
+    }
+
+    /// Not implemented for [`ActionsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }
@@ -81,15 +86,17 @@ pub struct ActionsListBuilder {
 }
 
 impl ActionsListBuilder {
-    /// Creates new [`ActionsListBuilder`] instance from the provided kinds.
-    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
-        ActionsListBuilder {
-            actions: if let Some(items) = &kinds {
-                items.iter().map(ActionItem::from_kind).collect::<Vec<ActionItem>>()
-            } else {
-                Vec::new()
-            },
-        }
+    /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
+    /// If `primary_only` is `true`, only kinds without a group will be included.
+    pub fn from_kinds(kinds: Option<&[KindItem]>, primary_only: bool) -> Self {
+        let actions = kinds
+            .unwrap_or(&[])
+            .iter()
+            .filter(|item| !primary_only || item.group.is_empty())
+            .map(ActionItem::from_kind)
+            .collect();
+
+        ActionsListBuilder { actions }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.

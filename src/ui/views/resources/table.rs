@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
 use ratatui::{
@@ -14,7 +15,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        KeyCombination, KeyCommand, Responsive, Table, ViewType,
+        KeyCommand, MouseEventKind, Responsive, Table, TuiEvent, ViewType,
         lists::Row,
         tui::ResponseEvent,
         views::{ListHeader, ListViewer},
@@ -160,61 +161,67 @@ impl ResourcesTable {
         }
     }
 
-    /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    /// Process UI key/mouse event.
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.highlight_next = None;
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return self.process_esc_key();
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::PortForwardsOpen) {
+        if self.app_data.has_binding(event, KeyCommand::PortForwardsOpen) {
             return ResponseEvent::ShowPortForwards;
         }
 
-        let response = self.list.process_key(key);
+        let response = self.list.process_event(event);
         if response != ResponseEvent::NotHandled {
             response
         } else {
-            self.process_highlighted_resource_key(key)
+            self.process_highlighted_resource_event(event)
         }
     }
 
-    fn process_highlighted_resource_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_highlighted_resource_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(resource) = self.list.table.get_highlighted_resource() {
-            if self.app_data.has_binding(&key, KeyCommand::NavigateInto) {
+            if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
                 return self.process_enter_key(resource);
             }
 
-            if self.app_data.has_binding(&key, KeyCommand::YamlOpen)
-                || (self.app_data.has_binding(&key, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
+            if let Some(line_no) = event.get_clicked_line_no(MouseEventKind::LeftDoubleClick, KeyModifiers::NONE, self.list.area)
+                && usize::from(line_no) < self.list.table.len()
             {
-                return self.process_view_yaml(resource, self.app_data.has_binding(&key, KeyCommand::YamlDecode));
+                return self.process_enter_key(resource);
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::YamlOpen)
+                || (self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
+            {
+                return self.process_view_yaml(resource, self.app_data.has_binding(event, KeyCommand::YamlDecode));
             }
 
             let is_container_name_known = self.kind_plural() == CONTAINERS
-                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.one_container.is_some()));
+                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
             if is_container_name_known {
-                if self.app_data.has_binding(&key, KeyCommand::PortForwardsCreate) {
+                if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
                     return self.process_view_ports(resource);
                 }
 
-                if self.app_data.has_binding(&key, KeyCommand::LogsOpen) {
+                if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
                     return self.process_view_logs(resource, false);
                 }
 
-                if self.app_data.has_binding(&key, KeyCommand::PreviousLogsOpen) {
+                if self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen) {
                     return self.process_view_logs(resource, true);
                 }
 
-                if self.app_data.has_binding(&key, KeyCommand::ShellOpen) {
+                if self.app_data.has_binding(event, KeyCommand::ShellOpen) {
                     return self.process_open_shell(resource);
                 }
             } else if self.kind_plural() == PODS
-                && (self.app_data.has_binding(&key, KeyCommand::PortForwardsCreate)
-                    || self.app_data.has_binding(&key, KeyCommand::LogsOpen)
-                    || self.app_data.has_binding(&key, KeyCommand::PreviousLogsOpen)
-                    || self.app_data.has_binding(&key, KeyCommand::ShellOpen))
+                && (self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
+                    || self.app_data.has_binding(event, KeyCommand::LogsOpen)
+                    || self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen)
+                    || self.app_data.has_binding(event, KeyCommand::ShellOpen))
             {
                 return self.process_enter_key(resource);
             }
@@ -288,11 +295,13 @@ impl ResourcesTable {
                 ));
             }
         } else if self.kind_plural() == PODS && prefer_container {
-            if let Some(container) = resource.data.as_ref().and_then(|d| d.one_container.as_deref()) {
+            if let Some(data) = resource.data.as_ref()
+                && data.tags.len() == 1
+            {
                 return Some(ResourceRef::container(
                     resource.name.clone(),
                     resource.namespace.clone().into(),
-                    container.to_owned(),
+                    data.tags[0].clone(),
                 ));
             }
         } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {

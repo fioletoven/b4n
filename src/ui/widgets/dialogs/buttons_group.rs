@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
-use crate::ui::{KeyCombination, ResponseEvent, Responsive};
+use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 use super::Button;
 
@@ -45,7 +45,7 @@ impl ButtonsGroup {
     }
 
     /// Draws [`ButtonsGroup`] on the provided frame area.
-    pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if self.buttons.is_empty() {
             return;
         }
@@ -60,7 +60,7 @@ impl ButtonsGroup {
             .constraints(self.get_buttons_constraints())
             .split(layout[1]);
 
-        for (i, btn) in self.buttons.iter().enumerate() {
+        for (i, btn) in self.buttons.iter_mut().enumerate() {
             btn.draw(frame, layout[i + 1]);
         }
     }
@@ -103,12 +103,22 @@ impl ButtonsGroup {
 }
 
 impl Responsive for ButtonsGroup {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
         }
 
-        let event = map_key_to_event(key);
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::LeftClick
+        {
+            for btn in self.buttons.iter() {
+                if btn.contains(mouse.column, mouse.row) {
+                    return btn.result();
+                }
+            }
+        }
+
+        let event = map_to_button_event(event);
         if event == ButtonEvent::Pressed {
             return self.buttons[self.focused].result();
         }
@@ -133,14 +143,17 @@ impl Responsive for ButtonsGroup {
     }
 }
 
-fn map_key_to_event(key: KeyCombination) -> ButtonEvent {
-    match key.code {
-        KeyCode::Tab => ButtonEvent::FocusNext,
-        KeyCode::Right => ButtonEvent::FocusNext,
-        KeyCode::Down => ButtonEvent::FocusNext,
-        KeyCode::Left => ButtonEvent::FocusPrev,
-        KeyCode::Up => ButtonEvent::FocusPrev,
-        KeyCode::Enter => ButtonEvent::Pressed,
+fn map_to_button_event(event: &TuiEvent) -> ButtonEvent {
+    match event {
+        TuiEvent::Key(key) => match key.code {
+            KeyCode::Tab => ButtonEvent::FocusNext,
+            KeyCode::Right => ButtonEvent::FocusNext,
+            KeyCode::Down => ButtonEvent::FocusNext,
+            KeyCode::Left => ButtonEvent::FocusPrev,
+            KeyCode::Up => ButtonEvent::FocusPrev,
+            KeyCode::Enter => ButtonEvent::Pressed,
+            _ => ButtonEvent::None,
+        },
         _ => ButtonEvent::None,
     }
 }

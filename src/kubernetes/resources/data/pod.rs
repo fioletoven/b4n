@@ -1,14 +1,17 @@
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
-use std::rc::Rc;
+use std::{rc::Rc, slice::IterMut};
 
 use crate::{
     kubernetes::{
-        resources::{ResourceData, ResourceValue},
+        metrics::{CpuMetrics, MemoryMetrics},
+        resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue},
         watchers::Statistics,
     },
-    ui::lists::{Column, Header, NAMESPACE},
+    ui::lists::{Column, Header, Item, NAMESPACE},
 };
+
+const COLUMNS_NO_WITH_STATS: usize = 7;
 
 /// Returns [`ResourceData`] for the `pod` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -42,14 +45,18 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         },
     ];
 
-    if statistics.has_metrics
-        && let Some(node_name) = node
-        && let Some(pod_name) = object.metadata.name.as_deref()
-        && let Some(pod_namespace) = object.metadata.namespace.as_deref()
-        && let Some(stats) = statistics.pod(node_name, pod_name, pod_namespace)
-    {
-        values.push(stats.metrics.map(|m| m.cpu).into());
-        values.push(stats.metrics.map(|m| m.memory).into());
+    if statistics.has_metrics {
+        if let Some(node_name) = node
+            && let Some(pod_name) = object.metadata.name.as_deref()
+            && let Some(pod_namespace) = object.metadata.namespace.as_deref()
+            && let Some(stats) = statistics.pod(node_name, pod_name, pod_namespace)
+        {
+            values.push(stats.metrics.map(|m| m.cpu).into());
+            values.push(stats.metrics.map(|m| m.memory).into());
+        } else {
+            values.push(None::<CpuMetrics>.into());
+            values.push(None::<MemoryMetrics>.into());
+        }
     }
 
     values.push(status["podIP"].as_str().into());
@@ -60,7 +67,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        one_container: get_single_container(&spec["containers"]),
+        tags: get_single_container(&spec["containers"]),
     }
 }
 
@@ -95,6 +102,25 @@ pub fn header(has_metrics: bool) -> Header {
     )
 }
 
+/// Updates statistics for specified [`ResourceItem`] list mutable iterator.
+pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterContext>>, statistics: &Statistics) {
+    if !statistics.has_metrics {
+        return;
+    }
+
+    for item in items {
+        if let Some(data) = &mut item.data.data
+            && data.extra_values.len() == COLUMNS_NO_WITH_STATS
+            && let Some(node_name) = data.extra_values[6].text.as_deref()
+            && let Some(pod_namespace) = item.data.namespace.as_deref()
+            && let Some(stats) = statistics.pod(node_name, &item.data.name, pod_namespace)
+        {
+            data.extra_values[3] = stats.metrics.map(|m| m.cpu).into();
+            data.extra_values[4] = stats.metrics.map(|m| m.memory).into();
+        }
+    }
+}
+
 fn get_restarts(containers: &[Value]) -> i64 {
     containers
         .iter()
@@ -123,7 +149,13 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     None
 }
 
-fn get_single_container(containers: &Value) -> Option<String> {
+fn get_single_container(containers: &Value) -> Box<[String]> {
+    get_single_container_name(containers)
+        .map(|name| Box::new([name]))
+        .unwrap_or_default()
+}
+
+fn get_single_container_name(containers: &Value) -> Option<String> {
     match containers.as_array()?.as_slice() {
         [one] => one.as_object()?.get("name")?.as_str().map(String::from),
         _ => None,

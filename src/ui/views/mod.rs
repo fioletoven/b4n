@@ -84,7 +84,7 @@ pub trait View {
     fn process_disconnection(&mut self);
 
     /// Processes single TUI event.
-    fn process_event(&mut self, event: TuiEvent) -> ResponseEvent;
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
 
     /// Draw [`View`] on the provided frame and area.
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect);

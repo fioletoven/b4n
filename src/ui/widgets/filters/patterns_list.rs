@@ -2,7 +2,7 @@ use delegate::delegate;
 use std::collections::HashMap;
 
 use crate::ui::{
-    KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+    ResponseEvent, Responsive, Table, TuiEvent, ViewType,
     colors::TextColors,
     lists::{BasicFilterContext, FilterableList, ScrollableList},
     theme::Theme,
@@ -78,8 +78,8 @@ impl PatternsList {
 }
 
 impl Responsive for PatternsList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.list.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.list.process_event(event)
     }
 }
 
@@ -98,6 +98,7 @@ impl Table for PatternsList {
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
             fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
             fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
+            fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
@@ -116,8 +117,12 @@ impl Table for PatternsList {
         }
     }
 
-    /// Returns items from the current page in a form of text lines to display and colors for that lines.\
-    /// **Note** that this is not implemented for [`PatternsList`].
+    /// Not implemented for [`PatternsList`].
+    fn toggle_sort(&mut self, _column_no: usize) {
+        // pass
+    }
+
+    /// Not implemented for [`PatternsList`].
     fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
         None
     }

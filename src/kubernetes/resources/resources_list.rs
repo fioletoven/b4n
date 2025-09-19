@@ -8,7 +8,7 @@ use crate::{
         watchers::{InitData, ObserverResult},
     },
     ui::{
-        KeyCombination, ResponseEvent, Responsive, Table, ViewType,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         colors::TextColors,
         lists::{FilterableList, Item, Row, TabularList},
         theme::Theme,
@@ -110,8 +110,8 @@ impl ResourcesList {
 }
 
 impl Responsive for ResourcesList {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        self.table.process_key(key)
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.table.process_event(event)
     }
 }
 
@@ -127,6 +127,7 @@ impl Table for ResourcesList {
             fn highlight_item_by_name(&mut self, name: &str) -> bool;
             fn highlight_item_by_name_start(&mut self, text: &str) -> bool;
             fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
+            fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
             fn highlight_first_item(&mut self) -> bool;
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
@@ -151,6 +152,10 @@ impl Table for ResourcesList {
 
     fn sort(&mut self, column_no: usize, is_descending: bool) {
         self.table.sort(column_no, is_descending);
+    }
+
+    fn toggle_sort(&mut self, column_no: usize) {
+        self.table.toggle_sort(column_no);
     }
 
     fn get_sort_symbols(&self) -> Rc<[char]> {

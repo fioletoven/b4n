@@ -7,11 +7,11 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, Namespace, ResourceRef,
-        resources::{CONTAINERS, PODS, Port, ResourceItem, SECRETS},
-        watchers::ObserverResult,
+        resources::{CONTAINERS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
+        watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
-        KeyCommand, Responsive, Table, ViewType,
+        KeyCommand, MouseEventKind, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -23,6 +23,8 @@ use super::ResourcesTable;
 pub struct ResourcesView {
     pub table: ResourcesTable,
     app_data: SharedAppData,
+    stats: SharedStatistics,
+    generation: u16,
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
@@ -31,12 +33,16 @@ pub struct ResourcesView {
 impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker) -> Self {
+        let stats = worker.borrow().statistics.share();
+        let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
         let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
 
         Self {
             table,
             app_data,
+            stats,
+            generation,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
@@ -73,6 +79,26 @@ impl ResourcesView {
         }
 
         self.table.update_resources_list(result);
+    }
+
+    /// Updates statistics if current resource kind is `pods` or `nodes`.
+    pub fn update_statistics(&mut self) {
+        let stats = &self.stats.borrow();
+        if stats.generation == self.generation {
+            return;
+        }
+
+        if self.table.kind_plural() == PODS {
+            if let Some(items) = &mut self.table.list.table.table.list.items {
+                pod::update_statistics(items.full_iter_mut(), stats);
+            }
+        } else if self.table.kind_plural() == NODES
+            && let Some(items) = &mut self.table.list.table.table.list.items
+        {
+            node::update_statistics(items.full_iter_mut(), stats);
+        }
+
+        self.generation = stats.generation;
     }
 
     /// Shows delete resources dialog if anything is selected.
@@ -129,82 +155,19 @@ impl ResourcesView {
         }
     }
 
-    /// Process TUI event.
-    pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
-            return ResponseEvent::ExitApplication;
-        }
-
-        if self.modal.is_visible {
-            return self.modal.process_key(key);
-        }
-
-        if self.command_palette.is_visible {
-            return self
-                .command_palette
-                .process_key(key)
-                .when_action_then("show_yaml", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlOpen))
-                })
-                .when_action_then("decode_yaml", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::YamlDecode))
-                })
-                .when_action_then("show_logs", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::LogsOpen))
-                })
-                .when_action_then("show_plogs", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::PreviousLogsOpen))
-                })
-                .when_action_then("open_shell", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::ShellOpen))
-                })
-                .when_action_then("port_forward", || {
-                    self.table.process_key(self.app_data.get_key(KeyCommand::PortForwardsCreate))
-                });
-        }
-
-        if !self.app_data.borrow().is_connected {
-            if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
-                self.show_command_palette();
-            }
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.filter.is_visible {
-            let result = self.filter.process_key(key);
-            self.table.set_filter(self.filter.value());
-            return result;
-        }
-
-        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
-            self.ask_delete_resources();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
-            self.filter.reset();
-            self.table.set_filter("");
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
-            self.filter.show();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette();
-        }
-
-        self.table.process_key(key)
-    }
-
     /// Processes disconnection state.
     pub fn process_disconnection(&mut self) {
         self.command_palette.hide();
+    }
+
+    /// Returns `true` if namespaces selector can be displayed.
+    pub fn is_namespaces_selector_allowed(&self) -> bool {
+        self.table.scope() == &Scope::Namespaced && !self.table.has_containers() && self.is_resources_selector_allowed()
+    }
+
+    /// Returns `true` if resources selector can be displayed.
+    pub fn is_resources_selector_allowed(&self) -> bool {
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     /// Draws [`ResourcesView`] on the provided frame and area.
@@ -216,12 +179,88 @@ impl ResourcesView {
         self.filter.draw(frame, frame.area());
     }
 
-    /// Returns `true` if namespaces selector can be displayed.
-    pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced && !self.table.has_containers()
+    /// Process TUI event.
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.modal.is_visible {
+            return self.modal.process_event(event);
+        }
+
+        if self.command_palette.is_visible {
+            return self.process_command_palette_event(event);
+        }
+
+        if !self.app_data.borrow().is_connected {
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+            {
+                self.show_command_palette(true);
+            }
+
+            return ResponseEvent::Handled;
+        }
+
+        if self.filter.is_visible {
+            let result = self.filter.process_event(event);
+            self.table.set_filter(self.filter.value());
+            return result;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
+            self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+            self.filter.reset();
+            self.table.set_filter("");
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
+            self.filter.show();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette(false);
+        }
+
+        if event.is_in(MouseEventKind::RightClick, self.table.list.area) {
+            self.show_command_palette(true);
+        }
+
+        self.table.process_event(event)
     }
 
-    fn show_command_palette(&mut self) {
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.command_palette
+            .process_event(event)
+            .when_action_then("filter", || {
+                self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
+            })
+            .when_action_then("show_yaml", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
+            })
+            .when_action_then("decode_yaml", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode))
+            })
+            .when_action_then("show_logs", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::LogsOpen))
+            })
+            .when_action_then("show_plogs", || {
+                self.table
+                    .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen))
+            })
+            .when_action_then("open_shell", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen))
+            })
+            .when_action_then("port_forward", || {
+                self.table
+                    .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
+            })
+    }
+
+    fn show_command_palette(&mut self, simplifed: bool) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
@@ -231,7 +270,7 @@ impl ResourcesView {
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
-        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplifed)
             .with_resources_actions(!is_containers)
             .with_forwards()
             .with_action(
@@ -243,6 +282,11 @@ impl ResourcesView {
                     })
                     .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
+            )
+            .with_action(
+                ActionItem::new("filter")
+                    .with_description("shows resources filter input")
+                    .with_response(ResponseEvent::Action("filter")),
             );
 
         if is_containers || is_pods {

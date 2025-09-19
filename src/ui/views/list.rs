@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Style, Stylize},
     text::Line,
     widgets::{Block, Paragraph, Widget},
@@ -8,13 +8,14 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, ViewType, colors::TextColors},
+    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors},
 };
 
 /// List viewer.
 pub struct ListViewer<T: Table> {
     pub table: T,
     pub view: ViewType,
+    pub area: Rect,
     app_data: SharedAppData,
 }
 
@@ -24,6 +25,7 @@ impl<T: Table> ListViewer<T> {
         ListViewer {
             table: list,
             view,
+            area: Rect::default(),
             app_data,
         }
     }
@@ -38,12 +40,12 @@ impl<T: Table> ListViewer<T> {
 
         let theme = &self.app_data.borrow().theme;
         frame.render_widget(Block::new().style(&theme.colors.text), area);
-        let area = layout[1].inner(Margin::new(1, 0));
+        self.area = layout[1].inner(Margin::new(1, 0));
 
         {
             let sort_symbols = self.table.get_sort_symbols();
             let mut header = HeaderWidget {
-                header: self.table.get_header(self.view, usize::from(area.width)),
+                header: self.table.get_header(self.view, usize::from(self.area.width)),
                 colors: &theme.colors.header.text,
                 background: theme.colors.text.bg,
                 view: self.view,
@@ -52,9 +54,9 @@ impl<T: Table> ListViewer<T> {
             frame.render_widget(&mut header, layout[0]);
         }
 
-        self.table.update_page(area.height);
-        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(area.width)) {
-            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), area);
+        self.table.update_page(self.area.height);
+        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }
     }
 }
@@ -71,27 +73,78 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 }
 
 impl<T: Table> Responsive for ListViewer<T> {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        if key.code == KeyCode::Char('0') && key.modifiers == KeyModifiers::ALT && self.view != ViewType::Full {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if let TuiEvent::Key(key) = event
+            && key.code == KeyCode::Char('0')
+            && key.modifiers == KeyModifiers::ALT
+            && self.view != ViewType::Full
+        {
             return ResponseEvent::Handled;
         }
 
-        if self.table.process_key(key) == ResponseEvent::Handled {
+        if self.table.process_event(event) == ResponseEvent::Handled {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateSelect) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateSelect) {
             self.table.select_highlighted_item();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateInvertSelection) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateInvertSelection) {
             self.table.invert_selection();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::LeftClick
+        {
+            if self.area.contains(Position::new(mouse.column, mouse.row)) {
+                // mouse click is inside list area
+                let line_no = mouse.row.saturating_sub(self.area.y);
+                if self.table.highlight_item_by_line(line_no) && mouse.modifiers == KeyModifiers::CONTROL {
+                    self.table.select_highlighted_item();
+                }
+            } else if Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
+                .contains(Position::new(mouse.column, mouse.row))
+            {
+                // mouse click is inside header area
+                let position = mouse.column.saturating_sub(self.area.x);
+                let header = self.table.get_header(self.view, usize::from(self.area.width));
+                let column_no = count_columns_up_to(header, usize::from(position))
+                    .saturating_add(if self.view == ViewType::Full { 0 } else { 1 })
+                    .saturating_sub(1);
+
+                self.table.toggle_sort(column_no);
+            }
+
             return ResponseEvent::Handled;
         }
 
         ResponseEvent::NotHandled
     }
+}
+
+fn count_columns_up_to(text: &str, position: usize) -> usize {
+    let mut in_column = false;
+    let mut column_count = 0;
+
+    for (i, c) in text.chars().enumerate() {
+        if i > position {
+            break;
+        }
+
+        if !c.is_whitespace() {
+            if !in_column {
+                column_count += 1;
+                in_column = true;
+            }
+        } else {
+            in_column = false;
+        }
+    }
+
+    column_count
 }
 
 /// Widget that renders header for the items list pane.\

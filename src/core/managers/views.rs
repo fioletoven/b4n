@@ -10,7 +10,7 @@ use crate::{
     },
     kubernetes::{Namespace, ResourceRef, kinds::KindsList, resources::ResourcesList},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
     },
@@ -24,6 +24,7 @@ pub struct ViewsManager {
     res_selector: SideSelect<KindsList>,
     view: Option<Box<dyn View>>,
     footer: Footer,
+    areas: Rc<[Rect]>,
 }
 
 impl ViewsManager {
@@ -53,6 +54,7 @@ impl ViewsManager {
             res_selector,
             view: None,
             footer,
+            areas: Rc::default(),
         }
     }
 
@@ -87,6 +89,8 @@ impl ViewsManager {
         while let Some(update_result) = worker.resources.try_next() {
             self.resources.update_resources_list(*update_result);
         }
+
+        self.resources.update_statistics();
     }
 
     /// Draws visible views on the provided frame area.
@@ -103,12 +107,32 @@ impl ViewsManager {
         self.draw_selectors(frame, layout[0]);
     }
 
-    /// Processes single TUI event.
-    pub fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
+    /// Draws namespace / resource selector located on the left / right of the views.
+    fn draw_selectors(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        if self.ns_selector.is_visible || self.res_selector.is_visible {
+            let bottom = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+                .split(area);
 
+            self.ns_selector.draw(frame, bottom[1]);
+            self.res_selector.draw(frame, bottom[1]);
+        }
+
+        self.areas = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(self.ns_selector.width()),
+                Constraint::Fill(1),
+                Constraint::Length(self.res_selector.width()),
+            ])
+            .split(area);
+    }
+
+    /// Processes single TUI event.
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.ns_selector.is_visible {
-            let result = self.ns_selector.process_key(key);
+            let result = self.ns_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_namespaces_selector_event(&result);
             }
@@ -117,7 +141,7 @@ impl ViewsManager {
         }
 
         if self.res_selector.is_visible {
-            let result = self.res_selector.process_key(key);
+            let result = self.res_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_resources_selector_event(&result);
             }
@@ -132,27 +156,27 @@ impl ViewsManager {
         }
     }
 
-    fn process_view_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
+    fn process_view_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let Some(view) = &mut self.view else {
             return ResponseEvent::Handled;
         };
 
-        let response = view.process_event(event);
-
-        if response == ResponseEvent::NotHandled {
-            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && view.is_namespaces_selector_allowed() {
-                self.ns_selector.show_selected(view.displayed_namespace(), "");
-                return ResponseEvent::Handled;
-            }
-
-            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) && view.is_resources_selector_allowed() {
-                self.res_selector
-                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
-                return ResponseEvent::Handled;
-            }
+        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+            && view.is_namespaces_selector_allowed()
+        {
+            self.ns_selector.show_selected(view.displayed_namespace(), "");
+            return ResponseEvent::Handled;
         }
 
+        if (self.app_data.has_binding(event, KeyCommand::SelectorRight) || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+            && view.is_resources_selector_allowed()
+        {
+            self.res_selector
+                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+            return ResponseEvent::Handled;
+        }
+
+        let response = view.process_event(event);
         if response == ResponseEvent::Cancelled {
             self.view = None;
         }
@@ -160,26 +184,24 @@ impl ViewsManager {
         response
     }
 
-    fn process_resources_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        let response = self.resources.process_event(event);
-
-        if response == ResponseEvent::NotHandled {
-            if self.app_data.has_binding(&key, KeyCommand::SelectorLeft) && self.resources.is_namespaces_selector_allowed() {
-                self.ns_selector
-                    .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
-                return ResponseEvent::Handled;
-            }
-
-            if self.app_data.has_binding(&key, KeyCommand::SelectorRight) {
-                self.res_selector
-                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
-                return ResponseEvent::Handled;
-            }
+    fn process_resources_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+            && self.resources.is_namespaces_selector_allowed()
+        {
+            self.ns_selector
+                .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+            return ResponseEvent::Handled;
         }
 
-        response
+        if (self.app_data.has_binding(event, KeyCommand::SelectorRight) || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+            && self.resources.is_resources_selector_allowed()
+        {
+            self.res_selector
+                .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+            return ResponseEvent::Handled;
+        }
+
+        self.resources.process_event(event)
     }
 
     /// Process all waiting events.
@@ -364,18 +386,5 @@ impl ViewsManager {
             self.footer.get_transmitter(),
         );
         self.view = Some(Box::new(view));
-    }
-
-    /// Draws namespace / resource selector located on the left / right of the views.
-    fn draw_selectors(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if self.ns_selector.is_visible || self.res_selector.is_visible {
-            let bottom = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-                .split(area);
-
-            self.ns_selector.draw(frame, bottom[1]);
-            self.res_selector.draw(frame, bottom[1]);
-        }
     }
 }

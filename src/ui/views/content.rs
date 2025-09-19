@@ -12,7 +12,7 @@ use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
     ui::{
-        KeyCombination, ResponseEvent,
+        MouseEventKind, ResponseEvent, TuiEvent,
         utils::center,
         views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
     },
@@ -159,7 +159,7 @@ impl<T: Content> ContentViewer<T> {
                     r#match.x.saturating_add(offset.width.into()),
                     r#match.length,
                 );
-            } else {
+            } else if !matches.is_empty() {
                 self.scroll_to(
                     matches[0].y.saturating_add(offset.height.into()),
                     matches[0].x.saturating_add(offset.width.into()),
@@ -200,7 +200,7 @@ impl<T: Content> ContentViewer<T> {
                     self.search.current = None;
                 }
                 if matches.is_empty() {
-                    self.search.matches = None;
+                    self.search.matches = Some(Vec::default());
                 } else {
                     self.search.matches = Some(matches);
                 }
@@ -264,6 +264,8 @@ impl<T: Content> ContentViewer<T> {
         if let Some(count) = self.matches_count() {
             if let Some(current) = self.current_match() {
                 Some(format!(" {current}:{count}"))
+            } else if count == 0 {
+                Some(format!(" {count}"))
             } else {
                 Some(format!(" :{count}"))
             }
@@ -274,7 +276,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Gets footer message for the current search state.
     pub fn get_footer_message(&self, forward: bool) -> Option<&'static str> {
-        if self.matches_count().is_some() && self.current_match().is_none_or(|c| c == 0) {
+        if self.matches_count().is_some() && self.current_match().is_some_and(|c| c == 0) {
             Some(get_search_wrapped_message(forward))
         } else {
             None
@@ -282,27 +284,48 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Process UI key event.
-    pub fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
-        match key {
-            // horizontal scroll
-            x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = 0,
-            x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::SHIFT => {
-                self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
+    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                match key {
+                    // horizontal scroll
+                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = 0,
+                    x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
+                        self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
+                    },
+                    x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
+                    x if x.code == KeyCode::Right => self.page_hstart += 1,
+                    x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
+                        self.page_hstart += self.page_width
+                    },
+                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = self.max_hstart(),
+
+                    // vertical scroll
+                    x if x.code == KeyCode::Home => self.page_vstart = 0,
+                    x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
+                    x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
+                    x if x.code == KeyCode::Down => self.page_vstart += 1,
+                    x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
+                    x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
+
+                    _ => return ResponseEvent::NotHandled,
+                }
             },
-            x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
-            x if x.code == KeyCode::Right => self.page_hstart += 1,
-            x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::SHIFT => self.page_hstart += self.page_width,
-            x if x.code == KeyCode::End && x.modifiers == KeyModifiers::SHIFT => self.page_hstart = self.max_hstart(),
+            TuiEvent::Mouse(mouse) => match mouse {
+                // horizontal scroll
+                x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
+                    self.page_hstart = self.page_hstart.saturating_sub(1);
+                },
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_hstart += 1,
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_hstart = self.page_hstart.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_hstart += 1,
 
-            // vertical scroll
-            x if x.code == KeyCode::Home => self.page_vstart = 0,
-            x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
-            x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
-            x if x.code == KeyCode::Down => self.page_vstart += 1,
-            x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
-            x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
+                // vertical scroll
+                x if x.kind == MouseEventKind::ScrollUp => self.page_vstart = self.page_vstart.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_vstart += 1,
 
-            _ => return ResponseEvent::NotHandled,
+                _ => return ResponseEvent::NotHandled,
+            },
         }
 
         self.update_page_starts();

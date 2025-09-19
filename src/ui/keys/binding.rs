@@ -30,6 +30,7 @@ impl Default for KeyBindings {
             .with("Ctrl+Space", KeyCommand::NavigateInvertSelection)
             .with("Tab", KeyCommand::NavigateComplete)
             .with("Ctrl+D", KeyCommand::NavigateDelete)
+            .with("Ctrl+N", KeyCommand::MouseSupportToggle)
             .with("C", KeyCommand::ContentCopy)
             .with("Left", KeyCommand::SelectorLeft)
             .with("Right", KeyCommand::SelectorRight)

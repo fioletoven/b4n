@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::core::AppData;
+use crate::{core::AppData, ui::KeyCombination};
 
 use super::*;
 
@@ -11,14 +11,14 @@ fn esc_reverts_value_test() {
     let mut filter = Filter::new(data, None, 60);
 
     filter.show();
-    filter.process_key(KeyCombination::from('t'));
-    filter.process_key(KeyCombination::from('e'));
-    filter.process_key(KeyCombination::from('s'));
-    filter.process_key(KeyCombination::from('t'));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('e')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('s')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));
 
     assert_eq!("test", filter.value());
 
-    filter.process_key(KeyCombination::from(KeyCode::Esc));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from(KeyCode::Esc)));
 
     assert_eq!("", filter.value());
 }
@@ -29,14 +29,14 @@ fn enter_stores_value_test() {
     let mut filter = Filter::new(data, None, 60);
 
     filter.show();
-    filter.process_key(KeyCombination::from('t'));
-    filter.process_key(KeyCombination::from('e'));
-    filter.process_key(KeyCombination::from('s'));
-    filter.process_key(KeyCombination::from('t'));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('e')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('s')));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));
 
     assert_eq!("test", filter.value());
 
-    filter.process_key(KeyCombination::from(KeyCode::Enter));
+    filter.process_event(&TuiEvent::Key(KeyCombination::from(KeyCode::Enter)));
 
     assert_eq!("test", filter.value());
 }

@@ -16,7 +16,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt},
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
-        KeyCommand, ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         views::{View, content_header::ContentHeader},
         widgets::{Button, Dialog, FooterTx},
     },
@@ -72,6 +72,9 @@ impl ShellView {
         )));
         let mut bridge = ShellBridge::new(runtime, parser.clone());
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
+
+        app_data.disable_command(KeyCommand::ApplicationExit, true);
+        app_data.disable_command(KeyCommand::MouseSupportToggle, true);
 
         Self {
             app_data,
@@ -181,51 +184,59 @@ impl View for ShellView {
         // pass
     }
 
-    fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.modal.is_visible {
-            return self.modal.process_key(key);
+            return self.modal.process_event(event);
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
+        if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
             self.ask_close_shell_forcibly();
             return ResponseEvent::Handled;
         }
 
-        if key.modifiers == KeyModifiers::CONTROL {
-            match key.code {
-                KeyCode::Up => return self.set_scrollback(1, true),
-                KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
-                KeyCode::Down => return self.set_scrollback(1, false),
-                KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
-                _ => (),
+        if let TuiEvent::Mouse(mouse) = event {
+            match mouse.kind {
+                MouseEventKind::ScrollUp => return self.set_scrollback(1, true),
+                MouseEventKind::ScrollDown => return self.set_scrollback(1, false),
+                _ => return ResponseEvent::Handled,
             }
         }
 
-        let mut key_processed = true;
-        match key.code {
-            KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
-            KeyCode::Esc => self.bridge.send(vec![27]),
-            KeyCode::Backspace => self.bridge.send(vec![8]),
-            KeyCode::Enter => self.bridge.send(vec![b'\n']),
-            KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
-            KeyCode::Right => self.bridge.send(vec![27, 91, 67]),
-            KeyCode::Up => self.bridge.send(vec![27, 91, 65]),
-            KeyCode::Down => self.bridge.send(vec![27, 91, 66]),
-            KeyCode::Home => self.bridge.send(vec![27, 91, 72]),
-            KeyCode::End => self.bridge.send(vec![27, 91, 70]),
-            KeyCode::PageUp => self.bridge.send(vec![27, 91, 53, 126]),
-            KeyCode::PageDown => self.bridge.send(vec![27, 91, 54, 126]),
-            KeyCode::Tab => self.bridge.send(vec![9]),
-            KeyCode::BackTab => self.bridge.send(vec![27, 91, 90]),
-            KeyCode::Delete => self.bridge.send(vec![27, 91, 51, 126]),
-            KeyCode::Insert => self.bridge.send(vec![27, 91, 50, 126]),
-            _ => key_processed = false,
-        }
+        if let TuiEvent::Key(key) = event {
+            if key.modifiers == KeyModifiers::CONTROL {
+                match key.code {
+                    KeyCode::Up => return self.set_scrollback(1, true),
+                    KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
+                    KeyCode::Down => return self.set_scrollback(1, false),
+                    KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
+                    _ => (),
+                }
+            }
 
-        if key_processed && self.scrollback_rows > 0 {
-            self.reset_scrollback();
+            let mut key_processed = true;
+            match key.code {
+                KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
+                KeyCode::Esc => self.bridge.send(vec![27]),
+                KeyCode::Backspace => self.bridge.send(vec![8]),
+                KeyCode::Enter => self.bridge.send(vec![b'\n']),
+                KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
+                KeyCode::Right => self.bridge.send(vec![27, 91, 67]),
+                KeyCode::Up => self.bridge.send(vec![27, 91, 65]),
+                KeyCode::Down => self.bridge.send(vec![27, 91, 66]),
+                KeyCode::Home => self.bridge.send(vec![27, 91, 72]),
+                KeyCode::End => self.bridge.send(vec![27, 91, 70]),
+                KeyCode::PageUp => self.bridge.send(vec![27, 91, 53, 126]),
+                KeyCode::PageDown => self.bridge.send(vec![27, 91, 54, 126]),
+                KeyCode::Tab => self.bridge.send(vec![9]),
+                KeyCode::BackTab => self.bridge.send(vec![27, 91, 90]),
+                KeyCode::Delete => self.bridge.send(vec![27, 91, 51, 126]),
+                KeyCode::Insert => self.bridge.send(vec![27, 91, 50, 126]),
+                _ => key_processed = false,
+            }
+
+            if key_processed && self.scrollback_rows > 0 {
+                self.reset_scrollback();
+            }
         }
 
         ResponseEvent::Handled
@@ -267,6 +278,8 @@ impl View for ShellView {
 impl Drop for ShellView {
     fn drop(&mut self) {
         self.bridge.stop();
+        self.app_data.disable_command(KeyCommand::ApplicationExit, false);
+        self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
     }
 }
 

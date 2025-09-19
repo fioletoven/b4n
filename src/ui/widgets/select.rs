@@ -7,7 +7,8 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::ui::{
-    KeyCombination, ResponseEvent, Responsive, Table, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode,
+    KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, colors::TextColors, theme::SelectColors,
+    widgets::ErrorHighlightMode,
 };
 
 use super::Input;
@@ -16,6 +17,7 @@ use super::Input;
 #[derive(Default)]
 pub struct Select<T: Table> {
     pub items: T,
+    pub area: Rect,
     colors: SelectColors,
     filter: Input,
     filter_auto_hide: bool,
@@ -30,6 +32,7 @@ impl<T: Table> Select<T> {
 
         Select {
             items: list,
+            area: Rect::default(),
             colors,
             filter,
             filter_auto_hide,
@@ -106,16 +109,16 @@ impl<T: Table> Select<T> {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let draw_filter = !self.filter_auto_hide || self.items.get_filter().is_some();
         let layout = get_layout(area, draw_filter);
-        let list_area = if draw_filter { layout[1] } else { layout[0] };
-        self.items.update_page(list_area.height);
-        if let Some(list) = self.items.get_paged_names(usize::from(list_area.width.max(2) - 2)) {
+        self.area = if draw_filter { layout[1] } else { layout[0] };
+        self.items.update_page(self.area.height);
+        if let Some(list) = self.items.get_paged_names(usize::from(self.area.width.max(2) - 2)) {
             frame.render_widget(
                 &mut ListWidget {
                     list,
                     normal: &self.colors.normal,
                     highlighted: &self.colors.normal_hl,
                 },
-                list_area,
+                self.area,
             );
         }
 
@@ -147,7 +150,12 @@ impl<T: Table> Select<T> {
 }
 
 impl<T: Table> Responsive for Select<T> {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let key = match event {
+            TuiEvent::Key(key) => key,
+            _ => &KeyCombination::default(),
+        };
+
         if key.modifiers == KeyModifiers::ALT {
             return ResponseEvent::Handled;
         }
@@ -155,9 +163,9 @@ impl<T: Table> Responsive for Select<T> {
         // Process Home and End keys directly by filter input if we show cursor
         // (that means move cursor to start or end of the filter input text).
         if (self.filter.is_cursor_visible() && (key.code == KeyCode::Home || key.code == KeyCode::End))
-            || self.items.process_key(key) == ResponseEvent::NotHandled
+            || self.items.process_event(event) == ResponseEvent::NotHandled
         {
-            self.filter.process_key(key);
+            self.filter.process_event(event);
             self.update_items_filter();
         }
 

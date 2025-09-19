@@ -1,4 +1,8 @@
-use ratatui::{layout::Rect, text::Line, widgets::Paragraph};
+use ratatui::{
+    layout::{Position, Rect},
+    text::Line,
+    widgets::Paragraph,
+};
 
 use crate::ui::{ResponseEvent, colors::TextColors, theme::ButtonColors};
 
@@ -9,6 +13,7 @@ pub struct Button {
     normal: TextColors,
     focused: TextColors,
     result: ResponseEvent,
+    area: Rect,
 }
 
 impl Button {
@@ -20,6 +25,7 @@ impl Button {
             normal: colors.normal,
             focused: colors.focused,
             result,
+            area: Rect::default(),
         }
     }
 
@@ -33,6 +39,11 @@ impl Button {
         self.caption.is_empty()
     }
 
+    /// Returns `true` if provided `x` and `y` are inside the button.
+    pub fn contains(&self, x: u16, y: u16) -> bool {
+        self.area.contains(Position::new(x, y))
+    }
+
     /// Returns button result.
     pub fn result(&self) -> ResponseEvent {
         self.result.clone()
@@ -44,9 +55,10 @@ impl Button {
     }
 
     /// Draws [`Button`] on the provided frame area.
-    pub fn draw(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let colors = if self.is_focused { self.focused } else { self.normal };
         let line = Line::styled(format!(" {} ", &self.caption), &colors);
         frame.render_widget(Paragraph::new(line), area);
+        self.area = area;
     }
 }

@@ -7,7 +7,7 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{KeyCombination, ResponseEvent, Responsive, colors::TextColors, utils::center};
+use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center};
 
 use super::{Button, ButtonsGroup};
 
@@ -19,6 +19,7 @@ pub struct Dialog {
     message: String,
     buttons: ButtonsGroup,
     default_button: usize,
+    area: Rect,
 }
 
 impl Default for Dialog {
@@ -41,6 +42,7 @@ impl Dialog {
             message,
             buttons,
             default_button,
+            area: Rect::default(),
         }
     }
 
@@ -62,16 +64,16 @@ impl Dialog {
         );
         let height = text.len() + 4;
 
-        let area = center(area, Constraint::Length(self.width), Constraint::Length(height as u16));
+        self.area = center(area, Constraint::Length(self.width), Constraint::Length(height as u16));
         let block = Block::new().style(Style::default().bg(self.colors.bg));
 
-        frame.render_widget(Clear, area);
-        frame.render_widget(block, area);
+        frame.render_widget(Clear, self.area);
+        frame.render_widget(block, self.area);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(3)])
-            .split(area);
+            .split(self.area);
 
         let lines: Vec<Line> = text.iter().map(|i| Line::from(i.as_ref())).collect();
         frame.render_widget(Paragraph::new(lines).fg(self.colors.fg), layout[1]);
@@ -81,17 +83,17 @@ impl Dialog {
 }
 
 impl Responsive for Dialog {
-    fn process_key(&mut self, key: KeyCombination) -> ResponseEvent {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if !self.is_visible {
             return ResponseEvent::NotHandled;
         }
 
-        if key.code == KeyCode::Esc {
+        if matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc) || event.is_out(MouseEventKind::LeftClick, self.area) {
             self.is_visible = false;
             return self.buttons.result(self.default_button);
         }
 
-        let result = self.buttons.process_key(key);
+        let result = self.buttons.process_event(event);
         if result != ResponseEvent::Handled {
             self.is_visible = false;
         }

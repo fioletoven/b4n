@@ -5,7 +5,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
-        KeyCombination, KeyCommand, ResponseEvent, Responsive, TuiEvent,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
@@ -73,28 +73,31 @@ impl YamlView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
-            let mut builder = ActionsListBuilder::default().with_close().with_quit().with_action(
+    fn show_command_palette(&mut self) {
+        let mut builder = ActionsListBuilder::default()
+            .with_close()
+            .with_quit()
+            .with_action(
                 ActionItem::new("copy")
                     .with_description("copies YAML to the clipboard")
                     .with_response(ResponseEvent::Action("copy")),
+            )
+            .with_action(
+                ActionItem::new("search")
+                    .with_description("searches YAML using the provided query")
+                    .with_response(ResponseEvent::Action("search")),
             );
-            if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
-                let action = if self.is_decoded { "encode" } else { "decode" };
-                builder = builder.with_action(
-                    ActionItem::new(action)
-                        .with_description(&format!("{action}s the resource's data"))
-                        .with_response(ResponseEvent::Action("decode")),
-                );
-            }
-
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
-            true
-        } else {
-            false
+        if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
+            let action = if self.is_decoded { "encode" } else { "decode" };
+            builder = builder.with_action(
+                ActionItem::new(action)
+                    .with_description(&format!("{action}s the resource's data"))
+                    .with_response(ResponseEvent::Action("decode")),
+            );
         }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     fn toggle_yaml_decode(&mut self) {
@@ -157,15 +160,9 @@ impl View for YamlView {
         self.command_palette.hide();
     }
 
-    fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
-            return ResponseEvent::ExitApplication;
-        }
-
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
-            let response = self.command_palette.process_key(key);
+            let response = self.command_palette.process_event(event);
             if response == ResponseEvent::Cancelled {
                 self.clear_search();
             } else if response.is_action("copy") {
@@ -174,13 +171,16 @@ impl View for YamlView {
             } else if response.is_action("decode") {
                 self.toggle_yaml_decode();
                 return ResponseEvent::Handled;
+            } else if response.is_action("search") {
+                self.search.show();
+                return ResponseEvent::Handled;
             }
 
             return response;
         }
 
         if self.search.is_visible {
-            let result = self.search.process_key(key);
+            let result = self.search.process_event(event);
             if self.yaml.search(self.search.value(), false) {
                 self.yaml.scroll_to_current_match(None);
                 self.update_search_count();
@@ -189,24 +189,26 @@ impl View for YamlView {
             return result;
         }
 
-        if self.process_command_palette_events(key) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::SearchOpen) {
+        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
             self.search.show();
+            return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::SearchReset) && !self.search.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
             self.clear_search();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return ResponseEvent::Cancelled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::YamlDecode)
+        if self.app_data.has_binding(event, KeyCommand::YamlDecode)
             && self.yaml.header.kind.as_str() == SECRETS
             && self.app_data.borrow().is_connected
         {
@@ -215,20 +217,20 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::ContentCopy) {
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
             self.copy_yaml_to_clipboard();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
             self.navigate_match(true);
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
+        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
             self.navigate_match(false);
         }
 
-        self.yaml.process_key(key)
+        self.yaml.process_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

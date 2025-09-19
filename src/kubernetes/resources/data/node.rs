@@ -1,15 +1,17 @@
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc, slice::IterMut};
 
 use crate::{
     kubernetes::{
         metrics::{CpuMetrics, MemoryMetrics},
-        resources::{ResourceData, ResourceValue},
+        resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue},
         watchers::Statistics,
     },
-    ui::lists::{Column, Header, NAMESPACE},
+    ui::lists::{Column, Header, Item, NAMESPACE},
 };
+
+const COLUMNS_NO_WITH_STATS: usize = 10;
 
 /// Returns [`ResourceData`] for the `nodes` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -42,10 +44,16 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         values.push(ResourceValue::number(mem_usage, 7));
     }
 
+    let tags = Box::new([
+        status["allocatable"]["cpu"].as_str().map(String::from).unwrap_or_default(),
+        status["allocatable"]["memory"].as_str().map(String::from).unwrap_or_default(),
+    ]);
+
     ResourceData {
         extra_values: values.into_boxed_slice(),
         is_ready: !is_terminating && is_ready,
         is_terminating,
+        tags,
         ..Default::default()
     }
 }
@@ -80,6 +88,29 @@ pub fn header(has_metrics: bool) -> Header {
     )
 }
 
+/// Updates statistics for specified [`ResourceItem`] list mutable iterator.
+pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterContext>>, statistics: &Statistics) {
+    if !statistics.has_metrics {
+        return;
+    }
+
+    for item in items {
+        let name = &item.data.name;
+        if let Some(data) = &mut item.data.data
+            && data.tags.len() == 2
+            && data.extra_values.len() == COLUMNS_NO_WITH_STATS
+        {
+            let cpu_usage = get_cpu_usage(statistics, name, get_as_option(&data.tags[0]));
+            let mem_usage = get_mem_usage(statistics, name, get_as_option(&data.tags[1]));
+
+            data.extra_values[6] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into();
+            data.extra_values[7] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.memory).into();
+            data.extra_values[8] = ResourceValue::number(cpu_usage, 7);
+            data.extra_values[9] = ResourceValue::number(mem_usage, 7);
+        }
+    }
+}
+
 fn get_first_status(conditions: Option<&Vec<Value>>) -> Option<&str> {
     conditions?
         .iter()
@@ -96,6 +127,10 @@ fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {
             .collect::<Vec<_>>()
             .join(",")
     })
+}
+
+fn get_as_option(value: &str) -> Option<&str> {
+    if !value.is_empty() { Some(value) } else { None }
 }
 
 fn get_cpu_usage(stats: &Statistics, node_name: &str, total_cpu: Option<&str>) -> Option<f64> {

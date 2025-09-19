@@ -9,7 +9,12 @@ use tokio::runtime::Handle;
 use crate::{
     core::DiscoveryList,
     kubernetes::{
-        Kind, client::KubernetesClient, metrics::Metrics, resources::PODS, utils::get_resource, watchers::observer::BgObserver,
+        Kind,
+        client::KubernetesClient,
+        metrics::Metrics,
+        resources::{NODES, PODS},
+        utils::get_resource,
+        watchers::observer::BgObserver,
     },
     ui::widgets::FooterTx,
 };
@@ -70,6 +75,7 @@ pub struct ContainerStats {
 /// Holds all statistics for the Kubernetes cluster.
 #[derive(Debug)]
 pub struct Statistics {
+    pub generation: u16,
     pub has_metrics: bool,
     data: HashMap<String, NodeStats>,
 }
@@ -148,7 +154,7 @@ struct PodData {
 impl From<&DynamicObject> for PodData {
     fn from(value: &DynamicObject) -> Self {
         Self {
-            node_name: value.data["spec"]["nodeName"].as_str().map(String::from).unwrap_or_default(),
+            node_name: get_node_name(value),
             name: value.name_any(),
             namespace: value.namespace().unwrap_or_default(),
             containers: get_containers(value),
@@ -175,6 +181,7 @@ impl BgStatistics {
     pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
         Self {
             stats: Rc::new(RefCell::new(Statistics {
+                generation: 0,
                 data: HashMap::new(),
                 has_metrics: false,
             })),
@@ -208,7 +215,7 @@ impl BgStatistics {
                 .is_ok();
         }
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new("nodes", "metrics.k8s.io")) {
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io")) {
             self.has_metrics = self
                 .nodes_metrics
                 .start(client, (&discovery.0).into(), Some(discovery))
@@ -232,6 +239,7 @@ impl BgStatistics {
         self.nodes_metrics.stop();
     }
 
+    /// Updates cached statistics object with new data from observers.
     pub fn update_statistics(&mut self) {
         self.is_dirty = false;
         if self.pods.is_ready() {
@@ -261,6 +269,7 @@ impl BgStatistics {
         }
     }
 
+    /// Returns cloned [`SharedStatistics`] object.
     pub fn share(&self) -> SharedStatistics {
         self.stats.clone()
     }
@@ -294,9 +303,11 @@ impl BgStatistics {
             }
         }
 
+        let generation = self.stats.borrow().generation.wrapping_add(1);
         self.stats.replace(Statistics {
-            data: new_stats,
+            generation,
             has_metrics: self.has_metrics,
+            data: new_stats,
         });
     }
 
@@ -305,7 +316,7 @@ impl BgStatistics {
 
         self.pod_data
             .entry(uid)
-            .and_modify(|pod| update_containers(&mut pod.containers, resource))
+            .and_modify(|pod| update_pod(pod, resource))
             .or_insert_with(|| resource.into());
 
         self.is_dirty = true;
@@ -341,8 +352,12 @@ impl BgStatistics {
     }
 }
 
-fn get_uid(result: &DynamicObject) -> String {
-    format!("{}.{}", result.name_any(), result.namespace().unwrap_or_default())
+fn get_node_name(pod: &DynamicObject) -> String {
+    pod.data["spec"]["nodeName"].as_str().map(String::from).unwrap_or_default()
+}
+
+fn get_uid(resource: &DynamicObject) -> String {
+    format!("{}.{}", resource.name_any(), resource.namespace().unwrap_or_default())
 }
 
 fn get_containers(resource: &DynamicObject) -> HashMap<String, Option<Metrics>> {
@@ -356,9 +371,13 @@ fn get_containers(resource: &DynamicObject) -> HashMap<String, Option<Metrics>> 
         })
 }
 
-fn update_containers(containers: &mut HashMap<String, Option<Metrics>>, resource: &DynamicObject) {
+fn update_pod(pod: &mut PodData, resource: &DynamicObject) {
+    if pod.node_name.is_empty() {
+        pod.node_name = get_node_name(resource);
+    }
+
     let Some(new_containers) = resource.data["spec"]["containers"].as_array() else {
-        containers.clear();
+        pod.containers.clear();
         return;
     };
 
@@ -367,13 +386,13 @@ fn update_containers(containers: &mut HashMap<String, Option<Metrics>>, resource
         .filter_map(|c| c["name"].as_str())
         .collect::<HashSet<_>>();
 
-    containers.retain(|c, _| new_names.contains(&c.as_str()));
+    pod.containers.retain(|c, _| new_names.contains(&c.as_str()));
 
     for container in new_containers {
         if let Some(name) = container["name"].as_str()
-            && !containers.contains_key(name)
+            && !pod.containers.contains_key(name)
         {
-            containers.insert(name.to_owned(), None);
+            pod.containers.insert(name.to_owned(), None);
         }
     }
 }

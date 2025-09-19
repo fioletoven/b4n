@@ -8,7 +8,7 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::Namespace,
     ui::{
-        KeyCombination, KeyCommand, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
@@ -57,24 +57,6 @@ impl ForwardsView {
         }
     }
 
-    fn process_command_palette_events(&mut self, key: KeyCombination) -> bool {
-        if self.app_data.has_binding(&key, KeyCommand::CommandPaletteOpen) {
-            let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
-                .with_close()
-                .with_quit()
-                .with_action(
-                    ActionItem::new("stop")
-                        .with_description("stops selected port forwarding rules")
-                        .with_response(ResponseEvent::Action("stop_selected")),
-                );
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
-            self.command_palette.show();
-            true
-        } else {
-            false
-        }
-    }
-
     /// Sets filter on the port forwards list.
     pub fn set_filter(&mut self) {
         let value = self.filter.value();
@@ -88,6 +70,20 @@ impl ForwardsView {
             self.list.table.filter(Some(value.to_owned()));
             self.header.set_count(self.list.table.len());
         }
+    }
+
+    /// Shows command palette.
+    fn show_command_palette(&mut self) {
+        let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), false)
+            .with_close()
+            .with_quit()
+            .with_action(
+                ActionItem::new("stop")
+                    .with_description("stops selected port forwarding rules")
+                    .with_response(ResponseEvent::Action("stop_selected")),
+            );
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette.show();
     }
 
     /// Shows dialog to stop port forwarding rules if anything is selected.
@@ -135,11 +131,11 @@ impl View for ForwardsView {
     }
 
     fn is_namespaces_selector_allowed(&self) -> bool {
-        true
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     fn is_resources_selector_allowed(&self) -> bool {
-        true
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
     }
 
     fn handle_resources_selector_event(&mut self, event: &ResponseEvent) {
@@ -179,21 +175,15 @@ impl View for ForwardsView {
         self.command_palette.hide();
     }
 
-    fn process_event(&mut self, event: TuiEvent) -> ResponseEvent {
-        let TuiEvent::Key(key) = event;
-
-        if self.app_data.has_binding(&key, KeyCommand::ApplicationExit) {
-            return ResponseEvent::ExitApplication;
-        }
-
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.filter.is_visible {
-            self.filter.process_key(key);
+            self.filter.process_event(event);
             self.set_filter();
             return ResponseEvent::Handled;
         }
 
         if self.modal.is_visible {
-            if self.modal.process_key(key) == ResponseEvent::DeleteResources {
+            if self.modal.process_event(event) == ResponseEvent::DeleteResources {
                 self.stop_selected_port_forwards();
             }
 
@@ -201,7 +191,7 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return match self.command_palette.process_key(key) {
+            return match self.command_palette.process_event(event) {
                 ResponseEvent::ChangeKind(kind) => {
                     self.is_closing = true;
                     ResponseEvent::ChangeKind(kind)
@@ -214,33 +204,36 @@ impl View for ForwardsView {
             };
         }
 
-        if self.process_command_palette_events(key) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.list.area)
+        {
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.set_filter();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateBack)
-            || self.app_data.has_binding(&key, KeyCommand::PortForwardsOpen)
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || self.app_data.has_binding(event, KeyCommand::PortForwardsOpen)
         {
             return ResponseEvent::Cancelled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::NavigateDelete) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_stop_port_forwards();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(&key, KeyCommand::FilterOpen) {
+        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
             self.filter.show();
             return ResponseEvent::Handled;
         }
 
-        self.list.process_key(key)
+        self.list.process_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
