@@ -159,7 +159,7 @@ impl<T: Content> ContentViewer<T> {
                     r#match.x.saturating_add(offset.width.into()),
                     r#match.length,
                 );
-            } else {
+            } else if !matches.is_empty() {
                 self.scroll_to(
                     matches[0].y.saturating_add(offset.height.into()),
                     matches[0].x.saturating_add(offset.width.into()),
@@ -200,7 +200,7 @@ impl<T: Content> ContentViewer<T> {
                     self.search.current = None;
                 }
                 if matches.is_empty() {
-                    self.search.matches = None;
+                    self.search.matches = Some(Vec::default());
                 } else {
                     self.search.matches = Some(matches);
                 }
@@ -264,6 +264,8 @@ impl<T: Content> ContentViewer<T> {
         if let Some(count) = self.matches_count() {
             if let Some(current) = self.current_match() {
                 Some(format!(" {current}:{count}"))
+            } else if count == 0 {
+                Some(format!(" {count}"))
             } else {
                 Some(format!(" :{count}"))
             }
@@ -274,7 +276,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Gets footer message for the current search state.
     pub fn get_footer_message(&self, forward: bool) -> Option<&'static str> {
-        if self.matches_count().is_some() && self.current_match().is_none_or(|c| c == 0) {
+        if self.matches_count().is_some() && self.current_match().is_some_and(|c| c == 0) {
             Some(get_search_wrapped_message(forward))
         } else {
             None
