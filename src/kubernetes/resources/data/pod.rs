@@ -150,9 +150,11 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
 }
 
 fn get_single_container(containers: &Value) -> Box<[String]> {
-    get_single_container_name(containers)
-        .map(|name| Box::new([name]))
-        .unwrap_or_default()
+    if let Some(name) = get_single_container_name(containers) {
+        Box::new([name])
+    } else {
+        Box::default()
+    }
 }
 
 fn get_single_container_name(containers: &Value) -> Option<String> {
