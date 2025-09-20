@@ -199,8 +199,13 @@ impl ResourcesTable {
                 return self.process_view_yaml(resource, self.app_data.has_binding(event, KeyCommand::YamlDecode));
             }
 
-            let is_container_name_known = self.kind_plural() == CONTAINERS
-                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
+            let is_container = self.kind_plural() == CONTAINERS;
+            if !is_container && self.app_data.has_binding(event, KeyCommand::EventsShow) {
+                return ResponseEvent::ViewEvents(resource.name.clone(), resource.uid.clone());
+            }
+
+            let is_container_name_known =
+                is_container || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
             if is_container_name_known {
                 if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
                     return self.process_view_ports(resource);

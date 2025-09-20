@@ -2,6 +2,7 @@ pub const CONTAINERS: &str = "containers";
 pub const PODS: &str = "pods";
 pub const NODES: &str = "nodes";
 pub const SECRETS: &str = "secrets";
+pub const EVENTS: &str = "events";
 pub const CRDS: &str = "customresourcedefinitions";
 
 pub use self::crd_columns::*;

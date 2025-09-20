@@ -9,7 +9,7 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
-    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
+    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter, resources::EVENTS},
     ui::{
         KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent,
         theme::Theme,
@@ -172,6 +172,7 @@ impl App {
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
+            ResponseEvent::ViewEvents(resource_name, uid) => self.view_events(resource_name, uid)?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
@@ -215,14 +216,21 @@ impl App {
         }
     }
 
+    /// Changes observed resource to the specified one.
+    fn change_resource(&mut self, resource: ResourceRef) -> Result<(), BgWorkerError> {
+        self.views_manager.handle_kind_change(None);
+        self.views_manager.handle_namespace_change(resource.namespace.clone());
+        let kind = resource.kind.as_str().to_owned();
+        let namespace = resource.namespace.as_option().map(String::from);
+        let scope = self.worker.borrow_mut().restart(resource)?;
+        self.process_resources_change(Some(kind), namespace, Some(scope));
+        Ok(())
+    }
+
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) || self.data.borrow().current.kind != kind {
-            self.views_manager.handle_kind_change(None);
-            self.views_manager.handle_namespace_change(namespace.clone());
-            let resource = ResourceRef::new(kind.clone(), namespace.clone());
-            let scope = self.worker.borrow_mut().restart(resource)?;
-            self.process_resources_change(Some(kind.into()), Some(namespace.into()), Some(scope));
+            self.change_resource(ResourceRef::new(kind, namespace))?;
         }
 
         Ok(())
@@ -262,6 +270,17 @@ impl App {
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
+
+        Ok(())
+    }
+
+    /// Changes observed resource to `events` filtered by `uid` as involved object.
+    fn view_events(&mut self, resource_name: String, uid: String) -> Result<(), BgWorkerError> {
+        let kind = EVENTS.into();
+        if self.data.borrow().current.kind != kind {
+            let resource = ResourceRef::filtered(kind, Namespace::all(), ResourceRefFilter::new(resource_name, &uid));
+            self.change_resource(resource)?;
+        }
 
         Ok(())
     }

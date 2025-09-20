@@ -103,27 +103,37 @@ impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
         if rt.is_container() {
-            Self {
-                name: rt.name.clone(),
-                kind: "Container".to_owned(),
-                kind_plural: CONTAINERS.to_owned(),
-                group: ar.group.clone(),
-                scope,
-                namespace: rt.namespace.clone(),
-                crd,
-                has_metrics,
-            }
+            InitData::container(rt, ar, scope, crd, has_metrics)
         } else {
-            Self {
-                name: None,
-                kind: ar.kind.clone(),
-                kind_plural: ar.plural.to_lowercase(),
-                group: ar.group.clone(),
-                scope,
-                namespace: rt.namespace.clone(),
-                crd,
-                has_metrics,
-            }
+            InitData::resource(rt, ar, scope, crd, has_metrics)
+        }
+    }
+
+    /// Creates new resource initial data for [`ObserverResult`].
+    fn resource(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
+        Self {
+            name: rt.filter.as_ref().and_then(|f| f.name.clone()),
+            kind: ar.kind.clone(),
+            kind_plural: ar.plural.to_lowercase(),
+            group: ar.group.clone(),
+            scope,
+            namespace: rt.namespace.clone(),
+            crd,
+            has_metrics,
+        }
+    }
+
+    /// Creates new container initial data for [`ObserverResult`].
+    fn container(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
+        Self {
+            name: rt.name.clone(),
+            kind: "Container".to_owned(),
+            kind_plural: CONTAINERS.to_owned(),
+            group: ar.group.clone(),
+            scope,
+            namespace: rt.namespace.clone(),
+            crd,
+            has_metrics,
         }
     }
 }
@@ -281,14 +291,13 @@ impl BgObserver {
                 has_error: Arc::clone(&self.has_error),
                 last_watch_error: None,
             };
-            let resource_name = self.resource.name.clone();
+            let filter = build_filter(&self.resource);
 
             async move {
                 while !cancellation_token.is_cancelled() {
                     let mut config = watcher::Config::default();
-                    if let Some(name) = resource_name.as_ref() {
-                        let fields = format!("metadata.name={name}");
-                        config = config.fields(&fields);
+                    if let Some(filter) = filter.as_ref() {
+                        config = config.fields(filter);
                     }
                     let watch = watcher(client.clone(), config).default_backoff();
                     let mut watch = pin!(watch);
@@ -314,11 +323,17 @@ impl BgObserver {
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
             let context_tx = self.context_tx.clone();
+            let filter = build_filter(&self.resource);
             let mut results = None;
 
             async move {
+                let mut params = ListParams::default();
+                if let Some(filter) = filter.as_ref() {
+                    params = params.fields(filter);
+                }
+
                 while !cancellation_token.is_cancelled() {
-                    let resources = client.list(&ListParams::default()).await;
+                    let resources = client.list(&params).await;
                     match resources {
                         Ok(objects) => {
                             results = Some(emit_results(objects, results, &init_data, &context_tx));
@@ -340,6 +355,20 @@ impl BgObserver {
                 }
             }
         })
+    }
+}
+
+fn build_filter(rt: &ResourceRef) -> Option<String> {
+    if let Some(name) = &rt.name {
+        if let Some(filter) = &rt.filter
+            && let Some(filter_data) = &filter.filter
+        {
+            Some(format!("metadata.name={name},{filter_data}"))
+        } else {
+            Some(format!("metadata.name={name}"))
+        }
+    } else {
+        rt.filter.as_ref().and_then(|f| f.filter.clone())
     }
 }
 

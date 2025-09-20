@@ -238,6 +238,9 @@ impl ResourcesView {
             .when_action_then("filter", || {
                 self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
             })
+            .when_action_then("show_events", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow))
+            })
             .when_action_then("show_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
             })
@@ -276,7 +279,7 @@ impl ResourcesView {
             .with_action(
                 ActionItem::new("show YAML")
                     .with_description(if is_containers {
-                        "shows YAML of the current resource"
+                        "shows YAML of the container's resource"
                     } else {
                         "shows YAML of the selected resource"
                     })
@@ -288,6 +291,14 @@ impl ResourcesView {
                     .with_description("shows resources filter input")
                     .with_response(ResponseEvent::Action("filter")),
             );
+
+        if !is_containers {
+            builder = builder.with_action(
+                ActionItem::new("show events")
+                    .with_description("shows events for the selected resource")
+                    .with_response(ResponseEvent::Action("show_events")),
+            );
+        }
 
         if is_containers || is_pods {
             builder = builder
