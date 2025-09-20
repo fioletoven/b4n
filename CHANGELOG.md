@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.2.1 - 2025-09-20
+
+### Features
+
+- support for mouse interaction in the terminal interface
+
+### Bug fixes
+
+- fix cpu and memory metrics not refreshing correctly in the active view
+
 ## 0.2.0 - 2025-09-08
 
 ### Features
