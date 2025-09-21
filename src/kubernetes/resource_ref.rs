@@ -79,6 +79,11 @@ impl ResourceRef {
     pub fn is_container(&self) -> bool {
         self.all_containers || self.container.is_some()
     }
+
+    /// Returns `true` if [`ResourceRef`] points to a filtered resource.
+    pub fn is_filtered(&self) -> bool {
+        self.filter.is_some()
+    }
 }
 
 impl From<&ApiResource> for ResourceRef {

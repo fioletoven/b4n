@@ -6,8 +6,8 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
-        Kind, Namespace, ResourceRef,
-        resources::{CONTAINERS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
+        Kind, NAMESPACES, Namespace, ResourceRef,
+        resources::{CONTAINERS, EVENTS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
         watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
@@ -293,17 +293,20 @@ impl ResourcesView {
                     .with_response(ResponseEvent::Action("show_yaml")),
             )
             .with_action(
-                ActionItem::new("back")
-                    .with_description("returns to the previous view")
-                    .with_response(ResponseEvent::Action("back")),
-            )
-            .with_action(
                 ActionItem::new("filter")
                     .with_description("shows resources filter input")
                     .with_response(ResponseEvent::Action("filter")),
             );
 
-        if !is_containers {
+        if self.table.kind_plural() != NAMESPACES {
+            builder = builder.with_action(
+                ActionItem::new("back")
+                    .with_description("returns to the previous view")
+                    .with_response(ResponseEvent::Action("back")),
+            );
+        }
+
+        if !is_containers && self.table.kind_plural() != EVENTS {
             builder = builder.with_action(
                 ActionItem::new("show events")
                     .with_description("shows events for the selected resource")

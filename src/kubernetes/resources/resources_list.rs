@@ -86,6 +86,7 @@ impl ResourcesList {
             &self.data.group,
             self.data.crd.as_ref(),
             self.data.has_metrics,
+            self.data.resource.is_filtered(),
         );
         self.table.list.clear();
         if self.data.kind_plural == NAMESPACES {

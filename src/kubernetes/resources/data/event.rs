@@ -7,7 +7,41 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the `event` kubernetes resource.
-pub fn data(object: &DynamicObject) -> ResourceData {
+pub fn data(object: &DynamicObject, is_filtered: bool) -> ResourceData {
+    if is_filtered {
+        data_filtered(object)
+    } else {
+        data_full(object)
+    }
+}
+
+/// Returns [`Header`] for the `event` kubernetes resource.
+pub fn header(is_filtered: bool) -> Header {
+    if is_filtered { header_filtered() } else { header_full() }
+}
+
+fn data_filtered(object: &DynamicObject) -> ResourceData {
+    ResourceData::new(
+        Box::new([
+            object.data["message"].as_str().into(),
+            ResourceValue::integer(object.data["count"].as_i64(), 6),
+        ]),
+        object.metadata.deletion_timestamp.is_some(),
+    )
+}
+
+pub fn header_filtered() -> Header {
+    Header::from(
+        NAMESPACE,
+        Some(Box::new([
+            Column::bound("MESSAGE", 15, 150, false),
+            Column::fixed("COUNT", 6, true),
+        ])),
+        Rc::new([' ', 'N', 'M', 'C', 'A']),
+    )
+}
+
+fn data_full(object: &DynamicObject) -> ResourceData {
     let last = if object.data["lastTimestamp"].is_null() {
         object.data["eventTime"].clone()
     } else {
@@ -34,8 +68,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     ResourceData::new(Box::new(values), is_terminating)
 }
 
-/// Returns [`Header`] for the `event` kubernetes resource.
-pub fn header() -> Header {
+pub fn header_full() -> Header {
     let mut last = Column::fixed("LAST", 6, true);
     last.has_reversed_order = true;
 

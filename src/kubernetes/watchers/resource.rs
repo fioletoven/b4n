@@ -191,6 +191,11 @@ impl ResourceObserver {
                 self.crd.as_ref(),
                 &self.statistics.borrow(),
                 object,
+                self.observer
+                    .init
+                    .as_ref()
+                    .map(|i| i.resource.is_filtered())
+                    .unwrap_or_default(),
             ),
             is_delete,
         );

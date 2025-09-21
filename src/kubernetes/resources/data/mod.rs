@@ -42,6 +42,7 @@ pub fn get_resource_data(
     crd: Option<&CrdColumns>,
     stats: &Statistics,
     object: &DynamicObject,
+    is_filtered: bool,
 ) -> ResourceData {
     if let Some(crd) = crd {
         return custom_resource::data(crd, object);
@@ -52,7 +53,7 @@ pub fn get_resource_data(
         "CustomResourceDefinition" => crd::data(object),
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
-        "Event" => event::data(object),
+        "Event" => event::data(object, is_filtered),
         "Job" => job::data(object),
         "Namespace" => namespace::data(object),
         "Node" => node::data(object, stats),
@@ -69,7 +70,7 @@ pub fn get_resource_data(
 }
 
 /// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool) -> Header {
+pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, is_filtered: bool) -> Header {
     if let Some(crd) = crd {
         return custom_resource::header(crd);
     }
@@ -79,7 +80,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "CustomResourceDefinition" => crd::header(),
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
-        "Event" => event::header(),
+        "Event" => event::header(is_filtered),
         "Job" => job::header(),
         "Namespace" => namespace::header(),
         "Node" => node::header(has_metrics),
