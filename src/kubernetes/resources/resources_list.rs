@@ -4,7 +4,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     kubernetes::{
         ALL_NAMESPACES, NAMESPACES, Namespace,
-        resources::{CONTAINERS, ResourceFilterContext, ResourceItem},
+        resources::{CONTAINERS, EVENTS, ResourceFilterContext, ResourceItem},
         watchers::{InitData, ObserverResult},
     },
     ui::{
@@ -57,6 +57,11 @@ impl ResourcesList {
     /// Returns `true` if the resources in the list are of a special type `containers`.
     pub fn has_containers(&self) -> bool {
         self.data.kind_plural == CONTAINERS
+    }
+
+    /// Returns `true` if the resources in the list are filtered `events`.
+    pub fn has_resources_events(&self) -> bool {
+        self.data.kind_plural == EVENTS && self.data.resource.filter.is_some()
     }
 
     /// Gets highlighted resource.

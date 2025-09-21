@@ -162,7 +162,10 @@ impl ResourcesView {
 
     /// Returns `true` if namespaces selector can be displayed.
     pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced && !self.table.has_containers() && self.is_resources_selector_allowed()
+        self.table.scope() == &Scope::Namespaced
+            && !self.table.has_containers()
+            && !self.table.has_resources_events()
+            && self.is_resources_selector_allowed()
     }
 
     /// Returns `true` if resources selector can be displayed.

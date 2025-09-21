@@ -4,10 +4,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{
-    core::SharedAppData,
-    kubernetes::resources::{CONTAINERS, PODS},
-};
+use crate::core::SharedAppData;
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
 pub struct ListHeader {
@@ -60,18 +57,14 @@ impl ListHeader {
         let data = &self.app_data.borrow();
         let kind = match self.fixed_kind.as_ref() {
             Some(kind) => kind,
-            None => {
-                if data.current.kind.name() == CONTAINERS {
-                    PODS
-                } else {
-                    data.current.kind.name()
-                }
-            },
+            None => data.current.resource.kind.name(),
         };
         let name = if self.fixed_kind.is_some() {
             None
+        } else if let Some(filter) = data.current.resource.filter.as_ref() {
+            filter.name.as_deref()
         } else {
-            data.current.name.as_deref()
+            data.current.resource.name.as_deref()
         };
 
         super::get_left_breadcrumbs(data, kind, name, self.count, self.is_filtered)

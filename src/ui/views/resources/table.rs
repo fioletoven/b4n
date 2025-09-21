@@ -77,6 +77,7 @@ impl ResourcesTable {
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn has_containers(&self) -> bool;
+            pub fn has_resources_events(&self) -> bool;
         }
     }
 
@@ -201,7 +202,7 @@ impl ResourcesTable {
 
             let is_container = self.kind_plural() == CONTAINERS;
             if !is_container && self.app_data.has_binding(event, KeyCommand::EventsShow) {
-                return ResponseEvent::ViewEvents(resource.name.clone(), resource.uid.clone());
+                return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
             }
 
             let is_container_name_known =
@@ -250,7 +251,7 @@ impl ResourcesTable {
         match self.kind_plural() {
             NAMESPACES => ResponseEvent::Handled,
             CONTAINERS => {
-                let to_select = self.app_data.borrow().current.name.clone();
+                let to_select = self.app_data.borrow().current.resource.name.clone();
                 ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
             },
             _ => ResponseEvent::ViewNamespaces,
@@ -292,7 +293,7 @@ impl ResourcesTable {
 
     fn resource_ref_from(&self, resource: &ResourceItem, prefer_container: bool) -> Option<ResourceRef> {
         if self.kind_plural() == CONTAINERS {
-            if let Some(name) = self.app_data.borrow().current.name.clone() {
+            if let Some(name) = self.app_data.borrow().current.resource.name.clone() {
                 return Some(ResourceRef::container(
                     name,
                     resource.namespace.clone().into(),

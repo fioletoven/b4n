@@ -134,7 +134,7 @@ pub enum ResponseEvent {
     ChangeContext(String),
     ChangeTheme(String),
     ViewContainers(String, String),
-    ViewEvents(String, String),
+    ViewEvents(String, Option<String>, String),
     ViewNamespaces,
 
     ListKubeContexts,

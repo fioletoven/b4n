@@ -6,14 +6,17 @@ use ratatui::{
 
 use crate::{
     core::{AppData, ResourcesInfo},
-    kubernetes::{ALL_NAMESPACES, resources::PODS},
+    kubernetes::{
+        ALL_NAMESPACES,
+        resources::{EVENTS, PODS},
+    },
     ui::colors::TextColors,
 };
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
 pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a str {
     if data.scope == Scope::Namespaced || kind == PODS {
-        let force_all = kind != PODS && data.is_all_namespace();
+        let force_all = kind != PODS && kind != EVENTS && data.is_all_namespace();
         let namespace = if force_all { ALL_NAMESPACES } else { data.namespace.as_str() };
         return namespace;
     }
@@ -56,7 +59,7 @@ pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&st
 
     let count_icon = if is_filtered {
         ""
-    } else if name.is_some() {
+    } else if name.is_some() && kind == PODS {
         ""
     } else {
         ""

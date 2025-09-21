@@ -172,7 +172,7 @@ impl App {
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
-            ResponseEvent::ViewEvents(resource_name, uid) => self.view_events(resource_name, uid)?,
+            ResponseEvent::ViewEvents(name, namespace, uid) => self.view_events(name, namespace, uid)?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
@@ -217,20 +217,28 @@ impl App {
     }
 
     /// Changes observed resource to the specified one.
-    fn change_resource(&mut self, resource: ResourceRef) -> Result<(), BgWorkerError> {
+    fn change_resource(&mut self, resource: ResourceRef, change_namespace: bool) -> Result<(), BgWorkerError> {
         self.views_manager.handle_kind_change(None);
-        self.views_manager.handle_namespace_change(resource.namespace.clone());
+        if change_namespace {
+            self.views_manager.handle_namespace_change(resource.namespace.clone());
+        }
+
         let kind = resource.kind.as_str().to_owned();
         let namespace = resource.namespace.as_option().map(String::from);
+        let filtered = resource.filter.is_some();
         let scope = self.worker.borrow_mut().restart(resource)?;
-        self.process_resources_change(Some(kind), namespace, Some(scope));
+        self.process_resources_change(Some(kind), namespace, Some(scope), !filtered);
+
         Ok(())
     }
 
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
-        if !self.data.borrow().current.is_namespace_equal(&namespace) || self.data.borrow().current.kind != kind {
-            self.change_resource(ResourceRef::new(kind, namespace))?;
+        if !self.data.borrow().current.is_namespace_equal(&namespace)
+            || !self.data.borrow().current.is_kind_equal(&kind)
+            || self.data.borrow().current.resource.filter.is_some()
+        {
+            self.change_resource(ResourceRef::new(kind, namespace), true)?;
         }
 
         Ok(())
@@ -239,7 +247,7 @@ impl App {
     /// Changes observed resources kind, optionally selects one of them.\
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        if self.data.borrow().current.kind != kind {
+        if !self.data.borrow().current.is_kind_equal(&kind) || self.data.borrow().current.resource.filter.is_some() {
             let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind.as_str() == NAMESPACES {
@@ -248,7 +256,7 @@ impl App {
             } else {
                 self.views_manager.handle_kind_change(to_select);
             }
-            self.process_resources_change(Some(kind.into()), None, Some(scope));
+            self.process_resources_change(Some(kind.into()), None, Some(scope), true);
         }
 
         Ok(())
@@ -257,7 +265,7 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
-            self.process_resources_change(None, Some(namespace.clone().into()), None);
+            self.process_resources_change(None, Some(namespace.clone().into()), None, true);
             self.views_manager.handle_namespace_change(namespace.clone());
             self.worker.borrow_mut().restart_new_namespace(namespace)?;
         }
@@ -267,19 +275,18 @@ impl App {
 
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
-        self.views_manager.clear_page_view();
-        self.views_manager.set_page_view(&Scope::Cluster);
+        self.process_resources_change(None, None, Some(Scope::Cluster), false);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
     }
 
     /// Changes observed resource to `events` filtered by `uid` as involved object.
-    fn view_events(&mut self, resource_name: String, uid: String) -> Result<(), BgWorkerError> {
+    fn view_events(&mut self, name: String, namespace: Option<String>, uid: String) -> Result<(), BgWorkerError> {
         let kind = EVENTS.into();
-        if self.data.borrow().current.kind != kind {
-            let resource = ResourceRef::filtered(kind, Namespace::all(), ResourceRefFilter::new(resource_name, &uid));
-            self.change_resource(resource)?;
+        if !self.data.borrow().current.is_kind_equal(&kind) {
+            let resource = ResourceRef::filtered(kind, namespace.into(), ResourceRefFilter::new(name, &uid));
+            self.change_resource(resource, false)?;
         }
 
         Ok(())
@@ -314,16 +321,19 @@ impl App {
             if let Ok(scope) = scope {
                 self.views_manager
                     .process_context_change(context, result.namespace.clone(), version, scope.clone());
-                self.process_resources_change(Some(result.kind.into()), Some(result.namespace.into()), Some(scope));
+                self.process_resources_change(Some(result.kind.into()), Some(result.namespace.into()), Some(scope), true);
             }
         }
     }
 
     /// Performs all necessary actions needed when resources view changes.\
     /// **Note** that this means the resource list will change soon.
-    fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>) {
+    fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: Option<Scope>, persist: bool) {
         self.views_manager.clear_page_view();
-        self.update_history_data(kind, namespace);
+        if persist {
+            self.update_history_data(kind, namespace);
+        }
+
         if let Some(scope) = scope {
             self.views_manager.set_page_view(&scope);
         }

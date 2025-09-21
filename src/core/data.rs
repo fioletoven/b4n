@@ -4,7 +4,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
-    kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
+    kubernetes::{Kind, Namespace, ResourceRef, kinds::KindItem, resources::CONTAINERS, watchers::InitData},
     ui::{KeyBindings, KeyCombination, KeyCommand, TuiEvent, theme::Theme},
 };
 
@@ -17,11 +17,11 @@ pub const SYNTAX_SET_DATA: &[u8] = include_bytes!("../../assets/syntaxes/syntaxe
 /// Kubernetes resources data.
 pub struct ResourcesInfo {
     pub context: String,
-    pub namespace: Namespace,
     pub version: String,
-    pub name: Option<String>,
-    pub kind: Kind,
     pub scope: Scope,
+    pub resource: ResourceRef,
+    pub previous: Option<ResourceRef>,
+    pub namespace: Namespace,
     is_all_namespace: bool,
 }
 
@@ -29,11 +29,11 @@ impl Default for ResourcesInfo {
     fn default() -> Self {
         Self {
             context: String::default(),
-            namespace: Namespace::default(),
             version: String::default(),
-            name: None,
-            kind: Kind::default(),
             scope: Scope::Cluster,
+            resource: ResourceRef::default(),
+            previous: None,
+            namespace: Namespace::default(),
             is_all_namespace: false,
         }
     }
@@ -56,8 +56,7 @@ impl ResourcesInfo {
     /// **Note** that this update do not change the flag `is_all_namespace`.
     /// This results in remembering if the `all` namespace was set by user or by [`InitData`].
     pub fn update_from(&mut self, data: &InitData) {
-        self.name.clone_from(&data.resource.name);
-        self.kind = Kind::new(&data.kind_plural, &data.group);
+        self.resource = data.resource.clone();
         self.scope = data.scope.clone();
 
         // change the namespace only if resource is namespaced
@@ -84,6 +83,12 @@ impl ResourcesInfo {
         } else {
             self.namespace == *namespace
         }
+    }
+
+    /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
+    pub fn is_kind_equal(&self, kind: &Kind) -> bool {
+        (self.resource.is_container() && kind.as_str() == CONTAINERS)
+            || (!self.resource.is_container() && &self.resource.kind == kind)
     }
 
     /// Sets new namespace.\
@@ -166,7 +171,7 @@ impl AppData {
             let namespace = self.history.get_namespace(context).unwrap_or_default();
             (kind.into(), namespace.into())
         } else {
-            (self.current.kind.clone(), self.current.namespace.clone())
+            (self.current.resource.kind.clone(), self.current.namespace.clone())
         }
     }
 

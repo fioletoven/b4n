@@ -76,7 +76,10 @@ impl ResourceObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.observer.resource.kind != new_kind || self.observer.resource.is_container() != new_kind.is_containers() {
+        if self.observer.resource.kind != new_kind
+            || self.observer.resource.is_container() != new_kind.is_containers()
+            || self.observer.resource.filter.is_some()
+        {
             let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
                 ResourceRef::new(new_kind, new_namespace)
             } else {
