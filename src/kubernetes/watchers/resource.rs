@@ -62,6 +62,7 @@ impl ResourceObserver {
             pub fn stop(&mut self);
             pub fn get_resource_kind(&self) -> &Kind;
             pub fn is_container(&self) -> bool;
+            pub fn is_filtered(&self) -> bool;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
         }
@@ -99,7 +100,7 @@ impl ResourceObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.observer.resource.is_container() {
+        if self.observer.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
             self.restart(client, resource, discovery)?;
         } else if self.observer.resource.namespace != new_namespace {

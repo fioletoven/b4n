@@ -255,9 +255,14 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
-            self.process_resources_change(None, Some(namespace.clone().into()), None, true);
-            self.views_manager.handle_namespace_change(namespace.clone());
-            self.worker.borrow_mut().restart_new_namespace(namespace)?;
+            let previous_kind = self.data.borrow().previous.as_ref().map(|p| p.kind.clone());
+            if let Some(previous_kind) = previous_kind {
+                self.change(previous_kind, namespace)?;
+            } else {
+                self.process_resources_change(None, Some(namespace.clone().into()), None, true);
+                self.views_manager.handle_namespace_change(namespace.clone());
+                self.worker.borrow_mut().restart_new_namespace(namespace)?;
+            }
         }
 
         Ok(())

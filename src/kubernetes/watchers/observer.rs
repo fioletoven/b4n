@@ -249,6 +249,11 @@ impl BgObserver {
         self.resource.is_container()
     }
 
+    /// Returns `true` if the observed resource is filtered.
+    pub fn is_filtered(&self) -> bool {
+        self.resource.filter.is_some()
+    }
+
     /// Returns `true` if the observer has received the initial list of resources.
     pub fn is_ready(&self) -> bool {
         self.is_ready.load(Ordering::Relaxed)
