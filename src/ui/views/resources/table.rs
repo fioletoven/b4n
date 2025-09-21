@@ -201,8 +201,12 @@ impl ResourcesTable {
             }
 
             let is_container = self.kind_plural() == CONTAINERS;
-            if !is_container && self.app_data.has_binding(event, KeyCommand::EventsShow) {
-                return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
+            if self.app_data.has_binding(event, KeyCommand::EventsShow) {
+                if !is_container && resource.name() != ALL_NAMESPACES {
+                    return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
+                } else {
+                    return ResponseEvent::NotHandled;
+                }
             }
 
             let is_container_name_known =
