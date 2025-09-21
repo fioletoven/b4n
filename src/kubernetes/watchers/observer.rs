@@ -26,11 +26,12 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
+use uuid::Uuid;
 
 use crate::{
     core::utils::wait_for_task,
     kubernetes::{
-        Kind, Namespace, ResourceRef,
+        Kind, ResourceRef,
         client::KubernetesClient,
         resources::{CONTAINERS, CrdColumns},
         utils::get_object_uid,
@@ -72,14 +73,14 @@ impl<T> ObserverResult<T> {
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InitData {
-    pub name: Option<String>,
+    pub uuid: String,
+    pub resource: ResourceRef,
     pub kind: String,
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
-    pub namespace: Namespace,
     pub crd: Option<CrdColumns>,
     pub has_metrics: bool,
 }
@@ -87,12 +88,12 @@ pub struct InitData {
 impl Default for InitData {
     fn default() -> Self {
         Self {
-            name: None,
+            uuid: String::new(),
+            resource: ResourceRef::default(),
             kind: String::new(),
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            namespace: Namespace::default(),
             crd: None,
             has_metrics: false,
         }
@@ -102,36 +103,18 @@ impl Default for InitData {
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
-        if rt.is_container() {
-            InitData::container(rt, ar, scope, crd, has_metrics)
-        } else {
-            InitData::resource(rt, ar, scope, crd, has_metrics)
-        }
-    }
-
-    /// Creates new resource initial data for [`ObserverResult`].
-    fn resource(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
+        let kind = if rt.is_container() { "Container" } else { ar.kind.as_str() };
+        let kind_plural = if rt.is_container() { CONTAINERS } else { ar.plural.as_str() };
         Self {
-            name: rt.filter.as_ref().and_then(|f| f.name.clone()),
-            kind: ar.kind.clone(),
-            kind_plural: ar.plural.to_lowercase(),
+            uuid: Uuid::new_v4()
+                .hyphenated()
+                .encode_lower(&mut Uuid::encode_buffer())
+                .to_owned(),
+            resource: rt.clone(),
+            kind: kind.to_owned(),
+            kind_plural: kind_plural.to_lowercase(),
             group: ar.group.clone(),
             scope,
-            namespace: rt.namespace.clone(),
-            crd,
-            has_metrics,
-        }
-    }
-
-    /// Creates new container initial data for [`ObserverResult`].
-    fn container(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
-        Self {
-            name: rt.name.clone(),
-            kind: "Container".to_owned(),
-            kind_plural: CONTAINERS.to_owned(),
-            group: ar.group.clone(),
-            scope,
-            namespace: rt.namespace.clone(),
             crd,
             has_metrics,
         }
@@ -407,7 +390,6 @@ impl Drop for BgObserver {
 }
 
 /// Internal watcher's events processor.
-#[derive(Debug)]
 struct EventsProcessor {
     init_data: InitData,
     context_tx: ObserverResultSender,
