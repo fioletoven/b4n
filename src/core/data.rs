@@ -20,7 +20,6 @@ pub struct ResourcesInfo {
     pub version: String,
     pub scope: Scope,
     pub resource: ResourceRef,
-    pub previous: Option<ResourceRef>,
     pub namespace: Namespace,
     is_all_namespace: bool,
 }
@@ -32,7 +31,6 @@ impl Default for ResourcesInfo {
             version: String::default(),
             scope: Scope::Cluster,
             resource: ResourceRef::default(),
-            previous: None,
             namespace: Namespace::default(),
             is_all_namespace: false,
         }
@@ -132,6 +130,7 @@ pub struct AppData {
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
+    pub previous: Option<ResourceRef>,
 
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
@@ -157,6 +156,7 @@ impl AppData {
             history,
             theme,
             current: ResourcesInfo::default(),
+            previous: None,
             kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             clipboard: Clipboard::new().ok(),
@@ -182,6 +182,16 @@ impl AppData {
             syntax_set: self.syntax_set.clone(),
             yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
+    }
+
+    /// Sets the current resource as a previous one.
+    pub fn update_previous(&mut self) {
+        self.previous = Some(self.current.resource.clone());
+    }
+
+    /// Resets previous resource to `None`.
+    pub fn reset_previous(&mut self) {
+        self.previous = None;
     }
 }
 

@@ -116,7 +116,7 @@ impl TuiEvent {
 }
 
 /// Terminal UI Response Event.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {
     #[default]
     NotHandled,

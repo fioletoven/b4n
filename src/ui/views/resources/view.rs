@@ -238,6 +238,9 @@ impl ResourcesView {
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.command_palette
             .process_event(event)
+            .when_action_then("back", || {
+                self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack))
+            })
             .when_action_then("filter", || {
                 self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
             })
@@ -288,6 +291,11 @@ impl ResourcesView {
                     })
                     .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
+            )
+            .with_action(
+                ActionItem::new("back")
+                    .with_description("returns to the previous view")
+                    .with_response(ResponseEvent::Action("back")),
             )
             .with_action(
                 ActionItem::new("filter")

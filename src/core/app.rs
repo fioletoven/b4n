@@ -216,29 +216,18 @@ impl App {
         }
     }
 
-    /// Changes observed resource to the specified one.
-    fn change_resource(&mut self, resource: ResourceRef, change_namespace: bool) -> Result<(), BgWorkerError> {
-        self.views_manager.handle_kind_change(None);
-        if change_namespace {
-            self.views_manager.handle_namespace_change(resource.namespace.clone());
-        }
-
-        let kind = resource.kind.as_str().to_owned();
-        let namespace = resource.namespace.as_option().map(String::from);
-        let filtered = resource.filter.is_some();
-        let scope = self.worker.borrow_mut().restart(resource)?;
-        self.process_resources_change(Some(kind), namespace, Some(scope), !filtered);
-
-        Ok(())
-    }
-
     /// Changes observed resources namespace and kind.
     fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
-            self.change_resource(ResourceRef::new(kind, namespace), true)?;
+            self.views_manager.handle_kind_change(None);
+            self.views_manager.handle_namespace_change(namespace.clone());
+            let resource = ResourceRef::new(kind.clone(), namespace.clone());
+            let scope = self.worker.borrow_mut().restart(resource)?;
+            self.process_resources_change(Some(kind.into()), Some(namespace.into()), Some(scope), true);
+            self.data.borrow_mut().reset_previous();
         }
 
         Ok(())
@@ -257,6 +246,7 @@ impl App {
                 self.views_manager.handle_kind_change(to_select);
             }
             self.process_resources_change(Some(kind.into()), None, Some(scope), true);
+            self.data.borrow_mut().reset_previous();
         }
 
         Ok(())
@@ -276,6 +266,7 @@ impl App {
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.process_resources_change(None, None, Some(Scope::Cluster), false);
+        self.data.borrow_mut().update_previous();
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -286,7 +277,10 @@ impl App {
         let kind = EVENTS.into();
         if !self.data.borrow().current.is_kind_equal(&kind) {
             let resource = ResourceRef::filtered(kind, namespace.into(), ResourceRefFilter::new(name, &uid));
-            self.change_resource(resource, false)?;
+            self.views_manager.handle_kind_change(None);
+            self.process_resources_change(None, None, Some(Scope::Cluster), false);
+            self.worker.borrow_mut().restart(resource)?;
+            self.data.borrow_mut().update_previous();
         }
 
         Ok(())
