@@ -111,11 +111,8 @@ impl ResourcesTable {
 
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.set_view(if namespace.is_all() {
-            ViewType::Full
-        } else {
-            ViewType::Compact
-        });
+        let is_full = namespace.is_all() && self.app_data.borrow().current.scope == Scope::Namespaced;
+        self.set_view(if is_full { ViewType::Full } else { ViewType::Compact });
 
         if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);

@@ -1,3 +1,4 @@
+use kube::discovery::Scope;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -33,7 +34,8 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
-        let namespace: Namespace = get_breadcrumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
+        let namespace: Namespace =
+            get_breadcrumbs_namespace(Some(&Scope::Namespaced), &app_data.borrow().current, VIEW_NAME).into();
         let view = if namespace.is_all() {
             ViewType::Full
         } else {
@@ -42,9 +44,11 @@ impl ForwardsView {
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
         let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);
         list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
+        let mut header = ListHeader::new(Rc::clone(&app_data), Some(VIEW_NAME), list.table.len());
+        header.scope = Some(Scope::Namespaced);
 
         Self {
-            header: ListHeader::new(Rc::clone(&app_data), Some(VIEW_NAME), list.table.len()),
+            header,
             list,
             app_data,
             namespace,
@@ -145,7 +149,7 @@ impl View for ForwardsView {
     }
 
     fn handle_namespace_change(&mut self) {
-        self.namespace = get_breadcrumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
+        self.namespace = get_breadcrumbs_namespace(Some(&Scope::Namespaced), &self.app_data.borrow().current, VIEW_NAME).into();
         self.list.view = if self.namespace.is_all() {
             ViewType::Full
         } else {

@@ -14,8 +14,9 @@ use crate::{
 };
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
-pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a str {
-    if data.scope == Scope::Namespaced || kind == PODS {
+pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesInfo, kind: &str) -> &'a str {
+    let forced_scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if *forced_scope == Scope::Namespaced || kind == PODS {
         let force_all = kind != PODS && kind != EVENTS && data.is_all_namespace();
         let namespace = if force_all { ALL_NAMESPACES } else { data.namespace.as_str() };
         return namespace;
@@ -26,7 +27,14 @@ pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a
 
 /// Returns formatted text as left breadcrumbs:\
 /// \> `context` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `count` \>
-pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&str>, count: usize, is_filtered: bool) -> Line<'a> {
+pub fn get_left_breadcrumbs<'a>(
+    app_data: &AppData,
+    scope: Option<&Scope>,
+    kind: &str,
+    name: Option<&str>,
+    count: usize,
+    is_filtered: bool,
+) -> Line<'a> {
     let colors = &app_data.theme.colors.header;
     let data = &app_data.current;
 
@@ -35,10 +43,14 @@ pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&st
         Span::styled(format!(" {} ", data.context), &colors.context),
     ];
 
-    if data.scope == Scope::Namespaced || kind == PODS {
+    let forced_scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if *forced_scope == Scope::Namespaced || kind == PODS {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-            Span::styled(format!(" {} ", get_breadcrumbs_namespace(data, kind)), &colors.namespace),
+            Span::styled(
+                format!(" {} ", get_breadcrumbs_namespace(scope, data, kind)),
+                &colors.namespace,
+            ),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {

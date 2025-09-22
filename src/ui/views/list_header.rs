@@ -1,3 +1,4 @@
+use kube::discovery::Scope;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::Line,
@@ -8,6 +9,7 @@ use crate::core::SharedAppData;
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
 pub struct ListHeader {
+    pub scope: Option<Scope>,
     app_data: SharedAppData,
     fixed_kind: Option<&'static str>,
     count: usize,
@@ -19,6 +21,7 @@ impl ListHeader {
     /// **Note** that setting `fixed_kind` to Some will prevent header from displaying name.
     pub fn new(app_data: SharedAppData, fixed_kind: Option<&'static str>, count: usize) -> Self {
         Self {
+            scope: None,
             app_data,
             fixed_kind,
             count,
@@ -28,7 +31,7 @@ impl ListHeader {
 
     /// Draws [`ListHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let path = self.get_path();
+        let path = self.get_path(self.scope.as_ref());
         let version = self.get_version();
 
         let layout = Layout::default()
@@ -53,7 +56,7 @@ impl ListHeader {
 
     /// Returns formatted resource path as breadcrumbs:\
     /// \> `context name` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `resources count` \>
-    fn get_path(&self) -> Line<'_> {
+    fn get_path(&self, scope: Option<&Scope>) -> Line<'_> {
         let data = &self.app_data.borrow();
         let kind = match self.fixed_kind.as_ref() {
             Some(kind) => kind,
@@ -67,7 +70,7 @@ impl ListHeader {
             data.current.resource.name.as_deref()
         };
 
-        super::get_left_breadcrumbs(data, kind, name, self.count, self.is_filtered)
+        super::get_left_breadcrumbs(data, scope, kind, name, self.count, self.is_filtered)
     }
 
     /// Returns formatted k8s version info as breadcrumbs:\
