@@ -270,7 +270,7 @@ impl ResourcesView {
             })
     }
 
-    fn show_command_palette(&mut self, simplifed: bool) {
+    fn show_command_palette(&mut self, simplified: bool) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
@@ -280,7 +280,7 @@ impl ResourcesView {
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
-        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplifed)
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplified)
             .with_resources_actions(!is_containers)
             .with_forwards()
             .with_action(

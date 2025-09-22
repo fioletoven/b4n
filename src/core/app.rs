@@ -289,12 +289,7 @@ impl App {
         let kind = EVENTS.into();
         if !self.data.borrow().current.is_kind_equal(&kind) {
             let kind_scope = self.data.borrow().current.scope.clone();
-            let namespace = if kind_scope == Scope::Cluster {
-                Namespace::all()
-            } else {
-                namespace.into()
-            };
-            let resource = ResourceRef::filtered(kind, namespace, ResourceRefFilter::new(name, &uid));
+            let resource = ResourceRef::filtered(kind, namespace.into(), ResourceRefFilter::new(name, &uid));
             self.views_manager.handle_kind_change(None);
             self.views_manager.clear_page_view();
             self.views_manager.set_page_view(&Scope::Cluster);
