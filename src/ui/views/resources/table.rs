@@ -28,6 +28,7 @@ pub struct ResourcesTable {
     pub list: ListViewer<ResourcesList>,
     app_data: SharedAppData,
     highlight_next: Option<String>,
+    clear_header_scope: bool,
 }
 
 impl ResourcesTable {
@@ -45,6 +46,7 @@ impl ResourcesTable {
             list,
             app_data,
             highlight_next: None,
+            clear_header_scope: false,
         }
     }
 
@@ -69,6 +71,11 @@ impl ResourcesTable {
     /// Remembers resource name that will be highlighted for next background observer result.
     pub fn highlight_next(&mut self, resource_to_select: Option<String>) {
         self.highlight_next = resource_to_select;
+    }
+
+    /// Remembers if header scope should be reset to default for next background observer result.
+    pub fn clear_header_scope(&mut self, clear_on_next: bool) {
+        self.clear_header_scope = clear_on_next;
     }
 
     delegate! {
@@ -122,7 +129,7 @@ impl ResourcesTable {
 
     /// Sets list view for [`ResourcesTable`].
     pub fn set_view(&mut self, view: ViewType) {
-        self.list.view = if self.has_containers() { ViewType::Compact } else { view };
+        self.list.view = view;
     }
 
     /// Sets filter on the resources list.
@@ -147,6 +154,11 @@ impl ResourcesTable {
                 self.highlight_next = None;
             } else {
                 self.list.table.highlight_first_item();
+            }
+
+            if self.clear_header_scope {
+                self.header.scope = None;
+                self.clear_header_scope = false;
             }
         }
 
