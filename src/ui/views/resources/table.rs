@@ -39,7 +39,7 @@ impl ResourcesTable {
             ResourcesList::default().with_filter_settings(Some("e")),
             ViewType::Compact,
         );
-        let header = ListHeader::new(Rc::clone(&app_data), None, list.table.len());
+        let header = ListHeader::new(Rc::clone(&app_data), list.table.len());
 
         Self {
             header,
@@ -157,7 +157,7 @@ impl ResourcesTable {
             }
 
             if self.clear_header_scope {
-                self.header.scope = None;
+                self.header.set_scope(None);
                 self.clear_header_scope = false;
             }
         }

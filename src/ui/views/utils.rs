@@ -15,8 +15,8 @@ use crate::{
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
 pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesInfo, kind: &str) -> &'a str {
-    let forced_scope = if let Some(scope) = scope { scope } else { &data.scope };
-    if *forced_scope == Scope::Namespaced || kind == PODS {
+    let scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if *scope == Scope::Namespaced || kind == PODS {
         let force_all = kind != PODS && kind != EVENTS && data.is_all_namespace();
         let namespace = if force_all { ALL_NAMESPACES } else { data.namespace.as_str() };
         return namespace;
@@ -30,6 +30,7 @@ pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesI
 pub fn get_left_breadcrumbs<'a>(
     app_data: &AppData,
     scope: Option<&Scope>,
+    namespace: Option<&str>,
     kind: &str,
     name: Option<&str>,
     count: usize,
@@ -43,14 +44,12 @@ pub fn get_left_breadcrumbs<'a>(
         Span::styled(format!(" {} ", data.context), &colors.context),
     ];
 
-    let forced_scope = if let Some(scope) = scope { scope } else { &data.scope };
-    if *forced_scope == Scope::Namespaced || kind == PODS {
+    let namespace = namespace.unwrap_or_else(|| get_breadcrumbs_namespace(scope, data, kind));
+    let scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if !namespace.is_empty() && (*scope == Scope::Namespaced || kind == PODS) {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-            Span::styled(
-                format!(" {} ", get_breadcrumbs_namespace(scope, data, kind)),
-                &colors.namespace,
-            ),
+            Span::styled(format!(" {} ", namespace), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {

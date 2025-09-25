@@ -240,7 +240,7 @@ impl App {
             let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind.as_str() == NAMESPACES {
-                let to_select: Option<String> = Some(self.data.borrow().current.namespace.as_str().into());
+                let to_select: Option<String> = Some(self.data.borrow().current.get_namespace().as_str().to_owned());
                 self.views_manager.handle_kind_change(to_select);
             } else {
                 self.views_manager.handle_kind_change(to_select);

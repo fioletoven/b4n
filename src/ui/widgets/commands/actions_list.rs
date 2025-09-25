@@ -163,7 +163,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("close")
                 .with_description("closes the current view")
-                .with_aliases(&["cancel"])
+                .with_aliases(&["cancel", "back"])
                 .with_response(ResponseEvent::Cancelled),
         );
         self

@@ -282,7 +282,7 @@ impl ViewsManager {
     /// Forces scope for the resources header.
     pub fn force_header_scope(&mut self, scope: Option<Scope>) {
         self.resources.clear_header_scope(false);
-        self.resources.table.header.scope = scope;
+        self.resources.table.header.set_scope(scope);
     }
 
     /// Shows delete resources dialog if anything is selected.

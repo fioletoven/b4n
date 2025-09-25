@@ -21,7 +21,7 @@ pub struct ResourcesInfo {
     pub scope: Scope,
     pub resource: ResourceRef,
     pub namespace: Namespace,
-    is_all_namespace: bool,
+    selected_namespace: Namespace,
 }
 
 impl Default for ResourcesInfo {
@@ -32,7 +32,7 @@ impl Default for ResourcesInfo {
             scope: Scope::Cluster,
             resource: ResourceRef::default(),
             namespace: Namespace::default(),
-            is_all_namespace: false,
+            selected_namespace: Namespace::default(),
         }
     }
 }
@@ -42,7 +42,7 @@ impl ResourcesInfo {
     pub fn from(context: String, namespace: Namespace, version: String, scope: Scope) -> Self {
         Self {
             context,
-            is_all_namespace: namespace.is_all(),
+            selected_namespace: namespace.clone(),
             namespace,
             version,
             scope,
@@ -66,21 +66,13 @@ impl ResourcesInfo {
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_all_namespace(&self) -> bool {
-        if self.is_all_namespace {
-            true
-        } else {
-            self.namespace.is_all()
-        }
+        self.selected_namespace.is_all() || self.namespace.is_all()
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_namespace_equal(&self, namespace: &Namespace) -> bool {
-        if self.is_all_namespace {
-            namespace.is_all()
-        } else {
-            self.namespace == *namespace
-        }
+        self.selected_namespace == *namespace
     }
 
     /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
@@ -92,17 +84,12 @@ impl ResourcesInfo {
     /// Sets new namespace.\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.is_all_namespace = namespace.is_all();
-        self.namespace = namespace;
+        self.selected_namespace = namespace;
     }
 
     /// Gets namespace respecting the flag if it is an `all` namespace.
     pub fn get_namespace(&self) -> Namespace {
-        if self.is_all_namespace {
-            Namespace::all()
-        } else {
-            self.namespace.clone()
-        }
+        self.selected_namespace.clone()
     }
 }
 
