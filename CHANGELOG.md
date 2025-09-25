@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.2.2 - 2025-09-25
+
+### Features
+
+- view events for the highlighted resource
+
+### Bug fixes
+
+- fix namespace handling in port forwards view
+
 ## 0.2.1 - 2025-09-20
 
 ### Features

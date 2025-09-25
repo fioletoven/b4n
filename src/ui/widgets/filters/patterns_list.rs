@@ -109,17 +109,17 @@ impl Table for PatternsList {
         }
     }
 
+    /// Not implemented for [`PatternsList`].
+    fn toggle_sort(&mut self, _column_no: usize) {
+        // pass
+    }
+
     fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
         if let Some(description) = &self.description {
             self.list.get_paged_names_with_description(width, description)
         } else {
             self.list.get_paged_names(width)
         }
-    }
-
-    /// Not implemented for [`PatternsList`].
-    fn toggle_sort(&mut self, _column_no: usize) {
-        // pass
     }
 
     /// Not implemented for [`PatternsList`].

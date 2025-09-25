@@ -28,6 +28,7 @@ pub struct ResourcesTable {
     pub list: ListViewer<ResourcesList>,
     app_data: SharedAppData,
     highlight_next: Option<String>,
+    clear_header_scope: bool,
 }
 
 impl ResourcesTable {
@@ -38,13 +39,14 @@ impl ResourcesTable {
             ResourcesList::default().with_filter_settings(Some("e")),
             ViewType::Compact,
         );
-        let header = ListHeader::new(Rc::clone(&app_data), None, list.table.len());
+        let header = ListHeader::new(Rc::clone(&app_data), list.table.len());
 
         Self {
             header,
             list,
             app_data,
             highlight_next: None,
+            clear_header_scope: false,
         }
     }
 
@@ -71,12 +73,18 @@ impl ResourcesTable {
         self.highlight_next = resource_to_select;
     }
 
+    /// Remembers if header scope should be reset to default for next background observer result.
+    pub fn clear_header_scope(&mut self, clear_on_next: bool) {
+        self.clear_header_scope = clear_on_next;
+    }
+
     delegate! {
         to self.list.table {
             pub fn deselect_all(&mut self);
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn has_containers(&self) -> bool;
+            pub fn has_resources_events(&self) -> bool;
         }
     }
 
@@ -110,11 +118,8 @@ impl ResourcesTable {
 
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.set_view(if namespace.is_all() {
-            ViewType::Full
-        } else {
-            ViewType::Compact
-        });
+        let is_full = namespace.is_all() && self.app_data.borrow().current.scope == Scope::Namespaced;
+        self.set_view(if is_full { ViewType::Full } else { ViewType::Compact });
 
         if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);
@@ -124,7 +129,7 @@ impl ResourcesTable {
 
     /// Sets list view for [`ResourcesTable`].
     pub fn set_view(&mut self, view: ViewType) {
-        self.list.view = if self.has_containers() { ViewType::Compact } else { view };
+        self.list.view = view;
     }
 
     /// Sets filter on the resources list.
@@ -149,6 +154,11 @@ impl ResourcesTable {
                 self.highlight_next = None;
             } else {
                 self.list.table.highlight_first_item();
+            }
+
+            if self.clear_header_scope {
+                self.header.set_scope(None);
+                self.clear_header_scope = false;
             }
         }
 
@@ -199,8 +209,17 @@ impl ResourcesTable {
                 return self.process_view_yaml(resource, self.app_data.has_binding(event, KeyCommand::YamlDecode));
             }
 
-            let is_container_name_known = self.kind_plural() == CONTAINERS
-                || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
+            let is_container = self.kind_plural() == CONTAINERS;
+            if self.app_data.has_binding(event, KeyCommand::EventsShow) {
+                if !is_container && resource.name() != ALL_NAMESPACES {
+                    return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
+                } else {
+                    return ResponseEvent::NotHandled;
+                }
+            }
+
+            let is_container_name_known =
+                is_container || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
             if is_container_name_known {
                 if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
                     return self.process_view_ports(resource);
@@ -245,10 +264,21 @@ impl ResourcesTable {
         match self.kind_plural() {
             NAMESPACES => ResponseEvent::Handled,
             CONTAINERS => {
-                let to_select = self.app_data.borrow().current.name.clone();
+                let to_select = self.app_data.borrow().current.resource.name.clone();
+                self.app_data.borrow_mut().reset_previous();
                 ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
             },
-            _ => ResponseEvent::ViewNamespaces,
+            _ => {
+                let data = &mut self.app_data.borrow_mut();
+                let mut result = ResponseEvent::ViewNamespaces;
+                if let Some(previous) = &data.previous {
+                    let to_select = data.current.resource.filter.as_ref().and_then(|f| f.name.clone());
+                    result = ResponseEvent::ChangeKindAndSelect(previous.kind.as_str().to_owned(), to_select);
+                }
+
+                data.reset_previous();
+                result
+            },
         }
     }
 
@@ -287,7 +317,7 @@ impl ResourcesTable {
 
     fn resource_ref_from(&self, resource: &ResourceItem, prefer_container: bool) -> Option<ResourceRef> {
         if self.kind_plural() == CONTAINERS {
-            if let Some(name) = self.app_data.borrow().current.name.clone() {
+            if let Some(name) = self.app_data.borrow().current.resource.name.clone() {
                 return Some(ResourceRef::container(
                     name,
                     resource.namespace.clone().into(),

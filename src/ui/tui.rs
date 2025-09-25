@@ -109,14 +109,14 @@ impl TuiEvent {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && area.contains(Position::new(mouse.column, mouse.row)))
     }
 
-    /// Returns `true` if this event is a mouse event of a specified kind outsied of a specified area.
+    /// Returns `true` if this event is a mouse event of a specified kind outside a specified area.
     pub fn is_out(&self, kind: MouseEventKind, area: Rect) -> bool {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && !area.contains(Position::new(mouse.column, mouse.row)))
     }
 }
 
 /// Terminal UI Response Event.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {
     #[default]
     NotHandled,
@@ -134,6 +134,7 @@ pub enum ResponseEvent {
     ChangeContext(String),
     ChangeTheme(String),
     ViewContainers(String, String),
+    ViewEvents(String, Option<String>, String),
     ViewNamespaces,
 
     ListKubeContexts,

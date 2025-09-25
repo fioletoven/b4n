@@ -126,10 +126,8 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let mut discovery = get_resource(self.discovery_list.as_ref(), self.resources.get_resource_kind());
-            if discovery.is_none() {
-                discovery = get_resource(self.discovery_list.as_ref(), &PODS.into());
-            }
+            let discovery = get_resource(self.discovery_list.as_ref(), self.resources.get_resource_kind())
+                .or_else(|| get_resource(self.discovery_list.as_ref(), &PODS.into()));
             Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)

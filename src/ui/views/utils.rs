@@ -6,14 +6,18 @@ use ratatui::{
 
 use crate::{
     core::{AppData, ResourcesInfo},
-    kubernetes::{ALL_NAMESPACES, resources::PODS},
+    kubernetes::{
+        ALL_NAMESPACES,
+        resources::{EVENTS, PODS},
+    },
     ui::colors::TextColors,
 };
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
-pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a str {
-    if data.scope == Scope::Namespaced || kind == PODS {
-        let force_all = kind != PODS && data.is_all_namespace();
+pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesInfo, kind: &str) -> &'a str {
+    let scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if *scope == Scope::Namespaced || kind == PODS {
+        let force_all = kind != PODS && kind != EVENTS && data.is_all_namespace();
         let namespace = if force_all { ALL_NAMESPACES } else { data.namespace.as_str() };
         return namespace;
     }
@@ -23,7 +27,15 @@ pub fn get_breadcrumbs_namespace<'a>(data: &'a ResourcesInfo, kind: &str) -> &'a
 
 /// Returns formatted text as left breadcrumbs:\
 /// \> `context` \> \[ `namespace` \> \] `kind` \> \[ `name` \> \] `count` \>
-pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&str>, count: usize, is_filtered: bool) -> Line<'a> {
+pub fn get_left_breadcrumbs<'a>(
+    app_data: &AppData,
+    scope: Option<&Scope>,
+    namespace: Option<&str>,
+    kind: &str,
+    name: Option<&str>,
+    count: usize,
+    is_filtered: bool,
+) -> Line<'a> {
     let colors = &app_data.theme.colors.header;
     let data = &app_data.current;
 
@@ -32,10 +44,12 @@ pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&st
         Span::styled(format!(" {} ", data.context), &colors.context),
     ];
 
-    if data.scope == Scope::Namespaced || kind == PODS {
+    let namespace = namespace.unwrap_or_else(|| get_breadcrumbs_namespace(scope, data, kind));
+    let scope = if let Some(scope) = scope { scope } else { &data.scope };
+    if !namespace.is_empty() && (*scope == Scope::Namespaced || kind == PODS) {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-            Span::styled(format!(" {} ", get_breadcrumbs_namespace(data, kind)), &colors.namespace),
+            Span::styled(format!(" {} ", namespace), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {
@@ -56,7 +70,7 @@ pub fn get_left_breadcrumbs<'a>(app_data: &AppData, kind: &str, name: Option<&st
 
     let count_icon = if is_filtered {
         ""
-    } else if name.is_some() {
+    } else if name.is_some() && kind == PODS {
         ""
     } else {
         ""

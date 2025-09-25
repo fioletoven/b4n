@@ -6,8 +6,8 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
-        Kind, Namespace, ResourceRef,
-        resources::{CONTAINERS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
+        Kind, NAMESPACES, Namespace, ResourceRef,
+        resources::{CONTAINERS, EVENTS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
         watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
@@ -53,6 +53,7 @@ impl ResourcesView {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
             pub fn highlight_next(&mut self, resource_to_select: Option<String>);
+            pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
             pub fn scope(&self) -> &Scope;
@@ -162,7 +163,10 @@ impl ResourcesView {
 
     /// Returns `true` if namespaces selector can be displayed.
     pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced && !self.table.has_containers() && self.is_resources_selector_allowed()
+        self.table.scope() == &Scope::Namespaced
+            && !self.table.has_containers()
+            && !self.table.has_resources_events()
+            && self.is_resources_selector_allowed()
     }
 
     /// Returns `true` if resources selector can be displayed.
@@ -235,8 +239,14 @@ impl ResourcesView {
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.command_palette
             .process_event(event)
+            .when_action_then("back", || {
+                self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack))
+            })
             .when_action_then("filter", || {
                 self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
+            })
+            .when_action_then("show_events", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow))
             })
             .when_action_then("show_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
@@ -260,7 +270,7 @@ impl ResourcesView {
             })
     }
 
-    fn show_command_palette(&mut self, simplifed: bool) {
+    fn show_command_palette(&mut self, simplified: bool) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
@@ -270,13 +280,13 @@ impl ResourcesView {
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
-        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplifed)
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplified)
             .with_resources_actions(!is_containers)
             .with_forwards()
             .with_action(
                 ActionItem::new("show YAML")
                     .with_description(if is_containers {
-                        "shows YAML of the current resource"
+                        "shows YAML of the container's resource"
                     } else {
                         "shows YAML of the selected resource"
                     })
@@ -288,6 +298,22 @@ impl ResourcesView {
                     .with_description("shows resources filter input")
                     .with_response(ResponseEvent::Action("filter")),
             );
+
+        if self.table.kind_plural() != NAMESPACES {
+            builder = builder.with_action(
+                ActionItem::new("back")
+                    .with_description("returns to the previous view")
+                    .with_response(ResponseEvent::Action("back")),
+            );
+        }
+
+        if !is_containers && self.table.kind_plural() != EVENTS {
+            builder = builder.with_action(
+                ActionItem::new("show events")
+                    .with_description("shows events for the selected resource")
+                    .with_response(ResponseEvent::Action("show_events")),
+            );
+        }
 
         if is_containers || is_pods {
             builder = builder

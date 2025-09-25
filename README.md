@@ -17,6 +17,7 @@ As the project is in its early stages, the following features are currently supp
 - View a list of Kubernetes resources.
 - Delete selected resources.
 - Display the YAML configuration of the highlighted resource.
+- View events for the highlighted resource.
 - View logs for the highlighted container.
 - Open a shell session in the highlighted container.
 - Enable port forwarding for the highlighted container.
@@ -25,7 +26,6 @@ As the project is in its early stages, the following features are currently supp
 
 The following features are planned for future development:
 
-- View events for selected resource.
 - View combined logs for all containers in a pod.
 - Edit Kubernetes resources (YAML).
 - Create Kubernetes resources (YAML).
@@ -33,27 +33,28 @@ The following features are planned for future development:
 
 ## Key Bindings
 
-| Action                                  | Command         | Comments                                                     |
-|:----------------------------------------|:----------------|:-------------------------------------------------------------|
-| Attach to the container's shell         | `s`             | Works only in containers view                                |
-| Copy YAML to the clipboard              | `c`             | Works only in YAML view                                      |
-| Decode highlighted secret               | `x`             |                                                              |
-| Delete selected resources               | `CTRL` + `d`    | Displays a confirmation dialog                               |
-| Enable / disable mouse support          | `CTRL` + `n`    |                                                              |
-| Forward container's port                | `f`             | Works only in containers view                                |
-| Go back to namespaces; clear filter     | `ESC`           | Also clears input in the filter widget                       |
-| Quit the application                    | `CTRL` + `c`    |                                                              |
-| Reverse selection                       | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                           |
-| Select resource                         | ` `             | (`SPACE`)                                                    |
-| Show / hide log timestamps              | `t`             | Works only in logs view                                      |
-| Show / hide port forwards               | `CTRL` + `f`    | Displays all active port forwarding rules                    |
-| Show command palette                    | `:`             | For example, entering `:q`↲ quits the application            |
-| Show filter / search input              | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`   |
-| Show logs for the highlighted container | `l`             | Press `p` to display previous logs for the container         |
-| Show namespaces selector                | `←`             | To select `all` quickly press `←` again                      |
-| Show resources selector                 | `→`             | To select the first item quickly press `→` again             |
-| Show YAML for the highlighted resource  | `y`             |                                                              |
-| Sort column                             | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                     |
+| Action                                   | Command         | Comments                                                    |
+|:-----------------------------------------|:----------------|:------------------------------------------------------------|
+| Attach to the container's shell          | `s`             | Works only in containers view                               |
+| Copy YAML to the clipboard               | `c`             | Works only in YAML view                                     |
+| Decode highlighted secret                | `x`             |                                                             |
+| Delete selected resources                | `CTRL` + `d`    | Displays a confirmation dialog                              |
+| Enable / disable mouse support           | `CTRL` + `n`    |                                                             |
+| Forward container's port                 | `f`             | Works only in containers view                               |
+| Go back to namespaces; clear filter      | `ESC`           | Also clears input in the filter widget                      |
+| Quit the application                     | `CTRL` + `c`    |                                                             |
+| Reverse selection                        | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
+| Select resource                          | ` `             | (`SPACE`)                                                   |
+| Show / hide log timestamps               | `t`             | Works only in logs view                                     |
+| Show / hide port forwards                | `CTRL` + `f`    | Displays all active port forwarding rules                   |
+| Show command palette                     | `:`             | For example, entering `:q`↲ quits the application           |
+| Show events for the highlighted resource | `e`             |                                                             |
+| Show filter / search input               | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show logs for the highlighted container  | `l`             | Press `p` to display previous logs for the container        |
+| Show namespaces selector                 | `←`             | To select `all` quickly press `←` again                     |
+| Show resources selector                  | `→`             | To select the first item quickly press `→` again            |
+| Show YAML for the highlighted resource   | `y`             |                                                             |
+| Sort column                              | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
 
 ## Configuration Files
 

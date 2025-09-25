@@ -62,6 +62,7 @@ impl ResourceObserver {
             pub fn stop(&mut self);
             pub fn get_resource_kind(&self) -> &Kind;
             pub fn is_container(&self) -> bool;
+            pub fn is_filtered(&self) -> bool;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
         }
@@ -76,7 +77,10 @@ impl ResourceObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.observer.resource.kind != new_kind || self.observer.resource.is_container() != new_kind.is_containers() {
+        if self.observer.resource.kind != new_kind
+            || self.observer.resource.is_container() != new_kind.is_containers()
+            || self.observer.resource.filter.is_some()
+        {
             let resource = if discovery.as_ref().is_some_and(|(_, cap)| cap.scope == Scope::Namespaced) {
                 ResourceRef::new(new_kind, new_namespace)
             } else {
@@ -96,7 +100,7 @@ impl ResourceObserver {
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
-        if self.observer.resource.is_container() {
+        if self.observer.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
             self.restart(client, resource, discovery)?;
         } else if self.observer.resource.namespace != new_namespace {
@@ -187,6 +191,11 @@ impl ResourceObserver {
                 self.crd.as_ref(),
                 &self.statistics.borrow(),
                 object,
+                self.observer
+                    .init
+                    .as_ref()
+                    .map(|i| i.resource.is_filtered())
+                    .unwrap_or_default(),
             ),
             is_delete,
         );

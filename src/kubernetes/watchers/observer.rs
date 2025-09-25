@@ -26,11 +26,12 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
+use uuid::Uuid;
 
 use crate::{
     core::utils::wait_for_task,
     kubernetes::{
-        Kind, Namespace, ResourceRef,
+        Kind, ResourceRef,
         client::KubernetesClient,
         resources::{CONTAINERS, CrdColumns},
         utils::get_object_uid,
@@ -72,14 +73,14 @@ impl<T> ObserverResult<T> {
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InitData {
-    pub name: Option<String>,
+    pub uuid: String,
+    pub resource: ResourceRef,
     pub kind: String,
     pub kind_plural: String,
     pub group: String,
     pub scope: Scope,
-    pub namespace: Namespace,
     pub crd: Option<CrdColumns>,
     pub has_metrics: bool,
 }
@@ -87,12 +88,12 @@ pub struct InitData {
 impl Default for InitData {
     fn default() -> Self {
         Self {
-            name: None,
+            uuid: String::new(),
+            resource: ResourceRef::default(),
             kind: String::new(),
             kind_plural: String::new(),
             group: String::new(),
             scope: Scope::Cluster,
-            namespace: Namespace::default(),
             crd: None,
             has_metrics: false,
         }
@@ -102,28 +103,20 @@ impl Default for InitData {
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
     fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
-        if rt.is_container() {
-            Self {
-                name: rt.name.clone(),
-                kind: "Container".to_owned(),
-                kind_plural: CONTAINERS.to_owned(),
-                group: ar.group.clone(),
-                scope,
-                namespace: rt.namespace.clone(),
-                crd,
-                has_metrics,
-            }
-        } else {
-            Self {
-                name: None,
-                kind: ar.kind.clone(),
-                kind_plural: ar.plural.to_lowercase(),
-                group: ar.group.clone(),
-                scope,
-                namespace: rt.namespace.clone(),
-                crd,
-                has_metrics,
-            }
+        let kind = if rt.is_container() { "Container" } else { ar.kind.as_str() };
+        let kind_plural = if rt.is_container() { CONTAINERS } else { ar.plural.as_str() };
+        Self {
+            uuid: Uuid::new_v4()
+                .hyphenated()
+                .encode_lower(&mut Uuid::encode_buffer())
+                .to_owned(),
+            resource: rt.clone(),
+            kind: kind.to_owned(),
+            kind_plural: kind_plural.to_lowercase(),
+            group: ar.group.clone(),
+            scope,
+            crd,
+            has_metrics,
         }
     }
 }
@@ -256,6 +249,11 @@ impl BgObserver {
         self.resource.is_container()
     }
 
+    /// Returns `true` if the observed resource is filtered.
+    pub fn is_filtered(&self) -> bool {
+        self.resource.filter.is_some()
+    }
+
     /// Returns `true` if the observer has received the initial list of resources.
     pub fn is_ready(&self) -> bool {
         self.is_ready.load(Ordering::Relaxed)
@@ -281,14 +279,13 @@ impl BgObserver {
                 has_error: Arc::clone(&self.has_error),
                 last_watch_error: None,
             };
-            let resource_name = self.resource.name.clone();
+            let filter = build_filter(&self.resource);
 
             async move {
                 while !cancellation_token.is_cancelled() {
                     let mut config = watcher::Config::default();
-                    if let Some(name) = resource_name.as_ref() {
-                        let fields = format!("metadata.name={name}");
-                        config = config.fields(&fields);
+                    if let Some(filter) = filter.as_ref() {
+                        config = config.fields(filter);
                     }
                     let watch = watcher(client.clone(), config).default_backoff();
                     let mut watch = pin!(watch);
@@ -314,11 +311,17 @@ impl BgObserver {
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
             let context_tx = self.context_tx.clone();
+            let filter = build_filter(&self.resource);
             let mut results = None;
 
             async move {
+                let mut params = ListParams::default();
+                if let Some(filter) = filter.as_ref() {
+                    params = params.fields(filter);
+                }
+
                 while !cancellation_token.is_cancelled() {
-                    let resources = client.list(&ListParams::default()).await;
+                    let resources = client.list(&params).await;
                     match resources {
                         Ok(objects) => {
                             results = Some(emit_results(objects, results, &init_data, &context_tx));
@@ -340,6 +343,20 @@ impl BgObserver {
                 }
             }
         })
+    }
+}
+
+fn build_filter(rt: &ResourceRef) -> Option<String> {
+    if let Some(name) = &rt.name {
+        if let Some(filter) = &rt.filter
+            && let Some(filter_data) = &filter.filter
+        {
+            Some(format!("metadata.name={name},{filter_data}"))
+        } else {
+            Some(format!("metadata.name={name}"))
+        }
+    } else {
+        rt.filter.as_ref().and_then(|f| f.filter.clone())
     }
 }
 
@@ -378,7 +395,6 @@ impl Drop for BgObserver {
 }
 
 /// Internal watcher's events processor.
-#[derive(Debug)]
 struct EventsProcessor {
     init_data: InitData,
     context_tx: ObserverResultSender,

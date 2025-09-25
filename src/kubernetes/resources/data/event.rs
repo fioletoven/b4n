@@ -7,7 +7,45 @@ use crate::{
 };
 
 /// Returns [`ResourceData`] for the `event` kubernetes resource.
-pub fn data(object: &DynamicObject) -> ResourceData {
+pub fn data(object: &DynamicObject, is_filtered: bool) -> ResourceData {
+    if is_filtered {
+        data_filtered(object)
+    } else {
+        data_full(object)
+    }
+}
+
+/// Returns [`Header`] for the `event` kubernetes resource.
+pub fn header(is_filtered: bool) -> Header {
+    if is_filtered { header_filtered() } else { header_full() }
+}
+
+fn data_filtered(object: &DynamicObject) -> ResourceData {
+    ResourceData::new(
+        Box::new([
+            ResourceValue::integer(object.data["count"].as_i64(), 6),
+            object.data["type"].as_str().into(),
+            object.data["message"].as_str().into(),
+        ]),
+        object.metadata.deletion_timestamp.is_some(),
+    )
+}
+
+pub fn header_filtered() -> Header {
+    let mut header = Header::from(
+        NAMESPACE,
+        Some(Box::new([
+            Column::fixed("COUNT", 6, true),
+            Column::bound("TYPE", 6, 7, false),
+            Column::bound("MESSAGE", 15, 150, false),
+        ])),
+        Rc::new([' ', 'N', 'C', 'T', 'M', 'A']),
+    );
+    header.set_sort_info(5, false);
+    header
+}
+
+fn data_full(object: &DynamicObject) -> ResourceData {
     let last = if object.data["lastTimestamp"].is_null() {
         object.data["eventTime"].clone()
     } else {
@@ -34,12 +72,11 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     ResourceData::new(Box::new(values), is_terminating)
 }
 
-/// Returns [`Header`] for the `event` kubernetes resource.
-pub fn header() -> Header {
+pub fn header_full() -> Header {
     let mut last = Column::fixed("LAST", 6, true);
     last.has_reversed_order = true;
 
-    Header::from(
+    let mut header = Header::from(
         NAMESPACE,
         Some(Box::new([
             last,
@@ -49,5 +86,7 @@ pub fn header() -> Header {
             Column::bound("OBJECT", 15, 70, false),
         ])),
         Rc::new([' ', 'N', 'L', 'C', 'T', 'R', 'O', 'A']),
-    )
+    );
+    header.set_sort_info(2, false);
+    header
 }

@@ -1,3 +1,5 @@
+use crate::kubernetes::NAMESPACES;
+
 use super::resources::CONTAINERS;
 
 /// Represents kubernetes kind together with its group.\
@@ -25,6 +27,11 @@ impl Kind {
         let kind = kind.into();
         let index = kind.find('.');
         Self { kind, index }
+    }
+
+    /// Returns `true` if kind represents namespaces.
+    pub fn is_namespaces(&self) -> bool {
+        self.kind == NAMESPACES
     }
 
     /// Returns `true` if kind represents containers.

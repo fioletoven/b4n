@@ -236,6 +236,7 @@ impl ViewsManager {
 
     /// Handles namespace change.
     pub fn handle_namespace_change(&mut self, namespace: Namespace) {
+        self.resources.clear_header_scope(true);
         self.resources.set_namespace(namespace);
         if let Some(view) = &mut self.view {
             view.handle_namespace_change();
@@ -244,6 +245,7 @@ impl ViewsManager {
 
     /// Handles kind change.
     pub fn handle_kind_change(&mut self, resource_to_select: Option<String>) {
+        self.resources.clear_header_scope(true);
         self.resources.highlight_next(resource_to_select);
         if let Some(view) = &mut self.view {
             view.handle_kind_change();
@@ -275,6 +277,12 @@ impl ViewsManager {
         } else if self.app_data.borrow().current.is_all_namespace() {
             self.resources.set_view(ViewType::Full);
         }
+    }
+
+    /// Forces scope for the resources header.
+    pub fn force_header_scope(&mut self, scope: Option<Scope>) {
+        self.resources.clear_header_scope(false);
+        self.resources.table.header.set_scope(scope);
     }
 
     /// Shows delete resources dialog if anything is selected.

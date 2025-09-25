@@ -4,7 +4,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
-    kubernetes::{Kind, Namespace, kinds::KindItem, watchers::InitData},
+    kubernetes::{Kind, Namespace, ResourceRef, kinds::KindItem, resources::CONTAINERS, watchers::InitData},
     ui::{KeyBindings, KeyCombination, KeyCommand, TuiEvent, theme::Theme},
 };
 
@@ -17,24 +17,22 @@ pub const SYNTAX_SET_DATA: &[u8] = include_bytes!("../../assets/syntaxes/syntaxe
 /// Kubernetes resources data.
 pub struct ResourcesInfo {
     pub context: String,
-    pub namespace: Namespace,
     pub version: String,
-    pub name: Option<String>,
-    pub kind: Kind,
     pub scope: Scope,
-    is_all_namespace: bool,
+    pub resource: ResourceRef,
+    pub namespace: Namespace,
+    selected_namespace: Namespace,
 }
 
 impl Default for ResourcesInfo {
     fn default() -> Self {
         Self {
             context: String::default(),
-            namespace: Namespace::default(),
             version: String::default(),
-            name: None,
-            kind: Kind::default(),
             scope: Scope::Cluster,
-            is_all_namespace: false,
+            resource: ResourceRef::default(),
+            namespace: Namespace::default(),
+            selected_namespace: Namespace::default(),
         }
     }
 }
@@ -44,7 +42,7 @@ impl ResourcesInfo {
     pub fn from(context: String, namespace: Namespace, version: String, scope: Scope) -> Self {
         Self {
             context,
-            is_all_namespace: namespace.is_all(),
+            selected_namespace: namespace.clone(),
             namespace,
             version,
             scope,
@@ -56,50 +54,42 @@ impl ResourcesInfo {
     /// **Note** that this update do not change the flag `is_all_namespace`.
     /// This results in remembering if the `all` namespace was set by user or by [`InitData`].
     pub fn update_from(&mut self, data: &InitData) {
-        self.name.clone_from(&data.name);
-        self.kind = Kind::new(&data.kind_plural, &data.group);
+        self.resource = data.resource.clone();
         self.scope = data.scope.clone();
 
         // change the namespace only if resource is namespaced
         if self.scope == Scope::Namespaced {
-            self.namespace = data.namespace.clone();
+            self.namespace = data.resource.namespace.clone();
         }
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_all_namespace(&self) -> bool {
-        if self.is_all_namespace {
-            true
-        } else {
-            self.namespace.is_all()
-        }
+        self.selected_namespace.is_all() || self.namespace.is_all()
     }
 
     /// Returns `true` if specified `namespace` is equal to the currently held by [`ResourcesInfo`].\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn is_namespace_equal(&self, namespace: &Namespace) -> bool {
-        if self.is_all_namespace {
-            namespace.is_all()
-        } else {
-            self.namespace == *namespace
-        }
+        self.selected_namespace == *namespace
+    }
+
+    /// Returns `true` if specified `kind` is equal to the currently held by [`ResourcesInfo`].
+    pub fn is_kind_equal(&self, kind: &Kind) -> bool {
+        (self.resource.is_container() && kind.as_str() == CONTAINERS)
+            || (!self.resource.is_container() && &self.resource.kind == kind)
     }
 
     /// Sets new namespace.\
     /// **Note** that it takes into account the flag for `all` namespace.
     pub fn set_namespace(&mut self, namespace: Namespace) {
-        self.is_all_namespace = namespace.is_all();
-        self.namespace = namespace;
+        self.selected_namespace = namespace;
     }
 
     /// Gets namespace respecting the flag if it is an `all` namespace.
     pub fn get_namespace(&self) -> Namespace {
-        if self.is_all_namespace {
-            Namespace::all()
-        } else {
-            self.namespace.clone()
-        }
+        self.selected_namespace.clone()
     }
 }
 
@@ -127,6 +117,7 @@ pub struct AppData {
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
+    pub previous: Option<ResourceRef>,
 
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
@@ -152,6 +143,7 @@ impl AppData {
             history,
             theme,
             current: ResourcesInfo::default(),
+            previous: None,
             kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             clipboard: Clipboard::new().ok(),
@@ -166,7 +158,7 @@ impl AppData {
             let namespace = self.history.get_namespace(context).unwrap_or_default();
             (kind.into(), namespace.into())
         } else {
-            (self.current.kind.clone(), self.current.namespace.clone())
+            (self.current.resource.kind.clone(), self.current.namespace.clone())
         }
     }
 
@@ -177,6 +169,16 @@ impl AppData {
             syntax_set: self.syntax_set.clone(),
             yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
+    }
+
+    /// Sets the current resource as a previous one.
+    pub fn update_previous(&mut self) {
+        self.previous = Some(self.current.resource.clone());
+    }
+
+    /// Resets previous resource to `None`.
+    pub fn reset_previous(&mut self) {
+        self.previous = None;
     }
 }
 

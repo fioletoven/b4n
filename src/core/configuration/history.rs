@@ -38,7 +38,7 @@ impl ContextInfo {
         Self {
             name: info.context.clone(),
             namespace: info.namespace.as_str().into(),
-            kind: info.kind.as_str().to_owned(),
+            kind: info.resource.kind.as_str().to_owned(),
             filter_history: Vec::new(),
             search_history: Vec::new(),
         }

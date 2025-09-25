@@ -1,3 +1,4 @@
+use kube::discovery::Scope;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -9,7 +10,7 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
+        views::{ListHeader, ListViewer, PortForwardsList, View},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
 };
@@ -33,18 +34,17 @@ pub struct ForwardsView {
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
-        let namespace: Namespace = get_breadcrumbs_namespace(&app_data.borrow().current, VIEW_NAME).into();
-        let view = if namespace.is_all() {
-            ViewType::Full
-        } else {
-            ViewType::Compact
-        };
+        let (namespace, view) = get_current_namespace(&app_data);
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
         let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);
         list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
+        let header = ListHeader::new(Rc::clone(&app_data), list.table.len())
+            .with_kind(VIEW_NAME)
+            .with_namespace(namespace.as_str())
+            .with_scope(Scope::Namespaced);
 
         Self {
-            header: ListHeader::new(Rc::clone(&app_data), Some(VIEW_NAME), list.table.len()),
+            header,
             list,
             app_data,
             namespace,
@@ -145,16 +145,12 @@ impl View for ForwardsView {
     }
 
     fn handle_namespace_change(&mut self) {
-        self.namespace = get_breadcrumbs_namespace(&self.app_data.borrow().current, VIEW_NAME).into();
-        self.list.view = if self.namespace.is_all() {
-            ViewType::Full
-        } else {
-            ViewType::Compact
-        };
+        (self.namespace, self.list.view) = get_current_namespace(&self.app_data);
         self.list
             .table
             .update(self.worker.borrow_mut().get_port_forwards_list(&self.namespace));
         self.header.set_count(self.list.table.len());
+        self.header.set_namespace(self.namespace.as_option());
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
@@ -249,4 +245,15 @@ impl View for ForwardsView {
         self.command_palette.draw(frame, frame.area());
         self.filter.draw(frame, frame.area());
     }
+}
+
+fn get_current_namespace(app_data: &SharedAppData) -> (Namespace, ViewType) {
+    let namespace = app_data.borrow().current.get_namespace();
+    let view = if namespace.is_all() {
+        ViewType::Full
+    } else {
+        ViewType::Compact
+    };
+
+    (namespace, view)
 }
