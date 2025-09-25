@@ -10,7 +10,7 @@ use crate::{
     kubernetes::Namespace,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ListHeader, ListViewer, PortForwardsList, View, get_breadcrumbs_namespace},
+        views::{ListHeader, ListViewer, PortForwardsList, View},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
     },
 };
