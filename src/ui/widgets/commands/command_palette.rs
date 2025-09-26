@@ -109,12 +109,12 @@ impl CommandPalette {
 
         {
             let colors = &self.app_data.borrow().theme.colors;
-            self.clear_area(frame, area, colors.command_palette.normal.bg);
+            Self::clear_area(frame, area, colors.command_palette.normal.bg);
             if area.top() > 0
                 && let Some(header) = self.header.as_deref()
             {
                 let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-                self.clear_area(frame, area, colors.command_palette.header.unwrap_or_default().bg);
+                Self::clear_area(frame, area, colors.command_palette.header.unwrap_or_default().bg);
                 self.draw_header(frame, area, header);
             }
         }
@@ -122,7 +122,7 @@ impl CommandPalette {
         self.select_mut().draw(frame, area);
     }
 
-    fn clear_area(&self, frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
+    fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
         let block = Block::new().style(Style::default().bg(color));
 
         frame.render_widget(Clear, area);

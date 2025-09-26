@@ -108,12 +108,8 @@ impl ShellView {
             "Do you want to forcibly close the shell view?\nYou will then need to manually terminate the shell process."
                 .to_owned(),
             vec![
-                Button::new("Close".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
-                Button::new(
-                    "Cancel".to_owned(),
-                    ResponseEvent::Action("cancel"),
-                    colors.modal.btn_cancel.clone(),
-                ),
+                Button::new("Close".to_owned(), ResponseEvent::Cancelled, &colors.modal.btn_delete),
+                Button::new("Cancel".to_owned(), ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
             60,
             colors.modal.text,

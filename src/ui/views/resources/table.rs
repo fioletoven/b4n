@@ -184,11 +184,11 @@ impl ResourcesTable {
         }
 
         let response = self.list.process_event(event);
-        if response != ResponseEvent::NotHandled {
-            response
-        } else {
-            self.process_highlighted_resource_event(event)
+        if response == ResponseEvent::NotHandled {
+            return self.process_highlighted_resource_event(event);
         }
+
+        response
     }
 
     fn process_highlighted_resource_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -213,9 +213,9 @@ impl ResourcesTable {
             if self.app_data.has_binding(event, KeyCommand::EventsShow) {
                 if !is_container && resource.name() != ALL_NAMESPACES {
                     return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
-                } else {
-                    return ResponseEvent::NotHandled;
                 }
+
+                return ResponseEvent::NotHandled;
             }
 
             let is_container_name_known =

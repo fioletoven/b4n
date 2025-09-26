@@ -1,5 +1,5 @@
 use anyhow::Result;
-use kube::discovery::Scope;
+use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
@@ -8,7 +8,11 @@ use crate::{
         SharedAppData, SharedAppDataExt, SharedBgWorker,
         commands::{CommandResult, ResourceYamlError, ResourceYamlResult},
     },
-    kubernetes::{Namespace, ResourceRef, kinds::KindsList, resources::ResourcesList},
+    kubernetes::{
+        Namespace, ResourceRef,
+        kinds::KindsList,
+        resources::{Port, ResourcesList},
+    },
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
@@ -320,7 +324,7 @@ impl ViewsManager {
     }
 
     /// Displays a list of available contexts to choose from.
-    pub fn show_contexts_list(&mut self, list: Vec<kube::config::NamedContext>) {
+    pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         self.resources.show_contexts_list(list);
     }
 
@@ -390,7 +394,7 @@ impl ViewsManager {
     }
 
     /// Displays a list of available forward ports for a container to choose from.
-    pub fn show_ports_list(&mut self, list: Vec<crate::kubernetes::resources::Port>) {
+    pub fn show_ports_list(&mut self, list: &[Port]) {
         self.resources.show_ports_list(list);
     }
 

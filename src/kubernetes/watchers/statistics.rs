@@ -187,7 +187,7 @@ impl BgStatistics {
             })),
             pods: BgObserver::new(runtime.clone(), footer_tx.clone()),
             pods_metrics: BgObserver::new(runtime.clone(), footer_tx.clone()),
-            nodes_metrics: BgObserver::new(runtime.clone(), footer_tx.clone()),
+            nodes_metrics: BgObserver::new(runtime, footer_tx.clone()),
             pod_data: HashMap::new(),
             node_data: HashMap::new(),
             footer_tx,

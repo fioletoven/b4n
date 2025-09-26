@@ -23,7 +23,7 @@ pub struct Search {
     patterns: Select<PatternsList>,
     matches: Option<usize>,
     width: u16,
-    search_hint: String,
+    hint: String,
 }
 
 impl Search {
@@ -42,7 +42,7 @@ impl Search {
             patterns,
             matches: None,
             width,
-            search_hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
+            hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
         }
     }
 
@@ -89,17 +89,17 @@ impl Search {
         let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
 
         let colors = &self.app_data.borrow().theme.colors.search;
-        self.clear_area(frame, area, colors.normal.bg);
+        Self::clear_area(frame, area, colors.normal.bg);
         if area.top() > 0 {
             let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-            self.clear_area(frame, area, colors.header.unwrap_or_default().bg);
+            Self::clear_area(frame, area, colors.header.unwrap_or_default().bg);
             self.draw_header(frame, area);
         }
 
         self.patterns.draw(frame, area);
     }
 
-    fn clear_area(&self, frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
+    fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
         let block = Block::new().style(Style::default().bg(color));
 
         frame.render_widget(Clear, area);
@@ -114,7 +114,7 @@ impl Search {
             let text = format!(" Total matches: {matches}");
             frame.render_widget(Paragraph::new(text).style(header), area);
         } else if self.patterns.value().is_empty() {
-            frame.render_widget(Paragraph::new(self.search_hint.as_str()).style(header), area);
+            frame.render_widget(Paragraph::new(self.hint.as_str()).style(header), area);
         } else {
             frame.render_widget(Paragraph::new(NOT_FOUND_HINT).style(header), area);
         }
