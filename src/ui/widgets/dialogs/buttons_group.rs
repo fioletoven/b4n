@@ -111,7 +111,7 @@ impl Responsive for ButtonsGroup {
         if let TuiEvent::Mouse(mouse) = event
             && mouse.kind == MouseEventKind::LeftClick
         {
-            for btn in self.buttons.iter() {
+            for btn in &self.buttons {
                 if btn.contains(mouse.column, mouse.row) {
                     return btn.result();
                 }
@@ -146,11 +146,8 @@ impl Responsive for ButtonsGroup {
 fn map_to_button_event(event: &TuiEvent) -> ButtonEvent {
     match event {
         TuiEvent::Key(key) => match key.code {
-            KeyCode::Tab => ButtonEvent::FocusNext,
-            KeyCode::Right => ButtonEvent::FocusNext,
-            KeyCode::Down => ButtonEvent::FocusNext,
-            KeyCode::Left => ButtonEvent::FocusPrev,
-            KeyCode::Up => ButtonEvent::FocusPrev,
+            KeyCode::Tab | KeyCode::Right | KeyCode::Down => ButtonEvent::FocusNext,
+            KeyCode::Left | KeyCode::Up => ButtonEvent::FocusPrev,
             KeyCode::Enter => ButtonEvent::Pressed,
             _ => ButtonEvent::None,
         },

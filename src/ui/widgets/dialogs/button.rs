@@ -18,7 +18,7 @@ pub struct Button {
 
 impl Button {
     /// Creates new [`Button`] instance.
-    pub fn new(caption: String, result: ResponseEvent, colors: ButtonColors) -> Self {
+    pub fn new(caption: String, result: ResponseEvent, colors: &ButtonColors) -> Self {
         Self {
             is_focused: false,
             caption,

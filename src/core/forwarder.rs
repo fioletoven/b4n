@@ -229,7 +229,7 @@ impl PortForwardTask {
                                     Ok((stream, _)) => {
                                         _runtime.spawn(accept_connection(
                                             pods.clone(),
-                                            _pod_name.to_owned(),
+                                            _pod_name.clone(),
                                             port,
                                             stream,
                                             _events_tx.clone(),

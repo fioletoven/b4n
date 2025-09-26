@@ -122,7 +122,7 @@ impl CpuMetrics {
     }
 
     /// Returns current CPU metrics in millicores as string.
-    pub fn millicores(&self) -> String {
+    pub fn millicores(self) -> String {
         format!("{}m", self.value / 1_000_000)
     }
 }

@@ -1,7 +1,7 @@
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
@@ -111,8 +111,8 @@ impl ResourcesView {
     }
 
     /// Displays a list of available contexts to choose from.
-    pub fn show_contexts_list(&mut self, list: Vec<NamedContext>) {
-        let actions_list = ActionsListBuilder::from_contexts(&list).build();
+    pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
+        let actions_list = ActionsListBuilder::from_contexts(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("context")
             .with_selected(&self.app_data.borrow().current.context);
@@ -120,7 +120,7 @@ impl ResourcesView {
     }
 
     /// Displays a list of available themes to choose from.
-    pub fn show_themes_list(&mut self, list: Vec<std::path::PathBuf>) {
+    pub fn show_themes_list(&mut self, list: Vec<PathBuf>) {
         let actions_list = ActionsListBuilder::from_paths(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("theme")
@@ -129,9 +129,9 @@ impl ResourcesView {
     }
 
     /// Displays a list of available forward ports for a container to choose from.
-    pub fn show_ports_list(&mut self, list: Vec<Port>) {
+    pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            let actions_list = ActionsListBuilder::from_resource_ports(&list).build();
+            let actions_list = ActionsListBuilder::from_resource_ports(list).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
                 .with_header(format!(
                     " Add port forward for {} container:",
@@ -362,12 +362,8 @@ impl ResourcesView {
         Dialog::new(
             "Are you sure you want to delete the selected resources?".to_owned(),
             vec![
-                Button::new(
-                    "Delete".to_owned(),
-                    ResponseEvent::DeleteResources,
-                    colors.modal.btn_delete.clone(),
-                ),
-                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
+                Button::new("Delete".to_owned(), ResponseEvent::DeleteResources, &colors.modal.btn_delete),
+                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
             60,
             colors.modal.text,

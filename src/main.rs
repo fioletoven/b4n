@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let _logging_guard = logging::initialize()?;
     info!("{} v{} started", core::APP_NAME, core::APP_VERSION);
 
-    if let Err(error) = run_application(args) {
+    if let Err(error) = run_application(&args) {
         error!(
             "{} v{} terminated with an error: {}",
             core::APP_NAME,
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn run_application(args: cli::Args) -> Result<()> {
+fn run_application(args: &cli::Args) -> Result<()> {
     let rt = Builder::new_multi_thread().enable_all().build()?;
 
     let mut history = rt.block_on(History::load_or_create())?;

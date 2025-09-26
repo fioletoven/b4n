@@ -296,7 +296,7 @@ impl<T: Content> ContentViewer<T> {
                     x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
                     x if x.code == KeyCode::Right => self.page_hstart += 1,
                     x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_hstart += self.page_width
+                        self.page_hstart += self.page_width;
                     },
                     x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = self.max_hstart(),
 

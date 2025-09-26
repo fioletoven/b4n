@@ -232,9 +232,10 @@ impl Tui {
     pub fn toggle_mouse_support(&mut self) -> Result<()> {
         if crossterm::terminal::is_raw_mode_enabled()? {
             self.is_mouse_enabled = !self.is_mouse_enabled;
-            match self.is_mouse_enabled {
-                true => crossterm::execute!(stdout(), EnableMouseCapture)?,
-                false => crossterm::execute!(stdout(), DisableMouseCapture)?,
+            if self.is_mouse_enabled {
+                crossterm::execute!(stdout(), EnableMouseCapture)?;
+            } else {
+                crossterm::execute!(stdout(), DisableMouseCapture)?;
             }
         }
 

@@ -49,7 +49,7 @@ pub fn get_left_breadcrumbs<'a>(
     if !namespace.is_empty() && (*scope == Scope::Namespaced || kind == PODS) {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
-            Span::styled(format!(" {} ", namespace), &colors.namespace),
+            Span::styled(format!(" {namespace} "), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {

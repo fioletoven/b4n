@@ -130,7 +130,7 @@ fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {
 }
 
 fn get_as_option(value: &str) -> Option<&str> {
-    if !value.is_empty() { Some(value) } else { None }
+    if value.is_empty() { None } else { Some(value) }
 }
 
 fn get_cpu_usage(stats: &Statistics, node_name: &str, total_cpu: Option<&str>) -> Option<f64> {
