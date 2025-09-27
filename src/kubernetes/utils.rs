@@ -67,37 +67,46 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind`.\
 /// Kind value can be in the format `kind.group`.
 pub fn get_resource(list: Option<&DiscoveryList>, kind: &Kind) -> Option<(ApiResource, ApiCapabilities)> {
-    if kind.has_group() {
+    if kind.has_version() {
+        get_resource_with_version(list, kind.name(), kind.api_version())
+    } else if kind.has_group() && !kind.group().is_empty() {
         get_resource_with_group(list, kind.name(), kind.group())
     } else {
         get_resource_no_group(list, kind.as_str())
     }
 }
 
+/// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` and `api_version`.
+fn get_resource_with_version(
+    list: Option<&DiscoveryList>,
+    kind: &str,
+    api_version: &str,
+) -> Option<(ApiResource, ApiCapabilities)> {
+    list?
+        .iter()
+        .find(|(ar, _)| {
+            api_version.eq_ignore_ascii_case(&ar.api_version)
+                && (kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
+        })
+        .cloned()
+}
+
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` and `group`.
 fn get_resource_with_group(list: Option<&DiscoveryList>, kind: &str, group: &str) -> Option<(ApiResource, ApiCapabilities)> {
-    if group.is_empty() {
-        get_resource_no_group(list, kind)
-    } else {
-        list.and_then(|discovery| {
-            discovery
-                .iter()
-                .find(|(ar, _)| {
-                    group.eq_ignore_ascii_case(&ar.group)
-                        && (kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
-                })
-                .map(|(ar, cap)| (ar.clone(), cap.clone()))
+    list?
+        .iter()
+        .find(|(ar, _)| {
+            group.eq_ignore_ascii_case(&ar.group)
+                && (kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
         })
-    }
+        .cloned()
 }
 
 /// Gets first matching [`ApiResource`] and [`ApiCapabilities`] for the resource `kind` ignoring `group`.
 fn get_resource_no_group(list: Option<&DiscoveryList>, kind: &str) -> Option<(ApiResource, ApiCapabilities)> {
-    list.and_then(|discovery| {
-        discovery
-            .iter()
-            .filter(|(ar, _)| kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
-            .min_by_key(|(ar, _)| &ar.group)
-            .map(|(ar, cap)| (ar.clone(), cap.clone()))
-    })
+    list?
+        .iter()
+        .filter(|(ar, _)| kind.eq_ignore_ascii_case(&ar.kind) || kind.eq_ignore_ascii_case(&ar.plural))
+        .min_by_key(|(ar, _)| &ar.group)
+        .cloned()
 }

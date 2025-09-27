@@ -93,16 +93,16 @@ impl<T: Table> Select<T> {
         self.items.filter(None);
     }
 
-    /// Highlights an item by name and group.
-    pub fn highlight(&mut self, selected_name: &str, selected_group: &str) {
+    /// Highlights an item by name.
+    pub fn highlight(&mut self, selected_name: &str) {
         self.items.filter(None);
-        if selected_group.is_empty()
-            || !self
-                .items
-                .highlight_item_by_name(&format!("{selected_name}.{selected_group}"))
-        {
-            self.items.highlight_item_by_name(selected_name);
-        }
+        self.items.highlight_item_by_name(selected_name);
+    }
+
+    /// Highlights an item by uid.
+    pub fn highlight_by_uid(&mut self, selected_uid: &str) {
+        self.items.filter(None);
+        self.items.highlight_item_by_uid(selected_uid);
     }
 
     /// Draws [`Select`] on the provided frame area.

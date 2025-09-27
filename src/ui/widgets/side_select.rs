@@ -71,9 +71,15 @@ impl<T: Table> SideSelect<T> {
         self.showup_time = Instant::now();
     }
 
-    /// Marks [`SideSelect`] as visible and highlights an item by name and group.
-    pub fn show_selected(&mut self, selected_name: &str, selected_group: &str) {
-        self.select.highlight(selected_name, selected_group);
+    /// Marks [`SideSelect`] as visible and highlights an item by name.
+    pub fn show_selected(&mut self, selected_name: &str) {
+        self.select.highlight(selected_name);
+        self.show();
+    }
+
+    /// Marks [`SideSelect`] as visible and highlights an item by uid.
+    pub fn show_selected_uid(&mut self, selected_uid: &str) {
+        self.select.highlight_by_uid(selected_uid);
         self.show();
     }
 

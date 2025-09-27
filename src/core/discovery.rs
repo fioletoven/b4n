@@ -1,5 +1,5 @@
 use backoff::backoff::Backoff;
-use kube::{Discovery, discovery::ApiGroup};
+use kube::Discovery;
 use std::{
     sync::{
         Arc,
@@ -144,5 +144,8 @@ impl Drop for BgDiscovery {
 /// Converts [`Discovery`] to vector of [`ApiResource`] and [`ApiCapabilities`].
 #[inline]
 pub fn convert_to_vector(discovery: &Discovery) -> DiscoveryList {
-    discovery.groups().flat_map(ApiGroup::resources_by_stability).collect()
+    discovery
+        .groups()
+        .flat_map(|group| group.versions().flat_map(|version| group.versioned_resources(version)))
+        .collect()
 }

@@ -170,7 +170,7 @@ impl ViewsManager {
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
                 && view.is_namespaces_selector_allowed()
             {
-                self.ns_selector.show_selected(view.displayed_namespace(), "");
+                self.ns_selector.show_selected(view.displayed_namespace());
                 return ResponseEvent::Handled;
             }
 
@@ -178,8 +178,7 @@ impl ViewsManager {
                 || event.is_in(MouseEventKind::RightClick, self.areas[2]))
                 && view.is_resources_selector_allowed()
             {
-                self.res_selector
-                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+                self.res_selector.show_selected(self.resources.table.get_kind().as_str());
                 return ResponseEvent::Handled;
             }
         }
@@ -199,7 +198,7 @@ impl ViewsManager {
                 && self.resources.is_namespaces_selector_allowed()
             {
                 self.ns_selector
-                    .show_selected(self.app_data.borrow().current.namespace.as_str(), "");
+                    .show_selected(self.app_data.borrow().current.namespace.as_str());
                 return ResponseEvent::Handled;
             }
 
@@ -207,8 +206,7 @@ impl ViewsManager {
                 || event.is_in(MouseEventKind::RightClick, self.areas[2]))
                 && self.resources.is_resources_selector_allowed()
             {
-                self.res_selector
-                    .show_selected(self.resources.table.kind_plural(), self.resources.table.group());
+                self.res_selector.show_selected_uid(self.resources.table.get_kind().as_str());
                 return ResponseEvent::Handled;
             }
         }

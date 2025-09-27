@@ -75,7 +75,7 @@ impl CommandPalette {
     /// Selects one of the actions from the last added step of the command palette.
     pub fn with_selected(mut self, name: &str) -> Self {
         let index = self.steps.len().saturating_sub(1);
-        self.steps[index].select.highlight(name, "");
+        self.steps[index].select.highlight(name);
         self
     }
 

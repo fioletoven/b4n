@@ -2,35 +2,41 @@ use crate::kubernetes::NAMESPACES;
 
 use super::resources::CONTAINERS;
 
+#[cfg(test)]
+#[path = "./kind.tests.rs"]
+mod kind_tests;
+
+pub const CORE_VERSION: &str = "v1";
+
 /// Represents kubernetes kind together with its group.\
 /// **Note** that it can be also used for plural names.
 #[derive(Default, Debug, Clone)]
 pub struct Kind {
     kind: String,
-    index: Option<usize>,
+    group: Option<usize>,
+    version: Option<usize>,
 }
 
 impl Kind {
     /// Creates new [`Kind`] instance.
-    pub fn new(kind: &str, group: &str) -> Self {
-        let kind = if group.is_empty() {
-            kind.to_owned()
+    pub fn new(kind: &str, group: &str, version: &str) -> Self {
+        if group.is_empty() && version == CORE_VERSION {
+            kind.into()
+        } else if version.is_empty() {
+            format!("{kind}.{group}").into()
         } else {
-            match group.split_once('/') {
-                Some((group, _)) => format!("{kind}.{group}"),
-                None => format!("{kind}.{group}"),
-            }
-        };
-        let index = kind.find('.');
-        Self { kind, index }
+            format!("{kind}.{group}/{version}").into()
+        }
     }
 
     /// Creates new [`Kind`] instance from `kind` and `api_version` string slices.
     pub fn from_api_version(kind: &str, api_version: &str) -> Self {
-        if api_version.contains('/') {
-            Self::new(kind, api_version)
+        if api_version == CORE_VERSION {
+            kind.into()
+        } else if !api_version.contains('/') {
+            format!("{kind}./{api_version}").into()
         } else {
-            Self::new(kind, "")
+            format!("{kind}.{api_version}").into()
         }
     }
 
@@ -44,31 +50,68 @@ impl Kind {
         self.kind == CONTAINERS
     }
 
-    /// Returns `true` if kind has group.
-    pub fn has_group(&self) -> bool {
-        self.index.is_some()
-    }
-
     /// Returns kind as string slice.
     pub fn as_str(&self) -> &str {
         &self.kind
     }
 
-    /// Returns kind name.
+    /// Returns kind's name.
     pub fn name(&self) -> &str {
-        if let Some(index) = self.index {
-            &self.kind[..index]
+        if let Some(group) = self.group {
+            &self.kind[..group]
         } else {
             &self.kind
         }
     }
 
-    /// Return kind group.
+    /// Returns `true` if kind has group.
+    pub fn has_group(&self) -> bool {
+        self.group.is_some() && self.group.map(|g| g + 1) != self.version
+    }
+
+    /// Returns kind's group.
     pub fn group(&self) -> &str {
-        if let Some(index) = self.index {
-            &self.kind[index + 1..]
+        if let Some(group) = self.group {
+            let group = group + 1;
+            if let Some(version) = self.version {
+                if group < version { &self.kind[group..version] } else { "" }
+            } else {
+                &self.kind[group..]
+            }
         } else {
             ""
+        }
+    }
+
+    /// Returns kind's name and group.
+    pub fn name_and_group(&self) -> &str {
+        if let Some(version) = self.version {
+            &self.kind[..version]
+        } else {
+            &self.kind
+        }
+    }
+
+    /// Returns `true` if kind has version.
+    pub fn has_version(&self) -> bool {
+        self.version.is_some()
+    }
+
+    /// Returns kind's version.
+    pub fn version(&self) -> &str {
+        if let Some(version) = self.version {
+            &self.kind[version + 1..]
+        } else {
+            ""
+        }
+    }
+
+    /// Returns kind's api version.
+    pub fn api_version(&self) -> &str {
+        if let Some(group) = self.group {
+            &self.kind[group + 1..]
+        } else {
+            CORE_VERSION
         }
     }
 }
@@ -80,26 +123,53 @@ impl PartialEq for Kind {
 }
 
 impl From<String> for Kind {
-    fn from(value: String) -> Self {
-        let kind = match value.split_once('/') {
-            Some((kind, _)) => kind.to_owned(),
-            None => value,
-        };
+    fn from(mut value: String) -> Self {
+        let group = value.find('.');
+        let version = value.find('/');
 
-        let index = kind.find('.');
-        Self { kind, index }
+        if let Some(group) = group
+            && let Some(version) = version
+            && group + 1 == version
+            && &value[version + 1..] == CORE_VERSION
+        {
+            value.truncate(group);
+            Self {
+                kind: value,
+                group: None,
+                version: None,
+            }
+        } else {
+            Self {
+                kind: value,
+                group,
+                version,
+            }
+        }
     }
 }
 
 impl From<&str> for Kind {
     fn from(value: &str) -> Self {
-        let kind = match value.split_once('/') {
-            Some((kind, _)) => kind.to_owned(),
-            None => value.to_owned(),
-        };
+        let group = value.find('.');
+        let version = value.find('/');
 
-        let index = kind.find('.');
-        Self { kind, index }
+        if let Some(group) = group
+            && let Some(version) = version
+            && group + 1 == version
+            && &value[version + 1..] == CORE_VERSION
+        {
+            Self {
+                kind: value[..group].to_owned(),
+                group: None,
+                version: None,
+            }
+        } else {
+            Self {
+                kind: value.to_owned(),
+                group,
+                version,
+            }
+        }
     }
 }
 
