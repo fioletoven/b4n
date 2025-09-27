@@ -159,14 +159,14 @@ impl LogsView {
 
     fn update_search_count(&mut self) {
         self.footer
-            .set_text("logs_search", self.logs.get_footer_text(), IconKind::Default);
+            .set_text("900_logs_search", self.logs.get_footer_text(), IconKind::Default);
         self.search.set_matches(self.logs.matches_count());
     }
 
     fn navigate_match(&mut self, forward: bool) {
         self.logs.navigate_match(forward, self.get_offset());
         self.footer
-            .set_text("logs_search", self.logs.get_footer_text(), IconKind::Default);
+            .set_text("900_logs_search", self.logs.get_footer_text(), IconKind::Default);
         if let Some(message) = self.logs.get_footer_message(forward) {
             self.footer.show_info(message, 0);
         }

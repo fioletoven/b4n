@@ -239,6 +239,8 @@ impl Footer {
                 FooterIconAction::Remove(id) => self.icons.retain(|i| i.id != id),
             }
         }
+
+        self.icons.sort_by_key(|i| i.id);
     }
 }
 
