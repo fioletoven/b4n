@@ -128,6 +128,7 @@ pub enum ResponseEvent {
     ExitApplication,
 
     Change(String, String),
+    ChangeAndSelect(String, String, Option<String>),
     ChangeKind(String),
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),

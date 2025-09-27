@@ -248,6 +248,10 @@ impl ResourcesView {
             .when_action_then("show_events", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow))
             })
+            .when_action_then("show_involved", || {
+                self.table
+                    .process_event(&self.app_data.get_event(KeyCommand::InvolvedObjectShow))
+            })
             .when_action_then("show_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
             })
@@ -280,6 +284,8 @@ impl ResourcesView {
 
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
+        let is_events = self.table.kind_plural() == EVENTS;
+
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplified)
             .with_resources_actions(!is_containers)
             .with_forwards()
@@ -307,11 +313,19 @@ impl ResourcesView {
             );
         }
 
-        if !is_containers && self.table.kind_plural() != EVENTS {
+        if !is_containers && !is_events {
             builder = builder.with_action(
                 ActionItem::new("show events")
                     .with_description("shows events for the selected resource")
                     .with_response(ResponseEvent::Action("show_events")),
+            );
+        }
+
+        if is_events {
+            builder = builder.with_action(
+                ActionItem::new("involved object")
+                    .with_description("navigates to the involved object")
+                    .with_response(ResponseEvent::Action("show_involved")),
             );
         }
 

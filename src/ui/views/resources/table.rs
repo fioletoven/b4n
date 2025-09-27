@@ -11,7 +11,7 @@ use crate::{
     core::{ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
-        resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
+        resources::{CONTAINERS, EVENTS, PODS, ResourceItem, ResourcesList, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
@@ -216,6 +216,18 @@ impl ResourcesTable {
                 }
 
                 return ResponseEvent::NotHandled;
+            }
+
+            if self.kind_plural() == EVENTS && self.app_data.has_binding(event, KeyCommand::InvolvedObjectShow) {
+                if let Some(data) = &resource.data
+                    && data.tags.len() == 4
+                {
+                    // tags order: ["apiVersion", "kind", "name", "namespace"]
+                    let kind = Kind::from_api_version(&data.tags[1], &data.tags[0]);
+                    return ResponseEvent::ChangeAndSelect(kind.into(), data.tags[3].clone(), Some(data.tags[2].clone()));
+                } else {
+                    return ResponseEvent::NotHandled;
+                }
             }
 
             let is_container_name_known =

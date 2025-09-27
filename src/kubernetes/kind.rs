@@ -16,17 +16,22 @@ impl Kind {
         let kind = if group.is_empty() {
             kind.to_owned()
         } else {
-            format!("{kind}.{group}")
+            match group.split_once('/') {
+                Some((group, _)) => format!("{kind}.{group}"),
+                None => format!("{kind}.{group}"),
+            }
         };
         let index = kind.find('.');
         Self { kind, index }
     }
 
-    /// Creates new [`Kind`] instance from string.
-    pub fn from(kind: impl Into<String>) -> Self {
-        let kind = kind.into();
-        let index = kind.find('.');
-        Self { kind, index }
+    /// Creates new [`Kind`] instance from `kind` and `api_version` string slices.
+    pub fn from_api_version(kind: &str, api_version: &str) -> Self {
+        if api_version.contains('/') {
+            Self::new(kind, api_version)
+        } else {
+            Self::new(kind, "")
+        }
     }
 
     /// Returns `true` if kind represents namespaces.
@@ -76,18 +81,25 @@ impl PartialEq for Kind {
 
 impl From<String> for Kind {
     fn from(value: String) -> Self {
-        let index = value.find('.');
-        Self { kind: value, index }
+        let kind = match value.split_once('/') {
+            Some((kind, _)) => kind.to_owned(),
+            None => value,
+        };
+
+        let index = kind.find('.');
+        Self { kind, index }
     }
 }
 
 impl From<&str> for Kind {
     fn from(value: &str) -> Self {
-        let index = value.find('.');
-        Self {
-            kind: value.to_owned(),
-            index,
-        }
+        let kind = match value.split_once('/') {
+            Some((kind, _)) => kind.to_owned(),
+            None => value.to_owned(),
+        };
+
+        let index = kind.find('.');
+        Self { kind, index }
     }
 }
 

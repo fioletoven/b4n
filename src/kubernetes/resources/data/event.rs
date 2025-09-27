@@ -21,18 +21,23 @@ pub fn header(is_filtered: bool) -> Header {
 }
 
 fn data_filtered(object: &DynamicObject) -> ResourceData {
-    ResourceData::new(
-        Box::new([
+    let is_terminating = object.metadata.deletion_timestamp.is_some();
+
+    ResourceData {
+        extra_values: Box::new([
             ResourceValue::integer(object.data["count"].as_i64(), 6),
             object.data["type"].as_str().into(),
             object.data["message"].as_str().into(),
         ]),
-        object.metadata.deletion_timestamp.is_some(),
-    )
+        is_ready: !is_terminating,
+        is_terminating,
+        tags: get_involved_object(object),
+        ..Default::default()
+    }
 }
 
 pub fn header_filtered() -> Header {
-    let mut header = Header::from(
+    Header::from(
         NAMESPACE,
         Some(Box::new([
             Column::fixed("COUNT", 6, true),
@@ -40,9 +45,8 @@ pub fn header_filtered() -> Header {
             Column::bound("MESSAGE", 15, 150, false),
         ])),
         Rc::new([' ', 'N', 'C', 'T', 'M', 'A']),
-    );
-    header.set_sort_info(5, false);
-    header
+    )
+    .with_sort_info(5, false)
 }
 
 fn data_full(object: &DynamicObject) -> ResourceData {
@@ -69,24 +73,36 @@ fn data_full(object: &DynamicObject) -> ResourceData {
         obj.into(),
     ];
 
-    ResourceData::new(Box::new(values), is_terminating)
+    ResourceData {
+        extra_values: Box::new(values),
+        is_ready: !is_terminating,
+        is_terminating,
+        tags: get_involved_object(object),
+        ..Default::default()
+    }
 }
 
 pub fn header_full() -> Header {
-    let mut last = Column::fixed("LAST", 6, true);
-    last.has_reversed_order = true;
-
-    let mut header = Header::from(
+    Header::from(
         NAMESPACE,
         Some(Box::new([
-            last,
+            Column::fixed("LAST", 6, true).with_reversed_order(),
             Column::fixed("COUNT", 6, true),
             Column::bound("TYPE", 6, 7, false),
             Column::bound("REASON", 6, 25, false),
             Column::bound("OBJECT", 15, 70, false),
         ])),
         Rc::new([' ', 'N', 'L', 'C', 'T', 'R', 'O', 'A']),
-    );
-    header.set_sort_info(2, false);
-    header
+    )
+    .with_sort_info(2, false)
+}
+
+fn get_involved_object(object: &DynamicObject) -> Box<[String]> {
+    let involved = &object.data["involvedObject"];
+
+    ["apiVersion", "kind", "name", "namespace"]
+        .iter()
+        .filter_map(|&key| involved[key].as_str().map(|s| s.to_owned()))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
 }

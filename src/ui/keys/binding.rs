@@ -33,6 +33,7 @@ impl Default for KeyBindings {
             .with("Ctrl+N", KeyCommand::MouseSupportToggle)
             .with("C", KeyCommand::ContentCopy)
             .with("E", KeyCommand::EventsShow)
+            .with("I", KeyCommand::InvolvedObjectShow)
             .with("Left", KeyCommand::SelectorLeft)
             .with("Right", KeyCommand::SelectorRight)
             .with("Shift+:", KeyCommand::CommandPaletteOpen)
