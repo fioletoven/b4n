@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.2.3 - 2025-09-27
+
+### Features
+
+- add option to navigate to the involved object for the selected resource
+
+### Bug fixes
+
+- fix bug that allowed opening the resource selector when `b4n` was disconnected from the k8s cluster
+
 ## 0.2.2 - 2025-09-25
 
 ### Features

@@ -218,6 +218,18 @@ impl ResourcesTable {
                 return ResponseEvent::NotHandled;
             }
 
+            if self.app_data.has_binding(event, KeyCommand::InvolvedObjectShow) {
+                if let Some(involved) = &resource.involved_object {
+                    return ResponseEvent::ChangeAndSelect(
+                        involved.kind.clone().into(),
+                        involved.namespace.clone().into(),
+                        Some(involved.name.clone()),
+                    );
+                } else {
+                    return ResponseEvent::NotHandled;
+                }
+            }
+
             let is_container_name_known =
                 is_container || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
             if is_container_name_known {

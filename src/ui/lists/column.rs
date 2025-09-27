@@ -119,6 +119,12 @@ impl Column {
         }
     }
 
+    /// Sets reversed order for the column.
+    pub fn with_reversed_order(mut self) -> Self {
+        self.has_reversed_order = true;
+        self
+    }
+
     /// Updates the value of `min_len` (and `max_len`, if necessary) to be valid for a first column.\
     /// **Note** that first column has one extra space in front of the header name.
     pub fn ensure_can_be_first_column(mut self) -> Self {

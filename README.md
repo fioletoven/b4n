@@ -31,23 +31,24 @@ The following features are planned for future development:
 - Create Kubernetes resources (YAML).
 - Describe Kubernetes resources.
 
-## Key Bindings
+## Default Key Bindings
 
 | Action                                   | Command         | Comments                                                    |
 |:-----------------------------------------|:----------------|:------------------------------------------------------------|
 | Attach to the container's shell          | `s`             | Works only in containers view                               |
-| Copy YAML to the clipboard               | `c`             | Works only in YAML view                                     |
+| Copy YAML / logs to the clipboard        | `c`             | Works only in YAML and logs views                           |
 | Decode highlighted secret                | `x`             |                                                             |
 | Delete selected resources                | `CTRL` + `d`    | Displays a confirmation dialog                              |
-| Enable / disable mouse support           | `CTRL` + `n`    |                                                             |
+| Enable / disable mouse support           | `CTRL` + `n`    | Not available inside a shell session                        |
 | Forward container's port                 | `f`             | Works only in containers view                               |
 | Go back to namespaces; clear filter      | `ESC`           | Also clears input in the filter widget                      |
+| Navigate to the involved object          | `i`             | Works only for a resource that has an involved object       |
 | Quit the application                     | `CTRL` + `c`    |                                                             |
 | Reverse selection                        | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Select resource                          | ` `             | (`SPACE`)                                                   |
 | Show / hide log timestamps               | `t`             | Works only in logs view                                     |
 | Show / hide port forwards                | `CTRL` + `f`    | Displays all active port forwarding rules                   |
-| Show command palette                     | `:`             | For example, entering `:q`↲ quits the application           |
+| Show command palette                     | `:`, `>`        | For example, entering `:q`↲ quits the application           |
 | Show events for the highlighted resource | `e`             |                                                             |
 | Show filter / search input               | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
 | Show logs for the highlighted container  | `l`             | Press `p` to display previous logs for the container        |

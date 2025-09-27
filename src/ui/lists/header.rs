@@ -58,6 +58,12 @@ impl Header {
         }
     }
 
+    /// Sets information required for sorting.
+    pub fn with_sort_info(mut self, column_no: usize, is_descending: bool) -> Self {
+        self.set_sort_info(column_no, is_descending);
+        self
+    }
+
     /// Returns number of columns in the header.
     pub fn get_columns_count(&self) -> usize {
         if let Some(extra_columns) = &self.extra_columns {

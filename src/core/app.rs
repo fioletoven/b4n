@@ -167,7 +167,10 @@ impl App {
 
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into())?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None)?,
+            ResponseEvent::ChangeAndSelect(kind, namespace, to_select) => {
+                self.change(kind.into(), namespace.into(), to_select)?;
+            },
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
@@ -216,13 +219,13 @@ impl App {
         }
     }
 
-    /// Changes observed resources namespace and kind.
-    fn change(&mut self, kind: Kind, namespace: Namespace) -> Result<(), BgWorkerError> {
+    /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
+    fn change(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
-            self.views_manager.handle_kind_change(None);
+            self.views_manager.handle_kind_change(to_select);
             self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
@@ -256,10 +259,11 @@ impl App {
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
             let previous_kind = self.data.borrow().previous.as_ref().map(|p| p.kind.clone());
+            let previous_name = self.data.borrow().previous.as_ref().and_then(|p| p.name.clone());
             if let Some(previous_kind) = previous_kind
                 && !self.data.borrow().current.resource.kind.is_namespaces()
             {
-                self.change(previous_kind, namespace)?;
+                self.change(previous_kind, namespace, previous_name)?;
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
                 self.views_manager.handle_namespace_change(namespace.clone());
