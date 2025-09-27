@@ -321,7 +321,9 @@ impl ResourcesView {
             );
         }
 
-        if is_events {
+        if let Some(resource) = self.table.list.table.get_highlighted_resource()
+            && resource.involved_object.is_some()
+        {
             builder = builder.with_action(
                 ActionItem::new("involved object")
                     .with_description("navigates to the involved object")

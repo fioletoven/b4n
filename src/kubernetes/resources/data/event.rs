@@ -21,19 +21,14 @@ pub fn header(is_filtered: bool) -> Header {
 }
 
 fn data_filtered(object: &DynamicObject) -> ResourceData {
-    let is_terminating = object.metadata.deletion_timestamp.is_some();
-
-    ResourceData {
-        extra_values: Box::new([
+    ResourceData::new(
+        Box::new([
             ResourceValue::integer(object.data["count"].as_i64(), 6),
             object.data["type"].as_str().into(),
             object.data["message"].as_str().into(),
         ]),
-        is_ready: !is_terminating,
-        is_terminating,
-        tags: get_involved_object(object),
-        ..Default::default()
-    }
+        object.metadata.deletion_timestamp.is_some(),
+    )
 }
 
 pub fn header_filtered() -> Header {
@@ -73,13 +68,7 @@ fn data_full(object: &DynamicObject) -> ResourceData {
         obj.into(),
     ];
 
-    ResourceData {
-        extra_values: Box::new(values),
-        is_ready: !is_terminating,
-        is_terminating,
-        tags: get_involved_object(object),
-        ..Default::default()
-    }
+    ResourceData::new(Box::new(values), is_terminating)
 }
 
 pub fn header_full() -> Header {
@@ -95,14 +84,4 @@ pub fn header_full() -> Header {
         Rc::new([' ', 'N', 'L', 'C', 'T', 'R', 'O', 'A']),
     )
     .with_sort_info(2, false)
-}
-
-fn get_involved_object(object: &DynamicObject) -> Box<[String]> {
-    let involved = &object.data["involvedObject"];
-
-    ["apiVersion", "kind", "name", "namespace"]
-        .iter()
-        .filter_map(|&key| involved[key].as_str().map(|s| s.to_owned()))
-        .collect::<Vec<_>>()
-        .into_boxed_slice()
 }

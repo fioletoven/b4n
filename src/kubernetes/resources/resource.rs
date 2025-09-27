@@ -6,7 +6,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
+    kubernetes::{Kind, Namespace, metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{
         colors::TextColors,
         lists::{FilterContext, Filterable, Header, Row},
@@ -20,6 +20,13 @@ use crate::{
 
 use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
 
+/// Represents involved object of the resource.
+pub struct InvolvedObject {
+    pub kind: Kind,
+    pub namespace: Namespace,
+    pub name: String,
+}
+
 /// Represents kubernetes resource of any kind.
 #[derive(Default)]
 pub struct ResourceItem {
@@ -30,6 +37,7 @@ pub struct ResourceItem {
     pub creation_timestamp: Option<Time>,
     pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
+    pub involved_object: Option<InvolvedObject>,
 }
 
 impl ResourceItem {
@@ -55,6 +63,7 @@ impl ResourceItem {
         let filter = get_filter_metadata(&object);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
+        let involved_object = get_involved_object(&object);
 
         Self {
             age: get_age_string(&object.metadata),
@@ -64,6 +73,7 @@ impl ResourceItem {
             creation_timestamp,
             filter_metadata: filter,
             data,
+            involved_object,
         }
     }
 
@@ -102,6 +112,7 @@ impl ResourceItem {
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
+            involved_object: None,
         }
     }
 
@@ -138,6 +149,20 @@ fn get_age_time(metadata: &ObjectMeta) -> Option<Time> {
     } else {
         None
     }
+}
+
+fn get_involved_object(object: &DynamicObject) -> Option<InvolvedObject> {
+    object.data.get("involvedObject").map(|object| {
+        let kind = Kind::from_api_version(
+            object["kind"].as_str().unwrap_or_default(),
+            object["apiVersion"].as_str().unwrap_or_default(),
+        );
+        InvolvedObject {
+            kind,
+            namespace: object["namespace"].as_str().unwrap_or_default().into(),
+            name: object["name"].as_str().unwrap_or_default().to_owned(),
+        }
+    })
 }
 
 impl Row for ResourceItem {
