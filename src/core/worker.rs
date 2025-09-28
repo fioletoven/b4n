@@ -3,7 +3,7 @@ use kube::{
     api::ApiResource,
     discovery::{ApiCapabilities, Scope, verbs},
 };
-use std::{cell::RefCell, net::SocketAddr, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::runtime::Handle;
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         client::KubernetesClient,
-        kinds::KindItem,
+        kinds::{KindItem, KindsList},
         resources::{CRDS, CrdColumns, PODS},
         utils::get_resource,
         watchers::{BgObserverError, BgStatistics, CrdObserver, ResourceObserver},
@@ -188,14 +188,29 @@ impl BgWorker {
         self.client.as_ref()
     }
 
-    /// Returns list of discovered kubernetes kinds.
+    /// Returns list of discovered kubernetes kinds.\
+    /// [`KindItem`]s are grouped by api version descending.
     pub fn get_kinds_list(&self) -> Option<Vec<KindItem>> {
         self.discovery_list.as_ref().map(|discovery| {
-            discovery
-                .iter()
-                .filter(|(_, cap)| cap.supports_operation(verbs::LIST))
-                .map(|(ar, _)| KindItem::new(ar.group.clone(), ar.plural.clone(), ar.version.clone()))
-                .collect::<Vec<KindItem>>()
+            let mut grouped = HashMap::<&str, Vec<(&str, &str)>>::with_capacity(discovery.len());
+            for item in discovery.iter().filter(|(_, cap)| cap.supports_operation(verbs::LIST)) {
+                grouped
+                    .entry(&item.0.plural)
+                    .and_modify(|i| i.push((&item.0.group, &item.0.version)))
+                    .or_insert_with(|| vec![(&item.0.group, &item.0.version)]);
+            }
+
+            let mut all = Vec::<KindItem>::with_capacity(discovery.len());
+            for key in grouped.keys() {
+                let count = grouped[key].len();
+                for item in &grouped[key] {
+                    all.push(
+                        KindItem::new(item.0.to_owned(), (*key).to_owned(), item.1.to_owned()).with_multiple_groups(count > 1),
+                    );
+                }
+            }
+
+            KindsList::recalculate_versions(all)
         })
     }
 

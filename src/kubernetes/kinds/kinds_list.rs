@@ -1,5 +1,5 @@
 use delegate::delegate;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::ui::{
     ResponseEvent, Responsive, Table, TuiEvent, ViewType,
@@ -42,6 +42,22 @@ impl KindsList {
             .items
             .as_ref()
             .map(|list| list.full_iter().map(|i| i.data.clone()).collect())
+    }
+
+    /// Goes through the list of [`KindItem`] and selects appropriate flags.\
+    /// **Note** that items must be grouped and sorted by api version descending.
+    pub fn recalculate_versions(mut items: Vec<KindItem>) -> Vec<KindItem> {
+        let mut current_group = "";
+
+        for item in &mut items {
+            if current_group == item.kind.name_and_group() {
+                item.multiple_versions = true;
+            } else {
+                current_group = item.kind.name_and_group();
+            }
+        }
+
+        items
     }
 }
 
@@ -126,43 +142,8 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
     }
 
     old_list.full_retain(|i| i.is_dirty || i.is_fixed);
-
-    recalculate_multiple_flags(old_list);
 }
 
 fn create_new_list(new_list: Vec<KindItem>) -> KindFilterableList {
-    let mut list = FilterableList::from(new_list.into_iter().map(Item::new).collect());
-    recalculate_multiple_flags(&mut list);
-    list
-}
-
-fn recalculate_multiple_flags(list: &mut KindFilterableList) {
-    let mut unique_name = HashSet::with_capacity(list.full_len());
-    let mut unique_group = HashSet::with_capacity(list.full_len());
-    let mut multiple_groups = HashSet::with_capacity(list.full_len());
-    let mut multiple_versions = HashSet::with_capacity(list.full_len());
-
-    for item in list.full_iter() {
-        let name = item.data.kind.name().to_owned();
-        let group = item.data.kind.name_and_group().to_owned();
-
-        if unique_name.contains(&name) {
-            multiple_groups.insert(name);
-        } else {
-            unique_name.insert(name);
-        }
-
-        if item.data.kind.has_group() {
-            if unique_group.contains(&group) {
-                multiple_versions.insert(group);
-            } else {
-                unique_group.insert(group);
-            }
-        }
-    }
-
-    for item in list.full_iter_mut() {
-        item.data.multiple_groups = multiple_groups.contains(item.data.name());
-        item.data.multiple_versions = multiple_versions.contains(item.data.kind.name_and_group());
-    }
+    FilterableList::from(new_list.into_iter().map(Item::new).collect())
 }

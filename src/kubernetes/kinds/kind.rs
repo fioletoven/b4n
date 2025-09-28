@@ -30,7 +30,12 @@ impl KindItem {
         }
     }
 
-    /// Returns `name` of the item respecting provided `width` and truncating start if needed.
+    pub fn with_multiple_groups(mut self, has_multiple_groups: bool) -> Self {
+        self.multiple_groups = has_multiple_groups;
+        self
+    }
+
+    /// Returns full `name` of the item respecting provided `width` and truncating start if needed.
     pub fn get_name_end(&self, width: usize) -> String {
         format!("{1:<0$}", width, truncate_left(self.name(), width))
     }
