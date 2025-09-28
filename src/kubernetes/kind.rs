@@ -20,7 +20,7 @@ pub struct Kind {
 impl Kind {
     /// Creates new [`Kind`] instance.
     pub fn new(kind: &str, group: &str, version: &str) -> Self {
-        if group.is_empty() && version == CORE_VERSION {
+        if group.is_empty() && (version.is_empty() || version == CORE_VERSION) {
             kind.into()
         } else if version.is_empty() {
             format!("{kind}.{group}").into()
@@ -31,7 +31,7 @@ impl Kind {
 
     /// Creates new [`Kind`] instance from `kind` and `api_version` string slices.
     pub fn from_api_version(kind: &str, api_version: &str) -> Self {
-        if api_version == CORE_VERSION {
+        if api_version.is_empty() || api_version == CORE_VERSION {
             kind.into()
         } else if !api_version.contains('/') {
             format!("{kind}./{api_version}").into()
