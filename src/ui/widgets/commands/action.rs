@@ -11,6 +11,10 @@ use crate::{
     utils::truncate,
 };
 
+#[cfg(test)]
+#[path = "./action.tests.rs"]
+mod action_tests;
+
 /// Command palette action.
 #[derive(Default, Clone)]
 pub struct ActionItem {
@@ -105,9 +109,10 @@ impl ActionItem {
     }
 
     fn get_text_width(&self, width: usize) -> usize {
-        self.icon
-            .as_ref()
-            .map_or(width, |i| width.max(i.chars().count() + 1) - i.chars().count() - 1)
+        self.icon.as_ref().map_or(width, |i| {
+            let icon_width = i.chars().count();
+            width.max(icon_width + 1) - icon_width - 1
+        })
     }
 
     fn add_icon(&self, text: &mut String) {
@@ -133,17 +138,19 @@ impl Row for ActionItem {
 
     fn get_name(&self, width: usize) -> String {
         let text_width = self.get_text_width(width);
-        let name_width = self.name.chars().count();
+        let name_width = self.name.chars().count().min(text_width);
 
         let mut text = String::with_capacity(text_width + 2);
-        text.push_str(&self.name);
+        text.push_str(truncate(&self.name, text_width));
 
         if let Some(descr) = &self.description {
             let descr_width = descr.chars().count();
             if name_width + descr_width + 1 > text_width {
-                text.push_str(" [");
-                text.push_str(truncate(descr, text_width - text.len() + 1));
-                text.push(']');
+                if name_width + 2 < text_width {
+                    text.push_str(" [");
+                    text.push_str(truncate(descr, text_width - text.len() + 1));
+                    text.push(']');
+                }
             } else {
                 let padding_len = text_width.saturating_sub(name_width).saturating_sub(descr_width);
                 (0..padding_len).for_each(|_| text.push(' '));
