@@ -92,7 +92,7 @@ impl ActionsListBuilder {
         let actions = kinds
             .unwrap_or(&[])
             .iter()
-            .filter(|item| !primary_only || item.group.is_empty())
+            .filter(|item| !primary_only || !item.kind.has_group())
             .map(ActionItem::from_kind)
             .collect();
 

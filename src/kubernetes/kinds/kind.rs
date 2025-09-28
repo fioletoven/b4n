@@ -1,76 +1,78 @@
 use std::borrow::Cow;
 
 use crate::{
+    kubernetes::{CORE_VERSION, Kind},
     ui::lists::{BasicFilterContext, Filterable, Row},
-    utils::truncate,
+    utils::{truncate, truncate_left},
 };
 
 /// Represents kubernetes kind.
 #[derive(Clone)]
 pub struct KindItem {
-    pub uid: String,
-    pub group: String,
-    pub name: String,
-    pub full_name: String,
-    pub version: String,
-    pub multiple: bool,
+    pub kind: Kind,
+    pub multiple_groups: bool,
+    pub multiple_versions: bool,
 }
 
 impl KindItem {
     /// Creates new [`KindItem`] instance.
     pub fn new(group: String, name: String, version: String) -> Self {
-        let full_name = if group.is_empty() {
-            name.clone()
+        let kind: Kind = if group.is_empty() && version == CORE_VERSION {
+            name.into()
         } else {
-            format!("{name}.{group}")
+            format!("{name}.{group}/{version}").into()
         };
 
         Self {
-            uid: format!("_{group}:{name}:{version}_"),
-            group,
-            name,
-            full_name,
-            version,
-            multiple: false,
+            kind,
+            multiple_groups: false,
+            multiple_versions: false,
         }
+    }
+
+    /// Returns `name` of the item respecting provided `width` and truncating start if needed.
+    pub fn get_name_end(&self, width: usize) -> String {
+        format!("{1:<0$}", width, truncate_left(self.name(), width))
     }
 }
 
 impl Row for KindItem {
     fn uid(&self) -> &str {
-        &self.uid
+        self.kind.as_str()
     }
 
     fn group(&self) -> &str {
-        &self.group
+        self.kind.group()
     }
 
     fn name(&self) -> &str {
-        if self.multiple { &self.full_name } else { &self.name }
+        if self.multiple_versions {
+            self.kind.as_str()
+        } else if self.multiple_groups {
+            self.kind.name_and_group()
+        } else {
+            self.kind.name()
+        }
     }
 
     fn get_name(&self, width: usize) -> String {
-        if self.multiple {
-            format!("{1:<0$}", width, truncate(self.full_name.as_str(), width))
-        } else {
-            format!("{1:<0$}", width, truncate(self.name.as_str(), width))
-        }
+        format!("{1:<0$}", width, truncate(self.name(), width))
     }
 
     fn column_text(&self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(match column {
-            0 => &self.group,
+            0 => self.group(),
             1 => self.name(),
-            2 => &self.version,
+            2 => self.kind.version(),
             _ => "n/a",
         })
     }
 
     fn column_sort_text(&self, column: usize) -> &str {
         match column {
-            0 => &self.group,
+            0 => self.group(),
             1 => self.name(),
-            2 => &self.version,
+            2 => self.kind.version(),
             _ => "n/a",
         }
     }
@@ -82,10 +84,6 @@ impl Filterable<BasicFilterContext> for KindItem {
     }
 
     fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
-        if self.multiple {
-            self.full_name.contains(&context.pattern)
-        } else {
-            self.name.contains(&context.pattern)
-        }
+        self.name().contains(&context.pattern)
     }
 }

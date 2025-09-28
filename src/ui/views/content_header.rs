@@ -106,7 +106,7 @@ impl ContentHeader {
             Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
-            Span::styled(format!(" {} ", self.kind.as_str().to_lowercase()), &colors.resource),
+            Span::styled(format!(" {} ", self.kind.name().to_lowercase()), &colors.resource),
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
             Span::styled(format!(" {} ", self.name.to_lowercase()), &colors.name),
         ];

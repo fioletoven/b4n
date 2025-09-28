@@ -103,9 +103,18 @@ impl ResourcesTable {
         &self.list.table.data.group
     }
 
+    /// Gets resources version.
+    pub fn version(&self) -> &str {
+        &self.list.table.data.version
+    }
+
     /// Returns resources kind.
     pub fn get_kind(&self) -> Kind {
-        Kind::new(&self.list.table.data.kind_plural, &self.list.table.data.group)
+        Kind::new(
+            &self.list.table.data.kind_plural,
+            &self.list.table.data.group,
+            &self.list.table.data.version,
+        )
     }
 
     /// Returns [`ResourceRef`] for currently highlighted item.

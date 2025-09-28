@@ -202,20 +202,20 @@ impl BgStatistics {
         self.stop();
         self.has_metrics = false;
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, ""))
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", ""))
             && self.pods.start(client, (&discovery.0).into(), Some(discovery)).is_err()
         {
             self.footer_tx.show_error("Cannot run statistics task", 0);
         }
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io")) {
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .pods_metrics
                 .start(client, (&discovery.0).into(), Some(discovery))
                 .is_ok();
         }
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io")) {
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .nodes_metrics
                 .start(client, (&discovery.0).into(), Some(discovery))

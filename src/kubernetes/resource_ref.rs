@@ -89,7 +89,7 @@ impl ResourceRef {
 impl From<&ApiResource> for ResourceRef {
     fn from(value: &ApiResource) -> Self {
         Self {
-            kind: Kind::new(&value.plural, &value.group),
+            kind: Kind::new(&value.plural, &value.group, &value.version),
             namespace: Namespace::all(),
             name: None,
             filter: None,

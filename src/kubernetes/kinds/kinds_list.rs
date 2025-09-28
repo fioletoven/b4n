@@ -74,13 +74,27 @@ impl Table for KindsList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
         }
     }
 
     /// Not implemented for [`KindsList`].
     fn toggle_sort(&mut self, _column_no: usize) {
         // pass
+    }
+
+    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
+        self.list.get_page().map(|list| {
+            let mut result = Vec::with_capacity(self.list.page_height.into());
+            for item in list {
+                if item.is_active {
+                    result.push((item.data.get_name_end(width), true));
+                } else {
+                    result.push((item.data.get_name(width), false));
+                }
+            }
+
+            result
+        })
     }
 
     /// Not implemented for [`KindsList`].
@@ -101,17 +115,7 @@ impl Table for KindsList {
 }
 
 fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
-    let mut unique = HashSet::new();
-    let mut multiple = HashSet::new();
-
     for new_item in new_list {
-        let name = new_item.name.clone();
-        if unique.contains(&name) {
-            multiple.insert(name);
-        } else {
-            unique.insert(name);
-        }
-
         let old_item = old_list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
         if let Some(old_item) = old_item {
             old_item.data = new_item;
@@ -123,35 +127,42 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
 
     old_list.full_retain(|i| i.is_dirty || i.is_fixed);
 
-    mark_multiple(old_list, &multiple);
+    recalculate_multiple_flags(old_list);
 }
 
 fn create_new_list(new_list: Vec<KindItem>) -> KindFilterableList {
-    let mut unique = HashSet::new();
-    let mut multiple = HashSet::new();
-
-    let mut list = Vec::with_capacity(new_list.len());
-
-    for new_item in new_list {
-        let name = new_item.name.clone();
-        if unique.contains(&name) {
-            multiple.insert(name);
-        } else {
-            unique.insert(name);
-        }
-
-        list.push(Item::new(new_item));
-    }
-
-    let mut list = FilterableList::from(list);
-
-    mark_multiple(&mut list, &multiple);
-
+    let mut list = FilterableList::from(new_list.into_iter().map(Item::new).collect());
+    recalculate_multiple_flags(&mut list);
     list
 }
 
-fn mark_multiple(list: &mut KindFilterableList, multiple: &HashSet<String>) {
+fn recalculate_multiple_flags(list: &mut KindFilterableList) {
+    let mut unique_name = HashSet::with_capacity(list.full_len());
+    let mut unique_group = HashSet::with_capacity(list.full_len());
+    let mut multiple_groups = HashSet::with_capacity(list.full_len());
+    let mut multiple_versions = HashSet::with_capacity(list.full_len());
+
+    for item in list.full_iter() {
+        let name = item.data.kind.name().to_owned();
+        let group = item.data.kind.name_and_group().to_owned();
+
+        if unique_name.contains(&name) {
+            multiple_groups.insert(name);
+        } else {
+            unique_name.insert(name);
+        }
+
+        if item.data.kind.has_group() {
+            if unique_group.contains(&group) {
+                multiple_versions.insert(group);
+            } else {
+                unique_group.insert(group);
+            }
+        }
+    }
+
     for item in list.full_iter_mut() {
-        item.data.multiple = multiple.contains(item.data.name());
+        item.data.multiple_groups = multiple_groups.contains(item.data.name());
+        item.data.multiple_versions = multiple_versions.contains(item.data.kind.name_and_group());
     }
 }
