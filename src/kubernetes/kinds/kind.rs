@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     kubernetes::{CORE_VERSION, Kind},
     ui::lists::{BasicFilterContext, Filterable, Row},
-    utils::truncate,
+    utils::{truncate, truncate_left},
 };
 
 /// Represents kubernetes kind.
@@ -28,6 +28,11 @@ impl KindItem {
             multiple_groups: false,
             multiple_versions: false,
         }
+    }
+
+    /// Returns `name` of the item respecting provided `width` and truncating start if needed.
+    pub fn get_name_end(&self, width: usize) -> String {
+        format!("{1:<0$}", width, truncate_left(self.name(), width))
     }
 }
 

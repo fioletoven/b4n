@@ -74,13 +74,27 @@ impl Table for KindsList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
         }
     }
 
     /// Not implemented for [`KindsList`].
     fn toggle_sort(&mut self, _column_no: usize) {
         // pass
+    }
+
+    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
+        self.list.get_page().map(|list| {
+            let mut result = Vec::with_capacity(self.list.page_height.into());
+            for item in list {
+                if item.is_active {
+                    result.push((item.data.get_name_end(width), true));
+                } else {
+                    result.push((item.data.get_name(width), false));
+                }
+            }
+
+            result
+        })
     }
 
     /// Not implemented for [`KindsList`].

@@ -18,6 +18,18 @@ pub fn try_truncate(s: &str, max_chars: usize) -> Option<&str> {
     }
 }
 
+/// Truncates a string slice from the left to the new length.
+pub fn truncate_left(s: &str, max_chars: usize) -> &str {
+    let total_chars = s.chars().count();
+    if max_chars >= total_chars {
+        return s;
+    }
+
+    let start_idex = s.char_indices().nth(total_chars - max_chars).map(|(idx, _)| idx).unwrap_or(0);
+
+    &s[start_idex..]
+}
+
 /// Adds padding to the string slice.
 pub fn add_padding(s: &str, width: usize) -> String {
     let name_width = s.chars().count();
