@@ -13,7 +13,7 @@ use crate::{
         client::KubernetesClient,
         kinds::{KindItem, KindsList},
         resources::{CRDS, CrdColumns, PODS},
-        utils::get_resource,
+        utils::{get_plural, get_resource},
         watchers::{BgObserverError, BgStatistics, CrdObserver, ResourceObserver},
     },
     ui::{views::PortForwardItem, widgets::FooterTx},
@@ -186,6 +186,17 @@ impl BgWorker {
     /// Returns [`KubernetesClient`].
     pub fn kubernetes_client(&self) -> Option<&KubernetesClient> {
         self.client.as_ref()
+    }
+
+    /// Ensures that kind has plural name.
+    pub fn ensure_kind_is_plural(&self, kind: Kind) -> Kind {
+        if let Some(plural) = get_plural(self.discovery_list.as_ref(), &kind)
+            && plural != kind.name()
+        {
+            Kind::new(plural, kind.group(), kind.version())
+        } else {
+            kind
+        }
     }
 
     /// Returns list of discovered kubernetes kinds.\
