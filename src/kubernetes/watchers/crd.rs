@@ -1,5 +1,6 @@
 use delegate::delegate;
 use kube::{
+    ResourceExt,
     api::{ApiResource, DynamicObject},
     discovery::{ApiCapabilities, Scope},
 };
@@ -67,22 +68,30 @@ impl CrdObserver {
 }
 
 fn apply(list: &mut Vec<CrdColumns>, item: &DynamicObject) {
-    let item = CrdColumns::from(item);
-    if let Some(position) = position(list, &item) {
-        list[position] = item;
-    } else {
-        list.push(item);
+    for item in get_for_all_versions(item) {
+        if let Some(position) = list.iter().position(|x| x.uid == item.uid) {
+            list[position] = item;
+        } else {
+            list.push(item);
+        }
     }
 }
 
 fn delete(list: &mut Vec<CrdColumns>, item: &DynamicObject) {
-    let item = CrdColumns::from(item);
-    if let Some(position) = position(list, &item) {
-        list.remove(position);
+    for item in get_for_all_versions(item) {
+        if let Some(position) = list.iter().position(|x| x.uid == item.uid) {
+            list.remove(position);
+        }
     }
 }
 
-fn position(list: &[CrdColumns], item: &CrdColumns) -> Option<usize> {
-    list.iter()
-        .position(|x| (x.uid.is_some() && x.uid == item.uid) || (x.uid.is_none() && x.name == item.name))
+fn get_for_all_versions(item: &DynamicObject) -> Vec<CrdColumns> {
+    let name = item.name_any();
+    let uid = item.uid().unwrap_or_else(|| name.clone());
+    item.data
+        .get("spec")
+        .and_then(|s| s.get("versions"))
+        .and_then(|v| v.as_array())
+        .map(|versions| versions.iter().map(|v| CrdColumns::from(&uid, &name, v)).collect())
+        .unwrap_or_default()
 }

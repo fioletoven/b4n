@@ -274,6 +274,11 @@ impl BgStatistics {
         self.stats.clone()
     }
 
+    /// Returns `true` if pods statistics observer has an error.
+    pub fn has_error(&self) -> bool {
+        self.pods.has_error()
+    }
+
     fn recalculate_statistics(&mut self) {
         let mut new_stats = self
             .pod_data

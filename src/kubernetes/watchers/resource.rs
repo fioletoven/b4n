@@ -201,7 +201,7 @@ impl ResourceObserver {
     /// Injects additional data to the [`InitData`] for observed resources.
     fn inject_init_data(&mut self, init_data: &mut InitData) {
         let kind = Kind::new(&init_data.kind_plural, &init_data.group, &init_data.version);
-        self.crd = self.crds.borrow().iter().find(|i| i.name == kind.name_and_group()).cloned();
+        self.crd = self.crds.borrow().iter().find(|i| i.name == kind.as_str()).cloned();
         init_data.crd.clone_from(&self.crd);
         init_data.has_metrics = self.statistics.borrow().has_metrics;
     }

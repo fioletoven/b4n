@@ -1,5 +1,16 @@
 # Change Log
 
+## 0.2.4 - 2025-09-29
+
+### Features
+
+- allow multiple versions of the same resource in selectors
+
+### Bug fixes
+
+- fix row display issue in the command palette
+- use plural kind names when navigating from involved objects
+
 ## 0.2.3 - 2025-09-27
 
 ### Features

@@ -221,6 +221,7 @@ impl App {
 
     /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
     fn change(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
@@ -239,6 +240,7 @@ impl App {
     /// Changes observed resources kind, optionally selects one of them.\
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if !self.data.borrow().current.is_kind_equal(&kind) || self.data.borrow().current.resource.filter.is_some() {
             let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
