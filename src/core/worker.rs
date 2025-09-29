@@ -292,7 +292,7 @@ impl BgWorker {
 
     /// Returns `true` if there are connection problems.
     pub fn has_errors(&self) -> bool {
-        self.resources.has_error() || self.namespaces.has_error() || self.discovery.has_error()
+        self.statistics.has_error() || self.namespaces.has_error() || self.discovery.has_error()
     }
 
     /// Saves the provided app configuration to a file.

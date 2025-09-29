@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Position, Rect},
@@ -8,8 +10,10 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors},
+    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors, utils::center},
 };
+
+const ERROR_DISPLAY_DELAY_MS: u128 = 600;
 
 /// List viewer.
 pub struct ListViewer<T: Table> {
@@ -17,6 +21,7 @@ pub struct ListViewer<T: Table> {
     pub view: ViewType,
     pub area: Rect,
     app_data: SharedAppData,
+    has_error: Option<Instant>,
 }
 
 impl<T: Table> ListViewer<T> {
@@ -27,6 +32,7 @@ impl<T: Table> ListViewer<T> {
             view,
             area: Rect::default(),
             app_data,
+            has_error: None,
         }
     }
 
@@ -55,9 +61,28 @@ impl<T: Table> ListViewer<T> {
         }
 
         self.table.update_page(self.area.height);
-        if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
+        if self.has_error() {
+            let colors = &self.app_data.borrow().theme.colors;
+            let line = Line::styled(" cannot fetch or update requested resources…", &colors.text);
+            let area = center(self.area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+            frame.render_widget(line, area);
+        } else if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
             frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }
+    }
+
+    /// Updates error state for the resources list.
+    pub fn update_error_state(&mut self, has_error: bool) {
+        if has_error && self.has_error.is_none() {
+            self.has_error = Some(Instant::now());
+        } else if !has_error && self.has_error.is_some() {
+            self.has_error = None;
+        }
+    }
+
+    fn has_error(&self) -> bool {
+        self.has_error
+            .is_some_and(|t| t.elapsed().as_millis() > ERROR_DISPLAY_DELAY_MS)
     }
 }
 
@@ -74,6 +99,10 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 
 impl<T: Table> Responsive for ListViewer<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.has_error() {
+            return ResponseEvent::NotHandled;
+        }
+
         if let TuiEvent::Key(key) = event
             && key.code == KeyCode::Char('0')
             && key.modifiers == KeyModifiers::ALT

@@ -102,6 +102,11 @@ impl ResourcesView {
         self.generation = stats.generation;
     }
 
+    /// Updates error state for the resources table.
+    pub fn update_error_state(&mut self, has_error: bool) {
+        self.table.list.update_error_state(has_error);
+    }
+
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
         if self.table.list.table.is_anything_selected() && !self.table.has_containers() {
@@ -159,6 +164,7 @@ impl ResourcesView {
     /// Processes disconnection state.
     pub fn process_disconnection(&mut self) {
         self.command_palette.hide();
+        self.update_error_state(true);
     }
 
     /// Returns `true` if namespaces selector can be displayed.
