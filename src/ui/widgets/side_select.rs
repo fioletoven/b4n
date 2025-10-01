@@ -1,7 +1,7 @@
 use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
+    style::{Style, Stylize},
     symbols::border,
     widgets::{Block, Borders, Clear, Paragraph},
 };
@@ -126,7 +126,7 @@ impl<T: Table> SideSelect<T> {
                 vertical_right: "",
                 ..border::EMPTY
             })
-            .border_style(Style::default().fg(colors.side_select.normal.bg).bg(Color::Reset))
+            .border_style(Style::default().fg(colors.side_select.normal.bg).bg(colors.text.bg))
             .style(Style::default().bg(colors.side_select.normal.bg));
 
         if self.position == Position::Left {

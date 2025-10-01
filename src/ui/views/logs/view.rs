@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
-    layout::{Rect, Size},
+    layout::{Position, Rect},
     style::Style,
 };
 use std::rc::Rc;
@@ -172,9 +172,9 @@ impl LogsView {
         }
     }
 
-    fn get_offset(&self) -> Option<Size> {
+    fn get_offset(&self) -> Option<Position> {
         if self.logs.content().is_some_and(|c| c.show_timestamps) {
-            Some(Size::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
+            Some(Position::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
         } else {
             None
         }

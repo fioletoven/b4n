@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Margin, Rect, Size},
+    layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Paragraph},
@@ -14,7 +14,7 @@ use crate::{
     ui::{
         MouseEventKind, ResponseEvent, TuiEvent,
         utils::center,
-        views::content_search::{MatchPosition, SearchData, get_search_wrapped_message, highlight_search_matches},
+        views::content_search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
     },
 };
 
@@ -46,8 +46,7 @@ pub struct ContentViewer<T: Content> {
 
     page_height: usize,
     page_width: usize,
-    page_vstart: usize,
-    page_hstart: usize,
+    page_start: PagePosition,
 
     creation_time: Instant,
 }
@@ -66,8 +65,7 @@ impl<T: Content> ContentViewer<T> {
             max_width: 0,
             page_height: 0,
             page_width: 0,
-            page_vstart: 0,
-            page_hstart: 0,
+            page_start: PagePosition::default(),
             creation_time: Instant::now(),
         }
     }
@@ -137,32 +135,32 @@ impl<T: Content> ContentViewer<T> {
 
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
     pub fn scroll_to(&mut self, line: usize, col: usize, width: usize) {
-        if line < self.page_vstart || line > self.page_vstart + self.page_height.saturating_sub(1) {
+        if line < self.page_start.y || line > self.page_start.y + self.page_height.saturating_sub(1) {
             let line = line.saturating_sub(self.page_height.saturating_div(2));
-            self.page_vstart = line.min(self.max_vstart());
+            self.page_start.y = line.min(self.max_vstart());
         }
 
-        if col < self.page_hstart || col.saturating_add(width) > self.page_hstart + self.page_width.saturating_sub(1) {
+        if col < self.page_start.x || col.saturating_add(width) > self.page_start.x + self.page_width.saturating_sub(1) {
             let col = col.saturating_sub(self.page_width.saturating_div(2));
-            self.page_hstart = col.min(self.max_hstart());
+            self.page_start.x = col.min(self.max_hstart());
         }
     }
 
     /// Scrolls content to the current search match.
-    pub fn scroll_to_current_match(&mut self, offset: Option<Size>) {
+    pub fn scroll_to_current_match(&mut self, offset: Option<Position>) {
         if let Some(matches) = &self.search.matches {
             let offset = offset.unwrap_or_default();
             if let Some(current) = self.search.current {
                 let r#match = &matches[current.saturating_sub(1)];
                 self.scroll_to(
-                    r#match.y.saturating_add(offset.height.into()),
-                    r#match.x.saturating_add(offset.width.into()),
+                    r#match.y.saturating_add(offset.y.into()),
+                    r#match.x.saturating_add(offset.x.into()),
                     r#match.length,
                 );
             } else if !matches.is_empty() {
                 self.scroll_to(
-                    matches[0].y.saturating_add(offset.height.into()),
-                    matches[0].x.saturating_add(offset.width.into()),
+                    matches[0].y.saturating_add(offset.y.into()),
+                    matches[0].x.saturating_add(offset.x.into()),
                     matches[0].length,
                 );
             }
@@ -171,17 +169,17 @@ impl<T: Content> ContentViewer<T> {
 
     /// Scrolls content to the end.
     pub fn scroll_to_end(&mut self) {
-        self.page_vstart = self.max_vstart();
+        self.page_start.y = self.max_vstart();
     }
 
     /// Returns `true` if view is showing the last part of the content.
     pub fn is_at_end(&self) -> bool {
-        self.page_vstart == self.max_vstart()
+        self.page_start.y == self.max_vstart()
     }
 
     /// Resets horizontal scroll to start position.
     pub fn reset_horizontal_scroll(&mut self) {
-        self.page_hstart = 0;
+        self.page_start.x = 0;
     }
 
     /// Searches content for the specified pattern.\
@@ -224,7 +222,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Updates the current match index in the search results based on navigation direction.\
     /// **Note** that updated index will start from 1.
-    pub fn navigate_match(&mut self, forward: bool, offset: Option<Size>) {
+    pub fn navigate_match(&mut self, forward: bool, offset: Option<Position>) {
         let total = self.search.matches.as_ref().map_or(0, Vec::len);
         if total == 0 {
             return;
@@ -252,11 +250,22 @@ impl<T: Content> ContentViewer<T> {
         {
             let offset = offset.unwrap_or_default();
             self.scroll_to(
-                matches[0].y.saturating_add(offset.height.into()),
-                matches[0].x.saturating_add(offset.width.into()),
+                matches[0].y.saturating_add(offset.y.into()),
+                matches[0].x.saturating_add(offset.x.into()),
                 matches[0].length,
             );
         }
+    }
+
+    pub fn get_page_lines(&mut self) -> Vec<Line<'_>> {
+        let start = self.page_start.y.clamp(0, self.max_vstart());
+        self.content
+            .as_mut()
+            .unwrap()
+            .page(start, self.page_height)
+            .iter()
+            .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
     }
 
     /// Gets footer icon text for the current search state.
@@ -289,24 +298,24 @@ impl<T: Content> ContentViewer<T> {
             TuiEvent::Key(key) => {
                 match key {
                     // horizontal scroll
-                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = 0,
+                    x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
                     x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_hstart = self.page_hstart.saturating_sub(self.page_width);
+                        self.page_start.x = self.page_start.x.saturating_sub(self.page_width);
                     },
-                    x if x.code == KeyCode::Left => self.page_hstart = self.page_hstart.saturating_sub(1),
-                    x if x.code == KeyCode::Right => self.page_hstart += 1,
+                    x if x.code == KeyCode::Left => self.page_start.x = self.page_start.x.saturating_sub(1),
+                    x if x.code == KeyCode::Right => self.page_start.x += 1,
                     x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_hstart += self.page_width;
+                        self.page_start.x += self.page_width;
                     },
-                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_hstart = self.max_hstart(),
+                    x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = self.max_hstart(),
 
                     // vertical scroll
-                    x if x.code == KeyCode::Home => self.page_vstart = 0,
-                    x if x.code == KeyCode::PageUp => self.page_vstart = self.page_vstart.saturating_sub(self.page_height),
-                    x if x.code == KeyCode::Up => self.page_vstart = self.page_vstart.saturating_sub(1),
-                    x if x.code == KeyCode::Down => self.page_vstart += 1,
-                    x if x.code == KeyCode::PageDown => self.page_vstart += self.page_height,
-                    x if x.code == KeyCode::End => self.page_vstart = self.max_vstart(),
+                    x if x.code == KeyCode::Home => self.page_start.y = 0,
+                    x if x.code == KeyCode::PageUp => self.page_start.y = self.page_start.y.saturating_sub(self.page_height),
+                    x if x.code == KeyCode::Up => self.page_start.y = self.page_start.y.saturating_sub(1),
+                    x if x.code == KeyCode::Down => self.page_start.y += 1,
+                    x if x.code == KeyCode::PageDown => self.page_start.y += self.page_height,
+                    x if x.code == KeyCode::End => self.page_start.y = self.max_vstart(),
 
                     _ => return ResponseEvent::NotHandled,
                 }
@@ -314,15 +323,15 @@ impl<T: Content> ContentViewer<T> {
             TuiEvent::Mouse(mouse) => match mouse {
                 // horizontal scroll
                 x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
-                    self.page_hstart = self.page_hstart.saturating_sub(1);
+                    self.page_start.x = self.page_start.x.saturating_sub(1);
                 },
-                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_hstart += 1,
-                x if x.kind == MouseEventKind::ScrollLeft => self.page_hstart = self.page_hstart.saturating_sub(1),
-                x if x.kind == MouseEventKind::ScrollRight => self.page_hstart += 1,
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.x += 1,
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.x = self.page_start.x.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_start.x += 1,
 
                 // vertical scroll
-                x if x.kind == MouseEventKind::ScrollUp => self.page_vstart = self.page_vstart.saturating_sub(1),
-                x if x.kind == MouseEventKind::ScrollDown => self.page_vstart += 1,
+                x if x.kind == MouseEventKind::ScrollUp => self.page_start.y = self.page_start.y.saturating_sub(1),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_start.y += 1,
 
                 _ => return ResponseEvent::NotHandled,
             },
@@ -335,7 +344,7 @@ impl<T: Content> ContentViewer<T> {
     /// Draws the [`ContentViewer`] onto the given frame within the specified area.
     ///
     /// `highlight_offset` - used to adjust the position of search highlights.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Size>) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
@@ -348,27 +357,16 @@ impl<T: Content> ContentViewer<T> {
             let area = layout[1].inner(Margin::new(1, 0));
             self.update_page(area.height, area.width);
 
-            let start = self.page_vstart.clamp(0, self.max_vstart());
-            let lines = self
-                .content
-                .as_mut()
-                .unwrap()
-                .page(start, usize::from(area.height))
-                .iter()
-                .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
-                .collect::<Vec<_>>();
+            let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
+            let lines = self.get_page_lines();
+            frame.render_widget(Paragraph::new(lines).scroll((0, hscroll)), area);
 
-            frame.render_widget(Paragraph::new(lines).scroll((0, self.page_hstart as u16)), area);
-
-            highlight_search_matches(
-                frame,
-                self.page_hstart,
-                self.page_vstart,
-                &self.search,
-                area,
-                self.search_color,
-                highlight_offset,
-            );
+            if self.search.matches.is_some() {
+                frame.render_widget(
+                    SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset),
+                    area,
+                );
+            }
         } else if self.creation_time.elapsed().as_millis() > 80 {
             let colors = &self.app_data.borrow().theme.colors;
             let line = Line::styled(" waiting for data…", &colors.text);
@@ -388,14 +386,14 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn update_page_starts(&mut self) {
-        if self.page_vstart > self.max_vstart() {
-            self.page_vstart = self.max_vstart();
+        if self.page_start.y > self.max_vstart() {
+            self.page_start.y = self.max_vstart();
         }
 
-        if self.page_hstart > self.max_hstart() {
-            self.page_hstart = self.max_hstart();
+        if self.page_start.x > self.max_hstart() {
+            self.page_start.x = self.max_hstart();
         }
 
-        self.header.set_coordinates(self.page_hstart, self.page_vstart);
+        self.header.set_coordinates(self.page_start.x, self.page_start.y);
     }
 }
