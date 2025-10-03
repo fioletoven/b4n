@@ -15,6 +15,7 @@ pub use self::utils::*;
 pub use self::yaml::YamlView;
 
 mod content;
+mod content_edit;
 mod content_header;
 mod content_search;
 mod forwards;

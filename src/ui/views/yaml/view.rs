@@ -273,4 +273,8 @@ impl Content for YamlContent {
 
         matches
     }
+
+    fn line_size(&self, line_no: usize) -> usize {
+        self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
+    }
 }

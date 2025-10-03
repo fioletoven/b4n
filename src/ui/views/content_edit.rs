@@ -1,0 +1,114 @@
+use crossterm::event::KeyCode;
+use ratatui::{layout::Position, style::Color, widgets::Widget};
+
+use crate::ui::{
+    ResponseEvent, TuiEvent,
+    views::{content::Content, content_search::PagePosition},
+};
+
+pub struct EditContext {
+    pub cursor: PagePosition,
+    last_set_x: usize,
+}
+
+impl EditContext {
+    pub fn new() -> Self {
+        Self {
+            cursor: PagePosition::default(),
+            last_set_x: 0,
+        }
+    }
+
+    /// Process UI key/mouse event.
+    pub fn process_event<T: Content>(&mut self, event: &TuiEvent, content: &T) -> ResponseEvent {
+        let line_size = content.line_size(self.cursor.y);
+        let lines_no = content.len();
+
+        let mut x_changed = None;
+        let mut y_changed = None;
+        match event {
+            TuiEvent::Key(key) => match key {
+                a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
+                a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
+                a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
+                a if a.code == KeyCode::End => x_changed = Some(Some(line_size.saturating_sub(1))),
+                a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
+                a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+
+                _ => return ResponseEvent::NotHandled,
+            },
+            TuiEvent::Mouse(_) => return ResponseEvent::NotHandled,
+        }
+
+        if let Some(new_x) = x_changed {
+            if let Some(x) = new_x {
+                if x >= line_size && self.cursor.y.saturating_add(1) < lines_no {
+                    self.cursor.x = 0;
+                    self.cursor.y = self.cursor.y.saturating_add(1);
+                } else {
+                    self.cursor.x = x;
+                }
+            } else if let Some(y) = self.cursor.y.checked_sub(1) {
+                self.cursor.y = y;
+                self.cursor.x = content.line_size(y).saturating_sub(1);
+            }
+
+            self.last_set_x = self.cursor.x;
+        }
+
+        if let Some(new_y) = y_changed {
+            self.cursor.y = new_y;
+        }
+
+        if self.cursor.y >= lines_no {
+            self.cursor.y = lines_no.saturating_sub(1);
+        }
+
+        let line_size = content.line_size(self.cursor.y);
+        if self.cursor.x >= line_size {
+            self.cursor.x = line_size.saturating_sub(1);
+        } else if y_changed.is_some() && self.cursor.x < self.last_set_x {
+            self.cursor.x = self.last_set_x.min(line_size.saturating_sub(1));
+        }
+
+        ResponseEvent::Handled
+    }
+}
+
+pub struct ContentEditWidget<'a, T: Content> {
+    pub content: &'a T,
+    pub context: &'a EditContext,
+    pub page_start: &'a PagePosition,
+}
+
+impl<'a, T: Content> ContentEditWidget<'a, T> {
+    pub fn new(content: &'a T, context: &'a EditContext, page_start: &'a PagePosition) -> Self {
+        Self {
+            content,
+            context,
+            page_start,
+        }
+    }
+}
+
+impl<'a, T: Content> Widget for ContentEditWidget<'a, T> {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        if let Some(x) = self.context.cursor.x.checked_sub(self.page_start.x)
+            && let Some(y) = self.context.cursor.y.checked_sub(self.page_start.y)
+        {
+            let cursor = Position {
+                x: u16::try_from(x.saturating_add(area.x.into())).unwrap_or_default(),
+                y: u16::try_from(y.saturating_add(area.y.into())).unwrap_or_default(),
+            };
+
+            if area.contains(cursor)
+                && let Some(cell) = buf.cell_mut(cursor)
+            {
+                cell.bg = Color::Gray;
+            }
+        }
+    }
+}

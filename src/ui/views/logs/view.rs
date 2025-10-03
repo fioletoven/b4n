@@ -406,4 +406,8 @@ impl Content for LogsContent {
 
         matches
     }
+
+    fn line_size(&self, _line_no: usize) -> usize {
+        0
+    }
 }

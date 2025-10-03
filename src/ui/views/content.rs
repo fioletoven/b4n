@@ -14,7 +14,10 @@ use crate::{
     ui::{
         MouseEventKind, ResponseEvent, TuiEvent,
         utils::center,
-        views::content_search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
+        views::{
+            content_edit::{ContentEditWidget, EditContext},
+            content_search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
+        },
     },
 };
 
@@ -32,6 +35,9 @@ pub trait Content {
 
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;
+
+    /// Returns characters count of the line under `line_no` index.
+    fn line_size(&self, line_no: usize) -> usize;
 }
 
 /// Content viewer with header.
@@ -40,6 +46,7 @@ pub struct ContentViewer<T: Content> {
     app_data: SharedAppData,
 
     content: Option<T>,
+    edit: Option<EditContext>,
     search: SearchData,
     search_color: Color,
     max_width: usize,
@@ -60,6 +67,7 @@ impl<T: Content> ContentViewer<T> {
             header,
             app_data,
             content: None,
+            edit: None,
             search: SearchData::default(),
             search_color,
             max_width: 0,
@@ -130,7 +138,7 @@ impl<T: Content> ContentViewer<T> {
     pub fn update_page(&mut self, new_height: u16, hew_width: u16) {
         self.page_height = usize::from(new_height);
         self.page_width = usize::from(hew_width);
-        self.update_page_starts();
+        self.update_page_start();
     }
 
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
@@ -292,11 +300,22 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    /// Process UI key event.
+    /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if let Some(edit) = &mut self.edit
+            && let Some(content) = &self.content
+        {
+            let response = edit.process_event(event, content);
+            if response != ResponseEvent::NotHandled {
+                return response;
+            }
+        }
+
         match event {
             TuiEvent::Key(key) => {
                 match key {
+                    x if x.code == KeyCode::Char('i') => self.enable_edit_mode(),
+
                     // horizontal scroll
                     x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
                     x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
@@ -337,7 +356,7 @@ impl<T: Content> ContentViewer<T> {
             },
         }
 
-        self.update_page_starts();
+        self.update_page_start();
         ResponseEvent::Handled
     }
 
@@ -354,25 +373,39 @@ impl<T: Content> ContentViewer<T> {
         frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), layout[1]);
 
         if self.content.is_some() {
-            let area = layout[1].inner(Margin::new(1, 0));
-            self.update_page(area.height, area.width);
-
-            let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
-            let lines = self.get_page_lines();
-            frame.render_widget(Paragraph::new(lines).scroll((0, hscroll)), area);
-
-            if self.search.matches.is_some() {
-                frame.render_widget(
-                    SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset),
-                    area,
-                );
-            }
+            self.draw_content(frame, layout[1], highlight_offset);
         } else if self.creation_time.elapsed().as_millis() > 80 {
-            let colors = &self.app_data.borrow().theme.colors;
-            let line = Line::styled(" waiting for data…", &colors.text);
-            let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
-            frame.render_widget(line, area);
+            self.draw_empty(frame, area);
         }
+    }
+
+    fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
+        let area = area.inner(Margin::new(1, 0));
+        self.update_page(area.height, area.width);
+
+        let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
+        let lines = self.get_page_lines();
+        frame.render_widget(Paragraph::new(lines).scroll((0, hscroll)), area);
+
+        if self.search.matches.is_some() {
+            frame.render_widget(
+                SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset),
+                area,
+            );
+        }
+
+        if let Some(edit) = &self.edit
+            && let Some(content) = &self.content
+        {
+            frame.render_widget(ContentEditWidget::new(content, edit, &self.page_start), area);
+        }
+    }
+
+    fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let line = Line::styled(" waiting for data…", &colors.text);
+        let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+        frame.render_widget(line, area);
     }
 
     /// Returns max vertical start of the page.
@@ -385,7 +418,15 @@ impl<T: Content> ContentViewer<T> {
         self.max_width.saturating_sub(self.page_width)
     }
 
-    fn update_page_starts(&mut self) {
+    fn enable_edit_mode(&mut self) {
+        if self.edit.is_some() || self.content.is_none() {
+            return;
+        }
+
+        self.edit = Some(EditContext::new());
+    }
+
+    fn update_page_start(&mut self) {
         if self.page_start.y > self.max_vstart() {
             self.page_start.y = self.max_vstart();
         }
