@@ -189,6 +189,11 @@ impl View for YamlView {
             return result;
         }
 
+        let response = self.yaml.process_event(event);
+        if response != ResponseEvent::NotHandled {
+            return response;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
             self.show_command_palette();
             return ResponseEvent::Handled;
@@ -230,7 +235,7 @@ impl View for YamlView {
             self.navigate_match(false);
         }
 
-        self.yaml.process_event(event)
+        ResponseEvent::NotHandled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
@@ -276,5 +281,9 @@ impl Content for YamlContent {
 
     fn line_size(&self, line_no: usize) -> usize {
         self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
+    }
+
+    fn is_editable(&self) -> bool {
+        true
     }
 }

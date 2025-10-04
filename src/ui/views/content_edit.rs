@@ -1,8 +1,12 @@
 use crossterm::event::KeyCode;
-use ratatui::{layout::Position, style::Color, widgets::Widget};
+use ratatui::{
+    layout::{Position, Rect},
+    style::Color,
+    widgets::Widget,
+};
 
 use crate::ui::{
-    ResponseEvent, TuiEvent,
+    MouseEventKind, ResponseEvent, TuiEvent,
     views::{content::Content, content_search::PagePosition},
 };
 
@@ -12,15 +16,21 @@ pub struct EditContext {
 }
 
 impl EditContext {
-    pub fn new() -> Self {
+    pub fn new(position: PagePosition) -> Self {
         Self {
-            cursor: PagePosition::default(),
+            cursor: position,
             last_set_x: 0,
         }
     }
 
     /// Process UI key/mouse event.
-    pub fn process_event<T: Content>(&mut self, event: &TuiEvent, content: &T) -> ResponseEvent {
+    pub fn process_event<T: Content>(
+        &mut self,
+        event: &TuiEvent,
+        content: &T,
+        position: PagePosition,
+        area: Rect,
+    ) -> ResponseEvent {
         let line_size = content.line_size(self.cursor.y);
         let lines_no = content.len();
 
@@ -32,12 +42,22 @@ impl EditContext {
                 a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
                 a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
                 a if a.code == KeyCode::End => x_changed = Some(Some(line_size.saturating_sub(1))),
+
+                a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
                 a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
                 a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+                a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
 
                 _ => return ResponseEvent::NotHandled,
             },
-            TuiEvent::Mouse(_) => return ResponseEvent::NotHandled,
+            TuiEvent::Mouse(mouse) => match mouse {
+                a if a.kind == MouseEventKind::LeftClick => {
+                    self.cursor.x = position.x.saturating_add(a.column.saturating_sub(area.x).into());
+                    self.cursor.y = position.y.saturating_add(a.row.saturating_sub(area.y).into());
+                },
+
+                _ => return ResponseEvent::NotHandled,
+            },
         }
 
         if let Some(new_x) = x_changed {

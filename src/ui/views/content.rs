@@ -38,6 +38,11 @@ pub trait Content {
 
     /// Returns characters count of the line under `line_no` index.
     fn line_size(&self, line_no: usize) -> usize;
+
+    /// Returns `true` if content can be edited.
+    fn is_editable(&self) -> bool {
+        false
+    }
 }
 
 /// Content viewer with header.
@@ -51,9 +56,8 @@ pub struct ContentViewer<T: Content> {
     search_color: Color,
     max_width: usize,
 
-    page_height: usize,
-    page_width: usize,
     page_start: PagePosition,
+    page_area: Rect,
 
     creation_time: Instant,
 }
@@ -71,9 +75,8 @@ impl<T: Content> ContentViewer<T> {
             search: SearchData::default(),
             search_color,
             max_width: 0,
-            page_height: 0,
-            page_width: 0,
             page_start: PagePosition::default(),
+            page_area: Rect::default(),
             creation_time: Instant::now(),
         }
     }
@@ -134,22 +137,17 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    /// Updates page `height` and `width`.
-    pub fn update_page(&mut self, new_height: u16, hew_width: u16) {
-        self.page_height = usize::from(new_height);
-        self.page_width = usize::from(hew_width);
-        self.update_page_start();
-    }
-
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
     pub fn scroll_to(&mut self, line: usize, col: usize, width: usize) {
-        if line < self.page_start.y || line > self.page_start.y + self.page_height.saturating_sub(1) {
-            let line = line.saturating_sub(self.page_height.saturating_div(2));
+        if line < self.page_start.y || line > self.page_start.y + usize::from(self.page_area.height.saturating_sub(1)) {
+            let line = line.saturating_sub(self.page_area.height.saturating_div(2).into());
             self.page_start.y = line.min(self.max_vstart());
         }
 
-        if col < self.page_start.x || col.saturating_add(width) > self.page_start.x + self.page_width.saturating_sub(1) {
-            let col = col.saturating_sub(self.page_width.saturating_div(2));
+        if col < self.page_start.x
+            || col.saturating_add(width) > self.page_start.x + usize::from(self.page_area.width.saturating_sub(1))
+        {
+            let col = col.saturating_sub(self.page_area.width.saturating_div(2).into());
             self.page_start.x = col.min(self.max_hstart());
         }
     }
@@ -270,7 +268,7 @@ impl<T: Content> ContentViewer<T> {
         self.content
             .as_mut()
             .unwrap()
-            .page(start, self.page_height)
+            .page(start, self.page_area.height.into())
             .iter()
             .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
             .collect::<Vec<_>>()
@@ -305,35 +303,45 @@ impl<T: Content> ContentViewer<T> {
         if let Some(edit) = &mut self.edit
             && let Some(content) = &self.content
         {
-            let response = edit.process_event(event, content);
+            let response = edit.process_event(event, content, self.page_start, self.page_area);
             if response != ResponseEvent::NotHandled {
+                let (y, x) = (edit.cursor.y, edit.cursor.x);
+                self.scroll_to(y, x, 1);
                 return response;
             }
         }
 
         match event {
             TuiEvent::Key(key) => {
-                match key {
-                    x if x.code == KeyCode::Char('i') => self.enable_edit_mode(),
+                if key.code == KeyCode::Char('i') && self.enable_edit_mode() == ResponseEvent::Handled {
+                    return ResponseEvent::Handled;
+                }
 
+                if key.code == KeyCode::Esc && self.disable_edit_mode() == ResponseEvent::Handled {
+                    return ResponseEvent::Handled;
+                }
+
+                match key {
                     // horizontal scroll
                     x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
                     x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_start.x = self.page_start.x.saturating_sub(self.page_width);
+                        self.page_start.x = self.page_start.x.saturating_sub(self.page_area.width.into());
                     },
                     x if x.code == KeyCode::Left => self.page_start.x = self.page_start.x.saturating_sub(1),
                     x if x.code == KeyCode::Right => self.page_start.x += 1,
                     x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_start.x += self.page_width;
+                        self.page_start.x += usize::from(self.page_area.width);
                     },
                     x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = self.max_hstart(),
 
                     // vertical scroll
                     x if x.code == KeyCode::Home => self.page_start.y = 0,
-                    x if x.code == KeyCode::PageUp => self.page_start.y = self.page_start.y.saturating_sub(self.page_height),
+                    x if x.code == KeyCode::PageUp => {
+                        self.page_start.y = self.page_start.y.saturating_sub(self.page_area.height.into());
+                    },
                     x if x.code == KeyCode::Up => self.page_start.y = self.page_start.y.saturating_sub(1),
                     x if x.code == KeyCode::Down => self.page_start.y += 1,
-                    x if x.code == KeyCode::PageDown => self.page_start.y += self.page_height,
+                    x if x.code == KeyCode::PageDown => self.page_start.y += usize::from(self.page_area.height),
                     x if x.code == KeyCode::End => self.page_start.y = self.max_vstart(),
 
                     _ => return ResponseEvent::NotHandled,
@@ -381,7 +389,8 @@ impl<T: Content> ContentViewer<T> {
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
         let area = area.inner(Margin::new(1, 0));
-        self.update_page(area.height, area.width);
+        self.page_area = area;
+        self.update_page_start();
 
         let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
         let lines = self.get_page_lines();
@@ -402,6 +411,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.page_area = area;
         let colors = &self.app_data.borrow().theme.colors;
         let line = Line::styled(" waiting for data…", &colors.text);
         let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
@@ -410,20 +420,32 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns max vertical start of the page.
     fn max_vstart(&self) -> usize {
-        self.content.as_ref().map_or(0, |l| l.len().saturating_sub(self.page_height))
+        self.content
+            .as_ref()
+            .map_or(0, |l| l.len().saturating_sub(self.page_area.height.into()))
     }
 
     /// Returns max horizontal start of the page.
     fn max_hstart(&self) -> usize {
-        self.max_width.saturating_sub(self.page_width)
+        self.max_width.saturating_sub(self.page_area.width.into())
     }
 
-    fn enable_edit_mode(&mut self) {
-        if self.edit.is_some() || self.content.is_none() {
-            return;
+    fn enable_edit_mode(&mut self) -> ResponseEvent {
+        if self.edit.is_some() || self.content.as_ref().is_none_or(|c| !c.is_editable()) {
+            return ResponseEvent::NotHandled;
         }
 
-        self.edit = Some(EditContext::new());
+        self.edit = Some(EditContext::new(self.page_start));
+        ResponseEvent::Handled
+    }
+
+    fn disable_edit_mode(&mut self) -> ResponseEvent {
+        if self.edit.is_none() {
+            return ResponseEvent::NotHandled;
+        }
+
+        self.edit = None;
+        ResponseEvent::Handled
     }
 
     fn update_page_start(&mut self) {
@@ -435,6 +457,10 @@ impl<T: Content> ContentViewer<T> {
             self.page_start.x = self.max_hstart();
         }
 
-        self.header.set_coordinates(self.page_start.x, self.page_start.y);
+        if let Some(edit) = &self.edit {
+            self.header.set_coordinates(edit.cursor.x, edit.cursor.y);
+        } else {
+            self.header.set_coordinates(self.page_start.x, self.page_start.y);
+        }
     }
 }
