@@ -6,12 +6,11 @@ use kube::{
     discovery::{ApiCapabilities, verbs},
 };
 use ratatui::style::Style;
-use syntect::easy::HighlightLines;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    core::SyntaxData,
+    core::highlighter::{HighlightError, HighlightRequest, HighlightResponse},
     kubernetes::{self, Kind, Namespace, resources::SECRETS, utils},
-    ui::colors::from_syntect_color,
 };
 
 use super::CommandResult;
@@ -31,21 +30,25 @@ pub enum ResourceYamlError {
     #[error("cannot serialize resource's YAML")]
     SerializationError(#[from] serde_yaml::Error),
 
-    /// YAML syntax definition not found.
-    #[error("YAML syntax definition not found")]
-    SyntaxNotFound,
+    /// Cannot send syntax higlight request to the highlighter thread.
+    #[error("cannot send syntax higlight request")]
+    CannotSendRequest(#[from] tokio::sync::mpsc::error::SendError<HighlightRequest>),
 
-    /// Cannot highlight YAML syntax.
-    #[error("cannot highlight YAML syntax")]
-    SyntaxHighlightingError(#[from] syntect::Error),
-
-    /// Syntax highlighting task failed.
-    #[error("syntax highlighting task failed")]
-    HighlightingTaskError(#[from] tokio::task::JoinError),
+    /// Cannot send syntax higlight request to the highlighter thread.
+    #[error("cannot send syntax higlight request")]
+    CannotRecvResponse(#[from] tokio::sync::oneshot::error::RecvError),
 
     /// Cannot decode resource's data.
     #[error("cannot decode resource's data")]
     SecretDecodeError(#[from] DecodeError),
+
+    /// Cannot highlight provided data.
+    #[error("cannot highlight provided data")]
+    HighlighterError(#[from] HighlightError),
+
+    /// Wrong response received from the higlighter thread.
+    #[error("wrong response received")]
+    WrongResponseRecv,
 }
 
 /// Result for the [`GetResourceYamlCommand`] command.
@@ -65,7 +68,7 @@ pub struct GetResourceYamlCommand {
     kind: Kind,
     discovery: Option<(ApiResource, ApiCapabilities)>,
     client: Client,
-    syntax: SyntaxData,
+    highlighter: UnboundedSender<HighlightRequest>,
     decode: bool,
 }
 
@@ -77,7 +80,7 @@ impl GetResourceYamlCommand {
         kind: Kind,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
-        syntax: SyntaxData,
+        highlighter: UnboundedSender<HighlightRequest>,
     ) -> Self {
         Self {
             name,
@@ -85,7 +88,7 @@ impl GetResourceYamlCommand {
             kind,
             discovery,
             client,
-            syntax,
+            highlighter,
             decode: false,
         }
     }
@@ -97,10 +100,10 @@ impl GetResourceYamlCommand {
         kind: Kind,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
-        syntax: SyntaxData,
+        highlighter: UnboundedSender<HighlightRequest>,
     ) -> Self {
         let decode = kind.as_str() == SECRETS;
-        let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, syntax);
+        let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, highlighter);
         command.decode = decode;
         command
     }
@@ -122,7 +125,7 @@ impl GetResourceYamlCommand {
 
         match client.get(&self.name).await {
             Ok(resource) => Some(CommandResult::ResourceYaml(
-                style_resource(resource, self.syntax, self.name, self.namespace, self.kind, self.decode).await,
+                style_resource(resource, self.highlighter, self.name, self.namespace, self.kind, self.decode).await,
             )),
             Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
@@ -131,46 +134,39 @@ impl GetResourceYamlCommand {
 
 async fn style_resource(
     mut resource: DynamicObject,
-    data: SyntaxData,
+    highlighter: UnboundedSender<HighlightRequest>,
     name: String,
     namespace: Namespace,
     kind: Kind,
     decode: bool,
 ) -> Result<ResourceYamlResult, ResourceYamlError> {
-    tokio::task::spawn_blocking(move || {
-        if decode {
-            decode_secret_data(&mut resource)?;
-        }
+    if decode {
+        decode_secret_data(&mut resource)?;
+    }
 
-        let yaml = utils::serialize_resource(&mut resource)?;
-        let lines = yaml.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
-        let syntax = data
-            .syntax_set
-            .find_syntax_by_extension("yaml")
-            .ok_or(ResourceYamlError::SyntaxNotFound)?;
+    let yaml = utils::serialize_resource(&mut resource)?;
+    let plain = yaml.split_inclusive('\n').map(String::from).collect::<Vec<_>>();
 
-        let mut h = HighlightLines::new(syntax, &data.yaml_theme);
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    highlighter.send(HighlightRequest::Full {
+        lines: plain.clone(),
+        response: tx,
+    })?;
 
-        let styled = lines
-            .iter()
-            .map(|line| {
-                Ok(h.highlight_line(line, &data.syntax_set)?
-                    .into_iter()
-                    .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
-                    .collect::<Vec<_>>())
-            })
-            .collect::<Result<Vec<_>, syntect::Error>>()?;
-
-        Ok(ResourceYamlResult {
-            name,
-            namespace,
-            kind,
-            yaml: lines,
-            styled,
-            is_decoded: decode,
-        })
-    })
-    .await?
+    match rx.await? {
+        Ok(response) => match response {
+            HighlightResponse::Full { lines } => Ok(ResourceYamlResult {
+                name,
+                namespace,
+                kind,
+                yaml: plain,
+                styled: lines,
+                is_decoded: decode,
+            }),
+            _ => Err(ResourceYamlError::WrongResponseRecv),
+        },
+        Err(err) => Err(err.into()),
+    }
 }
 
 fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
@@ -185,10 +181,4 @@ fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
     }
 
     Ok(())
-}
-
-fn convert_style(style: syntect::highlighting::Style) -> Style {
-    Style::default()
-        .fg(from_syntect_color(style.foreground))
-        .bg(from_syntect_color(style.background))
 }

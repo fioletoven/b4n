@@ -105,7 +105,6 @@ impl YamlView {
             self.yaml.header.name.clone(),
             self.yaml.header.namespace.clone(),
             &self.yaml.header.kind,
-            self.app_data.borrow().get_syntax_data(),
             !self.is_decoded,
         );
     }

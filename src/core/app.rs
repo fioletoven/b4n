@@ -50,7 +50,11 @@ impl App {
         let theme_path = config.theme_path();
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
-        let worker = Rc::new(RefCell::new(BgWorker::new(runtime.clone(), footer.get_transmitter())));
+        let worker = Rc::new(RefCell::new(BgWorker::new(
+            runtime.clone(),
+            footer.get_transmitter(),
+            data.borrow().get_syntax_data(),
+        )));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager =
             KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
@@ -396,7 +400,6 @@ impl App {
             resource.name.clone().unwrap_or_default(),
             resource.namespace.clone(),
             &resource.kind,
-            self.data.borrow().get_syntax_data(),
             decode,
         );
 

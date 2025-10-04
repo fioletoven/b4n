@@ -15,6 +15,7 @@ mod app;
 mod configuration;
 mod data;
 mod forwarder;
+mod highlighter;
 mod managers;
 mod tasks;
 mod worker;
