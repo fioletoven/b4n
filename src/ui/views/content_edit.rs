@@ -38,26 +38,40 @@ impl EditContext {
         let mut y_changed = None;
 
         match event {
-            TuiEvent::Key(key) => {
-                if let KeyCode::Char(c) = key.code {
+            TuiEvent::Key(key) => match key.code {
+                KeyCode::Char(c) => {
                     content.insert_char(self.cursor.x, self.cursor.y, c);
                     x_changed = Some(Some(self.cursor.x.saturating_add(1)));
                     line_size = content.line_size(self.cursor.y);
-                } else {
-                    match key {
-                        a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
-                        a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
-                        a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
-                        a if a.code == KeyCode::End => x_changed = Some(Some(line_size.saturating_sub(1))),
-
-                        a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
-                        a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
-                        a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
-                        a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
-
-                        _ => return ResponseEvent::NotHandled,
+                },
+                KeyCode::Backspace => {
+                    if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, true) {
+                        x_changed = Some(Some(x));
+                        y_changed = Some(y);
+                        line_size = content.line_size(y);
                     }
-                }
+                },
+                KeyCode::Delete => {
+                    if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, false) {
+                        x_changed = Some(Some(x));
+                        y_changed = Some(y);
+                        line_size = content.line_size(y);
+                    }
+                },
+                KeyCode::Enter => {},
+                _ => match key {
+                    a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
+                    a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
+                    a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
+                    a if a.code == KeyCode::End => x_changed = Some(Some(line_size)),
+
+                    a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
+                    a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
+                    a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+                    a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
+
+                    _ => return ResponseEvent::NotHandled,
+                },
             },
             TuiEvent::Mouse(mouse) => match mouse {
                 a if a.kind == MouseEventKind::LeftClick => {
@@ -71,7 +85,7 @@ impl EditContext {
 
         if let Some(new_x) = x_changed {
             if let Some(x) = new_x {
-                if x >= line_size && self.cursor.y.saturating_add(1) < lines_no {
+                if x > line_size && self.cursor.y.saturating_add(1) < lines_no {
                     self.cursor.x = 0;
                     self.cursor.y = self.cursor.y.saturating_add(1);
                 } else {
@@ -79,7 +93,7 @@ impl EditContext {
                 }
             } else if let Some(y) = self.cursor.y.checked_sub(1) {
                 self.cursor.y = y;
-                self.cursor.x = content.line_size(y).saturating_sub(1);
+                self.cursor.x = content.line_size(y);
             }
 
             self.last_set_x = self.cursor.x;
@@ -94,10 +108,10 @@ impl EditContext {
         }
 
         let line_size = content.line_size(self.cursor.y);
-        if self.cursor.x >= line_size {
-            self.cursor.x = line_size.saturating_sub(1);
+        if self.cursor.x > line_size {
+            self.cursor.x = line_size;
         } else if y_changed.is_some() && self.cursor.x < self.last_set_x {
-            self.cursor.x = self.last_set_x.min(line_size.saturating_sub(1));
+            self.cursor.x = self.last_set_x.min(line_size);
         }
 
         ResponseEvent::Handled

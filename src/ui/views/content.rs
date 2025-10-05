@@ -44,11 +44,20 @@ pub trait Content {
         false
     }
 
-    /// Inserts specified character to the content at position `x` and `y`.
+    /// Inserts specified character to the content at a position `x` and `y`.
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         let _ = x;
         let _ = y;
         let _ = character;
+    }
+
+    /// Deletes character at a position `x` and `y`.\
+    /// **Note** that it returns a new position.
+    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
+        let _ = x;
+        let _ = y;
+        let _ = is_backspace;
+        None
     }
 
     /// Can be called on every app tick to do some computation.

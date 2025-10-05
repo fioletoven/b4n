@@ -1,4 +1,4 @@
-use ratatui::{Frame, layout::Rect};
+use ratatui::{Frame, layout::Rect, style::Style};
 use std::{collections::HashSet, rc::Rc};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
@@ -13,7 +13,7 @@ use crate::{
         views::{
             View,
             content::{Content, ContentViewer, StyledLine},
-            content_search::MatchPosition,
+            content_search::{MatchPosition, PagePosition},
         },
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
@@ -304,9 +304,43 @@ impl Content for YamlContent {
     }
 
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
-        self.plain[y].insert(x, character);
-        styled_insert(&mut self.styled[y], x, character);
-        self.modified.insert(y);
+        if let Some((x, y)) = get_byte_position(&self.plain, x, y) {
+            self.plain[y].insert(x, character);
+            styled_insert(&mut self.styled[y], x, character);
+            self.modified.insert(y);
+        } else if y < self.plain.len() {
+            self.plain[y].push(character);
+            styled_push(&mut self.styled[y], character);
+            self.modified.insert(y);
+        }
+    }
+
+    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
+        if let Some((x, y)) = get_byte_position(&self.plain, x, y) {
+            if is_backspace && x == 0 && y > 0 {
+                styled_append(&mut self.styled[y - 1], &self.plain[y]);
+                self.styled.remove(y);
+
+                let new_x = self.plain[y - 1].len();
+                let text = self.plain.remove(y);
+                self.plain[y - 1].push_str(&text);
+
+                self.modified.insert(y - 1);
+                self.modified.insert(y);
+                return Some((new_x, y - 1));
+            }
+
+            let x = if is_backspace { x.saturating_sub(1) } else { x };
+
+            self.plain[y].remove(x);
+
+            styled_remove(&mut self.styled[y], x);
+            self.modified.insert(y);
+
+            Some((x, y))
+        } else {
+            None
+        }
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
@@ -365,5 +399,43 @@ fn styled_insert(line: &mut StyledLine, x: usize, c: char) {
         }
 
         current += part.1.len();
+    }
+}
+
+fn styled_append(line: &mut StyledLine, text: &str) {
+    if let Some(part) = line.last_mut() {
+        part.1.push_str(text);
+    } else {
+        line.push((Style::default(), text.to_owned()));
+    }
+}
+
+fn styled_push(line: &mut StyledLine, c: char) {
+    if let Some(part) = line.last_mut() {
+        part.1.push(c);
+    } else {
+        line.push((Style::default(), c.to_string()));
+    }
+}
+
+fn styled_remove(line: &mut StyledLine, x: usize) {
+    let mut current = 0;
+    for part in line {
+        if current + part.1.len() > x {
+            part.1.remove(x - current);
+            return;
+        }
+
+        current += part.1.len();
+    }
+}
+
+fn get_byte_position(text: &[String], x: usize, y: usize) -> Option<(usize, usize)> {
+    if y < text.len()
+        && let Some((i, _)) = text[y].char_indices().nth(x)
+    {
+        Some((i, y))
+    } else {
+        None
     }
 }
