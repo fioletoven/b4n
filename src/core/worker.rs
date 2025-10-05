@@ -4,10 +4,10 @@ use kube::{
     discovery::{ApiCapabilities, Scope, verbs},
 };
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
-use tokio::runtime::Handle;
+use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
 use crate::{
-    core::{Config, PortForwarder, commands::ListResourcePortsCommand, highlighter::BgHighlighter},
+    core::{Config, HighlightRequest, PortForwarder, commands::ListResourcePortsCommand, highlighter::BgHighlighter},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         client::KubernetesClient,
@@ -352,6 +352,11 @@ impl BgWorker {
         } else {
             None
         }
+    }
+
+    /// Returns unbounded chanell sender for [`HighlightRequest`]s.
+    pub fn get_higlighter(&self) -> UnboundedSender<HighlightRequest> {
+        self.highlighter.get_sender()
     }
 
     /// Starts port forwarding for the specified resource, port and address.

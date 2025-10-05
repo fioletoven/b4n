@@ -9,7 +9,7 @@ use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    core::highlighter::{HighlightError, HighlightRequest, HighlightResponse},
+    core::highlighter::{HighlightError, HighlightRequest},
     kubernetes::{self, Kind, Namespace, resources::SECRETS, utils},
 };
 
@@ -45,10 +45,6 @@ pub enum ResourceYamlError {
     /// Cannot highlight provided data.
     #[error("cannot highlight provided data")]
     HighlighterError(#[from] HighlightError),
-
-    /// Wrong response received from the higlighter thread.
-    #[error("wrong response received")]
-    WrongResponseRecv,
 }
 
 /// Result for the [`GetResourceYamlCommand`] command.
@@ -149,22 +145,19 @@ async fn style_resource(
 
     let (tx, rx) = tokio::sync::oneshot::channel();
     highlighter.send(HighlightRequest::Full {
-        lines: plain.clone(),
+        lines: plain,
         response: tx,
     })?;
 
     match rx.await? {
-        Ok(response) => match response {
-            HighlightResponse::Full { lines } => Ok(ResourceYamlResult {
-                name,
-                namespace,
-                kind,
-                yaml: plain,
-                styled: lines,
-                is_decoded: decode,
-            }),
-            _ => Err(ResourceYamlError::WrongResponseRecv),
-        },
+        Ok(response) => Ok(ResourceYamlResult {
+            name,
+            namespace,
+            kind,
+            yaml: response.plain,
+            styled: response.styled,
+            is_decoded: decode,
+        }),
         Err(err) => Err(err.into()),
     }
 }

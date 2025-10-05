@@ -43,6 +43,18 @@ pub trait Content {
     fn is_editable(&self) -> bool {
         false
     }
+
+    /// Inserts specified character to the content at position `x` and `y`.
+    fn insert_char(&mut self, x: usize, y: usize, character: char) {
+        let _ = x;
+        let _ = y;
+        let _ = character;
+    }
+
+    /// Can be called on every app tick to do some computation.
+    fn process_tick(&mut self) -> ResponseEvent {
+        ResponseEvent::Handled
+    }
 }
 
 /// Content viewer with header.
@@ -263,6 +275,7 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
+    /// Returns currently visible lines.
     pub fn get_page_lines(&mut self) -> Vec<Line<'_>> {
         let start = self.page_start.y.clamp(0, self.max_vstart());
         self.content
@@ -298,10 +311,19 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
+    /// Allows content to process some computation on app tick.
+    pub fn process_tick(&mut self) -> ResponseEvent {
+        if let Some(content) = &mut self.content {
+            content.process_tick()
+        } else {
+            ResponseEvent::Handled
+        }
+    }
+
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(edit) = &mut self.edit
-            && let Some(content) = &self.content
+            && let Some(content) = &mut self.content
         {
             let response = edit.process_event(event, content, self.page_start, self.page_area);
             if response != ResponseEvent::NotHandled {

@@ -1,8 +1,12 @@
 use ratatui::{Frame, layout::Rect};
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
+use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
 use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
+    core::{
+        HighlightError, HighlightRequest, HighlightResponse, SharedAppData, SharedAppDataExt, SharedBgWorker,
+        commands::CommandResult,
+    },
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
@@ -136,6 +140,10 @@ impl View for YamlView {
         self.command_id.as_deref()
     }
 
+    fn process_tick(&mut self) -> ResponseEvent {
+        self.yaml.process_tick()
+    }
+
     fn process_command_result(&mut self, result: CommandResult) {
         if let CommandResult::ResourceYaml(Ok(result)) = result {
             let icon = if result.is_decoded { '' } else { '' };
@@ -149,6 +157,9 @@ impl View for YamlView {
                     styled: result.styled,
                     plain: result.yaml,
                     lowercase,
+                    highlighter: self.worker.borrow().get_higlighter(),
+                    modified: HashSet::new(),
+                    requested: None,
                 },
                 max_width,
             );
@@ -244,11 +255,17 @@ impl View for YamlView {
     }
 }
 
+/// Number of lines before and after the modified section to include in the re-highlighting process.
+const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
+
 /// Styled YAML content.
 struct YamlContent {
     pub styled: Vec<StyledLine>,
     pub plain: Vec<String>,
     pub lowercase: Vec<String>,
+    highlighter: UnboundedSender<HighlightRequest>,
+    modified: HashSet<usize>,
+    requested: Option<RequestedHighlight>,
 }
 
 impl Content for YamlContent {
@@ -284,5 +301,69 @@ impl Content for YamlContent {
 
     fn is_editable(&self) -> bool {
         true
+    }
+
+    fn insert_char(&mut self, x: usize, y: usize, character: char) {
+        self.plain[y].insert(x, character);
+        styled_insert(&mut self.styled[y], x, character);
+        self.modified.insert(y);
+    }
+
+    fn process_tick(&mut self) -> ResponseEvent {
+        if let Some(requested) = &mut self.requested
+            && let Ok(response) = requested.response.try_recv()
+        {
+            if self.modified.is_empty()
+                && let Ok(response) = response
+            {
+                self.styled.splice(requested.start..=requested.end, response.styled);
+            }
+
+            self.requested = None;
+        }
+
+        if self.requested.is_none() && !self.modified.is_empty() {
+            let first = self.modified.iter().min().copied().unwrap_or_default();
+            let last = self.modified.iter().max().copied().unwrap_or_default();
+            let start = first.saturating_sub(HIGHLIGHT_CONTEXT_LINES_NO);
+            let end = last
+                .saturating_add(HIGHLIGHT_CONTEXT_LINES_NO)
+                .min(self.plain.len().saturating_sub(1));
+
+            let (tx, rx) = tokio::sync::oneshot::channel();
+
+            let _ = self.highlighter.send(HighlightRequest::Partial {
+                start: first.saturating_sub(start),
+                lines: self.plain[start..=end].to_vec(),
+                response: tx,
+            });
+
+            self.modified.clear();
+            self.requested = Some(RequestedHighlight {
+                start: first,
+                end,
+                response: rx,
+            });
+        }
+
+        ResponseEvent::Handled
+    }
+}
+
+struct RequestedHighlight {
+    pub start: usize,
+    pub end: usize,
+    pub response: Receiver<Result<HighlightResponse, HighlightError>>,
+}
+
+fn styled_insert(line: &mut StyledLine, x: usize, c: char) {
+    let mut current = 0;
+    for part in line {
+        if current + part.1.len() >= x {
+            part.1.insert(x - current, c);
+            return;
+        }
+
+        current += part.1.len();
     }
 }

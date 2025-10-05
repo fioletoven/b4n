@@ -1,6 +1,6 @@
 use ratatui::style::Style;
 use std::thread::JoinHandle;
-use syntect::easy::HighlightLines;
+use syntect::{easy::HighlightLines, parsing::SyntaxSet};
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
     oneshot::Sender,
@@ -11,6 +11,10 @@ use crate::{core::SyntaxData, ui::colors::from_syntect_color};
 /// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]
 pub enum HighlightError {
+    /// Specified start index is out of bound.
+    #[error("specified start index is out of bound")]
+    StartOutOfBound,
+
     /// YAML syntax definition not found.
     #[error("YAML syntax definition not found")]
     SyntaxNotFound,
@@ -25,23 +29,16 @@ pub enum HighlightRequest {
         lines: Vec<String>,
         response: Sender<Result<HighlightResponse, HighlightError>>,
     },
-    FromLine {
+    Partial {
         start: usize,
-        end: usize,
         lines: Vec<String>,
         response: Sender<Result<HighlightResponse, HighlightError>>,
     },
 }
 
-pub enum HighlightResponse {
-    Full {
-        lines: Vec<Vec<(Style, String)>>,
-    },
-    FromLine {
-        start: usize,
-        end: usize,
-        lines: Vec<Vec<(Style, String)>>,
-    },
+pub struct HighlightResponse {
+    pub plain: Vec<String>,
+    pub styled: Vec<Vec<(Style, String)>>,
 }
 
 pub struct BgHighlighter {
@@ -50,6 +47,8 @@ pub struct BgHighlighter {
 }
 
 impl BgHighlighter {
+    /// Creates new [`BgHighlighter`] instance.\
+    /// **Note** that it immediately starts the background thread.
     pub fn new(data: SyntaxData) -> Self {
         let (request_tx, request_rx) = mpsc::unbounded_channel::<HighlightRequest>();
         let thread = std::thread::spawn(move || highlighter_task(data, request_rx));
@@ -60,6 +59,7 @@ impl BgHighlighter {
         }
     }
 
+    /// Returns unbounded chanell sender for [`HighlightRequest`]s.
     pub fn get_sender(&self) -> UnboundedSender<HighlightRequest> {
         self.request_tx.clone()
     }
@@ -71,39 +71,55 @@ fn highlighter_task(data: SyntaxData, mut rx: UnboundedReceiver<HighlightRequest
         .find_syntax_by_extension("yaml")
         .ok_or(HighlightError::SyntaxNotFound)?;
 
-    let mut highlighter = HighlightLines::new(syntax, &data.yaml_theme);
-    let mut all_lines = Vec::new();
-
     while let Some(request) = rx.blocking_recv() {
+        let highlighter = HighlightLines::new(syntax, &data.yaml_theme);
         match request {
             HighlightRequest::Full { lines, response } => {
-                all_lines = lines;
-                highlighter = HighlightLines::new(syntax, &data.yaml_theme);
-                let styled = all_lines
-                    .iter()
-                    .map(|line| {
-                        Ok(highlighter
-                            .highlight_line(line, &data.syntax_set)?
-                            .into_iter()
-                            .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
-                            .collect::<Vec<_>>())
-                    })
-                    .collect::<Result<Vec<_>, syntect::Error>>();
+                let styled = highlight_all(highlighter, &data.syntax_set, &lines);
                 let _ = response.send(match styled {
-                    Ok(styled) => Ok(HighlightResponse::Full { lines: styled }),
+                    Ok(styled) => Ok(HighlightResponse { plain: lines, styled }),
                     Err(err) => Err(err.into()),
                 });
             },
-            HighlightRequest::FromLine {
+            HighlightRequest::Partial {
                 start,
-                end,
-                lines,
+                mut lines,
                 response,
-            } => todo!(),
+            } => {
+                if start >= lines.len() {
+                    return Err(HighlightError::StartOutOfBound);
+                }
+
+                let styled = highlight_all(highlighter, &data.syntax_set, &lines);
+                let _ = response.send(match styled {
+                    Ok(mut styled) => Ok(HighlightResponse {
+                        plain: lines.drain(start..).collect(),
+                        styled: styled.drain(start..).collect(),
+                    }),
+                    Err(err) => Err(err.into()),
+                });
+            },
         }
     }
 
     Ok(())
+}
+
+fn highlight_all(
+    mut highlighter: HighlightLines<'_>,
+    syntax_set: &SyntaxSet,
+    lines: &[String],
+) -> Result<Vec<Vec<(Style, String)>>, syntect::Error> {
+    lines
+        .iter()
+        .map(|line| {
+            Ok(highlighter
+                .highlight_line(line, syntax_set)?
+                .into_iter()
+                .map(|segment| (convert_style(segment.0), segment.1.to_owned()))
+                .collect::<Vec<_>>())
+        })
+        .collect::<Result<Vec<_>, syntect::Error>>()
 }
 
 fn convert_style(style: syntect::highlighting::Style) -> Style {

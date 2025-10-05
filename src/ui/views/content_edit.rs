@@ -27,28 +27,37 @@ impl EditContext {
     pub fn process_event<T: Content>(
         &mut self,
         event: &TuiEvent,
-        content: &T,
+        content: &mut T,
         position: PagePosition,
         area: Rect,
     ) -> ResponseEvent {
-        let line_size = content.line_size(self.cursor.y);
+        let mut line_size = content.line_size(self.cursor.y);
         let lines_no = content.len();
 
         let mut x_changed = None;
         let mut y_changed = None;
+
         match event {
-            TuiEvent::Key(key) => match key {
-                a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
-                a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
-                a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
-                a if a.code == KeyCode::End => x_changed = Some(Some(line_size.saturating_sub(1))),
+            TuiEvent::Key(key) => {
+                if let KeyCode::Char(c) = key.code {
+                    content.insert_char(self.cursor.x, self.cursor.y, c);
+                    x_changed = Some(Some(self.cursor.x.saturating_add(1)));
+                    line_size = content.line_size(self.cursor.y);
+                } else {
+                    match key {
+                        a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
+                        a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
+                        a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
+                        a if a.code == KeyCode::End => x_changed = Some(Some(line_size.saturating_sub(1))),
 
-                a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
-                a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
-                a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
-                a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
+                        a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
+                        a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
+                        a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+                        a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
 
-                _ => return ResponseEvent::NotHandled,
+                        _ => return ResponseEvent::NotHandled,
+                    }
+                }
             },
             TuiEvent::Mouse(mouse) => match mouse {
                 a if a.kind == MouseEventKind::LeftClick => {

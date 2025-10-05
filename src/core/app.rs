@@ -128,7 +128,7 @@ impl App {
         self.process_commands_results();
         self.process_connection_events();
         self.views_manager.update_lists();
-        if self.views_manager.process_events() == ResponseEvent::ExitApplication {
+        if self.views_manager.process_ticks() == ResponseEvent::ExitApplication {
             return Ok(ExecutionFlow::Stop);
         }
 
