@@ -434,10 +434,8 @@ impl<T: Content> ContentViewer<T> {
             );
         }
 
-        if let Some(edit) = &self.edit
-            && let Some(content) = &self.content
-        {
-            frame.render_widget(ContentEditWidget::new(content, edit, &self.page_start), area);
+        if let Some(edit) = &self.edit {
+            frame.render_widget(ContentEditWidget::new(edit, &self.page_start), area);
         }
     }
 

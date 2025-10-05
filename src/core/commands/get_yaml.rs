@@ -141,7 +141,10 @@ async fn style_resource(
     }
 
     let yaml = utils::serialize_resource(&mut resource)?;
-    let plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    let mut plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    if yaml.ends_with('\n') {
+        plain.pop();
+    }
 
     let (tx, rx) = tokio::sync::oneshot::channel();
     highlighter.send(HighlightRequest::Full {

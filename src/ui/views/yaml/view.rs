@@ -1,20 +1,12 @@
-use ratatui::{Frame, layout::Rect, style::Style};
-use std::{collections::HashSet, rc::Rc};
-use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
+use ratatui::{Frame, layout::Rect};
+use std::rc::Rc;
 
 use crate::{
-    core::{
-        HighlightError, HighlightRequest, HighlightResponse, SharedAppData, SharedAppDataExt, SharedBgWorker,
-        commands::CommandResult,
-    },
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        views::{
-            View,
-            content::{Content, ContentViewer, StyledLine},
-            content_search::{MatchPosition, PagePosition},
-        },
+        views::{View, content::ContentViewer, yaml::YamlContent},
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
 };
@@ -153,14 +145,7 @@ impl View for YamlView {
             let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
             let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
             self.yaml.set_content(
-                YamlContent {
-                    styled: result.styled,
-                    plain: result.yaml,
-                    lowercase,
-                    highlighter: self.worker.borrow().get_higlighter(),
-                    modified: HashSet::new(),
-                    requested: None,
-                },
+                YamlContent::new(result.styled, result.yaml, lowercase, self.worker.borrow().get_higlighter()),
                 max_width,
             );
         }
@@ -252,190 +237,5 @@ impl View for YamlView {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
-    }
-}
-
-/// Number of lines before and after the modified section to include in the re-highlighting process.
-const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
-
-/// Styled YAML content.
-struct YamlContent {
-    pub styled: Vec<StyledLine>,
-    pub plain: Vec<String>,
-    pub lowercase: Vec<String>,
-    highlighter: UnboundedSender<HighlightRequest>,
-    modified: HashSet<usize>,
-    requested: Option<RequestedHighlight>,
-}
-
-impl Content for YamlContent {
-    fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
-        if start >= self.styled.len() {
-            &[]
-        } else if start + count >= self.styled.len() {
-            &self.styled[start..]
-        } else {
-            &self.styled[start..start + count]
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.styled.len()
-    }
-
-    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
-        let pattern = pattern.to_ascii_lowercase();
-        let mut matches = Vec::new();
-        for (y, line) in self.lowercase.iter().enumerate() {
-            for (x, _) in line.match_indices(&pattern) {
-                matches.push(MatchPosition::new(x, y, pattern.len()));
-            }
-        }
-
-        matches
-    }
-
-    fn line_size(&self, line_no: usize) -> usize {
-        self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
-    }
-
-    fn is_editable(&self) -> bool {
-        true
-    }
-
-    fn insert_char(&mut self, x: usize, y: usize, character: char) {
-        if let Some((x, y)) = get_byte_position(&self.plain, x, y) {
-            self.plain[y].insert(x, character);
-            styled_insert(&mut self.styled[y], x, character);
-            self.modified.insert(y);
-        } else if y < self.plain.len() {
-            self.plain[y].push(character);
-            styled_push(&mut self.styled[y], character);
-            self.modified.insert(y);
-        }
-    }
-
-    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
-        if let Some((x, y)) = get_byte_position(&self.plain, x, y) {
-            if is_backspace && x == 0 && y > 0 {
-                styled_append(&mut self.styled[y - 1], &self.plain[y]);
-                self.styled.remove(y);
-
-                let new_x = self.plain[y - 1].len();
-                let text = self.plain.remove(y);
-                self.plain[y - 1].push_str(&text);
-
-                self.modified.insert(y - 1);
-                self.modified.insert(y);
-                return Some((new_x, y - 1));
-            }
-
-            let x = if is_backspace { x.saturating_sub(1) } else { x };
-
-            self.plain[y].remove(x);
-
-            styled_remove(&mut self.styled[y], x);
-            self.modified.insert(y);
-
-            Some((x, y))
-        } else {
-            None
-        }
-    }
-
-    fn process_tick(&mut self) -> ResponseEvent {
-        if let Some(requested) = &mut self.requested
-            && let Ok(response) = requested.response.try_recv()
-        {
-            if self.modified.is_empty()
-                && let Ok(response) = response
-            {
-                self.styled.splice(requested.start..=requested.end, response.styled);
-            }
-
-            self.requested = None;
-        }
-
-        if self.requested.is_none() && !self.modified.is_empty() {
-            let first = self.modified.iter().min().copied().unwrap_or_default();
-            let last = self.modified.iter().max().copied().unwrap_or_default();
-            let start = first.saturating_sub(HIGHLIGHT_CONTEXT_LINES_NO);
-            let end = last
-                .saturating_add(HIGHLIGHT_CONTEXT_LINES_NO)
-                .min(self.plain.len().saturating_sub(1));
-
-            let (tx, rx) = tokio::sync::oneshot::channel();
-
-            let _ = self.highlighter.send(HighlightRequest::Partial {
-                start: first.saturating_sub(start),
-                lines: self.plain[start..=end].to_vec(),
-                response: tx,
-            });
-
-            self.modified.clear();
-            self.requested = Some(RequestedHighlight {
-                start: first,
-                end,
-                response: rx,
-            });
-        }
-
-        ResponseEvent::Handled
-    }
-}
-
-struct RequestedHighlight {
-    pub start: usize,
-    pub end: usize,
-    pub response: Receiver<Result<HighlightResponse, HighlightError>>,
-}
-
-fn styled_insert(line: &mut StyledLine, x: usize, c: char) {
-    let mut current = 0;
-    for part in line {
-        if current + part.1.len() >= x {
-            part.1.insert(x - current, c);
-            return;
-        }
-
-        current += part.1.len();
-    }
-}
-
-fn styled_append(line: &mut StyledLine, text: &str) {
-    if let Some(part) = line.last_mut() {
-        part.1.push_str(text);
-    } else {
-        line.push((Style::default(), text.to_owned()));
-    }
-}
-
-fn styled_push(line: &mut StyledLine, c: char) {
-    if let Some(part) = line.last_mut() {
-        part.1.push(c);
-    } else {
-        line.push((Style::default(), c.to_string()));
-    }
-}
-
-fn styled_remove(line: &mut StyledLine, x: usize) {
-    let mut current = 0;
-    for part in line {
-        if current + part.1.len() > x {
-            part.1.remove(x - current);
-            return;
-        }
-
-        current += part.1.len();
-    }
-}
-
-fn get_byte_position(text: &[String], x: usize, y: usize) -> Option<(usize, usize)> {
-    if y < text.len()
-        && let Some((i, _)) = text[y].char_indices().nth(x)
-    {
-        Some((i, y))
-    } else {
-        None
     }
 }

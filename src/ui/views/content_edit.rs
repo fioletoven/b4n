@@ -58,7 +58,12 @@ impl EditContext {
                         line_size = content.line_size(y);
                     }
                 },
-                KeyCode::Enter => {},
+                KeyCode::Enter => {
+                    content.insert_char(self.cursor.x, self.cursor.y, '\n');
+                    x_changed = Some(Some(0));
+                    y_changed = Some(self.cursor.y.saturating_add(1));
+                    line_size = content.line_size(self.cursor.y.saturating_add(1));
+                },
                 _ => match key {
                     a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
                     a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
@@ -118,23 +123,20 @@ impl EditContext {
     }
 }
 
-pub struct ContentEditWidget<'a, T: Content> {
-    pub content: &'a T,
+/// Widget that draws cursor on the content.
+pub struct ContentEditWidget<'a> {
     pub context: &'a EditContext,
     pub page_start: &'a PagePosition,
 }
 
-impl<'a, T: Content> ContentEditWidget<'a, T> {
-    pub fn new(content: &'a T, context: &'a EditContext, page_start: &'a PagePosition) -> Self {
-        Self {
-            content,
-            context,
-            page_start,
-        }
+impl<'a> ContentEditWidget<'a> {
+    /// Creates new [`ContentEditWidget`] instance.
+    pub fn new(context: &'a EditContext, page_start: &'a PagePosition) -> Self {
+        Self { context, page_start }
     }
 }
 
-impl<'a, T: Content> Widget for ContentEditWidget<'a, T> {
+impl<'a> Widget for ContentEditWidget<'a> {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
