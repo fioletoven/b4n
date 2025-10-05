@@ -147,11 +147,11 @@ impl Content for YamlContent {
     }
 
     fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
-        if let Some(r) = get_byte_position(&self.plain, x, y) {
-            if is_backspace && r.x.index == 0 && y > 0 {
-                return Some(self.join_lines(y - 1, y));
-            }
+        if is_backspace && x == 0 && y > 0 && y < self.plain.len() {
+            return Some(self.join_lines(y - 1, y));
+        }
 
+        if let Some(r) = get_byte_position(&self.plain, x, y) {
             let x = if is_backspace { r.x_prev } else { r.x };
 
             self.plain[y].remove(x.index);
