@@ -43,7 +43,7 @@ pub struct HighlightResponse {
 
 pub struct BgHighlighter {
     thread: Option<JoinHandle<Result<(), HighlightError>>>,
-    request_tx: UnboundedSender<HighlightRequest>,
+    request_tx: Option<UnboundedSender<HighlightRequest>>,
 }
 
 impl BgHighlighter {
@@ -55,13 +55,24 @@ impl BgHighlighter {
 
         Self {
             thread: Some(thread),
-            request_tx,
+            request_tx: Some(request_tx),
         }
     }
 
-    /// Returns unbounded chanell sender for [`HighlightRequest`]s.
-    pub fn get_sender(&self) -> UnboundedSender<HighlightRequest> {
+    /// Returns unbounded channel sender for [`HighlightRequest`]s.
+    pub fn get_sender(&self) -> Option<UnboundedSender<HighlightRequest>> {
         self.request_tx.clone()
+    }
+
+    /// Returns `true` if [`BgHighlighter`] is running.
+    pub fn is_running(&self) -> bool {
+        self.thread.as_ref().map(|t| !t.is_finished()).unwrap_or_default()
+    }
+}
+
+impl Drop for BgHighlighter {
+    fn drop(&mut self) {
+        let _ = self.request_tx.take();
     }
 }
 

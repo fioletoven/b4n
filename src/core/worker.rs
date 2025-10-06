@@ -340,9 +340,10 @@ impl BgWorker {
 
     /// Sends [`GetResourceYamlCommand`] to the background executor.
     pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &Kind, decode: bool) -> Option<String> {
-        if let Some(client) = &self.client {
+        if let Some(client) = &self.client
+            && let Some(sender) = self.highlighter.get_sender()
+        {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
-            let sender = self.highlighter.get_sender();
             let command = if decode {
                 GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             } else {
@@ -355,7 +356,7 @@ impl BgWorker {
     }
 
     /// Returns unbounded chanell sender for [`HighlightRequest`]s.
-    pub fn get_higlighter(&self) -> UnboundedSender<HighlightRequest> {
+    pub fn get_higlighter(&self) -> Option<UnboundedSender<HighlightRequest>> {
         self.highlighter.get_sender()
     }
 

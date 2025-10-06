@@ -137,7 +137,9 @@ impl View for YamlView {
     }
 
     fn process_command_result(&mut self, result: CommandResult) {
-        if let CommandResult::ResourceYaml(Ok(result)) = result {
+        if let CommandResult::ResourceYaml(Ok(result)) = result
+            && let Some(highlighter) = self.worker.borrow().get_higlighter()
+        {
             let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
@@ -145,7 +147,7 @@ impl View for YamlView {
             let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
             let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
             self.yaml.set_content(
-                YamlContent::new(result.styled, result.yaml, lowercase, self.worker.borrow().get_higlighter()),
+                YamlContent::new(result.styled, result.yaml, lowercase, highlighter),
                 max_width,
             );
         }
