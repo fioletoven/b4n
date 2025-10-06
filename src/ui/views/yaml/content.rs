@@ -69,10 +69,11 @@ impl YamlContent {
     }
 
     fn join_lines(&mut self, first: usize, second: usize) -> (usize, usize) {
+        let new_x = self.plain[first].chars().count();
+
         styled_append(&mut self.styled[first], &self.plain[second]);
         self.styled.remove(second);
 
-        let new_x = self.plain[first].chars().count();
         let text = self.plain.remove(second);
         self.plain[first].push_str(&text);
 
@@ -150,7 +151,7 @@ impl Content for YamlContent {
     }
 
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
-        if let Some(r) = get_byte_position(&self.plain, x, y) {
+        if let Some(r) = get_char_position(&self.plain, x, y) {
             if character == '\n' {
                 if r.x.index == 0 {
                     self.add_empty_line(y);
@@ -184,7 +185,7 @@ impl Content for YamlContent {
             }
         }
 
-        if let Some(r) = get_byte_position(&self.plain, x, y) {
+        if let Some(r) = get_char_position(&self.plain, x, y) {
             let x = if is_backspace { r.x_prev } else { r.x };
 
             self.plain[y].remove(x.index);
@@ -195,7 +196,7 @@ impl Content for YamlContent {
             Some((x.char, y))
         } else if y < self.plain.len() {
             let x = if is_backspace { x.saturating_sub(1) } else { x };
-            if let Some(r) = get_byte_position(&self.plain, x, y) {
+            if let Some(r) = get_char_position(&self.plain, x, y) {
                 self.plain[y].remove(r.x.index);
                 self.lowercase[y].remove(r.x.index);
                 styled_remove(&mut self.styled[y], r.x.index);
@@ -260,11 +261,12 @@ struct RequestedHighlight {
     pub response: Receiver<Result<HighlightResponse, HighlightError>>,
 }
 
-fn styled_insert(line: &mut StyledLine, x: usize, c: char) {
+/// Inserts a character into this `StyledLine` at byte position `idx`.
+fn styled_insert(line: &mut StyledLine, idx: usize, ch: char) {
     let mut current = 0;
     for part in line {
-        if current + part.1.len() >= x {
-            part.1.insert(x - current, c);
+        if current + part.1.len() >= idx {
+            part.1.insert(idx - current, ch);
             return;
         }
 
@@ -272,27 +274,30 @@ fn styled_insert(line: &mut StyledLine, x: usize, c: char) {
     }
 }
 
-fn styled_append(line: &mut StyledLine, text: &str) {
+/// Appends a given string slice to the end of this `StyledLine`.
+fn styled_append(line: &mut StyledLine, string: &str) {
     if let Some(part) = line.last_mut() {
-        part.1.push_str(text);
+        part.1.push_str(string);
     } else {
-        line.push((Style::default(), text.to_owned()));
+        line.push((Style::default(), string.to_owned()));
     }
 }
 
-fn styled_push(line: &mut StyledLine, c: char) {
+/// Appends a character to the back of a `StyledLine`.
+fn styled_push(line: &mut StyledLine, ch: char) {
     if let Some(part) = line.last_mut() {
-        part.1.push(c);
+        part.1.push(ch);
     } else {
-        line.push((Style::default(), c.to_string()));
+        line.push((Style::default(), ch.to_string()));
     }
 }
 
-fn styled_remove(line: &mut StyledLine, x: usize) {
+/// Removes a [`char`] from this `StyledLine` at byte position `idx`.
+fn styled_remove(line: &mut StyledLine, idx: usize) {
     let mut current = 0;
     for part in line {
-        if current + part.1.len() > x {
-            part.1.remove(x - current);
+        if current + part.1.len() > idx {
+            part.1.remove(idx - current);
             return;
         }
 
@@ -300,16 +305,16 @@ fn styled_remove(line: &mut StyledLine, x: usize) {
     }
 }
 
-/// Splits [`StyledLine`] at `index` and returns second part.
-fn styled_split(line: &StyledLine, index: usize) -> StyledLine {
+/// Splits [`StyledLine`] at byte position `idx` and returns the second part.
+fn styled_split(line: &StyledLine, idx: usize) -> StyledLine {
     let mut result = Vec::new();
     let mut current = 0;
     let mut is_found = false;
     for part in line {
         if is_found {
             result.push((part.0, part.1.clone()));
-        } else if current + part.1.len() > index {
-            result.push((part.0, part.1[index - current..].to_string()));
+        } else if current + part.1.len() > idx {
+            result.push((part.0, part.1[idx - current..].to_string()));
             is_found = true;
         }
 
@@ -319,23 +324,20 @@ fn styled_split(line: &StyledLine, index: usize) -> StyledLine {
     result
 }
 
+/// Shortens this `StyledLine` to the specified length.
 fn styled_truncate(line: &mut StyledLine, new_len: usize) {
     let mut current = 0;
-    let mut new_end = None;
     for (i, part) in line.iter_mut().enumerate() {
         if current + part.1.len() > new_len {
             part.1.truncate(new_len - current);
-            new_end = Some(i + 1);
+            if i + 1 < line.len() {
+                line.truncate(i + 1);
+            }
+
             break;
         }
 
         current += part.1.len();
-    }
-
-    if let Some(new_end) = new_end
-        && new_end < line.len()
-    {
-        line.truncate(new_end);
     }
 }
 
@@ -349,32 +351,28 @@ struct CharPosition {
 struct PositionSet {
     pub x_prev: CharPosition,
     pub x: CharPosition,
-    pub x_next: Option<CharPosition>,
 }
 
-fn get_byte_position(text: &[String], x: usize, y: usize) -> Option<PositionSet> {
-    if y < text.len() {
-        let mut result = PositionSet::default();
+fn get_char_position(lines: &[String], idx: usize, line_no: usize) -> Option<PositionSet> {
+    let line = lines.get(line_no)?;
+    let mut result_set = PositionSet::default();
 
-        let mut found = false;
-        for (i, (j, _)) in text[y].char_indices().enumerate() {
-            if x > 0 && i == x - 1 {
-                result.x_prev = CharPosition { char: i, index: j };
-            }
-
-            if i == x {
-                result.x = CharPosition { char: i, index: j };
-                found = true;
-            }
-
-            if i == x + 1 {
-                result.x_next = Some(CharPosition { char: i, index: j });
-                break;
-            }
+    for (char_idx, (byte_idx, _)) in line.char_indices().enumerate() {
+        if char_idx + 1 == idx {
+            result_set.x_prev = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
         }
 
-        if found { Some(result) } else { None }
-    } else {
-        None
+        if char_idx == idx {
+            result_set.x = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
+            return Some(result_set);
+        }
     }
+
+    None
 }
