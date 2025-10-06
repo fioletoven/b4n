@@ -62,8 +62,8 @@ impl ContentHeader {
     /// Sets header coordinates.
     pub fn set_coordinates(&mut self, x: usize, y: usize) {
         self.show_coordinates = true;
-        self.position_x = x;
-        self.position_y = y;
+        self.position_x = x + 1;
+        self.position_y = y + 1;
     }
 
     /// Draws [`ContentHeader`] on the provided frame area.

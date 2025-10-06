@@ -36,6 +36,9 @@ pub trait Content {
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;
 
+    /// Returns characters count for the longest line in the content.
+    fn max_size(&self) -> usize;
+
     /// Returns characters count of the line under `line_no` index.
     fn line_size(&self, line_no: usize) -> usize;
 
@@ -75,7 +78,6 @@ pub struct ContentViewer<T: Content> {
     edit: Option<EditContext>,
     search: SearchData,
     search_color: Color,
-    max_width: usize,
 
     page_start: PagePosition,
     page_area: Rect,
@@ -95,7 +97,6 @@ impl<T: Content> ContentViewer<T> {
             edit: None,
             search: SearchData::default(),
             search_color,
-            max_width: 0,
             page_start: PagePosition::default(),
             page_area: Rect::default(),
             creation_time: Instant::now(),
@@ -124,9 +125,8 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Sets content for the viewer.
-    pub fn set_content(&mut self, content: T, max_width: usize) {
+    pub fn set_content(&mut self, content: T) {
         self.content = Some(content);
-        self.max_width = max_width;
         self.search = SearchData::default();
     }
 
@@ -138,24 +138,6 @@ impl<T: Content> ContentViewer<T> {
     /// Returns content as mutable reference.
     pub fn content_mut(&mut self) -> Option<&mut T> {
         self.content.as_mut()
-    }
-
-    /// Adds value to the maximum width of content lines.
-    pub fn max_width_add(&mut self, rhs: usize) {
-        self.max_width = self.max_width.saturating_add(rhs);
-    }
-
-    /// Subtracts value from the maximum width of content lines.
-    pub fn max_width_sub(&mut self, rhs: usize) {
-        self.max_width = self.max_width.saturating_sub(rhs);
-    }
-
-    /// Updates max width for content lines.\
-    /// **Note** that it will not update the width if new one is smaller.
-    pub fn update_max_width(&mut self, new_max_width: usize) {
-        if self.max_width < new_max_width {
-            self.max_width = new_max_width;
-        }
     }
 
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
@@ -456,7 +438,10 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns max horizontal start of the page.
     fn max_hstart(&self) -> usize {
-        self.max_width.saturating_sub(self.page_area.width.into())
+        self.content
+            .as_ref()
+            .map(|c| c.max_size().saturating_sub(self.page_area.width.into()))
+            .unwrap_or_default()
     }
 
     fn enable_edit_mode(&mut self) -> ResponseEvent {

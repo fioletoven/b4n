@@ -21,6 +21,7 @@ pub struct YamlContent {
     pub styled: Vec<StyledLine>,
     pub plain: Vec<String>,
     pub lowercase: Vec<String>,
+    max_size: usize,
     highlighter: UnboundedSender<HighlightRequest>,
     modified: HashSet<usize>,
     requested: Option<RequestedHighlight>,
@@ -33,15 +34,38 @@ impl YamlContent {
         plain: Vec<String>,
         lowercase: Vec<String>,
         highlighter: UnboundedSender<HighlightRequest>,
+        max_size: usize,
     ) -> Self {
         Self {
             styled,
             plain,
             lowercase,
+            max_size,
             highlighter,
             modified: HashSet::new(),
             requested: None,
         }
+    }
+
+    fn mark_line_as_modified(&mut self, line_no: usize) {
+        if let Some(line) = self.plain.get(line_no) {
+            self.modified.insert(line_no);
+            self.max_size = self.max_size.max(line.len());
+        }
+    }
+
+    fn add_empty_line(&mut self, line_no: usize) {
+        if line_no < self.plain.len() {
+            self.plain.insert(line_no, String::new());
+            self.lowercase.insert(line_no, String::new());
+            self.styled.insert(line_no, Vec::new());
+        } else {
+            self.plain.push(String::new());
+            self.lowercase.push(String::new());
+            self.styled.push(Vec::new());
+        }
+
+        self.mark_line_as_modified(line_no);
     }
 
     fn join_lines(&mut self, first: usize, second: usize) -> (usize, usize) {
@@ -52,27 +76,37 @@ impl YamlContent {
         let text = self.plain.remove(second);
         self.plain[first].push_str(&text);
 
-        self.modified.insert(first);
-        self.modified.insert(second);
+        let text = self.lowercase.remove(second);
+        self.lowercase[first].push_str(&text);
+
+        self.mark_line_as_modified(first);
+        self.mark_line_as_modified(second);
 
         (new_x, first)
     }
 
     fn split_lines(&mut self, x: usize, y: usize) {
-        let i = y.saturating_add(1);
-        if i < self.plain.len() {
-            self.plain.insert(i, self.plain[y][x..].to_string());
-            self.styled.insert(i, styled_split(&self.styled[y], x));
+        let split_plain = self.plain[y][x..].to_string();
+        let split_lowercase = self.lowercase[y][x..].to_string();
+        let split_styled = styled_split(&self.styled[y], x);
+
+        let insert_at = y + 1;
+        if insert_at < self.plain.len() {
+            self.plain.insert(insert_at, split_plain);
+            self.lowercase.insert(insert_at, split_lowercase);
+            self.styled.insert(insert_at, split_styled);
         } else {
-            self.plain.push(self.plain[y][x..].to_string());
-            self.styled.push(styled_split(&self.styled[y], x));
+            self.plain.push(split_plain);
+            self.lowercase.push(split_lowercase);
+            self.styled.push(split_styled);
         }
 
         self.plain[y].truncate(x);
+        self.lowercase[y].truncate(x);
         styled_truncate(&mut self.styled[y], x);
 
-        self.modified.insert(y);
-        self.modified.insert(i);
+        self.mark_line_as_modified(y);
+        self.mark_line_as_modified(insert_at);
     }
 }
 
@@ -103,6 +137,10 @@ impl Content for YamlContent {
         matches
     }
 
+    fn max_size(&self) -> usize {
+        self.max_size + 1
+    }
+
     fn line_size(&self, line_no: usize) -> usize {
         self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
     }
@@ -115,33 +153,24 @@ impl Content for YamlContent {
         if let Some(r) = get_byte_position(&self.plain, x, y) {
             if character == '\n' {
                 if r.x.index == 0 {
-                    self.plain.insert(y, String::new());
-                    self.styled.insert(y, Vec::new());
-                    self.modified.insert(y);
+                    self.add_empty_line(y);
                 } else {
                     self.split_lines(r.x.index, y);
                 }
             } else {
                 self.plain[y].insert(r.x.index, character);
+                self.lowercase[y].insert(r.x.index, character.to_ascii_lowercase());
                 styled_insert(&mut self.styled[y], r.x.index, character);
-                self.modified.insert(y);
+                self.mark_line_as_modified(y);
             }
         } else if y < self.plain.len() {
             if character == '\n' {
-                let i = y.saturating_add(1);
-                if i < self.plain.len() {
-                    self.plain.insert(i, String::new());
-                    self.styled.insert(i, Vec::new());
-                } else {
-                    self.plain.push(String::new());
-                    self.styled.push(Vec::new());
-                }
-
-                self.modified.insert(i);
+                self.add_empty_line(y + 1);
             } else {
                 self.plain[y].push(character);
+                self.lowercase[y].push(character.to_ascii_lowercase());
                 styled_push(&mut self.styled[y], character);
-                self.modified.insert(y);
+                self.mark_line_as_modified(y);
             }
         }
     }
@@ -159,17 +188,19 @@ impl Content for YamlContent {
             let x = if is_backspace { r.x_prev } else { r.x };
 
             self.plain[y].remove(x.index);
+            self.lowercase[y].remove(x.index);
             styled_remove(&mut self.styled[y], x.index);
-            self.modified.insert(y);
+            self.mark_line_as_modified(y);
 
             Some((x.char, y))
         } else if y < self.plain.len() {
             let x = if is_backspace { x.saturating_sub(1) } else { x };
             if let Some(r) = get_byte_position(&self.plain, x, y) {
                 self.plain[y].remove(r.x.index);
-
+                self.lowercase[y].remove(r.x.index);
                 styled_remove(&mut self.styled[y], r.x.index);
-                self.modified.insert(y);
+
+                self.mark_line_as_modified(y);
 
                 Some((r.x.char, y))
             } else if y + 1 < self.plain.len() {

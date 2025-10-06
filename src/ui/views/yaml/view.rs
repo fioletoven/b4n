@@ -146,10 +146,13 @@ impl View for YamlView {
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
             let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
             let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
-            self.yaml.set_content(
-                YamlContent::new(result.styled, result.yaml, lowercase, highlighter),
+            self.yaml.set_content(YamlContent::new(
+                result.styled,
+                result.yaml,
+                lowercase,
+                highlighter,
                 max_width,
-            );
+            ));
         }
     }
 

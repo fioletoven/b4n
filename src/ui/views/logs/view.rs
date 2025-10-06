@@ -105,9 +105,9 @@ impl LogsView {
         if let Some(content) = self.logs.content_mut() {
             content.toggle_timestamps();
             if content.show_timestamps {
-                self.logs.max_width_add(TIMESTAMP_TEXT_LENGTH);
+                content.max_size = content.max_size.saturating_add(TIMESTAMP_TEXT_LENGTH);
             } else {
-                self.logs.max_width_sub(TIMESTAMP_TEXT_LENGTH);
+                content.max_size = content.max_size.saturating_sub(TIMESTAMP_TEXT_LENGTH);
             }
 
             self.logs.reset_horizontal_scroll();
@@ -186,7 +186,7 @@ impl View for LogsView {
         if !self.observer.is_empty() {
             if !self.logs.has_content() {
                 self.logs
-                    .set_content(LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone()), 0);
+                    .set_content(LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone()));
             }
 
             let content = self.logs.content_mut().unwrap();
@@ -209,7 +209,12 @@ impl View for LogsView {
                 }
             }
 
-            self.logs.update_max_width(max_width);
+            if let Some(content) = self.logs.content_mut()
+                && content.max_size < max_width
+            {
+                content.max_size = max_width;
+            }
+
             if self.bound_to_bottom {
                 self.logs.scroll_to_end();
             }
@@ -326,6 +331,7 @@ struct LogsContent {
     lines: Vec<LogLine>,
     lowercase: Vec<String>,
     page: Vec<StyledLine>,
+    max_size: usize,
     start: usize,
     count: usize,
 }
@@ -339,6 +345,7 @@ impl LogsContent {
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             lowercase: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
+            max_size: 0,
             start: 0,
             count: 0,
         }
@@ -405,6 +412,10 @@ impl Content for LogsContent {
         }
 
         matches
+    }
+
+    fn max_size(&self) -> usize {
+        self.max_size
     }
 
     fn line_size(&self, _line_no: usize) -> usize {
