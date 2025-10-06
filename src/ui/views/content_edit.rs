@@ -32,7 +32,6 @@ impl EditContext {
         area: Rect,
     ) -> ResponseEvent {
         let mut line_size = content.line_size(self.cursor.y);
-        let lines_no = content.len();
 
         let mut x_changed = None;
         let mut y_changed = None;
@@ -88,6 +87,7 @@ impl EditContext {
             },
         }
 
+        let lines_no = content.len();
         if let Some(new_x) = x_changed {
             if let Some(x) = new_x {
                 if x > line_size && self.cursor.y.saturating_add(1) < lines_no {
