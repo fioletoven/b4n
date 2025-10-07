@@ -9,6 +9,7 @@ pub mod colors;
 pub mod lists;
 pub mod theme;
 pub mod utils;
+pub mod viewers;
 pub mod views;
 pub mod widgets;
 

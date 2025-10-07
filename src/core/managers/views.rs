@@ -216,8 +216,8 @@ impl ViewsManager {
         self.resources.process_event(event)
     }
 
-    /// Process all waiting events.
-    pub fn process_events(&mut self) -> ResponseEvent {
+    /// Allows all views to do some computations on every app tick.
+    pub fn process_ticks(&mut self) -> ResponseEvent {
         if let Some(view_result) = self.view.as_mut().map(|view| view.process_tick()) {
             if view_result == ResponseEvent::Cancelled {
                 self.view = None;

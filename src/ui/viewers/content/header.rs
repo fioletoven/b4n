@@ -8,6 +8,7 @@ use ratatui::{
 use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
+    ui::viewers::utils::get_right_breadcrumbs,
 };
 
 /// Header pane that shows resource namespace, kind and name.
@@ -62,8 +63,8 @@ impl ContentHeader {
     /// Sets header coordinates.
     pub fn set_coordinates(&mut self, x: usize, y: usize) {
         self.show_coordinates = true;
-        self.position_x = x;
-        self.position_y = y;
+        self.position_x = x + 1;
+        self.position_y = y + 1;
     }
 
     /// Draws [`ContentHeader`] on the provided frame area.
@@ -133,6 +134,6 @@ impl ContentHeader {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        crate::ui::views::get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
+        get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
     }
 }

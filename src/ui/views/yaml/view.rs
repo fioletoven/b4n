@@ -6,11 +6,8 @@ use crate::{
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        views::{
-            View,
-            content::{Content, ContentViewer, StyledLine},
-            content_search::MatchPosition,
-        },
+        viewers::ContentViewer,
+        views::{View, yaml::YamlContent},
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
 };
@@ -105,7 +102,6 @@ impl YamlView {
             self.yaml.header.name.clone(),
             self.yaml.header.namespace.clone(),
             &self.yaml.header.kind,
-            self.app_data.borrow().get_syntax_data(),
             !self.is_decoded,
         );
     }
@@ -137,22 +133,27 @@ impl View for YamlView {
         self.command_id.as_deref()
     }
 
+    fn process_tick(&mut self) -> ResponseEvent {
+        self.yaml.process_tick()
+    }
+
     fn process_command_result(&mut self, result: CommandResult) {
-        if let CommandResult::ResourceYaml(Ok(result)) = result {
+        if let CommandResult::ResourceYaml(Ok(result)) = result
+            && let Some(highlighter) = self.worker.borrow().get_higlighter()
+        {
             let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
             let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
             let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
-            self.yaml.set_content(
-                YamlContent {
-                    styled: result.styled,
-                    plain: result.yaml,
-                    lowercase,
-                },
+            self.yaml.set_content(YamlContent::new(
+                result.styled,
+                result.yaml,
+                lowercase,
+                highlighter,
                 max_width,
-            );
+            ));
         }
     }
 
@@ -187,6 +188,11 @@ impl View for YamlView {
             }
 
             return result;
+        }
+
+        let response = self.yaml.process_event(event);
+        if response != ResponseEvent::NotHandled {
+            return response;
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
@@ -230,47 +236,12 @@ impl View for YamlView {
             self.navigate_match(false);
         }
 
-        self.yaml.process_event(event)
+        ResponseEvent::NotHandled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
-    }
-}
-
-/// Styled YAML content.
-struct YamlContent {
-    pub styled: Vec<StyledLine>,
-    pub plain: Vec<String>,
-    pub lowercase: Vec<String>,
-}
-
-impl Content for YamlContent {
-    fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
-        if start >= self.styled.len() {
-            &[]
-        } else if start + count >= self.styled.len() {
-            &self.styled[start..]
-        } else {
-            &self.styled[start..start + count]
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.styled.len()
-    }
-
-    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
-        let pattern = pattern.to_ascii_lowercase();
-        let mut matches = Vec::new();
-        for (y, line) in self.lowercase.iter().enumerate() {
-            for (x, _) in line.match_indices(&pattern) {
-                matches.push(MatchPosition::new(x, y, pattern.len()));
-            }
-        }
-
-        matches
     }
 }

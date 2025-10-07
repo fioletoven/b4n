@@ -4,10 +4,10 @@ use kube::{
     discovery::{ApiCapabilities, Scope, verbs},
 };
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
-use tokio::runtime::Handle;
+use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
 use crate::{
-    core::{Config, PortForwarder, commands::ListResourcePortsCommand},
+    core::{Config, HighlightRequest, PortForwarder, commands::ListResourcePortsCommand, highlighter::BgHighlighter},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         client::KubernetesClient,
@@ -50,6 +50,7 @@ pub struct BgWorker {
     crds_list: SharedCrdsList,
     forwarder: PortForwarder,
     executor: BgExecutor,
+    highlighter: BgHighlighter,
     discovery: BgDiscovery,
     discovery_list: Option<DiscoveryList>,
     client: Option<KubernetesClient>,
@@ -57,7 +58,7 @@ pub struct BgWorker {
 
 impl BgWorker {
     /// Creates new [`BgWorker`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: FooterTx, syntax_data: SyntaxData) -> Self {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
         let statistics = BgStatistics::new(runtime.clone(), footer_tx.clone());
         Self {
@@ -69,6 +70,7 @@ impl BgWorker {
             crds_list,
             forwarder: PortForwarder::new(runtime.clone(), footer_tx.clone()),
             executor: BgExecutor::new(runtime.clone()),
+            highlighter: BgHighlighter::new(syntax_data),
             discovery: BgDiscovery::new(runtime, footer_tx),
             discovery_list: None,
             client: None,
@@ -337,25 +339,25 @@ impl BgWorker {
     }
 
     /// Sends [`GetResourceYamlCommand`] to the background executor.
-    pub fn get_yaml(
-        &mut self,
-        name: String,
-        namespace: Namespace,
-        kind: &Kind,
-        syntax: SyntaxData,
-        decode: bool,
-    ) -> Option<String> {
-        if let Some(client) = &self.client {
+    pub fn get_yaml(&mut self, name: String, namespace: Namespace, kind: &Kind, decode: bool) -> Option<String> {
+        if let Some(client) = &self.client
+            && let Some(sender) = self.highlighter.get_sender()
+        {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = if decode {
-                GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), syntax)
+                GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             } else {
-                GetResourceYamlCommand::new(name, namespace, kind.clone(), discovery, client.get_client(), syntax)
+                GetResourceYamlCommand::new(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             };
             Some(self.executor.run_task(Command::GetYaml(Box::new(command))))
         } else {
             None
         }
+    }
+
+    /// Returns unbounded chanell sender for [`HighlightRequest`]s.
+    pub fn get_higlighter(&self) -> Option<UnboundedSender<HighlightRequest>> {
+        self.highlighter.get_sender()
     }
 
     /// Starts port forwarding for the specified resource, port and address.

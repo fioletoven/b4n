@@ -18,7 +18,7 @@ use crate::{
         KeyCommand, MouseEventKind, Responsive, Table, TuiEvent, ViewType,
         lists::Row,
         tui::ResponseEvent,
-        views::{ListHeader, ListViewer},
+        viewers::{ListHeader, ListViewer},
     },
 };
 

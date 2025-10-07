@@ -17,7 +17,8 @@ use crate::{
     kubernetes::{Namespace, PodRef, client::KubernetesClient, resources::PODS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        views::{View, content_header::ContentHeader},
+        viewers::ContentHeader,
+        views::View,
         widgets::{Button, Dialog, FooterTx},
     },
 };
