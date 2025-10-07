@@ -11,17 +11,14 @@ use std::{rc::Rc, time::Instant};
 use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
-    ui::{
-        MouseEventKind, ResponseEvent, TuiEvent,
-        utils::center,
-        views::{
-            content_edit::{ContentEditWidget, EditContext},
-            content_search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
-        },
-    },
+    ui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center},
 };
 
-use super::content_header::ContentHeader;
+use super::{
+    edit::{ContentEditWidget, EditContext},
+    header::ContentHeader,
+    search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
+};
 
 pub type StyledLine = Vec<(Style, String)>;
 
@@ -32,6 +29,11 @@ pub trait Content {
 
     /// Returns the length of a [`Content`].
     fn len(&self) -> usize;
+
+    /// Returns `true` if `self` has a length of zero lines.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;

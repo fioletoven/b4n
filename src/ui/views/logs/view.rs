@@ -12,11 +12,8 @@ use crate::{
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
-        views::{
-            View,
-            content::{Content, ContentViewer, StyledLine},
-            content_search::MatchPosition,
-        },
+        viewers::{Content, ContentViewer, MatchPosition, StyledLine},
+        views::View,
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
 };

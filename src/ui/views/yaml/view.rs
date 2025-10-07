@@ -6,7 +6,8 @@ use crate::{
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        views::{View, content::ContentViewer, yaml::YamlContent},
+        viewers::ContentViewer,
+        views::{View, yaml::YamlContent},
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
     },
 };

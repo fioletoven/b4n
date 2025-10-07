@@ -8,6 +8,7 @@ use ratatui::{
 use crate::{
     core::SharedAppData,
     kubernetes::{Kind, Namespace},
+    ui::viewers::utils::get_right_breadcrumbs,
 };
 
 /// Header pane that shows resource namespace, kind and name.
@@ -133,6 +134,6 @@ impl ContentHeader {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        crate::ui::views::get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
+        get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
     }
 }

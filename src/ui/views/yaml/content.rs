@@ -6,10 +6,7 @@ use crate::{
     core::{HighlightError, HighlightRequest, HighlightResponse},
     ui::{
         ResponseEvent,
-        views::{
-            content::{Content, StyledLine},
-            content_search::MatchPosition,
-        },
+        viewers::{Content, MatchPosition, StyledLine},
     },
 };
 

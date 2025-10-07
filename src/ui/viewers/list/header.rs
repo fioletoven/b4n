@@ -5,7 +5,10 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::core::SharedAppData;
+use crate::{
+    core::SharedAppData,
+    ui::viewers::utils::{get_left_breadcrumbs, get_right_breadcrumbs, get_version_text},
+};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
 pub struct ListHeader {
@@ -100,7 +103,7 @@ impl ListHeader {
             data.current.resource.name.as_deref()
         };
 
-        super::get_left_breadcrumbs(
+        get_left_breadcrumbs(
             data,
             scope,
             self.fixed_namespace.as_deref(),
@@ -115,7 +118,7 @@ impl ListHeader {
     /// \< `k8s version` \<
     fn get_version(&self) -> Line<'_> {
         let data = &self.app_data.borrow();
-        let (text, colors) = super::get_version_text(data);
-        super::get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
+        let (text, colors) = get_version_text(data);
+        get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
 }
