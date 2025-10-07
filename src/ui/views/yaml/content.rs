@@ -1,4 +1,3 @@
-use ratatui::style::Style;
 use std::collections::HashSet;
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
@@ -6,7 +5,7 @@ use crate::{
     core::{HighlightError, HighlightRequest, HighlightResponse},
     ui::{
         ResponseEvent,
-        viewers::{Content, MatchPosition, StyledLine},
+        viewers::{Content, MatchPosition, StyledLine, StyledLineExt},
     },
 };
 
@@ -68,7 +67,7 @@ impl YamlContent {
     fn join_lines(&mut self, first: usize, second: usize) -> (usize, usize) {
         let new_x = self.plain[first].chars().count();
 
-        styled_append(&mut self.styled[first], &self.plain[second]);
+        self.styled[first].sl_push_str(&self.plain[second]);
         self.styled.remove(second);
 
         let text = self.plain.remove(second);
@@ -86,7 +85,7 @@ impl YamlContent {
     fn split_lines(&mut self, x: usize, y: usize) {
         let split_plain = self.plain[y][x..].to_string();
         let split_lowercase = self.lowercase[y][x..].to_string();
-        let split_styled = styled_split(&self.styled[y], x);
+        let split_styled = self.styled[y].get_second(x);
 
         let insert_at = y + 1;
         if insert_at < self.plain.len() {
@@ -101,10 +100,18 @@ impl YamlContent {
 
         self.plain[y].truncate(x);
         self.lowercase[y].truncate(x);
-        styled_truncate(&mut self.styled[y], x);
+        self.styled[y].sl_truncate(x);
 
         self.mark_line_as_modified(y);
         self.mark_line_as_modified(insert_at);
+    }
+
+    fn remove_char_internal(&mut self, idx: usize, line_no: usize) {
+        self.plain[line_no].remove(idx);
+        self.lowercase[line_no].remove(idx);
+        self.styled[line_no].sl_remove(idx);
+
+        self.mark_line_as_modified(line_no);
     }
 }
 
@@ -158,7 +165,7 @@ impl Content for YamlContent {
             } else {
                 self.plain[y].insert(r.x.index, character);
                 self.lowercase[y].insert(r.x.index, character.to_ascii_lowercase());
-                styled_insert(&mut self.styled[y], r.x.index, character);
+                self.styled[y].sl_insert(r.x.index, character);
                 self.mark_line_as_modified(y);
             }
         } else if y < self.plain.len() {
@@ -167,7 +174,7 @@ impl Content for YamlContent {
             } else {
                 self.plain[y].push(character);
                 self.lowercase[y].push(character.to_ascii_lowercase());
-                styled_push(&mut self.styled[y], character);
+                self.styled[y].sl_push(character);
                 self.mark_line_as_modified(y);
             }
         }
@@ -184,22 +191,12 @@ impl Content for YamlContent {
 
         if let Some(r) = get_char_position(&self.plain, x, y) {
             let x = if is_backspace { r.x_prev } else { r.x };
-
-            self.plain[y].remove(x.index);
-            self.lowercase[y].remove(x.index);
-            styled_remove(&mut self.styled[y], x.index);
-            self.mark_line_as_modified(y);
-
+            self.remove_char_internal(x.index, y);
             Some((x.char, y))
         } else if y < self.plain.len() {
             let x = if is_backspace { x.saturating_sub(1) } else { x };
             if let Some(r) = get_char_position(&self.plain, x, y) {
-                self.plain[y].remove(r.x.index);
-                self.lowercase[y].remove(r.x.index);
-                styled_remove(&mut self.styled[y], r.x.index);
-
-                self.mark_line_as_modified(y);
-
+                self.remove_char_internal(r.x.index, y);
                 Some((r.x.char, y))
             } else if y + 1 < self.plain.len() {
                 Some(self.join_lines(y, y + 1))
@@ -256,86 +253,6 @@ struct RequestedHighlight {
     pub start: usize,
     pub end: usize,
     pub response: Receiver<Result<HighlightResponse, HighlightError>>,
-}
-
-/// Inserts a character into this `StyledLine` at byte position `idx`.
-fn styled_insert(line: &mut StyledLine, idx: usize, ch: char) {
-    let mut current = 0;
-    for part in line {
-        if current + part.1.len() >= idx {
-            part.1.insert(idx - current, ch);
-            return;
-        }
-
-        current += part.1.len();
-    }
-}
-
-/// Appends a given string slice to the end of this `StyledLine`.
-fn styled_append(line: &mut StyledLine, string: &str) {
-    if let Some(part) = line.last_mut() {
-        part.1.push_str(string);
-    } else {
-        line.push((Style::default(), string.to_owned()));
-    }
-}
-
-/// Appends a character to the back of a `StyledLine`.
-fn styled_push(line: &mut StyledLine, ch: char) {
-    if let Some(part) = line.last_mut() {
-        part.1.push(ch);
-    } else {
-        line.push((Style::default(), ch.to_string()));
-    }
-}
-
-/// Removes a [`char`] from this `StyledLine` at byte position `idx`.
-fn styled_remove(line: &mut StyledLine, idx: usize) {
-    let mut current = 0;
-    for part in line {
-        if current + part.1.len() > idx {
-            part.1.remove(idx - current);
-            return;
-        }
-
-        current += part.1.len();
-    }
-}
-
-/// Splits [`StyledLine`] at byte position `idx` and returns the second part.
-fn styled_split(line: &StyledLine, idx: usize) -> StyledLine {
-    let mut result = Vec::new();
-    let mut current = 0;
-    let mut is_found = false;
-    for part in line {
-        if is_found {
-            result.push((part.0, part.1.clone()));
-        } else if current + part.1.len() > idx {
-            result.push((part.0, part.1[idx - current..].to_string()));
-            is_found = true;
-        }
-
-        current += part.1.len();
-    }
-
-    result
-}
-
-/// Shortens this `StyledLine` to the specified length.
-fn styled_truncate(line: &mut StyledLine, new_len: usize) {
-    let mut current = 0;
-    for (i, part) in line.iter_mut().enumerate() {
-        if current + part.1.len() > new_len {
-            part.1.truncate(new_len - current);
-            if i + 1 < line.len() {
-                line.truncate(i + 1);
-            }
-
-            break;
-        }
-
-        current += part.1.len();
-    }
 }
 
 #[derive(Default)]

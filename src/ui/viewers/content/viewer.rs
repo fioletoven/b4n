@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Position, Rect},
-    style::{Color, Style},
+    style::Color,
     text::{Line, Span},
     widgets::{Block, Paragraph},
 };
@@ -18,9 +18,8 @@ use super::{
     edit::{ContentEditWidget, EditContext},
     header::ContentHeader,
     search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
+    styled_line::StyledLine,
 };
-
-pub type StyledLine = Vec<(Style, String)>;
 
 /// Content for the [`ContentViewer`].
 pub trait Content {
@@ -383,8 +382,7 @@ impl<T: Content> ContentViewer<T> {
         ResponseEvent::Handled
     }
 
-    /// Draws the [`ContentViewer`] onto the given frame within the specified area.
-    ///
+    /// Draws the [`ContentViewer`] onto the given frame within the specified area.\
     /// `highlight_offset` - used to adjust the position of search highlights.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
         let layout = Layout::default()
