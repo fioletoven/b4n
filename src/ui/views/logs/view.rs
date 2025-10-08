@@ -399,6 +399,10 @@ impl Content for LogsContent {
         self.lines.len()
     }
 
+    fn hash(&self) -> u64 {
+        0
+    }
+
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
@@ -415,7 +419,12 @@ impl Content for LogsContent {
         self.max_size
     }
 
-    fn line_size(&self, _line_no: usize) -> usize {
-        0
+    fn line_size(&self, line_no: usize) -> usize {
+        let size = self.lines.get(line_no).map(|l| l.message.chars().count()).unwrap_or_default();
+        if self.show_timestamps {
+            size + TIMESTAMP_TEXT_LENGTH
+        } else {
+            size
+        }
     }
 }

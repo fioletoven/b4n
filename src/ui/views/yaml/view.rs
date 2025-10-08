@@ -190,6 +190,14 @@ impl View for YamlView {
             return result;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.yaml.enable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.yaml.disable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
         let response = self.yaml.process_event(event);
         if response != ResponseEvent::NotHandled {
             return response;

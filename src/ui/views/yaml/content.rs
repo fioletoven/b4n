@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    hash::{DefaultHasher, Hash, Hasher},
+};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
 use crate::{
@@ -128,6 +131,12 @@ impl Content for YamlContent {
 
     fn len(&self) -> usize {
         self.styled.len()
+    }
+
+    fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.plain.hash(&mut hasher);
+        hasher.finish()
     }
 
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {

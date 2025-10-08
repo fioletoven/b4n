@@ -20,6 +20,8 @@ pub struct ContentHeader {
     pub name: String,
     pub descr: Option<String>,
     app_data: SharedAppData,
+    edit_icon: char,
+    edit_mode: &'static str,
     show_coordinates: bool,
     position_x: usize,
     position_y: usize,
@@ -36,6 +38,8 @@ impl ContentHeader {
             name: String::new(),
             descr: None,
             app_data,
+            edit_icon: ' ',
+            edit_mode: "",
             show_coordinates,
             position_x: 0,
             position_y: 0,
@@ -67,12 +71,18 @@ impl ContentHeader {
         self.position_y = y + 1;
     }
 
+    /// Sets edit icon and mode text.
+    pub fn set_edit(&mut self, icon: char, mode: &'static str) {
+        self.edit_icon = icon;
+        self.edit_mode = mode;
+    }
+
     /// Draws [`ContentHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let coordinates = if self.app_data.borrow().is_connected {
-            format!("  Ln {}, Col {} ", self.position_y, self.position_x)
+            format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
         } else {
-            format!("  Ln {}, Col {} ", self.position_y, self.position_x)
+            format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
         };
 
         let layout = Layout::default()
@@ -95,8 +105,10 @@ impl ContentHeader {
     fn get_path(&self) -> Line<'_> {
         let bg = self.app_data.borrow().theme.colors.text.bg;
         let colors = &self.app_data.borrow().theme.colors.header;
-        let title = if self.icon == ' ' {
+        let title = if self.icon == ' ' && self.edit_icon == ' ' {
             format!(" {} ", self.title)
+        } else if self.edit_icon != ' ' {
+            format!(" {} {} ", self.title, self.edit_icon)
         } else {
             format!(" {} {} ", self.title, self.icon)
         };

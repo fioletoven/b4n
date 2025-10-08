@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::ui::{MouseEventKind, ResponseEvent, TuiEvent};
 
-use super::{search::PagePosition, viewer::Content};
+use super::{Content, search::PagePosition};
 
 pub struct EditContext {
     pub cursor: PagePosition,
