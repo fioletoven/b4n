@@ -9,16 +9,23 @@ use crate::ui::{MouseEventKind, ResponseEvent, TuiEvent};
 
 use super::{Content, search::PagePosition};
 
+#[derive(Default)]
 pub struct EditContext {
+    pub is_enabled: bool,
     pub cursor: PagePosition,
     last_set_x: usize,
 }
 
 impl EditContext {
-    pub fn new(position: PagePosition) -> Self {
-        Self {
-            cursor: position,
-            last_set_x: 0,
+    /// Sets [`EditContext`] as enabled.
+    pub fn enable<T: Content>(&mut self, position: PagePosition, page_size: u16, content: &mut T) {
+        self.is_enabled = true;
+        if self.cursor.y < position.y {
+            self.cursor.y = position.y;
+            self.update_cursor_position(false, content);
+        } else if self.cursor.y >= position.y + usize::from(page_size) {
+            self.cursor.y = position.y + usize::from(page_size.saturating_sub(1));
+            self.update_cursor_position(false, content);
         }
     }
 
@@ -86,10 +93,9 @@ impl EditContext {
             },
         }
 
-        let lines_no = content.len();
         if let Some(new_x) = x_changed {
             if let Some(x) = new_x {
-                if x > line_size && self.cursor.y.saturating_add(1) < lines_no {
+                if x > line_size && self.cursor.y.saturating_add(1) < content.len() {
                     self.cursor.x = 0;
                     self.cursor.y = self.cursor.y.saturating_add(1);
                 } else {
@@ -107,6 +113,12 @@ impl EditContext {
             self.cursor.y = new_y;
         }
 
+        self.update_cursor_position(y_changed.is_some(), content);
+        ResponseEvent::Handled
+    }
+
+    fn update_cursor_position<T: Content>(&mut self, use_last_x: bool, content: &mut T) {
+        let lines_no = content.len();
         if self.cursor.y >= lines_no {
             self.cursor.y = lines_no.saturating_sub(1);
         }
@@ -114,11 +126,9 @@ impl EditContext {
         let line_size = content.line_size(self.cursor.y);
         if self.cursor.x > line_size {
             self.cursor.x = line_size;
-        } else if y_changed.is_some() && self.cursor.x < self.last_set_x {
+        } else if use_last_x && self.cursor.x < self.last_set_x {
             self.cursor.x = self.last_set_x.min(line_size);
         }
-
-        ResponseEvent::Handled
     }
 }
 

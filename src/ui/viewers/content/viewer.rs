@@ -28,7 +28,7 @@ pub struct ContentViewer<T: Content> {
 
     content: Option<T>,
     hash: Option<u64>,
-    edit: Option<EditContext>,
+    edit: EditContext,
     search: SearchData,
     search_color: Color,
 
@@ -48,7 +48,7 @@ impl<T: Content> ContentViewer<T> {
             app_data,
             content: None,
             hash: None,
-            edit: None,
+            edit: EditContext::default(),
             search: SearchData::default(),
             search_color,
             page_start: PagePosition::default(),
@@ -96,7 +96,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
-        self.edit.is_some()
+        self.edit.is_enabled
     }
 
     /// Returns `true` if content was modified.
@@ -109,10 +109,11 @@ impl<T: Content> ContentViewer<T> {
 
     /// Enables edit mode for the content viewer.
     pub fn enable_edit_mode(&mut self) -> bool {
-        if self.edit.is_some() || self.content.as_ref().is_none_or(|c| !c.is_editable()) {
-            false
-        } else {
-            self.edit = Some(EditContext::new(self.page_start));
+        if !self.edit.is_enabled
+            && let Some(content) = &mut self.content
+            && content.is_editable()
+        {
+            self.edit.enable(self.page_start, self.page_area.height, content);
             self.header.set_edit('', "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
@@ -121,15 +122,15 @@ impl<T: Content> ContentViewer<T> {
             }
 
             true
+        } else {
+            false
         }
     }
 
     /// Disables edit mode for the content viewer.
     pub fn disable_edit_mode(&mut self) -> bool {
-        if self.edit.is_none() {
-            false
-        } else {
-            self.edit = None;
+        if self.edit.is_enabled {
+            self.edit.is_enabled = false;
             if self.is_modified() {
                 self.header.set_edit('!', "*  ");
             } else {
@@ -137,6 +138,8 @@ impl<T: Content> ContentViewer<T> {
             }
 
             true
+        } else {
+            false
         }
     }
 
@@ -313,12 +316,12 @@ impl<T: Content> ContentViewer<T> {
 
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if let Some(edit) = &mut self.edit
+        if self.edit.is_enabled
             && let Some(content) = &mut self.content
         {
-            let response = edit.process_event(event, content, self.page_start, self.page_area);
+            let response = self.edit.process_event(event, content, self.page_start, self.page_area);
             if response != ResponseEvent::NotHandled {
-                let (y, x) = (edit.cursor.y, edit.cursor.x);
+                let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                 self.scroll_to(y, x, 1);
                 return response;
             }
@@ -407,8 +410,8 @@ impl<T: Content> ContentViewer<T> {
             );
         }
 
-        if let Some(edit) = &self.edit {
-            frame.render_widget(ContentEditWidget::new(edit, &self.page_start), area);
+        if self.edit.is_enabled {
+            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), area);
         }
     }
 
@@ -444,8 +447,8 @@ impl<T: Content> ContentViewer<T> {
             self.page_start.x = self.max_hstart();
         }
 
-        if let Some(edit) = &self.edit {
-            self.header.set_coordinates(edit.cursor.x, edit.cursor.y);
+        if self.edit.is_enabled {
+            self.header.set_coordinates(self.edit.cursor.x, self.edit.cursor.y);
         } else {
             self.header.set_coordinates(self.page_start.x, self.page_start.y);
         }
