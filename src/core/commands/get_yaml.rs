@@ -55,6 +55,7 @@ pub struct ResourceYamlResult {
     pub yaml: Vec<String>,
     pub styled: Vec<Vec<(Style, String)>>,
     pub is_decoded: bool,
+    pub is_editable: bool,
 }
 
 /// Command that gets a specified resource from the kubernetes API and then styles it.
@@ -63,7 +64,7 @@ pub struct GetResourceYamlCommand {
     namespace: Namespace,
     kind: Kind,
     discovery: Option<(ApiResource, ApiCapabilities)>,
-    client: Client,
+    client: Option<Client>,
     highlighter: UnboundedSender<HighlightRequest>,
     decode: bool,
 }
@@ -83,7 +84,7 @@ impl GetResourceYamlCommand {
             namespace,
             kind,
             discovery,
-            client,
+            client: Some(client),
             highlighter,
             decode: false,
         }
@@ -114,54 +115,50 @@ impl GetResourceYamlCommand {
         let client = kubernetes::client::get_dynamic_api(
             &discovery.0,
             &discovery.1,
-            self.client,
+            self.client.take().expect("kubernetes client should be present"),
             self.namespace.as_option(),
             self.namespace.is_all(),
         );
 
         match client.get(&self.name).await {
-            Ok(resource) => Some(CommandResult::ResourceYaml(
-                style_resource(resource, self.highlighter, self.name, self.namespace, self.kind, self.decode).await,
-            )),
+            Ok(resource) => Some(CommandResult::ResourceYaml(self.style_resource(resource, &discovery.1).await)),
             Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
     }
-}
 
-async fn style_resource(
-    mut resource: DynamicObject,
-    highlighter: UnboundedSender<HighlightRequest>,
-    name: String,
-    namespace: Namespace,
-    kind: Kind,
-    decode: bool,
-) -> Result<ResourceYamlResult, ResourceYamlError> {
-    if decode {
-        decode_secret_data(&mut resource)?;
-    }
+    async fn style_resource(
+        self,
+        mut resource: DynamicObject,
+        cap: &ApiCapabilities,
+    ) -> Result<ResourceYamlResult, ResourceYamlError> {
+        if self.decode {
+            decode_secret_data(&mut resource)?;
+        }
 
-    let yaml = utils::serialize_resource(&mut resource)?;
-    let mut plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
-    if yaml.ends_with('\n') {
-        plain.pop();
-    }
+        let yaml = utils::serialize_resource(&mut resource)?;
+        let mut plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+        if yaml.ends_with('\n') {
+            plain.pop();
+        }
 
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    highlighter.send(HighlightRequest::Full {
-        lines: plain,
-        response: tx,
-    })?;
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.highlighter.send(HighlightRequest::Full {
+            lines: plain,
+            response: tx,
+        })?;
 
-    match rx.await? {
-        Ok(response) => Ok(ResourceYamlResult {
-            name,
-            namespace,
-            kind,
-            yaml: response.plain,
-            styled: response.styled,
-            is_decoded: decode,
-        }),
-        Err(err) => Err(err.into()),
+        match rx.await? {
+            Ok(response) => Ok(ResourceYamlResult {
+                name: self.name,
+                namespace: self.namespace,
+                kind: self.kind,
+                yaml: response.plain,
+                styled: response.styled,
+                is_decoded: self.decode,
+                is_editable: cap.supports_operation(verbs::PATCH),
+            }),
+            Err(err) => Err(err.into()),
+        }
     }
 }
 

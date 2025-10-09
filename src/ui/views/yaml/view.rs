@@ -8,7 +8,7 @@ use crate::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::ContentViewer,
         views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Dialog, FooterTx, IconKind, Search},
     },
 };
 
@@ -21,6 +21,7 @@ pub struct YamlView {
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
+    modal: Option<Dialog>,
     footer: FooterTx,
 }
 
@@ -52,6 +53,7 @@ impl YamlView {
             command_id,
             command_palette: CommandPalette::default(),
             search,
+            modal: None,
             footer,
         }
     }
@@ -151,15 +153,8 @@ impl View for YamlView {
             self.is_decoded = result.is_decoded;
             self.yaml.header.set_icon(icon);
             self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
-            let max_width = result.yaml.iter().map(|l| l.chars().count()).max().unwrap_or(0);
-            let lowercase = result.yaml.iter().map(|l| l.to_ascii_lowercase()).collect();
-            self.yaml.set_content(YamlContent::new(
-                result.styled,
-                result.yaml,
-                lowercase,
-                highlighter,
-                max_width,
-            ));
+            self.yaml
+                .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
         }
     }
 
