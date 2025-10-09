@@ -60,7 +60,7 @@ impl YamlView {
         if self.yaml.content().is_some() {
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
                 && clipboard
-                    .set_text(self.yaml.content().map(|c| c.plain.join("")).unwrap_or_default())
+                    .set_text(self.yaml.content().map(|c| c.plain.join("\n")).unwrap_or_default())
                     .is_ok()
             {
                 self.footer.show_info(" YAML content copied to clipboard…", 1_500);
@@ -83,6 +83,12 @@ impl YamlView {
                 ActionItem::new("search")
                     .with_description("searches YAML using the provided query")
                     .with_response(ResponseEvent::Action("search")),
+            )
+            .with_action(
+                ActionItem::new("edit")
+                    .with_description("switches to the edit mode")
+                    .with_aliases(&["insert"])
+                    .with_response(ResponseEvent::Action("edit")),
             );
         if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
             let action = if self.is_decoded { "encode" } else { "decode" };
@@ -174,6 +180,8 @@ impl View for YamlView {
                 return ResponseEvent::Handled;
             } else if response.is_action("search") {
                 self.search.show();
+                return ResponseEvent::Handled;
+            } else if response.is_action("edit") && self.yaml.enable_edit_mode() {
                 return ResponseEvent::Handled;
             }
 

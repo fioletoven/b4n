@@ -99,8 +99,13 @@ impl<T: Content> ContentViewer<T> {
         self.edit.is_enabled
     }
 
-    /// Returns `true` if content was modified.
+    /// Returns `true` if content was altered.\
+    /// **Note** that we must be still in the edit mode to actually run the check.
     pub fn is_modified(&self) -> bool {
+        if !self.edit.is_enabled {
+            return self.edit.is_modified;
+        }
+
         match (self.hash, self.content.as_ref()) {
             (Some(hash), Some(content)) => content.hash() != hash,
             _ => false,
@@ -130,8 +135,9 @@ impl<T: Content> ContentViewer<T> {
     /// Disables edit mode for the content viewer.
     pub fn disable_edit_mode(&mut self) -> bool {
         if self.edit.is_enabled {
+            self.edit.is_modified = self.is_modified(); // needs to be checked before setting is_enabled = false
             self.edit.is_enabled = false;
-            if self.is_modified() {
+            if self.edit.is_modified {
                 self.header.set_edit('!', "*  ");
             } else {
                 self.header.set_edit(' ', "");

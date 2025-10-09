@@ -12,6 +12,7 @@ use super::{Content, search::PagePosition};
 #[derive(Default)]
 pub struct EditContext {
     pub is_enabled: bool,
+    pub is_modified: bool,
     pub cursor: PagePosition,
     last_set_x: usize,
 }
