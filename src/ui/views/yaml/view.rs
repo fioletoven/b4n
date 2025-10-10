@@ -8,7 +8,7 @@ use crate::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::ContentViewer,
         views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Dialog, FooterTx, IconKind, Search},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, FooterTx, IconKind, Search},
     },
 };
 
@@ -134,6 +134,56 @@ impl YamlView {
             self.footer.show_info(message, 0);
         }
     }
+
+    fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
+            vec![
+                Button::new("Leave".to_owned(), response, &colors.modal.btn_delete),
+                Button::new("Cancel".to_owned(), ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
+    }
+
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let response = self.command_palette.process_event(event);
+
+        if response == ResponseEvent::Cancelled {
+            self.clear_search();
+        } else if response.is_action("copy") {
+            self.copy_yaml_to_clipboard();
+            return ResponseEvent::Handled;
+        } else if response.is_action("decode") {
+            self.toggle_yaml_decode();
+            return ResponseEvent::Handled;
+        } else if response.is_action("search") {
+            self.search.show();
+            return ResponseEvent::Handled;
+        } else if response.is_action("edit") && self.yaml.enable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
+        if (response == ResponseEvent::Cancelled || response == ResponseEvent::ExitApplication) && self.yaml.is_modified() {
+            return self.process_view_close_event(response);
+        }
+
+        response
+    }
+
+    fn process_view_close_event(&mut self, response: ResponseEvent) -> ResponseEvent {
+        if self.yaml.is_modified() {
+            let mut modal = self.new_save_dialog(response);
+            modal.show();
+            self.modal = Some(modal);
+            ResponseEvent::Handled
+        } else {
+            response
+        }
+    }
 }
 
 impl View for YamlView {
@@ -164,23 +214,7 @@ impl View for YamlView {
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
-            let response = self.command_palette.process_event(event);
-            if response == ResponseEvent::Cancelled {
-                self.clear_search();
-            } else if response.is_action("copy") {
-                self.copy_yaml_to_clipboard();
-                return ResponseEvent::Handled;
-            } else if response.is_action("decode") {
-                self.toggle_yaml_decode();
-                return ResponseEvent::Handled;
-            } else if response.is_action("search") {
-                self.search.show();
-                return ResponseEvent::Handled;
-            } else if response.is_action("edit") && self.yaml.enable_edit_mode() {
-                return ResponseEvent::Handled;
-            }
-
-            return response;
+            return self.process_command_palette_event(event);
         }
 
         if self.search.is_visible {
@@ -191,6 +225,12 @@ impl View for YamlView {
             }
 
             return result;
+        }
+
+        if let Some(modal) = &mut self.modal
+            && modal.is_visible
+        {
+            return modal.process_event(event);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.yaml.enable_edit_mode() {
@@ -222,7 +262,7 @@ impl View for YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            return ResponseEvent::Cancelled;
+            return self.process_view_close_event(ResponseEvent::Cancelled);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlDecode)
@@ -254,5 +294,8 @@ impl View for YamlView {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
+        if let Some(modal) = &mut self.modal {
+            modal.draw(frame, area);
+        }
     }
 }
