@@ -3,30 +3,35 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
-use super::Button;
+use super::{Button, CheckBox};
 
 /// Events used to handle press and focus actions.
 #[derive(PartialEq)]
-enum ButtonEvent {
+enum ControlEvent {
     None,
     FocusPrev,
     FocusNext,
     Pressed,
 }
 
-/// Represents group of the buttons in UI.
-pub struct ButtonsGroup {
+/// Represents group of the controls in UI.
+pub struct ControlsGroup {
+    pub inputs: Vec<CheckBox>,
     pub buttons: Vec<Button>,
     focused: usize,
 }
 
-impl ButtonsGroup {
-    /// Creates new [`ButtonGroup`] instance.
+impl ControlsGroup {
+    /// Creates new [`ControlsGroup`] instance.
     pub fn new(buttons: Vec<Button>) -> Self {
-        Self { buttons, focused: 0 }
+        Self {
+            inputs: Vec::new(),
+            buttons,
+            focused: 0,
+        }
     }
 
-    /// Returns result for the button under provided index.
+    /// Returns result for the control under provided index.
     pub fn result(&self, index: usize) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
@@ -35,7 +40,7 @@ impl ButtonsGroup {
         self.buttons[index].result()
     }
 
-    /// Focus button under provided index.
+    /// Focus control under provided index.
     pub fn focus(&mut self, index: usize) {
         if !self.buttons.is_empty() {
             self.buttons[self.focused].set_focus(false);
@@ -44,7 +49,7 @@ impl ButtonsGroup {
         }
     }
 
-    /// Draws [`ButtonsGroup`] on the provided frame area.
+    /// Draws [`ControlsGroup`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if self.buttons.is_empty() {
             return;
@@ -102,7 +107,7 @@ impl ButtonsGroup {
     }
 }
 
-impl Responsive for ButtonsGroup {
+impl Responsive for ControlsGroup {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
@@ -119,11 +124,11 @@ impl Responsive for ButtonsGroup {
         }
 
         let event = map_to_button_event(event);
-        if event == ButtonEvent::Pressed {
+        if event == ControlEvent::Pressed {
             return self.buttons[self.focused].result();
         }
 
-        if event == ButtonEvent::FocusPrev {
+        if event == ControlEvent::FocusPrev {
             if self.focused == 0 {
                 self.focus_last();
             } else {
@@ -131,7 +136,7 @@ impl Responsive for ButtonsGroup {
             }
         }
 
-        if event == ButtonEvent::FocusNext {
+        if event == ControlEvent::FocusNext {
             if self.focused == self.buttons.len() - 1 {
                 self.focus_first();
             } else {
@@ -143,14 +148,14 @@ impl Responsive for ButtonsGroup {
     }
 }
 
-fn map_to_button_event(event: &TuiEvent) -> ButtonEvent {
+fn map_to_button_event(event: &TuiEvent) -> ControlEvent {
     match event {
         TuiEvent::Key(key) => match key.code {
-            KeyCode::Tab | KeyCode::Right | KeyCode::Down => ButtonEvent::FocusNext,
-            KeyCode::Left | KeyCode::Up => ButtonEvent::FocusPrev,
-            KeyCode::Enter => ButtonEvent::Pressed,
-            _ => ButtonEvent::None,
+            KeyCode::Tab | KeyCode::Right | KeyCode::Down => ControlEvent::FocusNext,
+            KeyCode::Left | KeyCode::Up => ControlEvent::FocusPrev,
+            KeyCode::Enter => ControlEvent::Pressed,
+            _ => ControlEvent::None,
         },
-        _ => ButtonEvent::None,
+        _ => ControlEvent::None,
     }
 }

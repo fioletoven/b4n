@@ -9,7 +9,7 @@ use textwrap::Options;
 
 use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center};
 
-use super::{Button, ButtonsGroup};
+use super::{Button, ControlsGroup};
 
 /// UI modal dialog.
 pub struct Dialog {
@@ -17,7 +17,7 @@ pub struct Dialog {
     width: u16,
     colors: TextColors,
     message: String,
-    buttons: ButtonsGroup,
+    controls: ControlsGroup,
     default_button: usize,
     area: Rect,
 }
@@ -32,7 +32,7 @@ impl Dialog {
     /// Creates new [`Dialog`] instance.
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
-        let mut buttons = ButtonsGroup::new(buttons);
+        let mut buttons = ControlsGroup::new(buttons);
         buttons.focus(default_button);
 
         Self {
@@ -40,7 +40,7 @@ impl Dialog {
             width,
             colors,
             message,
-            buttons,
+            controls: buttons,
             default_button,
             area: Rect::default(),
         }
@@ -78,7 +78,7 @@ impl Dialog {
         let lines: Vec<Line> = text.iter().map(|i| Line::from(i.as_ref())).collect();
         frame.render_widget(Paragraph::new(lines).fg(self.colors.fg), layout[1]);
 
-        self.buttons.draw(frame, layout[2]);
+        self.controls.draw(frame, layout[2]);
     }
 }
 
@@ -90,10 +90,10 @@ impl Responsive for Dialog {
 
         if matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc) || event.is_out(MouseEventKind::LeftClick, self.area) {
             self.is_visible = false;
-            return self.buttons.result(self.default_button);
+            return self.controls.result(self.default_button);
         }
 
-        let result = self.buttons.process_event(event);
+        let result = self.controls.process_event(event);
         if result != ResponseEvent::Handled {
             self.is_visible = false;
         }
