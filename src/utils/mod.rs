@@ -25,7 +25,7 @@ pub fn truncate_left(s: &str, max_chars: usize) -> &str {
         return s;
     }
 
-    let start_index = s.char_indices().nth(total_chars - max_chars).map(|(idx, _)| idx).unwrap_or(0);
+    let start_index = s.char_indices().nth(total_chars - max_chars).map_or(0, |(idx, _)| idx);
 
     &s[start_index..]
 }

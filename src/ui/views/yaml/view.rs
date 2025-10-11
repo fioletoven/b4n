@@ -187,7 +187,7 @@ impl YamlView {
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.modal.process_event(event);
         if response.is_action("apply") {
-            let force = self.modal.input(0).map(|i| i.is_checked).unwrap_or_default();
+            let force = self.modal.input(0).is_some_and(|i| i.is_checked);
             return self.save_yaml(true, force);
         } else if response.is_action("patch") {
             return self.save_yaml(false, false);

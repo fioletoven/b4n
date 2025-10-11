@@ -221,9 +221,7 @@ impl BgWorker {
             for key in grouped.keys() {
                 let count = grouped[key].len();
                 for item in &grouped[key] {
-                    all.push(
-                        KindItem::new(item.0.to_owned(), (*key).to_owned(), item.1.to_owned()).with_multiple_groups(count > 1),
-                    );
+                    all.push(KindItem::new(item.0, (*key).to_owned(), item.1).with_multiple_groups(count > 1));
                 }
             }
 

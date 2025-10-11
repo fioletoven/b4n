@@ -66,7 +66,7 @@ impl BgHighlighter {
 
     /// Returns `true` if [`BgHighlighter`] is running.
     pub fn is_running(&self) -> bool {
-        self.thread.as_ref().map(|t| !t.is_finished()).unwrap_or_default()
+        self.thread.as_ref().is_some_and(|t| !t.is_finished())
     }
 }
 

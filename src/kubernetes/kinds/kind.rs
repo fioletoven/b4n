@@ -16,7 +16,7 @@ pub struct KindItem {
 
 impl KindItem {
     /// Creates new [`KindItem`] instance.
-    pub fn new(group: String, name: String, version: String) -> Self {
+    pub fn new(group: &str, name: String, version: &str) -> Self {
         let kind: Kind = if group.is_empty() && version == CORE_VERSION {
             name.into()
         } else {

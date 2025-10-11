@@ -12,7 +12,7 @@ pub const CORE_VERSION: &str = "v1";
 /// **Note** that it can be also used for plural names.
 #[derive(Default, Debug, Clone)]
 pub struct Kind {
-    kind: String,
+    name: String,
     group: Option<usize>,
     version: Option<usize>,
 }
@@ -42,25 +42,25 @@ impl Kind {
 
     /// Returns `true` if kind represents namespaces.
     pub fn is_namespaces(&self) -> bool {
-        self.kind == NAMESPACES
+        self.name == NAMESPACES
     }
 
     /// Returns `true` if kind represents containers.
     pub fn is_containers(&self) -> bool {
-        self.kind == CONTAINERS
+        self.name == CONTAINERS
     }
 
     /// Returns kind as string slice.
     pub fn as_str(&self) -> &str {
-        &self.kind
+        &self.name
     }
 
     /// Returns kind's name.
     pub fn name(&self) -> &str {
         if let Some(group) = self.group {
-            &self.kind[..group]
+            &self.name[..group]
         } else {
-            &self.kind
+            &self.name
         }
     }
 
@@ -74,9 +74,9 @@ impl Kind {
         if let Some(group) = self.group {
             let group = group + 1;
             if let Some(version) = self.version {
-                if group < version { &self.kind[group..version] } else { "" }
+                if group < version { &self.name[group..version] } else { "" }
             } else {
-                &self.kind[group..]
+                &self.name[group..]
             }
         } else {
             ""
@@ -86,9 +86,9 @@ impl Kind {
     /// Returns kind's name and group.
     pub fn name_and_group(&self) -> &str {
         if let Some(version) = self.version {
-            &self.kind[..version]
+            &self.name[..version]
         } else {
-            &self.kind
+            &self.name
         }
     }
 
@@ -100,7 +100,7 @@ impl Kind {
     /// Returns kind's version.
     pub fn version(&self) -> &str {
         if let Some(version) = self.version {
-            &self.kind[version + 1..]
+            &self.name[version + 1..]
         } else {
             ""
         }
@@ -109,7 +109,7 @@ impl Kind {
     /// Returns kind's api version.
     pub fn api_version(&self) -> &str {
         if let Some(group) = self.group {
-            &self.kind[group + 1..]
+            &self.name[group + 1..]
         } else {
             CORE_VERSION
         }
@@ -118,7 +118,7 @@ impl Kind {
 
 impl PartialEq for Kind {
     fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind
+        self.name == other.name
     }
 }
 
@@ -134,13 +134,13 @@ impl From<String> for Kind {
         {
             value.truncate(group);
             Self {
-                kind: value,
+                name: value,
                 group: None,
                 version: None,
             }
         } else {
             Self {
-                kind: value,
+                name: value,
                 group,
                 version,
             }
@@ -159,13 +159,13 @@ impl From<&str> for Kind {
             && &value[version + 1..] == CORE_VERSION
         {
             Self {
-                kind: value[..group].to_owned(),
+                name: value[..group].to_owned(),
                 group: None,
                 version: None,
             }
         } else {
             Self {
-                kind: value.to_owned(),
+                name: value.to_owned(),
                 group,
                 version,
             }
@@ -175,6 +175,6 @@ impl From<&str> for Kind {
 
 impl From<Kind> for String {
     fn from(value: Kind) -> Self {
-        value.kind
+        value.name
     }
 }
