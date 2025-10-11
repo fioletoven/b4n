@@ -232,13 +232,9 @@ impl View for YamlView {
         self.command_id.as_deref()
     }
 
-    fn process_tick(&mut self) -> ResponseEvent {
-        self.yaml.process_tick()
-    }
-
     fn process_command_result(&mut self, result: CommandResult) {
         if let CommandResult::GetResourceYaml(Ok(result)) = result
-            && let Some(highlighter) = self.worker.borrow().get_higlighter()
+            && let Some(highlighter) = self.worker.borrow().get_highlighter()
         {
             let icon = if result.is_decoded { '' } else { '' };
             self.is_decoded = result.is_decoded;
@@ -247,6 +243,10 @@ impl View for YamlView {
             self.yaml
                 .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
         }
+    }
+
+    fn process_tick(&mut self) -> ResponseEvent {
+        self.yaml.process_tick()
     }
 
     fn process_disconnection(&mut self) {

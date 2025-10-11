@@ -52,7 +52,7 @@ pub enum KeyCommand {
 }
 
 impl Display for KeyCommand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             KeyCommand::ApplicationExit => f.write_str("app.exit")?,
             KeyCommand::NavigateInto => f.write_str("navigate.into")?,

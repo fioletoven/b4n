@@ -377,8 +377,8 @@ impl BgWorker {
         }
     }
 
-    /// Returns unbounded chanell sender for [`HighlightRequest`]s.
-    pub fn get_higlighter(&self) -> Option<UnboundedSender<HighlightRequest>> {
+    /// Returns unbounded channel sender for [`HighlightRequest`]s.
+    pub fn get_highlighter(&self) -> Option<UnboundedSender<HighlightRequest>> {
         self.highlighter.get_sender()
     }
 

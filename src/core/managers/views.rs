@@ -388,12 +388,13 @@ impl ViewsManager {
                 self.view = None;
                 self.footer
                     .transmitter()
-                    .show_info(format!(" YAML for {name} successfully saved…"), 2_000);
+                    .show_info(format!(" '{name}' YAML saved successfully…"), 2_000);
             },
             Err(error) => {
-                let msg = format!("Patch YAML error: {error}");
-                tracing::warn!("{}", msg);
-                self.footer.transmitter().show_error(msg, 0);
+                tracing::warn!("Patch YAML error: {error}");
+                self.footer
+                    .transmitter()
+                    .show_error("Patching the resource with the specified YAML failed…", 0);
             },
         }
     }

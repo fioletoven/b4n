@@ -155,7 +155,7 @@ impl<'a> ContentEditWidget<'a> {
 }
 
 impl<'a> Widget for ContentEditWidget<'a> {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {
