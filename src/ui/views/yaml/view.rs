@@ -2,7 +2,10 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker, commands::CommandResult},
+    core::{
+        SharedAppData, SharedAppDataExt, SharedBgWorker,
+        commands::{CommandResult, SetResourceYamlAction},
+    },
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
@@ -21,7 +24,7 @@ pub struct YamlView {
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
-    modal: Option<Dialog>,
+    modal: Dialog,
     footer: FooterTx,
 }
 
@@ -53,7 +56,7 @@ impl YamlView {
             command_id,
             command_palette: CommandPalette::default(),
             search,
-            modal: None,
+            modal: Dialog::default(),
             footer,
         }
     }
@@ -181,14 +184,45 @@ impl YamlView {
         response
     }
 
+    fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let response = self.modal.process_event(event);
+        if response.is_action("apply") {
+            let force = self.modal.input(0).map(|i| i.is_checked).unwrap_or_default();
+            return self.save_yaml(true, force);
+        } else if response.is_action("patch") {
+            return self.save_yaml(false, false);
+        }
+
+        response
+    }
+
     fn process_view_close_event(&mut self, response: ResponseEvent) -> ResponseEvent {
         if self.yaml.is_modified() {
-            let mut modal = self.new_save_dialog(response);
-            modal.show();
-            self.modal = Some(modal);
+            self.modal = self.new_save_dialog(response);
+            self.modal.show();
             ResponseEvent::Handled
         } else {
             response
+        }
+    }
+
+    fn save_yaml(&mut self, is_apply: bool, is_forced: bool) -> ResponseEvent {
+        if let Some(yaml) = self.yaml.content() {
+            let name = self.yaml.header.name.clone();
+            let namespace = self.yaml.header.namespace.clone();
+            let kind = &self.yaml.header.kind;
+            let yaml = yaml.plain.join("\n");
+            let action = match (is_apply, is_forced) {
+                (true, true) => SetResourceYamlAction::ForceApply,
+                (true, false) => SetResourceYamlAction::Apply,
+                _ => SetResourceYamlAction::Patch,
+            };
+
+            self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, action);
+
+            ResponseEvent::Handled
+        } else {
+            ResponseEvent::Cancelled
         }
     }
 }
@@ -203,7 +237,7 @@ impl View for YamlView {
     }
 
     fn process_command_result(&mut self, result: CommandResult) {
-        if let CommandResult::ResourceYaml(Ok(result)) = result
+        if let CommandResult::GetResourceYaml(Ok(result)) = result
             && let Some(highlighter) = self.worker.borrow().get_higlighter()
         {
             let icon = if result.is_decoded { '' } else { '' };
@@ -234,10 +268,8 @@ impl View for YamlView {
             return result;
         }
 
-        if let Some(modal) = &mut self.modal
-            && modal.is_visible
-        {
-            return modal.process_event(event);
+        if self.modal.is_visible {
+            return self.process_modal_event(event);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.yaml.enable_edit_mode() {
@@ -301,8 +333,6 @@ impl View for YamlView {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
-        if let Some(modal) = &mut self.modal {
-            modal.draw(frame, area);
-        }
+        self.modal.draw(frame, area);
     }
 }

@@ -52,6 +52,11 @@ impl Dialog {
         self
     }
 
+    /// Returns input under index `idx`.
+    pub fn input(&self, idx: usize) -> Option<&CheckBox> {
+        self.controls.inputs.get(idx)
+    }
+
     /// Marks [`Dialog`] as a visible.
     pub fn show(&mut self) {
         self.is_visible = true;

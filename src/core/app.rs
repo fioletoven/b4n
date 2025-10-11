@@ -206,7 +206,8 @@ impl App {
         for command in commands {
             match command.result {
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
-                CommandResult::ResourceYaml(result) => self.views_manager.update_yaml(&command.id, result),
+                CommandResult::GetResourceYaml(result) => self.views_manager.show_yaml_result(&command.id, result),
+                CommandResult::SetResourceYaml(result) => self.views_manager.edit_yaml_result(&command.id, result),
                 CommandResult::ContextsList(list) => self.views_manager.show_contexts_list(&list),
                 CommandResult::ThemesList(list) => self.views_manager.show_themes_list(list),
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(&list),

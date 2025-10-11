@@ -8,8 +8,8 @@ use crate::ui::{ResponseEvent, colors::TextColors, theme::ControlColors};
 
 /// UI CheckBox.
 pub struct CheckBox {
+    pub is_checked: bool,
     is_focused: bool,
-    is_checked: bool,
     caption: &'static str,
     normal: TextColors,
     focused: TextColors,
@@ -21,8 +21,8 @@ impl CheckBox {
     /// Creates new [`CheckBox`] instance.
     pub fn new(caption: &'static str, is_checked: bool, colors: &ControlColors) -> Self {
         Self {
-            is_focused: false,
             is_checked,
+            is_focused: false,
             caption,
             normal: colors.normal,
             focused: colors.focused,
@@ -51,7 +51,7 @@ impl CheckBox {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let text = format!(" {} {} ", if self.is_checked { '' } else { '' }, &self.caption);
+        let text = format!(" {} {} ", if self.is_checked { '󰄵' } else { '' }, &self.caption);
         let line = Line::styled(text, &colors);
         frame.render_widget(Paragraph::new(line), area);
         self.area = area;

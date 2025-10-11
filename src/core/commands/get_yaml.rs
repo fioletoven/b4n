@@ -109,7 +109,7 @@ impl GetResourceYamlCommand {
     pub async fn execute(mut self) -> Option<CommandResult> {
         let discovery = self.discovery.take()?;
         if !discovery.1.supports_operation(verbs::GET) {
-            return Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetNotSupported)));
+            return Some(CommandResult::GetResourceYaml(Err(ResourceYamlError::GetNotSupported)));
         }
 
         let client = kubernetes::client::get_dynamic_api(
@@ -121,8 +121,10 @@ impl GetResourceYamlCommand {
         );
 
         match client.get(&self.name).await {
-            Ok(resource) => Some(CommandResult::ResourceYaml(self.style_resource(resource, &discovery.1).await)),
-            Err(err) => Some(CommandResult::ResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
+            Ok(resource) => Some(CommandResult::GetResourceYaml(
+                self.style_resource(resource, &discovery.1).await,
+            )),
+            Err(err) => Some(CommandResult::GetResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
     }
 
