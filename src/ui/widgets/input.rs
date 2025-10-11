@@ -26,17 +26,24 @@ pub struct Input {
     error_mode: ErrorHighlightMode,
     accent_chars: Option<String>,
     show_cursor: bool,
-    position: Position,
+    cursor: Position,
+    cursor_colors: TextColors,
 }
 
 impl Input {
     /// Creates new [`Input`] instance.
-    pub fn new(colors: TextColors, show_cursor: bool) -> Self {
+    pub fn new(colors: TextColors) -> Self {
         Self {
             colors,
-            show_cursor,
             ..Default::default()
         }
+    }
+
+    /// Shows cursor in the [`Input`] instance.
+    pub fn with_cursor(mut self, show_cursor: bool, colors: TextColors) -> Self {
+        self.show_cursor = show_cursor;
+        self.cursor_colors = colors;
+        self
     }
 
     /// Adds a prompt to the [`Input`] instance.
@@ -148,10 +155,6 @@ impl Input {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         frame.render_widget(Block::new().style(&self.colors), area);
         frame.render_widget(&mut *self, area);
-
-        if self.show_cursor {
-            frame.set_cursor_position((self.position.x, self.position.y));
-        }
     }
 
     fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut ratatui::prelude::Buffer) -> u16 {
@@ -257,7 +260,15 @@ impl Widget for &mut Input {
         }
 
         let scroll = self.input.visual_scroll(usize::from(max_x - x));
-        self.position = Position::new(x + (self.input.visual_cursor().max(scroll) - scroll) as u16, y);
+        self.cursor = Position::new(x + (self.input.visual_cursor().max(scroll) - scroll) as u16, y);
         self.render_input(x, y, max_x, scroll, buf);
+
+        if self.show_cursor
+            && area.contains(self.cursor)
+            && let Some(cell) = buf.cell_mut(self.cursor)
+        {
+            cell.fg = self.cursor_colors.fg;
+            cell.bg = self.cursor_colors.bg;
+        }
     }
 }

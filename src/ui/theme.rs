@@ -74,6 +74,8 @@ pub struct ModalColors {
 /// Represents colors for selector widget.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SelectColors {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<TextColors>,
     pub normal: TextColors,
     pub normal_hl: TextColors,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -150,6 +152,7 @@ impl Default for Theme {
                 prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
                 error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
             },
+            cursor: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
         };
 
         Theme {
