@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    hash::{DefaultHasher, Hash, Hasher},
+};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
 use crate::{
@@ -21,6 +24,7 @@ pub struct YamlContent {
     highlighter: UnboundedSender<HighlightRequest>,
     modified: HashSet<usize>,
     requested: Option<RequestedHighlight>,
+    is_editable: bool,
 }
 
 impl YamlContent {
@@ -28,10 +32,12 @@ impl YamlContent {
     pub fn new(
         styled: Vec<StyledLine>,
         plain: Vec<String>,
-        lowercase: Vec<String>,
         highlighter: UnboundedSender<HighlightRequest>,
-        max_size: usize,
+        is_editable: bool,
     ) -> Self {
+        let max_size = plain.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+        let lowercase = plain.iter().map(|l| l.to_ascii_lowercase()).collect();
+
         Self {
             styled,
             plain,
@@ -40,6 +46,7 @@ impl YamlContent {
             highlighter,
             modified: HashSet::new(),
             requested: None,
+            is_editable,
         }
     }
 
@@ -130,6 +137,12 @@ impl Content for YamlContent {
         self.styled.len()
     }
 
+    fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.plain.hash(&mut hasher);
+        hasher.finish()
+    }
+
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
@@ -151,7 +164,7 @@ impl Content for YamlContent {
     }
 
     fn is_editable(&self) -> bool {
-        true
+        self.is_editable
     }
 
     fn insert_char(&mut self, x: usize, y: usize, character: char) {

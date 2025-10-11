@@ -54,9 +54,9 @@ pub struct ResourceColors {
     pub completed: LineColors,
 }
 
-/// Represents colors for button.
+/// Represents colors for UI control.
 #[derive(Default, Serialize, Deserialize, Clone)]
-pub struct ButtonColors {
+pub struct ControlColors {
     pub normal: TextColors,
     pub focused: TextColors,
 }
@@ -65,13 +65,17 @@ pub struct ButtonColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ModalColors {
     pub text: TextColors,
-    pub btn_delete: ButtonColors,
-    pub btn_cancel: ButtonColors,
+    pub checkbox: ControlColors,
+    pub btn_accent: ControlColors,
+    pub btn_delete: ControlColors,
+    pub btn_cancel: ControlColors,
 }
 
 /// Represents colors for selector widget.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SelectColors {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<TextColors>,
     pub normal: TextColors,
     pub normal_hl: TextColors,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,6 +115,7 @@ pub struct LogsSyntaxColors {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ThemeColors {
     pub text: TextColors,
+    pub cursor: TextColors,
     pub header: HeaderColors,
     pub footer: FooterColors,
     pub filter: SelectColors,
@@ -147,11 +152,13 @@ impl Default for Theme {
                 prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
                 error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
             },
+            cursor: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
         };
 
         Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
+                cursor: TextColors::bg(Color::Gray, Color::DarkGray),
                 header: HeaderColors {
                     text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
                     context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
@@ -181,11 +188,19 @@ impl Default for Theme {
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
-                    btn_delete: ButtonColors {
+                    checkbox: ControlColors {
+                        normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                        focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
+                    },
+                    btn_accent: ControlColors {
+                        normal: TextColors::bg(Color::White, Color::DarkGray),
+                        focused: TextColors::bg(Color::White, Color::LightBlue),
+                    },
+                    btn_delete: ControlColors {
                         normal: TextColors::bg(Color::White, Color::DarkGray),
                         focused: TextColors::bg(Color::White, Color::LightRed),
                     },
-                    btn_cancel: ButtonColors {
+                    btn_cancel: ControlColors {
                         normal: TextColors::bg(Color::White, Color::DarkGray),
                         focused: TextColors::bg(Color::White, Color::LightGreen),
                     },

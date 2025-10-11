@@ -28,7 +28,12 @@ impl<T: Table> Select<T> {
     /// * `filter_auto_hide` - hides filter input when no filter is present.
     /// * `filter_show_cursor` - indicates if filter input should show cursor.
     pub fn new(list: T, colors: SelectColors, filter_auto_hide: bool, filter_show_cursor: bool) -> Self {
-        let filter = Input::new(colors.filter.input, filter_show_cursor).with_error_colors(colors.filter.error);
+        let filter = Input::new(colors.filter.input)
+            .with_cursor(
+                filter_show_cursor && colors.cursor.is_some(),
+                colors.cursor.unwrap_or_default(),
+            )
+            .with_error_colors(colors.filter.error);
 
         Select {
             items: list,

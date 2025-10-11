@@ -22,6 +22,7 @@ palette:
 
 # style anchors
 filter: &filter
+  cursor: text:#747c8a
   normal: fg_dark:yellow:bg_dark
   normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light
@@ -33,6 +34,7 @@ filter: &filter
 # theme itself
 colors:
   text: text:no_bg
+  cursor: fg_dark:bg_dark
   header:
     text: fg_dark:light_yellow:bg_dark
     context: white:#D80060
@@ -51,6 +53,12 @@ colors:
   command_palette: *filter
   modal:
     text: fg_dark:bg_dark
+    checkbox:
+      normal: fg_dark:bg_dark
+      focused: light_magenta:bg_dark
+    btn_accent:
+      normal: white:bg_dark
+      focused: white:light_blue
     btn_delete:
       normal: white:bg_dark
       focused: white:light_red

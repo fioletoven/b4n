@@ -51,6 +51,7 @@ impl Default for KeyBindings {
             .with("P", KeyCommand::MatchPrevious)
             .with("Y", KeyCommand::YamlOpen)
             .with("X", KeyCommand::YamlDecode)
+            .with("I", KeyCommand::YamlEdit)
             .with("L", KeyCommand::LogsOpen)
             .with("T", KeyCommand::LogsTimestamps)
             .with("P", KeyCommand::PreviousLogsOpen)

@@ -1,7 +1,9 @@
 pub use self::button::*;
-pub use self::buttons_group::*;
+pub use self::checkbox::*;
+pub use self::controls_group::*;
 pub use self::dialog::*;
 
 mod button;
-mod buttons_group;
+mod checkbox;
+mod controls_group;
 mod dialog;

@@ -113,8 +113,8 @@ impl ForwardsView {
         Dialog::new(
             "Are you sure you want to stop the selected port forwarding rules?".to_owned(),
             vec![
-                Button::new("Stop".to_owned(), ResponseEvent::DeleteResources, &colors.modal.btn_delete),
-                Button::new("Cancel".to_owned(), ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+                Button::new("Stop", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
             60,
             colors.modal.text,
@@ -176,7 +176,7 @@ impl View for ForwardsView {
         }
 
         if self.modal.is_visible {
-            if self.modal.process_event(event) == ResponseEvent::DeleteResources {
+            if self.modal.process_event(event).is_action("delete") {
                 self.stop_selected_port_forwards();
             }
 

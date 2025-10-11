@@ -7,9 +7,9 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center};
+use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center, widgets::CheckBox};
 
-use super::{Button, ButtonsGroup};
+use super::{Button, ControlsGroup};
 
 /// UI modal dialog.
 pub struct Dialog {
@@ -17,7 +17,7 @@ pub struct Dialog {
     width: u16,
     colors: TextColors,
     message: String,
-    buttons: ButtonsGroup,
+    controls: ControlsGroup,
     default_button: usize,
     area: Rect,
 }
@@ -32,7 +32,7 @@ impl Dialog {
     /// Creates new [`Dialog`] instance.
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
-        let mut buttons = ButtonsGroup::new(buttons);
+        let mut buttons = ControlsGroup::new(Vec::new(), buttons);
         buttons.focus(default_button);
 
         Self {
@@ -40,10 +40,21 @@ impl Dialog {
             width,
             colors,
             message,
-            buttons,
+            controls: buttons,
             default_button,
             area: Rect::default(),
         }
+    }
+
+    /// Sets provided inputs for the dialog.
+    pub fn with_inputs(mut self, inputs: Vec<CheckBox>) -> Self {
+        self.controls.inputs = inputs;
+        self
+    }
+
+    /// Returns input under index `idx`.
+    pub fn input(&self, idx: usize) -> Option<&CheckBox> {
+        self.controls.inputs.get(idx)
     }
 
     /// Marks [`Dialog`] as a visible.
@@ -62,9 +73,11 @@ impl Dialog {
             &self.message,
             Options::new(width.into()).initial_indent("  ").subsequent_indent("  "),
         );
-        let height = text.len() + 4;
+        let lines = u16::try_from(self.controls.inputs.len()).unwrap_or_default();
+        let lines = if lines == 0 { 3 } else { lines + 4 };
+        let height = u16::try_from(text.len()).unwrap_or_default() + lines + 1;
 
-        self.area = center(area, Constraint::Length(self.width), Constraint::Length(height as u16));
+        self.area = center(area, Constraint::Length(self.width), Constraint::Length(height));
         let block = Block::new().style(Style::default().bg(self.colors.bg));
 
         frame.render_widget(Clear, self.area);
@@ -72,13 +85,13 @@ impl Dialog {
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(3)])
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(lines)])
             .split(self.area);
 
         let lines: Vec<Line> = text.iter().map(|i| Line::from(i.as_ref())).collect();
         frame.render_widget(Paragraph::new(lines).fg(self.colors.fg), layout[1]);
 
-        self.buttons.draw(frame, layout[2]);
+        self.controls.draw(frame, layout[2]);
     }
 }
 
@@ -90,10 +103,10 @@ impl Responsive for Dialog {
 
         if matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc) || event.is_out(MouseEventKind::LeftClick, self.area) {
             self.is_visible = false;
-            return self.buttons.result(self.default_button);
+            return self.controls.result(self.default_button);
         }
 
-        let result = self.buttons.process_event(event);
+        let result = self.controls.process_event(event);
         if result != ResponseEvent::Handled {
             self.is_visible = false;
         }

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::{
     core::{
         SharedAppData, SharedAppDataExt, SharedBgWorker,
-        commands::{CommandResult, ResourceYamlError, ResourceYamlResult},
+        commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError},
     },
     kubernetes::{
         Namespace, ResourceRef,
@@ -303,7 +303,7 @@ impl ViewsManager {
     }
 
     /// Deletes resources that are currently selected on [`ResourcesView`].
-    pub fn delete_resources(&mut self) {
+    pub fn delete_resources(&mut self, force: bool) {
         let list = self.resources.get_selected_items();
         for key in list.keys() {
             let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
@@ -314,7 +314,7 @@ impl ViewsManager {
             };
             self.worker
                 .borrow_mut()
-                .delete_resources(resources, namespace, &self.resources.get_kind());
+                .delete_resources(resources, namespace, &self.resources.get_kind(), force);
         }
 
         self.resources.deselect_all();
@@ -362,7 +362,7 @@ impl ViewsManager {
     }
 
     /// Shows returned resource's YAML in an already opened YAML view.
-    pub fn update_yaml(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
+    pub fn show_yaml_result(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
         if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
             return;
         }
@@ -373,7 +373,28 @@ impl ViewsManager {
             tracing::warn!("{}", msg);
             self.footer.transmitter().show_error(msg, 0);
         } else if let Some(view) = &mut self.view {
-            view.process_command_result(CommandResult::ResourceYaml(result));
+            view.process_command_result(CommandResult::GetResourceYaml(result));
+        }
+    }
+
+    /// Process YAML patch result.
+    pub fn edit_yaml_result(&mut self, command_id: &str, result: Result<String, SetResourceYamlError>) {
+        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
+            return;
+        }
+
+        match result {
+            Ok(name) => {
+                self.view = None;
+                self.footer
+                    .transmitter()
+                    .show_info(format!(" YAML for {name} successfully saved…"), 2_000);
+            },
+            Err(error) => {
+                let msg = format!("Patch YAML error: {error}");
+                tracing::warn!("{}", msg);
+                self.footer.transmitter().show_error(msg, 0);
+            },
         }
     }
 

@@ -7,7 +7,7 @@ use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
 use crate::{
-    core::{Config, HighlightRequest, PortForwarder, commands::ListResourcePortsCommand, highlighter::BgHighlighter},
+    core::commands::SetResourceYamlAction,
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         client::KubernetesClient,
@@ -20,8 +20,12 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, History, SyntaxData, TaskResult,
-    commands::{Command, DeleteResourcesCommand, GetResourceYamlCommand, SaveConfigurationCommand},
+    BgDiscovery, BgExecutor, Config, HighlightRequest, History, PortForwarder, SyntaxData, TaskResult,
+    commands::{
+        Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, SaveConfigurationCommand,
+        SetResourceYamlCommand,
+    },
+    highlighter::BgHighlighter,
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
@@ -321,10 +325,10 @@ impl BgWorker {
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
-    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind) {
+    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind, force: bool) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
-            let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client());
+            let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client(), force);
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
         }
     }
@@ -350,6 +354,24 @@ impl BgWorker {
                 GetResourceYamlCommand::new(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             };
             Some(self.executor.run_task(Command::GetYaml(Box::new(command))))
+        } else {
+            None
+        }
+    }
+
+    /// Sends [`SetResourceYamlCommand`] to the background executor.
+    pub fn set_yaml(
+        &mut self,
+        name: String,
+        namespace: Namespace,
+        kind: &Kind,
+        yaml: String,
+        action: SetResourceYamlAction,
+    ) -> Option<String> {
+        if let Some(client) = &self.client {
+            let discovery = get_resource(self.discovery_list.as_ref(), kind);
+            let command = SetResourceYamlCommand::new(name, namespace, yaml, action, discovery, client.get_client());
+            Some(self.executor.run_task(Command::SetYaml(Box::new(command))))
         } else {
             None
         }

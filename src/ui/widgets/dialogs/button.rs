@@ -4,12 +4,12 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::ui::{ResponseEvent, colors::TextColors, theme::ButtonColors};
+use crate::ui::{ResponseEvent, colors::TextColors, theme::ControlColors};
 
 /// UI Button.
 pub struct Button {
     is_focused: bool,
-    caption: String,
+    caption: &'static str,
     normal: TextColors,
     focused: TextColors,
     result: ResponseEvent,
@@ -18,7 +18,7 @@ pub struct Button {
 
 impl Button {
     /// Creates new [`Button`] instance.
-    pub fn new(caption: String, result: ResponseEvent, colors: &ButtonColors) -> Self {
+    pub fn new(caption: &'static str, result: ResponseEvent, colors: &ControlColors) -> Self {
         Self {
             is_focused: false,
             caption,

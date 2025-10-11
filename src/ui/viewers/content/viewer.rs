@@ -15,60 +15,11 @@ use crate::{
 };
 
 use super::{
+    Content,
     edit::{ContentEditWidget, EditContext},
     header::ContentHeader,
-    search::{MatchPosition, PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
-    styled_line::StyledLine,
+    search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
 };
-
-/// Content for the [`ContentViewer`].
-pub trait Content {
-    /// Returns page with [`StyledLine`]s.
-    fn page(&mut self, start: usize, count: usize) -> &[StyledLine];
-
-    /// Returns the length of a [`Content`].
-    fn len(&self) -> usize;
-
-    /// Returns `true` if `self` has a length of zero lines.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Searches content for the specified pattern.
-    fn search(&self, pattern: &str) -> Vec<MatchPosition>;
-
-    /// Returns characters count for the longest line in the content.
-    fn max_size(&self) -> usize;
-
-    /// Returns characters count of the line under `line_no` index.
-    fn line_size(&self, line_no: usize) -> usize;
-
-    /// Returns `true` if content can be edited.
-    fn is_editable(&self) -> bool {
-        false
-    }
-
-    /// Inserts specified character to the content at a position `x` and `y`.
-    fn insert_char(&mut self, x: usize, y: usize, character: char) {
-        let _ = x;
-        let _ = y;
-        let _ = character;
-    }
-
-    /// Deletes character at a position `x` and `y`.\
-    /// **Note** that it returns a new position.
-    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
-        let _ = x;
-        let _ = y;
-        let _ = is_backspace;
-        None
-    }
-
-    /// Can be called on every app tick to do some computation.
-    fn process_tick(&mut self) -> ResponseEvent {
-        ResponseEvent::Handled
-    }
-}
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
@@ -76,7 +27,8 @@ pub struct ContentViewer<T: Content> {
     app_data: SharedAppData,
 
     content: Option<T>,
-    edit: Option<EditContext>,
+    hash: Option<u64>,
+    edit: EditContext,
     search: SearchData,
     search_color: Color,
 
@@ -90,12 +42,14 @@ impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData, search_color: Color) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
+        let cursor_color = app_data.borrow().theme.colors.cursor;
 
         Self {
             header,
             app_data,
             content: None,
-            edit: None,
+            hash: None,
+            edit: EditContext::new(cursor_color),
             search: SearchData::default(),
             search_color,
             page_start: PagePosition::default(),
@@ -139,6 +93,61 @@ impl<T: Content> ContentViewer<T> {
     /// Returns content as mutable reference.
     pub fn content_mut(&mut self) -> Option<&mut T> {
         self.content.as_mut()
+    }
+
+    /// Returns `true` if viewer is in edit mode.
+    pub fn is_in_edit_mode(&self) -> bool {
+        self.edit.is_enabled
+    }
+
+    /// Returns `true` if content was altered.\
+    /// **Note** that we must be still in the edit mode to actually run the check.
+    pub fn is_modified(&self) -> bool {
+        if !self.edit.is_enabled {
+            return self.edit.is_modified;
+        }
+
+        match (self.hash, self.content.as_ref()) {
+            (Some(hash), Some(content)) => content.hash() != hash,
+            _ => false,
+        }
+    }
+
+    /// Enables edit mode for the content viewer.
+    pub fn enable_edit_mode(&mut self) -> bool {
+        if !self.edit.is_enabled
+            && let Some(content) = &mut self.content
+            && content.is_editable()
+        {
+            self.edit.enable(self.page_start, self.page_area.height, content);
+            self.header.set_edit('', "[INS]  ");
+            if self.hash.is_none()
+                && let Some(content) = &self.content
+            {
+                self.hash = Some(content.hash());
+            }
+
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Disables edit mode for the content viewer.
+    pub fn disable_edit_mode(&mut self) -> bool {
+        if self.edit.is_enabled {
+            self.edit.is_modified = self.is_modified(); // needs to be checked before setting is_enabled = false
+            self.edit.is_enabled = false;
+            if self.edit.is_modified {
+                self.header.set_edit('!', "*  ");
+            } else {
+                self.header.set_edit(' ', "");
+            }
+
+            true
+        } else {
+            false
+        }
     }
 
     /// Scrolls the view to the given `line` and `col` positions if they are outside the current viewport.
@@ -314,12 +323,12 @@ impl<T: Content> ContentViewer<T> {
 
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if let Some(edit) = &mut self.edit
+        if self.edit.is_enabled
             && let Some(content) = &mut self.content
         {
-            let response = edit.process_event(event, content, self.page_start, self.page_area);
+            let response = self.edit.process_event(event, content, self.page_start, self.page_area);
             if response != ResponseEvent::NotHandled {
-                let (y, x) = (edit.cursor.y, edit.cursor.x);
+                let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                 self.scroll_to(y, x, 1);
                 return response;
             }
@@ -327,14 +336,6 @@ impl<T: Content> ContentViewer<T> {
 
         match event {
             TuiEvent::Key(key) => {
-                if key.code == KeyCode::Char('i') && self.enable_edit_mode() == ResponseEvent::Handled {
-                    return ResponseEvent::Handled;
-                }
-
-                if key.code == KeyCode::Esc && self.disable_edit_mode() == ResponseEvent::Handled {
-                    return ResponseEvent::Handled;
-                }
-
                 match key {
                     // horizontal scroll
                     x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
@@ -416,8 +417,8 @@ impl<T: Content> ContentViewer<T> {
             );
         }
 
-        if let Some(edit) = &self.edit {
-            frame.render_widget(ContentEditWidget::new(edit, &self.page_start), area);
+        if self.edit.is_enabled {
+            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), area);
         }
     }
 
@@ -444,24 +445,6 @@ impl<T: Content> ContentViewer<T> {
             .unwrap_or_default()
     }
 
-    fn enable_edit_mode(&mut self) -> ResponseEvent {
-        if self.edit.is_some() || self.content.as_ref().is_none_or(|c| !c.is_editable()) {
-            return ResponseEvent::NotHandled;
-        }
-
-        self.edit = Some(EditContext::new(self.page_start));
-        ResponseEvent::Handled
-    }
-
-    fn disable_edit_mode(&mut self) -> ResponseEvent {
-        if self.edit.is_none() {
-            return ResponseEvent::NotHandled;
-        }
-
-        self.edit = None;
-        ResponseEvent::Handled
-    }
-
     fn update_page_start(&mut self) {
         if self.page_start.y > self.max_vstart() {
             self.page_start.y = self.max_vstart();
@@ -471,8 +454,8 @@ impl<T: Content> ContentViewer<T> {
             self.page_start.x = self.max_hstart();
         }
 
-        if let Some(edit) = &self.edit {
-            self.header.set_coordinates(edit.cursor.x, edit.cursor.y);
+        if self.edit.is_enabled {
+            self.header.set_coordinates(self.edit.cursor.x, self.edit.cursor.y);
         } else {
             self.header.set_coordinates(self.page_start.x, self.page_start.y);
         }
