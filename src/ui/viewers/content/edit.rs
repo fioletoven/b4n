@@ -1,11 +1,10 @@
 use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Position, Rect},
-    style::Color,
     widgets::Widget,
 };
 
-use crate::ui::{MouseEventKind, ResponseEvent, TuiEvent};
+use crate::ui::{MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
 
 use super::{Content, search::PagePosition};
 
@@ -14,10 +13,19 @@ pub struct EditContext {
     pub is_enabled: bool,
     pub is_modified: bool,
     pub cursor: PagePosition,
+    color: TextColors,
     last_set_x: usize,
 }
 
 impl EditContext {
+    /// Creates new [`EditContext`] instance.
+    pub fn new(color: TextColors) -> Self {
+        Self {
+            color,
+            ..Default::default()
+        }
+    }
+
     /// Sets [`EditContext`] as enabled.
     pub fn enable<T: Content>(&mut self, position: PagePosition, page_size: u16, content: &mut T) {
         self.is_enabled = true;
@@ -162,7 +170,8 @@ impl<'a> Widget for ContentEditWidget<'a> {
             if area.contains(cursor)
                 && let Some(cell) = buf.cell_mut(cursor)
             {
-                cell.bg = Color::Gray;
+                cell.fg = self.context.color.fg;
+                cell.bg = self.context.color.bg;
             }
         }
     }

@@ -12,6 +12,7 @@ enum ControlEvent {
     FocusPrev,
     FocusNext,
     Pressed,
+    Checked,
 }
 
 /// Represents group of the controls in UI.
@@ -23,47 +24,66 @@ pub struct ControlsGroup {
 
 impl ControlsGroup {
     /// Creates new [`ControlsGroup`] instance.
-    pub fn new(buttons: Vec<Button>) -> Self {
+    pub fn new(inputs: Vec<CheckBox>, buttons: Vec<Button>) -> Self {
         Self {
-            inputs: Vec::new(),
+            inputs,
             buttons,
             focused: 0,
         }
     }
 
     /// Returns result for the control under provided index.
-    pub fn result(&self, index: usize) -> ResponseEvent {
-        if self.buttons.is_empty() {
-            return ResponseEvent::NotHandled;
+    pub fn result(&self, idx: usize) -> ResponseEvent {
+        if let (None, Some(idx)) = self.get_index(idx) {
+            return self.buttons[idx].result();
         }
 
-        self.buttons[index].result()
+        ResponseEvent::NotHandled
     }
 
     /// Focus control under provided index.
-    pub fn focus(&mut self, index: usize) {
-        if !self.buttons.is_empty() {
-            self.buttons[self.focused].set_focus(false);
-            self.focused = index.clamp(0, self.buttons.len() - 1);
-            self.buttons[self.focused].set_focus(true);
-        }
+    pub fn focus(&mut self, idx: usize) {
+        self.set_focus(self.focused, false);
+        let idx = idx.clamp(0, (self.inputs.len() + self.buttons.len()).saturating_sub(1));
+        self.set_focus(idx, true);
+        self.focused = idx;
     }
 
     /// Draws [`ControlsGroup`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if self.buttons.is_empty() {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(2)])
+            .split(area);
+
+        self.draw_inputs(frame, layout[1]);
+        self.draw_buttons(frame, layout[2]);
+    }
+
+    fn draw_inputs(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        if self.inputs.is_empty() {
             return;
         }
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+            .constraints(vec![Constraint::Length(1); self.inputs.len()])
             .split(area);
+
+        for (i, input) in self.inputs.iter_mut().enumerate() {
+            input.draw(frame, layout[i]);
+        }
+    }
+
+    fn draw_buttons(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        if self.buttons.is_empty() {
+            return;
+        }
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(self.get_buttons_constraints())
-            .split(layout[1]);
+            .split(area);
 
         for (i, btn) in self.buttons.iter_mut().enumerate() {
             btn.draw(frame, layout[i + 1]);
@@ -71,27 +91,22 @@ impl ControlsGroup {
     }
 
     fn focus_first(&mut self) {
-        self.buttons[self.focused].set_focus(false);
-        self.focused = 0;
-        self.buttons[self.focused].set_focus(true);
+        self.focus(0);
     }
 
     fn focus_prev(&mut self) {
-        self.buttons[self.focused].set_focus(false);
-        self.focused = if self.focused > 0 { self.focused - 1 } else { 0 };
-        self.buttons[self.focused].set_focus(true);
+        self.focus(if self.focused > 0 { self.focused - 1 } else { 0 });
     }
 
     fn focus_next(&mut self) {
-        self.buttons[self.focused].set_focus(false);
-        self.focused = std::cmp::min(self.buttons.len() - 1, self.focused + 1);
-        self.buttons[self.focused].set_focus(true);
+        self.focus(std::cmp::min(
+            (self.inputs.len() + self.buttons.len()).saturating_sub(1),
+            self.focused + 1,
+        ));
     }
 
     fn focus_last(&mut self) {
-        self.buttons[self.focused].set_focus(false);
-        self.focused = self.buttons.len() - 1;
-        self.buttons[self.focused].set_focus(true);
+        self.focus((self.inputs.len() + self.buttons.len()).saturating_sub(1));
     }
 
     fn get_buttons_constraints(&self) -> Vec<Constraint> {
@@ -105,6 +120,28 @@ impl ControlsGroup {
 
         constraints
     }
+
+    /// Returns tuple `(items_index, buttons_index)`.
+    fn get_index(&self, index: usize) -> (Option<usize>, Option<usize>) {
+        if index < self.buttons.len() {
+            return (None, Some(index));
+        }
+
+        let index = index.saturating_sub(self.buttons.len());
+        if index < self.inputs.len() {
+            (Some(index), None)
+        } else {
+            (None, None)
+        }
+    }
+
+    fn set_focus(&mut self, idx: usize, is_active: bool) {
+        match self.get_index(idx) {
+            (Some(idx), None) => self.inputs[idx].set_focus(is_active),
+            (None, Some(idx)) => self.buttons[idx].set_focus(is_active),
+            _ => (),
+        }
+    }
 }
 
 impl Responsive for ControlsGroup {
@@ -116,6 +153,12 @@ impl Responsive for ControlsGroup {
         if let TuiEvent::Mouse(mouse) = event
             && mouse.kind == MouseEventKind::LeftClick
         {
+            for input in &mut self.inputs {
+                if input.contains(mouse.column, mouse.row) {
+                    return input.click();
+                }
+            }
+
             for btn in &self.buttons {
                 if btn.contains(mouse.column, mouse.row) {
                     return btn.result();
@@ -124,8 +167,21 @@ impl Responsive for ControlsGroup {
         }
 
         let event = map_to_button_event(event);
+        if event == ControlEvent::Checked
+            && let (Some(idx), None) = self.get_index(self.focused)
+        {
+            self.inputs[idx].click();
+            return ResponseEvent::Handled;
+        }
+
         if event == ControlEvent::Pressed {
-            return self.buttons[self.focused].result();
+            let (inputs, buttons) = self.get_index(self.focused);
+            if let Some(idx) = inputs {
+                self.inputs[idx].click();
+                return ResponseEvent::Handled;
+            } else if let Some(idx) = buttons {
+                return self.buttons[idx].result();
+            }
         }
 
         if event == ControlEvent::FocusPrev {
@@ -137,7 +193,7 @@ impl Responsive for ControlsGroup {
         }
 
         if event == ControlEvent::FocusNext {
-            if self.focused == self.buttons.len() - 1 {
+            if self.focused == (self.inputs.len() + self.buttons.len()).saturating_sub(1) {
                 self.focus_first();
             } else {
                 self.focus_next();
@@ -154,6 +210,7 @@ fn map_to_button_event(event: &TuiEvent) -> ControlEvent {
             KeyCode::Tab | KeyCode::Right | KeyCode::Down => ControlEvent::FocusNext,
             KeyCode::Left | KeyCode::Up => ControlEvent::FocusPrev,
             KeyCode::Enter => ControlEvent::Pressed,
+            KeyCode::Char(' ') => ControlEvent::Checked,
             _ => ControlEvent::None,
         },
         _ => ControlEvent::None,

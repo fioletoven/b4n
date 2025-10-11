@@ -7,7 +7,7 @@ use ratatui::{
 };
 use textwrap::Options;
 
-use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center};
+use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center, widgets::CheckBox};
 
 use super::{Button, ControlsGroup};
 
@@ -32,7 +32,7 @@ impl Dialog {
     /// Creates new [`Dialog`] instance.
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
-        let mut buttons = ControlsGroup::new(buttons);
+        let mut buttons = ControlsGroup::new(Vec::new(), buttons);
         buttons.focus(default_button);
 
         Self {
@@ -44,6 +44,12 @@ impl Dialog {
             default_button,
             area: Rect::default(),
         }
+    }
+
+    /// Sets provided inputs for the dialog.
+    pub fn with_inputs(mut self, inputs: Vec<CheckBox>) -> Self {
+        self.controls.inputs = inputs;
+        self
     }
 
     /// Marks [`Dialog`] as a visible.
@@ -62,9 +68,10 @@ impl Dialog {
             &self.message,
             Options::new(width.into()).initial_indent("  ").subsequent_indent("  "),
         );
-        let height = text.len() + 4;
+        let lines = u16::try_from(self.controls.inputs.len()).unwrap_or_default() + 4;
+        let height = u16::try_from(text.len()).unwrap_or_default() + lines + 1;
 
-        self.area = center(area, Constraint::Length(self.width), Constraint::Length(height as u16));
+        self.area = center(area, Constraint::Length(self.width), Constraint::Length(height));
         let block = Block::new().style(Style::default().bg(self.colors.bg));
 
         frame.render_widget(Clear, self.area);
@@ -72,7 +79,7 @@ impl Dialog {
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(3)])
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(lines)])
             .split(self.area);
 
         let lines: Vec<Line> = text.iter().map(|i| Line::from(i.as_ref())).collect();

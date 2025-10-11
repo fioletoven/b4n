@@ -42,13 +42,14 @@ impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData, search_color: Color) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
+        let cursor_color = app_data.borrow().theme.colors.cursor;
 
         Self {
             header,
             app_data,
             content: None,
             hash: None,
-            edit: EditContext::default(),
+            edit: EditContext::new(cursor_color),
             search: SearchData::default(),
             search_color,
             page_start: PagePosition::default(),

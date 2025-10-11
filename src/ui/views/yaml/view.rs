@@ -8,7 +8,7 @@ use crate::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::ContentViewer,
         views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, FooterTx, IconKind, Search},
+        widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, FooterTx, IconKind, Search},
     },
 };
 
@@ -141,12 +141,19 @@ impl YamlView {
         Dialog::new(
             "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
             vec![
-                Button::new("Leave".to_owned(), response, &colors.modal.btn_delete),
-                Button::new("Cancel".to_owned(), ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Apply", ResponseEvent::Action("apply"), &colors.modal.btn_accent),
+                Button::new("Patch", ResponseEvent::Action("patch"), &colors.modal.btn_accent),
+                Button::new("Leave", response, &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
             60,
             colors.modal.text,
         )
+        .with_inputs(vec![CheckBox::new(
+            "Force ownership (apply only)",
+            false,
+            &colors.modal.checkbox,
+        )])
     }
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
