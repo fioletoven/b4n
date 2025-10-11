@@ -3,6 +3,7 @@ use kube::{
     api::{ApiResource, DynamicObject, Patch, PatchParams},
     discovery::{ApiCapabilities, verbs},
 };
+use std::fmt::Display;
 
 use crate::{
     core::{APP_NAME, commands::CommandResult},
@@ -16,19 +17,39 @@ pub enum SetResourceYamlError {
     #[error("patch is not supported for the specified resource")]
     PatchNotSupported,
 
-    /// Cannot de-serialize resource's YAML.
-    #[error("cannot de-serialize resource's YAML")]
-    SerializationError(#[from] serde_yaml::Error),
+    /// Failed to parse YAML into Kubernetes resource.
+    #[error("failed to deserialize YAML for resource '{resource}': {source}")]
+    SerializationError {
+        resource: String,
+        #[source]
+        source: serde_yaml::Error,
+    },
 
-    /// Unable to save the resource's YAML.
-    #[error("unable to save the resource's YAML")]
-    SetYamlError(#[from] kube::Error),
+    /// Failed to patch or apply YAML to the Kubernetes resource.
+    #[error("failed to {action} resource '{resource}': {source}")]
+    PatchError {
+        action: SetResourceYamlAction,
+        resource: String,
+        #[source]
+        source: kube::Error,
+    },
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum SetResourceYamlAction {
     Apply,
     ForceApply,
     Patch,
+}
+
+impl Display for SetResourceYamlAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SetResourceYamlAction::Apply => write!(f, "apply"),
+            SetResourceYamlAction::ForceApply => write!(f, "force apply"),
+            SetResourceYamlAction::Patch => write!(f, "patch"),
+        }
+    }
 }
 
 /// Command that apply/patch specified kubernetes resource.
@@ -79,7 +100,10 @@ impl SetResourceYamlCommand {
     }
 
     async fn save_yaml(self, api: Api<DynamicObject>) -> Result<String, SetResourceYamlError> {
-        let yaml = serde_yaml::from_str::<DynamicObject>(&self.yaml)?;
+        let yaml = serde_yaml::from_str::<DynamicObject>(&self.yaml).map_err(|e| SetResourceYamlError::SerializationError {
+            resource: self.name.clone(),
+            source: e,
+        })?;
 
         let (patch, patch_params) = match self.action {
             SetResourceYamlAction::Apply => (Patch::Apply(&yaml), PatchParams::apply(APP_NAME)),
@@ -87,7 +111,13 @@ impl SetResourceYamlCommand {
             SetResourceYamlAction::Patch => (Patch::Merge(&yaml), PatchParams::default()),
         };
 
-        api.patch(&self.name, &patch_params, &patch).await?;
+        api.patch(&self.name, &patch_params, &patch)
+            .await
+            .map_err(|e| SetResourceYamlError::PatchError {
+                action: self.action,
+                resource: self.name.clone(),
+                source: e,
+            })?;
 
         Ok(self.name)
     }
