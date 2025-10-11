@@ -13,7 +13,7 @@ use crate::{
     ui::{
         KeyCommand, MouseEventKind, Responsive, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
+        widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
 };
 
@@ -192,7 +192,11 @@ impl ResourcesView {
     /// Process TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.modal.is_visible {
-            return self.modal.process_event(event);
+            if self.modal.process_event(event).is_action("delete") {
+                return ResponseEvent::DeleteResources(self.modal.input(0).map(|i| i.is_checked).unwrap_or_default());
+            }
+
+            return ResponseEvent::Handled;
         }
 
         if self.command_palette.is_visible {
@@ -384,12 +388,13 @@ impl ResourcesView {
         Dialog::new(
             "Are you sure you want to delete the selected resources?".to_owned(),
             vec![
-                Button::new("Delete", ResponseEvent::DeleteResources, &colors.modal.btn_delete),
+                Button::new("Delete", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
             60,
             colors.modal.text,
         )
+        .with_inputs(vec![CheckBox::new("Terminate immediately", false, &colors.modal.checkbox)])
     }
 }
 

@@ -187,7 +187,7 @@ impl App {
             ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
-            ResponseEvent::DeleteResources => self.views_manager.delete_resources(),
+            ResponseEvent::DeleteResources(force) => self.views_manager.delete_resources(force),
             ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
             ResponseEvent::ViewLogs(container) => self.views_manager.show_logs(container, false),
             ResponseEvent::ViewPreviousLogs(container) => self.views_manager.show_logs(container, true),

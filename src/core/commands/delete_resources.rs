@@ -15,6 +15,7 @@ pub struct DeleteResourcesCommand {
     pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
+    force: bool,
 }
 
 impl DeleteResourcesCommand {
@@ -24,12 +25,14 @@ impl DeleteResourcesCommand {
         namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
+        force: bool,
     ) -> Self {
         Self {
             names,
             namespace,
             discovery,
             client,
+            force,
         }
     }
 
@@ -47,8 +50,17 @@ impl DeleteResourcesCommand {
         };
         let client = kubernetes::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
 
+        let params = if self.force {
+            DeleteParams {
+                grace_period_seconds: Some(0),
+                ..Default::default()
+            }
+        } else {
+            DeleteParams::default()
+        };
+
         for name in &self.names {
-            let deleted = client.delete(name, &DeleteParams::default()).await;
+            let deleted = client.delete(name, &params).await;
             if let Err(error) = deleted {
                 error!("Cannot delete resource {}: {}", name, error);
             }
