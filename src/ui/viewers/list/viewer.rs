@@ -163,13 +163,11 @@ fn count_columns_up_to(text: &str, position: usize) -> usize {
             break;
         }
 
-        if !c.is_whitespace() {
-            if !in_column {
-                column_count += 1;
-                in_column = true;
-            }
-        } else {
+        if c.is_whitespace() {
             in_column = false;
+        } else if !in_column {
+            column_count += 1;
+            in_column = true;
         }
     }
 

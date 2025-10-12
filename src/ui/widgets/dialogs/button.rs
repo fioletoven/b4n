@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::ui::{ResponseEvent, colors::TextColors, theme::ControlColors};
 
-/// UI Button.
+/// UI `Button`.
 pub struct Button {
     is_focused: bool,
     caption: &'static str,

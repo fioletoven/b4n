@@ -1,5 +1,16 @@
 # Change Log
 
+## 0.2.5 - 2025-10-12
+
+### Features
+
+- add edit mode to the YAML view
+- add `terminate immediately` option to resource deletion
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.2.4 - 2025-09-29
 
 ### Features

@@ -197,9 +197,9 @@ impl Content for YamlContent {
         if is_backspace && x == 0 {
             if y > 0 && y < self.plain.len() {
                 return Some(self.join_lines(y - 1, y));
-            } else {
-                return Some((x, y));
             }
+
+            return Some((x, y));
         }
 
         if let Some(r) = get_char_position(&self.plain, x, y) {

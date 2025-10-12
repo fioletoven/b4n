@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::ui::{ResponseEvent, colors::TextColors, theme::ControlColors};
 
-/// UI CheckBox.
+/// UI `CheckBox`.
 pub struct CheckBox {
     pub is_checked: bool,
     is_focused: bool,

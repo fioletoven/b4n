@@ -383,18 +383,13 @@ impl ViewsManager {
             return;
         }
 
-        match result {
-            Ok(name) => {
-                self.view = None;
-                self.footer
-                    .transmitter()
-                    .show_info(format!(" YAML for {name} successfully saved…"), 2_000);
-            },
-            Err(error) => {
-                let msg = format!("Patch YAML error: {error}");
-                tracing::warn!("{}", msg);
-                self.footer.transmitter().show_error(msg, 0);
-            },
+        if let Err(error) = result {
+            tracing::warn!("Patch YAML error: {error}");
+            self.footer
+                .transmitter()
+                .show_error("Patching the resource with the specified YAML failed…", 0);
+        } else if let Some(view) = &mut self.view {
+            view.process_command_result(CommandResult::SetResourceYaml(result));
         }
     }
 

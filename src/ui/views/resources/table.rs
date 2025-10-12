@@ -234,9 +234,9 @@ impl ResourcesTable {
                         involved.namespace.clone().into(),
                         Some(involved.name.clone()),
                     );
-                } else {
-                    return ResponseEvent::NotHandled;
                 }
+
+                return ResponseEvent::NotHandled;
             }
 
             let is_container_name_known =

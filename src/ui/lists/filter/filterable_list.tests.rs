@@ -7,7 +7,7 @@ fn len_test() {
     let mut list = FilterableList::from(
         [1, 2, 3, 4, 5, 10, 11]
             .iter()
-            .map(|i| KindItem::new(String::new(), i.to_string(), i.to_string()))
+            .map(|i| KindItem::new("", i.to_string(), &(i.to_string())))
             .collect::<Vec<_>>(),
     );
     assert_eq!(7, list.len());
@@ -22,7 +22,7 @@ fn iterators_test() {
     let mut list = FilterableList::from(
         ["abc", "bcd", "cde"]
             .iter()
-            .map(|i| KindItem::new(String::new(), (*i).to_string(), (*i).to_string()))
+            .map(|i| KindItem::new("", (*i).to_string(), i))
             .collect::<Vec<_>>(),
     );
 
@@ -52,7 +52,7 @@ fn mutable_iterators_test() {
     let mut list = FilterableList::from(
         ["abc", "bcd", "cde"]
             .iter()
-            .map(|i| KindItem::new(String::new(), (*i).to_string(), (*i).to_string()))
+            .map(|i| KindItem::new("", (*i).to_string(), i))
             .collect::<Vec<_>>(),
     );
 
@@ -60,7 +60,7 @@ fn mutable_iterators_test() {
     list.filter(&mut context);
 
     for i in &mut list {
-        *i = KindItem::new(String::new(), "test".to_string(), "test_v".to_string());
+        *i = KindItem::new("", "test".to_string(), "test_v");
     }
 
     list.filter_reset();

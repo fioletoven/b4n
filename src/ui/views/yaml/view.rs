@@ -26,6 +26,7 @@ pub struct YamlView {
     search: Search,
     modal: Dialog,
     footer: FooterTx,
+    exit_state: ExitState,
 }
 
 impl YamlView {
@@ -58,6 +59,7 @@ impl YamlView {
             search,
             modal: Dialog::default(),
             footer,
+            exit_state: ExitState::None,
         }
     }
 
@@ -146,7 +148,7 @@ impl YamlView {
             vec![
                 Button::new("Apply", ResponseEvent::Action("apply"), &colors.modal.btn_accent),
                 Button::new("Patch", ResponseEvent::Action("patch"), &colors.modal.btn_accent),
-                Button::new("Leave", response, &colors.modal.btn_delete),
+                Button::new("Discard", response, &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
             60,
@@ -178,7 +180,7 @@ impl YamlView {
         }
 
         if (response == ResponseEvent::Cancelled || response == ResponseEvent::ExitApplication) && self.yaml.is_modified() {
-            return self.process_view_close_event(response);
+            return self.process_view_close_event(response, true);
         }
 
         response
@@ -187,7 +189,7 @@ impl YamlView {
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.modal.process_event(event);
         if response.is_action("apply") {
-            let force = self.modal.input(0).map(|i| i.is_checked).unwrap_or_default();
+            let force = self.modal.input(0).is_some_and(|i| i.is_checked);
             return self.save_yaml(true, force);
         } else if response.is_action("patch") {
             return self.save_yaml(false, false);
@@ -196,10 +198,11 @@ impl YamlView {
         response
     }
 
-    fn process_view_close_event(&mut self, response: ResponseEvent) -> ResponseEvent {
+    fn process_view_close_event(&mut self, response: ResponseEvent, is_quit: bool) -> ResponseEvent {
         if self.yaml.is_modified() {
             self.modal = self.new_save_dialog(response);
             self.modal.show();
+            self.exit_state = if is_quit { ExitState::Quitting } else { ExitState::Closing };
             ResponseEvent::Handled
         } else {
             response
@@ -232,21 +235,41 @@ impl View for YamlView {
         self.command_id.as_deref()
     }
 
-    fn process_tick(&mut self) -> ResponseEvent {
-        self.yaml.process_tick()
+    fn process_command_result(&mut self, result: CommandResult) {
+        match result {
+            CommandResult::GetResourceYaml(Ok(result)) => {
+                if let Some(highlighter) = self.worker.borrow().get_highlighter() {
+                    let icon = if result.is_decoded { '' } else { '' };
+                    self.is_decoded = result.is_decoded;
+                    self.yaml.header.set_icon(icon);
+                    self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
+                    self.yaml
+                        .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
+                }
+            },
+            CommandResult::SetResourceYaml(Ok(name)) => {
+                if self.exit_state == ExitState::Closing {
+                    self.exit_state = ExitState::ShouldClose;
+                } else if self.exit_state == ExitState::Quitting {
+                    self.exit_state = ExitState::ShouldQuit;
+                } else {
+                    self.exit_state = ExitState::None;
+                }
+
+                self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 2_000);
+            },
+            _ => (),
+        }
     }
 
-    fn process_command_result(&mut self, result: CommandResult) {
-        if let CommandResult::GetResourceYaml(Ok(result)) = result
-            && let Some(highlighter) = self.worker.borrow().get_higlighter()
-        {
-            let icon = if result.is_decoded { '' } else { '' };
-            self.is_decoded = result.is_decoded;
-            self.yaml.header.set_icon(icon);
-            self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
-            self.yaml
-                .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
+    fn process_tick(&mut self) -> ResponseEvent {
+        if self.exit_state == ExitState::ShouldQuit {
+            return ResponseEvent::ExitApplication;
+        } else if self.exit_state == ExitState::ShouldClose {
+            return ResponseEvent::Cancelled;
         }
+
+        self.yaml.process_tick()
     }
 
     fn process_disconnection(&mut self) {
@@ -301,7 +324,7 @@ impl View for YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            return self.process_view_close_event(ResponseEvent::Cancelled);
+            return self.process_view_close_event(ResponseEvent::Cancelled, false);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlDecode)
@@ -335,4 +358,13 @@ impl View for YamlView {
         self.search.draw(frame, frame.area());
         self.modal.draw(frame, area);
     }
+}
+
+#[derive(PartialEq)]
+enum ExitState {
+    None,
+    Closing,
+    Quitting,
+    ShouldClose,
+    ShouldQuit,
 }

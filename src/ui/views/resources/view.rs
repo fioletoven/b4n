@@ -193,7 +193,7 @@ impl ResourcesView {
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.modal.is_visible {
             if self.modal.process_event(event).is_action("delete") {
-                return ResponseEvent::DeleteResources(self.modal.input(0).map(|i| i.is_checked).unwrap_or_default());
+                return ResponseEvent::DeleteResources(self.modal.input(0).is_some_and(|i| i.is_checked));
             }
 
             return ResponseEvent::Handled;

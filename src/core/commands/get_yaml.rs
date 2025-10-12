@@ -30,12 +30,12 @@ pub enum ResourceYamlError {
     #[error("cannot serialize resource's YAML")]
     SerializationError(#[from] serde_yaml::Error),
 
-    /// Cannot send syntax higlight request to the highlighter thread.
-    #[error("cannot send syntax higlight request")]
+    /// Cannot send syntax highlight request to the highlighter thread.
+    #[error("cannot send syntax highlight request")]
     CannotSendRequest(#[from] tokio::sync::mpsc::error::SendError<HighlightRequest>),
 
-    /// Cannot send syntax higlight request to the highlighter thread.
-    #[error("cannot send syntax higlight request")]
+    /// Cannot send syntax highlight request to the highlighter thread.
+    #[error("cannot send syntax highlight request")]
     CannotRecvResponse(#[from] tokio::sync::oneshot::error::RecvError),
 
     /// Cannot decode resource's data.
