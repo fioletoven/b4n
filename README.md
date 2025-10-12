@@ -1,6 +1,6 @@
 # b4n
 
-`b4n` is a terminal user interface for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io).
+`b4n` is a terminal user interface (TUI) for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io) and built using the [`kube-rs`](https://kube.rs) and [`ratatui`](https://ratatui.rs) crates.
 
 ![b4n demo](assets/b4n.gif?raw=true "b4n")
 
@@ -16,7 +16,7 @@ As the project is in its early stages, the following features are currently supp
 
 - View a list of Kubernetes resources.
 - Delete selected resources.
-- Display the YAML configuration of the highlighted resource.
+- Display and edit YAML of the highlighted resource.
 - View events for the highlighted resource.
 - View logs for the highlighted container.
 - Open a shell session in the highlighted container.
@@ -27,7 +27,6 @@ As the project is in its early stages, the following features are currently supp
 The following features are planned for future development:
 
 - View combined logs for all containers in a pod.
-- Edit Kubernetes resources (YAML).
 - Create Kubernetes resources (YAML).
 - Describe Kubernetes resources.
 
@@ -56,6 +55,7 @@ The following features are planned for future development:
 | Show resources selector                  | `→`             | To select the first item quickly press `→` again            |
 | Show YAML for the highlighted resource   | `y`             |                                                             |
 | Sort column                              | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
+| Switch to the edit mode                  | `i`             | Works only in YAML view, press `Esc` to exit                |
 
 ## Configuration Files
 
