@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.2.6 - 2025-10-14
+
+### Bug fixes
+
+- decode secret before switching to edit mode
+- encode secret before applying / patching the resource
+- hide search before switching to edit mode
+
 ## 0.2.5 - 2025-10-12
 
 ### Features
