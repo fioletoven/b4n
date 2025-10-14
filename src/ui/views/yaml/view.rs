@@ -20,13 +20,14 @@ pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    is_secret: bool,
     is_decoded: bool,
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
     modal: Dialog,
     footer: FooterTx,
-    exit_state: ExitState,
+    state: ViewState,
 }
 
 impl YamlView {
@@ -39,6 +40,7 @@ impl YamlView {
         footer: FooterTx,
     ) -> Self {
         let color = app_data.borrow().theme.colors.syntax.yaml.search;
+        let is_secret = resource.kind.name() == SECRETS;
         let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
             "YAML",
             '',
@@ -53,13 +55,14 @@ impl YamlView {
             yaml,
             app_data,
             worker,
+            is_secret,
             is_decoded: false,
             command_id,
             command_palette: CommandPalette::default(),
             search,
             modal: Dialog::default(),
             footer,
-            exit_state: ExitState::None,
+            state: ViewState::Idle,
         }
     }
 
@@ -140,27 +143,6 @@ impl YamlView {
         }
     }
 
-    fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-
-        Dialog::new(
-            "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
-            vec![
-                Button::new("Apply", ResponseEvent::Action("apply"), &colors.modal.btn_accent),
-                Button::new("Patch", ResponseEvent::Action("patch"), &colors.modal.btn_accent),
-                Button::new("Discard", response, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
-            ],
-            60,
-            colors.modal.text,
-        )
-        .with_inputs(vec![CheckBox::new(
-            "Force ownership (apply only)",
-            false,
-            &colors.modal.checkbox,
-        )])
-    }
-
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
 
@@ -175,7 +157,7 @@ impl YamlView {
         } else if response.is_action("search") {
             self.search.show();
             return ResponseEvent::Handled;
-        } else if response.is_action("edit") && self.yaml.enable_edit_mode() {
+        } else if response.is_action("edit") && self.enable_edit_mode() {
             return ResponseEvent::Handled;
         }
 
@@ -202,11 +184,36 @@ impl YamlView {
         if self.yaml.is_modified() {
             self.modal = self.new_save_dialog(response);
             self.modal.show();
-            self.exit_state = if is_quit { ExitState::Quitting } else { ExitState::Closing };
+            self.state = if is_quit {
+                ViewState::WaitingForQuit
+            } else {
+                ViewState::WaitingForClose
+            };
             ResponseEvent::Handled
         } else {
             response
         }
+    }
+
+    fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
+            vec![
+                Button::new("Apply", ResponseEvent::Action("apply"), &colors.modal.btn_accent),
+                Button::new("Patch", ResponseEvent::Action("patch"), &colors.modal.btn_accent),
+                Button::new("Discard", response, &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
+        .with_inputs(vec![CheckBox::new(
+            "Force ownership (apply only)",
+            false,
+            &colors.modal.checkbox,
+        )])
     }
 
     fn save_yaml(&mut self, is_apply: bool, is_forced: bool) -> ResponseEvent {
@@ -228,6 +235,16 @@ impl YamlView {
             ResponseEvent::Cancelled
         }
     }
+
+    fn enable_edit_mode(&mut self) -> bool {
+        if self.is_secret && !self.is_decoded {
+            self.toggle_yaml_decode();
+            self.state = ViewState::WaitingForEdit;
+            return false;
+        }
+
+        self.yaml.enable_edit_mode()
+    }
 }
 
 impl View for YamlView {
@@ -245,15 +262,19 @@ impl View for YamlView {
                     self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
                     self.yaml
                         .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
+                    if self.state == ViewState::WaitingForEdit && self.is_decoded {
+                        self.state = ViewState::Idle;
+                        self.yaml.enable_edit_mode();
+                    }
                 }
             },
             CommandResult::SetResourceYaml(Ok(name)) => {
-                if self.exit_state == ExitState::Closing {
-                    self.exit_state = ExitState::ShouldClose;
-                } else if self.exit_state == ExitState::Quitting {
-                    self.exit_state = ExitState::ShouldQuit;
+                if self.state == ViewState::WaitingForClose {
+                    self.state = ViewState::Closing;
+                } else if self.state == ViewState::WaitingForQuit {
+                    self.state = ViewState::Quitting;
                 } else {
-                    self.exit_state = ExitState::None;
+                    self.state = ViewState::Idle;
                 }
 
                 self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 2_000);
@@ -263,9 +284,9 @@ impl View for YamlView {
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
-        if self.exit_state == ExitState::ShouldQuit {
+        if self.state == ViewState::Quitting {
             return ResponseEvent::ExitApplication;
-        } else if self.exit_state == ExitState::ShouldClose {
+        } else if self.state == ViewState::Closing {
             return ResponseEvent::Cancelled;
         }
 
@@ -295,7 +316,7 @@ impl View for YamlView {
             return self.process_modal_event(event);
         }
 
-        if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.yaml.enable_edit_mode() {
+        if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.enable_edit_mode() {
             return ResponseEvent::Handled;
         }
 
@@ -361,10 +382,11 @@ impl View for YamlView {
 }
 
 #[derive(PartialEq)]
-enum ExitState {
-    None,
+enum ViewState {
+    Idle,
+    WaitingForEdit,
+    WaitingForClose,
+    WaitingForQuit,
     Closing,
     Quitting,
-    ShouldClose,
-    ShouldQuit,
 }
