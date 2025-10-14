@@ -100,7 +100,7 @@ impl YamlView {
                     .with_aliases(&["insert"])
                     .with_response(ResponseEvent::Action("edit")),
             );
-        if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected {
+        if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected && !self.yaml.is_modified() {
             let action = if self.is_decoded { "encode" } else { "decode" };
             builder = builder.with_action(
                 ActionItem::new(action)
@@ -114,6 +114,11 @@ impl YamlView {
     }
 
     fn toggle_yaml_decode(&mut self) {
+        if !self.app_data.borrow().is_connected || self.yaml.is_modified() {
+            return;
+        }
+
+        self.clear_search();
         self.command_id = self.worker.borrow_mut().get_yaml(
             self.yaml.header.name.clone(),
             self.yaml.header.namespace.clone(),
@@ -243,6 +248,7 @@ impl YamlView {
             return false;
         }
 
+        self.clear_search();
         self.yaml.enable_edit_mode()
     }
 }
@@ -348,12 +354,8 @@ impl View for YamlView {
             return self.process_view_close_event(ResponseEvent::Cancelled, false);
         }
 
-        if self.app_data.has_binding(event, KeyCommand::YamlDecode)
-            && self.yaml.header.kind.as_str() == SECRETS
-            && self.app_data.borrow().is_connected
-        {
+        if self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.yaml.header.kind.as_str() == SECRETS {
             self.toggle_yaml_decode();
-            self.clear_search();
             return ResponseEvent::Handled;
         }
 
