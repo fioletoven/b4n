@@ -1,3 +1,5 @@
+use base64::{Engine, engine};
+use k8s_openapi::serde_json::Value;
 use kube::{
     Api, Client,
     api::{ApiResource, DynamicObject, Patch, PatchParams},
@@ -7,7 +9,7 @@ use std::fmt::Display;
 
 use crate::{
     core::{APP_NAME, commands::CommandResult},
-    kubernetes::{self, Namespace},
+    kubernetes::{self, Namespace, resources::SECRETS},
 };
 
 /// Possible errors from applying or patching resource's YAML.
@@ -96,19 +98,26 @@ impl SetResourceYamlCommand {
             self.namespace.is_all(),
         );
 
-        Some(CommandResult::SetResourceYaml(self.save_yaml(client).await))
+        let is_secret = discovery.0.plural == SECRETS;
+
+        Some(CommandResult::SetResourceYaml(self.save_yaml(client, is_secret).await))
     }
 
-    async fn save_yaml(self, api: Api<DynamicObject>) -> Result<String, SetResourceYamlError> {
-        let yaml = serde_yaml::from_str::<DynamicObject>(&self.yaml).map_err(|e| SetResourceYamlError::SerializationError {
-            resource: self.name.clone(),
-            source: e,
-        })?;
+    async fn save_yaml(self, api: Api<DynamicObject>, encode: bool) -> Result<String, SetResourceYamlError> {
+        let mut resource =
+            serde_yaml::from_str::<DynamicObject>(&self.yaml).map_err(|e| SetResourceYamlError::SerializationError {
+                resource: self.name.clone(),
+                source: e,
+            })?;
+
+        if encode {
+            encode_secret_data(&mut resource);
+        }
 
         let (patch, patch_params) = match self.action {
-            SetResourceYamlAction::Apply => (Patch::Apply(&yaml), PatchParams::apply(APP_NAME)),
-            SetResourceYamlAction::ForceApply => (Patch::Apply(&yaml), PatchParams::apply(APP_NAME).force()),
-            SetResourceYamlAction::Patch => (Patch::Merge(&yaml), PatchParams::default()),
+            SetResourceYamlAction::Apply => (Patch::Apply(&resource), PatchParams::apply(APP_NAME)),
+            SetResourceYamlAction::ForceApply => (Patch::Apply(&resource), PatchParams::apply(APP_NAME).force()),
+            SetResourceYamlAction::Patch => (Patch::Merge(&resource), PatchParams::default()),
         };
 
         api.patch(&self.name, &patch_params, &patch)
@@ -120,5 +129,17 @@ impl SetResourceYamlCommand {
             })?;
 
         Ok(self.name)
+    }
+}
+
+fn encode_secret_data(resource: &mut DynamicObject) {
+    if resource.data.get("data").is_some_and(Value::is_object) {
+        let engine = engine::general_purpose::STANDARD;
+        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
+            if let Value::String(data) = &mut data.1 {
+                let encoded = engine.encode(data.as_bytes());
+                *data = encoded;
+            }
+        }
     }
 }
