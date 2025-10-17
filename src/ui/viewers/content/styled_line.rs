@@ -3,6 +3,9 @@ use ratatui::style::Style;
 pub type StyledLine = Vec<(Style, String)>;
 
 pub trait StyledLineExt {
+    /// Inserts a string slice into this `StyledLine` at byte position `idx`.
+    fn sl_insert_str(&mut self, idx: usize, s: &str);
+
     /// Inserts a character into this `StyledLine` at byte position `idx`.
     fn sl_insert(&mut self, idx: usize, ch: char);
 
@@ -23,15 +26,15 @@ pub trait StyledLineExt {
 }
 
 impl StyledLineExt for StyledLine {
-    fn sl_insert(&mut self, idx: usize, ch: char) {
-        let mut current = 0;
-        for part in self {
-            if current + part.1.len() >= idx {
-                part.1.insert(idx - current, ch);
-                return;
-            }
+    fn sl_insert_str(&mut self, idx: usize, s: &str) {
+        if let Some((idx, part)) = get_part(self, idx) {
+            part.insert_str(idx, s);
+        }
+    }
 
-            current += part.1.len();
+    fn sl_insert(&mut self, idx: usize, ch: char) {
+        if let Some((idx, part)) = get_part(self, idx) {
+            part.insert(idx, ch);
         }
     }
 
@@ -96,4 +99,17 @@ impl StyledLineExt for StyledLine {
             current += part.1.len();
         }
     }
+}
+
+fn get_part(line: &mut StyledLine, idx: usize) -> Option<(usize, &mut String)> {
+    let mut current = 0;
+    for part in line {
+        if current + part.1.len() >= idx {
+            return Some((idx - current, &mut part.1));
+        }
+
+        current += part.1.len();
+    }
+
+    None
 }

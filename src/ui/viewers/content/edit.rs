@@ -58,6 +58,11 @@ impl EditContext {
                     x_changed = Some(Some(self.cursor.x.saturating_add(1)));
                     line_size = content.line_size(self.cursor.y);
                 },
+                KeyCode::Tab => {
+                    content.insert_str(self.cursor.x, self.cursor.y, "  ");
+                    x_changed = Some(Some(self.cursor.x.saturating_add(2)));
+                    line_size = content.line_size(self.cursor.y);
+                },
                 KeyCode::Backspace => {
                     if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, true) {
                         x_changed = Some(Some(x));
