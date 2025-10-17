@@ -192,10 +192,10 @@ impl Input {
         for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
             let x = match u16::try_from(usize::from(x) + i) {
                 Ok(x) => x,
-                Err(_) => break,
+                Err(_) => return,
             };
             if x >= max_x {
-                break;
+                return;
             }
 
             if self
