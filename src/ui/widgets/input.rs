@@ -26,7 +26,6 @@ pub struct Input {
     error_mode: ErrorHighlightMode,
     accent_chars: Option<String>,
     show_cursor: bool,
-    cursor: Position,
     cursor_colors: TextColors,
 }
 
@@ -161,22 +160,24 @@ impl Input {
         let mut count = 0;
         if let Some(prompt) = &self.prompt {
             for (i, char) in prompt.0.chars().enumerate() {
-                let x = x + u16::try_from(i).unwrap_or(0);
+                let x = match u16::try_from(usize::from(x) + i) {
+                    Ok(x) => x,
+                    Err(_) => break,
+                };
                 if x >= max_x {
                     break;
                 }
 
-                count = u16::try_from(i).unwrap_or(0) + 1;
+                count = u16::try_from(i + 1).unwrap_or(0);
 
                 if self.error_mode == ErrorHighlightMode::PromptAndIndex
                     && self.error_index.is_some()
                     && let Some(colors) = self.error
                 {
                     buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
-                    continue;
+                } else {
+                    buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
                 }
-
-                buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
             }
         }
 
@@ -189,14 +190,17 @@ impl Input {
         }
 
         for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
-            let x = x + u16::try_from(i).unwrap_or(0);
+            let x = match u16::try_from(usize::from(x) + i) {
+                Ok(x) => x,
+                Err(_) => return,
+            };
             if x >= max_x {
                 return;
             }
 
             if self
                 .error_index
-                .is_some_and(|p| self.error_mode == ErrorHighlightMode::Value || p - scroll == i)
+                .is_some_and(|p| self.error_mode == ErrorHighlightMode::Value || p.checked_sub(scroll).is_some_and(|p| p == i))
                 && let Some(colors) = self.error
             {
                 buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
@@ -259,16 +263,20 @@ impl Widget for &mut Input {
             return;
         }
 
+        let cursor = self.input.visual_cursor();
+        let is_end = cursor == self.input.value().len();
         let scroll = self.input.visual_scroll(usize::from(max_x - x));
-        self.cursor = Position::new(x + (self.input.visual_cursor().max(scroll) - scroll) as u16, y);
-        self.render_input(x, y, max_x, scroll, buf);
+        let cursor = cursor.saturating_sub(scroll);
 
-        if self.show_cursor
-            && area.contains(self.cursor)
-            && let Some(cell) = buf.cell_mut(self.cursor)
-        {
-            cell.fg = self.cursor_colors.fg;
-            cell.bg = self.cursor_colors.bg;
+        self.render_input(x, y, if is_end { max_x } else { max_x + 1 }, scroll, buf);
+
+        let x = u16::try_from(usize::from(x) + cursor).unwrap_or(u16::MAX);
+        if self.show_cursor && area.contains(Position::new(x, y)) {
+            if scroll + cursor == self.input.value().len() {
+                buf[(x, y)].set_char('▊').set_fg(self.cursor_colors.bg);
+            } else {
+                buf[(x, y)].set_fg(self.cursor_colors.fg).set_bg(self.cursor_colors.bg);
+            }
         }
     }
 }
