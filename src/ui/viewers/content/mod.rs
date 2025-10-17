@@ -41,7 +41,15 @@ pub trait Content {
         false
     }
 
-    /// Inserts specified character to the content at a position `x` and `y`.
+    /// Inserts specified string slice to the content at a position `x:y`.\
+    /// **Note** that it should not contain `\n` characters.
+    fn insert_str(&mut self, x: usize, y: usize, s: &str) {
+        let _ = x;
+        let _ = y;
+        let _ = s;
+    }
+
+    /// Inserts specified character to the content at a position `x:y`.
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         let _ = x;
         let _ = y;

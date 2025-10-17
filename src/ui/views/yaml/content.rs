@@ -167,6 +167,20 @@ impl Content for YamlContent {
         self.is_editable
     }
 
+    fn insert_str(&mut self, x: usize, y: usize, s: &str) {
+        if let Some(r) = get_char_position(&self.plain, x, y) {
+            self.plain[y].insert_str(r.x.index, s);
+            self.lowercase[y].insert_str(r.x.index, &s.to_ascii_lowercase());
+            self.styled[y].sl_insert_str(r.x.index, s);
+        } else {
+            self.plain[y].push_str(s);
+            self.lowercase[y].push_str(&s.to_ascii_lowercase());
+            self.styled[y].sl_push_str(s);
+        }
+
+        self.mark_line_as_modified(y);
+    }
+
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         if let Some(r) = get_char_position(&self.plain, x, y) {
             if character == '\n' {
