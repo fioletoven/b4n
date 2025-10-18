@@ -4,7 +4,7 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::ui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
+use crate::ui::{KeyCombination, MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
 
 use super::{Content, search::PagePosition};
 
@@ -48,8 +48,10 @@ impl EditContext {
     ) -> ResponseEvent {
         match event {
             TuiEvent::Key(key) => {
-                let pos = if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('z') {
-                    self.process_undo(content)
+                let pos = if key == &KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL) {
+                    content.undo().map(|(x, y)| (Some(Some(x)), Some(y))).unwrap_or((None, None))
+                } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
+                    content.redo().map(|(x, y)| (Some(Some(x)), Some(y))).unwrap_or((None, None))
                 } else {
                     self.process_key(key.code, content, area)
                 };
@@ -66,14 +68,6 @@ impl EditContext {
         };
 
         ResponseEvent::Handled
-    }
-
-    fn process_undo<T: Content>(&self, content: &mut T) -> NewCursorPosition {
-        if let Some((x, y)) = content.undo() {
-            (Some(Some(x)), Some(y))
-        } else {
-            (None, None)
-        }
     }
 
     fn process_key<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {

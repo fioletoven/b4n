@@ -174,14 +174,6 @@ impl YamlContent {
         }
     }
 
-    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> Option<(usize, usize)> {
-        if track {
-            self.undo.push(Undo::remove(x, y, ch));
-        }
-
-        Some((x, y))
-    }
-
     fn remove_ch(&mut self, idx: usize, line_no: usize) -> char {
         let removed = self.plain[line_no].remove(idx);
         self.lowercase[line_no].remove(idx);
@@ -189,6 +181,14 @@ impl YamlContent {
 
         self.mark_line_as_modified(line_no);
         removed
+    }
+
+    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> Option<(usize, usize)> {
+        if track {
+            self.undo.push(Undo::remove(x, y, ch));
+        }
+
+        Some((x, y))
     }
 }
 
@@ -270,6 +270,32 @@ impl Content for YamlContent {
 
             self.redo.push(actions);
             result
+        }
+    }
+
+    fn redo(&mut self) -> Option<(usize, usize)> {
+        if let Some(mut actions) = self.redo.pop() {
+            let mut result = None;
+
+            actions.reverse();
+            for action in &actions {
+                if action.is_insert {
+                    self.insert_char_internal(action.x, action.y, action.ch);
+                    if action.ch == '\n' {
+                        result = Some((0, action.y.saturating_add(1)));
+                    } else {
+                        result = Some((action.x.saturating_add(1), action.y));
+                    }
+                } else {
+                    self.remove_char_internal(action.x, action.y, false, false);
+                    result = Some((action.x, action.y));
+                }
+            }
+
+            self.undo.extend(actions);
+            result
+        } else {
+            None
         }
     }
 
