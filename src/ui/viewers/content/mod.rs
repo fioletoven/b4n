@@ -41,14 +41,6 @@ pub trait Content {
         false
     }
 
-    /// Inserts specified string slice to the content at a position `x:y`.\
-    /// **Note** that it should not contain `\n` characters.
-    fn insert_str(&mut self, x: usize, y: usize, s: &str) {
-        let _ = x;
-        let _ = y;
-        let _ = s;
-    }
-
     /// Inserts specified character to the content at a position `x:y`.
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         let _ = x;
@@ -64,6 +56,12 @@ pub trait Content {
         let _ = is_backspace;
         None
     }
+
+    /// Reverts most recent changes done in edit mode.
+    fn undo(&mut self) {}
+
+    /// Re-applies an action that was previously undone.
+    fn redo(&mut self) {}
 
     /// Can be called on every app tick to do some computation.
     fn process_tick(&mut self) -> ResponseEvent {

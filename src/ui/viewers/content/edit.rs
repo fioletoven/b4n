@@ -4,7 +4,7 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::ui::{MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
+use crate::ui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
 
 use super::{Content, search::PagePosition};
 
@@ -31,10 +31,10 @@ impl EditContext {
         self.is_enabled = true;
         if self.cursor.y < position.y {
             self.cursor.y = position.y;
-            self.update_cursor_position(false, content);
+            self.constraint_cursor_position(false, content);
         } else if self.cursor.y >= position.y + usize::from(page_size) {
             self.cursor.y = position.y + usize::from(page_size.saturating_sub(1));
-            self.update_cursor_position(false, content);
+            self.constraint_cursor_position(false, content);
         }
     }
 
@@ -46,70 +46,94 @@ impl EditContext {
         position: PagePosition,
         area: Rect,
     ) -> ResponseEvent {
-        let mut line_size = content.line_size(self.cursor.y);
+        match event {
+            TuiEvent::Key(key) => {
+                let pos = self.process_key(key.code, content, area);
+                self.update_cursor_position(pos, content, false);
+            },
+            TuiEvent::Mouse(mouse) => {
+                if mouse.kind == MouseEventKind::LeftClick {
+                    let pos = self.process_mouse(mouse, position, area);
+                    self.update_cursor_position(pos, content, true);
+                } else {
+                    return ResponseEvent::NotHandled;
+                }
+            },
+        };
 
+        ResponseEvent::Handled
+    }
+
+    fn process_key<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {
         let mut x_changed = None;
         let mut y_changed = None;
 
-        match event {
-            TuiEvent::Key(key) => match key.code {
-                KeyCode::Char(c) => {
-                    content.insert_char(self.cursor.x, self.cursor.y, c);
-                    x_changed = Some(Some(self.cursor.x.saturating_add(1)));
-                    line_size = content.line_size(self.cursor.y);
-                },
-                KeyCode::Tab => {
-                    content.insert_str(self.cursor.x, self.cursor.y, "  ");
-                    x_changed = Some(Some(self.cursor.x.saturating_add(2)));
-                    line_size = content.line_size(self.cursor.y);
-                },
-                KeyCode::Backspace => {
-                    if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, true) {
-                        x_changed = Some(Some(x));
-                        y_changed = Some(y);
-                        line_size = content.line_size(y);
-                    }
-                },
-                KeyCode::Delete => {
-                    if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, false) {
-                        x_changed = Some(Some(x));
-                        y_changed = Some(y);
-                        line_size = content.line_size(y);
-                    }
-                },
-                KeyCode::Enter => {
-                    content.insert_char(self.cursor.x, self.cursor.y, '\n');
-                    x_changed = Some(Some(0));
-                    y_changed = Some(self.cursor.y.saturating_add(1));
-                    line_size = content.line_size(self.cursor.y.saturating_add(1));
-                },
-                _ => match key {
-                    a if a.code == KeyCode::Home => x_changed = Some(Some(0)),
-                    a if a.code == KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
-                    a if a.code == KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
-                    a if a.code == KeyCode::End => x_changed = Some(Some(line_size)),
-
-                    a if a.code == KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
-                    a if a.code == KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
-                    a if a.code == KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
-                    a if a.code == KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
-
-                    _ => return ResponseEvent::NotHandled,
-                },
+        match key {
+            // insert character
+            KeyCode::Char(c) => {
+                content.insert_char(self.cursor.x, self.cursor.y, c);
+                x_changed = Some(Some(self.cursor.x.saturating_add(1)));
             },
-            TuiEvent::Mouse(mouse) => match mouse {
-                a if a.kind == MouseEventKind::LeftClick => {
-                    self.cursor.x = position.x.saturating_add(a.column.saturating_sub(area.x).into());
-                    self.cursor.y = position.y.saturating_add(a.row.saturating_sub(area.y).into());
-                },
-
-                _ => return ResponseEvent::NotHandled,
+            KeyCode::Tab => {
+                content.insert_char(self.cursor.x, self.cursor.y, ' ');
+                content.insert_char(self.cursor.x, self.cursor.y, ' ');
+                x_changed = Some(Some(self.cursor.x.saturating_add(2)));
             },
+            KeyCode::Enter => {
+                content.insert_char(self.cursor.x, self.cursor.y, '\n');
+                x_changed = Some(Some(0));
+                y_changed = Some(self.cursor.y.saturating_add(1));
+            },
+
+            // remove character
+            KeyCode::Backspace => {
+                if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, true) {
+                    x_changed = Some(Some(x));
+                    y_changed = Some(y);
+                }
+            },
+            KeyCode::Delete => {
+                if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, false) {
+                    x_changed = Some(Some(x));
+                    y_changed = Some(y);
+                }
+            },
+
+            // navigate horizontal
+            KeyCode::Home => x_changed = Some(Some(0)),
+            KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
+            KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
+            KeyCode::End => x_changed = Some(Some(content.line_size(self.cursor.y))),
+
+            // navigate vertical
+            KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
+            KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
+            KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+            KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
+
+            _ => (),
         }
 
-        if let Some(new_x) = x_changed {
+        (x_changed, y_changed)
+    }
+
+    fn process_mouse(&mut self, mouse: &MouseEvent, position: PagePosition, area: Rect) -> NewCursorPosition {
+        if mouse.kind == MouseEventKind::LeftClick {
+            let x = position.x.saturating_add(mouse.column.saturating_sub(area.x).into());
+            let y = position.y.saturating_add(mouse.row.saturating_sub(area.y).into());
+            let x = if x != self.cursor.x { Some(Some(x)) } else { None };
+            let y = if y != self.cursor.y { Some(y) } else { None };
+            return (x, y);
+        }
+
+        (None, None)
+    }
+
+    fn update_cursor_position<T: Content>(&mut self, pos: NewCursorPosition, content: &mut T, is_mouse: bool) {
+        if let Some(new_x) = pos.0 {
             if let Some(x) = new_x {
-                if x > line_size && self.cursor.y.saturating_add(1) < content.len() {
+                let line_size = content.line_size(pos.1.unwrap_or(self.cursor.y));
+                if !is_mouse && x > line_size && self.cursor.y.saturating_add(1) < content.len() {
                     self.cursor.x = 0;
                     self.cursor.y = self.cursor.y.saturating_add(1);
                 } else {
@@ -119,19 +143,23 @@ impl EditContext {
                 self.cursor.y = y;
                 self.cursor.x = content.line_size(y);
             }
-
-            self.last_set_x = self.cursor.x;
         }
 
-        if let Some(new_y) = y_changed {
+        if let Some(new_y) = pos.1 {
             self.cursor.y = new_y;
         }
 
-        self.update_cursor_position(y_changed.is_some(), content);
-        ResponseEvent::Handled
+        // we can set `x` to the last set value only if this is move on `y` axe, so if:
+        // pos.0 was not changed and pos.1 was changed and it is not a mouse event
+        let use_last_x = pos.0.is_none() && pos.1.is_some() && !is_mouse;
+        self.constraint_cursor_position(use_last_x, content);
+
+        if pos.0.is_some() {
+            self.last_set_x = self.cursor.x;
+        }
     }
 
-    fn update_cursor_position<T: Content>(&mut self, use_last_x: bool, content: &mut T) {
+    fn constraint_cursor_position<T: Content>(&mut self, use_last_x: bool, content: &mut T) {
         let lines_no = content.len();
         if self.cursor.y >= lines_no {
             self.cursor.y = lines_no.saturating_sub(1);
@@ -145,6 +173,8 @@ impl EditContext {
         }
     }
 }
+
+type NewCursorPosition = (Option<Option<usize>>, Option<usize>);
 
 /// Widget that draws cursor on the content.
 pub struct ContentEditWidget<'a> {
