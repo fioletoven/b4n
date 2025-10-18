@@ -118,7 +118,71 @@ impl YamlContent {
         self.mark_line_as_modified(insert_at);
     }
 
-    fn remove_char_internal(&mut self, idx: usize, line_no: usize) -> char {
+    fn insert_char_internal(&mut self, x: usize, y: usize, ch: char) {
+        if let Some(r) = get_char_position(&self.plain, x, y) {
+            if ch == '\n' {
+                if r.x.index == 0 {
+                    self.add_empty_line(y);
+                } else {
+                    self.split_lines(r.x.index, y);
+                }
+            } else {
+                self.plain[y].insert(r.x.index, ch);
+                self.lowercase[y].insert(r.x.index, ch.to_ascii_lowercase());
+                self.styled[y].sl_insert(r.x.index, ch);
+                self.mark_line_as_modified(y);
+            }
+        } else if y < self.plain.len() {
+            if ch == '\n' {
+                self.add_empty_line(y + 1);
+            } else {
+                self.plain[y].push(ch);
+                self.lowercase[y].push(ch.to_ascii_lowercase());
+                self.styled[y].sl_push(ch);
+                self.mark_line_as_modified(y);
+            }
+        }
+    }
+
+    fn remove_char_internal(&mut self, x: usize, y: usize, is_backspace: bool, track_undo: bool) -> Option<(usize, usize)> {
+        if is_backspace && x == 0 {
+            if y > 0 && y < self.plain.len() {
+                let (x, y) = self.join_lines(y - 1, y);
+                return self.track_remove(x, y, '\n', track_undo);
+            }
+
+            return Some((x, y));
+        }
+
+        if let Some(r) = get_char_position(&self.plain, x, y) {
+            let x = if is_backspace { r.x_prev } else { r.x };
+            let ch = self.remove_ch(x.index, y);
+            self.track_remove(x.char, y, ch, track_undo)
+        } else if y < self.plain.len() {
+            let x = if is_backspace { x.saturating_sub(1) } else { x };
+            if let Some(r) = get_char_position(&self.plain, x, y) {
+                let ch = self.remove_ch(r.x.index, y);
+                self.track_remove(r.x.char, y, ch, track_undo)
+            } else if y + 1 < self.plain.len() {
+                let (x, y) = self.join_lines(y, y + 1);
+                self.track_remove(x, y, '\n', track_undo)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> Option<(usize, usize)> {
+        if track {
+            self.undo.push(Undo::remove(x, y, ch));
+        }
+
+        Some((x, y))
+    }
+
+    fn remove_ch(&mut self, idx: usize, line_no: usize) -> char {
         let removed = self.plain[line_no].remove(idx);
         self.lowercase[line_no].remove(idx);
         self.styled[line_no].sl_remove(idx);
@@ -175,76 +239,28 @@ impl Content for YamlContent {
 
     fn insert_char(&mut self, x: usize, y: usize, ch: char) {
         self.undo.push(Undo::insert(x, y, ch));
-        if let Some(r) = get_char_position(&self.plain, x, y) {
-            if ch == '\n' {
-                if r.x.index == 0 {
-                    self.add_empty_line(y);
-                } else {
-                    self.split_lines(r.x.index, y);
-                }
-            } else {
-                self.plain[y].insert(r.x.index, ch);
-                self.lowercase[y].insert(r.x.index, ch.to_ascii_lowercase());
-                self.styled[y].sl_insert(r.x.index, ch);
-                self.mark_line_as_modified(y);
-            }
-        } else if y < self.plain.len() {
-            if ch == '\n' {
-                self.add_empty_line(y + 1);
-            } else {
-                self.plain[y].push(ch);
-                self.lowercase[y].push(ch.to_ascii_lowercase());
-                self.styled[y].sl_push(ch);
-                self.mark_line_as_modified(y);
-            }
-        }
+        self.insert_char_internal(x, y, ch);
     }
 
     fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
-        if is_backspace && x == 0 {
-            if y > 0 && y < self.plain.len() {
-                let (x, y) = self.join_lines(y - 1, y);
-                self.undo.push(Undo::remove(x, y, '\n'));
+        self.remove_char_internal(x, y, is_backspace, true)
+    }
 
-                return Some((x, y));
-            }
-
-            return Some((x, y));
-        }
-
-        if let Some(r) = get_char_position(&self.plain, x, y) {
-            let x = if is_backspace { r.x_prev } else { r.x };
-            let ch = self.remove_char_internal(x.index, y);
-            self.undo.push(Undo::remove(x.char, y, ch));
-
-            Some((x.char, y))
-        } else if y < self.plain.len() {
-            let x = if is_backspace { x.saturating_sub(1) } else { x };
-            if let Some(r) = get_char_position(&self.plain, x, y) {
-                let ch = self.remove_char_internal(r.x.index, y);
-                self.undo.push(Undo::remove(r.x.char, y, ch));
-
-                Some((r.x.char, y))
-            } else if y + 1 < self.plain.len() {
-                let (x, y) = self.join_lines(y, y + 1);
-                self.undo.push(Undo::remove(x, y, '\n'));
-
-                Some((x, y))
+    fn undo(&mut self) -> Option<(usize, usize)> {
+        if let Some(action) = self.undo.pop() {
+            if action.is_insert {
+                self.remove_char_internal(action.x, action.y, false, false);
+                Some((action.x, action.y))
             } else {
-                None
+                self.insert_char_internal(action.x, action.y, action.ch);
+                if action.ch == '\n' {
+                    Some((0, action.y.saturating_add(1)))
+                } else {
+                    Some((action.x.saturating_add(1), action.y))
+                }
             }
         } else {
             None
-        }
-    }
-
-    fn undo(&mut self) {
-        if let Some(action) = self.undo.pop() {
-            if action.is_insert {
-                self.remove_char(action.x, action.y, false);
-            } else {
-                self.insert_char(action.x, action.y, action.ch);
-            }
         }
     }
 

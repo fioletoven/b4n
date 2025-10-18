@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Position, Rect},
     widgets::Widget,
@@ -48,7 +48,11 @@ impl EditContext {
     ) -> ResponseEvent {
         match event {
             TuiEvent::Key(key) => {
-                let pos = self.process_key(key.code, content, area);
+                let pos = if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('z') {
+                    self.process_undo(content)
+                } else {
+                    self.process_key(key.code, content, area)
+                };
                 self.update_cursor_position(pos, content, false);
             },
             TuiEvent::Mouse(mouse) => {
@@ -62,6 +66,14 @@ impl EditContext {
         };
 
         ResponseEvent::Handled
+    }
+
+    fn process_undo<T: Content>(&self, content: &mut T) -> NewCursorPosition {
+        if let Some((x, y)) = content.undo() {
+            (Some(Some(x)), Some(y))
+        } else {
+            (None, None)
+        }
     }
 
     fn process_key<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {

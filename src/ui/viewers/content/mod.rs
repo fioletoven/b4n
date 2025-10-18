@@ -58,10 +58,14 @@ pub trait Content {
     }
 
     /// Reverts most recent changes done in edit mode.
-    fn undo(&mut self) {}
+    fn undo(&mut self) -> Option<(usize, usize)> {
+        None
+    }
 
     /// Re-applies an action that was previously undone.
-    fn redo(&mut self) {}
+    fn redo(&mut self) -> Option<(usize, usize)> {
+        None
+    }
 
     /// Can be called on every app tick to do some computation.
     fn process_tick(&mut self) -> ResponseEvent {
