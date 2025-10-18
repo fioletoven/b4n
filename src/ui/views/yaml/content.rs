@@ -148,7 +148,7 @@ impl YamlContent {
         if is_backspace && x == 0 {
             if y > 0 && y < self.plain.len() {
                 let (x, y) = self.join_lines(y - 1, y);
-                return self.track_remove(x, y, '\n', track_undo);
+                return Some(self.track_remove(x, y, '\n', track_undo));
             }
 
             return Some((x, y));
@@ -157,15 +157,15 @@ impl YamlContent {
         if let Some(r) = get_char_position(&self.plain, x, y) {
             let x = if is_backspace { r.x_prev } else { r.x };
             let ch = self.remove_ch(x.index, y);
-            self.track_remove(x.char, y, ch, track_undo)
+            Some(self.track_remove(x.char, y, ch, track_undo))
         } else if y < self.plain.len() {
             let x = if is_backspace { x.saturating_sub(1) } else { x };
             if let Some(r) = get_char_position(&self.plain, x, y) {
                 let ch = self.remove_ch(r.x.index, y);
-                self.track_remove(r.x.char, y, ch, track_undo)
+                Some(self.track_remove(r.x.char, y, ch, track_undo))
             } else if y + 1 < self.plain.len() {
                 let (x, y) = self.join_lines(y, y + 1);
-                self.track_remove(x, y, '\n', track_undo)
+                Some(self.track_remove(x, y, '\n', track_undo))
             } else {
                 None
             }
@@ -183,12 +183,12 @@ impl YamlContent {
         removed
     }
 
-    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> Option<(usize, usize)> {
+    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> (usize, usize) {
         if track {
             self.undo.push(Undo::remove(x, y, ch));
         }
 
-        Some((x, y))
+        (x, y)
     }
 }
 

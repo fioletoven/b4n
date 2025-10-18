@@ -160,10 +160,7 @@ impl Input {
         let mut count = 0;
         if let Some(prompt) = &self.prompt {
             for (i, char) in prompt.0.chars().enumerate() {
-                let x = match u16::try_from(usize::from(x) + i) {
-                    Ok(x) => x,
-                    Err(_) => break,
-                };
+                let Ok(x) = u16::try_from(usize::from(x) + i) else { break };
                 if x >= max_x {
                     break;
                 }
@@ -190,10 +187,7 @@ impl Input {
         }
 
         for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
-            let x = match u16::try_from(usize::from(x) + i) {
-                Ok(x) => x,
-                Err(_) => return,
-            };
+            let Ok(x) = u16::try_from(usize::from(x) + i) else { return };
             if x >= max_x {
                 return;
             }

@@ -49,9 +49,9 @@ impl EditContext {
         match event {
             TuiEvent::Key(key) => {
                 let pos = if key == &KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL) {
-                    content.undo().map(|(x, y)| (Some(Some(x)), Some(y))).unwrap_or((None, None))
+                    content.undo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
-                    content.redo().map(|(x, y)| (Some(Some(x)), Some(y))).unwrap_or((None, None))
+                    content.redo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
                 } else {
                     self.process_key(key.code, content, area)
                 };
@@ -59,13 +59,13 @@ impl EditContext {
             },
             TuiEvent::Mouse(mouse) => {
                 if mouse.kind == MouseEventKind::LeftClick {
-                    let pos = self.process_mouse(mouse, position, area);
+                    let pos = self.process_mouse(*mouse, position, area);
                     self.update_cursor_position(pos, content, true);
                 } else {
                     return ResponseEvent::NotHandled;
                 }
             },
-        };
+        }
 
         ResponseEvent::Handled
     }
@@ -123,12 +123,12 @@ impl EditContext {
         (x_changed, y_changed)
     }
 
-    fn process_mouse(&mut self, mouse: &MouseEvent, position: PagePosition, area: Rect) -> NewCursorPosition {
+    fn process_mouse(&mut self, mouse: MouseEvent, position: PagePosition, area: Rect) -> NewCursorPosition {
         if mouse.kind == MouseEventKind::LeftClick {
             let x = position.x.saturating_add(mouse.column.saturating_sub(area.x).into());
             let y = position.y.saturating_add(mouse.row.saturating_sub(area.y).into());
-            let x = if x != self.cursor.x { Some(Some(x)) } else { None };
-            let y = if y != self.cursor.y { Some(y) } else { None };
+            let x = if self.cursor.x == x { None } else { Some(Some(x)) };
+            let y = if self.cursor.y == y { None } else { Some(y) };
             return (x, y);
         }
 
@@ -156,7 +156,7 @@ impl EditContext {
         }
 
         // we can set `x` to the last set value only if this is move on `y` axe, so if:
-        // pos.0 was not changed and pos.1 was changed and it is not a mouse event
+        // pos.0 was not changed, and pos.1 was changed, and it is not a mouse event
         let use_last_x = pos.0.is_none() && pos.1.is_some() && !is_mouse;
         self.constraint_cursor_position(use_last_x, content);
 
