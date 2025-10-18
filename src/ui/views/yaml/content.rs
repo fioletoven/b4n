@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     hash::{DefaultHasher, Hash, Hasher},
-    time::Instant,
+    time::{Duration, Instant},
 };
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
@@ -238,29 +238,38 @@ impl Content for YamlContent {
     }
 
     fn insert_char(&mut self, x: usize, y: usize, ch: char) {
+        self.redo.clear();
         self.undo.push(Undo::insert(x, y, ch));
         self.insert_char_internal(x, y, ch);
     }
 
     fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
+        self.redo.clear();
         self.remove_char_internal(x, y, is_backspace, true)
     }
 
     fn undo(&mut self) -> Option<(usize, usize)> {
-        if let Some(action) = self.undo.pop() {
-            if action.is_insert {
-                self.remove_char_internal(action.x, action.y, false, false);
-                Some((action.x, action.y))
-            } else {
-                self.insert_char_internal(action.x, action.y, action.ch);
-                if action.ch == '\n' {
-                    Some((0, action.y.saturating_add(1)))
+        let actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
+        if actions.is_empty() {
+            None
+        } else {
+            let mut result = None;
+            for action in &actions {
+                if action.is_insert {
+                    self.remove_char_internal(action.x, action.y, false, false);
+                    result = Some((action.x, action.y));
                 } else {
-                    Some((action.x.saturating_add(1), action.y))
+                    self.insert_char_internal(action.x, action.y, action.ch);
+                    if action.ch == '\n' {
+                        result = Some((0, action.y.saturating_add(1)));
+                    } else {
+                        result = Some((action.x.saturating_add(1), action.y));
+                    }
                 }
             }
-        } else {
-            None
+
+            self.redo.push(actions);
+            result
         }
     }
 
@@ -375,4 +384,25 @@ impl Undo {
             when: Instant::now(),
         }
     }
+}
+
+fn pop_recent_group(vec: &mut Vec<Undo>, threshold: Duration) -> Vec<Undo> {
+    let mut group = Vec::new();
+
+    if let Some(last) = vec.pop() {
+        let mut reference_time = last.when;
+        group.push(last);
+
+        while let Some(peek) = vec.last() {
+            if reference_time.duration_since(peek.when) <= threshold {
+                let action = vec.pop().unwrap();
+                reference_time = action.when;
+                group.push(action);
+            } else {
+                break;
+            }
+        }
+    }
+
+    group
 }
