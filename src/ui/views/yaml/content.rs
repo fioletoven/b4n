@@ -237,6 +237,12 @@ impl Content for YamlContent {
         self.is_editable
     }
 
+    fn leading_spaces(&self, line_no: usize) -> Option<usize> {
+        self.plain
+            .get(line_no)
+            .map(|line| line.chars().take_while(|c| *c == ' ').count())
+    }
+
     fn insert_char(&mut self, x: usize, y: usize, ch: char) {
         self.redo.clear();
         self.undo.push(Undo::insert(x, y, ch));

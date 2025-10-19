@@ -78,17 +78,24 @@ impl EditContext {
             // insert character
             KeyCode::Char(c) => {
                 content.insert_char(self.cursor.x, self.cursor.y, c);
-                x_changed = Some(Some(self.cursor.x.saturating_add(1)));
+                x_changed = Some(Some(self.cursor.x + 1));
             },
             KeyCode::Tab => {
                 content.insert_char(self.cursor.x, self.cursor.y, ' ');
                 content.insert_char(self.cursor.x, self.cursor.y, ' ');
-                x_changed = Some(Some(self.cursor.x.saturating_add(2)));
+                x_changed = Some(Some(self.cursor.x + 2));
             },
             KeyCode::Enter => {
                 content.insert_char(self.cursor.x, self.cursor.y, '\n');
-                x_changed = Some(Some(0));
-                y_changed = Some(self.cursor.y.saturating_add(1));
+                y_changed = Some(self.cursor.y + 1);
+                if let Some(leading_spaces) = content.leading_spaces(self.cursor.y) {
+                    for i in 0..leading_spaces {
+                        content.insert_char(i, self.cursor.y + 1, ' ');
+                    }
+                    x_changed = Some(Some(leading_spaces))
+                } else {
+                    x_changed = Some(Some(0));
+                }
             },
 
             // remove character
@@ -108,13 +115,13 @@ impl EditContext {
             // navigate horizontal
             KeyCode::Home => x_changed = Some(Some(0)),
             KeyCode::Left => x_changed = Some(self.cursor.x.checked_sub(1)),
-            KeyCode::Right => x_changed = Some(Some(self.cursor.x.saturating_add(1))),
+            KeyCode::Right => x_changed = Some(Some(self.cursor.x + 1)),
             KeyCode::End => x_changed = Some(Some(content.line_size(self.cursor.y))),
 
             // navigate vertical
             KeyCode::PageUp => y_changed = Some(self.cursor.y.saturating_sub(area.height.into())),
             KeyCode::Up => y_changed = Some(self.cursor.y.saturating_sub(1)),
-            KeyCode::Down => y_changed = Some(self.cursor.y.saturating_add(1)),
+            KeyCode::Down => y_changed = Some(self.cursor.y + 1),
             KeyCode::PageDown => y_changed = Some(self.cursor.y.saturating_add(area.height.into())),
 
             _ => (),

@@ -41,6 +41,11 @@ pub trait Content {
         false
     }
 
+    /// Returns the number of leading spaces in the line at the given `line_no`.
+    fn leading_spaces(&self, line_no: usize) -> Option<usize> {
+        if line_no < self.len() { Some(0) } else { None }
+    }
+
     /// Inserts specified character to the content at a position `x:y`.
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         let _ = x;
