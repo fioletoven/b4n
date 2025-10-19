@@ -1,13 +1,16 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
     runtime::Handle,
 };
 
-use crate::ui::{KeyBindings, theme::Theme};
+use crate::ui::{KeyBindings, colors::TextColors, theme::Theme};
 
 use super::ConfigWatcher;
 
@@ -55,10 +58,16 @@ impl Default for Logs {
 pub struct Config {
     #[serde(default)]
     pub logs: Logs,
+
     #[serde(default)]
     pub mouse: bool,
+
     #[serde(default = "default_theme_name")]
     pub theme: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contexts: Option<HashMap<String, TextColors>>,
+
     pub key_bindings: Option<KeyBindings>,
 }
 
@@ -72,6 +81,7 @@ impl Default for Config {
             logs: Logs::default(),
             mouse: false,
             theme: DEFAULT_THEME_NAME.to_owned(),
+            contexts: None,
             key_bindings: Some(KeyBindings::default()),
         }
     }

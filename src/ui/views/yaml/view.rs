@@ -82,7 +82,7 @@ impl YamlView {
 
     fn show_command_palette(&mut self) {
         let mut builder = ActionsListBuilder::default()
-            .with_close()
+            .with_back()
             .with_quit()
             .with_action(
                 ActionItem::new("copy")
@@ -248,8 +248,12 @@ impl YamlView {
             return false;
         }
 
-        self.clear_search();
-        self.yaml.enable_edit_mode()
+        if self.yaml.enable_edit_mode() {
+            self.clear_search();
+            return true;
+        }
+
+        false
     }
 }
 

@@ -108,6 +108,7 @@ pub struct AppData {
     /// UI key bindings.
     pub key_bindings: KeyBindings,
     disabled_commands: HashSet<KeyCommand>,
+    disabled_keys: HashSet<KeyCombination>,
 
     /// Application history data.
     pub history: History,
@@ -140,6 +141,7 @@ impl AppData {
             config,
             key_bindings,
             disabled_commands: HashSet::default(),
+            disabled_keys: HashSet::default(),
             history,
             theme,
             current: ResourcesInfo::default(),
@@ -191,6 +193,9 @@ pub trait SharedAppDataExt {
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
     fn disable_command(&self, command: KeyCommand, disable: bool);
 
+    /// Temporarily disables or enables the given [`KeyCombination`] from being matched by `has_binding`.
+    fn disable_key(&self, key: KeyCombination, hide: bool);
+
     /// Returns the [`TuiEvent::Key`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
     fn get_event(&self, command: KeyCommand) -> TuiEvent;
 
@@ -202,7 +207,9 @@ impl SharedAppDataExt for SharedAppData {
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         if let TuiEvent::Key(key) = event {
             let data = self.borrow();
-            !data.disabled_commands.contains(&command) && data.key_bindings.has_binding(key, command)
+            !data.disabled_keys.contains(key)
+                && !data.disabled_commands.contains(&command)
+                && data.key_bindings.has_binding(key, command)
         } else {
             false
         }
@@ -213,6 +220,14 @@ impl SharedAppDataExt for SharedAppData {
             self.borrow_mut().disabled_commands.insert(command);
         } else {
             self.borrow_mut().disabled_commands.remove(&command);
+        }
+    }
+
+    fn disable_key(&self, key: KeyCombination, hide: bool) {
+        if hide {
+            self.borrow_mut().disabled_keys.insert(key);
+        } else {
+            self.borrow_mut().disabled_keys.remove(&key);
         }
     }
 

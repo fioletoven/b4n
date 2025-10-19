@@ -37,23 +37,24 @@ pub fn get_left_breadcrumbs<'a>(
     is_filtered: bool,
 ) -> Line<'a> {
     let colors = &app_data.theme.colors.header;
+    let context = get_context_color(app_data);
     let data = &app_data.current;
 
     let mut path = vec![
-        Span::styled("", Style::new().fg(colors.context.bg).bg(app_data.theme.colors.text.bg)),
-        Span::styled(format!(" {} ", data.context), &colors.context),
+        Span::styled("", Style::new().fg(context.bg).bg(app_data.theme.colors.text.bg)),
+        Span::styled(format!(" {} ", data.context), &context),
     ];
 
     let namespace = namespace.unwrap_or_else(|| get_breadcrumbs_namespace(scope, data, kind));
     let scope = if let Some(scope) = scope { scope } else { &data.scope };
     if !namespace.is_empty() && (*scope == Scope::Namespaced || kind == PODS) {
         path.append(&mut vec![
-            Span::styled("", Style::new().fg(colors.context.bg).bg(colors.namespace.bg)),
+            Span::styled("", Style::new().fg(context.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {namespace} "), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {
-        path.push(Span::styled("", Style::new().fg(colors.context.bg).bg(colors.resource.bg)));
+        path.push(Span::styled("", Style::new().fg(context.bg).bg(colors.resource.bg)));
     }
 
     path.push(Span::styled(format!(" {kind} "), &colors.resource));
@@ -116,4 +117,13 @@ pub fn get_version_text(data: &AppData) -> (String, &TextColors) {
     }
 
     (text, colors)
+}
+
+fn get_context_color(app_data: &AppData) -> TextColors {
+    app_data
+        .config
+        .contexts
+        .as_ref()
+        .and_then(|contexts| contexts.get(&app_data.current.context))
+        .map_or(app_data.theme.colors.header.context, |f| *f)
 }

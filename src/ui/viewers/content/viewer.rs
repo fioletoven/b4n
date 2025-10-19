@@ -3,15 +3,15 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::Color,
-    text::{Line, Span},
+    text::Line,
     widgets::{Block, Paragraph},
 };
 use std::{rc::Rc, time::Instant};
 
 use crate::{
-    core::SharedAppData,
+    core::{SharedAppData, SharedAppDataExt},
     kubernetes::{Kind, Namespace},
-    ui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center},
+    ui::{KeyCombination, MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
 };
 
 use super::{
@@ -127,6 +127,8 @@ impl<T: Content> ContentViewer<T> {
                 self.hash = Some(content.hash());
             }
 
+            self.scroll_to(self.edit.cursor.y, self.edit.cursor.x, 1);
+            self.disable_keys(true);
             true
         } else {
             false
@@ -144,6 +146,7 @@ impl<T: Content> ContentViewer<T> {
                 self.header.set_edit(' ', "");
             }
 
+            self.disable_keys(false);
             true
         } else {
             false
@@ -284,7 +287,7 @@ impl<T: Content> ContentViewer<T> {
             .unwrap()
             .page(start, self.page_area.height.into())
             .iter()
-            .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
+            .map(|line| line.as_line(self.page_start.x))
             .collect::<Vec<_>>()
     }
 
@@ -406,9 +409,7 @@ impl<T: Content> ContentViewer<T> {
         self.page_area = area;
         self.update_page_start();
 
-        let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
-        let lines = self.get_page_lines();
-        frame.render_widget(Paragraph::new(lines).scroll((0, hscroll)), area);
+        frame.render_widget(Paragraph::new(self.get_page_lines()), area);
 
         if self.search.matches.is_some() {
             frame.render_widget(
@@ -459,5 +460,18 @@ impl<T: Content> ContentViewer<T> {
         } else {
             self.header.set_coordinates(self.page_start.x, self.page_start.y);
         }
+    }
+
+    fn disable_keys(&self, is_disabled: bool) {
+        self.app_data
+            .disable_key(KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL), is_disabled);
+        self.app_data
+            .disable_key(KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL), is_disabled);
+    }
+}
+
+impl<T: Content> Drop for ContentViewer<T> {
+    fn drop(&mut self) {
+        self.disable_keys(false);
     }
 }

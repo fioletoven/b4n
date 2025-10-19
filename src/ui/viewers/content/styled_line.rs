@@ -1,4 +1,9 @@
-use ratatui::style::Style;
+use ratatui::{
+    style::Style,
+    text::{Line, Span},
+};
+
+use crate::utils::truncate_left;
 
 pub type StyledLine = Vec<(Style, String)>;
 
@@ -23,6 +28,9 @@ pub trait StyledLineExt {
 
     /// Shortens this `StyledLine` to the specified length.
     fn sl_truncate(&mut self, new_len: usize);
+
+    /// Returns [`StyledLine`] as a [`Line`].
+    fn as_line(&self, offset: usize) -> Line<'_>;
 }
 
 impl StyledLineExt for StyledLine {
@@ -98,6 +106,29 @@ impl StyledLineExt for StyledLine {
 
             current += part.1.len();
         }
+    }
+
+    fn as_line(&self, offset: usize) -> Line<'_> {
+        let mut spans = Vec::new();
+
+        let mut current = 0;
+        for part in self {
+            let len = part.1.chars().count();
+
+            if current >= offset {
+                spans.push(Span::styled(&part.1, part.0));
+            } else if current + len >= offset {
+                let left = offset.saturating_sub(current);
+                let new_len = len.saturating_sub(left);
+                if new_len > 0 {
+                    spans.push(Span::styled(truncate_left(&part.1, new_len), part.0));
+                }
+            }
+
+            current += len;
+        }
+
+        Line::from(spans)
     }
 }
 

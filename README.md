@@ -12,7 +12,7 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 
 ### Currently Supported
 
-As the project is in its early stages, the following features are currently supported:
+The following features are currently supported:
 
 - View a list of Kubernetes resources.
 - Delete selected resources.
@@ -91,6 +91,9 @@ logs:
   lines: 800
 mouse: true
 theme: light
+contexts:
+  test-cluster: '#43464f:#8aad81'
+  production: '#d8d8d8:#e1140a'
 key_bindings:
   action.name: list of key bindings for that action
   command-palette.open: :, >, Shift+:, Shift+>
@@ -102,6 +105,7 @@ key_bindings:
 - `logs.lines` – The number of log lines to retrieve from the Kubernetes API for selected container.
 - `mouse` – Indicates if mouse support should be enabled when the application starts. Mouse support can also be toggled while the app is running.
 - `theme` – The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
+- `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
 - `key_bindings` – Defines custom key bindings for various application actions.  
   Example key bindings: `Ctrl+C`, `Ctrl+Alt+A`, `F7`, `Z`, `Left`, `Enter`.
 
