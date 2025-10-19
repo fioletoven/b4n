@@ -1,5 +1,17 @@
 # Change Log
 
+## 0.2.7 - 2025-10-19
+
+### Features
+
+- add Undo (Ctrl+Z) and Redo (Ctrl+Y) to edit mode
+
+### Bug fixes
+
+- fix input widget scroll behaviour
+- fix content page scroll behaviour
+- fix calculation of the longest line in content widget
+
 ## 0.2.6 - 2025-10-14
 
 ### Bug fixes
