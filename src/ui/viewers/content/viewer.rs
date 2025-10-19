@@ -3,7 +3,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::Color,
-    text::{Line, Span},
+    text::Line,
     widgets::{Block, Paragraph},
 };
 use std::{rc::Rc, time::Instant};
@@ -11,7 +11,7 @@ use std::{rc::Rc, time::Instant};
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     kubernetes::{Kind, Namespace},
-    ui::{KeyCombination, MouseEventKind, ResponseEvent, TuiEvent, utils::center},
+    ui::{KeyCombination, MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
 };
 
 use super::{
@@ -286,7 +286,7 @@ impl<T: Content> ContentViewer<T> {
             .unwrap()
             .page(start, self.page_area.height.into())
             .iter()
-            .map(|items| Line::from(items.iter().map(|item| Span::styled(&item.1, item.0)).collect::<Vec<_>>()))
+            .map(|line| line.as_line(self.page_start.x))
             .collect::<Vec<_>>()
     }
 
@@ -408,9 +408,7 @@ impl<T: Content> ContentViewer<T> {
         self.page_area = area;
         self.update_page_start();
 
-        let hscroll = u16::try_from(self.page_start.x).unwrap_or_default();
-        let lines = self.get_page_lines();
-        frame.render_widget(Paragraph::new(lines).scroll((0, hscroll)), area);
+        frame.render_widget(Paragraph::new(self.get_page_lines()), area);
 
         if self.search.matches.is_some() {
             frame.render_widget(
