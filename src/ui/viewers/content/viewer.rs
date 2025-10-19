@@ -127,6 +127,7 @@ impl<T: Content> ContentViewer<T> {
                 self.hash = Some(content.hash());
             }
 
+            self.scroll_to(self.edit.cursor.y, self.edit.cursor.x, 1);
             self.disable_keys(true);
             true
         } else {

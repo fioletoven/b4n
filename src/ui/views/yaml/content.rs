@@ -22,6 +22,7 @@ pub struct YamlContent {
     pub plain: Vec<String>,
     pub lowercase: Vec<String>,
     max_size: usize,
+    max_line_no: usize,
     highlighter: UnboundedSender<HighlightRequest>,
     requested: Option<RequestedHighlight>,
     is_editable: bool,
@@ -38,7 +39,7 @@ impl YamlContent {
         highlighter: UnboundedSender<HighlightRequest>,
         is_editable: bool,
     ) -> Self {
-        let max_size = plain.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+        let (max_line_no, max_size) = get_longest_line(&plain);
         let lowercase = plain.iter().map(|l| l.to_ascii_lowercase()).collect();
 
         Self {
@@ -46,6 +47,7 @@ impl YamlContent {
             plain,
             lowercase,
             max_size,
+            max_line_no,
             highlighter,
             requested: None,
             is_editable,
@@ -58,7 +60,13 @@ impl YamlContent {
     fn mark_line_as_modified(&mut self, line_no: usize) {
         if let Some(line) = self.plain.get(line_no) {
             self.modified.insert(line_no);
-            self.max_size = self.max_size.max(line.len());
+            let len = line.chars().count();
+            if len > self.max_size {
+                self.max_size = len;
+                self.max_line_no = line_no;
+            } else if line_no == self.max_line_no {
+                (self.max_line_no, self.max_size) = get_longest_line(&self.plain);
+            }
         }
     }
 
@@ -437,4 +445,13 @@ fn pop_recent_group(vec: &mut Vec<Undo>, threshold: Duration) -> Vec<Undo> {
     }
 
     group
+}
+
+fn get_longest_line(plain: &[String]) -> (usize, usize) {
+    plain
+        .iter()
+        .enumerate()
+        .map(|(i, l)| (i, l.chars().count()))
+        .max_by_key(|&(_, count)| count)
+        .unwrap_or((0, 0))
 }

@@ -248,8 +248,12 @@ impl YamlView {
             return false;
         }
 
-        self.clear_search();
-        self.yaml.enable_edit_mode()
+        if self.yaml.enable_edit_mode() {
+            self.clear_search();
+            return true;
+        }
+
+        false
     }
 }
 
