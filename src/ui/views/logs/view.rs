@@ -77,7 +77,7 @@ impl LogsView {
 
     fn show_command_palette(&mut self) {
         let builder = ActionsListBuilder::default()
-            .with_close()
+            .with_back()
             .with_quit()
             .with_action(
                 ActionItem::new("timestamps")

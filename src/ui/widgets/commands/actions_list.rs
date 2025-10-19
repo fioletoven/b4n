@@ -158,12 +158,12 @@ impl ActionsListBuilder {
         self
     }
 
-    /// Adds `close` action.
-    pub fn with_close(mut self) -> Self {
+    /// Adds `back` action that closes the current view.
+    pub fn with_back(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("close")
+            ActionItem::new("back")
                 .with_description("closes the current view")
-                .with_aliases(&["cancel", "back"])
+                .with_aliases(&["cancel", "close"])
                 .with_response(ResponseEvent::Cancelled),
         );
         self

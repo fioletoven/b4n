@@ -76,7 +76,7 @@ impl ForwardsView {
     /// Shows command palette.
     fn show_command_palette(&mut self) {
         let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), false)
-            .with_close()
+            .with_back()
             .with_quit()
             .with_action(
                 ActionItem::new("stop")

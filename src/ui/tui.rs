@@ -164,13 +164,24 @@ impl ResponseEvent {
         }
     }
 
-    /// Conditionally converts [`ResponseEvent`] to a different [`ResponseEvent`] consuming it.\
-    /// **Note** that the new instance is returned by the `f` closure executed only if it is an action matching the provided name.
+    /// Conditionally transforms a [`ResponseEvent`] into a new [`ResponseEvent`], consuming the original.\
+    /// **Note** that the transformation is performed by the `f` closure, which is executed **only** if the event
+    /// is an action matching the specified `name`.
     pub fn when_action_then<F>(self, name: &str, f: F) -> Self
     where
         F: FnOnce() -> Self,
     {
         if self.is_action(name) { f() } else { self }
+    }
+
+    /// Conditionally transforms a [`ResponseEvent`] into a new [`ResponseEvent`], consuming the original.\
+    /// **Note** that the transformation is performed by the `f` closure, which is executed **only** if the event
+    /// matches the specified `other` event.
+    pub fn when_event_then<F>(self, other: &ResponseEvent, f: F) -> Self
+    where
+        F: FnOnce() -> Self,
+    {
+        if &self == other { f() } else { self }
     }
 }
 
