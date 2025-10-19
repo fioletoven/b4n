@@ -92,7 +92,7 @@ impl EditContext {
                     for i in 0..leading_spaces {
                         content.insert_char(i, self.cursor.y + 1, ' ');
                     }
-                    x_changed = Some(Some(leading_spaces))
+                    x_changed = Some(Some(leading_spaces));
                 } else {
                     x_changed = Some(Some(0));
                 }
