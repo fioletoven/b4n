@@ -267,6 +267,7 @@ pub struct StepBuilder {
     initial_value: Option<String>,
     prompt: Option<String>,
     validator: InputValidator,
+    colors: SelectColors,
 }
 
 impl StepBuilder {
@@ -277,6 +278,7 @@ impl StepBuilder {
             initial_value: Some(initial_value.into()),
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
+            colors: SelectColors::default(),
         }
     }
 
@@ -287,6 +289,7 @@ impl StepBuilder {
             initial_value: None,
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
+            colors: SelectColors::default(),
         }
     }
 
@@ -302,10 +305,16 @@ impl StepBuilder {
         self
     }
 
+    /// Adds custom select colors to the step.
+    pub fn with_colors(mut self, colors: SelectColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
     /// Builds [`Step`] instance.
     pub fn build(self) -> Step {
         let list = self.actions.unwrap_or_default();
-        let mut select = Select::new(list, SelectColors::default(), false, true).with_prompt(DEFAULT_PROMPT);
+        let mut select = Select::new(list, self.colors, false, true).with_prompt(DEFAULT_PROMPT);
         select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
             select.set_value(initial_value);
