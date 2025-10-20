@@ -1,6 +1,6 @@
 pub use header::ContentHeader;
 pub use search::MatchPosition;
-pub use styled_line::{StyledLine, StyledLineExt};
+pub use styled_line::{StyleFallback, StyledLine, StyledLineExt};
 pub use viewer::ContentViewer;
 
 mod edit;
