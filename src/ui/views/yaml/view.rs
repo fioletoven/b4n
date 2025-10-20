@@ -339,6 +339,10 @@ impl View for YamlView {
             return response;
         }
 
+        if self.yaml.is_in_edit_mode() {
+            return ResponseEvent::NotHandled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
             self.show_command_palette();
             return ResponseEvent::Handled;
