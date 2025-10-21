@@ -148,12 +148,14 @@ impl ResourcesView {
                     StepBuilder::input("")
                         .with_validator(ValidatorKind::Number(0, 65_535))
                         .with_prompt("local port")
+                        .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
                         .build(),
                 )
                 .with_step(
                     StepBuilder::input("127.0.0.1")
                         .with_validator(ValidatorKind::IpAddr)
                         .with_prompt("bind address")
+                        .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
                         .build(),
                 )
                 .with_response(|v| build_port_forward_response(v, resource));

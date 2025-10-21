@@ -9,7 +9,7 @@ use crate::{
     kubernetes::{ResourceRef, resources::SECRETS},
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        viewers::ContentViewer,
+        viewers::{ContentViewer, StyleFallback},
         views::{View, yaml::YamlContent},
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, FooterTx, IconKind, Search},
     },
@@ -267,11 +267,21 @@ impl View for YamlView {
             CommandResult::GetResourceYaml(Ok(result)) => {
                 if let Some(highlighter) = self.worker.borrow().get_highlighter() {
                     let icon = if result.is_decoded { '' } else { '' };
+                    let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
+                    let styles = StyleFallback {
+                        excluded: (&colors.normal).into(),
+                        fallback: (&colors.string).into(),
+                    };
                     self.is_decoded = result.is_decoded;
                     self.yaml.header.set_icon(icon);
                     self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
-                    self.yaml
-                        .set_content(YamlContent::new(result.styled, result.yaml, highlighter, result.is_editable));
+                    self.yaml.set_content(YamlContent::new(
+                        result.styled,
+                        result.yaml,
+                        highlighter,
+                        result.is_editable,
+                        styles,
+                    ));
                     if self.state == ViewState::WaitingForEdit && self.is_decoded {
                         self.state = ViewState::Idle;
                         self.yaml.enable_edit_mode();
@@ -337,6 +347,10 @@ impl View for YamlView {
         let response = self.yaml.process_event(event);
         if response != ResponseEvent::NotHandled {
             return response;
+        }
+
+        if self.yaml.is_in_edit_mode() {
+            return ResponseEvent::NotHandled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {

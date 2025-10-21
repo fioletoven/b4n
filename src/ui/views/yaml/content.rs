@@ -9,7 +9,7 @@ use crate::{
     core::{HighlightError, HighlightRequest, HighlightResponse},
     ui::{
         ResponseEvent,
-        viewers::{Content, MatchPosition, StyledLine, StyledLineExt},
+        viewers::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt},
     },
 };
 
@@ -29,6 +29,7 @@ pub struct YamlContent {
     modified: HashSet<usize>,
     undo: Vec<Undo>,
     redo: Vec<Vec<Undo>>,
+    styles: StyleFallback,
 }
 
 impl YamlContent {
@@ -38,6 +39,7 @@ impl YamlContent {
         plain: Vec<String>,
         highlighter: UnboundedSender<HighlightRequest>,
         is_editable: bool,
+        styles: StyleFallback,
     ) -> Self {
         let (max_line_no, max_size) = get_longest_line(&plain);
         let lowercase = plain.iter().map(|l| l.to_ascii_lowercase()).collect();
@@ -54,6 +56,7 @@ impl YamlContent {
             modified: HashSet::new(),
             undo: Vec::new(),
             redo: Vec::new(),
+            styles,
         }
     }
 
@@ -87,7 +90,7 @@ impl YamlContent {
     fn join_lines(&mut self, first: usize, second: usize) -> (usize, usize) {
         let new_x = self.plain[first].chars().count();
 
-        self.styled[first].sl_push_str(&self.plain[second]);
+        self.styled[first].sl_push_str(&self.plain[second], &self.styles);
         self.styled.remove(second);
 
         let text = self.plain.remove(second);
@@ -146,7 +149,7 @@ impl YamlContent {
             } else {
                 self.plain[y].push(ch);
                 self.lowercase[y].push(ch.to_ascii_lowercase());
-                self.styled[y].sl_push(ch);
+                self.styled[y].sl_push(ch, &self.styles);
                 self.mark_line_as_modified(y);
             }
         }

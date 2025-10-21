@@ -7,6 +7,15 @@ use crate::utils::truncate_left;
 
 pub type StyledLine = Vec<(Style, String)>;
 
+/// Defines style handling rules when pushing a character or string slice to the end of a [`StyledLine`].
+pub struct StyleFallback {
+    /// If the last segment has this style, a new segment will be started instead of appending.
+    pub excluded: Style,
+
+    /// Style to apply when starting a new segment.
+    pub fallback: Style,
+}
+
 pub trait StyledLineExt {
     /// Inserts a string slice into this `StyledLine` at byte position `idx`.
     fn sl_insert_str(&mut self, idx: usize, s: &str);
@@ -15,10 +24,10 @@ pub trait StyledLineExt {
     fn sl_insert(&mut self, idx: usize, ch: char);
 
     /// Appends a given string slice to the end of this `StyledLine`.
-    fn sl_push_str(&mut self, string: &str);
+    fn sl_push_str(&mut self, string: &str, styles: &StyleFallback);
 
     /// Appends a character to the back of a `StyledLine`.
-    fn sl_push(&mut self, ch: char);
+    fn sl_push(&mut self, ch: char, styles: &StyleFallback);
 
     /// Removes a [`char`] from this `StyledLine` at byte position `idx`.
     fn sl_remove(&mut self, idx: usize);
@@ -46,19 +55,23 @@ impl StyledLineExt for StyledLine {
         }
     }
 
-    fn sl_push_str(&mut self, string: &str) {
-        if let Some(part) = self.last_mut() {
+    fn sl_push_str(&mut self, string: &str, styles: &StyleFallback) {
+        if let Some(part) = self.last_mut()
+            && part.0 != styles.excluded
+        {
             part.1.push_str(string);
         } else {
-            self.push((Style::default(), string.to_owned()));
+            self.push((styles.fallback, string.to_owned()));
         }
     }
 
-    fn sl_push(&mut self, ch: char) {
-        if let Some(part) = self.last_mut() {
+    fn sl_push(&mut self, ch: char, styles: &StyleFallback) {
+        if let Some(part) = self.last_mut()
+            && part.0 != styles.excluded
+        {
             part.1.push(ch);
         } else {
-            self.push((Style::default(), ch.to_string()));
+            self.push((styles.fallback, ch.to_string()));
         }
     }
 
