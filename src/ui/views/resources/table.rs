@@ -282,23 +282,16 @@ impl ResourcesTable {
     }
 
     fn process_esc_key(&self) -> ResponseEvent {
-        match self.kind_plural() {
-            NAMESPACES => ResponseEvent::Handled,
-            CONTAINERS => {
-                let to_select = self.app_data.borrow().current.resource.name.clone();
-                self.app_data.borrow_mut().previous.clear();
-                ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
-            },
-            _ => {
-                let data = &mut self.app_data.borrow_mut();
-                let mut result = ResponseEvent::ViewNamespaces;
-                if let Some(previous) = data.previous.pop() {
-                    let to_select = data.current.resource.filter.as_ref().and_then(|f| f.name.clone());
-                    result = ResponseEvent::ChangeKindAndSelect(previous.kind.as_str().to_owned(), to_select);
-                }
-
-                result
-            },
+        if self.kind_plural() == NAMESPACES {
+            ResponseEvent::Handled
+        } else {
+            let data = &mut self.app_data.borrow_mut();
+            if let Some(previous) = data.previous.pop() {
+                let to_select = data.current.resource.filter.as_ref().and_then(|f| f.name.clone());
+                ResponseEvent::ChangeKindAndSelect(previous.kind.as_str().to_owned(), to_select)
+            } else {
+                ResponseEvent::ViewNamespaces
+            }
         }
     }
 
