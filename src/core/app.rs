@@ -236,7 +236,7 @@ impl App {
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), &scope);
-            self.data.borrow_mut().reset_previous();
+            self.data.borrow_mut().previous.clear();
         }
 
         Ok(())
@@ -256,7 +256,7 @@ impl App {
                 self.views_manager.handle_kind_change(to_select);
             }
             self.process_resources_change(Some(kind.into()), None, &scope);
-            self.data.borrow_mut().reset_previous();
+            self.data.borrow_mut().previous.clear();
         }
 
         Ok(())
@@ -265,12 +265,12 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
-            let previous_kind = self.data.borrow().previous.as_ref().map(|p| p.kind.clone());
-            let previous_name = self.data.borrow().previous.as_ref().and_then(|p| p.name.clone());
-            if let Some(previous_kind) = previous_kind
-                && !self.data.borrow().current.resource.kind.is_namespaces()
-            {
-                self.change(previous_kind, namespace, previous_name)?;
+            if self.data.borrow().is_constrained() && !self.data.borrow().current.resource.kind.is_namespaces() {
+                let previous_kind = self.data.borrow().previous.last().map(|p| p.kind.clone());
+                let previous_name = self.data.borrow().previous.last().and_then(|p| p.name.clone());
+                if let Some(previous_kind) = previous_kind {
+                    self.change(previous_kind, namespace, previous_name)?;
+                }
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
                 self.views_manager.handle_namespace_change(namespace.clone());
@@ -289,7 +289,7 @@ impl App {
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
-        self.data.borrow_mut().update_previous();
+        self.data.borrow_mut().previous_add_current();
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -306,7 +306,7 @@ impl App {
             self.views_manager.set_page_view(&Scope::Cluster);
             self.views_manager.force_header_scope(Some(kind_scope));
             self.worker.borrow_mut().restart(resource)?;
-            self.data.borrow_mut().update_previous();
+            self.data.borrow_mut().previous_add_current();
         }
 
         Ok(())

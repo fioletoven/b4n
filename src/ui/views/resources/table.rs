@@ -84,7 +84,7 @@ impl ResourcesTable {
             pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn has_containers(&self) -> bool;
-            pub fn has_resources_events(&self) -> bool;
+            pub fn is_filtered(&self) -> bool;
         }
     }
 
@@ -286,18 +286,17 @@ impl ResourcesTable {
             NAMESPACES => ResponseEvent::Handled,
             CONTAINERS => {
                 let to_select = self.app_data.borrow().current.resource.name.clone();
-                self.app_data.borrow_mut().reset_previous();
+                self.app_data.borrow_mut().previous.clear();
                 ResponseEvent::ChangeKindAndSelect(PODS.to_owned(), to_select)
             },
             _ => {
                 let data = &mut self.app_data.borrow_mut();
                 let mut result = ResponseEvent::ViewNamespaces;
-                if let Some(previous) = &data.previous {
+                if let Some(previous) = data.previous.pop() {
                     let to_select = data.current.resource.filter.as_ref().and_then(|f| f.name.clone());
                     result = ResponseEvent::ChangeKindAndSelect(previous.kind.as_str().to_owned(), to_select);
                 }
 
-                data.reset_previous();
                 result
             },
         }

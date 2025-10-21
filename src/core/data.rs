@@ -118,7 +118,7 @@ pub struct AppData {
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
-    pub previous: Option<ResourceRef>,
+    pub previous: Vec<ResourceRef>,
 
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
@@ -145,7 +145,7 @@ impl AppData {
             history,
             theme,
             current: ResourcesInfo::default(),
-            previous: None,
+            previous: Vec::new(),
             kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             clipboard: Clipboard::new().ok(),
@@ -173,14 +173,15 @@ impl AppData {
         }
     }
 
-    /// Sets the current resource as a previous one.
-    pub fn update_previous(&mut self) {
-        self.previous = Some(self.current.resource.clone());
+    /// Adds the current resource to the previous resources stack.
+    pub fn previous_add_current(&mut self) {
+        self.previous.push(self.current.resource.clone());
     }
 
-    /// Resets previous resource to `None`.
-    pub fn reset_previous(&mut self) {
-        self.previous = None;
+    /// Returns `true` if the current resource is somehow constrained to a subset.\
+    /// **Note** that this means it should be reset if we are e.g. changing the namespace.
+    pub fn is_constrained(&self) -> bool {
+        !self.previous.is_empty() && (self.current.resource.is_container() || self.current.resource.is_filtered())
     }
 }
 
