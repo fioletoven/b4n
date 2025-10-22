@@ -179,6 +179,9 @@ impl App {
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
+            ResponseEvent::ViewInvolved(kind, namespace, to_select) => {
+                self.view_involved(kind.into(), namespace.into(), to_select)?;
+            },
             ResponseEvent::ViewScoped(kind, namespace, scope) => self.view_scoped(kind.into(), namespace.into(), scope)?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
@@ -226,17 +229,34 @@ impl App {
 
     /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
     fn change(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        self.change_internal(kind, namespace, to_select, false)
+    }
+
+    /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
+    fn change_internal(
+        &mut self,
+        kind: Kind,
+        namespace: Namespace,
+        to_select: Option<String>,
+        track_previous: bool,
+    ) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
+            let selected = self.views_manager.highlighted_name().map(String::from);
             self.views_manager.handle_kind_change(to_select);
             self.views_manager.handle_namespace_change(namespace.clone());
+            if track_previous {
+                self.data.borrow_mut().add_current_to_previous(selected);
+            } else {
+                self.data.borrow_mut().previous.clear();
+            }
+
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), &scope);
-            self.data.borrow_mut().previous.clear();
         }
 
         Ok(())
@@ -275,7 +295,7 @@ impl App {
                         .last()
                         .and_then(|p| p.to_select())
                         .map(String::from);
-                    self.change(kind, namespace, name)?;
+                    self.change_internal(kind, namespace, name, false)?;
                 }
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
@@ -296,10 +316,15 @@ impl App {
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
-        self.data.borrow_mut().previous_add_current(selected);
+        self.data.borrow_mut().add_current_to_previous(selected);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
+    }
+
+    /// Changs observed resource to the involved object.
+    fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        self.change_internal(kind, namespace, to_select, true)
     }
 
     /// Changes observed resource to filtered one.
@@ -311,8 +336,8 @@ impl App {
             self.views_manager.clear_page_view();
             self.views_manager.set_page_view(&scope.list);
             self.views_manager.force_header_scope(Some(scope.header));
+            self.data.borrow_mut().add_current_to_previous(selected);
             self.worker.borrow_mut().restart(resource)?;
-            self.data.borrow_mut().previous_add_current(selected);
         }
 
         Ok(())

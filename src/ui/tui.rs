@@ -148,6 +148,7 @@ pub enum ResponseEvent {
     ChangeContext(String),
     ChangeTheme(String),
     ViewContainers(String, String),
+    ViewInvolved(String, String, Option<String>),
     ViewScoped(String, Option<String>, ScopeData),
     ViewNamespaces,
 

@@ -229,7 +229,7 @@ impl ResourcesTable {
 
             if self.app_data.has_binding(event, KeyCommand::InvolvedObjectShow) {
                 if let Some(involved) = &resource.involved_object {
-                    return ResponseEvent::ChangeAndSelect(
+                    return ResponseEvent::ViewInvolved(
                         involved.kind.clone().into(),
                         involved.namespace.clone().into(),
                         Some(involved.name.clone()),

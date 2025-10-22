@@ -190,7 +190,7 @@ impl AppData {
     }
 
     /// Adds the current resource to the previous resources stack.
-    pub fn previous_add_current(&mut self, to_select: Option<String>) {
+    pub fn add_current_to_previous(&mut self, to_select: Option<String>) {
         self.previous.push(PreviousData {
             to_select,
             resource: self.current.resource.clone(),
