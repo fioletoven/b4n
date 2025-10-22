@@ -9,9 +9,9 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
-    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter, resources::EVENTS},
+    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
     ui::{
-        KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent,
+        KeyBindings, KeyCommand, ResponseEvent, ScopeData, Tui, TuiEvent,
         theme::Theme,
         views::ResourcesView,
         widgets::{Footer, IconKind},
@@ -179,7 +179,7 @@ impl App {
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
-            ResponseEvent::ViewEvents(name, namespace, uid) => self.view_events(name, namespace, &uid)?,
+            ResponseEvent::ViewScoped(kind, namespace, scope) => self.view_scoped(kind.into(), namespace.into(), scope)?,
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
@@ -295,16 +295,14 @@ impl App {
         Ok(())
     }
 
-    /// Changes observed resource to `events` filtered by `uid` as involved object.
-    fn view_events(&mut self, name: String, namespace: Option<String>, uid: &str) -> Result<(), BgWorkerError> {
-        let kind = EVENTS.into();
+    /// Changes observed resource to filtered one.
+    fn view_scoped(&mut self, kind: Kind, namespace: Namespace, scope: ScopeData) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
-            let kind_scope = self.data.borrow().current.scope.clone();
-            let resource = ResourceRef::filtered(kind, namespace.into(), ResourceRefFilter::new(name, uid));
+            let resource = ResourceRef::filtered(kind, namespace, scope.filter);
             self.views_manager.handle_kind_change(None);
             self.views_manager.clear_page_view();
-            self.views_manager.set_page_view(&Scope::Cluster);
-            self.views_manager.force_header_scope(Some(kind_scope));
+            self.views_manager.set_page_view(&scope.list);
+            self.views_manager.force_header_scope(Some(scope.header));
             self.worker.borrow_mut().restart(resource)?;
             self.data.borrow_mut().previous_add_current();
         }

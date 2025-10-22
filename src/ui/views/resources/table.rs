@@ -10,12 +10,12 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
-        ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef,
-        resources::{CONTAINERS, PODS, ResourceItem, ResourcesList, SECRETS},
+        ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
+        resources::{CONTAINERS, EVENTS, PODS, ResourceItem, ResourcesList, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
-        KeyCommand, MouseEventKind, Responsive, Table, TuiEvent, ViewType,
+        KeyCommand, MouseEventKind, Responsive, ScopeData, Table, TuiEvent, ViewType,
         lists::Row,
         tui::ResponseEvent,
         viewers::{ListHeader, ListViewer},
@@ -221,7 +221,7 @@ impl ResourcesTable {
             let is_container = self.kind_plural() == CONTAINERS;
             if self.app_data.has_binding(event, KeyCommand::EventsShow) {
                 if !is_container && resource.name() != ALL_NAMESPACES {
-                    return ResponseEvent::ViewEvents(resource.name.clone(), resource.namespace.clone(), resource.uid.clone());
+                    return self.process_view_events(resource);
                 }
 
                 return ResponseEvent::NotHandled;
@@ -356,5 +356,14 @@ impl ResourcesTable {
         }
 
         None
+    }
+
+    fn process_view_events(&self, resource: &ResourceItem) -> ResponseEvent {
+        let scope = ScopeData {
+            header: self.app_data.borrow().current.scope.clone(),
+            list: Scope::Cluster,
+            filter: ResourceRefFilter::involved(resource.name.clone(), &resource.uid),
+        };
+        ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), scope)
     }
 }

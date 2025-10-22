@@ -108,7 +108,7 @@ pub struct ResourceRefFilter {
 
 impl ResourceRefFilter {
     /// Creates new [`ResourceRefFilter`] instance from `name` and `uid`.
-    pub fn new(name: String, uid: &str) -> Self {
+    pub fn involved(name: String, uid: &str) -> Self {
         Self {
             name: Some(name),
             filter: Some(format!("involvedObject.uid={uid}")),

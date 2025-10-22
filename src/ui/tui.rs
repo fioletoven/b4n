@@ -4,6 +4,7 @@ use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyModifiers, MouseButton},
 };
 use futures::{FutureExt, StreamExt};
+use kube::discovery::Scope;
 use ratatui::{
     Terminal,
     crossterm::{
@@ -25,7 +26,11 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{core::utils::wait_for_task, kubernetes::ResourceRef, ui::KeyCombination};
+use crate::{
+    core::utils::wait_for_task,
+    kubernetes::{ResourceRef, ResourceRefFilter},
+    ui::KeyCombination,
+};
 
 use super::utils::init_panic_hook;
 
@@ -115,6 +120,14 @@ impl TuiEvent {
     }
 }
 
+/// Data for [`ResponseEvent::ViewScoped`] event.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScopeData {
+    pub header: Scope,
+    pub list: Scope,
+    pub filter: ResourceRefFilter,
+}
+
 /// Terminal UI Response Event.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {
@@ -135,7 +148,7 @@ pub enum ResponseEvent {
     ChangeContext(String),
     ChangeTheme(String),
     ViewContainers(String, String),
-    ViewEvents(String, Option<String>, String),
+    ViewScoped(String, Option<String>, ScopeData),
     ViewNamespaces,
 
     ListKubeContexts,
