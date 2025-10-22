@@ -59,8 +59,8 @@ impl ResourcesList {
         self.data.kind_plural == CONTAINERS
     }
 
-    /// Returns `true` if the resources in the list are filtered.
-    pub fn is_filtered(&self) -> bool {
+    /// Returns `true` if the resources in the list are scoped.
+    pub fn is_scoped(&self) -> bool {
         self.data.resource.filter.is_some()
     }
 

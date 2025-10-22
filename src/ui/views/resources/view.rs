@@ -173,7 +173,7 @@ impl ResourcesView {
     pub fn is_namespaces_selector_allowed(&self) -> bool {
         self.table.scope() == &Scope::Namespaced
             && !self.table.has_containers()
-            && !self.table.is_filtered()
+            && !self.table.list.table.is_scoped()
             && self.is_resources_selector_allowed()
     }
 

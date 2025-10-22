@@ -245,15 +245,15 @@ impl App {
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
-            let selected = self.views_manager.highlighted_name().map(String::from);
-            self.views_manager.handle_kind_change(to_select);
-            self.views_manager.handle_namespace_change(namespace.clone());
             if track_previous {
+                let selected = self.views_manager.highlighted_name().map(String::from);
                 self.data.borrow_mut().add_current_to_previous(selected);
             } else {
                 self.data.borrow_mut().previous.clear();
             }
 
+            self.views_manager.handle_kind_change(to_select);
+            self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), &scope);
@@ -293,7 +293,7 @@ impl App {
                         .borrow()
                         .previous
                         .last()
-                        .and_then(|p| p.to_select())
+                        .and_then(|p| p.selected())
                         .map(String::from);
                     self.change_internal(kind, namespace, name, false)?;
                 }
@@ -322,7 +322,7 @@ impl App {
         Ok(())
     }
 
-    /// Changs observed resource to the involved object.
+    /// Changes observed resource to the involved object.
     fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
         self.change_internal(kind, namespace, to_select, true)
     }

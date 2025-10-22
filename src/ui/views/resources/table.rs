@@ -287,7 +287,7 @@ impl ResourcesTable {
         } else {
             let data = &mut self.app_data.borrow_mut();
             if let Some(previous) = data.previous.pop() {
-                let to_select = previous.to_select().map(String::from);
+                let to_select = previous.selected().map(String::from);
                 ResponseEvent::ChangeKindAndSelect(previous.resource.kind.into(), to_select)
             } else {
                 ResponseEvent::ViewNamespaces

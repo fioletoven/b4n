@@ -101,14 +101,14 @@ pub struct SyntaxData {
 
 /// Keeps data needed to navigate to the previous resource.
 pub struct PreviousData {
-    pub to_select: Option<String>,
+    pub selected: Option<String>,
     pub resource: ResourceRef,
 }
 
 impl PreviousData {
     /// Returns resource name that was previously selected on the list.
-    pub fn to_select(&self) -> Option<&str> {
-        self.to_select
+    pub fn selected(&self) -> Option<&str> {
+        self.selected
             .as_deref()
             .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
             .or(self.resource.name.as_deref())
@@ -192,7 +192,7 @@ impl AppData {
     /// Adds the current resource to the previous resources stack.
     pub fn add_current_to_previous(&mut self, to_select: Option<String>) {
         self.previous.push(PreviousData {
-            to_select,
+            selected: to_select,
             resource: self.current.resource.clone(),
         });
     }
