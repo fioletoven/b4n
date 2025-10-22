@@ -266,10 +266,16 @@ impl App {
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
             if self.data.borrow().is_constrained() && !self.data.borrow().current.resource.kind.is_namespaces() {
-                let previous_kind = self.data.borrow().previous.last().map(|p| p.kind.clone());
-                let previous_name = self.data.borrow().previous.last().and_then(|p| p.name.clone());
-                if let Some(previous_kind) = previous_kind {
-                    self.change(previous_kind, namespace, previous_name)?;
+                let previous_kind = self.data.borrow().previous.last().map(|p| p.resource.kind.clone());
+                if let Some(kind) = previous_kind {
+                    let name = self
+                        .data
+                        .borrow()
+                        .previous
+                        .last()
+                        .and_then(|p| p.to_select())
+                        .map(String::from);
+                    self.change(kind, namespace, name)?;
                 }
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
@@ -286,10 +292,11 @@ impl App {
 
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
+        let selected = self.views_manager.highlighted_name().map(String::from);
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
-        self.data.borrow_mut().previous_add_current();
+        self.data.borrow_mut().previous_add_current(selected);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -298,13 +305,14 @@ impl App {
     /// Changes observed resource to filtered one.
     fn view_scoped(&mut self, kind: Kind, namespace: Namespace, scope: ScopeData) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
+            let selected = self.views_manager.highlighted_name().map(String::from);
             let resource = ResourceRef::filtered(kind, namespace, scope.filter);
             self.views_manager.handle_kind_change(None);
             self.views_manager.clear_page_view();
             self.views_manager.set_page_view(&scope.list);
             self.views_manager.force_header_scope(Some(scope.header));
             self.worker.borrow_mut().restart(resource)?;
-            self.data.borrow_mut().previous_add_current();
+            self.data.borrow_mut().previous_add_current(selected);
         }
 
         Ok(())

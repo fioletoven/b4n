@@ -99,6 +99,22 @@ pub struct SyntaxData {
     pub yaml_theme: syntect::highlighting::Theme,
 }
 
+/// Keeps data needed to navigate to the previous resource.
+pub struct PreviousData {
+    pub to_select: Option<String>,
+    pub resource: ResourceRef,
+}
+
+impl PreviousData {
+    /// Returns resource name that was previously selected on the list.
+    pub fn to_select(&self) -> Option<&str> {
+        self.to_select
+            .as_deref()
+            .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
+            .or(self.resource.name.as_deref())
+    }
+}
+
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
@@ -118,7 +134,7 @@ pub struct AppData {
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
-    pub previous: Vec<ResourceRef>,
+    pub previous: Vec<PreviousData>,
 
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
@@ -174,8 +190,11 @@ impl AppData {
     }
 
     /// Adds the current resource to the previous resources stack.
-    pub fn previous_add_current(&mut self) {
-        self.previous.push(self.current.resource.clone());
+    pub fn previous_add_current(&mut self, to_select: Option<String>) {
+        self.previous.push(PreviousData {
+            to_select,
+            resource: self.current.resource.clone(),
+        });
     }
 
     /// Returns `true` if the current resource is somehow constrained to a subset.\

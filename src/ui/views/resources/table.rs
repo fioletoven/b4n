@@ -287,8 +287,8 @@ impl ResourcesTable {
         } else {
             let data = &mut self.app_data.borrow_mut();
             if let Some(previous) = data.previous.pop() {
-                let to_select = data.current.resource.filter.as_ref().and_then(|f| f.name.clone());
-                ResponseEvent::ChangeKindAndSelect(previous.kind.as_str().to_owned(), to_select)
+                let to_select = previous.to_select().map(String::from);
+                ResponseEvent::ChangeKindAndSelect(previous.resource.kind.into(), to_select)
             } else {
                 ResponseEvent::ViewNamespaces
             }

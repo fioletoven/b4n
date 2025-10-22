@@ -297,6 +297,11 @@ impl ViewsManager {
         self.resources.table.header.set_scope(scope);
     }
 
+    /// Returns name of the highlighted item on the resources list view.
+    pub fn highlighted_name(&self) -> Option<&str> {
+        self.resources.table.list.table.get_highlighted_item_name()
+    }
+
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
         self.resources.ask_delete_resources();
