@@ -1,7 +1,7 @@
 use kube::discovery::Scope;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    text::Line,
+    text::{Line, Span},
     widgets::Paragraph,
 };
 
@@ -113,7 +113,7 @@ impl ListHeader {
             data.current.resource.name.as_deref()
         };
 
-        get_left_breadcrumbs(
+        let mut line = get_left_breadcrumbs(
             data,
             scope,
             self.fixed_namespace.as_deref(),
@@ -121,7 +121,13 @@ impl ListHeader {
             name,
             self.count,
             self.is_filtered,
-        )
+        );
+
+        if !self.app_data.borrow().previous.is_empty() {
+            line.push_span(Span::from(" 󰕍").style(&data.theme.colors.text));
+        }
+
+        line
     }
 
     /// Returns formatted k8s version info as breadcrumbs:\

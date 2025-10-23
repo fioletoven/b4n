@@ -178,9 +178,9 @@ impl App {
 
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None, TrackFlow::Add)?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None, TrackFlow::Clear)?,
             ResponseEvent::ChangeAndSelect(kind, namespace, to_select) => {
-                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Add)?;
+                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Clear)?;
             },
             ResponseEvent::ChangeAndSelectPrev(kind, namespace, to_select) => {
                 self.change(kind.into(), namespace.into(), to_select, TrackFlow::Nothing)?;
