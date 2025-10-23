@@ -4,14 +4,14 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
+    core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, EVENTS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
         watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
-        KeyCommand, MouseEventKind, Responsive, Table, ViewType,
+        KeyCommand, MouseEventKind, Responsive, ScopeData, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
@@ -245,7 +245,12 @@ impl ResourcesView {
             self.show_command_palette(true);
         }
 
-        self.table.process_event(event)
+        let result = self.table.process_event(event);
+        if result == ResponseEvent::ViewPreviousResource {
+            return self.handle_previous_resource_change();
+        }
+
+        result
     }
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -397,6 +402,40 @@ impl ResourcesView {
             colors.modal.text,
         )
         .with_inputs(vec![CheckBox::new("Terminate immediately", false, &colors.modal.checkbox)])
+    }
+
+    pub fn remember_current_resource(&mut self) {
+        let highlighted = self.table.list.table.get_highlighted_item_name().map(String::from);
+        let header = self.table.header.get_scope();
+        let namespace = self.app_data.borrow().current.namespace.clone();
+        let resource = self.app_data.borrow().current.resource.clone();
+        self.app_data.borrow_mut().previous.push(PreviousData {
+            list: self.scope().clone(),
+            header,
+            highlighted,
+            namespace,
+            resource,
+            filter: self.table.list.table.get_filter().map(String::from),
+        });
+    }
+
+    fn handle_previous_resource_change(&mut self) -> ResponseEvent {
+        let data = &mut self.app_data.borrow_mut();
+        if let Some(previous) = data.previous.pop() {
+            let to_select = previous.highlighted().map(String::from);
+            if previous.resource.filter.is_some() {
+                let scope = ScopeData {
+                    list: previous.list,
+                    header: previous.header,
+                    filter: previous.resource.filter.unwrap(),
+                };
+                return ResponseEvent::ViewScopedPrev(previous.resource.kind.into(), previous.namespace.into(), to_select, scope);
+            } else {
+                return ResponseEvent::ChangeAndSelectPrev(previous.resource.kind.into(), previous.namespace.into(), to_select);
+            }
+        }
+
+        ResponseEvent::Handled
     }
 }
 

@@ -284,14 +284,10 @@ impl ResourcesTable {
     fn process_esc_key(&self) -> ResponseEvent {
         if self.kind_plural() == NAMESPACES {
             ResponseEvent::Handled
+        } else if !self.app_data.borrow().previous.is_empty() {
+            ResponseEvent::ViewPreviousResource
         } else {
-            let data = &mut self.app_data.borrow_mut();
-            if let Some(previous) = data.previous.pop() {
-                let to_select = previous.selected().map(String::from);
-                ResponseEvent::ChangeKindAndSelect(previous.resource.kind.into(), to_select)
-            } else {
-                ResponseEvent::ViewNamespaces
-            }
+            ResponseEvent::ViewNamespaces
         }
     }
 
@@ -364,6 +360,6 @@ impl ResourcesTable {
             list: Scope::Cluster,
             filter: ResourceRefFilter::involved(resource.name.clone(), &resource.uid),
         };
-        ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), scope)
+        ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), None, scope)
     }
 }

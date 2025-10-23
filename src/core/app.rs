@@ -30,6 +30,13 @@ pub enum ExecutionFlow {
     Stop,
 }
 
+#[derive(PartialEq)]
+enum TrackFlow {
+    Nothing,
+    Add,
+    Clear,
+}
+
 /// Main application object that orchestrates terminal, UI widgets and background workers.
 pub struct App {
     data: SharedAppData,
@@ -171,9 +178,12 @@ impl App {
 
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None)?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None, TrackFlow::Add)?,
             ResponseEvent::ChangeAndSelect(kind, namespace, to_select) => {
-                self.change(kind.into(), namespace.into(), to_select)?;
+                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Add)?;
+            },
+            ResponseEvent::ChangeAndSelectPrev(kind, namespace, to_select) => {
+                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Nothing)?;
             },
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
@@ -182,7 +192,12 @@ impl App {
             ResponseEvent::ViewInvolved(kind, namespace, to_select) => {
                 self.view_involved(kind.into(), namespace.into(), to_select)?;
             },
-            ResponseEvent::ViewScoped(kind, namespace, scope) => self.view_scoped(kind.into(), namespace.into(), scope)?,
+            ResponseEvent::ViewScoped(kind, namespace, to_select, scope) => {
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Add)?
+            },
+            ResponseEvent::ViewScopedPrev(kind, namespace, to_select, scope) => {
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Nothing)?
+            },
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
@@ -228,27 +243,21 @@ impl App {
     }
 
     /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
-    fn change(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        self.change_internal(kind, namespace, to_select, false)
-    }
-
-    /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
-    fn change_internal(
+    fn change(
         &mut self,
         kind: Kind,
         namespace: Namespace,
         to_select: Option<String>,
-        track_previous: bool,
+        track: TrackFlow,
     ) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
-            if track_previous {
-                let selected = self.views_manager.highlighted_name().map(String::from);
-                self.data.borrow_mut().add_current_to_previous(selected);
-            } else {
+            if track == TrackFlow::Add {
+                self.views_manager.remember_current_resource();
+            } else if track == TrackFlow::Clear {
                 self.data.borrow_mut().previous.clear();
             }
 
@@ -293,9 +302,9 @@ impl App {
                         .borrow()
                         .previous
                         .last()
-                        .and_then(|p| p.selected())
+                        .and_then(|p| p.highlighted())
                         .map(String::from);
-                    self.change_internal(kind, namespace, name, false)?;
+                    self.change(kind, namespace, name, TrackFlow::Clear)?;
                 }
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
@@ -312,11 +321,10 @@ impl App {
 
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
-        let selected = self.views_manager.highlighted_name().map(String::from);
+        self.views_manager.remember_current_resource();
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
-        self.data.borrow_mut().add_current_to_previous(selected);
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
@@ -324,19 +332,28 @@ impl App {
 
     /// Changes observed resource to the involved object.
     fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
-        self.change_internal(kind, namespace, to_select, true)
+        self.change(kind, namespace, to_select, TrackFlow::Add)
     }
 
-    /// Changes observed resource to filtered one.
-    fn view_scoped(&mut self, kind: Kind, namespace: Namespace, scope: ScopeData) -> Result<(), BgWorkerError> {
+    /// Changes observed resource to the scoped one.
+    fn view_scoped(
+        &mut self,
+        kind: Kind,
+        namespace: Namespace,
+        to_select: Option<String>,
+        scope: ScopeData,
+        track: TrackFlow,
+    ) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
-            let selected = self.views_manager.highlighted_name().map(String::from);
+            if track == TrackFlow::Add {
+                self.views_manager.remember_current_resource();
+            }
+
             let resource = ResourceRef::filtered(kind, namespace, scope.filter);
-            self.views_manager.handle_kind_change(None);
+            self.views_manager.handle_kind_change(to_select);
             self.views_manager.clear_page_view();
             self.views_manager.set_page_view(&scope.list);
             self.views_manager.force_header_scope(Some(scope.header));
-            self.data.borrow_mut().add_current_to_previous(selected);
             self.worker.borrow_mut().restart(resource)?;
         }
 

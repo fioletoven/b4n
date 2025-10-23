@@ -264,6 +264,11 @@ impl ViewsManager {
         }
     }
 
+    /// Adds current resource to the previous resources stack.
+    pub fn remember_current_resource(&mut self) {
+        self.resources.remember_current_resource();
+    }
+
     pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
         self.resources.set_resources_info(context, namespace, version, scope);
     }
@@ -295,11 +300,6 @@ impl ViewsManager {
     pub fn force_header_scope(&mut self, scope: Option<Scope>) {
         self.resources.clear_header_scope(false);
         self.resources.table.header.set_scope(scope);
-    }
-
-    /// Returns name of the highlighted item on the resources list view.
-    pub fn highlighted_name(&self) -> Option<&str> {
-        self.resources.table.list.table.get_highlighted_item_name()
     }
 
     /// Shows delete resources dialog if anything is selected.

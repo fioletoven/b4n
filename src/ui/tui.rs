@@ -142,14 +142,18 @@ pub enum ResponseEvent {
 
     Change(String, String),
     ChangeAndSelect(String, String, Option<String>),
+    ChangeAndSelectPrev(String, String, Option<String>),
     ChangeKind(String),
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
     ChangeTheme(String),
+
+    ViewPreviousResource,
     ViewContainers(String, String),
     ViewInvolved(String, String, Option<String>),
-    ViewScoped(String, Option<String>, ScopeData),
+    ViewScoped(String, Option<String>, Option<String>, ScopeData),
+    ViewScopedPrev(String, Option<String>, Option<String>, ScopeData),
     ViewNamespaces,
 
     ListKubeContexts,

@@ -62,6 +62,16 @@ impl ListHeader {
         self.fixed_scope = scope;
     }
 
+    /// Returns current scope that header will use.\
+    /// **Note** that it borrows app data to do that.
+    pub fn get_scope(&self) -> Scope {
+        if let Some(scope) = &self.fixed_scope {
+            scope.clone()
+        } else {
+            self.app_data.borrow().current.scope.clone()
+        }
+    }
+
     /// Sets new value for the header count.
     pub fn set_count(&mut self, count: usize) {
         self.count = count;

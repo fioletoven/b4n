@@ -101,14 +101,18 @@ pub struct SyntaxData {
 
 /// Keeps data needed to navigate to the previous resource.
 pub struct PreviousData {
-    pub selected: Option<String>,
+    pub list: Scope,
+    pub header: Scope,
+    pub namespace: Namespace,
     pub resource: ResourceRef,
+    pub highlighted: Option<String>,
+    pub filter: Option<String>,
 }
 
 impl PreviousData {
-    /// Returns resource name that was previously selected on the list.
-    pub fn selected(&self) -> Option<&str> {
-        self.selected
+    /// Returns resource name that was previously highlighted on the list.
+    pub fn highlighted(&self) -> Option<&str> {
+        self.highlighted
             .as_deref()
             .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
             .or(self.resource.name.as_deref())
@@ -187,14 +191,6 @@ impl AppData {
             syntax_set: self.syntax_set.clone(),
             yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
-    }
-
-    /// Adds the current resource to the previous resources stack.
-    pub fn add_current_to_previous(&mut self, to_select: Option<String>) {
-        self.previous.push(PreviousData {
-            selected: to_select,
-            resource: self.current.resource.clone(),
-        });
     }
 
     /// Returns `true` if the current resource is somehow constrained to a subset.\
