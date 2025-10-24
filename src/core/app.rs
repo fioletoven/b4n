@@ -30,7 +30,7 @@ pub enum ExecutionFlow {
     Stop,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum TrackFlow {
     Nothing,
     Add,
@@ -193,10 +193,10 @@ impl App {
                 self.view_involved(kind.into(), namespace.into(), to_select)?;
             },
             ResponseEvent::ViewScoped(kind, namespace, to_select, scope) => {
-                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Add)?
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Add)?;
             },
             ResponseEvent::ViewScopedPrev(kind, namespace, to_select, scope) => {
-                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Nothing)?
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Nothing)?;
             },
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),

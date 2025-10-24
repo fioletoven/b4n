@@ -8,7 +8,7 @@ use ratatui::{
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    core::{ResourcesInfo, SharedAppData, SharedAppDataExt},
+    core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
         resources::{CONTAINERS, EVENTS, PODS, ResourceItem, ResourcesList, SECRETS},
@@ -27,14 +27,31 @@ use crate::{
 pub struct NextRefreshActions {
     pub highlight_item: Option<String>,
     pub apply_filter: Option<String>,
+    pub clear_header_scope: bool,
 }
 
 impl NextRefreshActions {
-    pub fn highlight(item_name: String) -> Self {
+    /// Creates new [`NextRefreshActions`] instance that will highlight `resource_name` on next refresh.
+    pub fn highlight(resource_name: Option<String>) -> Self {
         NextRefreshActions {
-            highlight_item: Some(item_name),
+            highlight_item: resource_name,
             ..Default::default()
         }
+    }
+
+    /// Creates new [`NextRefreshActions`] instance from the [`PreviousData`] object.
+    pub fn from_previous(previous: &PreviousData) -> Self {
+        NextRefreshActions {
+            highlight_item: previous.highlighted().map(String::from),
+            apply_filter: previous.filter.as_deref().map(String::from),
+            clear_header_scope: false,
+        }
+    }
+
+    /// Clears the [`NextRefreshActions`] object.
+    pub fn clear(&mut self) {
+        self.highlight_item = None;
+        self.apply_filter = None;
     }
 }
 
@@ -43,8 +60,7 @@ pub struct ResourcesTable {
     pub header: ListHeader,
     pub list: ListViewer<ResourcesList>,
     app_data: SharedAppData,
-    next_refresh: Option<NextRefreshActions>,
-    clear_header_scope: bool,
+    next_refresh: NextRefreshActions,
 }
 
 impl ResourcesTable {
@@ -61,8 +77,7 @@ impl ResourcesTable {
             header,
             list,
             app_data,
-            next_refresh: None,
-            clear_header_scope: false,
+            next_refresh: NextRefreshActions::default(),
         }
     }
 
@@ -84,14 +99,24 @@ impl ResourcesTable {
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
     }
 
+    /// Retruns [`NextRefreshActions`] object.
+    pub fn next_refresh(&self) -> &NextRefreshActions {
+        &self.next_refresh
+    }
+
     /// Remembers actions that will be applied for next background observer result.
-    pub fn on_next_refresh(&mut self, actions: Option<NextRefreshActions>) {
+    pub fn set_next_refresh(&mut self, actions: NextRefreshActions) {
         self.next_refresh = actions;
+    }
+
+    /// Remembers resource name that will be highlighted for next background observer result.
+    pub fn set_next_highlight(&mut self, resource_to_select: Option<String>) {
+        self.next_refresh.highlight_item = resource_to_select;
     }
 
     /// Remembers if header scope should be reset to default for next background observer result.
     pub fn clear_header_scope(&mut self, clear_on_next: bool) {
-        self.clear_header_scope = clear_on_next;
+        self.next_refresh.clear_header_scope = clear_on_next;
     }
 
     delegate! {
@@ -173,37 +198,41 @@ impl ResourcesTable {
 
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
-        if matches!(result, ObserverResult::InitDone) {
-            if let Some(actions) = self.next_refresh.as_ref() {
-                if let Some(name) = actions.highlight_item.as_deref() {
-                    self.list.table.highlight_item_by_name(name);
-                } else {
-                    self.list.table.highlight_first_item();
-                }
-
-                self.next_refresh = None;
-            } else {
-                self.list.table.highlight_first_item();
-            }
-
-            if self.clear_header_scope {
-                self.header.set_scope(None);
-                self.clear_header_scope = false;
-            }
-        }
+        let is_init = matches!(result, ObserverResult::Init(_));
+        let is_init_done = matches!(result, ObserverResult::InitDone);
 
         if self.list.table.update(result) {
             let current = &mut self.app_data.borrow_mut().current;
             current.update_from(&self.list.table.data);
-            self.header.set_count(self.list.table.len());
-        } else {
-            self.header.set_count(self.list.table.len());
         }
+
+        if is_init {
+            if let Some(filter) = self.next_refresh.apply_filter.take() {
+                self.set_filter(&filter);
+            } else {
+                self.set_filter("");
+            }
+
+            if self.next_refresh.clear_header_scope {
+                self.header.set_scope(None);
+                self.next_refresh.clear_header_scope = false;
+            }
+        }
+
+        if is_init_done {
+            if let Some(name) = self.next_refresh.highlight_item.take() {
+                self.list.table.highlight_item_by_name(&name);
+            } else {
+                self.list.table.highlight_first_item();
+            }
+        }
+
+        self.header.set_count(self.list.table.len());
     }
 
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        self.next_refresh = None;
+        self.next_refresh.clear();
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return self.process_esc_key();

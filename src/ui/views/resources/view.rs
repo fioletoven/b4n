@@ -53,7 +53,8 @@ impl ResourcesView {
     delegate! {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
-            pub fn on_next_refresh(&mut self, actions: Option<NextRefreshActions>);
+            pub fn set_next_refresh(&mut self, actions: NextRefreshActions);
+            pub fn set_next_highlight(&mut self, actions: Option<String>);
             pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
@@ -76,8 +77,11 @@ impl ResourcesView {
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         if matches!(result, ObserverResult::Init(_)) {
-            self.filter.reset();
-            self.table.set_filter("");
+            if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
+                self.filter.set_value(filter.to_owned());
+            } else {
+                self.filter.reset();
+            }
         }
 
         self.table.update_resources_list(result);
@@ -423,6 +427,7 @@ impl ResourcesView {
     fn handle_previous_resource_change(&mut self) -> ResponseEvent {
         let data = &mut self.app_data.borrow_mut();
         if let Some(previous) = data.previous.pop() {
+            self.table.set_next_refresh(NextRefreshActions::from_previous(&previous));
             let to_select = previous.highlighted().map(String::from);
             if previous.resource.filter.is_some() {
                 let scope = ScopeData {
@@ -431,9 +436,9 @@ impl ResourcesView {
                     filter: previous.resource.filter.unwrap(),
                 };
                 return ResponseEvent::ViewScopedPrev(previous.resource.kind.into(), previous.namespace.into(), to_select, scope);
-            } else {
-                return ResponseEvent::ChangeAndSelectPrev(previous.resource.kind.into(), previous.namespace.into(), to_select);
             }
+
+            return ResponseEvent::ChangeAndSelectPrev(previous.resource.kind.into(), previous.namespace.into(), to_select);
         }
 
         ResponseEvent::Handled

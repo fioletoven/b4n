@@ -16,7 +16,7 @@ pub enum KeyCommandError {
 }
 
 /// Defines what part of the UI the command targets.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeyCommand {
     ApplicationExit,
     NavigateInto,
