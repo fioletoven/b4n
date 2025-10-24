@@ -421,6 +421,7 @@ impl ResourcesView {
             namespace,
             resource,
             filter: self.table.list.table.get_filter().map(String::from),
+            sort_info: self.table.list.table.table.header.sort_info(),
         });
     }
 

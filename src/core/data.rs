@@ -107,6 +107,7 @@ pub struct PreviousData {
     pub resource: ResourceRef,
     pub highlighted: Option<String>,
     pub filter: Option<String>,
+    pub sort_info: (usize, bool),
 }
 
 impl PreviousData {

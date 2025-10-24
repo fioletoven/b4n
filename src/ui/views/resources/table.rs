@@ -27,6 +27,7 @@ use crate::{
 pub struct NextRefreshActions {
     pub highlight_item: Option<String>,
     pub apply_filter: Option<String>,
+    pub sort_info: Option<(usize, bool)>,
     pub clear_header_scope: bool,
 }
 
@@ -44,6 +45,7 @@ impl NextRefreshActions {
         NextRefreshActions {
             highlight_item: previous.highlighted().map(String::from),
             apply_filter: previous.filter.as_deref().map(String::from),
+            sort_info: Some(previous.sort_info),
             clear_header_scope: false,
         }
     }
@@ -211,6 +213,10 @@ impl ResourcesTable {
                 self.set_filter(&filter);
             } else {
                 self.set_filter("");
+            }
+
+            if let Some((column_no, is_descending)) = self.next_refresh.sort_info.take() {
+                self.list.table.table.header.set_sort_info(column_no, is_descending);
             }
 
             if self.next_refresh.clear_header_scope {
