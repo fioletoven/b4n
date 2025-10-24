@@ -124,7 +124,7 @@ impl ListHeader {
         );
 
         if !self.app_data.borrow().previous.is_empty() {
-            line.push_span(Span::from(" 󰕍").style(&data.theme.colors.text));
+            line.push_span(Span::from(" 󰕍").style(&data.theme.colors.header.icons));
         }
 
         line
