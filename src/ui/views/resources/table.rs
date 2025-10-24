@@ -22,12 +22,28 @@ use crate::{
     },
 };
 
+/// Actions to perform on the next table refresh.
+#[derive(Default)]
+pub struct NextRefreshActions {
+    pub highlight_item: Option<String>,
+    pub apply_filter: Option<String>,
+}
+
+impl NextRefreshActions {
+    pub fn highlight(item_name: String) -> Self {
+        NextRefreshActions {
+            highlight_item: Some(item_name),
+            ..Default::default()
+        }
+    }
+}
+
 /// Resources table.
 pub struct ResourcesTable {
     pub header: ListHeader,
     pub list: ListViewer<ResourcesList>,
     app_data: SharedAppData,
-    highlight_next: Option<String>,
+    next_refresh: Option<NextRefreshActions>,
     clear_header_scope: bool,
 }
 
@@ -45,7 +61,7 @@ impl ResourcesTable {
             header,
             list,
             app_data,
-            highlight_next: None,
+            next_refresh: None,
             clear_header_scope: false,
         }
     }
@@ -68,9 +84,9 @@ impl ResourcesTable {
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
     }
 
-    /// Remembers resource name that will be highlighted for next background observer result.
-    pub fn highlight_next(&mut self, resource_to_select: Option<String>) {
-        self.highlight_next = resource_to_select;
+    /// Remembers actions that will be applied for next background observer result.
+    pub fn on_next_refresh(&mut self, actions: Option<NextRefreshActions>) {
+        self.next_refresh = actions;
     }
 
     /// Remembers if header scope should be reset to default for next background observer result.
@@ -158,9 +174,14 @@ impl ResourcesTable {
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         if matches!(result, ObserverResult::InitDone) {
-            if let Some(name) = self.highlight_next.as_deref() {
-                self.list.table.highlight_item_by_name(name);
-                self.highlight_next = None;
+            if let Some(actions) = self.next_refresh.as_ref() {
+                if let Some(name) = actions.highlight_item.as_deref() {
+                    self.list.table.highlight_item_by_name(name);
+                } else {
+                    self.list.table.highlight_first_item();
+                }
+
+                self.next_refresh = None;
             } else {
                 self.list.table.highlight_first_item();
             }
@@ -182,7 +203,7 @@ impl ResourcesTable {
 
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        self.highlight_next = None;
+        self.next_refresh = None;
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return self.process_esc_key();

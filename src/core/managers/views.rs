@@ -15,7 +15,7 @@ use crate::{
     },
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
+        views::{ForwardsView, LogsView, NextRefreshActions, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
     },
 };
@@ -258,7 +258,10 @@ impl ViewsManager {
     /// Handles kind change.
     pub fn handle_kind_change(&mut self, resource_to_select: Option<String>) {
         self.resources.clear_header_scope(true);
-        self.resources.highlight_next(resource_to_select);
+        if let Some(resource_to_select) = resource_to_select {
+            self.resources
+                .on_next_refresh(Some(NextRefreshActions::highlight(resource_to_select)));
+        }
         if let Some(view) = &mut self.view {
             view.handle_kind_change();
         }

@@ -13,6 +13,7 @@ use crate::{
     ui::{
         KeyCommand, MouseEventKind, Responsive, ScopeData, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
+        views::resources::NextRefreshActions,
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
 };
@@ -52,7 +53,7 @@ impl ResourcesView {
     delegate! {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
-            pub fn highlight_next(&mut self, resource_to_select: Option<String>);
+            pub fn on_next_refresh(&mut self, actions: Option<NextRefreshActions>);
             pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
