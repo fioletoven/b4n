@@ -1,5 +1,24 @@
 # Change Log
 
+## 0.2.8 - 2025-10-25
+
+### Features
+
+- add scoping for Nodes, Services, Deployments, ReplicaSets, StatefulSets and DaemonSets
+- allow going back from involved object
+- add icon and kind indicator for previous resource
+- remember filter and sort options for previous resources
+
+### Bug fixes
+
+- show cursor for all command palette steps
+- do not allow opening command palette while in edit mode
+- fix enter behaviour on text paste
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.2.7 - 2025-10-19
 
 ### Features
