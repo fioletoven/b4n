@@ -104,14 +104,34 @@ impl From<&ApiResource> for ResourceRef {
 pub struct ResourceRefFilter {
     pub name: Option<String>,
     pub filter: Option<String>,
+    pub is_field: bool,
 }
 
 impl ResourceRefFilter {
-    /// Creates new [`ResourceRefFilter`] instance from `name` and `uid`.
+    /// Creates new [`ResourceRefFilter`] instance from `name` and involved object's `uid`.
     pub fn involved(name: String, uid: &str) -> Self {
         Self {
             name: Some(name),
             filter: Some(format!("involvedObject.uid={uid}")),
+            is_field: true,
+        }
+    }
+
+    /// Creates new [`ResourceRefFilter`] instance for a given `name` and `node_name`.
+    pub fn node(name: String, node_name: &str) -> Self {
+        Self {
+            name: Some(name),
+            filter: Some(format!("spec.nodeName={node_name}")),
+            is_field: true,
+        }
+    }
+
+    /// Creates new [`ResourceRefFilter`] instance for a given `name` and `job_name`.
+    pub fn job(name: String, job_name: &str) -> Self {
+        Self {
+            name: Some(name),
+            filter: Some(format!("job-name={job_name}")),
+            is_field: false,
         }
     }
 }

@@ -128,6 +128,17 @@ pub struct ScopeData {
     pub filter: ResourceRefFilter,
 }
 
+impl ScopeData {
+    /// Creates new namespaced [`ScopeData`] instance.
+    pub fn namespaced(filter: ResourceRefFilter) -> Self {
+        Self {
+            header: Scope::Namespaced,
+            list: Scope::Namespaced,
+            filter,
+        }
+    }
+}
+
 /// Terminal UI Response Event.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {

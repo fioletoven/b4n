@@ -11,7 +11,7 @@ use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
-        resources::{CONTAINERS, EVENTS, PODS, ResourceItem, ResourcesList, SECRETS},
+        resources::{CONTAINERS, EVENTS, JOBS, NODES, PODS, ResourceItem, ResourcesList, SECRETS},
         watchers::ObserverResult,
     },
     ui::{
@@ -349,6 +349,8 @@ impl ResourcesTable {
 
     fn process_enter_key(&self, resource: &ResourceItem) -> ResponseEvent {
         match self.kind_plural() {
+            NODES => self.prodess_view_nodes(resource),
+            JOBS => self.process_view_job(resource),
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, false),
@@ -417,5 +419,19 @@ impl ResourcesTable {
             filter: ResourceRefFilter::involved(resource.name.clone(), &resource.uid),
         };
         ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), None, scope)
+    }
+
+    fn prodess_view_nodes(&self, resource: &ResourceItem) -> ResponseEvent {
+        let filter = ResourceRefFilter::node(resource.name.clone(), &resource.name);
+        ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespaced(filter))
+    }
+
+    fn process_view_job(&self, resource: &ResourceItem) -> ResponseEvent {
+        let scope = ScopeData {
+            header: self.app_data.borrow().current.scope.clone(),
+            list: Scope::Cluster,
+            filter: ResourceRefFilter::job(resource.name.clone(), &resource.name),
+        };
+        ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), None, scope)
     }
 }
