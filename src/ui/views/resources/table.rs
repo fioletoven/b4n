@@ -104,7 +104,7 @@ impl ResourcesTable {
         self.app_data.borrow_mut().current = ResourcesInfo::from(context, namespace, version, scope);
     }
 
-    /// Retruns [`NextRefreshActions`] object.
+    /// Returns [`NextRefreshActions`] object.
     pub fn next_refresh(&self) -> &NextRefreshActions {
         &self.next_refresh
     }
@@ -352,13 +352,10 @@ impl ResourcesTable {
 
     fn process_enter_key(&self, resource: &ResourceItem) -> ResponseEvent {
         match self.kind_plural() {
-            NODES => self.prodess_view_nodes(resource),
+            NODES => ResourcesTable::process_view_nodes(resource),
             JOBS => self.process_view_jobs(resource),
-            SERVICES => self.process_view_selector(resource, PODS),
             DEPLOYMENTS => self.process_view_selector(resource, REPLICA_SETS),
-            REPLICA_SETS => self.process_view_selector(resource, PODS),
-            STATEFUL_SETS => self.process_view_selector(resource, PODS),
-            DAEMON_SETS => self.process_view_selector(resource, PODS),
+            SERVICES | REPLICA_SETS | STATEFUL_SETS | DAEMON_SETS => self.process_view_selector(resource, PODS),
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, false),
@@ -429,7 +426,7 @@ impl ResourcesTable {
         ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), None, scope)
     }
 
-    fn prodess_view_nodes(&self, resource: &ResourceItem) -> ResponseEvent {
+    fn process_view_nodes(resource: &ResourceItem) -> ResponseEvent {
         let filter = ResourceRefFilter::node(resource.name.clone(), &resource.name);
         ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespace_visible(filter))
     }
