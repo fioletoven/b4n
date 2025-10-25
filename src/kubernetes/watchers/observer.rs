@@ -359,22 +359,19 @@ impl BgObserver {
 
 fn build_fields_filter(rt: &ResourceRef) -> Option<String> {
     match (&rt.name, &rt.filter) {
-        (Some(name), Some(filter)) if filter.is_field => match &filter.filter {
+        (Some(name), Some(filter)) => match &filter.fields {
             Some(data) => Some(format!("metadata.name={name},{data}")),
             None => Some(format!("metadata.name={name}")),
         },
-        (Some(name), _) => Some(format!("metadata.name={name}")),
-        (None, Some(filter)) if filter.is_field => filter.filter.clone(),
+        (Some(name), None) => Some(format!("metadata.name={name}")),
+        (None, Some(filter)) => filter.fields.clone(),
 
         _ => None,
     }
 }
 
 fn build_labels_filter(rt: &ResourceRef) -> Option<String> {
-    match &rt.filter {
-        Some(filter) if !filter.is_field => filter.filter.clone(),
-        _ => None,
-    }
+    rt.filter.as_ref()?.labels.clone()
 }
 
 fn emit_results(

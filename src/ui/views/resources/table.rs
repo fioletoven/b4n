@@ -11,7 +11,7 @@ use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
-        resources::{CONTAINERS, EVENTS, JOBS, NODES, PODS, ResourceItem, ResourcesList, SECRETS},
+        resources::{CONTAINERS, EVENTS, JOBS, NODES, PODS, ResourceItem, ResourcesList, SECRETS, SERVICES},
         watchers::ObserverResult,
     },
     ui::{
@@ -350,7 +350,8 @@ impl ResourcesTable {
     fn process_enter_key(&self, resource: &ResourceItem) -> ResponseEvent {
         match self.kind_plural() {
             NODES => self.prodess_view_nodes(resource),
-            JOBS => self.process_view_job(resource),
+            JOBS => self.process_view_jobs(resource),
+            SERVICES => self.process_view_services(resource),
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, false),
@@ -426,12 +427,29 @@ impl ResourcesTable {
         ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespaced(filter))
     }
 
-    fn process_view_job(&self, resource: &ResourceItem) -> ResponseEvent {
+    fn process_view_jobs(&self, resource: &ResourceItem) -> ResponseEvent {
         let scope = ScopeData {
             header: self.app_data.borrow().current.scope.clone(),
             list: Scope::Cluster,
             filter: ResourceRefFilter::job(resource.name.clone(), &resource.name),
         };
         ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), None, scope)
+    }
+
+    fn process_view_services(&self, resource: &ResourceItem) -> ResponseEvent {
+        if let Some(data) = &resource.data
+            && !data.tags.is_empty()
+            && !data.tags[0].is_empty()
+        {
+            let filter = ResourceRefFilter::labels(resource.name.clone(), data.tags[0].clone());
+            ResponseEvent::ViewScoped(
+                PODS.to_owned(),
+                resource.namespace.clone(),
+                None,
+                ScopeData::namespaced(filter),
+            )
+        } else {
+            self.process_view_yaml(resource, false)
+        }
     }
 }
