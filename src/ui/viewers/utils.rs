@@ -71,7 +71,7 @@ pub fn get_left_breadcrumbs<'a>(
 
     let count_icon = if is_filtered {
         ""
-    } else if name.is_some() && kind == PODS {
+    } else if data.resource.is_container() {
         ""
     } else {
         ""

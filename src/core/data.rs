@@ -99,6 +99,27 @@ pub struct SyntaxData {
     pub yaml_theme: syntect::highlighting::Theme,
 }
 
+/// Keeps data needed to navigate to the previous resource.
+pub struct PreviousData {
+    pub list: Scope,
+    pub header: Scope,
+    pub namespace: Namespace,
+    pub resource: ResourceRef,
+    pub highlighted: Option<String>,
+    pub filter: Option<String>,
+    pub sort_info: (usize, bool),
+}
+
+impl PreviousData {
+    /// Returns resource name that was previously highlighted on the list.
+    pub fn highlighted(&self) -> Option<&str> {
+        self.highlighted
+            .as_deref()
+            .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
+            .or(self.resource.name.as_deref())
+    }
+}
+
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
@@ -118,7 +139,7 @@ pub struct AppData {
 
     /// Information about currently selected kubernetes resource.
     pub current: ResourcesInfo,
-    pub previous: Option<ResourceRef>,
+    pub previous: Vec<PreviousData>,
 
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
@@ -145,7 +166,7 @@ impl AppData {
             history,
             theme,
             current: ResourcesInfo::default(),
-            previous: None,
+            previous: Vec::new(),
             kinds: None,
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             clipboard: Clipboard::new().ok(),
@@ -173,14 +194,10 @@ impl AppData {
         }
     }
 
-    /// Sets the current resource as a previous one.
-    pub fn update_previous(&mut self) {
-        self.previous = Some(self.current.resource.clone());
-    }
-
-    /// Resets previous resource to `None`.
-    pub fn reset_previous(&mut self) {
-        self.previous = None;
+    /// Returns `true` if the current resource is somehow constrained to a subset.\
+    /// **Note** that this means it should be reset if we are e.g. changing the namespace.
+    pub fn is_constrained(&self) -> bool {
+        !self.previous.is_empty() && (self.current.resource.is_container() || self.current.resource.is_filtered())
     }
 }
 

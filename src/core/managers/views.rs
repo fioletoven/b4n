@@ -258,10 +258,15 @@ impl ViewsManager {
     /// Handles kind change.
     pub fn handle_kind_change(&mut self, resource_to_select: Option<String>) {
         self.resources.clear_header_scope(true);
-        self.resources.highlight_next(resource_to_select);
+        self.resources.set_next_highlight(resource_to_select);
         if let Some(view) = &mut self.view {
             view.handle_kind_change();
         }
+    }
+
+    /// Adds current resource to the previous resources stack.
+    pub fn remember_current_resource(&mut self) {
+        self.resources.remember_current_resource();
     }
 
     pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {

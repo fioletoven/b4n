@@ -4,6 +4,7 @@ use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyModifiers, MouseButton},
 };
 use futures::{FutureExt, StreamExt};
+use kube::discovery::Scope;
 use ratatui::{
     Terminal,
     crossterm::{
@@ -25,7 +26,11 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{core::utils::wait_for_task, kubernetes::ResourceRef, ui::KeyCombination};
+use crate::{
+    core::utils::wait_for_task,
+    kubernetes::{ResourceRef, ResourceRefFilter},
+    ui::KeyCombination,
+};
 
 use super::utils::init_panic_hook;
 
@@ -115,6 +120,34 @@ impl TuiEvent {
     }
 }
 
+/// Data for [`ResponseEvent::ViewScoped`] event.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScopeData {
+    pub header: Scope,
+    pub list: Scope,
+    pub filter: ResourceRefFilter,
+}
+
+impl ScopeData {
+    /// Creates new [`ScopeData`] instance that shows namespace column.
+    pub fn namespace_visible(filter: ResourceRefFilter) -> Self {
+        Self {
+            header: Scope::Namespaced,
+            list: Scope::Namespaced,
+            filter,
+        }
+    }
+
+    /// Creates new [`ScopeData`] instance that hides namespace column.
+    pub fn namespace_hidden(filter: ResourceRefFilter) -> Self {
+        Self {
+            header: Scope::Namespaced,
+            list: Scope::Cluster,
+            filter,
+        }
+    }
+}
+
 /// Terminal UI Response Event.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {
@@ -129,13 +162,18 @@ pub enum ResponseEvent {
 
     Change(String, String),
     ChangeAndSelect(String, String, Option<String>),
+    ChangeAndSelectPrev(String, String, Option<String>),
     ChangeKind(String),
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
     ChangeContext(String),
     ChangeTheme(String),
+
+    ViewPreviousResource,
     ViewContainers(String, String),
-    ViewEvents(String, Option<String>, String),
+    ViewInvolved(String, String, Option<String>),
+    ViewScoped(String, Option<String>, Option<String>, ScopeData),
+    ViewScopedPrev(String, Option<String>, Option<String>, ScopeData),
     ViewNamespaces,
 
     ListKubeContexts,

@@ -1,6 +1,7 @@
 use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::Time,
     chrono::{DateTime, Utc},
+    serde_json::{Map, Value},
 };
 use kube::{
     ResourceExt,
@@ -61,6 +62,28 @@ pub fn format_datetime(time: &DateTime<Utc>) -> String {
                 format!("{secs}s")
             }
         }
+    }
+}
+
+/// Converts labels map to string.
+pub fn labels_to_string(labels: &Map<String, Value>) -> String {
+    labels
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v.as_str().unwrap_or_default()))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// Returns match labels selector from the dynamic object as a boxed array.
+pub fn get_match_labels(object: &DynamicObject) -> Box<[String]> {
+    let selector = object.data["spec"]["selector"]["matchLabels"]
+        .as_object()
+        .map(labels_to_string);
+
+    if let Some(selector) = selector {
+        Box::new([selector])
+    } else {
+        Box::default()
     }
 }
 

@@ -282,13 +282,17 @@ impl BgObserver {
                 has_error: Arc::clone(&self.has_error),
                 last_watch_error: None,
             };
-            let filter = build_filter(&self.resource);
+            let fields = build_fields_filter(&self.resource);
+            let labels = build_labels_filter(&self.resource);
 
             async move {
                 while !cancellation_token.is_cancelled() {
                     let mut config = watcher::Config::default();
-                    if let Some(filter) = filter.as_ref() {
+                    if let Some(filter) = fields.as_ref() {
                         config = config.fields(filter);
+                    }
+                    if let Some(filter) = labels.as_ref() {
+                        config = config.labels(filter);
                     }
                     let watch = watcher(client.clone(), config).default_backoff();
                     let mut watch = pin!(watch);
@@ -314,13 +318,17 @@ impl BgObserver {
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
             let context_tx = self.context_tx.clone();
-            let filter = build_filter(&self.resource);
+            let fields = build_fields_filter(&self.resource);
+            let labels = build_labels_filter(&self.resource);
             let mut results = None;
 
             async move {
                 let mut params = ListParams::default();
-                if let Some(filter) = filter.as_ref() {
+                if let Some(filter) = fields.as_ref() {
                     params = params.fields(filter);
+                }
+                if let Some(filter) = labels.as_ref() {
+                    params = params.labels(filter);
                 }
 
                 while !cancellation_token.is_cancelled() {
@@ -349,18 +357,21 @@ impl BgObserver {
     }
 }
 
-fn build_filter(rt: &ResourceRef) -> Option<String> {
-    if let Some(name) = &rt.name {
-        if let Some(filter) = &rt.filter
-            && let Some(filter_data) = &filter.filter
-        {
-            Some(format!("metadata.name={name},{filter_data}"))
-        } else {
-            Some(format!("metadata.name={name}"))
-        }
-    } else {
-        rt.filter.as_ref().and_then(|f| f.filter.clone())
+fn build_fields_filter(rt: &ResourceRef) -> Option<String> {
+    match (&rt.name, &rt.filter) {
+        (Some(name), Some(filter)) => match &filter.fields {
+            Some(data) => Some(format!("metadata.name={name},{data}")),
+            None => Some(format!("metadata.name={name}")),
+        },
+        (Some(name), None) => Some(format!("metadata.name={name}")),
+        (None, Some(filter)) => filter.fields.clone(),
+
+        _ => None,
     }
+}
+
+fn build_labels_filter(rt: &ResourceRef) -> Option<String> {
+    rt.filter.as_ref()?.labels.clone()
 }
 
 fn emit_results(

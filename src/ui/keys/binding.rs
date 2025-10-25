@@ -146,7 +146,7 @@ impl<'de> Deserialize<'de> for KeyBindings {
             for combination in combination_str.split(',').map(str::trim).filter(|s| !s.is_empty()) {
                 let key_combination = KeyCombination::from_str(combination)
                     .map_err(|_| de::Error::custom(format_args!("invalid key combination: {combination}")))?;
-                bindings.entry(key_combination).or_default().insert(command.clone());
+                bindings.entry(key_combination).or_default().insert(command);
             }
         }
 
@@ -163,7 +163,7 @@ fn merge(left: KeyBindings, right: KeyBindings) -> KeyBindings {
     let mut bindings: HashMap<KeyCombination, HashSet<KeyCommand>> = HashMap::new();
     for (command, combinations) in result {
         for combination in combinations {
-            bindings.entry(combination).or_default().insert(command.clone());
+            bindings.entry(combination).or_default().insert(command);
         }
     }
 

@@ -9,9 +9,9 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
-    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter, resources::EVENTS},
+    kubernetes::{Kind, NAMESPACES, Namespace, ResourceRef},
     ui::{
-        KeyBindings, KeyCommand, ResponseEvent, Tui, TuiEvent,
+        KeyBindings, KeyCommand, ResponseEvent, ScopeData, Tui, TuiEvent,
         theme::Theme,
         views::ResourcesView,
         widgets::{Footer, IconKind},
@@ -28,6 +28,13 @@ use super::{
 pub enum ExecutionFlow {
     Continue,
     Stop,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum TrackFlow {
+    Nothing,
+    Add,
+    Clear,
 }
 
 /// Main application object that orchestrates terminal, UI widgets and background workers.
@@ -171,15 +178,26 @@ impl App {
 
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None)?,
+            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None, TrackFlow::Clear)?,
             ResponseEvent::ChangeAndSelect(kind, namespace, to_select) => {
-                self.change(kind.into(), namespace.into(), to_select)?;
+                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Clear)?;
+            },
+            ResponseEvent::ChangeAndSelectPrev(kind, namespace, to_select) => {
+                self.change(kind.into(), namespace.into(), to_select, TrackFlow::Nothing)?;
             },
             ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
-            ResponseEvent::ViewEvents(name, namespace, uid) => self.view_events(name, namespace, &uid)?,
+            ResponseEvent::ViewInvolved(kind, namespace, to_select) => {
+                self.view_involved(kind.into(), namespace.into(), to_select)?;
+            },
+            ResponseEvent::ViewScoped(kind, namespace, to_select, scope) => {
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Add)?;
+            },
+            ResponseEvent::ViewScopedPrev(kind, namespace, to_select, scope) => {
+                self.view_scoped(kind.into(), namespace.into(), to_select, scope, TrackFlow::Nothing)?;
+            },
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
@@ -225,18 +243,29 @@ impl App {
     }
 
     /// Changes observed resources namespace and kind, optionally selects one of the new kinds.
-    fn change(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+    fn change(
+        &mut self,
+        kind: Kind,
+        namespace: Namespace,
+        to_select: Option<String>,
+        track: TrackFlow,
+    ) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if !self.data.borrow().current.is_namespace_equal(&namespace)
             || !self.data.borrow().current.is_kind_equal(&kind)
             || self.data.borrow().current.resource.filter.is_some()
         {
+            if track == TrackFlow::Add {
+                self.views_manager.remember_current_resource();
+            } else if track == TrackFlow::Clear {
+                self.data.borrow_mut().previous.clear();
+            }
+
             self.views_manager.handle_kind_change(to_select);
             self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
             self.process_resources_change(Some(kind.into()), Some(namespace.into()), &scope);
-            self.data.borrow_mut().reset_previous();
         }
 
         Ok(())
@@ -256,7 +285,7 @@ impl App {
                 self.views_manager.handle_kind_change(to_select);
             }
             self.process_resources_change(Some(kind.into()), None, &scope);
-            self.data.borrow_mut().reset_previous();
+            self.data.borrow_mut().previous.clear();
         }
 
         Ok(())
@@ -265,12 +294,18 @@ impl App {
     /// Changes namespace for observed resources.
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
-            let previous_kind = self.data.borrow().previous.as_ref().map(|p| p.kind.clone());
-            let previous_name = self.data.borrow().previous.as_ref().and_then(|p| p.name.clone());
-            if let Some(previous_kind) = previous_kind
-                && !self.data.borrow().current.resource.kind.is_namespaces()
-            {
-                self.change(previous_kind, namespace, previous_name)?;
+            if self.data.borrow().is_constrained() && !self.data.borrow().current.resource.kind.is_namespaces() {
+                let previous_kind = self.data.borrow().previous.last().map(|p| p.resource.kind.clone());
+                if let Some(kind) = previous_kind {
+                    let name = self
+                        .data
+                        .borrow()
+                        .previous
+                        .last()
+                        .and_then(|p| p.highlighted())
+                        .map(String::from);
+                    self.change(kind, namespace, name, TrackFlow::Clear)?;
+                }
             } else {
                 self.update_history_data(None, Some(namespace.clone().into()));
                 self.views_manager.handle_namespace_change(namespace.clone());
@@ -286,27 +321,40 @@ impl App {
 
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
+        self.views_manager.remember_current_resource();
         self.views_manager.clear_page_view();
         self.views_manager.set_page_view(&Scope::Cluster);
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
-        self.data.borrow_mut().update_previous();
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
         Ok(())
     }
 
-    /// Changes observed resource to `events` filtered by `uid` as involved object.
-    fn view_events(&mut self, name: String, namespace: Option<String>, uid: &str) -> Result<(), BgWorkerError> {
-        let kind = EVENTS.into();
+    /// Changes observed resource to the involved object.
+    fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+        self.change(kind, namespace, to_select, TrackFlow::Add)
+    }
+
+    /// Changes observed resource to the scoped one.
+    fn view_scoped(
+        &mut self,
+        kind: Kind,
+        namespace: Namespace,
+        to_select: Option<String>,
+        scope: ScopeData,
+        track: TrackFlow,
+    ) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_kind_equal(&kind) {
-            let kind_scope = self.data.borrow().current.scope.clone();
-            let resource = ResourceRef::filtered(kind, namespace.into(), ResourceRefFilter::new(name, uid));
-            self.views_manager.handle_kind_change(None);
+            if track == TrackFlow::Add {
+                self.views_manager.remember_current_resource();
+            }
+
+            let resource = ResourceRef::filtered(kind, namespace, scope.filter);
+            self.views_manager.handle_kind_change(to_select);
             self.views_manager.clear_page_view();
-            self.views_manager.set_page_view(&Scope::Cluster);
-            self.views_manager.force_header_scope(Some(kind_scope));
+            self.views_manager.set_page_view(&scope.list);
+            self.views_manager.force_header_scope(Some(scope.header));
             self.worker.borrow_mut().restart(resource)?;
-            self.data.borrow_mut().update_previous();
         }
 
         Ok(())

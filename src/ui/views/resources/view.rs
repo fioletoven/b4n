@@ -4,15 +4,16 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
+    core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         Kind, NAMESPACES, Namespace, ResourceRef,
         resources::{CONTAINERS, EVENTS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
         watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
-        KeyCommand, MouseEventKind, Responsive, Table, ViewType,
+        KeyCommand, MouseEventKind, Responsive, ScopeData, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
+        views::resources::NextRefreshActions,
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },
 };
@@ -52,7 +53,8 @@ impl ResourcesView {
     delegate! {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
-            pub fn highlight_next(&mut self, resource_to_select: Option<String>);
+            pub fn set_next_refresh(&mut self, actions: NextRefreshActions);
+            pub fn set_next_highlight(&mut self, actions: Option<String>);
             pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
@@ -75,8 +77,11 @@ impl ResourcesView {
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         if matches!(result, ObserverResult::Init(_)) {
-            self.filter.reset();
-            self.table.set_filter("");
+            if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
+                self.filter.set_value(filter.to_owned());
+            } else {
+                self.filter.reset();
+            }
         }
 
         self.table.update_resources_list(result);
@@ -173,7 +178,7 @@ impl ResourcesView {
     pub fn is_namespaces_selector_allowed(&self) -> bool {
         self.table.scope() == &Scope::Namespaced
             && !self.table.has_containers()
-            && !self.table.has_resources_events()
+            && !self.table.list.table.is_scoped()
             && self.is_resources_selector_allowed()
     }
 
@@ -245,7 +250,12 @@ impl ResourcesView {
             self.show_command_palette(true);
         }
 
-        self.table.process_event(event)
+        let result = self.table.process_event(event);
+        if result == ResponseEvent::ViewPreviousResource {
+            return self.handle_previous_resource_change();
+        }
+
+        result
     }
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -397,6 +407,42 @@ impl ResourcesView {
             colors.modal.text,
         )
         .with_inputs(vec![CheckBox::new("Terminate immediately", false, &colors.modal.checkbox)])
+    }
+
+    pub fn remember_current_resource(&mut self) {
+        let highlighted = self.table.list.table.get_highlighted_item_name().map(String::from);
+        let header = self.table.header.get_scope();
+        let namespace = self.app_data.borrow().current.namespace.clone();
+        let resource = self.app_data.borrow().current.resource.clone();
+        self.app_data.borrow_mut().previous.push(PreviousData {
+            list: self.scope().clone(),
+            header,
+            highlighted,
+            namespace,
+            resource,
+            filter: self.table.list.table.get_filter().map(String::from),
+            sort_info: self.table.list.table.table.header.sort_info(),
+        });
+    }
+
+    fn handle_previous_resource_change(&mut self) -> ResponseEvent {
+        let data = &mut self.app_data.borrow_mut();
+        if let Some(previous) = data.previous.pop() {
+            self.table.set_next_refresh(NextRefreshActions::from_previous(&previous));
+            let to_select = previous.highlighted().map(String::from);
+            if previous.resource.filter.is_some() {
+                let scope = ScopeData {
+                    list: previous.list,
+                    header: previous.header,
+                    filter: previous.resource.filter.unwrap(),
+                };
+                return ResponseEvent::ViewScopedPrev(previous.resource.kind.into(), previous.namespace.into(), to_select, scope);
+            }
+
+            return ResponseEvent::ChangeAndSelectPrev(previous.resource.kind.into(), previous.namespace.into(), to_select);
+        }
+
+        ResponseEvent::Handled
     }
 }
 

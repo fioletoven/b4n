@@ -5,6 +5,10 @@ use crate::ui::{ResponseEvent, TuiEvent};
 
 use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
+#[cfg(test)]
+#[path = "./scrollable_list.tests.rs"]
+mod scrollable_list_tests;
+
 /// Scrollable UI list.
 pub struct ScrollableList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub items: Option<FilterableList<Item<T, Fc>, Fc>>,

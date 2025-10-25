@@ -49,11 +49,6 @@ impl Filter {
         }
     }
 
-    /// Returns the filter value.
-    pub fn value(&self) -> &str {
-        self.patterns.value()
-    }
-
     /// Marks [`Filter`] as visible.
     pub fn show(&mut self) {
         let context = self.app_data.borrow().current.context.clone();
@@ -69,6 +64,18 @@ impl Filter {
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.app_data.borrow().theme.colors.filter.clone());
         self.is_visible = true;
+    }
+
+    /// Returns the filter value.
+    pub fn value(&self) -> &str {
+        self.patterns.value()
+    }
+
+    /// Sets the filter value.
+    pub fn set_value(&mut self, value: String) {
+        self.patterns.set_value(value.clone());
+        self.current = value;
+        self.validate();
     }
 
     /// Resets the filter value.
@@ -145,7 +152,7 @@ impl Responsive for Filter {
         }
 
         if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.patterns.value().is_empty() {
-            self.patterns.reset();
+            self.reset();
             return ResponseEvent::Handled;
         }
 

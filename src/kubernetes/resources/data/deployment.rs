@@ -2,7 +2,10 @@ use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
+    kubernetes::{
+        resources::{ResourceData, ResourceValue},
+        utils::get_match_labels,
+    },
     ui::lists::{Column, Header, NAMESPACE},
 };
 
@@ -14,6 +17,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let updated = status["updatedReplicas"].as_u64().unwrap_or_default();
     let available = status["availableReplicas"].as_u64().unwrap_or_default();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
+    let tags = get_match_labels(object);
 
     let values: [ResourceValue; 3] = [
         format!("{ready}/{replicas}").into(),
@@ -21,7 +25,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         format!("{available}/{replicas}").into(),
     ];
 
-    ResourceData::new(Box::new(values), is_terminating)
+    ResourceData::new(Box::new(values), is_terminating).with_tags(tags)
 }
 
 /// Returns [`Header`] for the `deployment` kubernetes resource.

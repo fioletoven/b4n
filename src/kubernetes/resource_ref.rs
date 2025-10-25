@@ -103,15 +103,44 @@ impl From<&ApiResource> for ResourceRef {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct ResourceRefFilter {
     pub name: Option<String>,
-    pub filter: Option<String>,
+    pub fields: Option<String>,
+    pub labels: Option<String>,
 }
 
 impl ResourceRefFilter {
-    /// Creates new [`ResourceRefFilter`] instance from `name` and `uid`.
-    pub fn new(name: String, uid: &str) -> Self {
+    /// Creates new [`ResourceRefFilter`] instance from `name` and involved object's `uid`.
+    pub fn involved(name: String, uid: &str) -> Self {
         Self {
             name: Some(name),
-            filter: Some(format!("involvedObject.uid={uid}")),
+            fields: Some(format!("involvedObject.uid={uid}")),
+            labels: None,
+        }
+    }
+
+    /// Creates new [`ResourceRefFilter`] instance for a given `name` and `node_name`.
+    pub fn node(name: String, node_name: &str) -> Self {
+        Self {
+            name: Some(name),
+            fields: Some(format!("spec.nodeName={node_name}")),
+            labels: None,
+        }
+    }
+
+    /// Creates new [`ResourceRefFilter`] instance for a given `name` and `job_name`.
+    pub fn job(name: String, job_name: &str) -> Self {
+        Self {
+            name: Some(name),
+            fields: None,
+            labels: Some(format!("job-name={job_name}")),
+        }
+    }
+
+    /// Creates new [`ResourceRefFilter`] instance for a given `name` and `labels`.
+    pub fn labels(name: String, labels: String) -> Self {
+        Self {
+            name: Some(name),
+            fields: None,
+            labels: Some(labels),
         }
     }
 }

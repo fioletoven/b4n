@@ -44,6 +44,7 @@ colors:
     count: text:#AAD92E
     info: white:#9971C3
     disconnected: white:light_red
+    previous: text_light:no_bg
   footer:
     text: fg_dark:bg_dark
     info: light_green:bg_dark

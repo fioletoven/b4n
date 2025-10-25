@@ -2,7 +2,10 @@ use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
+    kubernetes::{
+        resources::{ResourceData, ResourceValue},
+        utils::get_match_labels,
+    },
     ui::lists::{Column, Header, NAMESPACE},
 };
 
@@ -15,6 +18,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let updated = status["updatedNumberScheduled"].as_i64();
     let available = status["numberAvailable"].as_i64();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
+    let tags = get_match_labels(object);
 
     let values: [ResourceValue; 5] = [
         ResourceValue::integer(desired, 5),
@@ -24,7 +28,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         ResourceValue::integer(available, 5),
     ];
 
-    ResourceData::new(Box::new(values), is_terminating)
+    ResourceData::new(Box::new(values), is_terminating).with_tags(tags)
 }
 
 /// Returns [`Header`] for the `daemonset` kubernetes resource.

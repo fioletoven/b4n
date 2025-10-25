@@ -280,6 +280,12 @@ impl ResourceData {
         }
     }
 
+    /// Adds tags to the [`ResourceData`] object.
+    pub fn with_tags(mut self, tags: Box<[String]>) -> Self {
+        self.tags = tags;
+        self
+    }
+
     /// Returns [`TextColors`] for the current resource state.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {

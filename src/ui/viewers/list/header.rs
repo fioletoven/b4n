@@ -1,7 +1,7 @@
 use kube::discovery::Scope;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    text::Line,
+    text::{Line, Span},
     widgets::Paragraph,
 };
 
@@ -62,6 +62,16 @@ impl ListHeader {
         self.fixed_scope = scope;
     }
 
+    /// Returns current scope that header will use.\
+    /// **Note** that it borrows app data to do that.
+    pub fn get_scope(&self) -> Scope {
+        if let Some(scope) = &self.fixed_scope {
+            scope.clone()
+        } else {
+            self.app_data.borrow().current.scope.clone()
+        }
+    }
+
     /// Sets new value for the header count.
     pub fn set_count(&mut self, count: usize) {
         self.count = count;
@@ -103,7 +113,7 @@ impl ListHeader {
             data.current.resource.name.as_deref()
         };
 
-        get_left_breadcrumbs(
+        let mut line = get_left_breadcrumbs(
             data,
             scope,
             self.fixed_namespace.as_deref(),
@@ -111,7 +121,13 @@ impl ListHeader {
             name,
             self.count,
             self.is_filtered,
-        )
+        );
+
+        if let Some(previous) = self.app_data.borrow().previous.last() {
+            line.push_span(Span::from(format!(" 󰕍 {}", previous.resource.kind.name())).style(&data.theme.colors.header.previous));
+        }
+
+        line
     }
 
     /// Returns formatted k8s version info as breadcrumbs:\

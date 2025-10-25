@@ -267,10 +267,12 @@ impl View for YamlView {
             CommandResult::GetResourceYaml(Ok(result)) => {
                 if let Some(highlighter) = self.worker.borrow().get_highlighter() {
                     let icon = if result.is_decoded { '' } else { '' };
-                    let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
-                    let styles = StyleFallback {
-                        excluded: (&colors.normal).into(),
-                        fallback: (&colors.string).into(),
+                    let styles = {
+                        let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
+                        StyleFallback {
+                            excluded: (&colors.normal).into(),
+                            fallback: (&colors.string).into(),
+                        }
                     };
                     self.is_decoded = result.is_decoded;
                     self.yaml.header.set_icon(icon);
