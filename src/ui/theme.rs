@@ -25,7 +25,7 @@ pub struct HeaderColors {
     pub count: TextColors,
     pub info: TextColors,
     pub disconnected: TextColors,
-    pub icons: TextColors,
+    pub previous: TextColors,
 }
 
 /// Represents footer colors.
@@ -169,7 +169,7 @@ impl Default for Theme {
                     count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
                     info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
                     disconnected: TextColors::bg(Color::White, Color::LightRed),
-                    icons: TextColors::new(Color::Gray),
+                    previous: TextColors::new(Color::DarkGray),
                 },
                 footer: FooterColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),

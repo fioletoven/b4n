@@ -123,8 +123,8 @@ impl ListHeader {
             self.is_filtered,
         );
 
-        if !self.app_data.borrow().previous.is_empty() {
-            line.push_span(Span::from(" 󰕍").style(&data.theme.colors.header.icons));
+        if let Some(previous) = self.app_data.borrow().previous.last() {
+            line.push_span(Span::from(format!(" 󰕍 {}", previous.resource.kind.name())).style(&data.theme.colors.header.previous));
         }
 
         line
