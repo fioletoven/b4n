@@ -3,26 +3,31 @@ use ratatui::{
     layout::{Position, Rect},
     widgets::Widget,
 };
+use std::time::Instant;
 
 use crate::ui::{KeyCombination, MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
 
 use super::{Content, search::PagePosition};
 
-#[derive(Default)]
 pub struct EditContext {
     pub is_enabled: bool,
     pub is_modified: bool,
     pub cursor: PagePosition,
     color: TextColors,
     last_set_x: usize,
+    last_key_press: Instant,
 }
 
 impl EditContext {
     /// Creates new [`EditContext`] instance.
     pub fn new(color: TextColors) -> Self {
         Self {
+            is_enabled: false,
+            is_modified: false,
+            cursor: PagePosition::default(),
             color,
-            ..Default::default()
+            last_set_x: 0,
+            last_key_press: Instant::now(),
         }
     }
 
@@ -56,6 +61,7 @@ impl EditContext {
                     self.process_key(key.code, content, area)
                 };
                 self.update_cursor_position(pos, content, false);
+                self.last_key_press = Instant::now();
             },
             TuiEvent::Mouse(mouse) => {
                 if mouse.kind == MouseEventKind::LeftClick {
@@ -88,7 +94,9 @@ impl EditContext {
             KeyCode::Enter => {
                 content.insert_char(self.cursor.x, self.cursor.y, '\n');
                 y_changed = Some(self.cursor.y + 1);
-                if let Some(leading_spaces) = content.leading_spaces(self.cursor.y) {
+                if self.last_key_press.elapsed().as_millis() > 10
+                    && let Some(leading_spaces) = content.leading_spaces(self.cursor.y)
+                {
                     for i in 0..leading_spaces {
                         content.insert_char(i, self.cursor.y + 1, ' ');
                     }
