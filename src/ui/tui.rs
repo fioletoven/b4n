@@ -129,11 +129,20 @@ pub struct ScopeData {
 }
 
 impl ScopeData {
-    /// Creates new namespaced [`ScopeData`] instance.
-    pub fn namespaced(filter: ResourceRefFilter) -> Self {
+    /// Creates new [`ScopeData`] instance that shows namespace column.
+    pub fn namespace_visible(filter: ResourceRefFilter) -> Self {
         Self {
             header: Scope::Namespaced,
             list: Scope::Namespaced,
+            filter,
+        }
+    }
+
+    /// Creates new [`ScopeData`] instance that hides namespace column.
+    pub fn namespace_hidden(filter: ResourceRefFilter) -> Self {
+        Self {
+            header: Scope::Namespaced,
+            list: Scope::Cluster,
             filter,
         }
     }

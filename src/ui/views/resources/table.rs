@@ -11,7 +11,10 @@ use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
         ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
-        resources::{CONTAINERS, EVENTS, JOBS, NODES, PODS, ResourceItem, ResourcesList, SECRETS, SERVICES},
+        resources::{
+            CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, NODES, PODS, REPLICA_SETS, ResourceItem, ResourcesList, SECRETS,
+            SERVICES, STATEFUL_SETS,
+        },
         watchers::ObserverResult,
     },
     ui::{
@@ -351,7 +354,11 @@ impl ResourcesTable {
         match self.kind_plural() {
             NODES => self.prodess_view_nodes(resource),
             JOBS => self.process_view_jobs(resource),
-            SERVICES => self.process_view_services(resource),
+            SERVICES => self.process_view_selector(resource, PODS),
+            DEPLOYMENTS => self.process_view_selector(resource, REPLICA_SETS),
+            REPLICA_SETS => self.process_view_selector(resource, PODS),
+            STATEFUL_SETS => self.process_view_selector(resource, PODS),
+            DAEMON_SETS => self.process_view_selector(resource, PODS),
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, false),
@@ -424,7 +431,7 @@ impl ResourcesTable {
 
     fn prodess_view_nodes(&self, resource: &ResourceItem) -> ResponseEvent {
         let filter = ResourceRefFilter::node(resource.name.clone(), &resource.name);
-        ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespaced(filter))
+        ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespace_visible(filter))
     }
 
     fn process_view_jobs(&self, resource: &ResourceItem) -> ResponseEvent {
@@ -436,17 +443,17 @@ impl ResourcesTable {
         ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), None, scope)
     }
 
-    fn process_view_services(&self, resource: &ResourceItem) -> ResponseEvent {
+    fn process_view_selector(&self, resource: &ResourceItem, target: &str) -> ResponseEvent {
         if let Some(data) = &resource.data
             && !data.tags.is_empty()
             && !data.tags[0].is_empty()
         {
             let filter = ResourceRefFilter::labels(resource.name.clone(), data.tags[0].clone());
             ResponseEvent::ViewScoped(
-                PODS.to_owned(),
+                target.to_owned(),
                 resource.namespace.clone(),
                 None,
-                ScopeData::namespaced(filter),
+                ScopeData::namespace_hidden(filter),
             )
         } else {
             self.process_view_yaml(resource, false)
