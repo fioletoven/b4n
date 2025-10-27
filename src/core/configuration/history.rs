@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_utils::calculate_hash;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -10,7 +11,7 @@ use tokio::{
     runtime::Handle,
 };
 
-use crate::{core::ResourcesInfo, utils::calculate_hash};
+use crate::core::ResourcesInfo;
 
 use super::{ConfigError, ConfigWatcher, Persistable};
 

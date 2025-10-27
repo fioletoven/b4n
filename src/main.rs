@@ -12,7 +12,6 @@ pub mod core;
 pub mod kubernetes;
 pub mod logging;
 pub mod ui;
-pub mod utils;
 
 fn main() -> Result<()> {
     let args = cli::Args::parse();

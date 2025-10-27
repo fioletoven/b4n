@@ -1,0 +1,13 @@
+[package]
+name = "b4n-utils"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "./lib.rs"
+
+[dependencies]
+sha1 = { workspace = true }
+thiserror = { workspace = true }

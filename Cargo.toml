@@ -1,6 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["b4n-lists"]
+members = [
+    "b4n-lists",
+    "b4n-utils",
+]
 
 [workspace.package]
 version = "0.2.8"
@@ -8,15 +11,20 @@ edition = "2024"
 rust-version = "1.88"
 license = "MIT"
 
+[workspace.dependencies]
+sha1 = { version = "0.10" }
+thiserror = { version = "2.0" }
+
 [package]
 name = "b4n"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [dependencies]
 b4n-lists = { path = "b4n-lists" }
+b4n-utils = { path = "b4n-utils" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
 backoff = { version = "0.4" }
@@ -31,10 +39,9 @@ notify = { version = "8.0" }
 ratatui = { version = "0.29", features = ["crossterm", "serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { version = "0.9" }
-sha1 = { version = "0.10" }
 syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
-thiserror = { version = "2.0" }
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["local-offset"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros"] }
 tokio-util = { version = "0.7" }

@@ -1,11 +1,10 @@
 use std::rc::Rc;
 
-use crate::{
-    ui::{
-        ViewType,
-        lists::{ColumnStringExt, NAMESPACE},
-    },
-    utils::try_truncate,
+use b4n_utils::try_truncate;
+
+use crate::ui::{
+    ViewType,
+    lists::{ColumnStringExt, NAMESPACE},
 };
 
 use super::{AGE, Column, NAME};

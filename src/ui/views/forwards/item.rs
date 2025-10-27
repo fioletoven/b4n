@@ -1,11 +1,11 @@
 use b4n_lists::{BasicFilterContext, Filterable};
+use b4n_utils::truncate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use std::{borrow::Cow, sync::atomic::Ordering};
 
 use crate::{
     core::PortForwardTask,
     ui::{colors::TextColors, lists::Row, theme::Theme},
-    utils::truncate,
 };
 
 /// Represents port forward list item.

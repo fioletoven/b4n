@@ -1,4 +1,8 @@
 use b4n_lists::{FilterContext, Filterable};
+use b4n_utils::{
+    expr::{Expression, ExpressionExt, parse},
+    truncate,
+};
 use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, serde_json::Value};
 use kube::{
     ResourceExt,
@@ -12,10 +16,6 @@ use crate::{
         colors::TextColors,
         lists::{Header, Row},
         theme::Theme,
-    },
-    utils::{
-        logical_expressions::{Expression, ExpressionExt, parse},
-        truncate,
     },
 };
 

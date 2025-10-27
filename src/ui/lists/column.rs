@@ -1,6 +1,8 @@
 use std::{borrow::Cow, cmp::max};
 
-use crate::{kubernetes::resources::CrdColumn, utils::truncate};
+use b4n_utils::truncate;
+
+use crate::kubernetes::resources::CrdColumn;
 
 #[cfg(test)]
 #[path = "./column.tests.rs"]

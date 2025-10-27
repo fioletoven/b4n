@@ -1,13 +1,11 @@
 use b4n_lists::{FilterContext, Filterable};
+use b4n_utils::truncate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use std::{borrow::Cow, marker::PhantomData};
 
-use crate::{
-    ui::{
-        ViewType,
-        lists::{AGE_COLUMN_WIDTH, Header},
-    },
-    utils::truncate,
+use crate::ui::{
+    ViewType,
+    lists::{AGE_COLUMN_WIDTH, Header},
 };
 
 #[cfg(test)]

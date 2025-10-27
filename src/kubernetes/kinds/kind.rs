@@ -1,10 +1,10 @@
 use b4n_lists::{BasicFilterContext, Filterable};
+use b4n_utils::{truncate, truncate_left};
 use std::borrow::Cow;
 
 use crate::{
     kubernetes::{CORE_VERSION, Kind},
     ui::lists::Row,
-    utils::{truncate, truncate_left},
 };
 
 /// Represents kubernetes kind.

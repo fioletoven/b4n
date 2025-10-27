@@ -168,6 +168,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "b4n-lists",
+ "b4n-utils",
  "backoff",
  "base64",
  "clap",
@@ -181,7 +182,6 @@ dependencies = [
  "rstest",
  "serde",
  "serde_yaml",
- "sha1",
  "syntect",
  "textwrap",
  "thiserror 2.0.17",
@@ -200,6 +200,14 @@ dependencies = [
 [[package]]
 name = "b4n-lists"
 version = "0.2.8"
+
+[[package]]
+name = "b4n-utils"
+version = "0.2.8"
+dependencies = [
+ "sha1",
+ "thiserror 2.0.17",
+]
 
 [[package]]
 name = "backoff"

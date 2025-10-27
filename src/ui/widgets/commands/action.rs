@@ -1,11 +1,11 @@
 use b4n_lists::{BasicFilterContext, Filterable};
+use b4n_utils::truncate;
 use kube::config::NamedContext;
 use std::{borrow::Cow, path::PathBuf};
 
 use crate::{
     kubernetes::{kinds::KindItem, resources::Port},
     ui::{ResponseEvent, lists::Row},
-    utils::truncate,
 };
 
 #[cfg(test)]

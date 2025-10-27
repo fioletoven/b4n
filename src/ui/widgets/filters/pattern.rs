@@ -1,13 +1,11 @@
 use b4n_lists::{BasicFilterContext, Filterable};
+use b4n_utils::{add_padding, truncate};
 use std::{
     borrow::Cow,
     time::{Duration, SystemTime},
 };
 
-use crate::{
-    ui::lists::Row,
-    utils::{add_padding, truncate},
-};
+use crate::ui::lists::Row;
 
 /// Filter pattern item.
 pub struct PatternItem {
