@@ -1,3 +1,4 @@
+use b4n_lists::{FilterContext, Filterable};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -8,8 +9,6 @@ use crate::{
     },
     utils::truncate,
 };
-
-use super::{FilterContext, Filterable};
 
 #[cfg(test)]
 #[path = "./item.tests.rs"]

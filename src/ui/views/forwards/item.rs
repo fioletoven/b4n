@@ -1,13 +1,10 @@
+use b4n_lists::{BasicFilterContext, Filterable};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use std::{borrow::Cow, sync::atomic::Ordering};
 
 use crate::{
     core::PortForwardTask,
-    ui::{
-        colors::TextColors,
-        lists::{BasicFilterContext, Filterable, Row},
-        theme::Theme,
-    },
+    ui::{colors::TextColors, lists::Row, theme::Theme},
     utils::truncate,
 };
 

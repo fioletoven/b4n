@@ -1,13 +1,10 @@
-use std::{borrow::Cow, path::PathBuf};
-
+use b4n_lists::{BasicFilterContext, Filterable};
 use kube::config::NamedContext;
+use std::{borrow::Cow, path::PathBuf};
 
 use crate::{
     kubernetes::{kinds::KindItem, resources::Port},
-    ui::{
-        ResponseEvent,
-        lists::{BasicFilterContext, Filterable, Row},
-    },
+    ui::{ResponseEvent, lists::Row},
     utils::truncate,
 };
 

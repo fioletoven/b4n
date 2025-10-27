@@ -1,3 +1,4 @@
+use b4n_lists::BasicFilterContext;
 use delegate::delegate;
 use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};
@@ -8,10 +9,7 @@ use crate::{
         resources::{Port, PortProtocol},
     },
     ui::{
-        ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-        colors::TextColors,
-        lists::{BasicFilterContext, ScrollableList},
-        theme::Theme,
+        ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors, lists::ScrollableList, theme::Theme,
         widgets::ActionItem,
     },
 };

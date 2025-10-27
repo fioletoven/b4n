@@ -1,3 +1,4 @@
+use b4n_lists::FilterableList;
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
@@ -10,7 +11,7 @@ use crate::{
     ui::{
         ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         colors::TextColors,
-        lists::{FilterableList, Item, Row, TabularList},
+        lists::{Item, Row, TabularList},
         theme::Theme,
     },
 };

@@ -1,10 +1,11 @@
+use b4n_lists::{BasicFilterContext, FilterableList};
 use delegate::delegate;
 use std::collections::HashMap;
 
 use crate::ui::{
     ResponseEvent, Responsive, Table, TuiEvent, ViewType,
     colors::TextColors,
-    lists::{BasicFilterContext, FilterableList, Item, Row, ScrollableList},
+    lists::{Item, Row, ScrollableList},
     theme::Theme,
 };
 

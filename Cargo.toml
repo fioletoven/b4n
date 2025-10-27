@@ -1,10 +1,22 @@
-[package]
-name = "b4n"
+[workspace]
+resolver = "3"
+members = ["b4n-lists"]
+
+[workspace.package]
 version = "0.2.8"
 edition = "2024"
 rust-version = "1.88"
+license = "MIT"
+
+[package]
+name = "b4n"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
+b4n-lists = { path = "b4n-lists" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
 backoff = { version = "0.4" }

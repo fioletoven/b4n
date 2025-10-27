@@ -1,9 +1,10 @@
+use b4n_lists::{FilterContext, FilterData, Filterable, FilterableList};
 use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
 use crate::ui::{ResponseEvent, TuiEvent};
 
-use super::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
+use super::{Item, Row};
 
 #[cfg(test)]
 #[path = "./scrollable_list.tests.rs"]

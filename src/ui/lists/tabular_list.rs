@@ -1,8 +1,9 @@
+use b4n_lists::{FilterContext, Filterable};
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::ui::{
     ResponseEvent, TuiEvent,
-    lists::{FilterContext, Filterable, Header, Row, ScrollableList},
+    lists::{Header, Row, ScrollableList},
 };
 
 /// Tabular UI list.

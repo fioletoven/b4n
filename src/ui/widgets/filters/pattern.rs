@@ -1,10 +1,11 @@
+use b4n_lists::{BasicFilterContext, Filterable};
 use std::{
     borrow::Cow,
     time::{Duration, SystemTime},
 };
 
 use crate::{
-    ui::lists::{BasicFilterContext, Filterable, Row},
+    ui::lists::Row,
     utils::{add_padding, truncate},
 };
 

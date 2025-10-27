@@ -1,3 +1,4 @@
+use b4n_lists::{FilterContext, Filterable};
 use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, serde_json::Value};
 use kube::{
     ResourceExt,
@@ -9,7 +10,7 @@ use crate::{
     kubernetes::{Kind, Namespace, metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{
         colors::TextColors,
-        lists::{FilterContext, Filterable, Header, Row},
+        lists::{Header, Row},
         theme::Theme,
     },
     utils::{
