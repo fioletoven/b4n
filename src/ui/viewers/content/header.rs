@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Kind, Namespace};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
@@ -6,7 +6,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{core::SharedAppData, kubernetes::Kind, ui::viewers::utils::get_right_breadcrumbs};
+use crate::{core::SharedAppData, ui::viewers::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
 pub struct ContentHeader {

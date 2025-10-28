@@ -1,3 +1,4 @@
+use b4n_kube::PODS;
 use k8s_openapi::{
     api::core::v1::Pod,
     chrono::{DateTime, Utc},
@@ -22,7 +23,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    kubernetes::{ResourceRef, client::KubernetesClient, resources::PODS},
+    kubernetes::{ResourceRef, client::KubernetesClient},
     ui::widgets::FooterTx,
 };
 

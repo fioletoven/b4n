@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Kind, Namespace};
 use b4n_utils::StateChangeTracker;
 use std::time::Instant;
 use tracing::warn;
@@ -8,7 +8,6 @@ use crate::{
         SharedAppData, SharedBgWorker,
         commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
     },
-    kubernetes::Kind,
     ui::widgets::FooterTx,
 };
 

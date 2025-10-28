@@ -1,8 +1,7 @@
+use b4n_kube::{CORE_VERSION, Kind};
 use b4n_lists::{BasicFilterContext, Filterable, Row};
 use b4n_utils::{truncate, truncate_left};
 use std::borrow::Cow;
-
-use crate::kubernetes::{CORE_VERSION, Kind};
 
 /// Represents kubernetes kind.
 #[derive(Clone)]

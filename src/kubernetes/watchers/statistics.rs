@@ -1,3 +1,4 @@
+use b4n_kube::{Kind, NODES, PODS};
 use kube::{ResourceExt, api::DynamicObject};
 use std::{
     cell::RefCell,
@@ -8,14 +9,7 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::DiscoveryList,
-    kubernetes::{
-        Kind,
-        client::KubernetesClient,
-        metrics::Metrics,
-        resources::{NODES, PODS},
-        utils::get_resource,
-        watchers::observer::BgObserver,
-    },
+    kubernetes::{client::KubernetesClient, metrics::Metrics, utils::get_resource, watchers::observer::BgObserver},
     ui::widgets::FooterTx,
 };
 

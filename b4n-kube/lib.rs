@@ -1,3 +1,6 @@
-pub use self::namespace::{ALL_NAMESPACES, NAMESPACES, Namespace};
+pub use self::core::{
+    ALL_NAMESPACES, CONTAINERS, CORE_VERSION, CRDS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace,
+    PODS, REPLICA_SETS, SECRETS, SERVICES, STATEFUL_SETS,
+};
 
-mod namespace;
+mod core;

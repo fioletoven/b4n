@@ -1,7 +1,5 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Kind, Namespace, PODS};
 use kube::api::ApiResource;
-
-use crate::kubernetes::{Kind, resources::PODS};
 
 /// Points to the specific kubernetes resource.\
 /// **Note** that it can also point to the specific container or all containers in a pod.

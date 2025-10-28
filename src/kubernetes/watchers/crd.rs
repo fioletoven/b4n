@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{CRDS, Kind, Namespace};
 use delegate::delegate;
 use kube::{
     ResourceExt,
@@ -9,9 +9,9 @@ use tokio::runtime::Handle;
 
 use crate::{
     kubernetes::{
-        Kind, ResourceRef,
+        ResourceRef,
         client::KubernetesClient,
-        resources::{CRDS, CrdColumns},
+        resources::CrdColumns,
         watchers::{BgObserverError, ObserverResult, observer::BgObserver},
     },
     ui::widgets::FooterTx,

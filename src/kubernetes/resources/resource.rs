@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Kind, Namespace};
 use b4n_lists::{FilterContext, Filterable, Row};
 use b4n_utils::{
     expr::{Expression, ExpressionExt, parse},
@@ -15,7 +15,7 @@ use kube::{
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{Kind, metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
+    kubernetes::{metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
     ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 

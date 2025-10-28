@@ -1,3 +1,4 @@
+use b4n_kube::Kind;
 use k8s_openapi::{
     chrono::{DateTime, Utc},
     serde_json::{Map, Value},
@@ -9,8 +10,6 @@ use kube::{
 };
 
 use crate::core::DiscoveryList;
-
-use super::Kind;
 
 /// Serializes kubernetes resource to YAML.
 pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_yaml::Error> {

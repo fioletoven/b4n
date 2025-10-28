@@ -1,6 +1,4 @@
-use b4n_kube::NAMESPACES;
-
-use super::resources::CONTAINERS;
+use super::{CONTAINERS, NAMESPACES};
 
 #[cfg(test)]
 #[path = "./kind.tests.rs"]

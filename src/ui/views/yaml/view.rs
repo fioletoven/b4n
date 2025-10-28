@@ -1,3 +1,4 @@
+use b4n_kube::SECRETS;
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -6,7 +7,7 @@ use crate::{
         SharedAppData, SharedAppDataExt, SharedBgWorker,
         commands::{CommandResult, SetResourceYamlAction},
     },
-    kubernetes::{ResourceRef, resources::SECRETS},
+    kubernetes::ResourceRef,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::{ContentViewer, StyleFallback},

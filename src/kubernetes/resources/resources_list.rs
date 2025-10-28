@@ -1,11 +1,11 @@
-use b4n_kube::{ALL_NAMESPACES, NAMESPACES, Namespace};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
 use b4n_lists::{FilterableList, Item, Row};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     kubernetes::{
-        resources::{CONTAINERS, ResourceFilterContext, ResourceItem},
+        resources::{ResourceFilterContext, ResourceItem},
         watchers::{InitData, ObserverResult},
     },
     ui::{

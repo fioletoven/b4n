@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Kind, Namespace, SECRETS};
 use base64::{DecodeError, Engine, engine};
 use k8s_openapi::serde_json::Value;
 use kube::{
@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::highlighter::{HighlightError, HighlightRequest},
-    kubernetes::{self, Kind, resources::SECRETS, utils},
+    kubernetes::{self, utils},
 };
 
 use super::CommandResult;

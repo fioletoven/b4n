@@ -1,4 +1,3 @@
-pub use self::kind::*;
 pub use self::resource_ref::*;
 
 pub mod client;
@@ -7,7 +6,6 @@ pub mod resources;
 pub mod utils;
 pub mod watchers;
 
-mod kind;
 mod metrics;
 mod resource_ref;
 

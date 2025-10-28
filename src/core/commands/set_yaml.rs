@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Namespace, SECRETS};
 use base64::{Engine, engine};
 use k8s_openapi::serde_json::Value;
 use kube::{
@@ -10,7 +10,7 @@ use std::fmt::Display;
 
 use crate::{
     core::{APP_NAME, commands::CommandResult},
-    kubernetes::{self, resources::SECRETS},
+    kubernetes::{self},
 };
 
 /// Possible errors from applying or patching resource's YAML.

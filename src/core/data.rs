@@ -1,11 +1,11 @@
 use arboard::Clipboard;
-use b4n_kube::Namespace;
+use b4n_kube::{CONTAINERS, Kind, Namespace};
 use kube::discovery::Scope;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
-    kubernetes::{Kind, ResourceRef, kinds::KindItem, resources::CONTAINERS, watchers::InitData},
+    kubernetes::{ResourceRef, kinds::KindItem, watchers::InitData},
     ui::{KeyBindings, KeyCombination, KeyCommand, TuiEvent, theme::Theme},
 };
 
