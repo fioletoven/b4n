@@ -1,5 +1,4 @@
 use k8s_openapi::{
-    apimachinery::pkg::apis::meta::v1::Time,
     chrono::{DateTime, Utc},
     serde_json::{Map, Value},
 };
@@ -34,12 +33,6 @@ pub fn get_object_uid(object: &DynamicObject) -> String {
             object.metadata.namespace.as_deref().unwrap_or_default()
         )
     })
-}
-
-/// Formats kubernetes timestamp to a human-readable string.
-#[inline]
-pub fn format_timestamp(time: &Time) -> String {
-    format_datetime(&time.0)
 }
 
 /// Formats datetime to a human-readable string.

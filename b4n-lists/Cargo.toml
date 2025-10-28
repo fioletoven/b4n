@@ -7,3 +7,7 @@ rust-version.workspace = true
 
 [lib]
 path = "./lib.rs"
+
+[dependencies]
+crossterm = { workspace = true }
+k8s-openapi = { workspace = true }

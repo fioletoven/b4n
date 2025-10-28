@@ -1,4 +1,7 @@
-use k8s_openapi::{api::core::v1::Pod, apimachinery::pkg::apis::meta::v1::Time, chrono::Utc};
+use k8s_openapi::{
+    api::core::v1::Pod,
+    chrono::{DateTime, Utc},
+};
 use kube::Api;
 use std::{
     error::Error,
@@ -167,7 +170,7 @@ pub struct PortForwardTask {
     pub resource: ResourceRef,
     pub bind_address: String,
     pub port: u16,
-    pub start_time: Option<Time>,
+    pub start_time: Option<DateTime<Utc>>,
     pub statistics: TaskStatistics,
     runtime: Handle,
     task: Option<JoinHandle<()>>,
@@ -256,7 +259,7 @@ impl PortForwardTask {
         self.task = Some(task);
         self.cancellation_token = Some(cancellation_token);
         self.resource = resource;
-        self.start_time = Some(Time(Utc::now()));
+        self.start_time = Some(Utc::now());
 
         Ok(())
     }

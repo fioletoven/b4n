@@ -1,11 +1,11 @@
-use b4n_lists::{BasicFilterContext, Filterable};
+use b4n_lists::{BasicFilterContext, Filterable, Row};
 use b4n_utils::truncate;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use k8s_openapi::chrono::{DateTime, Utc};
 use std::{borrow::Cow, sync::atomic::Ordering};
 
 use crate::{
     core::PortForwardTask,
-    ui::{colors::TextColors, lists::Row, theme::Theme},
+    ui::{colors::TextColors, theme::Theme},
 };
 
 /// Represents port forward list item.
@@ -14,7 +14,7 @@ pub struct PortForwardItem {
     group: String,
     name: String,
     age: Option<String>,
-    creation_timestamp: Option<Time>,
+    creation_timestamp: Option<DateTime<Utc>>,
     bind_address: String,
     port: String,
     port_sort: String,
@@ -37,8 +37,8 @@ impl PortForwardItem {
             uid: task.uuid.clone(),
             group: task.resource.namespace.as_str().to_owned(),
             name: task.resource.name.as_deref().unwrap_or_default().to_owned(),
-            age: task.start_time.as_ref().map(|t| t.0.timestamp().to_string()),
-            creation_timestamp: task.start_time.clone(),
+            age: task.start_time.as_ref().map(|t| t.timestamp().to_string()),
+            creation_timestamp: task.start_time,
             bind_address: task.bind_address.clone(),
             port: task.port.to_string(),
             port_sort: format!("{:0>6}", task.port),
@@ -70,7 +70,7 @@ impl Row for PortForwardItem {
         &self.name
     }
 
-    fn creation_timestamp(&self) -> Option<&Time> {
+    fn creation_timestamp(&self) -> Option<&DateTime<Utc>> {
         self.creation_timestamp.as_ref()
     }
 

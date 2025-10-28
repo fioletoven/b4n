@@ -1,10 +1,7 @@
-use b4n_lists::{FilterContext, FilterData, Filterable, FilterableList};
 use crossterm::event::KeyCode;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::ui::{ResponseEvent, TuiEvent};
-
-use super::{Item, Row};
+use crate::{FilterContext, FilterData, Filterable, FilterableList, Item, Row};
 
 #[cfg(test)]
 #[path = "./scrollable_list.tests.rs"]
@@ -149,38 +146,31 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.filter.set_settings(settings);
     }
 
-    /// Process [`TuiEvent`] to move over the list.
-    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        match event {
-            TuiEvent::Key(key) => {
-                match key.code {
-                    KeyCode::Home => self.move_highlighted(i32::MIN),
-                    KeyCode::Up => self.move_highlighted(-1),
-                    KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
-                    KeyCode::Down => self.move_highlighted(1),
-                    KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
-                    KeyCode::End => self.move_highlighted(i32::MAX),
-                    _ => return ResponseEvent::NotHandled,
-                }
-
-                ResponseEvent::Handled
-            },
-            TuiEvent::Mouse(mouse) => {
-                match mouse.kind {
-                    crate::ui::MouseEventKind::ScrollUp => {
-                        self.move_highlighted(-1);
-                        self.page_start = self.page_start.saturating_sub(1);
-                    },
-                    crate::ui::MouseEventKind::ScrollDown => {
-                        self.move_highlighted(1);
-                        self.page_start = self.page_start.saturating_add(1);
-                    },
-                    _ => return ResponseEvent::NotHandled,
-                }
-
-                ResponseEvent::Handled
-            },
+    /// Process [`KeyCode`] to move over the list.
+    pub fn process_key_event(&mut self, key: KeyCode) -> bool {
+        match key {
+            KeyCode::Home => self.move_highlighted(i32::MIN),
+            KeyCode::Up => self.move_highlighted(-1),
+            KeyCode::PageUp => self.move_highlighted(-i32::from(self.page_height)),
+            KeyCode::Down => self.move_highlighted(1),
+            KeyCode::PageDown => self.move_highlighted(i32::from(self.page_height)),
+            KeyCode::End => self.move_highlighted(i32::MAX),
+            _ => return false,
         }
+
+        true
+    }
+
+    /// Process mouse ScrollUp event.
+    pub fn process_scroll_up(&mut self) {
+        self.move_highlighted(-1);
+        self.page_start = self.page_start.saturating_sub(1);
+    }
+
+    /// Process mouse ScrollDown event.
+    pub fn process_scroll_down(&mut self) {
+        self.move_highlighted(1);
+        self.page_start = self.page_start.saturating_add(1);
     }
 
     /// Updates page start for the current page size and highlighted resource item.

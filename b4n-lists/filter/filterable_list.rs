@@ -9,7 +9,7 @@ use super::{FilterContext, Filterable};
 
 #[cfg(test)]
 #[path = "./filterable_list.tests.rs"]
-mod filterable_list_tests;
+pub mod filterable_list_tests;
 
 /// Wrapper for the [`Vec`] type that provides filtered iterators.\
 /// It remembers the original list so the filter can be re-applied anytime with different conditions.\

@@ -1,3 +1,4 @@
+use b4n_lists::Row;
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
@@ -19,7 +20,6 @@ use crate::{
     },
     ui::{
         KeyCommand, MouseEventKind, Responsive, ScopeData, Table, TuiEvent, ViewType,
-        lists::Row,
         tui::ResponseEvent,
         viewers::{ListHeader, ListViewer},
     },

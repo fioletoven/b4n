@@ -2,17 +2,17 @@ use crate::filter::BasicFilterContext;
 
 use super::*;
 
-struct Item {
-    name: String,
+pub struct TestItem {
+    pub name: String,
 }
 
-impl Item {
-    fn new(name: impl std::fmt::Display) -> Self {
+impl TestItem {
+    pub fn new(name: impl std::fmt::Display) -> Self {
         Self { name: name.to_string() }
     }
 }
 
-impl Filterable<BasicFilterContext> for Item {
+impl Filterable<BasicFilterContext> for TestItem {
     fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
         pattern.to_owned().into()
     }
@@ -24,17 +24,17 @@ impl Filterable<BasicFilterContext> for Item {
 
 #[test]
 fn len_test() {
-    let mut list = FilterableList::from([1, 2, 3, 4, 5, 10, 11].iter().map(Item::new).collect::<Vec<_>>());
+    let mut list = FilterableList::from([1, 2, 3, 4, 5, 10, 11].iter().map(TestItem::new).collect::<Vec<_>>());
     assert_eq!(7, list.len());
 
-    let mut context = Item::get_context("1", None);
+    let mut context = TestItem::get_context("1", None);
     list.filter(&mut context);
     assert_eq!(3, list.len());
 }
 
 #[test]
 fn iterators_test() {
-    let mut list = FilterableList::from(["abc", "bcd", "cde"].iter().map(Item::new).collect::<Vec<_>>());
+    let mut list = FilterableList::from(["abc", "bcd", "cde"].iter().map(TestItem::new).collect::<Vec<_>>());
 
     let mut iter = list.iter();
     assert_eq!("abc", iter.next().unwrap().name);
@@ -42,7 +42,7 @@ fn iterators_test() {
     assert_eq!("cde", iter.next().unwrap().name);
     assert!(iter.next().is_none());
 
-    let mut context = Item::get_context("bc", None);
+    let mut context = TestItem::get_context("bc", None);
     list.filter(&mut context);
 
     let mut iter = list.iter();
@@ -59,13 +59,13 @@ fn iterators_test() {
 
 #[test]
 fn mutable_iterators_test() {
-    let mut list = FilterableList::from(["abc", "bcd", "cde"].iter().map(Item::new).collect::<Vec<_>>());
+    let mut list = FilterableList::from(["abc", "bcd", "cde"].iter().map(TestItem::new).collect::<Vec<_>>());
 
-    let mut context = Item::get_context("bc", None);
+    let mut context = TestItem::get_context("bc", None);
     list.filter(&mut context);
 
     for i in &mut list {
-        *i = Item::new("test");
+        *i = TestItem::new("test");
     }
 
     list.filter_reset();

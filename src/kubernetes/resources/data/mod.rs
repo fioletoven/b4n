@@ -102,7 +102,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
 pub struct ResourceValue {
     text: Option<String>,
     sort_text: Option<String>,
-    time: Option<Time>,
+    time: Option<DateTime<Utc>>,
     is_time: bool,
 }
 
@@ -137,8 +137,8 @@ impl ResourceValue {
 
     /// Creates new [`ResourceValue`] instance as a time value.
     pub fn time(value: Value) -> Self {
-        let time = from_value::<Time>(value).ok();
-        let sort = time.as_ref().map(|t| t.0.timestamp().to_string());
+        let time = from_value::<Time>(value).ok().map(|t| t.0);
+        let sort = time.as_ref().map(|t| t.timestamp().to_string());
         Self {
             time,
             sort_text: sort,
@@ -162,7 +162,7 @@ impl ResourceValue {
             Cow::Owned(
                 self.time
                     .as_ref()
-                    .map_or("n/a".to_owned(), crate::kubernetes::utils::format_timestamp),
+                    .map_or("n/a".to_owned(), crate::kubernetes::utils::format_datetime),
             )
         } else {
             Cow::Borrowed(self.text.as_deref().unwrap_or("n/a"))

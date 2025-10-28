@@ -1,9 +1,12 @@
-use b4n_lists::{FilterContext, Filterable};
+use b4n_lists::{FilterContext, Filterable, Row};
 use b4n_utils::{
     expr::{Expression, ExpressionExt, parse},
     truncate,
 };
-use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Time, serde_json::Value};
+use k8s_openapi::{
+    chrono::{DateTime, Utc},
+    serde_json::Value,
+};
 use kube::{
     ResourceExt,
     api::{DynamicObject, ObjectMeta},
@@ -12,11 +15,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
     kubernetes::{Kind, Namespace, metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
-    ui::{
-        colors::TextColors,
-        lists::{Header, Row},
-        theme::Theme,
-    },
+    ui::{colors::TextColors, lists::Header, theme::Theme},
 };
 
 use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
@@ -35,7 +34,7 @@ pub struct ResourceItem {
     pub name: String,
     pub namespace: Option<String>,
     pub age: Option<String>,
-    pub creation_timestamp: Option<Time>,
+    pub creation_timestamp: Option<DateTime<Utc>>,
     pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
     pub involved_object: Option<InvolvedObject>,
@@ -144,9 +143,9 @@ fn get_age_string(metadata: &ObjectMeta) -> Option<String> {
     }
 }
 
-fn get_age_time(metadata: &ObjectMeta) -> Option<Time> {
+fn get_age_time(metadata: &ObjectMeta) -> Option<DateTime<Utc>> {
     if metadata.resource_version.is_some() {
-        metadata.creation_timestamp.clone()
+        metadata.creation_timestamp.as_ref().map(|t| t.0)
     } else {
         None
     }
@@ -179,7 +178,7 @@ impl Row for ResourceItem {
         &self.name
     }
 
-    fn creation_timestamp(&self) -> Option<&Time> {
+    fn creation_timestamp(&self) -> Option<&DateTime<Utc>> {
         self.creation_timestamp.as_ref()
     }
 

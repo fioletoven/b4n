@@ -1,10 +1,35 @@
-use b4n_lists::{FilterContext, Filterable};
+use b4n_lists::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::ui::{
-    ResponseEvent, TuiEvent,
-    lists::{Header, Row, ScrollableList},
-};
+use crate::ui::{ResponseEvent, TuiEvent, lists::Header};
+
+/// Extension trait for [`ScrollableList`].
+pub trait ScrollableListExt {
+    /// Processes a [`TuiEvent`] to move the highlight across list items.
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
+}
+
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableListExt for ScrollableList<T, Fc> {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match event {
+            TuiEvent::Key(key) => {
+                if self.process_key_event(key.code) {
+                    ResponseEvent::Handled
+                } else {
+                    ResponseEvent::NotHandled
+                }
+            },
+            TuiEvent::Mouse(mouse) => {
+                match mouse.kind {
+                    crate::ui::MouseEventKind::ScrollDown => self.process_scroll_down(),
+                    crate::ui::MouseEventKind::ScrollUp => self.process_scroll_up(),
+                    _ => return ResponseEvent::NotHandled,
+                }
+                ResponseEvent::Handled
+            },
+        }
+    }
+}
 
 /// Tabular UI list.
 pub struct TabularList<T: Row + Filterable<Fc>, Fc: FilterContext> {
