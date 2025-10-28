@@ -1,3 +1,4 @@
+use b4n_kube::{NAMESPACES, Namespace};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
@@ -6,7 +7,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::{
     core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
-        Kind, NAMESPACES, Namespace, ResourceRef,
+        Kind, ResourceRef,
         resources::{CONTAINERS, EVENTS, NODES, PODS, Port, ResourceItem, SECRETS, node, pod},
         watchers::{ObserverResult, SharedStatistics},
     },

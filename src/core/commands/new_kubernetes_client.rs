@@ -1,10 +1,11 @@
+use b4n_kube::{NAMESPACES, Namespace};
 use kube::{Discovery, api::ListParams};
 use thiserror;
 
 use crate::{
     core::{DiscoveryList, discovery::convert_to_vector},
     kubernetes::{
-        Kind, NAMESPACES, Namespace,
+        Kind,
         client::{ClientOptions, KubernetesClient},
         resources::PODS,
         utils::get_resource,

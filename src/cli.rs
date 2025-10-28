@@ -1,6 +1,5 @@
+use b4n_kube::ALL_NAMESPACES;
 use clap::Parser;
-
-use crate::kubernetes::ALL_NAMESPACES;
 
 /// Simple program to view resources in a Kubernetes cluster.
 #[derive(Parser, Debug)]

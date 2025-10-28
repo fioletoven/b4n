@@ -1,3 +1,4 @@
+use b4n_kube::Namespace;
 use delegate::delegate;
 use k8s_openapi::serde_json::Value;
 use kube::{
@@ -10,7 +11,7 @@ use tokio::runtime::Handle;
 use crate::{
     core::SharedCrdsList,
     kubernetes::{
-        Kind, Namespace, ResourceRef,
+        Kind, ResourceRef,
         client::KubernetesClient,
         metrics::Metrics,
         resources::{CrdColumns, PODS, ResourceItem},

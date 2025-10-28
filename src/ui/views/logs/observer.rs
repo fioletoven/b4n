@@ -1,4 +1,3 @@
-use backoff::backoff::Backoff;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::Pod,
@@ -15,10 +14,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    core::utils::{build_default_backoff, wait_for_task},
-    kubernetes::{PodRef, client::KubernetesClient},
-};
+use crate::kubernetes::{PodRef, client::KubernetesClient};
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -76,7 +72,7 @@ impl LogsObserver {
                 cancellation_token: &_cancellation_token,
             };
 
-            let mut backoff = build_default_backoff();
+            let mut backoff = b4n_utils::ResettableBackoff::default();
             let mut since_time = None;
             let mut should_continue;
             while !_cancellation_token.is_cancelled() {
@@ -106,7 +102,7 @@ impl LogsObserver {
     /// Cancels [`LogsObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "logs");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "logs");
         self.drain();
     }
 

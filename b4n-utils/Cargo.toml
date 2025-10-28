@@ -9,5 +9,8 @@ rust-version.workspace = true
 path = "./lib.rs"
 
 [dependencies]
+backon = { workspace = true }
 sha1 = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

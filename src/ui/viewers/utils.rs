@@ -1,3 +1,4 @@
+use b4n_kube::ALL_NAMESPACES;
 use kube::discovery::Scope;
 use ratatui::{
     style::{Color, Style},
@@ -6,10 +7,7 @@ use ratatui::{
 
 use crate::{
     core::{AppData, ResourcesInfo},
-    kubernetes::{
-        ALL_NAMESPACES,
-        resources::{EVENTS, PODS},
-    },
+    kubernetes::resources::{EVENTS, PODS},
     ui::colors::TextColors,
 };
 

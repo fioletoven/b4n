@@ -22,7 +22,6 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    core::utils::wait_for_task,
     kubernetes::{ResourceRef, client::KubernetesClient, resources::PODS},
     ui::widgets::FooterTx,
 };
@@ -274,7 +273,7 @@ impl PortForwardTask {
     /// Cancels [`PortForwardTask`] task and waits until it is finished.
     fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "port forward");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "port forward");
     }
 }
 

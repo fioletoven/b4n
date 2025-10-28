@@ -27,7 +27,6 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    core::utils::wait_for_task,
     kubernetes::{ResourceRef, ResourceRefFilter},
     ui::KeyCombination,
 };
@@ -335,7 +334,7 @@ impl Tui {
     /// Stops terminal events loop.
     pub fn stop_events_loop(&mut self) -> Result<()> {
         self.events_ct.cancel();
-        wait_for_task(self.events_task.take(), "events");
+        b4n_utils::tasks::wait_for_task(self.events_task.take(), "events");
 
         Ok(())
     }

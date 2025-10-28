@@ -1,4 +1,3 @@
-use backoff::backoff::Backoff;
 use kube::Discovery;
 use std::{
     sync::{
@@ -17,8 +16,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use crate::{core::DiscoveryList, kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
-
-use super::utils::{build_default_backoff, wait_for_task};
 
 const DISCOVERY_INTERVAL: u64 = 6_000;
 
@@ -66,7 +63,7 @@ impl BgDiscovery {
         let _client = client.get_client();
 
         let task = self.runtime.spawn(async move {
-            let mut backoff = build_default_backoff();
+            let mut backoff = b4n_utils::ResettableBackoff::default();
             let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 
             let mut maybe_discovery = Some(Discovery::new(_client.clone()));
@@ -85,7 +82,7 @@ impl BgDiscovery {
                                 let msg = format!("Discovery error: {error}");
                                 warn!("{}", msg);
                                 _footer_tx.show_error(msg, 0);
-                                if !_has_error.swap(true, Ordering::Relaxed) || backoff.start_time.elapsed().as_secs() > 120 {
+                                if !_has_error.swap(true, Ordering::Relaxed) {
                                     backoff.reset();
                                 }
                                 maybe_discovery = Some(Discovery::new(_client.clone()));
@@ -121,7 +118,7 @@ impl BgDiscovery {
     /// Cancels [`BgDiscovery`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "discovery");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "discovery");
     }
 
     /// Tries to get next discovery result.

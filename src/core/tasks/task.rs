@@ -2,10 +2,7 @@ use tokio::{runtime::Handle, sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::core::{
-    commands::{Command, CommandResult},
-    utils::wait_for_task,
-};
+use crate::core::commands::{Command, CommandResult};
 
 pub struct TaskResult {
     pub id: String,
@@ -85,7 +82,7 @@ impl BgTask {
     /// Cancels [`BgTask`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "background command");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "background command");
     }
 }
 

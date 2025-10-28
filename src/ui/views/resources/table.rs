@@ -1,3 +1,4 @@
+use b4n_kube::{ALL_NAMESPACES, NAMESPACES, Namespace};
 use b4n_lists::Row;
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
@@ -11,7 +12,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
-        ALL_NAMESPACES, Kind, NAMESPACES, Namespace, ResourceRef, ResourceRefFilter,
+        Kind, ResourceRef, ResourceRefFilter,
         resources::{
             CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, NODES, PODS, REPLICA_SETS, ResourceItem, ResourcesList, SECRETS,
             SERVICES, STATEFUL_SETS,

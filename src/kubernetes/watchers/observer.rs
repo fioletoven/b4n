@@ -29,7 +29,6 @@ use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
-    core::utils::wait_for_task,
     kubernetes::{
         Kind, ResourceRef,
         client::KubernetesClient,
@@ -228,7 +227,7 @@ impl BgObserver {
     /// Cancels [`BgObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "background observer");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "background observer");
         self.drain();
     }
 

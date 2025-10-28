@@ -16,8 +16,6 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::core::utils::wait_for_task;
-
 use super::Persistable;
 
 /// Observes for changes in the configuration file.
@@ -120,7 +118,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     /// Cancels [`ConfigWatcher`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        wait_for_task(self.task.take(), "configuration watcher");
+        b4n_utils::tasks::wait_for_task(self.task.take(), "configuration watcher");
     }
 
     /// Sets watcher to skip the next modification event.

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "b4n-kube",
     "b4n-lists",
     "b4n-utils",
 ]
@@ -12,10 +13,15 @@ rust-version = "1.88"
 license = "MIT"
 
 [workspace.dependencies]
+backon = { version = "1.6" }
 crossterm = { version = "0.28", features = ["event-stream"] }
 k8s-openapi = { version = "0.26", features = ["latest"] }
+kube = { version = "2.0", features = ["client", "derive", "runtime", "ws"] }
 sha1 = { version = "0.10" }
 thiserror = { version = "2.0" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros"] }
+tokio-util = { version = "0.7" }
+tracing = { version = "0.1" }
 
 [package]
 name = "b4n"
@@ -25,18 +31,18 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+b4n-kube = { path = "b4n-kube" }
 b4n-lists = { path = "b4n-lists" }
 b4n-utils = { path = "b4n-utils" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
-backoff = { version = "0.4" }
 base64 = { version = "0.22" }
 clap = { version = "4.5", features = ["derive"] }
 crossterm = { workspace = true }
 delegate = { version = "0.13" }
 futures = { version = "0.3" }
 k8s-openapi = { workspace = true }
-kube = { version = "2.0", features = ["client", "derive", "runtime", "ws"] }
+kube = { workspace = true }
 notify = { version = "8.0" }
 ratatui = { version = "0.29", features = ["crossterm", "serde"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -45,9 +51,9 @@ syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["local-offset"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros"] }
-tokio-util = { version = "0.7" }
-tracing = { version = "0.1" }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
 tracing-appender = { version = "0.2" }
 tracing-error = { version = "0.2" }
 tracing-subscriber = { version = "0.3", features = [

@@ -1,3 +1,4 @@
+use b4n_kube::Namespace;
 use kube::discovery::Scope;
 use ratatui::{
     Frame,
@@ -7,7 +8,6 @@ use std::rc::Rc;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    kubernetes::Namespace,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         viewers::{ListHeader, ListViewer},

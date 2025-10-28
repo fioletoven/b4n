@@ -1,3 +1,4 @@
+use b4n_kube::Namespace;
 use kube::{
     Client,
     api::{ApiResource, DeleteParams},
@@ -5,7 +6,7 @@ use kube::{
 };
 use tracing::error;
 
-use crate::kubernetes::{self, Namespace};
+use crate::kubernetes::{self};
 
 use super::CommandResult;
 

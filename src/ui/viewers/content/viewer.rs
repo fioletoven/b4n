@@ -1,3 +1,4 @@
+use b4n_kube::Namespace;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
@@ -10,7 +11,7 @@ use std::{rc::Rc, time::Instant};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    kubernetes::{Kind, Namespace},
+    kubernetes::Kind,
     ui::{KeyCombination, MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
 };
 
