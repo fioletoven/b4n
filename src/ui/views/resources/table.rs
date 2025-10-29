@@ -1,6 +1,6 @@
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, PODS, REPLICA_SETS,
-    SECRETS, SERVICES, STATEFUL_SETS,
+    ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_lists::Row;
 use crossterm::event::KeyModifiers;
@@ -15,7 +15,6 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::{
-        ResourceRef, ResourceRefFilter,
         resources::{ResourceItem, ResourcesList},
         watchers::ObserverResult,
     },

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS};
+use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use kube::{
     api::ApiResource,
     discovery::{ApiCapabilities, Scope, verbs},
@@ -10,7 +10,6 @@ use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 use crate::{
     core::commands::SetResourceYamlAction,
     kubernetes::{
-        ResourceRef,
         client::KubernetesClient,
         kinds::{KindItem, KindsList},
         resources::CrdColumns,

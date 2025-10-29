@@ -1,3 +1,4 @@
+use b4n_kube::PodRef;
 use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
@@ -17,8 +18,6 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 use tui_term::vt100::{self};
-
-use crate::kubernetes::PodRef;
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {

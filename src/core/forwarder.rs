@@ -1,4 +1,4 @@
-use b4n_kube::PODS;
+use b4n_kube::{PODS, ResourceRef};
 use k8s_openapi::{
     api::core::v1::Pod,
     chrono::{DateTime, Utc},
@@ -22,10 +22,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::{
-    kubernetes::{ResourceRef, client::KubernetesClient},
-    ui::widgets::FooterTx,
-};
+use crate::{kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
 
 /// Possible errors from [`PortForwarder`].
 #[derive(thiserror::Error, Debug)]

@@ -1,3 +1,4 @@
+use b4n_kube::ResourceRef;
 use k8s_openapi::serde_json::Value;
 use kube::{
     Client,
@@ -8,7 +9,7 @@ use kube::{
 use crate::{
     core::commands::CommandResult,
     kubernetes::{
-        self, ResourceRef,
+        self,
         resources::{Port, PortProtocol},
     },
 };

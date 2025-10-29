@@ -1,5 +1,14 @@
-use b4n_kube::{Kind, Namespace, PODS};
 use kube::api::ApiResource;
+
+use super::{Kind, Namespace, PODS};
+
+/// Reference to the pod/container in a k8s cluster.
+#[derive(Clone)]
+pub struct PodRef {
+    pub name: String,
+    pub namespace: Namespace,
+    pub container: Option<String>,
+}
 
 /// Points to the specific kubernetes resource.\
 /// **Note** that it can also point to the specific container or all containers in a pod.

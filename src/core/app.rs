@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_kube::{Kind, NAMESPACES, Namespace};
+use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use kube::discovery::Scope;
 use std::{
     cell::RefCell,
@@ -10,7 +10,6 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
-    kubernetes::ResourceRef,
     ui::{
         KeyBindings, KeyCommand, ResponseEvent, ScopeData, Tui, TuiEvent,
         theme::Theme,

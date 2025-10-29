@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_kube::Namespace;
+use b4n_kube::{Namespace, ResourceRef};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
@@ -10,7 +10,6 @@ use crate::{
         commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError},
     },
     kubernetes::{
-        ResourceRef,
         kinds::KindsList,
         resources::{Port, ResourcesList},
     },

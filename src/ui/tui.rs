@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_kube::{ResourceRef, ResourceRefFilter};
 use crossterm::{
     cursor::SetCursorStyle,
     event::{DisableMouseCapture, EnableMouseCapture, KeyModifiers, MouseButton},
@@ -26,10 +27,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    kubernetes::{ResourceRef, ResourceRefFilter},
-    ui::KeyCombination,
-};
+use crate::ui::KeyCombination;
 
 use super::utils::init_panic_hook;
 

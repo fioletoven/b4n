@@ -1,3 +1,4 @@
+use b4n_kube::PodRef;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::Pod,
@@ -14,7 +15,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::kubernetes::{PodRef, client::KubernetesClient};
+use crate::kubernetes::client::KubernetesClient;
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
