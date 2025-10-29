@@ -43,6 +43,10 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
 ] }
 
+[[bin]]
+name = "b4n"
+path = "./b4n/main.rs"
+
 [package]
 name = "b4n"
 version.workspace = true

@@ -1,15 +1,11 @@
 use anyhow::Result;
 use b4n_utils::calculate_hash;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-use tokio::{
-    fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
-    runtime::Handle,
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::runtime::Handle;
 
 use crate::{ConfigError, ConfigWatcher, Persistable};
 

@@ -1,13 +1,9 @@
-use kube::{
-    Api, Client, Config,
-    api::{ApiResource, DynamicObject},
-    config::{Kubeconfig, NamedContext},
-    discovery::{ApiCapabilities, Scope},
-};
-use std::{
-    ops::{Deref, DerefMut},
-    path::{self, PathBuf},
-};
+use kube::api::{ApiResource, DynamicObject};
+use kube::config::{Kubeconfig, NamedContext};
+use kube::discovery::{ApiCapabilities, Scope};
+use kube::{Api, Client, Config};
+use std::ops::{Deref, DerefMut};
+use std::path::{self, PathBuf};
 use thiserror;
 use tokio::{fs::File, io::AsyncReadExt};
 

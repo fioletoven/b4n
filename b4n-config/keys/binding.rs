@@ -1,12 +1,8 @@
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{self},
-    ser::SerializeMap,
-};
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use serde::de::{self};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 use super::{KeyCombination, KeyCommand};
 

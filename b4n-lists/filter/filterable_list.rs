@@ -1,9 +1,7 @@
-use std::{
-    cmp::Ordering,
-    marker::PhantomData,
-    ops::{Index, IndexMut},
-    slice::{Iter, IterMut},
-};
+use std::cmp::Ordering;
+use std::marker::PhantomData;
+use std::ops::{Index, IndexMut};
+use std::slice::{Iter, IterMut};
 
 use super::{FilterContext, Filterable};
 
