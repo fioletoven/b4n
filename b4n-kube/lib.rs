@@ -4,4 +4,6 @@ pub use self::core::{
 };
 pub use self::core::{Kind, Namespace, PodRef, ResourceRef, ResourceRefFilter};
 
+pub mod client;
+
 mod core;

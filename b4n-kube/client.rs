@@ -10,7 +10,6 @@ use std::{
 };
 use thiserror;
 use tokio::{fs::File, io::AsyncReadExt};
-use tracing::error;
 
 /// Possible errors from building kubernetes client.
 #[derive(thiserror::Error, Debug)]
@@ -193,7 +192,7 @@ async fn get_client_fallback(
             context,
         ))
     } else if options.fallback_to_default {
-        error!("context '{:?}' not found, fallback to the default one", kube_context);
+        tracing::error!("context '{:?}' not found, fallback to the default one", kube_context);
         get_client(kube_config, None, options.allow_insecure).await
     } else {
         Err(ClientError::ContextNotFound)

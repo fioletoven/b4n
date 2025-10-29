@@ -8,10 +8,7 @@ use kube::{
 
 use crate::{
     core::commands::CommandResult,
-    kubernetes::{
-        self,
-        resources::{Port, PortProtocol},
-    },
+    kubernetes::resources::{Port, PortProtocol},
 };
 
 /// Command that gets a list of ports for the specified kubernetes resource.
@@ -38,7 +35,7 @@ impl ListResourcePortsCommand {
             return None;
         }
 
-        let client = kubernetes::client::get_dynamic_api(
+        let client = b4n_kube::client::get_dynamic_api(
             &discovery.0,
             &discovery.1,
             self.client,

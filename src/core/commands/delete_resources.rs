@@ -6,8 +6,6 @@ use kube::{
 };
 use tracing::error;
 
-use crate::kubernetes::{self};
-
 use super::CommandResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
@@ -49,7 +47,7 @@ impl DeleteResourcesCommand {
         } else {
             self.namespace.as_option()
         };
-        let client = kubernetes::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
+        let client = b4n_kube::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
 
         let params = if self.force {
             DeleteParams {

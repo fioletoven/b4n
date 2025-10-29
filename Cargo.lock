@@ -203,6 +203,9 @@ version = "0.2.8"
 dependencies = [
  "k8s-openapi",
  "kube",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

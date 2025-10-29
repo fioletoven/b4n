@@ -1,3 +1,4 @@
+use b4n_kube::client::KubernetesClient;
 use kube::Discovery;
 use std::{
     sync::{
@@ -15,7 +16,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::{core::DiscoveryList, kubernetes::client::KubernetesClient, ui::widgets::FooterTx};
+use crate::{core::DiscoveryList, ui::widgets::FooterTx};
 
 const DISCOVERY_INTERVAL: u64 = 6_000;
 

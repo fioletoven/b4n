@@ -1,3 +1,4 @@
+use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
 use crossterm::event::KeyCode;
 use ratatui::{
@@ -9,7 +10,6 @@ use std::rc::Rc;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    kubernetes::client::KubernetesClient,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,

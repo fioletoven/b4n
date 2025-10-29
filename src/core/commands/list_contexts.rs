@@ -1,6 +1,5 @@
+use b4n_kube::client::list_contexts;
 use tracing::error;
-
-use crate::kubernetes::client::list_contexts;
 
 use super::CommandResult;
 

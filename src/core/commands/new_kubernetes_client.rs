@@ -1,13 +1,11 @@
+use b4n_kube::client::{ClientOptions, KubernetesClient};
 use b4n_kube::{Kind, NAMESPACES, Namespace, PODS};
 use kube::{Discovery, api::ListParams};
 use thiserror;
 
 use crate::{
     core::{DiscoveryList, discovery::convert_to_vector},
-    kubernetes::{
-        client::{ClientOptions, KubernetesClient},
-        utils::get_resource,
-    },
+    kubernetes::utils::get_resource,
 };
 
 use super::CommandResult;
@@ -17,7 +15,7 @@ use super::CommandResult;
 pub enum KubernetesClientError {
     /// Kubernetes client creation error.
     #[error(transparent)]
-    Client(#[from] crate::kubernetes::client::ClientError),
+    Client(#[from] b4n_kube::client::ClientError),
 
     /// Discovery run error.
     #[error("discovery run error")]

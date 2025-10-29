@@ -1,3 +1,4 @@
+use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CONTAINERS, Kind, ResourceRef};
 use futures::TryStreamExt;
 use kube::{
@@ -30,7 +31,7 @@ use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
-    kubernetes::{client::KubernetesClient, resources::CrdColumns, utils::get_object_uid},
+    kubernetes::{resources::CrdColumns, utils::get_object_uid},
     ui::widgets::FooterTx,
 };
 

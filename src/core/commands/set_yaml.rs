@@ -8,10 +8,7 @@ use kube::{
 };
 use std::fmt::Display;
 
-use crate::{
-    core::{APP_NAME, commands::CommandResult},
-    kubernetes::{self},
-};
+use crate::core::{APP_NAME, commands::CommandResult};
 
 /// Possible errors from applying or patching resource's YAML.
 #[derive(thiserror::Error, Debug)]
@@ -91,7 +88,7 @@ impl SetResourceYamlCommand {
             return Some(CommandResult::SetResourceYaml(Err(SetResourceYamlError::PatchNotSupported)));
         }
 
-        let client = kubernetes::client::get_dynamic_api(
+        let client = b4n_kube::client::get_dynamic_api(
             &discovery.0,
             &discovery.1,
             self.client.take().expect("kubernetes client should be present"),

@@ -11,3 +11,6 @@ path = "./lib.rs"
 [dependencies]
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

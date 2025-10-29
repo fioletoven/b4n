@@ -1,3 +1,4 @@
+use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
@@ -15,7 +16,6 @@ use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    kubernetes::client::KubernetesClient,
     ui::{
         KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::ContentHeader,

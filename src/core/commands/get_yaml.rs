@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     core::highlighter::{HighlightError, HighlightRequest},
-    kubernetes::{self, utils},
+    kubernetes::utils,
 };
 
 use super::CommandResult;
@@ -113,7 +113,7 @@ impl GetResourceYamlCommand {
             return Some(CommandResult::GetResourceYaml(Err(ResourceYamlError::GetNotSupported)));
         }
 
-        let client = kubernetes::client::get_dynamic_api(
+        let client = b4n_kube::client::get_dynamic_api(
             &discovery.0,
             &discovery.1,
             self.client.take().expect("kubernetes client should be present"),

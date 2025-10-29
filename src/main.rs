@@ -1,8 +1,8 @@
 use anyhow::Result;
 use b4n_kube::PODS;
+use b4n_kube::client::get_context;
 use clap::Parser;
 use core::{App, Config, ExecutionFlow, History};
-use kubernetes::client::get_context;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use tokio::runtime::Builder;
