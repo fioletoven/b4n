@@ -1,5 +1,4 @@
 use anyhow::Result;
-use b4n_config::{ConfigError, ConfigWatcher, Persistable};
 use b4n_utils::calculate_hash;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,7 +11,7 @@ use tokio::{
     runtime::Handle,
 };
 
-use crate::core::ResourcesInfo;
+use crate::{ConfigError, ConfigWatcher, Persistable};
 
 /// Keeps context configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -30,17 +29,6 @@ impl ContextInfo {
         Self {
             name,
             ..Default::default()
-        }
-    }
-
-    /// Creates new [`ContextInfo`] instance from the [`ResourcesInfo`].
-    pub fn from(info: &ResourcesInfo) -> Self {
-        Self {
-            name: info.context.clone(),
-            namespace: info.namespace.as_str().into(),
-            kind: info.resource.kind.as_str().to_owned(),
-            filter_history: Vec::new(),
-            search_history: Vec::new(),
         }
     }
 

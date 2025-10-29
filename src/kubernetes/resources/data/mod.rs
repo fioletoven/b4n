@@ -1,8 +1,8 @@
-use k8s_openapi::{
-    apimachinery::pkg::apis::meta::v1::Time,
-    chrono::{DateTime, Utc},
-    serde_json::{Value, from_value},
-};
+use b4n_config::TextColors;
+use b4n_config::theme::Theme;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::serde_json::{Value, from_value};
 use kube::api::DynamicObject;
 use std::borrow::Cow;
 
@@ -13,7 +13,7 @@ use crate::{
         utils::format_datetime,
         watchers::Statistics,
     },
-    ui::{colors::TextColors, lists::Header, theme::Theme},
+    ui::lists::Header,
 };
 
 pub mod config_map;

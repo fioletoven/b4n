@@ -1,7 +1,6 @@
+use b4n_config::Config;
 use std::path::PathBuf;
 use tokio::fs;
-
-use crate::core::Config;
 
 use super::CommandResult;
 

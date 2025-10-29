@@ -1,3 +1,4 @@
+use b4n_config::{TextColors, theme::Theme};
 use b4n_lists::{BasicFilterContext, ScrollableList};
 use delegate::delegate;
 use kube::config::NamedContext;
@@ -8,10 +9,7 @@ use crate::{
         kinds::KindItem,
         resources::{Port, PortProtocol},
     },
-    ui::{
-        ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors, lists::ScrollableListExt, theme::Theme,
-        widgets::ActionItem,
-    },
+    ui::{ResponseEvent, Responsive, Table, TuiEvent, ViewType, lists::ScrollableListExt, widgets::ActionItem},
 };
 
 /// UI actions list.

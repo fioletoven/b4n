@@ -1,5 +1,4 @@
 pub use self::app::*;
-pub use self::configuration::*;
 pub use self::data::*;
 pub use self::discovery::BgDiscovery;
 pub use self::forwarder::*;
@@ -12,7 +11,6 @@ pub mod commands;
 pub mod discovery;
 
 mod app;
-mod configuration;
 mod data;
 mod forwarder;
 mod highlighter;

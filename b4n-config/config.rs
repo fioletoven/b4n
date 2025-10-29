@@ -1,20 +1,15 @@
 use anyhow::Result;
-use b4n_config::keys::KeyBindings;
-use b4n_config::{ConfigError, ConfigWatcher, Persistable};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-use tokio::{
-    fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
-    runtime::Handle,
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::runtime::Handle;
 
-use crate::ui::{colors::TextColors, theme::Theme};
+use crate::{ConfigError, ConfigWatcher, Persistable, theme::Theme};
+use crate::{colors::TextColors, keys::KeyBindings};
 
-pub const APP_NAME: &str = env!("CARGO_CRATE_NAME");
+pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_THEME_NAME: &str = "default";
 

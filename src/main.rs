@@ -1,8 +1,9 @@
 use anyhow::Result;
+use b4n_config::{Config, History};
 use b4n_kube::PODS;
 use b4n_kube::client::get_context;
 use clap::Parser;
-use core::{App, Config, ExecutionFlow, History};
+use core::{App, ExecutionFlow};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use tokio::runtime::Builder;
@@ -16,19 +17,19 @@ pub mod ui;
 fn main() -> Result<()> {
     let args = cli::Args::parse();
 
-    let _logging_guard = b4n_utils::logging::initialize(core::APP_NAME)?;
-    info!("{} v{} started", core::APP_NAME, core::APP_VERSION);
+    let _logging_guard = b4n_utils::logging::initialize(b4n_config::APP_NAME)?;
+    info!("{} v{} started", b4n_config::APP_NAME, b4n_config::APP_VERSION);
 
     if let Err(error) = run_application(&args) {
         error!(
             "{} v{} terminated with an error: {}",
-            core::APP_NAME,
-            core::APP_VERSION,
+            b4n_config::APP_NAME,
+            b4n_config::APP_VERSION,
             error
         );
         Err(error)
     } else {
-        info!("{} v{} stopped", core::APP_NAME, core::APP_VERSION);
+        info!("{} v{} stopped", b4n_config::APP_NAME, b4n_config::APP_VERSION);
         Ok(())
     }
 }

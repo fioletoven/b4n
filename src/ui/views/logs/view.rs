@@ -1,19 +1,17 @@
 use b4n_config::keys::KeyCommand;
+use b4n_config::theme::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
 use crossterm::event::KeyCode;
-use ratatui::{
-    Frame,
-    layout::{Position, Rect},
-    style::Style,
-};
+use ratatui::Frame;
+use ratatui::layout::{Position, Rect};
+use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
         MouseEventKind, ResponseEvent, Responsive, TuiEvent,
-        theme::LogsSyntaxColors,
         viewers::{Content, ContentViewer, MatchPosition, StyledLine},
         views::View,
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},

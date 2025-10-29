@@ -1,10 +1,10 @@
-use ratatui::{
-    layout::{Position, Rect},
-    text::Line,
-    widgets::Paragraph,
-};
+use b4n_config::TextColors;
+use b4n_config::theme::ControlColors;
+use ratatui::layout::{Position, Rect};
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
 
-use crate::ui::{ResponseEvent, colors::TextColors, theme::ControlColors};
+use crate::ui::ResponseEvent;
 
 /// UI `Button`.
 pub struct Button {

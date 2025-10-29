@@ -1,12 +1,10 @@
+use b4n_config::{TextColors, theme::Theme};
 use b4n_lists::{BasicFilterContext, Filterable, Row};
 use b4n_utils::truncate;
 use k8s_openapi::chrono::{DateTime, Utc};
 use std::{borrow::Cow, sync::atomic::Ordering};
 
-use crate::{
-    core::PortForwardTask,
-    ui::{colors::TextColors, theme::Theme},
-};
+use crate::core::PortForwardTask;
 
 /// Represents port forward list item.
 pub struct PortForwardItem {

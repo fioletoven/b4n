@@ -1,14 +1,10 @@
+use b4n_config::TextColors;
 use b4n_kube::{ALL_NAMESPACES, EVENTS, PODS};
 use kube::discovery::Scope;
-use ratatui::{
-    style::{Color, Style},
-    text::{Line, Span},
-};
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 
-use crate::{
-    core::{AppData, ResourcesInfo},
-    ui::colors::TextColors,
-};
+use crate::core::{AppData, ResourcesInfo};
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
 pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesInfo, kind: &str) -> &'a str {

@@ -1,14 +1,12 @@
 use b4n_kube::{Namespace, SECRETS};
 use base64::{Engine, engine};
 use k8s_openapi::serde_json::Value;
-use kube::{
-    Api, Client,
-    api::{ApiResource, DynamicObject, Patch, PatchParams},
-    discovery::{ApiCapabilities, verbs},
-};
+use kube::api::{ApiResource, DynamicObject, Patch, PatchParams};
+use kube::discovery::{ApiCapabilities, verbs};
+use kube::{Api, Client};
 use std::fmt::Display;
 
-use crate::core::{APP_NAME, commands::CommandResult};
+use crate::core::commands::CommandResult;
 
 /// Possible errors from applying or patching resource's YAML.
 #[derive(thiserror::Error, Debug)]
@@ -113,8 +111,8 @@ impl SetResourceYamlCommand {
         }
 
         let (patch, patch_params) = match self.action {
-            SetResourceYamlAction::Apply => (Patch::Apply(&resource), PatchParams::apply(APP_NAME)),
-            SetResourceYamlAction::ForceApply => (Patch::Apply(&resource), PatchParams::apply(APP_NAME).force()),
+            SetResourceYamlAction::Apply => (Patch::Apply(&resource), PatchParams::apply(b4n_config::APP_NAME)),
+            SetResourceYamlAction::ForceApply => (Patch::Apply(&resource), PatchParams::apply(b4n_config::APP_NAME).force()),
             SetResourceYamlAction::Patch => (Patch::Merge(&resource), PatchParams::default()),
         };
 

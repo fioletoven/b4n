@@ -1,27 +1,25 @@
 use anyhow::Result;
-use b4n_config::ConfigWatcher;
 use b4n_config::keys::{KeyBindings, KeyCommand};
+use b4n_config::theme::Theme;
+use b4n_config::{Config, ConfigWatcher, History};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use kube::discovery::Scope;
-use std::{
-    cell::RefCell,
-    net::{IpAddr, SocketAddr},
-    rc::Rc,
-};
+use std::cell::RefCell;
+use std::net::{IpAddr, SocketAddr};
+use std::rc::Rc;
 use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
     ui::{
         ResponseEvent, ScopeData, Tui, TuiEvent,
-        theme::Theme,
         views::ResourcesView,
         widgets::{Footer, IconKind},
     },
 };
 
 use super::{
-    AppData, BgWorker, BgWorkerError, Config, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
+    AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker,
     commands::{Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand},
 };
 

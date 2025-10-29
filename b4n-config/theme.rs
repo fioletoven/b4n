@@ -1,19 +1,13 @@
-use b4n_config::{ConfigError, Persistable};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-use tokio::{
-    fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::core::{Config, DEFAULT_THEME_NAME};
-
-use super::colors::{LineColors, TextColors, to_syntect_color};
+use crate::colors::{LineColors, TextColors, to_syntect_color};
+use crate::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
 /// Represents header colors.
 #[derive(Default, Serialize, Deserialize, Clone)]

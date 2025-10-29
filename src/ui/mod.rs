@@ -1,12 +1,10 @@
-use colors::TextColors;
+use b4n_config::TextColors;
+use b4n_config::theme::Theme;
 use std::{collections::HashMap, rc::Rc};
-use theme::Theme;
 
 pub use self::tui::*;
 
-pub mod colors;
 pub mod lists;
-pub mod theme;
 pub mod utils;
 pub mod viewers;
 pub mod views;

@@ -1,13 +1,12 @@
+use b4n_config::TextColors;
 use crossterm::event::KeyCode;
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
-    text::Line,
-    widgets::{Block, Clear, Paragraph},
-};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Style, Stylize};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Clear, Paragraph};
 use textwrap::Options;
 
-use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, colors::TextColors, utils::center, widgets::CheckBox};
+use crate::ui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center, widgets::CheckBox};
 
 use super::{Button, ControlsGroup};
 

@@ -1,8 +1,8 @@
+use b4n_config::Config;
+use b4n_config::History;
 use kube::config::NamedContext;
 use std::path::PathBuf;
 
-use crate::core::Config;
-use crate::core::History;
 use crate::kubernetes::resources::Port;
 
 pub use self::delete_resources::*;

@@ -1,10 +1,9 @@
 use anyhow::Result;
+use b4n_config::{Config, History};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
-use kube::{
-    api::ApiResource,
-    discovery::{ApiCapabilities, Scope, verbs},
-};
+use kube::api::ApiResource;
+use kube::discovery::{ApiCapabilities, Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
@@ -20,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, Config, HighlightRequest, History, PortForwarder, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, HighlightRequest, PortForwarder, SyntaxData, TaskResult,
     commands::{
         Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, SaveConfigurationCommand,
         SetResourceYamlCommand,

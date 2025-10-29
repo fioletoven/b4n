@@ -1,10 +1,9 @@
+use b4n_config::{TextColors, theme::Theme};
 use b4n_lists::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
 use delegate::delegate;
 use std::collections::HashMap;
 
-use crate::ui::{
-    ResponseEvent, Responsive, Table, TuiEvent, ViewType, colors::TextColors, lists::ScrollableListExt, theme::Theme,
-};
+use crate::ui::{ResponseEvent, Responsive, Table, TuiEvent, ViewType, lists::ScrollableListExt};
 
 use super::KindItem;
 

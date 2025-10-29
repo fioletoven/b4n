@@ -1,12 +1,11 @@
+use b4n_config::{TextColors, theme::Theme};
 use b4n_lists::{BasicFilterContext, FilterableList, Item};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::ui::{
     ResponseEvent, Responsive, Table, TuiEvent, ViewType,
-    colors::TextColors,
     lists::{Column, Header, ItemExt, NAMESPACE, TabularList},
-    theme::Theme,
 };
 
 use super::PortForwardItem;

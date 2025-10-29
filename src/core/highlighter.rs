@@ -1,3 +1,4 @@
+use b4n_config::from_syntect_color;
 use ratatui::style::Style;
 use std::thread::JoinHandle;
 use syntect::{easy::HighlightLines, parsing::SyntaxSet};
@@ -6,7 +7,7 @@ use tokio::sync::{
     oneshot::Sender,
 };
 
-use crate::{core::SyntaxData, ui::colors::from_syntect_color};
+use crate::core::SyntaxData;
 
 /// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]
