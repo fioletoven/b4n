@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
 use kube::discovery::Scope;
 use ratatui::{
@@ -9,7 +10,7 @@ use std::rc::Rc;
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
-        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         viewers::{ListHeader, ListViewer},
         views::{PortForwardsList, View},
         widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},

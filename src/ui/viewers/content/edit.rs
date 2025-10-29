@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCombination;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Position, Rect},
@@ -5,7 +6,7 @@ use ratatui::{
 };
 use std::time::Instant;
 
-use crate::ui::{KeyCombination, MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
+use crate::ui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent, colors::TextColors};
 
 use super::{Content, search::PagePosition};
 

@@ -1,3 +1,4 @@
+use b4n_config::{ConfigError, Persistable};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -10,7 +11,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::core::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
+use crate::core::{Config, DEFAULT_THEME_NAME};
 
 use super::colors::{LineColors, TextColors, to_syntect_color};
 

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_config::keys::KeyCombination;
 use b4n_kube::{ResourceRef, ResourceRefFilter};
 use crossterm::{
     cursor::SetCursorStyle,
@@ -26,8 +27,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
-
-use crate::ui::KeyCombination;
 
 use super::utils::init_panic_hook;
 

@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_utils::expr::{ParserError, validate};
 use crossterm::event::KeyModifiers;
 use ratatui::{
@@ -8,7 +9,7 @@ use ratatui::{
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal, widgets::Select},
+    ui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal, widgets::Select},
 };
 
 use super::PatternsList;

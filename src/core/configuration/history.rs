@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_config::{ConfigError, ConfigWatcher, Persistable};
 use b4n_utils::calculate_hash;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,8 +13,6 @@ use tokio::{
 };
 
 use crate::core::ResourcesInfo;
-
-use super::{ConfigError, ConfigWatcher, Persistable};
 
 /// Keeps context configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]

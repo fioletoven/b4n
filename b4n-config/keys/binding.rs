@@ -8,7 +8,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::ui::{KeyCombination, KeyCommand};
+use super::{KeyCombination, KeyCommand};
 
 #[cfg(test)]
 #[path = "./binding.tests.rs"]

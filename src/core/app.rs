@@ -1,4 +1,6 @@
 use anyhow::Result;
+use b4n_config::ConfigWatcher;
+use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use kube::discovery::Scope;
 use std::{
@@ -11,7 +13,7 @@ use tokio::runtime::Handle;
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
     ui::{
-        KeyBindings, KeyCommand, ResponseEvent, ScopeData, Tui, TuiEvent,
+        ResponseEvent, ScopeData, Tui, TuiEvent,
         theme::Theme,
         views::ResourcesView,
         widgets::{Footer, IconKind},
@@ -19,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    AppData, BgWorker, BgWorkerError, Config, ConfigWatcher, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
+    AppData, BgWorker, BgWorkerError, Config, History, KubernetesClientManager, SharedAppData, SharedBgWorker,
     commands::{Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand},
 };
 

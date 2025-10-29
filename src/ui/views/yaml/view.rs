@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_kube::{ResourceRef, SECRETS};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
@@ -8,7 +9,7 @@ use crate::{
         commands::{CommandResult, SetResourceYamlAction},
     },
     ui::{
-        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
+        MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::{ContentViewer, StyleFallback},
         views::{View, yaml::YamlContent},
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, FooterTx, IconKind, Search},

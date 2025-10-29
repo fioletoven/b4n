@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCombination;
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui::{
@@ -7,8 +8,7 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::ui::{
-    KeyCombination, ResponseEvent, Responsive, Table, TuiEvent, colors::TextColors, theme::SelectColors,
-    widgets::ErrorHighlightMode,
+    ResponseEvent, Responsive, Table, TuiEvent, colors::TextColors, theme::SelectColors, widgets::ErrorHighlightMode,
 };
 
 use super::Input;

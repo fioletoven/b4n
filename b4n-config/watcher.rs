@@ -1,7 +1,7 @@
 use anyhow::Result;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -16,7 +16,19 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use super::Persistable;
+use super::ConfigError;
+
+/// Configurations that can be saved to and load from a file.
+pub trait Persistable<T> {
+    /// Returns the default configuration path.
+    fn default_path() -> PathBuf;
+
+    /// Loads configuration from the default file.
+    fn load(path: &Path) -> impl Future<Output = Result<T, ConfigError>> + Send;
+
+    /// Saves configuration to the default file.
+    fn save(&self, path: &Path) -> impl Future<Output = Result<(), ConfigError>> + Send;
+}
 
 /// Observes for changes in the configuration file.
 pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {

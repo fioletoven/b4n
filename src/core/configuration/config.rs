@@ -1,4 +1,6 @@
 use anyhow::Result;
+use b4n_config::keys::KeyBindings;
+use b4n_config::{ConfigError, ConfigWatcher, Persistable};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -10,36 +12,11 @@ use tokio::{
     runtime::Handle,
 };
 
-use crate::ui::{KeyBindings, colors::TextColors, theme::Theme};
-
-use super::ConfigWatcher;
+use crate::ui::{colors::TextColors, theme::Theme};
 
 pub const APP_NAME: &str = env!("CARGO_CRATE_NAME");
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_THEME_NAME: &str = "default";
-
-/// Possible errors from [`Config`] manipulation.
-#[derive(thiserror::Error, Debug)]
-pub enum ConfigError {
-    /// Cannot read/write configuration file.
-    #[error("cannot read/write configuration file")]
-    IoError(#[from] std::io::Error),
-
-    /// Cannot serialize/deserialize configuration.
-    #[error("cannot serialize/deserialize configuration")]
-    SerializationError(#[from] serde_yaml::Error),
-}
-
-pub trait Persistable<T> {
-    /// Returns the default configuration path.
-    fn default_path() -> PathBuf;
-
-    /// Loads configuration from the default file.
-    fn load(path: &Path) -> impl Future<Output = Result<T, ConfigError>> + Send;
-
-    /// Saves configuration to the default file.
-    fn save(&self, path: &Path) -> impl Future<Output = Result<(), ConfigError>> + Send;
-}
 
 /// Kubernetes logs configuration.
 #[derive(Serialize, Deserialize, Clone)]

@@ -1,6 +1,5 @@
+use b4n_config::Persistable;
 use tracing::error;
-
-use crate::core::Persistable;
 
 use super::CommandResult;
 

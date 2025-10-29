@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, ResourceRef};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -14,7 +15,7 @@ use crate::{
         resources::{Port, ResourcesList},
     },
     ui::{
-        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
+        MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
     },

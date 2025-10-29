@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, PODS, ResourceRef, SECRETS};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -11,7 +12,7 @@ use crate::{
         watchers::{ObserverResult, SharedStatistics},
     },
     ui::{
-        KeyCommand, MouseEventKind, Responsive, ScopeData, Table, ViewType,
+        MouseEventKind, Responsive, ScopeData, Table, ViewType,
         tui::{ResponseEvent, TuiEvent},
         views::resources::NextRefreshActions,
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},

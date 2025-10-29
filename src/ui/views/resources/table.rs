@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, PODS, REPLICA_SETS,
     ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
@@ -19,7 +20,7 @@ use crate::{
         watchers::ObserverResult,
     },
     ui::{
-        KeyCommand, MouseEventKind, Responsive, ScopeData, Table, TuiEvent, ViewType,
+        MouseEventKind, Responsive, ScopeData, Table, TuiEvent, ViewType,
         tui::ResponseEvent,
         viewers::{ListHeader, ListViewer},
     },

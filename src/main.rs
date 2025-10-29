@@ -11,13 +11,12 @@ use tracing::{error, info};
 pub mod cli;
 pub mod core;
 pub mod kubernetes;
-pub mod logging;
 pub mod ui;
 
 fn main() -> Result<()> {
     let args = cli::Args::parse();
 
-    let _logging_guard = logging::initialize()?;
+    let _logging_guard = b4n_utils::logging::initialize(core::APP_NAME)?;
     info!("{} v{} started", core::APP_NAME, core::APP_VERSION);
 
     if let Err(error) = run_application(&args) {

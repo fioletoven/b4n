@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_kube::{CONTAINERS, Kind, Namespace, ResourceRef};
 use kube::discovery::Scope;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
@@ -6,7 +7,7 @@ use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{kinds::KindItem, watchers::InitData},
-    ui::{KeyBindings, KeyCombination, KeyCommand, TuiEvent, theme::Theme},
+    ui::{TuiEvent, theme::Theme},
 };
 
 use super::{Config, History};

@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -9,7 +10,7 @@ use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent},
+    ui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent},
 };
 
 use super::Select;

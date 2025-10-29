@@ -1,5 +1,5 @@
 [package]
-name = "b4n-utils"
+name = "b4n-config"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,13 +9,13 @@ rust-version.workspace = true
 path = "./lib.rs"
 
 [dependencies]
+b4n-utils = { workspace = true }
 anyhow = { workspace = true }
-backon = { workspace = true }
-sha1 = { workspace = true }
+crossterm = { workspace = true }
+notify = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
 thiserror = { workspace = true }
-time = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
-tracing-appender = { workspace = true }
-tracing-error = { workspace = true }
-tracing-subscriber = { workspace = true }

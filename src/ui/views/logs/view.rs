@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
 use crossterm::event::KeyCode;
@@ -11,7 +12,7 @@ use std::rc::Rc;
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
-        KeyCommand, MouseEventKind, ResponseEvent, Responsive, TuiEvent,
+        MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         theme::LogsSyntaxColors,
         viewers::{Content, ContentViewer, MatchPosition, StyledLine},
         views::View,

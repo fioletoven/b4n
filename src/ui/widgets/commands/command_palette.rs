@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::{Margin, Rect},
@@ -8,7 +9,7 @@ use ratatui::{
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     ui::{
-        KeyCommand, MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent,
+        MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent,
         theme::SelectColors,
         utils::center_horizontal,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},

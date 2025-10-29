@@ -1,7 +1,8 @@
+use b4n_config::keys::KeyCombination;
 use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{core::AppData, ui::KeyCombination};
+use crate::core::AppData;
 
 use super::*;
 

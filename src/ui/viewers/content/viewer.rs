@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCombination;
 use b4n_kube::{Kind, Namespace};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
@@ -11,7 +12,7 @@ use std::{rc::Rc, time::Instant};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{KeyCombination, MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
+    ui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
 };
 
 use super::{
