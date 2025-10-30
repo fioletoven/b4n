@@ -1,4 +1,4 @@
-use b4n_config::{TextColors, theme::Theme};
+use b4n_config::themes::{TextColors, Theme};
 use b4n_lists::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
 use delegate::delegate;
 use std::collections::HashMap;

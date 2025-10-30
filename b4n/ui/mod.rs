@@ -1,5 +1,4 @@
-use b4n_config::TextColors;
-use b4n_config::theme::Theme;
+use b4n_config::themes::{TextColors, Theme};
 use std::{collections::HashMap, rc::Rc};
 
 pub use self::tui::*;

@@ -1,4 +1,4 @@
-use b4n_config::{TextColors, keys::KeyCommand};
+use b4n_config::{keys::KeyCommand, themes::TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Style, Stylize};

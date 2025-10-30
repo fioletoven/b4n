@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_config::keys::{KeyBindings, KeyCommand};
-use b4n_config::theme::Theme;
-use b4n_config::{Config, ConfigWatcher, History};
+use b4n_config::themes::Theme;
+use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use kube::discovery::Scope;
 use std::cell::RefCell;
@@ -55,12 +55,13 @@ impl App {
     pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
         let is_mouse_enabled = config.mouse;
         let theme_path = config.theme_path();
+        let syntax_data = SyntaxData::new(&theme);
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::new(Rc::clone(&data));
         let worker = Rc::new(RefCell::new(BgWorker::new(
             runtime.clone(),
             footer.get_transmitter(),
-            data.borrow().get_syntax_data(),
+            syntax_data,
         )));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
         let client_manager =

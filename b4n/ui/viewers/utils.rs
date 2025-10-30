@@ -1,4 +1,4 @@
-use b4n_config::TextColors;
+use b4n_config::themes::TextColors;
 use b4n_kube::{ALL_NAMESPACES, EVENTS, PODS};
 use kube::discovery::Scope;
 use ratatui::style::{Color, Style};

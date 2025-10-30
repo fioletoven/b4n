@@ -1,5 +1,4 @@
-use b4n_config::TextColors;
-use b4n_config::theme::ControlColors;
+use b4n_config::themes::{ControlColors, TextColors};
 use ratatui::layout::{Position, Rect};
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;

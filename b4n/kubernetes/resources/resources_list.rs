@@ -1,4 +1,4 @@
-use b4n_config::{TextColors, theme::Theme};
+use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
 use b4n_lists::{FilterableList, Item, Row};
 use delegate::delegate;

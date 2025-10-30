@@ -6,8 +6,8 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
-use crate::{ConfigError, ConfigWatcher, Persistable, theme::Theme};
-use crate::{colors::TextColors, keys::KeyBindings};
+use crate::themes::{TextColors, Theme};
+use crate::{ConfigError, ConfigWatcher, Persistable, keys::KeyBindings};
 
 pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

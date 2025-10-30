@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_config::theme::LogsSyntaxColors;
+use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
 use crossterm::event::KeyCode;

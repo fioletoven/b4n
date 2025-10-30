@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_config::theme::SelectColors;
+use b4n_config::themes::SelectColors;
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};

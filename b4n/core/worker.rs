@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_config::{Config, History};
+use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use kube::api::ApiResource;
@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, HighlightRequest, PortForwarder, SyntaxData, TaskResult,
+    BgDiscovery, BgExecutor, HighlightRequest, PortForwarder, TaskResult,
     commands::{
         Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, SaveConfigurationCommand,
         SetResourceYamlCommand,

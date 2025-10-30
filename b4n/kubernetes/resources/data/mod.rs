@@ -1,5 +1,4 @@
-use b4n_config::TextColors;
-use b4n_config::theme::Theme;
+use b4n_config::themes::{TextColors, Theme};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{Value, from_value};

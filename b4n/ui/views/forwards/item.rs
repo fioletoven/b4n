@@ -1,4 +1,4 @@
-use b4n_config::{TextColors, theme::Theme};
+use b4n_config::themes::{TextColors, Theme};
 use b4n_lists::{BasicFilterContext, Filterable, Row};
 use b4n_utils::truncate;
 use k8s_openapi::chrono::{DateTime, Utc};

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::colors::{LineColors, TextColors, to_syntect_color};
+use crate::themes::{LineColors, TextColors, to_syntect_color};
 use crate::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
 /// Represents header colors.

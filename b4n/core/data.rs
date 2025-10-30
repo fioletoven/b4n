@@ -1,11 +1,9 @@
 use arboard::Clipboard;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
-use b4n_config::theme::Theme;
-use b4n_config::{Config, History};
+use b4n_config::{Config, History, themes::Theme};
 use b4n_kube::{CONTAINERS, Kind, Namespace, ResourceRef};
 use kube::discovery::Scope;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
-use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
 
 use crate::{
     kubernetes::{kinds::KindItem, watchers::InitData},
@@ -13,8 +11,6 @@ use crate::{
 };
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
-
-pub const SYNTAX_SET_DATA: &[u8] = include_bytes!("../../assets/syntaxes/syntaxes.packdump");
 
 /// Kubernetes resources data.
 pub struct ResourcesInfo {
@@ -95,12 +91,6 @@ impl ResourcesInfo {
     }
 }
 
-/// Keeps data required for syntax highlighting.
-pub struct SyntaxData {
-    pub syntax_set: SyntaxSet,
-    pub yaml_theme: syntect::highlighting::Theme,
-}
-
 /// Keeps data needed to navigate to the previous resource.
 pub struct PreviousData {
     pub list: Scope,
@@ -146,9 +136,6 @@ pub struct AppData {
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
 
-    /// Syntax set for syntax highlighting.
-    pub syntax_set: SyntaxSet,
-
     /// Holds clipboard object.
     pub clipboard: Option<Clipboard>,
 
@@ -170,7 +157,6 @@ impl AppData {
             current: ResourcesInfo::default(),
             previous: Vec::new(),
             kinds: None,
-            syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             clipboard: Clipboard::new().ok(),
             is_connected: false,
         }
@@ -184,15 +170,6 @@ impl AppData {
             (kind.into(), namespace.into())
         } else {
             (self.current.resource.kind.clone(), self.current.namespace.clone())
-        }
-    }
-
-    /// Returns new [`SyntaxData`] instance.\
-    /// **Note** that all elements are cloned/build every time you call this method.
-    pub fn get_syntax_data(&self) -> SyntaxData {
-        SyntaxData {
-            syntax_set: self.syntax_set.clone(),
-            yaml_theme: self.theme.build_syntect_yaml_theme(),
         }
     }
 

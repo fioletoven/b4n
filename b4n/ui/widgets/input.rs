@@ -1,4 +1,4 @@
-use b4n_config::TextColors;
+use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::{Block, Widget};
