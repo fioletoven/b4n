@@ -1,23 +1,17 @@
-use b4n_kube::client::KubernetesClient;
 use b4n_utils::NotificationSink;
-use kube::Discovery;
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-    time::sleep,
-};
+use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 
-use crate::core::DiscoveryList;
+use crate::client::KubernetesClient;
+
+pub type DiscoveryList = Vec<(ApiResource, ApiCapabilities)>;
 
 const DISCOVERY_INTERVAL: u64 = 6_000;
 
@@ -82,7 +76,7 @@ impl BgDiscovery {
                             }
                             Err(error) => {
                                 let msg = format!("Discovery error: {error}");
-                                warn!("{}", msg);
+                                tracing::warn!("{}", msg);
                                 _footer_tx.show_error(msg, 0);
                                 if !_has_error.swap(true, Ordering::Relaxed) {
                                     backoff.reset();

@@ -216,10 +216,12 @@ dependencies = [
 name = "b4n-kube"
 version = "0.2.8"
 dependencies = [
+ "b4n-utils",
  "k8s-openapi",
  "kube",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 

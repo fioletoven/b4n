@@ -9,8 +9,10 @@ rust-version.workspace = true
 path = "./lib.rs"
 
 [dependencies]
+b4n-utils = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }

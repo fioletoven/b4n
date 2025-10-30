@@ -3,7 +3,9 @@ pub use self::core::{
     REPLICA_SETS, SECRETS, SERVICES, STATEFUL_SETS,
 };
 pub use self::core::{Kind, Namespace, PodRef, ResourceRef, ResourceRefFilter};
+pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
 
 pub mod client;
 
 mod core;
+mod discovery;

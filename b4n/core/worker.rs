@@ -1,10 +1,9 @@
 use anyhow::Result;
 use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::{BgDiscovery, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_utils::NotificationSink;
-use kube::api::ApiResource;
-use kube::discovery::{ApiCapabilities, Scope, verbs};
+use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
@@ -20,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    BgDiscovery, BgExecutor, HighlightRequest, PortForwarder, TaskResult,
+    BgExecutor, HighlightRequest, PortForwarder, TaskResult,
     commands::{
         Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, SaveConfigurationCommand,
         SetResourceYamlCommand,
@@ -30,7 +29,6 @@ use super::{
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
 pub type SharedCrdsList = Rc<RefCell<Vec<CrdColumns>>>;
-pub type DiscoveryList = Vec<(ApiResource, ApiCapabilities)>;
 
 /// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]

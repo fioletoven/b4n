@@ -1,5 +1,5 @@
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{Kind, NODES, PODS};
+use b4n_kube::{DiscoveryList, Kind, NODES, PODS};
 use b4n_utils::NotificationSink;
 use kube::{ResourceExt, api::DynamicObject};
 use std::{
@@ -9,10 +9,7 @@ use std::{
 };
 use tokio::runtime::Handle;
 
-use crate::{
-    core::DiscoveryList,
-    kubernetes::{metrics::Metrics, utils::get_resource, watchers::observer::BgObserver},
-};
+use crate::kubernetes::{metrics::Metrics, utils::get_resource, watchers::observer::BgObserver};
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 

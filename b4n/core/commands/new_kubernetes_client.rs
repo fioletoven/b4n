@@ -1,12 +1,9 @@
 use b4n_kube::client::{ClientOptions, KubernetesClient};
-use b4n_kube::{Kind, NAMESPACES, Namespace, PODS};
+use b4n_kube::{DiscoveryList, Kind, NAMESPACES, Namespace, PODS, convert_to_vector};
 use kube::{Discovery, api::ListParams};
 use thiserror;
 
-use crate::{
-    core::{DiscoveryList, discovery::convert_to_vector},
-    kubernetes::utils::get_resource,
-};
+use crate::kubernetes::utils::get_resource;
 
 use super::CommandResult;
 
