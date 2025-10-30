@@ -2,6 +2,7 @@ use anyhow::Result;
 use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CRDS, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_utils::NotificationSink;
 use kube::api::ApiResource;
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
@@ -15,7 +16,7 @@ use crate::{
         utils::{get_plural, get_resource},
         watchers::{BgObserverError, BgStatistics, CrdObserver, ResourceObserver},
     },
-    ui::{views::PortForwardItem, widgets::FooterTx},
+    ui::views::PortForwardItem,
 };
 
 use super::{
@@ -61,7 +62,7 @@ pub struct BgWorker {
 
 impl BgWorker {
     /// Creates new [`BgWorker`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx, syntax_data: SyntaxData) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink, syntax_data: SyntaxData) -> Self {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
         let statistics = BgStatistics::new(runtime.clone(), footer_tx.clone());
         Self {

@@ -1,5 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ResourceRef, SECRETS};
+use b4n_utils::{IconKind, NotificationSink};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -12,7 +13,7 @@ use crate::{
         MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::{ContentViewer, StyleFallback},
         views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, FooterTx, IconKind, Search},
+        widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Search},
     },
 };
 
@@ -27,7 +28,7 @@ pub struct YamlView {
     command_palette: CommandPalette,
     search: Search,
     modal: Dialog,
-    footer: FooterTx,
+    footer: NotificationSink,
     state: ViewState,
 }
 
@@ -38,7 +39,7 @@ impl YamlView {
         worker: SharedBgWorker,
         command_id: Option<String>,
         resource: ResourceRef,
-        footer: FooterTx,
+        footer: NotificationSink,
     ) -> Self {
         let color = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;

@@ -3,6 +3,7 @@ use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
+use b4n_utils::IconKind;
 use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
@@ -11,11 +12,7 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
-    ui::{
-        ResponseEvent, ScopeData, Tui, TuiEvent,
-        views::ResourcesView,
-        widgets::{Footer, IconKind},
-    },
+    ui::{ResponseEvent, ScopeData, Tui, TuiEvent, views::ResourcesView, widgets::Footer},
 };
 
 use super::{
@@ -57,7 +54,7 @@ impl App {
         let theme_path = config.theme_path();
         let syntax_data = SyntaxData::new(&theme);
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
-        let footer = Footer::new(Rc::clone(&data));
+        let footer = Footer::default();
         let worker = Rc::new(RefCell::new(BgWorker::new(
             runtime.clone(),
             footer.get_transmitter(),

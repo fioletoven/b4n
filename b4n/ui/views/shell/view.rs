@@ -1,6 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
+use b4n_utils::NotificationSink;
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
 use ratatui::{
@@ -21,7 +22,7 @@ use crate::{
         MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::ContentHeader,
         views::View,
-        widgets::{Button, Dialog, FooterTx},
+        widgets::{Button, Dialog},
     },
 };
 
@@ -45,7 +46,7 @@ pub struct ShellView {
     scrollback_rows: usize,
     esc_count: u8,
     esc_time: Instant,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
 }
 
 impl ShellView {
@@ -57,7 +58,7 @@ impl ShellView {
         pod_name: String,
         pod_namespace: Namespace,
         pod_container: Option<String>,
-        footer_tx: FooterTx,
+        footer_tx: NotificationSink,
     ) -> Self {
         let pod = PodRef {
             name: pod_name.clone(),

@@ -1,5 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CRDS, Kind, Namespace, ResourceRef};
+use b4n_utils::NotificationSink;
 use delegate::delegate;
 use kube::{
     ResourceExt,
@@ -8,12 +9,9 @@ use kube::{
 };
 use tokio::runtime::Handle;
 
-use crate::{
-    kubernetes::{
-        resources::CrdColumns,
-        watchers::{BgObserverError, ObserverResult, observer::BgObserver},
-    },
-    ui::widgets::FooterTx,
+use crate::kubernetes::{
+    resources::CrdColumns,
+    watchers::{BgObserverError, ObserverResult, observer::BgObserver},
 };
 
 /// Custom resource definitions observer.
@@ -23,7 +21,7 @@ pub struct CrdObserver {
 
 impl CrdObserver {
     /// Creates new [`CrdObserver`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
         Self {
             observer: BgObserver::new(runtime, footer_tx),
         }

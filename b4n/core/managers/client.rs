@@ -1,14 +1,11 @@
 use b4n_kube::{Kind, Namespace};
-use b4n_utils::StateChangeTracker;
+use b4n_utils::{NotificationSink, StateChangeTracker};
 use std::time::Instant;
 use tracing::warn;
 
-use crate::{
-    core::{
-        SharedAppData, SharedBgWorker,
-        commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
-    },
-    ui::widgets::FooterTx,
+use crate::core::{
+    SharedAppData, SharedBgWorker,
+    commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
 };
 
 const ERROR_DURATION: u16 = 10_000;
@@ -39,14 +36,14 @@ pub struct KubernetesClientManager {
     app_data: SharedAppData,
     worker: SharedBgWorker,
     request: Option<RequestInfo>,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     connection_state: StateChangeTracker<bool>,
     allow_insecure: bool,
 }
 
 impl KubernetesClientManager {
     /// Creates new [`KubernetesClientManager`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx, allow_insecure: bool) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink, allow_insecure: bool) -> Self {
         Self {
             app_data,
             worker,

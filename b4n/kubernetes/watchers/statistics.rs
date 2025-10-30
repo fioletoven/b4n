@@ -1,5 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Kind, NODES, PODS};
+use b4n_utils::NotificationSink;
 use kube::{ResourceExt, api::DynamicObject};
 use std::{
     cell::RefCell,
@@ -11,7 +12,6 @@ use tokio::runtime::Handle;
 use crate::{
     core::DiscoveryList,
     kubernetes::{metrics::Metrics, utils::get_resource, watchers::observer::BgObserver},
-    ui::widgets::FooterTx,
 };
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
@@ -166,14 +166,14 @@ pub struct BgStatistics {
     nodes_metrics: BgObserver,
     pod_data: HashMap<String, PodData>,
     node_data: HashMap<String, Option<Metrics>>,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     is_dirty: bool,
     has_metrics: bool,
 }
 
 impl BgStatistics {
     /// Creates new [`BgStatistics`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
         Self {
             stats: Rc::new(RefCell::new(Statistics {
                 generation: 0,

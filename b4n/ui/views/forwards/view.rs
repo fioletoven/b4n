@@ -1,5 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
+use b4n_utils::NotificationSink;
 use kube::discovery::Scope;
 use ratatui::{
     Frame,
@@ -13,7 +14,7 @@ use crate::{
         MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         viewers::{ListHeader, ListViewer},
         views::{PortForwardsList, View},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter, FooterTx},
+        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter},
     },
 };
 
@@ -29,13 +30,13 @@ pub struct ForwardsView {
     command_palette: CommandPalette,
     filter: Filter,
     modal: Dialog,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     is_closing: bool,
 }
 
 impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: FooterTx) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink) -> Self {
         let (namespace, view) = get_current_namespace(&app_data);
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
         let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);

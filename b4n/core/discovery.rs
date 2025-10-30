@@ -1,4 +1,5 @@
 use b4n_kube::client::KubernetesClient;
+use b4n_utils::NotificationSink;
 use kube::Discovery;
 use std::{
     sync::{
@@ -16,7 +17,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::{core::DiscoveryList, ui::widgets::FooterTx};
+use crate::core::DiscoveryList;
 
 const DISCOVERY_INTERVAL: u64 = 6_000;
 
@@ -27,13 +28,13 @@ pub struct BgDiscovery {
     cancellation_token: Option<CancellationToken>,
     context_tx: UnboundedSender<DiscoveryList>,
     context_rx: UnboundedReceiver<DiscoveryList>,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     has_error: Arc<AtomicBool>,
 }
 
 impl BgDiscovery {
     /// Creates new [`BgDiscovery`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             runtime,

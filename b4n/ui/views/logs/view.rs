@@ -2,6 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
+use b4n_utils::{IconKind, NotificationSink};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
@@ -14,7 +15,7 @@ use crate::{
         MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::{Content, ContentViewer, MatchPosition, StyledLine},
         views::View,
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, FooterTx, IconKind, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search},
     },
 };
 
@@ -31,7 +32,7 @@ pub struct LogsView {
     observer: LogsObserver,
     command_palette: CommandPalette,
     search: Search,
-    footer: FooterTx,
+    footer: NotificationSink,
     bound_to_bottom: bool,
 }
 
@@ -43,7 +44,7 @@ impl LogsView {
         client: &KubernetesClient,
         resource: ResourceRef,
         previous: bool,
-        footer: FooterTx,
+        footer: NotificationSink,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
             name: resource.name.clone().unwrap_or_default(),

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, ResourceRef};
+use b4n_utils::{IconKind, NotificationSink};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
@@ -17,7 +18,7 @@ use crate::{
     ui::{
         MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, FooterTx, IconKind, Position, SideSelect},
+        widgets::{Footer, Position, SideSelect},
     },
 };
 
@@ -64,7 +65,7 @@ impl ViewsManager {
     }
 
     /// Returns footer transmitter.
-    pub fn footer(&self) -> &FooterTx {
+    pub fn footer(&self) -> &NotificationSink {
         self.footer.transmitter()
     }
 
@@ -103,7 +104,7 @@ impl ViewsManager {
     /// Draws visible views on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>) {
         let layout = Footer::get_layout(frame.area());
-        self.footer.draw(frame, layout[1]);
+        self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
 
         if let Some(view) = &mut self.view {
             view.draw(frame, layout[0]);

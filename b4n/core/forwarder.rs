@@ -1,29 +1,20 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, ResourceRef};
-use k8s_openapi::{
-    api::core::v1::Pod,
-    chrono::{DateTime, Utc},
-};
+use b4n_utils::NotificationSink;
+use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::chrono::{DateTime, Utc};
 use kube::Api;
-use std::{
-    error::Error,
-    net::SocketAddr,
-    sync::{
-        Arc,
-        atomic::{AtomicI16, AtomicI32, Ordering},
-    },
-};
-use tokio::{
-    net::TcpListener,
-    runtime::Handle,
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-};
+use std::error::Error;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicI16, AtomicI32, Ordering};
+use tokio::net::TcpListener;
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 use uuid::Uuid;
-
-use crate::ui::widgets::FooterTx;
 
 /// Possible errors from [`PortForwarder`].
 #[derive(thiserror::Error, Debug)]
@@ -63,12 +54,12 @@ pub struct PortForwarder {
     tasks: Vec<PortForwardTask>,
     events_tx: UnboundedSender<PortForwardEvent>,
     events_rx: UnboundedReceiver<PortForwardEvent>,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
 }
 
 impl PortForwarder {
     /// Creates new [`PortForwarder`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
         let (events_tx, events_rx) = mpsc::unbounded_channel();
         Self {
             runtime,
@@ -174,12 +165,12 @@ pub struct PortForwardTask {
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
     events_tx: UnboundedSender<PortForwardEvent>,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
 }
 
 impl PortForwardTask {
     /// Creates new [`PortForwardTask`] instance.
-    fn new(runtime: Handle, events_tx: UnboundedSender<PortForwardEvent>, footer_tx: FooterTx) -> Self {
+    fn new(runtime: Handle, events_tx: UnboundedSender<PortForwardEvent>, footer_tx: NotificationSink) -> Self {
         let statistics = TaskStatistics {
             active_connections: Arc::new(AtomicI16::new(0)),
             overall_connections: Arc::new(AtomicI32::new(0)),
@@ -292,7 +283,7 @@ pub struct TaskStatistics {
 fn accept_error(
     error: &std::io::Error,
     events_tx: &UnboundedSender<PortForwardEvent>,
-    footer_tx: &FooterTx,
+    footer_tx: &NotificationSink,
     connection_errors: &Arc<AtomicI32>,
 ) {
     let msg = format!("error accepting port forward connection: {error}");

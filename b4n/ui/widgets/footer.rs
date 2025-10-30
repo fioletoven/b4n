@@ -1,88 +1,32 @@
-use ratatui::{
-    layout::{Constraint, Direction, Flex, Layout, Margin, Rect},
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Paragraph},
-};
+use b4n_config::themes::{Theme, ThemeColors};
+use b4n_utils::{Icon, IconAction, IconKind, Notification, NotificationSink};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-
-use crate::core::SharedAppData;
+use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
-const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
-
-/// Represents footer icon or text kind.
-pub enum IconKind {
-    Default,
-    Success,
-    Error,
-}
-
-/// Footer transmitter for messages and icons.
-#[derive(Debug, Clone)]
-pub struct FooterTx {
-    messages_tx: UnboundedSender<FooterMessage>,
-    icons_tx: UnboundedSender<FooterIconAction>,
-}
-
-impl FooterTx {
-    /// Displays an informational message in the footer for the specified duration (in milliseconds).
-    pub fn show_info(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages_tx.send(FooterMessage::new(text.into(), false, duration));
-    }
-
-    /// Displays an error message in the footer for the specified duration (in milliseconds).
-    pub fn show_error(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages_tx.send(FooterMessage::new(text.into(), true, duration));
-    }
-
-    /// Adds, updates, or removes an icon in the footer by its `id`.
-    pub fn set_icon(&self, id: &'static str, icon: Option<char>, kind: IconKind) {
-        let action = if let Some(icon) = icon {
-            FooterIconAction::Add(FooterIcon::new(id).with_icon(icon).with_kind(kind))
-        } else {
-            FooterIconAction::Remove(id)
-        };
-        let _ = self.icons_tx.send(action);
-    }
-
-    /// Adds, updates, or removes a text label in the footer by its `id`.
-    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>, kind: IconKind) {
-        let action = if let Some(text) = text {
-            FooterIconAction::Add(FooterIcon::new(id).with_text(text).with_kind(kind))
-        } else {
-            FooterIconAction::Remove(id)
-        };
-        let _ = self.icons_tx.send(action);
-    }
-
-    /// Removes an icon or a text label from the footer by its `id`.
-    pub fn reset(&self, id: &'static str) {
-        let _ = self.icons_tx.send(FooterIconAction::Remove(id));
-    }
-}
 
 /// Footer widget.
 pub struct Footer {
-    app_data: SharedAppData,
-    message: Option<FooterMessage>,
-    messages_rx: UnboundedReceiver<FooterMessage>,
+    message: Option<Notification>,
+    messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
-    icons: Vec<FooterIcon>,
-    icons_rx: UnboundedReceiver<FooterIconAction>,
-    footer_tx: FooterTx,
+    icons: Vec<Icon>,
+    icons_rx: UnboundedReceiver<IconAction>,
+    footer_tx: NotificationSink,
 }
 
-impl Footer {
-    /// Creates new UI footer pane.
-    pub fn new(app_data: SharedAppData) -> Self {
+impl Default for Footer {
+    fn default() -> Self {
         let (messages_tx, messages_rx) = mpsc::unbounded_channel();
         let (icons_tx, icons_rx) = mpsc::unbounded_channel();
-        let footer_tx = FooterTx { messages_tx, icons_tx };
+        let footer_tx = NotificationSink::new(messages_tx, icons_tx);
 
         Footer {
-            app_data,
             message: None,
             messages_rx,
             message_received_time: Instant::now(),
@@ -91,12 +35,14 @@ impl Footer {
             footer_tx,
         }
     }
+}
 
-    pub fn transmitter(&self) -> &FooterTx {
+impl Footer {
+    pub fn transmitter(&self) -> &NotificationSink {
         &self.footer_tx
     }
 
-    pub fn get_transmitter(&self) -> FooterTx {
+    pub fn get_transmitter(&self) -> NotificationSink {
         self.footer_tx.clone()
     }
 
@@ -110,8 +56,8 @@ impl Footer {
     }
 
     /// Draws [`Footer`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        self.draw_footer(frame, area);
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+        self.draw_footer(frame, area, theme);
 
         if self.has_message_to_show()
             && let Some(message) = &self.message
@@ -119,11 +65,11 @@ impl Footer {
             let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
                 .flex(Flex::Center)
                 .areas(area.inner(Margin::new(2, 0)));
-            frame.render_widget(self.get_message(&message.text, message.is_error), area);
+            frame.render_widget(self.get_message(&message.text, message.is_error, &theme.colors), area);
         }
     }
 
-    fn draw_footer(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
@@ -134,7 +80,7 @@ impl Footer {
             .split(area);
 
         self.update_current_icons();
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = &theme.colors;
 
         frame.render_widget(
             Paragraph::new(Line::from(vec![
@@ -148,7 +94,10 @@ impl Footer {
         if self.icons.is_empty() {
             frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
         } else {
-            frame.render_widget(Paragraph::new(self.get_icons(layout[1].width.into())), layout[1]);
+            frame.render_widget(
+                Paragraph::new(self.get_icons(layout[1].width.into(), &theme.colors)),
+                layout[1],
+            );
         }
 
         frame.render_widget(
@@ -161,8 +110,7 @@ impl Footer {
     }
 
     /// Returns formatted message to show.
-    fn get_message<'a>(&self, message: &'a str, is_error: bool) -> Line<'a> {
-        let colors = &self.app_data.borrow().theme.colors;
+    fn get_message<'a>(&self, message: &'a str, is_error: bool, colors: &ThemeColors) -> Line<'a> {
         Line::styled(message, if is_error { &colors.footer.error } else { &colors.footer.info })
     }
 
@@ -195,8 +143,7 @@ impl Footer {
     }
 
     /// Returns formatted icons to show.
-    fn get_icons(&self, width: usize) -> Line<'_> {
-        let colors = &self.app_data.borrow().theme.colors;
+    fn get_icons(&self, width: usize, colors: &ThemeColors) -> Line<'_> {
         let mut spans = Vec::with_capacity(self.icons.len());
         let mut total = 0;
 
@@ -229,79 +176,17 @@ impl Footer {
     fn update_current_icons(&mut self) {
         while let Ok(action) = self.icons_rx.try_recv() {
             match action {
-                FooterIconAction::Add(icon) => {
+                IconAction::Add(icon) => {
                     if let Some(index) = self.icons.iter().position(|i| i.id == icon.id) {
                         self.icons[index] = icon;
                     } else {
                         self.icons.push(icon);
                     }
                 },
-                FooterIconAction::Remove(id) => self.icons.retain(|i| i.id != id),
+                IconAction::Remove(id) => self.icons.retain(|i| i.id != id),
             }
         }
 
         self.icons.sort_by_key(|i| i.id);
-    }
-}
-
-/// Footer message to show.
-struct FooterMessage {
-    text: String,
-    is_error: bool,
-    duration: u16,
-}
-
-impl FooterMessage {
-    /// Creates new [`FooterMessage`] instance.
-    fn new(text: String, is_error: bool, duration: u16) -> Self {
-        Self {
-            text,
-            is_error,
-            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
-        }
-    }
-}
-
-/// Defines possible actions for managing Footer icons.
-enum FooterIconAction {
-    Add(FooterIcon),
-    Remove(&'static str),
-}
-
-/// Footer icon to show.
-struct FooterIcon {
-    id: &'static str,
-    icon: Option<char>,
-    text: Option<String>,
-    kind: IconKind,
-}
-
-impl FooterIcon {
-    /// Creates new [`FooterIcon`] instance.
-    fn new(id: &'static str) -> Self {
-        Self {
-            id,
-            icon: None,
-            text: None,
-            kind: IconKind::Default,
-        }
-    }
-
-    /// Adds icon.
-    fn with_icon(mut self, icon: char) -> Self {
-        self.icon = Some(icon);
-        self
-    }
-
-    /// Adds text.
-    fn with_text(mut self, text: impl Into<String>) -> Self {
-        self.text = Some(text.into());
-        self
-    }
-
-    /// Sets kind.
-    fn with_kind(mut self, kind: IconKind) -> Self {
-        self.kind = kind;
-        self
     }
 }

@@ -1,5 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CONTAINERS, Kind, ResourceRef};
+use b4n_utils::NotificationSink;
 use futures::TryStreamExt;
 use kube::{
     Api,
@@ -30,10 +31,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 use uuid::Uuid;
 
-use crate::{
-    kubernetes::{resources::CrdColumns, utils::get_object_uid},
-    ui::widgets::FooterTx,
-};
+use crate::kubernetes::{resources::CrdColumns, utils::get_object_uid};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -133,14 +131,14 @@ pub struct BgObserver {
     cancellation_token: Option<CancellationToken>,
     context_tx: ObserverResultSender,
     context_rx: ObserverResultReceiver,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
 }
 
 impl BgObserver {
     /// Creates new [`BgObserver`] instance.
-    pub fn new(runtime: Handle, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
@@ -408,7 +406,7 @@ impl Drop for BgObserver {
 struct EventsProcessor {
     init_data: InitData,
     context_tx: ObserverResultSender,
-    footer_tx: FooterTx,
+    footer_tx: NotificationSink,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,

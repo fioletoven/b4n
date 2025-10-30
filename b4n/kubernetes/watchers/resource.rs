@@ -1,5 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Kind, Namespace, PODS, ResourceRef};
+use b4n_utils::NotificationSink;
 use delegate::delegate;
 use k8s_openapi::serde_json::Value;
 use kube::{
@@ -16,7 +17,6 @@ use crate::{
         resources::{CrdColumns, ResourceItem},
         watchers::{BgObserverError, InitData, ObserverResult, PodStats, SharedStatistics, Statistics, observer::BgObserver},
     },
-    ui::widgets::FooterTx,
 };
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
@@ -31,7 +31,7 @@ pub struct ResourceObserver {
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(runtime: Handle, crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: FooterTx) -> Self {
+    pub fn new(runtime: Handle, crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: NotificationSink) -> Self {
         Self {
             observer: BgObserver::new(runtime, footer_tx),
             queue: VecDeque::with_capacity(200),
