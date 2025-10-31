@@ -13,8 +13,10 @@ pub const CRDS: &str = "customresourcedefinitions";
 
 pub use self::kind::{CORE_VERSION, Kind};
 pub use self::namespace::{ALL_NAMESPACES, NAMESPACES, Namespace};
+pub use self::ports::{Port, PortProtocol};
 pub use self::resource_ref::{PodRef, ResourceRef, ResourceRefFilter};
 
 mod kind;
 mod namespace;
+mod ports;
 mod resource_ref;

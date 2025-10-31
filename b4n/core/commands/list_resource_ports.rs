@@ -1,15 +1,10 @@
-use b4n_kube::ResourceRef;
+use b4n_kube::{Port, PortProtocol, ResourceRef};
 use k8s_openapi::serde_json::Value;
-use kube::{
-    Client,
-    api::{ApiResource, DynamicObject},
-    discovery::{ApiCapabilities, verbs},
-};
+use kube::Client;
+use kube::api::{ApiResource, DynamicObject};
+use kube::discovery::{ApiCapabilities, verbs};
 
-use crate::{
-    core::commands::CommandResult,
-    kubernetes::resources::{Port, PortProtocol},
-};
+use crate::core::commands::CommandResult;
 
 /// Command that gets a list of ports for the specified kubernetes resource.
 pub struct ListResourcePortsCommand {

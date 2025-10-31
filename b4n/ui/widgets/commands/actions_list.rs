@@ -1,14 +1,12 @@
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::{Port, PortProtocol};
 use b4n_lists::{BasicFilterContext, ScrollableList};
 use delegate::delegate;
 use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    kubernetes::{
-        kinds::KindItem,
-        resources::{Port, PortProtocol},
-    },
+    kubernetes::kinds::KindItem,
     ui::{ResponseEvent, Responsive, Table, TuiEvent, ViewType, lists::ScrollableListExt, widgets::ActionItem},
 };
 

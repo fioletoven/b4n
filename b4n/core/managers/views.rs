@@ -1,6 +1,6 @@
 use anyhow::Result;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{Namespace, ResourceRef};
+use b4n_kube::{Namespace, Port, ResourceRef};
 use b4n_utils::{IconKind, NotificationSink};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -11,10 +11,7 @@ use crate::{
         SharedAppData, SharedAppDataExt, SharedBgWorker,
         commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError},
     },
-    kubernetes::{
-        kinds::KindsList,
-        resources::{Port, ResourcesList},
-    },
+    kubernetes::{kinds::KindsList, resources::ResourcesList},
     ui::{
         MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
