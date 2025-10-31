@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ResourceRef, SECRETS};
-use b4n_utils::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 

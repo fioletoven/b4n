@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
-use b4n_utils::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;

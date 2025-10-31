@@ -1,4 +1,4 @@
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -59,7 +59,7 @@ impl BgDiscovery {
         let _client = client.get_client();
 
         let task = self.runtime.spawn(async move {
-            let mut backoff = b4n_utils::ResettableBackoff::default();
+            let mut backoff = b4n_common::ResettableBackoff::default();
             let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 
             let mut maybe_discovery = Some(Discovery::new(_client.clone()));
@@ -114,7 +114,7 @@ impl BgDiscovery {
     /// Cancels [`BgDiscovery`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "discovery");
+        b4n_common::tasks::wait_for_task(self.task.take(), "discovery");
     }
 
     /// Tries to get next discovery result.

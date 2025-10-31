@@ -1,5 +1,5 @@
 use b4n_list::{FilterContext, Filterable, Item, Row};
-use b4n_utils::truncate;
+use b4n_common::truncate;
 
 use crate::ui::{
     ViewType,

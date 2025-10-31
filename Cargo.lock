@@ -167,10 +167,10 @@ version = "0.2.8"
 dependencies = [
  "anyhow",
  "arboard",
+ "b4n-common",
  "b4n-config",
  "b4n-kube",
  "b4n-list",
- "b4n-utils",
  "base64",
  "clap",
  "crossterm",
@@ -195,11 +195,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "b4n-common"
+version = "0.2.8"
+dependencies = [
+ "anyhow",
+ "backon",
+ "sha1",
+ "thiserror 2.0.17",
+ "time",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-error",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "b4n-config"
 version = "0.2.8"
 dependencies = [
  "anyhow",
- "b4n-utils",
+ "b4n-common",
  "crossterm",
  "notify",
  "ratatui",
@@ -216,7 +232,7 @@ dependencies = [
 name = "b4n-kube"
 version = "0.2.8"
 dependencies = [
- "b4n-utils",
+ "b4n-common",
  "k8s-openapi",
  "kube",
  "thiserror 2.0.17",
@@ -231,22 +247,6 @@ version = "0.2.8"
 dependencies = [
  "crossterm",
  "k8s-openapi",
-]
-
-[[package]]
-name = "b4n-utils"
-version = "0.2.8"
-dependencies = [
- "anyhow",
- "backon",
- "sha1",
- "thiserror 2.0.17",
- "time",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-error",
- "tracing-subscriber",
 ]
 
 [[package]]

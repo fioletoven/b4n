@@ -1,8 +1,8 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Kind, Namespace};
 use b4n_list::{FilterContext, Filterable, Row};
-use b4n_utils::expr::{Expression, ExpressionExt, parse};
-use b4n_utils::truncate;
+use b4n_common::expr::{Expression, ExpressionExt, parse};
+use b4n_common::truncate;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::Value;
 use kube::ResourceExt;

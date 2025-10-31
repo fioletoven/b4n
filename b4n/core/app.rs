@@ -3,7 +3,7 @@ use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
-use b4n_utils::IconKind;
+use b4n_common::IconKind;
 use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};

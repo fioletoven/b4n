@@ -1,4 +1,4 @@
-use b4n_utils::truncate_left;
+use b4n_common::truncate_left;
 use ratatui::{
     style::Style,
     text::{Line, Span},

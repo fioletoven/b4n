@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
-use b4n_utils::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};

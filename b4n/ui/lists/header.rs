@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use b4n_utils::try_truncate;
+use b4n_common::try_truncate;
 
 use crate::ui::{
     ViewType,

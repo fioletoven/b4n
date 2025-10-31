@@ -1,6 +1,6 @@
 use b4n_kube::{CORE_VERSION, Kind};
 use b4n_list::{BasicFilterContext, Filterable, Row};
-use b4n_utils::{truncate, truncate_left};
+use b4n_common::{truncate, truncate_left};
 use std::borrow::Cow;
 
 /// Represents kubernetes kind.

@@ -124,7 +124,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     /// Cancels [`ConfigWatcher`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "configuration watcher");
+        b4n_common::tasks::wait_for_task(self.task.take(), "configuration watcher");
     }
 
     /// Sets watcher to skip the next modification event.

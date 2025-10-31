@@ -1,5 +1,5 @@
+use b4n_common::{Icon, IconAction, IconKind, Notification, NotificationSink};
 use b4n_config::themes::{Theme, ThemeColors};
-use b4n_utils::{Icon, IconAction, IconKind, Notification, NotificationSink};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
 use ratatui::style::Style;

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cmp::max};
 
-use b4n_utils::truncate;
+use b4n_common::truncate;
 
 use crate::kubernetes::resources::CrdColumn;
 

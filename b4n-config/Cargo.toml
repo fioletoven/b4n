@@ -9,7 +9,7 @@ rust-version.workspace = true
 path = "./lib.rs"
 
 [dependencies]
-b4n-utils = { workspace = true }
+b4n-common = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
 notify = { workspace = true }

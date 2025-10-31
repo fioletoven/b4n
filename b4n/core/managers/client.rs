@@ -1,5 +1,5 @@
 use b4n_kube::{Kind, Namespace};
-use b4n_utils::{NotificationSink, StateChangeTracker};
+use b4n_common::{NotificationSink, StateChangeTracker};
 use std::time::Instant;
 use tracing::warn;
 

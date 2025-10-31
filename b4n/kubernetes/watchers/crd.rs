@@ -1,6 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CRDS, Kind, Namespace, ResourceRef};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use delegate::delegate;
 use kube::{
     ResourceExt,

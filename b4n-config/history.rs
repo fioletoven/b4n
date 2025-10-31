@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_utils::calculate_hash;
+use b4n_common::calculate_hash;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

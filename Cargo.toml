@@ -4,7 +4,7 @@ members = [
     "b4n-config",
     "b4n-kube",
     "b4n-list",
-    "b4n-utils",
+    "b4n-common",
 ]
 
 [workspace.package]
@@ -17,7 +17,7 @@ license = "MIT"
 b4n-config = { path = "b4n-config" }
 b4n-kube = { path = "b4n-kube" }
 b4n-list = { path = "b4n-list" }
-b4n-utils = { path = "b4n-utils" }
+b4n-common = { path = "b4n-common" }
 anyhow = { version = "1.0" }
 backon = { version = "1.6" }
 crossterm = { version = "0.28", features = ["event-stream"] }
@@ -58,7 +58,7 @@ license.workspace = true
 b4n-config = { workspace = true }
 b4n-kube = { workspace = true }
 b4n-list = { workspace = true }
-b4n-utils = { workspace = true }
+b4n-common = { workspace = true }
 anyhow = { workspace = true }
 arboard = { version = "3.6", default-features = false }
 base64 = { version = "0.22" }

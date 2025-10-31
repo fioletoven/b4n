@@ -1,6 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{DiscoveryList, Kind, NODES, PODS};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use kube::{ResourceExt, api::DynamicObject};
 use std::{
     cell::RefCell,

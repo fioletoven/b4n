@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use kube::discovery::Scope;
 use ratatui::{
     Frame,

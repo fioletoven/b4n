@@ -1,6 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{CONTAINERS, Kind, ResourceRef};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use futures::TryStreamExt;
 use kube::{
     Api,
@@ -222,7 +222,7 @@ impl BgObserver {
     /// Cancels [`BgObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "background observer");
+        b4n_common::tasks::wait_for_task(self.task.take(), "background observer");
         self.drain();
     }
 

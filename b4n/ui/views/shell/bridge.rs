@@ -116,7 +116,7 @@ impl ShellBridge {
     /// Cancels [`ShellBridge`] task and waits for it to finish.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "shell bridge");
+        b4n_common::tasks::wait_for_task(self.task.take(), "shell bridge");
     }
 
     /// Sends user input bytes to the attached process.

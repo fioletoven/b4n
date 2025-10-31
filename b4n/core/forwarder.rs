@@ -1,6 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, ResourceRef};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::chrono::{DateTime, Utc};
 use kube::Api;
@@ -263,7 +263,7 @@ impl PortForwardTask {
     /// Cancels [`PortForwardTask`] task and waits until it is finished.
     fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "port forward");
+        b4n_common::tasks::wait_for_task(self.task.take(), "port forward");
     }
 }
 

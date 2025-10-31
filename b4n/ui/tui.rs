@@ -331,7 +331,7 @@ impl Tui {
     /// Stops terminal events loop.
     pub fn stop_events_loop(&mut self) -> Result<()> {
         self.events_ct.cancel();
-        b4n_utils::tasks::wait_for_task(self.events_task.take(), "events");
+        b4n_common::tasks::wait_for_task(self.events_task.take(), "events");
 
         Ok(())
     }

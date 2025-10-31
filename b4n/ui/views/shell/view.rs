@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
 use ratatui::{

@@ -82,7 +82,7 @@ impl BgTask {
     /// Cancels [`BgTask`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "background command");
+        b4n_common::tasks::wait_for_task(self.task.take(), "background command");
     }
 }
 

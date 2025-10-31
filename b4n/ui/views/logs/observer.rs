@@ -72,7 +72,7 @@ impl LogsObserver {
                 cancellation_token: &_cancellation_token,
             };
 
-            let mut backoff = b4n_utils::ResettableBackoff::default();
+            let mut backoff = b4n_common::ResettableBackoff::default();
             let mut since_time = None;
             let mut should_continue;
             while !_cancellation_token.is_cancelled() {
@@ -102,7 +102,7 @@ impl LogsObserver {
     /// Cancels [`LogsObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
         self.cancel();
-        b4n_utils::tasks::wait_for_task(self.task.take(), "logs");
+        b4n_common::tasks::wait_for_task(self.task.take(), "logs");
         self.drain();
     }
 

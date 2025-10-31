@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_utils::expr::{ParserError, validate};
+use b4n_common::expr::{ParserError, validate};
 use crossterm::event::KeyModifiers;
 use ratatui::{
     layout::Rect,

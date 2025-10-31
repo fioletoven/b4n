@@ -1,6 +1,6 @@
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Kind, Namespace, PODS, ResourceRef};
-use b4n_utils::NotificationSink;
+use b4n_common::NotificationSink;
 use delegate::delegate;
 use k8s_openapi::serde_json::Value;
 use kube::{
