@@ -1,16 +1,12 @@
-use std::{
-    collections::HashSet,
-    hash::{DefaultHasher, Hash, Hasher},
-    time::{Duration, Instant},
-};
+use b4n_tasks::{HighlightError, HighlightRequest, HighlightResponse};
+use std::collections::HashSet;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::{
-    core::{HighlightError, HighlightRequest, HighlightResponse},
-    ui::{
-        ResponseEvent,
-        viewers::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt},
-    },
+use crate::ui::{
+    ResponseEvent,
+    viewers::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt},
 };
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.

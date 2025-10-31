@@ -1,6 +1,6 @@
+use b4n_common::NotificationSink;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, ResourceRef};
-use b4n_common::NotificationSink;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::chrono::{DateTime, Utc};
 use kube::Api;

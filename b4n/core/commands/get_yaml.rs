@@ -1,18 +1,14 @@
 use b4n_kube::{Kind, Namespace, SECRETS};
+use b4n_tasks::{HighlightError, HighlightRequest};
 use base64::{DecodeError, Engine, engine};
 use k8s_openapi::serde_json::Value;
-use kube::{
-    Client,
-    api::{ApiResource, DynamicObject},
-    discovery::{ApiCapabilities, verbs},
-};
+use kube::Client;
+use kube::api::{ApiResource, DynamicObject};
+use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{
-    core::highlighter::{HighlightError, HighlightRequest},
-    kubernetes::utils,
-};
+use crate::kubernetes::utils;
 
 use super::CommandResult;
 

@@ -1,10 +1,9 @@
+use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, Filterable, Row};
-use b4n_common::truncate;
+use b4n_tasks::PortForwardTask;
 use k8s_openapi::chrono::{DateTime, Utc};
 use std::{borrow::Cow, sync::atomic::Ordering};
-
-use crate::core::PortForwardTask;
 
 /// Represents port forward list item.
 pub struct PortForwardItem {

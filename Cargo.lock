@@ -171,6 +171,7 @@ dependencies = [
  "b4n-config",
  "b4n-kube",
  "b4n-list",
+ "b4n-tasks",
  "base64",
  "clap",
  "crossterm",
@@ -247,6 +248,24 @@ version = "0.2.8"
 dependencies = [
  "crossterm",
  "k8s-openapi",
+]
+
+[[package]]
+name = "b4n-tasks"
+version = "0.2.8"
+dependencies = [
+ "b4n-common",
+ "b4n-config",
+ "b4n-kube",
+ "k8s-openapi",
+ "kube",
+ "ratatui",
+ "syntect",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

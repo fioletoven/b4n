@@ -1,9 +1,7 @@
 use b4n_kube::Namespace;
-use kube::{
-    Client,
-    api::{ApiResource, DeleteParams},
-    discovery::{ApiCapabilities, Scope, verbs},
-};
+use kube::Client;
+use kube::api::{ApiResource, DeleteParams};
+use kube::discovery::{ApiCapabilities, Scope, verbs};
 use tracing::error;
 
 use super::CommandResult;

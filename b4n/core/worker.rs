@@ -1,8 +1,9 @@
 use anyhow::Result;
+use b4n_common::NotificationSink;
 use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{BgDiscovery, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
-use b4n_common::NotificationSink;
+use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
@@ -19,12 +20,11 @@ use crate::{
 };
 
 use super::{
-    BgExecutor, HighlightRequest, PortForwarder, TaskResult,
+    BgExecutor, TaskResult,
     commands::{
         Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, SaveConfigurationCommand,
         SetResourceYamlCommand,
     },
-    highlighter::BgHighlighter,
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
