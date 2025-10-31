@@ -1,24 +1,19 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{
-    ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, PODS, REPLICA_SETS,
-    ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
+    ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS,
+    REPLICA_SETS, ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
-    kubernetes::{
-        resources::{ResourceItem, ResourcesList},
-        watchers::ObserverResult,
-    },
+    kubernetes::resources::{ResourceItem, ResourcesList},
     ui::{
         MouseEventKind, Responsive, ScopeData, Table, TuiEvent, ViewType,
         tui::ResponseEvent,

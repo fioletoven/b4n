@@ -1,11 +1,9 @@
+use b4n_kube::utils::labels_to_string;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
 use crate::{
-    kubernetes::{
-        resources::{ResourceData, ResourceValue},
-        utils::labels_to_string,
-    },
+    kubernetes::resources::{ResourceData, ResourceValue},
     ui::lists::{Column, Header, NAMESPACE},
 };
 

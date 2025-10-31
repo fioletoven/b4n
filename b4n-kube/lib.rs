@@ -4,8 +4,12 @@ pub use self::core::{
 };
 pub use self::core::{Kind, Namespace, PodRef, Port, PortProtocol, ResourceRef, ResourceRefFilter};
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
+pub use self::observer::{BgObserver, BgObserverError, InitData, ObserverResult};
 
 pub mod client;
+pub mod resources;
+pub mod utils;
 
 mod core;
 mod discovery;
+mod observer;

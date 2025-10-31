@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, PODS, Port, ResourceRef, SECRETS};
+use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
@@ -9,7 +9,7 @@ use crate::{
     core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{
         resources::{ResourceItem, node, pod},
-        watchers::{ObserverResult, SharedStatistics},
+        watchers::SharedStatistics,
     },
     ui::{
         MouseEventKind, Responsive, ScopeData, Table, ViewType,

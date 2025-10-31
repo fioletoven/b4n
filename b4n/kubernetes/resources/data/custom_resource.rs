@@ -1,9 +1,10 @@
+use b4n_kube::resources::CrdColumns;
 use k8s_openapi::serde_json::{Value, to_value};
 use kube::api::DynamicObject;
 use std::{collections::HashSet, rc::Rc};
 
 use crate::{
-    kubernetes::resources::{CrdColumns, ResourceData, ResourceValue},
+    kubernetes::resources::{ResourceData, ResourceValue},
     ui::lists::{Column, Header, NAMESPACE},
 };
 

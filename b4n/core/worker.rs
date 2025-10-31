@@ -2,7 +2,9 @@ use anyhow::Result;
 use b4n_common::NotificationSink;
 use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{BgDiscovery, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::resources::CrdColumns;
+use b4n_kube::utils::{get_plural, get_resource};
+use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
@@ -12,9 +14,7 @@ use crate::{
     core::commands::SetResourceYamlAction,
     kubernetes::{
         kinds::{KindItem, KindsList},
-        resources::CrdColumns,
-        utils::{get_plural, get_resource},
-        watchers::{BgObserverError, BgStatistics, CrdObserver, ResourceObserver},
+        watchers::{BgStatistics, CrdObserver, ResourceObserver},
     },
     ui::views::PortForwardItem,
 };

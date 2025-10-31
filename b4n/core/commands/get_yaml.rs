@@ -8,8 +8,6 @@ use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::kubernetes::utils;
-
 use super::CommandResult;
 
 /// Possible errors from fetching or styling resource's YAML.
@@ -134,7 +132,7 @@ impl GetResourceYamlCommand {
             decode_secret_data(&mut resource)?;
         }
 
-        let yaml = utils::serialize_resource(&mut resource)?;
+        let yaml = b4n_kube::utils::serialize_resource(&mut resource)?;
         let mut plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
         if yaml.ends_with('\n') {
             plain.pop();

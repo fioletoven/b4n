@@ -1,4 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::resources::CrdColumns;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{Value, from_value};
@@ -8,8 +9,6 @@ use std::borrow::Cow;
 use crate::{
     kubernetes::{
         metrics::{CpuMetrics, MemoryMetrics},
-        resources::CrdColumns,
-        utils::format_datetime,
         watchers::Statistics,
     },
     ui::lists::Header,
@@ -158,11 +157,7 @@ impl ResourceValue {
     /// Returns resource text.
     pub fn text(&self) -> Cow<'_, str> {
         if self.is_time {
-            Cow::Owned(
-                self.time
-                    .as_ref()
-                    .map_or("n/a".to_owned(), crate::kubernetes::utils::format_datetime),
-            )
+            Cow::Owned(self.time.as_ref().map_or("n/a".to_owned(), b4n_kube::utils::format_datetime))
         } else {
             Cow::Borrowed(self.text.as_deref().unwrap_or("n/a"))
         }
@@ -217,7 +212,7 @@ impl From<bool> for ResourceValue {
 impl From<Option<&DateTime<Utc>>> for ResourceValue {
     fn from(value: Option<&DateTime<Utc>>) -> Self {
         Self {
-            text: value.map(format_datetime),
+            text: value.map(b4n_kube::utils::format_datetime),
             sort_text: value.map(|v| v.timestamp_millis().to_string()),
             ..Default::default()
         }

@@ -1,12 +1,11 @@
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::{Kind, Namespace, PODS, ResourceRef};
 use b4n_common::NotificationSink;
+use b4n_kube::client::KubernetesClient;
+use b4n_kube::resources::CrdColumns;
+use b4n_kube::{BgObserver, BgObserverError, InitData, Kind, Namespace, ObserverResult, PODS, ResourceRef};
 use delegate::delegate;
 use k8s_openapi::serde_json::Value;
-use kube::{
-    api::{ApiResource, DynamicObject},
-    discovery::{ApiCapabilities, Scope},
-};
+use kube::api::{ApiResource, DynamicObject};
+use kube::discovery::{ApiCapabilities, Scope};
 use std::collections::VecDeque;
 use tokio::runtime::Handle;
 
@@ -14,8 +13,8 @@ use crate::{
     core::SharedCrdsList,
     kubernetes::{
         metrics::Metrics,
-        resources::{CrdColumns, ResourceItem},
-        watchers::{BgObserverError, InitData, ObserverResult, PodStats, SharedStatistics, Statistics, observer::BgObserver},
+        resources::ResourceItem,
+        watchers::{PodStats, SharedStatistics, Statistics},
     },
 };
 

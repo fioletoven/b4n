@@ -1,15 +1,14 @@
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::{DiscoveryList, Kind, NODES, PODS};
 use b4n_common::NotificationSink;
+use b4n_kube::client::KubernetesClient;
+use b4n_kube::utils::get_resource;
+use b4n_kube::{BgObserver, DiscoveryList, Kind, NODES, ObserverResult, PODS};
 use kube::{ResourceExt, api::DynamicObject};
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::kubernetes::{metrics::Metrics, utils::get_resource, watchers::observer::BgObserver};
+use crate::kubernetes::metrics::Metrics;
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 
@@ -237,20 +236,20 @@ impl BgStatistics {
         if self.pods.is_ready() {
             while let Some(result) = self.pods.try_next() {
                 match *result {
-                    super::ObserverResult::Apply(result) => self.add_pod_data(&result),
-                    super::ObserverResult::Delete(result) => self.del_pod_data(&result),
+                    ObserverResult::Apply(result) => self.add_pod_data(&result),
+                    ObserverResult::Delete(result) => self.del_pod_data(&result),
                     _ => (),
                 }
             }
 
             while let Some(result) = self.pods_metrics.try_next() {
-                if let super::ObserverResult::Apply(result) = *result {
+                if let ObserverResult::Apply(result) = *result {
                     self.add_pod_metrics(&result);
                 }
             }
 
             while let Some(result) = self.nodes_metrics.try_next() {
-                if let super::ObserverResult::Apply(result) = *result {
+                if let ObserverResult::Apply(result) = *result {
                     self.add_node_metrics(&result);
                 }
             }

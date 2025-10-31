@@ -1,37 +1,27 @@
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::{CONTAINERS, Kind, ResourceRef};
 use b4n_common::NotificationSink;
 use futures::TryStreamExt;
-use kube::{
-    Api,
-    api::{ApiResource, DynamicObject, ListParams, ObjectList},
-    discovery::{ApiCapabilities, Scope, verbs},
-    runtime::{
-        WatchStreamExt,
-        watcher::{self, Error, Event, watcher},
-    },
-};
-use std::{
-    collections::HashMap,
-    pin::pin,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::{Duration, Instant},
-};
-use thiserror;
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-    time::sleep,
-};
+use kube::Api;
+use kube::api::{ApiResource, DynamicObject, ListParams, ObjectList};
+use kube::discovery::{ApiCapabilities, Scope, verbs};
+use kube::runtime::WatchStreamExt;
+use kube::runtime::watcher::{self, Error, Event, watcher};
+use std::collections::HashMap;
+use std::pin::pin;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, warn};
 use uuid::Uuid;
 
-use crate::kubernetes::{resources::CrdColumns, utils::get_object_uid};
+use crate::client::KubernetesClient;
+use crate::resources::CrdColumns;
+use crate::utils::get_object_uid;
+use crate::{CONTAINERS, Kind, ResourceRef};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 

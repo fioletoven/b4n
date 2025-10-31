@@ -1,8 +1,9 @@
-use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{Kind, Namespace};
-use b4n_list::{FilterContext, Filterable, Row};
 use b4n_common::expr::{Expression, ExpressionExt, parse};
 use b4n_common::truncate;
+use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::{Kind, Namespace};
+use b4n_kube::{resources::CrdColumns, utils::get_object_uid};
+use b4n_list::{FilterContext, Filterable, Row};
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::Value;
 use kube::ResourceExt;
@@ -10,7 +11,7 @@ use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
-    kubernetes::{metrics::Metrics, resources::CrdColumns, utils::get_object_uid, watchers::Statistics},
+    kubernetes::{metrics::Metrics, watchers::Statistics},
     ui::lists::Header,
 };
 

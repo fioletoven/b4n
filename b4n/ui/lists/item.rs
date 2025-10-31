@@ -1,5 +1,5 @@
-use b4n_list::{FilterContext, Filterable, Item, Row};
 use b4n_common::truncate;
+use b4n_list::{FilterContext, Filterable, Item, Row};
 
 use crate::ui::{
     ViewType,
@@ -45,7 +45,7 @@ fn get_compact_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     row.push_cell(
         item.data
             .creation_timestamp()
-            .map(crate::kubernetes::utils::format_datetime)
+            .map(b4n_kube::utils::format_datetime)
             .as_deref()
             .unwrap_or("n/a"),
         AGE_COLUMN_WIDTH + 1,
