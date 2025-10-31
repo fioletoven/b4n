@@ -3,7 +3,7 @@ use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, PODS, REPLICA_SETS,
     ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
-use b4n_lists::Row;
+use b4n_list::Row;
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;

@@ -169,7 +169,7 @@ dependencies = [
  "arboard",
  "b4n-config",
  "b4n-kube",
- "b4n-lists",
+ "b4n-list",
  "b4n-utils",
  "base64",
  "clap",
@@ -226,7 +226,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "b4n-lists"
+name = "b4n-list"
 version = "0.2.8"
 dependencies = [
  "crossterm",

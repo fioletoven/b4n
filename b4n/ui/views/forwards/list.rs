@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_lists::{BasicFilterContext, FilterableList, Item};
+use b4n_list::{BasicFilterContext, FilterableList, Item};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 

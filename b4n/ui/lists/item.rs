@@ -1,4 +1,4 @@
-use b4n_lists::{FilterContext, Filterable, Item, Row};
+use b4n_list::{FilterContext, Filterable, Item, Row};
 use b4n_utils::truncate;
 
 use crate::ui::{

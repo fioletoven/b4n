@@ -1,5 +1,5 @@
 use b4n_kube::Port;
-use b4n_lists::{BasicFilterContext, Filterable, Row};
+use b4n_list::{BasicFilterContext, Filterable, Row};
 use b4n_utils::truncate;
 use kube::config::NamedContext;
 use std::{borrow::Cow, path::PathBuf};

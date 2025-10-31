@@ -1,4 +1,4 @@
-use b4n_lists::Item;
+use b4n_list::Item;
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{rc::Rc, slice::IterMut};

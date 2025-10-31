@@ -1,4 +1,4 @@
-use b4n_lists::{FilterContext, Filterable, Row, ScrollableList};
+use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::ui::{ResponseEvent, TuiEvent, lists::Header};

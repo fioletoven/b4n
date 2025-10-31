@@ -1,6 +1,6 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Port, PortProtocol};
-use b4n_lists::{BasicFilterContext, ScrollableList};
+use b4n_list::{BasicFilterContext, ScrollableList};
 use delegate::delegate;
 use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};

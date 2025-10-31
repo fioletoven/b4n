@@ -1,6 +1,6 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Kind, Namespace};
-use b4n_lists::{FilterContext, Filterable, Row};
+use b4n_list::{FilterContext, Filterable, Row};
 use b4n_utils::expr::{Expression, ExpressionExt, parse};
 use b4n_utils::truncate;
 use k8s_openapi::chrono::{DateTime, Utc};

@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "b4n-config",
     "b4n-kube",
-    "b4n-lists",
+    "b4n-list",
     "b4n-utils",
 ]
 
@@ -16,7 +16,7 @@ license = "MIT"
 [workspace.dependencies]
 b4n-config = { path = "b4n-config" }
 b4n-kube = { path = "b4n-kube" }
-b4n-lists = { path = "b4n-lists" }
+b4n-list = { path = "b4n-list" }
 b4n-utils = { path = "b4n-utils" }
 anyhow = { version = "1.0" }
 backon = { version = "1.6" }
@@ -57,7 +57,7 @@ license.workspace = true
 [dependencies]
 b4n-config = { workspace = true }
 b4n-kube = { workspace = true }
-b4n-lists = { workspace = true }
+b4n-list = { workspace = true }
 b4n-utils = { workspace = true }
 anyhow = { workspace = true }
 arboard = { version = "3.6", default-features = false }

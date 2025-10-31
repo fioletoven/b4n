@@ -1,4 +1,4 @@
-use b4n_lists::{BasicFilterContext, Filterable, Row};
+use b4n_list::{BasicFilterContext, Filterable, Row};
 use b4n_utils::{add_padding, truncate};
 use std::{
     borrow::Cow,

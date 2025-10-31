@@ -1,5 +1,5 @@
 [package]
-name = "b4n-lists"
+name = "b4n-list"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
