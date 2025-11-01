@@ -1,7 +1,7 @@
 use b4n_kube::client::list_contexts;
 use tracing::error;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 /// Command that reads kube config file and lists all contexts from it.
 pub struct ListKubeContextsCommand {

@@ -1,7 +1,7 @@
 use b4n_config::Persistable;
 use tracing::error;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 /// Command that saves provided configuration data to a file.
 pub struct SaveConfigurationCommand<T: Persistable<T>> {

@@ -2,7 +2,7 @@ use tokio::{runtime::Handle, sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::core::commands::{Command, CommandResult};
+use crate::commands::{Command, CommandResult};
 
 pub struct TaskResult {
     pub id: String,

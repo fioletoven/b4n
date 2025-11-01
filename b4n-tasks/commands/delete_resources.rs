@@ -4,7 +4,7 @@ use kube::api::{ApiResource, DeleteParams};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use tracing::error;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {

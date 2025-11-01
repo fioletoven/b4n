@@ -1,5 +1,4 @@
 use b4n_kube::{Kind, Namespace, SECRETS};
-use b4n_tasks::{HighlightError, HighlightRequest};
 use base64::{DecodeError, Engine, engine};
 use k8s_openapi::serde_json::Value;
 use kube::Client;
@@ -8,7 +7,7 @@ use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::CommandResult;
+use crate::{HighlightError, HighlightRequest, commands::CommandResult};
 
 /// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]

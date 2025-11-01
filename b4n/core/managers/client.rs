@@ -1,12 +1,10 @@
-use b4n_kube::{Kind, Namespace};
 use b4n_common::{NotificationSink, StateChangeTracker};
+use b4n_kube::{Kind, Namespace};
+use b4n_tasks::commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
 use std::time::Instant;
 use tracing::warn;
 
-use crate::core::{
-    SharedAppData, SharedBgWorker,
-    commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand},
-};
+use crate::core::{SharedAppData, SharedBgWorker};
 
 const ERROR_DURATION: u16 = 10_000;
 

@@ -1,14 +1,12 @@
+use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ResourceRef, SECRETS};
-use b4n_common::{IconKind, NotificationSink};
+use b4n_tasks::commands::{CommandResult, SetResourceYamlAction};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::{
-    core::{
-        SharedAppData, SharedAppDataExt, SharedBgWorker,
-        commands::{CommandResult, SetResourceYamlAction},
-    },
+    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
         MouseEventKind, ResponseEvent, Responsive, TuiEvent,
         viewers::{ContentViewer, StyleFallback},

@@ -22,6 +22,7 @@ b4n-list = { path = "b4n-list" }
 b4n-tasks = { path = "b4n-tasks" }
 anyhow = { version = "1.0" }
 backon = { version = "1.6" }
+base64 = { version = "0.22" }
 crossterm = { version = "0.28", features = ["event-stream"] }
 futures = { version = "0.3" }
 k8s-openapi = { version = "0.26", features = ["latest"] }
@@ -66,17 +67,13 @@ b4n-list = { workspace = true }
 b4n-tasks = { workspace = true }
 anyhow = { workspace = true }
 arboard = { version = "3.6", default-features = false }
-base64 = { version = "0.22" }
 clap = { version = "4.5", features = ["derive"] }
 crossterm = { workspace = true }
 delegate = { version = "0.13" }
 futures = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
-notify = { workspace = true }
 ratatui = { workspace = true }
-serde = { workspace = true }
-serde_yaml = { workspace = true }
 textwrap = { version = "0.16" }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -84,7 +81,6 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 tui-input = { version = "0.11" }
 tui-term = { version = "0.2" }
-uuid = { workspace = true }
 
 [dev-dependencies]
 rstest = { version = "0.26" }

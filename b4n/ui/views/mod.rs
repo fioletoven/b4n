@@ -1,7 +1,6 @@
+use b4n_tasks::commands::CommandResult;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-
-use crate::core::commands::CommandResult;
 
 use super::{ResponseEvent, TuiEvent};
 

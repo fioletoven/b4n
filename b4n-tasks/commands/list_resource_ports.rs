@@ -4,7 +4,7 @@ use kube::Client;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, verbs};
 
-use crate::core::commands::CommandResult;
+use crate::commands::CommandResult;
 
 /// Command that gets a list of ports for the specified kubernetes resource.
 pub struct ListResourcePortsCommand {

@@ -2,7 +2,7 @@ use b4n_config::Config;
 use std::path::PathBuf;
 use tokio::fs;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 /// Command that lists all available files in the themes directory.
 pub struct ListThemesCommand;

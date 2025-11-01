@@ -1,9 +1,12 @@
 use anyhow::Result;
+use b4n_common::IconKind;
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
-use b4n_common::IconKind;
+use b4n_tasks::commands::{
+    Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
+};
 use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
@@ -11,14 +14,11 @@ use std::rc::Rc;
 use tokio::runtime::Handle;
 
 use crate::{
-    core::{SharedAppDataExt, ViewsManager, commands::ListThemesCommand},
+    core::{SharedAppDataExt, ViewsManager},
     ui::{ResponseEvent, ScopeData, Tui, TuiEvent, views::ResourcesView, widgets::Footer},
 };
 
-use super::{
-    AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker,
-    commands::{Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand},
-};
+use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};
 
 /// Application execution flow.
 #[derive(Clone, Debug, PartialEq)]

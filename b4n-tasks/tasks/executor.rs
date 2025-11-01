@@ -1,11 +1,7 @@
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
-};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
-use crate::core::commands::Command;
-
-use super::{BgTask, TaskResult};
+use crate::{BgTask, TaskResult, commands::Command};
 
 /// Background commands executor.
 pub struct BgExecutor {

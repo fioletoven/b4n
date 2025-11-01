@@ -1,6 +1,5 @@
-use std::{fmt::Display, iter::Sum, ops::Add, str::FromStr};
-
 use k8s_openapi::serde_json::Value;
+use std::{fmt::Display, iter::Sum, ops::Add, str::FromStr};
 
 #[cfg(test)]
 #[path = "./metrics.tests.rs"]

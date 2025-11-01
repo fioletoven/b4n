@@ -6,7 +6,7 @@ use kube::discovery::{ApiCapabilities, verbs};
 use kube::{Api, Client};
 use std::fmt::Display;
 
-use crate::core::commands::CommandResult;
+use crate::commands::CommandResult;
 
 /// Possible errors from applying or patching resource's YAML.
 #[derive(thiserror::Error, Debug)]

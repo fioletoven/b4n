@@ -4,7 +4,7 @@ use b4n_kube::{DiscoveryList, Kind, NAMESPACES, Namespace, PODS, convert_to_vect
 use kube::{Discovery, api::ListParams};
 use thiserror;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 /// Possible errors when creating kubernetes client.
 #[derive(thiserror::Error, Debug)]
