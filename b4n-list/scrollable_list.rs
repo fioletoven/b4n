@@ -161,13 +161,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         true
     }
 
-    /// Process mouse ScrollUp event.
+    /// Process mouse `ScrollUp` event.
     pub fn process_scroll_up(&mut self) {
         self.move_highlighted(-1);
         self.page_start = self.page_start.saturating_sub(1);
     }
 
-    /// Process mouse ScrollDown event.
+    /// Process mouse `ScrollDown` event.
     pub fn process_scroll_down(&mut self) {
         self.move_highlighted(1);
         self.page_start = self.page_start.saturating_add(1);

@@ -50,7 +50,7 @@ impl BgHighlighter {
     /// **Note** that it immediately starts the background thread.
     pub fn new(data: SyntaxData) -> Self {
         let (request_tx, request_rx) = mpsc::unbounded_channel::<HighlightRequest>();
-        let thread = std::thread::spawn(move || highlighter_task(data, request_rx));
+        let thread = std::thread::spawn(move || highlighter_task(&data, request_rx));
 
         Self {
             thread: Some(thread),
@@ -75,7 +75,7 @@ impl Drop for BgHighlighter {
     }
 }
 
-fn highlighter_task(data: SyntaxData, mut rx: UnboundedReceiver<HighlightRequest>) -> Result<(), HighlightError> {
+fn highlighter_task(data: &SyntaxData, mut rx: UnboundedReceiver<HighlightRequest>) -> Result<(), HighlightError> {
     let syntax = data
         .syntax_set
         .find_syntax_by_extension("yaml")

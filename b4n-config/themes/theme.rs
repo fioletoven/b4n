@@ -68,7 +68,7 @@ pub struct ModalColors {
 }
 
 /// Represents colors for selector widget.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SelectColors {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<TextColors>,
@@ -77,6 +77,22 @@ pub struct SelectColors {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<TextColors>,
     pub filter: FilterColors,
+}
+
+impl Default for SelectColors {
+    fn default() -> Self {
+        Self {
+            normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+            normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+            header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+            filter: FilterColors {
+                input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+                prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
+                error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+            },
+            cursor: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+        }
+    }
 }
 
 /// Represents colors for syntax highlighting.
@@ -139,18 +155,6 @@ pub struct Theme {
 impl Default for Theme {
     /// Returns TUI default theme for the application.
     fn default() -> Self {
-        let filter = SelectColors {
-            normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
-            normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
-            header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
-            filter: FilterColors {
-                input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
-                prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
-                error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
-            },
-            cursor: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
-        };
-
         Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
@@ -171,9 +175,9 @@ impl Default for Theme {
                     info: TextColors::bg(Color::LightGreen, Color::DarkGray),
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
                 },
-                filter: filter.clone(),
-                search: filter.clone(),
-                command_palette: filter,
+                filter: SelectColors::default(),
+                search: SelectColors::default(),
+                command_palette: SelectColors::default(),
                 side_select: SelectColors {
                     normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                     normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
@@ -181,7 +185,8 @@ impl Default for Theme {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         ..Default::default()
                     },
-                    ..Default::default()
+                    header: None,
+                    cursor: None,
                 },
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),

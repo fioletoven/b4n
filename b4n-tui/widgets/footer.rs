@@ -65,7 +65,7 @@ impl Footer {
             let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
                 .flex(Flex::Center)
                 .areas(area.inner(Margin::new(2, 0)));
-            frame.render_widget(self.get_message(&message.text, message.is_error, &theme.colors), area);
+            frame.render_widget(Footer::get_message(&message.text, message.is_error, &theme.colors), area);
         }
     }
 
@@ -110,7 +110,7 @@ impl Footer {
     }
 
     /// Returns formatted message to show.
-    fn get_message<'a>(&self, message: &'a str, is_error: bool, colors: &ThemeColors) -> Line<'a> {
+    fn get_message<'a>(message: &'a str, is_error: bool, colors: &ThemeColors) -> Line<'a> {
         Line::styled(message, if is_error { &colors.footer.error } else { &colors.footer.info })
     }
 

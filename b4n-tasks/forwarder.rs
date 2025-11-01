@@ -105,7 +105,7 @@ impl PortForwarder {
         let pods: Api<Pod> = Api::namespaced(client.get_client(), resource.namespace.as_str());
 
         let mut task = PortForwardTask::new(self.runtime.clone(), self.events_tx.clone(), self.footer_tx.clone());
-        task.run(pods, resource, port, address)?;
+        task.run(pods, resource, port, address);
 
         self.tasks.push(task);
 
@@ -196,7 +196,7 @@ impl PortForwardTask {
     }
 
     /// Runs port forward task.
-    fn run(&mut self, pods: Api<Pod>, resource: ResourceRef, port: u16, address: SocketAddr) -> Result<(), PortForwardError> {
+    fn run(&mut self, pods: Api<Pod>, resource: ResourceRef, port: u16, address: SocketAddr) {
         self.bind_address = address.to_string();
         self.port = port;
 
@@ -249,8 +249,6 @@ impl PortForwardTask {
         self.cancellation_token = Some(cancellation_token);
         self.resource = resource;
         self.start_time = Some(Utc::now());
-
-        Ok(())
     }
 
     /// Cancels [`PortForwardTask`] task.

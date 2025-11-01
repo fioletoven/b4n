@@ -80,12 +80,12 @@ impl<Fc: FilterContext> FilterData<Fc> {
     /// **Note** that it clears filter context.
     pub fn set_settings(&mut self, settings: Option<impl Into<String>>) -> bool {
         let new_settings = settings.map(Into::into);
-        if self.settings != new_settings {
+        if self.settings == new_settings {
+            false
+        } else {
             self.settings = new_settings;
             self.context = None;
             true
-        } else {
-            false
         }
     }
 
@@ -98,12 +98,12 @@ impl<Fc: FilterContext> FilterData<Fc> {
     /// **Note** that it clears filter context.
     pub fn set_pattern(&mut self, pattern: Option<impl Into<String>>) -> bool {
         let new_pattern = pattern.map(Into::into);
-        if self.pattern != new_pattern {
+        if self.pattern == new_pattern {
+            false
+        } else {
             self.pattern = new_pattern;
             self.context = None;
             true
-        } else {
-            false
         }
     }
 
