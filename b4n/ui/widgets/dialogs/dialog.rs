@@ -1,5 +1,5 @@
 use b4n_config::themes::TextColors;
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center};
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Style, Stylize};
@@ -7,9 +7,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph};
 use textwrap::Options;
 
-use crate::ui::{Responsive, widgets::CheckBox};
-
-use super::{Button, ControlsGroup};
+use super::{Button, CheckBox, ControlsGroup};
 
 /// UI modal dialog.
 pub struct Dialog {

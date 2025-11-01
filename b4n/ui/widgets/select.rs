@@ -1,11 +1,12 @@
 use b4n_config::{keys::KeyCombination, themes::SelectColors, themes::TextColors};
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::Widget;
 use std::rc::Rc;
 
-use crate::ui::{ResponseEvent, Responsive, Table, TuiEvent, widgets::ErrorHighlightMode};
+use crate::ui::{Table, widgets::ErrorHighlightMode};
 
 use super::Input;
 

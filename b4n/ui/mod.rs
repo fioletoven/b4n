@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_tui::{ResponseEvent, TuiEvent};
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent};
 use std::{collections::HashMap, rc::Rc};
 
 pub mod lists;
@@ -20,12 +20,6 @@ pub enum ViewType {
     /// Render rows with all columns
     #[default]
     Full,
-}
-
-/// UI object that is responsive and can process TUI key/mouse events.
-pub trait Responsive {
-    /// Process UI key or mouse event.
-    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
 }
 
 /// UI object that behaves like table.

@@ -1,10 +1,11 @@
+use b4n_common::truncate;
 use b4n_kube::Port;
 use b4n_list::{BasicFilterContext, Filterable, Row};
-use b4n_common::truncate;
+use b4n_tui::ResponseEvent;
 use kube::config::NamedContext;
 use std::{borrow::Cow, path::PathBuf};
 
-use crate::{kubernetes::kinds::KindItem, ui::ResponseEvent};
+use crate::kubernetes::kinds::KindItem;
 
 #[cfg(test)]
 #[path = "./action.tests.rs"]

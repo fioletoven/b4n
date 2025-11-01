@@ -3,7 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
@@ -13,7 +13,6 @@ use std::rc::Rc;
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
-        Responsive,
         viewers::{Content, ContentViewer, MatchPosition, StyledLine},
         views::View,
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search},

@@ -1,9 +1,8 @@
 use b4n_config::themes::{ControlColors, TextColors};
+use b4n_tui::ResponseEvent;
 use ratatui::layout::{Position, Rect};
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
-
-use crate::ui::ResponseEvent;
 
 /// UI `Button`.
 pub struct Button {

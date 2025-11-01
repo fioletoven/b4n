@@ -1,5 +1,13 @@
 use b4n_kube::{ResourceRef, ResourceRefFilter, Scope};
 
+use crate::TuiEvent;
+
+/// UI object that is responsive and can process TUI key/mouse events.
+pub trait Responsive {
+    /// Process UI key or mouse event.
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
+}
+
 /// Data for [`ResponseEvent::ViewScoped`] event.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScopeData {

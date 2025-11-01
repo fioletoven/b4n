@@ -1,10 +1,9 @@
 use b4n_config::themes::TextColors;
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::{Block, Widget};
 use tui_input::backend::crossterm::EventHandler;
-
-use crate::ui::{ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]

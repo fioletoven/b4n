@@ -4,7 +4,7 @@ use b4n_kube::{
     REPLICA_SETS, ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
-use b4n_tui::{MouseEventKind, ResponseEvent, ScopeData, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent};
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
@@ -16,7 +16,7 @@ use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::resources::{ResourceItem, ResourcesList},
     ui::{
-        Responsive, Table, ViewType,
+        Table, ViewType,
         viewers::{ListHeader, ListViewer},
     },
 };

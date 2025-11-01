@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS};
-use b4n_tui::{MouseEventKind, ResponseEvent, ScopeData, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
@@ -13,7 +13,7 @@ use crate::{
         watchers::SharedStatistics,
     },
     ui::{
-        Responsive, Table, ViewType,
+        Table, ViewType,
         views::resources::NextRefreshActions,
         widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Filter, StepBuilder, ValidatorKind},
     },

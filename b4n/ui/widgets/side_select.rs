@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Style, Stylize};
@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{Responsive, Table},
+    ui::Table,
 };
 
 use super::Select;
