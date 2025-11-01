@@ -1,8 +1,9 @@
 use b4n_config::themes::{ControlColors, TextColors};
-use b4n_tui::ResponseEvent;
 use ratatui::layout::{Margin, Position, Rect};
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
+
+use crate::ResponseEvent;
 
 /// UI `CheckBox`.
 pub struct CheckBox {

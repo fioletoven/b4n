@@ -182,12 +182,10 @@ dependencies = [
  "ratatui",
  "rstest",
  "syntect",
- "textwrap",
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",
- "tui-input",
  "tui-term",
 ]
 
@@ -280,8 +278,10 @@ dependencies = [
  "crossterm",
  "futures",
  "ratatui",
+ "textwrap",
  "tokio",
  "tokio-util",
+ "tui-input",
 ]
 
 [[package]]

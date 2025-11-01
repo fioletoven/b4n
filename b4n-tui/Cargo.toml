@@ -16,5 +16,7 @@ anyhow = { workspace = true }
 crossterm = { workspace = true }
 futures = { workspace = true }
 ratatui = { workspace = true }
+textwrap = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
+tui-input = { workspace = true }

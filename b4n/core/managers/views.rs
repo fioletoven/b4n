@@ -3,6 +3,7 @@ use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
 use b4n_tasks::commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError};
+use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -14,7 +15,7 @@ use crate::{
     ui::{
         Table, ViewType,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Footer, Position, SideSelect},
+        widgets::{Position, SideSelect},
     },
 };
 

@@ -7,6 +7,7 @@ use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
 };
+use b4n_tui::widgets::Footer;
 use b4n_tui::{ResponseEvent, ScopeData, Tui, TuiEvent};
 use kube::discovery::Scope;
 use std::cell::RefCell;
@@ -16,7 +17,7 @@ use tokio::runtime::Handle;
 
 use crate::{
     core::{SharedAppDataExt, ViewsManager},
-    ui::{views::ResourcesView, widgets::Footer},
+    ui::views::ResourcesView,
 };
 
 use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};

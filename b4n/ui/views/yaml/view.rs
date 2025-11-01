@@ -2,6 +2,7 @@ use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{CommandResult, SetResourceYamlAction};
+use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
@@ -11,7 +12,7 @@ use crate::{
     ui::{
         viewers::{ContentViewer, StyleFallback},
         views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, CommandPalette, Dialog, Search},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search},
     },
 };
 

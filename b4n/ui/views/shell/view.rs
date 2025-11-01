@@ -2,6 +2,7 @@ use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
+use b4n_tui::widgets::{Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
@@ -15,11 +16,7 @@ use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{
-        viewers::ContentHeader,
-        views::View,
-        widgets::{Button, Dialog},
-    },
+    ui::{viewers::ContentHeader, views::View},
 };
 
 use super::bridge::ShellBridge;

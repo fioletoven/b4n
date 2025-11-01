@@ -1,6 +1,7 @@
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
+
+use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 use super::{Button, CheckBox};
 

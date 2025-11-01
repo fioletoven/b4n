@@ -8,7 +8,7 @@ use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-const FOOTER_APP_VERSION: &str = concat!(" ", env!("CARGO_CRATE_NAME"), " v", env!("CARGO_PKG_VERSION"), " ");
+const FOOTER_APP_VERSION: &str = concat!(" b4n v", env!("CARGO_PKG_VERSION"), " ");
 
 /// Footer widget.
 pub struct Footer {

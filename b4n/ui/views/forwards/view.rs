@@ -1,6 +1,7 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
+use b4n_tui::widgets::{Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use kube::discovery::Scope;
 use ratatui::Frame;
@@ -13,7 +14,7 @@ use crate::{
         Table, ViewType,
         viewers::{ListHeader, ListViewer},
         views::{PortForwardsList, View},
-        widgets::{ActionItem, ActionsListBuilder, Button, CommandPalette, Dialog, Filter},
+        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter},
     },
 };
 
