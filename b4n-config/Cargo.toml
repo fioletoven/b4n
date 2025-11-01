@@ -1,0 +1,23 @@
+[package]
+name = "b4n-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "./lib.rs"
+
+[dependencies]
+b4n-common = { workspace = true }
+anyhow = { workspace = true }
+crossterm = { workspace = true }
+notify = { workspace = true }
+ratatui = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+syntect = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }

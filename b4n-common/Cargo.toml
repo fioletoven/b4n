@@ -1,0 +1,21 @@
+[package]
+name = "b4n-common"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "./lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+backon = { workspace = true }
+sha1 = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-error = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -1,17 +1,31 @@
-[package]
-name = "b4n"
+[workspace]
+resolver = "3"
+members = [
+    "b4n-common",
+    "b4n-config",
+    "b4n-kube",
+    "b4n-list",
+    "b4n-tasks",
+    "b4n-tui",
+]
+
+[workspace.package]
 version = "0.2.8"
 edition = "2024"
 rust-version = "1.88"
+license = "MIT"
 
-[dependencies]
+[workspace.dependencies]
+b4n-common = { path = "b4n-common" }
+b4n-config = { path = "b4n-config" }
+b4n-kube = { path = "b4n-kube" }
+b4n-list = { path = "b4n-list" }
+b4n-tasks = { path = "b4n-tasks" }
+b4n-tui = { path = "b4n-tui" }
 anyhow = { version = "1.0" }
-arboard = { version = "3.6", default-features = false }
-backoff = { version = "0.4" }
+backon = { version = "1.6" }
 base64 = { version = "0.22" }
-clap = { version = "4.5", features = ["derive"] }
 crossterm = { version = "0.28", features = ["event-stream"] }
-delegate = { version = "0.13" }
 futures = { version = "0.3" }
 k8s-openapi = { version = "0.26", features = ["latest"] }
 kube = { version = "2.0", features = ["client", "derive", "runtime", "ws"] }
@@ -36,14 +50,46 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
 ] }
 tui-input = { version = "0.11" }
-tui-term = { version = "0.2" }
 uuid = { version = "1", features = ["v4"] }
+
+[[bin]]
+name = "b4n"
+path = "./b4n/main.rs"
+
+[package]
+name = "b4n"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+b4n-common = { workspace = true }
+b4n-config = { workspace = true }
+b4n-kube = { workspace = true }
+b4n-list = { workspace = true }
+b4n-tasks = { workspace = true }
+b4n-tui = { workspace = true }
+anyhow = { workspace = true }
+arboard = { version = "3.6", default-features = false }
+clap = { version = "4.5", features = ["derive"] }
+crossterm = { workspace = true }
+delegate = { version = "0.13" }
+futures = { workspace = true }
+k8s-openapi = { workspace = true }
+kube = { workspace = true }
+ratatui = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tui-term = { version = "0.2" }
 
 [dev-dependencies]
 rstest = { version = "0.26" }
 
 [build-dependencies]
-syntect = { version = "5.2" }
+syntect = { workspace = true }
 
 [profile.release]
 codegen-units = 1 # Reduce number of codegen units to increase optimizations
