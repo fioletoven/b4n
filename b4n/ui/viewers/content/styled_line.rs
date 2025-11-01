@@ -1,8 +1,6 @@
 use b4n_common::truncate_left;
-use ratatui::{
-    style::Style,
-    text::{Line, Span},
-};
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
 
 pub type StyledLine = Vec<(Style, String)>;
 

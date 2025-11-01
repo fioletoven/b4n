@@ -1,7 +1,8 @@
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::ui::{ResponseEvent, TuiEvent, lists::Header};
+use crate::ui::lists::Header;
 
 /// Extension trait for [`ScrollableList`].
 pub trait ScrollableListExt {
@@ -21,8 +22,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableListExt for Scrollabl
             },
             TuiEvent::Mouse(mouse) => {
                 match mouse.kind {
-                    crate::ui::MouseEventKind::ScrollDown => self.process_scroll_down(),
-                    crate::ui::MouseEventKind::ScrollUp => self.process_scroll_up(),
+                    MouseEventKind::ScrollDown => self.process_scroll_down(),
+                    MouseEventKind::ScrollUp => self.process_scroll_up(),
                     _ => return ResponseEvent::NotHandled,
                 }
                 ResponseEvent::Handled

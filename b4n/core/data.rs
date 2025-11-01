@@ -2,10 +2,11 @@ use arboard::Clipboard;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
+use b4n_tui::TuiEvent;
 use kube::discovery::Scope;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
-use crate::{kubernetes::kinds::KindItem, ui::TuiEvent};
+use crate::kubernetes::kinds::KindItem;
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 

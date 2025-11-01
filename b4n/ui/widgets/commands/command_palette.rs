@@ -1,5 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};
@@ -8,8 +9,7 @@ use ratatui::widgets::{Block, Clear, Paragraph};
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     ui::{
-        MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent,
-        utils::center_horizontal,
+        Responsive, Table,
         widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind},
     },
 };

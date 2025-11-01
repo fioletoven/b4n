@@ -1,18 +1,17 @@
 use b4n_config::keys::KeyCombination;
 use b4n_kube::{Kind, Namespace};
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Margin, Position, Rect},
-    style::Color,
-    text::Line,
-    widgets::{Block, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::style::Color;
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, viewers::StyledLineExt},
+    ui::viewers::StyledLineExt,
 };
 
 use super::{

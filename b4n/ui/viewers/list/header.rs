@@ -1,9 +1,7 @@
 use kube::discovery::Scope;
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    text::{Line, Span},
-    widgets::Paragraph,
-};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 
 use crate::{
     core::SharedAppData,

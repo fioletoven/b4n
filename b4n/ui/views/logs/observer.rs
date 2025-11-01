@@ -1,19 +1,14 @@
 use b4n_kube::PodRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
-use k8s_openapi::{
-    api::core::v1::Pod,
-    chrono::{DateTime, Utc},
-};
+use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::chrono::{DateTime, Utc};
 use kube::{Api, api::LogParams};
 use std::time::Duration;
-use thiserror;
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-    time::sleep,
-};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 /// Possible errors from [`LogsObserver`].

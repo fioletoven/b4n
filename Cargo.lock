@@ -172,6 +172,7 @@ dependencies = [
  "b4n-kube",
  "b4n-list",
  "b4n-tasks",
+ "b4n-tui",
  "clap",
  "crossterm",
  "delegate",
@@ -266,6 +267,21 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "b4n-tui"
+version = "0.2.8"
+dependencies = [
+ "anyhow",
+ "b4n-common",
+ "b4n-config",
+ "b4n-kube",
+ "crossterm",
+ "futures",
+ "ratatui",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]

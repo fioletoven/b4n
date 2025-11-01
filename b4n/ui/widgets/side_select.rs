@@ -1,16 +1,15 @@
 use b4n_config::keys::KeyCommand;
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::KeyModifiers;
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
-    symbols::border,
-    widgets::{Block, Borders, Clear, Paragraph},
-};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Style, Stylize};
+use ratatui::symbols::border;
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent},
+    ui::{Responsive, Table},
 };
 
 use super::Select;

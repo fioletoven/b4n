@@ -1,0 +1,20 @@
+[package]
+name = "b4n-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "./lib.rs"
+
+[dependencies]
+b4n-common = { workspace = true }
+b4n-config = { workspace = true }
+b4n-kube = { workspace = true }
+anyhow = { workspace = true }
+crossterm = { workspace = true }
+futures = { workspace = true }
+ratatui = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }

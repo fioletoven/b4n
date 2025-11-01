@@ -1,4 +1,5 @@
 use b4n_config::{keys::KeyCommand, themes::TextColors};
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Style, Stylize};
@@ -8,7 +9,7 @@ use std::time::Instant;
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
-    ui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, ViewType, utils::center},
+    ui::{Responsive, Table, ViewType},
 };
 
 const ERROR_DISPLAY_DELAY_MS: u128 = 600;

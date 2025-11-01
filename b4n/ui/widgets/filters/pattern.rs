@@ -1,9 +1,7 @@
 use b4n_common::{add_padding, truncate};
 use b4n_list::{BasicFilterContext, Filterable, Row};
-use std::{
-    borrow::Cow,
-    time::{Duration, SystemTime},
-};
+use std::borrow::Cow;
+use std::time::{Duration, SystemTime};
 
 /// Filter pattern item.
 pub struct PatternItem {

@@ -1,8 +1,6 @@
-use ratatui::{
-    layout::{Position, Rect},
-    style::Color,
-    widgets::Widget,
-};
+use ratatui::layout::{Position, Rect};
+use ratatui::style::Color;
+use ratatui::widgets::Widget;
 
 #[derive(Default)]
 pub struct SearchData {

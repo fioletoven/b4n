@@ -1,16 +1,10 @@
 use anyhow::Result;
 use crossterm::cursor::SetCursorStyle;
-use ratatui::{
-    crossterm::{
-        ExecutableCommand,
-        terminal::{LeaveAlternateScreen, disable_raw_mode},
-    },
-    layout::{Constraint, Direction, Flex, Layout, Rect},
-};
-use std::{
-    io::stdout,
-    panic::{set_hook, take_hook},
-};
+use ratatui::crossterm::ExecutableCommand;
+use ratatui::crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
+use std::io::stdout;
+use std::panic::{set_hook, take_hook};
 
 /// Centers a [`Rect`] within another [`Rect`] using the provided [`Constraint`]s.
 pub fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {

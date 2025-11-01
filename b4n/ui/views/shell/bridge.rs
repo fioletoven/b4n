@@ -1,20 +1,14 @@
 use b4n_kube::PodRef;
 use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
-use kube::{
-    Api, Client,
-    api::{AttachParams, TerminalSize},
-};
-use std::sync::{
-    Arc, RwLock,
-    atomic::{AtomicBool, Ordering},
-};
-use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    runtime::Handle,
-    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
-    task::JoinHandle,
-};
+use kube::api::{AttachParams, TerminalSize};
+use kube::{Api, Client};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 use tui_term::vt100::{self};

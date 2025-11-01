@@ -9,7 +9,7 @@ mod search;
 mod styled_line;
 mod viewer;
 
-use crate::ui::ResponseEvent;
+use b4n_tui::ResponseEvent;
 
 /// Content for the [`ContentViewer`].
 pub trait Content {

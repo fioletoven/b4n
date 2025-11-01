@@ -1,25 +1,22 @@
+use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
-use b4n_common::NotificationSink;
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-};
-use std::{
-    rc::Rc,
-    sync::{Arc, RwLock},
-    time::Instant,
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
+use std::time::Instant;
 use tokio::runtime::Handle;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt},
     ui::{
-        MouseEventKind, ResponseEvent, Responsive, TuiEvent,
+        Responsive,
         viewers::ContentHeader,
         views::View,
         widgets::{Button, Dialog},

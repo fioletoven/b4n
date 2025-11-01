@@ -1,15 +1,11 @@
 use b4n_config::themes::{TextColors, Theme};
+use b4n_tui::{ResponseEvent, TuiEvent};
 use std::{collections::HashMap, rc::Rc};
 
-pub use self::tui::*;
-
 pub mod lists;
-pub mod utils;
 pub mod viewers;
 pub mod views;
 pub mod widgets;
-
-mod tui;
 
 /// Indicates which columns in the list should be displayed.
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
