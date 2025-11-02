@@ -1,6 +1,7 @@
 use b4n_common::NotificationSink;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::resources::CrdColumns;
+use b4n_kube::crds::{CrdColumns, SharedCrdsList};
+use b4n_kube::stats::{Metrics, PodStats, SharedStatistics, Statistics};
 use b4n_kube::{BgObserver, BgObserverError, InitData, Kind, Namespace, ObserverResult, PODS, ResourceRef};
 use delegate::delegate;
 use k8s_openapi::serde_json::Value;
@@ -9,14 +10,7 @@ use kube::discovery::{ApiCapabilities, Scope};
 use std::collections::VecDeque;
 use tokio::runtime::Handle;
 
-use crate::{
-    core::SharedCrdsList,
-    kubernetes::{
-        metrics::Metrics,
-        resources::ResourceItem,
-        watchers::{PodStats, SharedStatistics, Statistics},
-    },
-};
+use crate::kubernetes::resources::ResourceItem;
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
 pub struct ResourceObserver {

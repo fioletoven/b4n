@@ -1,5 +1,5 @@
 use b4n_common::truncate;
-use b4n_kube::resources::CrdColumn;
+use b4n_kube::crds::CrdColumn;
 use std::{borrow::Cow, cmp::max};
 
 #[cfg(test)]

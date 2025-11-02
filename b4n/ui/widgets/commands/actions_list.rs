@@ -8,7 +8,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     kubernetes::kinds::KindItem,
-    ui::{Table, ViewType, lists::ScrollableListExt, widgets::ActionItem},
+    ui::{Table, ViewType, widgets::ActionItem},
 };
 
 /// UI actions list.

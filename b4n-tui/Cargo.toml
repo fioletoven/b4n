@@ -12,6 +12,7 @@ path = "./lib.rs"
 b4n-common = { workspace = true }
 b4n-config = { workspace = true }
 b4n-kube = { workspace = true }
+b4n-list = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
 futures = { workspace = true }

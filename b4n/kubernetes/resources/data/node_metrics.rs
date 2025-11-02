@@ -1,13 +1,9 @@
+use b4n_kube::stats::{CpuMetrics, MemoryMetrics};
+use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::{rc::Rc, str::FromStr};
 
-use crate::{
-    kubernetes::{
-        metrics::{CpuMetrics, MemoryMetrics},
-        resources::{ResourceData, ResourceValue},
-    },
-    ui::lists::{Column, Header, NAMESPACE},
-};
+use crate::kubernetes::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `nodemetrics` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

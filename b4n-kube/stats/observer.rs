@@ -1,14 +1,14 @@
 use b4n_common::NotificationSink;
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::utils::get_resource;
-use b4n_kube::{BgObserver, DiscoveryList, Kind, NODES, ObserverResult, PODS};
 use kube::{ResourceExt, api::DynamicObject};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::kubernetes::metrics::Metrics;
+use crate::client::KubernetesClient;
+use crate::stats::Metrics;
+use crate::utils::get_resource;
+use crate::{BgObserver, DiscoveryList, Kind, NODES, ObserverResult, PODS};
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 

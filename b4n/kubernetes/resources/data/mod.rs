@@ -1,18 +1,12 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::resources::CrdColumns;
+use b4n_kube::crds::CrdColumns;
+use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
+use b4n_tui::table::Header;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{Value, from_value};
 use kube::api::DynamicObject;
 use std::borrow::Cow;
-
-use crate::{
-    kubernetes::{
-        metrics::{CpuMetrics, MemoryMetrics},
-        watchers::Statistics,
-    },
-    ui::lists::Header,
-};
 
 pub mod config_map;
 pub mod container;

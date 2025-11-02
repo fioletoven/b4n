@@ -228,6 +228,7 @@ name = "b4n-kube"
 version = "0.2.8"
 dependencies = [
  "b4n-common",
+ "delegate",
  "futures",
  "k8s-openapi",
  "kube",
@@ -275,6 +276,7 @@ dependencies = [
  "b4n-common",
  "b4n-config",
  "b4n-kube",
+ "b4n-list",
  "crossterm",
  "futures",
  "ratatui",

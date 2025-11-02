@@ -1,26 +1,10 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_tui::{ResponseEvent, Responsive, TuiEvent};
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::ViewType};
 use std::{collections::HashMap, rc::Rc};
 
-pub mod lists;
 pub mod viewers;
 pub mod views;
 pub mod widgets;
-
-/// Indicates which columns in the list should be displayed.
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
-pub enum ViewType {
-    /// Render rows with just the `name` column
-    Name,
-
-    /// Render rows without grouping column
-    /// _for k8s resource all columns except the `namespace` column_
-    Compact,
-
-    /// Render rows with all columns
-    #[default]
-    Full,
-}
 
 /// UI object that behaves like table.
 pub trait Table: Responsive {

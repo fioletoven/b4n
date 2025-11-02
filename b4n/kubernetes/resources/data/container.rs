@@ -1,13 +1,9 @@
+use b4n_kube::stats::Metrics;
+use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
 use std::rc::Rc;
 
-use crate::{
-    kubernetes::{
-        metrics::Metrics,
-        resources::{ResourceData, ResourceValue},
-    },
-    ui::lists::{Column, Header, NAMESPACE},
-};
+use crate::kubernetes::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(

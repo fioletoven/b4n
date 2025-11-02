@@ -1,7 +1,5 @@
 use std::vec;
 
-use crate::ui::lists::NAMESPACE;
-
 use super::*;
 
 #[test]

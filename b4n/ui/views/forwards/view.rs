@@ -2,7 +2,7 @@ use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
 use b4n_tui::widgets::{Button, Dialog};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::ViewType};
 use kube::discovery::Scope;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -11,7 +11,7 @@ use std::rc::Rc;
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     ui::{
-        Table, ViewType,
+        Table,
         viewers::{ListHeader, ListViewer},
         views::{PortForwardsList, View},
         widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter},

@@ -1,10 +1,9 @@
+use b4n_list::Item;
+use b4n_tui::table::{Column, ItemExt, NAMESPACE, ViewType};
+use rstest::rstest;
 use std::rc::Rc;
 
-use crate::{
-    kubernetes::resources::{ResourceData, ResourceItem},
-    ui::lists::{Column, NAMESPACE},
-};
-use rstest::rstest;
+use crate::kubernetes::resources::{ResourceData, ResourceItem};
 
 use super::*;
 

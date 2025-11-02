@@ -1,11 +1,9 @@
+use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Map;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
-    ui::lists::{Column, Header, NAMESPACE},
-};
+use crate::kubernetes::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `configmap` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

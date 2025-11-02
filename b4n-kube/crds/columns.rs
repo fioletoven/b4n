@@ -1,6 +1,9 @@
 use k8s_openapi::serde_json::Value;
+use std::{cell::RefCell, rc::Rc};
 
 const DEFAULT_PATHS: [&str; 3] = [".metadata.name", ".metadata.namespace", ".metadata.creationTimestamp"];
+
+pub type SharedCrdsList = Rc<RefCell<Vec<CrdColumns>>>;
 
 /// Holds data about custom columns defined in CRD resource.
 #[derive(Debug, Clone)]

@@ -1,14 +1,7 @@
 use b4n_common::truncate;
 use b4n_list::{FilterContext, Filterable, Item, Row};
 
-use crate::ui::{
-    ViewType,
-    lists::{AGE_COLUMN_WIDTH, Header},
-};
-
-#[cfg(test)]
-#[path = "./item.tests.rs"]
-mod item_tests;
+use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType};
 
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
