@@ -74,7 +74,6 @@ impl Row for PatternItem {
 
     fn column_text(&self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(match column {
-            0 => "n/a",
             1 => &self.value,
             _ => "n/a",
         })
@@ -82,7 +81,6 @@ impl Row for PatternItem {
 
     fn column_sort_text(&self, column: usize) -> &str {
         match column {
-            0 => "n/a",
             1 => &self.value,
             _ => "n/a",
         }

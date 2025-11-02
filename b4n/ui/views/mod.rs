@@ -5,7 +5,7 @@ use ratatui::layout::Rect;
 
 pub use self::forwards::{ForwardsView, PortForwardItem, PortForwardsList};
 pub use self::logs::LogsView;
-pub use self::resources::{NextRefreshActions, ResourcesView};
+pub use self::resources::ResourcesView;
 pub use self::shell::ShellView;
 pub use self::yaml::YamlView;
 

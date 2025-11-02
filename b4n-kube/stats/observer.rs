@@ -82,7 +82,7 @@ impl Statistics {
         self.data.values().map(|n| n.pods.len()).sum()
     }
 
-    /// Returns nuber of containers in the Kubernetes cluster.
+    /// Returns number of containers in the Kubernetes cluster.
     pub fn all_containers_count(&self) -> usize {
         self.data
             .values()

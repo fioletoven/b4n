@@ -109,10 +109,10 @@ impl Filter {
 
         if let Err(error) = validate(self.patterns.value()) {
             match error {
-                ParserError::ExpectedOperator(index) => self.patterns.set_error(Some(index)),
-                ParserError::UnexpectedOperator(index) => self.patterns.set_error(Some(index)),
-                ParserError::ExpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
-                ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
+                ParserError::ExpectedOperator(index)
+                | ParserError::UnexpectedOperator(index)
+                | ParserError::ExpectedClosingBracket(index)
+                | ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
             }
         } else {
             self.patterns.set_error(None);
