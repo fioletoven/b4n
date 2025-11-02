@@ -11,7 +11,7 @@ fn main() {
 
     if !output_file.exists() {
         let mut builder = SyntaxSetBuilder::new();
-        builder.add_from_folder(&assets_dir, true).unwrap();
+        builder.add_from_folder(&assets_dir, false).unwrap();
         let ss = builder.build();
         dump_to_uncompressed_file(&ss, output_file).unwrap();
     }
