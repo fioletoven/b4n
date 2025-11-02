@@ -1,16 +1,25 @@
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::ui::lists::Header;
+use crate::grid::Header;
+use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
-/// Extension trait for [`ScrollableList`].
-pub trait ScrollableListExt {
-    /// Processes a [`TuiEvent`] to move the highlight across list items.
-    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
+/// Indicates which columns in the list should be displayed.
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
+pub enum ViewType {
+    /// Render rows with just the `name` column
+    Name,
+
+    /// Render rows without grouping column
+    /// _for k8s resource all columns except the `namespace` column_
+    Compact,
+
+    /// Render rows with all columns
+    #[default]
+    Full,
 }
 
-impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableListExt for ScrollableList<T, Fc> {
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for ScrollableList<T, Fc> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         match event {
             TuiEvent::Key(key) => {
@@ -47,6 +56,31 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> 
     }
 }
 
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, Fc> {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if let TuiEvent::Key(key) = event
+            && key.modifiers == KeyModifiers::ALT
+            && key.code != KeyCode::Char(' ')
+            && let KeyCode::Char(code) = key.code
+        {
+            if code.is_numeric() {
+                let sort_by = code.to_digit(10).unwrap() as usize;
+                self.toggle_sort(sort_by);
+                return ResponseEvent::Handled;
+            }
+
+            let sort_symbols = self.header.get_sort_symbols();
+            let uppercase = code.to_ascii_uppercase();
+            if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
+                self.toggle_sort(sort_by);
+                return ResponseEvent::Handled;
+            }
+        }
+
+        self.list.process_event(event)
+    }
+}
+
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     /// Updates max widths for all columns basing on current data in the list.
     pub fn update_data_lengths(&mut self) {
@@ -68,30 +102,6 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         }
 
         self.header.recalculate_extra_columns();
-    }
-
-    /// Process UI key or mouse event.
-    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if let TuiEvent::Key(key) = event
-            && key.modifiers == KeyModifiers::ALT
-            && key.code != KeyCode::Char(' ')
-            && let KeyCode::Char(code) = key.code
-        {
-            if code.is_numeric() {
-                let sort_by = code.to_digit(10).unwrap() as usize;
-                self.toggle_sort(sort_by);
-                return ResponseEvent::Handled;
-            }
-
-            let sort_symbols = self.header.get_sort_symbols();
-            let uppercase = code.to_ascii_uppercase();
-            if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
-                self.toggle_sort(sort_by);
-                return ResponseEvent::Handled;
-            }
-        }
-
-        self.list.process_event(event)
     }
 
     /// Sorts the list.

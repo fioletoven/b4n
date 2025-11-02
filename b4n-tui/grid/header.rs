@@ -1,12 +1,7 @@
 use b4n_common::try_truncate;
 use std::rc::Rc;
 
-use crate::ui::{
-    ViewType,
-    lists::{ColumnStringExt, NAMESPACE},
-};
-
-use super::{AGE, Column, NAME};
+use crate::grid::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]

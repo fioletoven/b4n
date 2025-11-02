@@ -1,21 +1,22 @@
 use b4n_common::expr::{Expression, ExpressionExt, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::stats::{Metrics, Statistics};
 use b4n_kube::{Kind, Namespace};
-use b4n_kube::{resources::CrdColumns, utils::get_object_uid};
+use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
+use b4n_tui::grid::Header;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::Value;
 use kube::ResourceExt;
 use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use crate::{
-    kubernetes::{metrics::Metrics, watchers::Statistics},
-    ui::lists::Header,
-};
-
 use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
+
+#[cfg(test)]
+#[path = "./resource.tests.rs"]
+mod resource_tests;
 
 /// Represents involved object of the resource.
 pub struct InvolvedObject {

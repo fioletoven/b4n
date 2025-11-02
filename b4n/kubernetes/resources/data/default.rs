@@ -1,10 +1,8 @@
+use b4n_tui::grid::{Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::{
-    kubernetes::resources::ResourceData,
-    ui::lists::{Header, NAMESPACE},
-};
+use crate::kubernetes::resources::ResourceData;
 
 /// Returns [`ResourceData`] for any kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

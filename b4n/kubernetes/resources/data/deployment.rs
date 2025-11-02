@@ -1,11 +1,9 @@
 use b4n_kube::utils::get_match_labels;
+use b4n_tui::grid::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::{
-    kubernetes::resources::{ResourceData, ResourceValue},
-    ui::lists::{Column, Header, NAMESPACE},
-};
+use crate::kubernetes::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `deployment` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

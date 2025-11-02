@@ -7,11 +7,23 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
 use crate::themes::{TextColors, Theme};
-use crate::{ConfigError, ConfigWatcher, Persistable, keys::KeyBindings};
+use crate::{ConfigWatcher, Persistable, keys::KeyBindings};
 
 pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_THEME_NAME: &str = "default";
+
+/// Possible errors from configuration files manipulation.
+#[derive(thiserror::Error, Debug)]
+pub enum ConfigError {
+    /// Cannot read/write configuration file.
+    #[error("cannot read/write configuration file")]
+    IoError(#[from] std::io::Error),
+
+    /// Cannot serialize/deserialize configuration.
+    #[error("cannot serialize/deserialize configuration")]
+    SerializationError(#[from] serde_yaml::Error),
+}
 
 /// Kubernetes logs configuration.
 #[derive(Serialize, Deserialize, Clone)]

@@ -8,7 +8,8 @@ pub use self::observer::{BgObserver, BgObserverError, InitData, ObserverResult};
 pub use kube::discovery::Scope;
 
 pub mod client;
-pub mod resources;
+pub mod crds;
+pub mod stats;
 pub mod utils;
 
 mod core;

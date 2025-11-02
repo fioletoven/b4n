@@ -10,6 +10,7 @@ path = "./lib.rs"
 
 [dependencies]
 b4n-common = { workspace = true }
+delegate = { workspace = true }
 futures = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }

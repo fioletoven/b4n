@@ -17,14 +17,14 @@ pub struct Footer {
     message_received_time: Instant,
     icons: Vec<Icon>,
     icons_rx: UnboundedReceiver<IconAction>,
-    footer_tx: NotificationSink,
+    notifications_tx: NotificationSink,
 }
 
 impl Default for Footer {
     fn default() -> Self {
         let (messages_tx, messages_rx) = mpsc::unbounded_channel();
         let (icons_tx, icons_rx) = mpsc::unbounded_channel();
-        let footer_tx = NotificationSink::new(messages_tx, icons_tx);
+        let notifications_tx = NotificationSink::new(messages_tx, icons_tx);
 
         Footer {
             message: None,
@@ -32,18 +32,18 @@ impl Default for Footer {
             message_received_time: Instant::now(),
             icons: Vec::new(),
             icons_rx,
-            footer_tx,
+            notifications_tx,
         }
     }
 }
 
 impl Footer {
     pub fn transmitter(&self) -> &NotificationSink {
-        &self.footer_tx
+        &self.notifications_tx
     }
 
     pub fn get_transmitter(&self) -> NotificationSink {
-        self.footer_tx.clone()
+        self.notifications_tx.clone()
     }
 
     /// Returns layout that can be used to draw [`Footer`].\

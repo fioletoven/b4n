@@ -19,7 +19,7 @@ use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::client::KubernetesClient;
-use crate::resources::CrdColumns;
+use crate::crds::CrdColumns;
 use crate::utils::get_object_uid;
 use crate::{CONTAINERS, Kind, ResourceRef};
 

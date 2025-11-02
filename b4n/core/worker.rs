@@ -2,7 +2,8 @@ use anyhow::Result;
 use b4n_common::NotificationSink;
 use b4n_config::{Config, History, SyntaxData};
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::resources::CrdColumns;
+use b4n_kube::crds::{CrdObserver, SharedCrdsList};
+use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
@@ -18,13 +19,12 @@ use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 use crate::{
     kubernetes::{
         kinds::{KindItem, KindsList},
-        watchers::{BgStatistics, CrdObserver, ResourceObserver},
+        watchers::ResourceObserver,
     },
     ui::views::PortForwardItem,
 };
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;
-pub type SharedCrdsList = Rc<RefCell<Vec<CrdColumns>>>;
 
 /// Possible errors from [`BgWorkerError`].
 #[derive(thiserror::Error, Debug)]

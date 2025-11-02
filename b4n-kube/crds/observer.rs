@@ -1,12 +1,13 @@
 use b4n_common::NotificationSink;
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::resources::CrdColumns;
-use b4n_kube::{BgObserver, BgObserverError, CRDS, Kind, Namespace, ObserverResult, ResourceRef};
 use delegate::delegate;
 use kube::ResourceExt;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, Scope};
 use tokio::runtime::Handle;
+
+use crate::client::KubernetesClient;
+use crate::crds::CrdColumns;
+use crate::{BgObserver, BgObserverError, CRDS, Kind, Namespace, ObserverResult, ResourceRef};
 
 /// Custom resource definitions observer.
 pub struct CrdObserver {

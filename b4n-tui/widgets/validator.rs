@@ -28,7 +28,7 @@ impl InputValidator {
         match self.kind {
             ValidatorKind::Number(min, max) => self.validate_number(input, min, max),
             ValidatorKind::IpAddr => self.validate_ip_address(input),
-            _ => Ok(()),
+            ValidatorKind::None => Ok(()),
         }
     }
 

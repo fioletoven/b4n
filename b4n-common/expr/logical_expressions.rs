@@ -49,11 +49,11 @@ pub enum Operator {
 /// **Note** that an expression can be also represented as the end, single value.
 #[derive(Default, Debug)]
 pub struct Expression {
-    pub lhs: Option<Box<Expression>>,
-    pub rhs: Option<Box<Expression>>,
-    pub op: Operator,
-    pub is_negation: bool,
-    pub value: Option<String>,
+    lhs: Option<Box<Expression>>,
+    rhs: Option<Box<Expression>>,
+    op: Operator,
+    is_negation: bool,
+    value: Option<String>,
 }
 
 impl Expression {
@@ -310,9 +310,9 @@ fn push_value<'a>(tokens: &mut Vec<Token<'a>>, value: &'a str) {
 
 /// Holds currently processed [`Expression`] together with evaluated values for `lhs` and `rhs`.
 struct CurrentExpression<'a> {
-    pub expression: &'a Expression,
-    pub lhs: Option<bool>,
-    pub rhs: Option<bool>,
+    expression: &'a Expression,
+    lhs: Option<bool>,
+    rhs: Option<bool>,
 }
 
 impl<'a> CurrentExpression<'a> {

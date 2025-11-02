@@ -2,17 +2,12 @@ use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{FilterableList, Item, Row};
-use b4n_tui::{ResponseEvent, Responsive, TuiEvent};
+use b4n_tui::grid::{ItemExt, TabularList, ViewType};
+use b4n_tui::{ResponseEvent, Responsive, Table, TuiEvent};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
-use crate::{
-    kubernetes::resources::{ResourceFilterContext, ResourceItem},
-    ui::{
-        Table, ViewType,
-        lists::{ItemExt, TabularList},
-    },
-};
+use crate::kubernetes::resources::{ResourceFilterContext, ResourceItem};
 
 /// Kubernetes resources list.
 #[derive(Default)]

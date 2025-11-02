@@ -1,6 +1,6 @@
 use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center_horizontal};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
@@ -8,7 +8,7 @@ use ratatui::widgets::{Block, Clear};
 
 use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{Table, widgets::Select},
+    ui::widgets::Select,
 };
 
 use super::PatternsList;
@@ -109,10 +109,10 @@ impl Filter {
 
         if let Err(error) = validate(self.patterns.value()) {
             match error {
-                ParserError::ExpectedOperator(index) => self.patterns.set_error(Some(index)),
-                ParserError::UnexpectedOperator(index) => self.patterns.set_error(Some(index)),
-                ParserError::ExpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
-                ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
+                ParserError::ExpectedOperator(index)
+                | ParserError::UnexpectedOperator(index)
+                | ParserError::ExpectedClosingBracket(index)
+                | ParserError::UnexpectedClosingBracket(index) => self.patterns.set_error(Some(index)),
             }
         } else {
             self.patterns.set_error(None);
