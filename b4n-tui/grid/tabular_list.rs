@@ -1,7 +1,7 @@
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::table::Header;
+use crate::grid::Header;
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates which columns in the list should be displayed.

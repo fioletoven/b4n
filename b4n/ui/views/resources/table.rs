@@ -4,7 +4,7 @@ use b4n_kube::{
     REPLICA_SETS, ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, Table, TuiEvent, grid::ViewType};
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;
@@ -15,10 +15,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
     kubernetes::resources::{ResourceItem, ResourcesList},
-    ui::{
-        Table,
-        viewers::{ListHeader, ListViewer},
-    },
+    ui::viewers::{ListHeader, ListViewer},
 };
 
 /// Actions to perform on the next table refresh.

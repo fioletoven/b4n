@@ -1,7 +1,7 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::crds::CrdColumns;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
-use b4n_tui::table::Header;
+use b4n_tui::grid::Header;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{Value, from_value};

@@ -5,7 +5,7 @@ use b4n_kube::stats::{Metrics, Statistics};
 use b4n_kube::{Kind, Namespace};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
-use b4n_tui::table::Header;
+use b4n_tui::grid::Header;
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::Value;
 use kube::ResourceExt;

@@ -1,7 +1,7 @@
 use b4n_common::try_truncate;
 use std::rc::Rc;
 
-use crate::table::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
+use crate::grid::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]

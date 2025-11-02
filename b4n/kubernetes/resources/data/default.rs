@@ -1,4 +1,4 @@
-use b4n_tui::table::{Header, NAMESPACE};
+use b4n_tui::grid::{Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 

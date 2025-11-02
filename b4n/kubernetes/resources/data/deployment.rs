@@ -1,5 +1,5 @@
 use b4n_kube::utils::get_match_labels;
-use b4n_tui::table::{Column, Header, NAMESPACE};
+use b4n_tui::grid::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 

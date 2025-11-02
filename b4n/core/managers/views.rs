@@ -4,7 +4,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
 use b4n_tasks::commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError};
 use b4n_tui::widgets::Footer;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, grid::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
@@ -13,7 +13,6 @@ use crate::{
     core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
     kubernetes::{kinds::KindsList, resources::ResourcesList},
     ui::{
-        Table,
         views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
         widgets::{Position, SideSelect},
     },

@@ -1,5 +1,5 @@
 use b4n_list::Item;
-use b4n_tui::table::{Column, ItemExt, NAMESPACE, ViewType};
+use b4n_tui::grid::{Column, ItemExt, NAMESPACE, ViewType};
 use rstest::rstest;
 use std::rc::Rc;
 

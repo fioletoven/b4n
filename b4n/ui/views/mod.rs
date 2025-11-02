@@ -1,8 +1,7 @@
 use b4n_tasks::commands::CommandResult;
+use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-
-use super::{ResponseEvent, TuiEvent};
 
 pub use self::forwards::{ForwardsView, PortForwardItem, PortForwardsList};
 pub use self::logs::LogsView;
