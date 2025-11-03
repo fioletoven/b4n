@@ -12,11 +12,9 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
-use crate::{
-    core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt},
-    kubernetes::resources::{ResourceItem, ResourcesList},
-    ui::viewers::{ListHeader, ListViewer},
-};
+use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
+use crate::kubernetes::resources::{ResourceItem, ResourcesList};
+use crate::ui::viewers::{ListHeader, ListViewer};
 
 /// Actions to perform on the next table refresh.
 #[derive(Default)]
@@ -154,6 +152,14 @@ impl ResourcesTable {
             &self.list.table.data.group,
             &self.list.table.data.version,
         )
+    }
+
+    pub fn get_kind_for_selector(&self) -> Kind {
+        if self.list.table.data.resource.is_container() {
+            PODS.into()
+        } else {
+            self.get_kind()
+        }
     }
 
     /// Returns [`ResourceRef`] for currently highlighted item.

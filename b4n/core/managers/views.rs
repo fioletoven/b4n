@@ -9,14 +9,10 @@ use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    kubernetes::{kinds::KindsList, resources::ResourcesList},
-    ui::{
-        views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView},
-        widgets::{Position, SideSelect},
-    },
-};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kubernetes::{kinds::KindsList, resources::ResourcesList};
+use crate::ui::views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
+use crate::ui::widgets::{Position, SideSelect};
 
 pub struct ViewsManager {
     app_data: SharedAppData,
@@ -45,7 +41,7 @@ impl ViewsManager {
             KindsList::default(),
             Position::Right,
             ResponseEvent::ChangeKind,
-            35,
+            40,
         );
 
         Self {
@@ -65,7 +61,7 @@ impl ViewsManager {
         self.footer.transmitter()
     }
 
-    /// Updates page lists with observed resources.
+    /// Updates all lists with observed resources.
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
 
@@ -178,7 +174,8 @@ impl ViewsManager {
                 || event.is_in(MouseEventKind::RightClick, self.areas[2]))
                 && view.is_resources_selector_allowed()
             {
-                self.res_selector.show_selected(self.resources.table.get_kind().as_str());
+                self.res_selector
+                    .show_selected_uid(self.resources.table.get_kind_for_selector().as_str());
                 return ResponseEvent::Handled;
             }
         }
@@ -206,7 +203,8 @@ impl ViewsManager {
                 || event.is_in(MouseEventKind::RightClick, self.areas[2]))
                 && self.resources.is_resources_selector_allowed()
             {
-                self.res_selector.show_selected_uid(self.resources.table.get_kind().as_str());
+                self.res_selector
+                    .show_selected_uid(self.resources.table.get_kind_for_selector().as_str());
                 return ResponseEvent::Handled;
             }
         }

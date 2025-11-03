@@ -8,16 +8,10 @@ use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
-use crate::{
-    core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker},
-    kubernetes::resources::{ResourceItem, node, pod},
-    ui::{
-        views::resources::NextRefreshActions,
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter, StepBuilder},
-    },
-};
-
-use super::ResourcesTable;
+use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kubernetes::resources::{ResourceItem, node, pod};
+use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
+use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter, StepBuilder};
 
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
