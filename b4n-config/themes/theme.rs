@@ -27,6 +27,7 @@ pub struct HeaderColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct FooterColors {
     pub text: TextColors,
+    pub trail: TextColors,
     pub info: TextColors,
     pub error: TextColors,
 }
@@ -172,6 +173,7 @@ impl Default for Theme {
                 },
                 footer: FooterColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
                     info: TextColors::bg(Color::LightGreen, Color::DarkGray),
                     error: TextColors::bg(Color::LightRed, Color::DarkGray),
                 },

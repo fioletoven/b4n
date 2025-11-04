@@ -47,6 +47,7 @@ colors:
     previous: text_light:no_bg
   footer:
     text: fg_dark:bg_dark
+    trail: light_blue:yellow:bg_dark
     info: light_green:bg_dark
     error: light_red:bg_dark
   filter: *filter

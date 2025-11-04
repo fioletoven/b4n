@@ -15,10 +15,8 @@ use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::{
-    core::{SharedAppDataExt, ViewsManager},
-    ui::views::ResourcesView,
-};
+use crate::core::{SharedAppDataExt, ViewsManager};
+use crate::ui::views::ResourcesView;
 
 use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};
 
@@ -62,7 +60,7 @@ impl App {
             footer.get_transmitter(),
             syntax_data,
         )));
-        let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker));
+        let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter());
         let client_manager =
             KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
         let views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);

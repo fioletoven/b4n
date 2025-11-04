@@ -12,6 +12,9 @@ const FOOTER_APP_VERSION: &str = concat!(" b4n v", env!("CARGO_PKG_VERSION"), " 
 
 /// Footer widget.
 pub struct Footer {
+    trail: Vec<String>,
+    trail_rx: UnboundedReceiver<Vec<String>>,
+    show_trail: bool,
     message: Option<Notification>,
     messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
@@ -24,9 +27,13 @@ impl Default for Footer {
     fn default() -> Self {
         let (messages_tx, messages_rx) = mpsc::unbounded_channel();
         let (icons_tx, icons_rx) = mpsc::unbounded_channel();
-        let notifications_tx = NotificationSink::new(messages_tx, icons_tx);
+        let (trail_tx, trail_rx) = mpsc::unbounded_channel();
+        let notifications_tx = NotificationSink::new(messages_tx, icons_tx, trail_tx);
 
         Footer {
+            trail: Vec::new(),
+            trail_rx,
+            show_trail: true,
             message: None,
             messages_rx,
             message_received_time: Instant::now(),
@@ -38,12 +45,19 @@ impl Default for Footer {
 }
 
 impl Footer {
+    /// Returns a reference to the footer's [`NotificationSink`].
     pub fn transmitter(&self) -> &NotificationSink {
         &self.notifications_tx
     }
 
+    /// Returns the footer's [`NotificationSink`].
     pub fn get_transmitter(&self) -> NotificationSink {
         self.notifications_tx.clone()
+    }
+
+    /// Sets whether to show the breadcrumb trail.
+    pub fn show_breadcrumb_trail(&mut self, show: bool) {
+        self.show_trail = show;
     }
 
     /// Returns layout that can be used to draw [`Footer`].\
@@ -70,42 +84,30 @@ impl Footer {
     }
 
     fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+        self.update_current_icons();
+        self.update_current_trail();
+
+        let colors = &theme.colors;
+        let (icons, icons_len) = self.get_icons(colors);
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Length(u16::try_from(FOOTER_APP_VERSION.len() + 2).unwrap_or_default()),
                 Constraint::Fill(1),
+                Constraint::Length(1),
+                Constraint::Length(u16::try_from(icons_len).unwrap_or_default()),
                 Constraint::Length(2),
             ])
             .split(area);
 
-        self.update_current_icons();
-        let colors = &theme.colors;
-
-        frame.render_widget(
-            Paragraph::new(Line::from(vec![
-                Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
-                Span::styled(" ", &colors.footer.text),
-                Span::styled(FOOTER_APP_VERSION, &colors.footer.text),
-            ])),
-            layout[0],
-        );
-
-        if self.icons.is_empty() {
-            frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
-        } else {
-            frame.render_widget(
-                Paragraph::new(self.get_icons(layout[1].width.into(), &theme.colors)),
-                layout[1],
-            );
-        }
-
+        frame.render_widget(Paragraph::new(self.get_left_text(layout[0].width, colors)), layout[0]);
+        frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
+        frame.render_widget(Paragraph::new(icons), layout[2]);
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled(" ", &colors.footer.text),
                 Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
             ])),
-            layout[2],
+            layout[3],
         );
     }
 
@@ -129,21 +131,12 @@ impl Footer {
         }
     }
 
-    /// Gets the last message from unbounded channel and sets it as active.
-    fn update_current_message(&mut self) {
-        let mut message = None;
-        while let Ok(current) = self.messages_rx.try_recv() {
-            message = Some(current);
-        }
-
-        if message.is_some() {
-            self.message = message;
-            self.message_received_time = Instant::now();
-        }
-    }
-
     /// Returns formatted icons to show.
-    fn get_icons(&self, width: usize, colors: &ThemeColors) -> Line<'_> {
+    fn get_icons(&self, colors: &ThemeColors) -> (Line<'_>, usize) {
+        if self.icons.is_empty() {
+            return (Line::default(), 0);
+        }
+
         let mut spans = Vec::with_capacity(self.icons.len());
         let mut total = 0;
 
@@ -168,8 +161,7 @@ impl Footer {
             total += 1;
         }
 
-        spans.insert(0, Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
-        Line::from(spans)
+        (Line::from(spans), total)
     }
 
     /// Updates all currently visible icons with the ones from the icons channel.
@@ -188,5 +180,67 @@ impl Footer {
         }
 
         self.icons.sort_by_key(|i| i.id);
+    }
+
+    /// Gets the last message from unbounded channel and sets it as active.
+    fn update_current_message(&mut self) {
+        let mut message = None;
+        while let Ok(current) = self.messages_rx.try_recv() {
+            message = Some(current);
+        }
+
+        if message.is_some() {
+            self.message = message;
+            self.message_received_time = Instant::now();
+        }
+    }
+
+    /// Gets the last breadcrumb trail from the unbounded channel.
+    fn update_current_trail(&mut self) {
+        while let Ok(trail) = self.trail_rx.try_recv() {
+            self.trail = trail;
+        }
+    }
+
+    /// Renders left text: app version or breadcrumb trail if one is available.
+    fn get_left_text(&self, width: u16, colors: &ThemeColors) -> Line<'_> {
+        let width = usize::from(width);
+        let mut rendered = 0;
+        let mut spans = Vec::with_capacity(10);
+        let mut total = FOOTER_APP_VERSION.len();
+
+        spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
+        spans.push(Span::styled(" ", &colors.footer.text));
+        spans.push(Span::styled(FOOTER_APP_VERSION, &colors.footer.text));
+
+        if self.show_trail && !self.trail.is_empty() {
+            spans.push(Span::styled("  ", &colors.footer.text));
+            total += 2;
+
+            let separator_style = Style::new().fg(colors.footer.trail.dim).bg(colors.footer.trail.bg);
+            for (i, element) in self.trail.iter().enumerate() {
+                if i != 0 {
+                    spans.push(Span::styled("  ", separator_style));
+                    total += 3;
+                }
+
+                rendered = i;
+                spans.push(Span::styled(element, &colors.footer.trail));
+                total += element.chars().count();
+
+                if total >= width {
+                    break;
+                }
+            }
+
+            if rendered + 1 == self.trail.len()
+                && let Some(span) = spans.last_mut()
+            {
+                span.style = (&colors.footer.text).into();
+            }
+        }
+
+        spans.push(Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
+        Line::from(spans)
     }
 }
