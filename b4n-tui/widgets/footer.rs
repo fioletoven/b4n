@@ -205,28 +205,38 @@ impl Footer {
     /// Renders left text: app version or breadcrumb trail if one is available.
     fn get_left_text(&self, width: u16, colors: &ThemeColors) -> Line<'_> {
         let width = usize::from(width);
+        let mut rendered = 0;
         let mut spans = Vec::with_capacity(10);
-        let mut total = 0;
+        let mut total = FOOTER_APP_VERSION.len();
 
         spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
         spans.push(Span::styled(" ", &colors.footer.text));
+        spans.push(Span::styled(FOOTER_APP_VERSION, &colors.footer.text));
 
-        if self.trail.is_empty() || !self.show_trail {
-            spans.push(Span::styled(FOOTER_APP_VERSION, &colors.footer.text));
-            total = FOOTER_APP_VERSION.len();
-        } else {
+        if self.show_trail && !self.trail.is_empty() {
+            spans.push(Span::styled("  ", &colors.footer.text));
+            total += 2;
+
+            let separator_style = Style::new().fg(colors.footer.trail.dim).bg(colors.footer.trail.bg);
             for (i, element) in self.trail.iter().enumerate() {
                 if i != 0 {
-                    spans.push(Span::styled("  ", &colors.footer.text));
+                    spans.push(Span::styled("  ", separator_style));
                     total += 3;
                 }
 
-                spans.push(Span::styled(element, &colors.footer.text));
+                rendered = i;
+                spans.push(Span::styled(element, &colors.footer.trail));
                 total += element.chars().count();
 
                 if total >= width {
                     break;
                 }
+            }
+
+            if rendered + 1 == self.trail.len()
+                && let Some(span) = spans.last_mut()
+            {
+                span.style = (&colors.footer.text).into();
             }
         }
 

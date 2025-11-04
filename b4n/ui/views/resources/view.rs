@@ -448,9 +448,9 @@ impl ResourcesView {
         let mut elements = data.previous.iter().map(|p| p.get_kind_name()).collect::<Vec<_>>();
         if !elements.is_empty() {
             if data.current.resource.is_container() {
-                elements.push(format!("[{}]", CONTAINERS));
+                elements.push(CONTAINERS.to_owned());
             } else {
-                elements.push(format!("[{}]", data.current.resource.kind.name()));
+                elements.push(data.current.resource.kind.name().to_owned());
             }
         }
 
