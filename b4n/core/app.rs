@@ -15,10 +15,8 @@ use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::{
-    core::{SharedAppDataExt, ViewsManager},
-    ui::views::ResourcesView,
-};
+use crate::core::{SharedAppDataExt, ViewsManager};
+use crate::ui::views::ResourcesView;
 
 use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};
 

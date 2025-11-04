@@ -14,6 +14,7 @@ const FOOTER_APP_VERSION: &str = concat!(" b4n v", env!("CARGO_PKG_VERSION"), " 
 pub struct Footer {
     trail: Vec<String>,
     trail_rx: UnboundedReceiver<Vec<String>>,
+    show_trail: bool,
     message: Option<Notification>,
     messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
@@ -32,6 +33,7 @@ impl Default for Footer {
         Footer {
             trail: Vec::new(),
             trail_rx,
+            show_trail: true,
             message: None,
             messages_rx,
             message_received_time: Instant::now(),
@@ -43,12 +45,19 @@ impl Default for Footer {
 }
 
 impl Footer {
+    /// Returns a reference to the footer's [`NotificationSink`].
     pub fn transmitter(&self) -> &NotificationSink {
         &self.notifications_tx
     }
 
+    /// Returns the footer's [`NotificationSink`].
     pub fn get_transmitter(&self) -> NotificationSink {
         self.notifications_tx.clone()
+    }
+
+    /// Sets whether to show the breadcrumb trail.
+    pub fn show_breadcrumb_trail(&mut self, show: bool) {
+        self.show_trail = show;
     }
 
     /// Returns layout that can be used to draw [`Footer`].\
@@ -202,7 +211,7 @@ impl Footer {
         spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
         spans.push(Span::styled(" ", &colors.footer.text));
 
-        if self.trail.is_empty() {
+        if self.trail.is_empty() || !self.show_trail {
             spans.push(Span::styled(FOOTER_APP_VERSION, &colors.footer.text));
             total = FOOTER_APP_VERSION.len();
         } else {

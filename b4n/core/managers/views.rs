@@ -96,6 +96,7 @@ impl ViewsManager {
     /// Draws visible views on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>) {
         let layout = Footer::get_layout(frame.area());
+        self.footer.show_breadcrumb_trail(self.view.is_none());
         self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
 
         if let Some(view) = &mut self.view {
