@@ -154,6 +154,8 @@ impl ResourcesTable {
         )
     }
 
+    /// Returns resources kind.\
+    /// **Note** that it returns `pods` if the currently shown items are containers.
     pub fn get_kind_for_selector(&self) -> Kind {
         if self.list.table.data.resource.is_container() {
             PODS.into()

@@ -1,3 +1,4 @@
+use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS};
@@ -22,11 +23,12 @@ pub struct ResourcesView {
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
+    footer_tx: NotificationSink,
 }
 
 impl ResourcesView {
     /// Creates a new resources view.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink) -> Self {
         let stats = worker.borrow().statistics.share();
         let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
@@ -40,6 +42,7 @@ impl ResourcesView {
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
+            footer_tx,
         }
     }
 
@@ -69,15 +72,17 @@ impl ResourcesView {
 
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
-        if matches!(result, ObserverResult::Init(_)) {
+        let is_init = matches!(result, ObserverResult::Init(_));
+        self.table.update_resources_list(result);
+
+        if is_init {
+            self.update_breadcrumb_trail();
             if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
                 self.filter.set_value(filter.to_owned());
             } else {
                 self.filter.reset();
             }
         }
-
-        self.table.update_resources_list(result);
     }
 
     /// Updates statistics if current resource kind is `pods` or `nodes`.
@@ -436,6 +441,20 @@ impl ResourcesView {
         }
 
         ResponseEvent::Handled
+    }
+
+    fn update_breadcrumb_trail(&self) {
+        let data = self.app_data.borrow();
+        let mut elements = data.previous.iter().map(|p| p.get_kind_name()).collect::<Vec<_>>();
+        if !elements.is_empty() {
+            if data.current.resource.is_container() {
+                elements.push(format!("[{}]", CONTAINERS));
+            } else {
+                elements.push(format!("[{}]", data.current.resource.kind.name()));
+            }
+        }
+
+        self.footer_tx.set_breadcrumb_trail(elements);
     }
 }
 

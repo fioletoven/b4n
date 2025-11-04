@@ -71,17 +71,26 @@ impl Notification {
     }
 }
 
-/// Notifications sink for messages and icons.
+/// Notifications sink for breadcrumb trail, messages and icons.
 #[derive(Debug, Clone)]
 pub struct NotificationSink {
     messages_tx: UnboundedSender<Notification>,
     icons_tx: UnboundedSender<IconAction>,
+    trail_tx: UnboundedSender<Vec<String>>,
 }
 
 impl NotificationSink {
     /// Creates new [`NotificationSink`] instance.
-    pub fn new(messages_tx: UnboundedSender<Notification>, icons_tx: UnboundedSender<IconAction>) -> Self {
-        Self { messages_tx, icons_tx }
+    pub fn new(
+        messages_tx: UnboundedSender<Notification>,
+        icons_tx: UnboundedSender<IconAction>,
+        trail_tx: UnboundedSender<Vec<String>>,
+    ) -> Self {
+        Self {
+            messages_tx,
+            icons_tx,
+            trail_tx,
+        }
     }
 
     /// Displays an informational message for the specified duration (in milliseconds).
@@ -117,5 +126,10 @@ impl NotificationSink {
     /// Removes an icon or a text label from the sink by its `id`.
     pub fn reset(&self, id: &'static str) {
         let _ = self.icons_tx.send(IconAction::Remove(id));
+    }
+
+    /// Sets breadcrumb trail data.
+    pub fn set_breadcrumb_trail(&self, trail: Vec<String>) {
+        let _ = self.trail_tx.send(trail);
     }
 }

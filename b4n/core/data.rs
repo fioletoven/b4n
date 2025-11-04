@@ -108,6 +108,11 @@ impl PreviousData {
             .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
             .or(self.resource.name.as_deref())
     }
+
+    /// Returns `kind` name for this previous data.
+    pub fn get_kind_name(&self) -> String {
+        self.resource.kind.name().to_owned()
+    }
 }
 
 /// Contains all data that can be shared in the application.
