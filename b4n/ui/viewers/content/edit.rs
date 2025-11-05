@@ -30,9 +30,12 @@ impl EditContext {
     }
 
     /// Sets [`EditContext`] as enabled.
-    pub fn enable<T: Content>(&mut self, position: PagePosition, page_size: u16, content: &mut T) {
+    pub fn enable<T: Content>(&mut self, position: PagePosition, search: Option<PagePosition>, page_size: u16, content: &mut T) {
         self.is_enabled = true;
-        if self.cursor.y < position.y {
+        if let Some(search) = search {
+            self.cursor = search;
+            self.constraint_cursor_position(false, content);
+        } else if self.cursor.y < position.y {
             self.cursor.y = position.y;
             self.constraint_cursor_position(false, content);
         } else if self.cursor.y >= position.y + usize::from(page_size) {

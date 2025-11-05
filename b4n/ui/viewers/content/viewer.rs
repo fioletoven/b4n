@@ -9,17 +9,11 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt},
-    ui::viewers::StyledLineExt,
-};
-
-use super::{
-    Content,
-    edit::{ContentEditWidget, EditContext},
-    header::ContentHeader,
-    search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message},
-};
+use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::viewers::content::edit::{ContentEditWidget, EditContext};
+use crate::ui::viewers::content::header::ContentHeader;
+use crate::ui::viewers::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
+use crate::ui::viewers::{Content, StyledLineExt};
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
@@ -115,11 +109,15 @@ impl<T: Content> ContentViewer<T> {
 
     /// Enables edit mode for the content viewer.
     pub fn enable_edit_mode(&mut self) -> bool {
-        if !self.edit.is_enabled
-            && let Some(content) = &mut self.content
+        if self.edit.is_enabled {
+            return false;
+        }
+
+        let start = self.current_match_position();
+        if let Some(content) = &mut self.content
             && content.is_editable()
         {
-            self.edit.enable(self.page_start, self.page_area.height, content);
+            self.edit.enable(self.page_start, start, self.page_area.height, content);
             self.header.set_edit('', "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
@@ -173,11 +171,11 @@ impl<T: Content> ContentViewer<T> {
         if let Some(matches) = &self.search.matches {
             let offset = offset.unwrap_or_default();
             if let Some(current) = self.search.current {
-                let r#match = &matches[current.saturating_sub(1)];
+                let current_match = &matches[current.saturating_sub(1)];
                 self.scroll_to(
-                    r#match.y.saturating_add(offset.y.into()),
-                    r#match.x.saturating_add(offset.x.into()),
-                    r#match.length,
+                    current_match.y.saturating_add(offset.y.into()),
+                    current_match.x.saturating_add(offset.x.into()),
+                    current_match.length,
                 );
             } else if !matches.is_empty() {
                 self.scroll_to(
@@ -237,9 +235,22 @@ impl<T: Content> ContentViewer<T> {
         self.search.matches.as_ref().map(Vec::len)
     }
 
-    /// Returns currently highlighted match.
-    pub fn current_match(&self) -> Option<usize> {
+    /// Returns currently highlighted match index.
+    pub fn current_match_index(&self) -> Option<usize> {
         self.search.current
+    }
+
+    /// Returns currently highlighted match position.\
+    /// **Note** that it returns first match if all are highlighted.
+    pub fn current_match_position(&self) -> Option<PagePosition> {
+        let matches = self.search.matches.as_ref()?;
+        let current = self.search.current.unwrap_or_default();
+        let current = &matches[current.saturating_sub(1)];
+
+        Some(PagePosition {
+            x: current.x,
+            y: current.y,
+        })
     }
 
     /// Updates the current match index in the search results based on navigation direction.\
@@ -294,7 +305,7 @@ impl<T: Content> ContentViewer<T> {
     /// Gets footer icon text for the current search state.
     pub fn get_footer_text(&self) -> Option<String> {
         if let Some(count) = self.matches_count() {
-            if let Some(current) = self.current_match() {
+            if let Some(current) = self.current_match_index() {
                 Some(format!(" {current}:{count}"))
             } else if count == 0 {
                 Some(format!(" {count}"))
@@ -308,7 +319,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Gets footer message for the current search state.
     pub fn get_footer_message(&self, forward: bool) -> Option<&'static str> {
-        if self.matches_count().is_some() && self.current_match().is_some_and(|c| c == 0) {
+        if self.matches_count().is_some() && self.current_match_index().is_some_and(|c| c == 0) {
             Some(get_search_wrapped_message(forward))
         } else {
             None
