@@ -24,11 +24,10 @@ fn get_full_widths_test() {
 #[test]
 fn get_text_name_test() {
     let test_cases = vec![
-        (" NA", 3),
         (" NAME↑ ", 0),
-        (" NAME↑ ", 7),
         (" NAME↑     ", 11),
         (" NAME↑         ", 15),
+        (" NAME↑              ", 20),
     ];
 
     let mut header = Header::default();
@@ -40,13 +39,10 @@ fn get_text_name_test() {
 #[test]
 fn get_text_compact_test() {
     let test_cases = vec![
-        (" NAME", 5),
-        (" NAME↑ ", 7),
-        (" NAME↑   ", 9),
-        (" NAME↑     A", 12),
         (" NAME↑     AGE ", 0),
         (" NAME↑     AGE ", 15),
         (" NAME↑         AGE ", 19),
+        (" NAME↑               AGE ", 25),
     ];
 
     let mut header = Header::default();
@@ -58,9 +54,6 @@ fn get_text_compact_test() {
 #[test]
 fn get_text_full_test() {
     let test_cases = vec![
-        (" NAMESPA", 8),
-        (" NAMESPACE  NAM", 15),
-        (" NAMESPACE  NAME↑     ", 22),
         (" NAMESPACE  NAME↑      AGE ", 0),
         (" NAMESPACE  NAME↑      AGE ", 27),
         (" NAMESPACE  NAME↑        AGE ", 29),
@@ -96,9 +89,10 @@ fn get_text_extra_columns_test() {
 #[test]
 fn get_text_extra_columns_sized_test() {
     let test_cases = vec![
-        (" NAME↑ FIRST      SEC", ViewType::Compact, 21),
+        (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 0),
         (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 33),
-        (" NAMESPACE  NAME↑  FI", ViewType::Full, 21),
+        (" NAME↑   FIRST      SECOND     AGE ", ViewType::Compact, 35),
+        (" NAME↑            FIRST      SECOND     AGE ", ViewType::Compact, 44),
         (" NAMESPACE  NAME↑  FIRST      SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑    FIRST      SECOND     AGE ", ViewType::Full, 47),
         (" NAMESPACE  NAME↑            FIRST      SECOND     AGE ", ViewType::Full, 55),
@@ -118,11 +112,9 @@ fn get_text_extra_columns_sized_test() {
 #[test]
 fn get_text_extra_columns_to_right_test() {
     let test_cases = vec![
-        (" NAME↑      FIRST SE", ViewType::Compact, 20),
         (" NAME↑      FIRST SECOND     AGE ", ViewType::Compact, 0),
+        (" NAME↑      FIRST SECOND     AGE ", ViewType::Compact, 20),
         (" NAME↑        FIRST SECOND     AGE ", ViewType::Compact, 35),
-        (" NAMESPACE  NAM", ViewType::Full, 15),
-        (" NAMESPACE  NAME↑    ", ViewType::Full, 21),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 45),
         (" NAMESPACE  NAME↑                 FIRST SECOND     AGE ", ViewType::Full, 55),

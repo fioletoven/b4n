@@ -1,15 +1,31 @@
-use b4n_common::truncate;
+use b4n_common::{substring_owned, truncate};
 use b4n_list::{FilterContext, Filterable, Item, Row};
 
 use crate::grid::{AGE_COLUMN_WIDTH, Header, ViewType};
 
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
-    fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String;
+    fn get_text(
+        &self,
+        view: ViewType,
+        header: &Header,
+        width: usize,
+        namespace_width: usize,
+        name_width: usize,
+        offset: usize,
+    ) -> String;
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> ItemExt for Item<T, Fc> {
-    fn get_text(&self, view: ViewType, header: &Header, width: usize, namespace_width: usize, name_width: usize) -> String {
+    fn get_text(
+        &self,
+        view: ViewType,
+        header: &Header,
+        width: usize,
+        namespace_width: usize,
+        name_width: usize,
+        offset: usize,
+    ) -> String {
         let mut row = String::with_capacity(width + 2);
         match view {
             ViewType::Name => row.push_cell(self.data.name(), width, false),
@@ -17,9 +33,10 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ItemExt for Item<T, Fc> {
             ViewType::Full => get_full_text(self, &mut row, header, namespace_width, name_width),
         }
 
-        if row.chars().count() > width {
-            truncate(row.as_str(), width).to_owned()
+        if offset > 0 {
+            substring_owned(row, offset, width)
         } else {
+            row.truncate(width);
             row
         }
     }

@@ -1,4 +1,3 @@
-use b4n_common::try_truncate;
 use std::rc::Rc;
 
 use crate::grid::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
@@ -151,16 +150,32 @@ impl Header {
 
     /// Gets header text for the provided `width`.
     pub fn get_text(&mut self, view: ViewType, width: usize) -> &str {
-        if self.cache.width.is_some_and(|w| w == width) && self.cache.view == view {
+        if self.cache.area_width.is_some_and(|w| w == width) && self.cache.view == view {
             return &self.cache.text;
         }
 
         let (group_width, name_width, _) = self.get_widths(view, width);
         self.cache.text = self.get_text_string(view, group_width, name_width, width);
         self.cache.view = view;
-        self.cache.width = Some(width);
+        self.cache.area_width = Some(width);
+        self.cache.text_length = Some(self.cache.text.chars().count());
 
         &self.cache.text
+    }
+
+    /// Returns cached header text.
+    pub fn get_cached_text(&self) -> &str {
+        &self.cache.text
+    }
+
+    /// Returns cached header text length.
+    pub fn get_cached_length(&self) -> Option<usize> {
+        self.cache.text_length
+    }
+
+    /// Returns cached area width for the cached header text.
+    pub fn get_cached_width(&self) -> Option<usize> {
+        self.cache.area_width
     }
 
     /// Returns widths for namespace and name columns together with an extra space for the name column.
@@ -207,28 +222,20 @@ impl Header {
 
     /// Builds header `String` for the provided `group_width`, `name_width` and `area_width`.
     fn get_text_string(&self, view: ViewType, group_width: usize, name_width: usize, area_width: usize) -> String {
-        let header = match view {
-            ViewType::Name => self.get_name_text(name_width + area_width),
+        match view {
+            ViewType::Name => self.get_name_text(area_width),
             ViewType::Compact => self.get_compact_text(name_width, area_width),
             ViewType::Full => self.get_full_text(group_width, name_width, area_width),
-        };
-
-        if area_width > 0
-            && header.chars().count() > area_width
-            && let Some(truncated) = try_truncate(header.as_str(), area_width)
-        {
-            return truncated.to_owned();
         }
-
-        header
     }
 
     /// Gets only name text.
     fn get_name_text(&self, area_width: usize) -> String {
-        let mut header = String::with_capacity(area_width + 2);
+        let width = area_width.max(self.name.min_len() + 1);
+        let mut header = String::with_capacity(width + 1);
 
         header.push(' ');
-        header.push_column(&self.name, area_width.saturating_sub(1), self.is_sorted_descending);
+        header.push_column(&self.name, width.saturating_sub(2), self.is_sorted_descending);
         header.push(' ');
 
         header
@@ -313,14 +320,16 @@ impl Header {
 #[derive(Default)]
 struct HeaderCache {
     pub text: String,
-    pub width: Option<usize>,
     pub view: ViewType,
+    pub area_width: Option<usize>,
+    pub text_length: Option<usize>,
 }
 
 impl HeaderCache {
     /// Invalidates cache data.
     pub fn invalidate(&mut self) {
-        self.width = None;
+        self.area_width = None;
+        self.text_length = None;
     }
 }
 
