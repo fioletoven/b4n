@@ -118,6 +118,10 @@ impl Table for PortForwardsList {
     fn offset(&self) -> usize {
         self.table.offset()
     }
+
+    fn get_offset(&mut self, width: usize) -> usize {
+        self.table.get_offset(width)
+    }
 }
 
 /// Returns [`Header`] for the port forward task.

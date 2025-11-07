@@ -198,4 +198,8 @@ impl Table for ResourcesList {
     fn offset(&self) -> usize {
         self.table.offset()
     }
+
+    fn get_offset(&mut self, width: usize) -> usize {
+        self.table.get_offset(width)
+    }
 }

@@ -45,6 +45,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for ScrollableList<T
 pub struct TabularList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub header: Header,
     pub list: ScrollableList<T, Fc>,
+    width: usize,
     offset: usize,
 }
 
@@ -53,6 +54,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> 
         Self {
             header: Header::default(),
             list: ScrollableList::default(),
+            width: 0,
             offset: 0,
         }
     }
@@ -69,20 +71,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, F
                     },
                     KeyCode::PageUp => {
                         let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
-                        self.set_offset(self.offset().saturating_sub(width));
+                        self.set_offset(self.offset.saturating_sub(width));
                         return ResponseEvent::Handled;
                     },
                     KeyCode::Left => {
-                        self.set_offset(self.offset().saturating_sub(1));
+                        self.set_offset(self.offset.saturating_sub(1));
                         return ResponseEvent::Handled;
                     },
                     KeyCode::Right => {
-                        self.set_offset(self.offset() + 1);
+                        self.set_offset(self.offset + 1);
                         return ResponseEvent::Handled;
                     },
                     KeyCode::PageDown => {
                         let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
-                        self.set_offset(self.offset() + width);
+                        self.set_offset(self.offset + width);
                         return ResponseEvent::Handled;
                     },
                     KeyCode::End => {
@@ -181,7 +183,18 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
 
     /// Sets the current horizontal offset of the table.
     pub fn set_offset(&mut self, offset: usize) {
+        self.width = self.header.get_cached_width().unwrap_or_default();
         self.offset = offset.min(self.get_max_offset());
+    }
+
+    /// Gets the current horizontal offset of the table recalculating it if width changed.
+    pub fn get_offset(&mut self, width: usize) -> usize {
+        if self.width != width {
+            self.width = width;
+            self.offset = self.offset.min(self.get_max_offset());
+        }
+
+        self.offset
     }
 
     /// Gets the current horizontal offset of the table.
@@ -197,10 +210,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     }
 
     fn get_max_offset(&self) -> usize {
-        self.header
-            .get_cached_length()
-            .unwrap_or_default()
-            .saturating_sub(self.header.get_cached_width().unwrap_or_default())
+        self.header.get_cached_length().unwrap_or_default().saturating_sub(self.width)
     }
 }
 

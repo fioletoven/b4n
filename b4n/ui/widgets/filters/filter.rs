@@ -6,12 +6,8 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Clear};
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::widgets::Select,
-};
-
-use super::PatternsList;
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::ui::widgets::{PatternsList, Select};
 
 const HISTORY_SIZE: usize = 20;
 

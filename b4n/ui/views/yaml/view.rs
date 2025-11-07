@@ -7,14 +7,10 @@ use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{
-        viewers::{ContentViewer, StyleFallback},
-        views::{View, yaml::YamlContent},
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search},
-    },
-};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::ui::viewers::{ContentViewer, StyleFallback};
+use crate::ui::views::{View, yaml::YamlContent};
+use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
 /// YAML view.
 pub struct YamlView {

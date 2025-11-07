@@ -8,14 +8,10 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{
-        viewers::{ListHeader, ListViewer},
-        views::{PortForwardsList, View},
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter},
-    },
-};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::ui::viewers::{ListHeader, ListViewer};
+use crate::ui::views::{PortForwardsList, View};
+use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter};
 
 pub const VIEW_NAME: &str = "port forwards";
 

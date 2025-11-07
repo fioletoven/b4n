@@ -2,10 +2,8 @@ use b4n_config::{SyntaxData, themes::from_syntect_color};
 use ratatui::style::Style;
 use std::thread::JoinHandle;
 use syntect::{easy::HighlightLines, parsing::SyntaxSet};
-use tokio::sync::{
-    mpsc::{self, UnboundedReceiver, UnboundedSender},
-    oneshot::Sender,
-};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::oneshot::Sender;
 
 /// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]
