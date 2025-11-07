@@ -15,10 +15,7 @@ pub struct PortForwardsList {
 impl Default for PortForwardsList {
     fn default() -> Self {
         Self {
-            table: TabularList {
-                header: header(),
-                ..Default::default()
-            },
+            table: TabularList::new(header()),
         }
     }
 }
@@ -72,6 +69,10 @@ impl Table for PortForwardsList {
         }
     }
 
+    fn get_column_at_position(&self, position: usize) -> Option<usize> {
+        self.table.get_column_at_position(position)
+    }
+
     fn sort(&mut self, column_no: usize, is_descending: bool) {
         self.table.sort(column_no, is_descending);
     }
@@ -98,6 +99,7 @@ impl Table for PortForwardsList {
                         width,
                         namespace_width,
                         name_width + name_extra_width,
+                        self.table.offset(),
                     ),
                     item.data.get_colors(theme, item.is_active, item.is_selected),
                 ));
@@ -111,6 +113,14 @@ impl Table for PortForwardsList {
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {
         self.table.header.get_text(view, width)
+    }
+
+    fn offset(&self) -> usize {
+        self.table.offset()
+    }
+
+    fn get_offset(&mut self, width: usize) -> usize {
+        self.table.get_offset(width)
     }
 }
 

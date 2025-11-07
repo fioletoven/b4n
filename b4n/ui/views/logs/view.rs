@@ -10,14 +10,10 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::Style;
 use std::rc::Rc;
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::{
-        viewers::{Content, ContentViewer, MatchPosition, StyledLine},
-        views::View,
-        widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search},
-    },
-};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::ui::viewers::{Content, ContentViewer, MatchPosition, StyledLine};
+use crate::ui::views::View;
+use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
 use super::{LogLine, LogsObserver, LogsObserverError};
 

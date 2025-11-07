@@ -14,10 +14,8 @@ use std::time::Instant;
 use tokio::runtime::Handle;
 use tui_term::{vt100, widget::PseudoTerminal};
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt},
-    ui::{viewers::ContentHeader, views::View},
-};
+use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::{viewers::ContentHeader, views::View};
 
 use super::bridge::ShellBridge;
 

@@ -1,10 +1,8 @@
 use b4n_kube::{Kind, Namespace};
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
-    text::{Line, Span},
-    widgets::Paragraph,
-};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 
 use crate::{core::SharedAppData, ui::viewers::utils::get_right_breadcrumbs};
 

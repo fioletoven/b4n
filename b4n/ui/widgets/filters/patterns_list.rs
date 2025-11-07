@@ -105,6 +105,10 @@ impl Table for PatternsList {
         }
     }
 
+    fn get_column_at_position(&self, _position: usize) -> Option<usize> {
+        None
+    }
+
     /// Not implemented for [`PatternsList`].
     fn toggle_sort(&mut self, _column_no: usize) {
         // pass
@@ -123,8 +127,7 @@ impl Table for PatternsList {
         None
     }
 
-    /// Returns header text for the list.\
-    /// **Note** that this is not implemented for [`PatternsList`].
+    /// Not implemented for [`PatternsList`].
     fn get_header(&mut self, _view: ViewType, _width: usize) -> &str {
         "n/a"
     }

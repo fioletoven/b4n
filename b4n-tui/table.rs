@@ -25,6 +25,9 @@ pub trait Table: Responsive {
     /// Returns filter value.
     fn get_filter(&self) -> Option<&str>;
 
+    /// Returns column number located at the specified character position.
+    fn get_column_at_position(&self, position: usize) -> Option<usize>;
+
     /// Sorts items in the list by column number.
     fn sort(&mut self, column_no: usize, is_descending: bool);
 
@@ -88,4 +91,15 @@ pub trait Table: Responsive {
 
     /// Returns header text for the list.
     fn get_header(&mut self, view: ViewType, width: usize) -> &str;
+
+    /// Retunrs table horizontal offset.
+    fn offset(&self) -> usize {
+        0
+    }
+
+    /// Returns table horizontal offset for the specified width.
+    fn get_offset(&mut self, width: usize) -> usize {
+        let _ = width;
+        0
+    }
 }

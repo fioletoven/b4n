@@ -75,14 +75,14 @@ impl ResourcesList {
 
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
-        self.table.header = ResourceItem::header(
+        self.table.update_header(ResourceItem::header(
             &self.data.kind,
             &self.data.group,
             self.data.crd.as_ref(),
             self.data.has_metrics,
             self.data.resource.is_filtered(),
-        );
-        self.table.list.clear();
+        ));
+
         if self.data.kind_plural == NAMESPACES {
             self.table.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
         }
@@ -150,6 +150,10 @@ impl Table for ResourcesList {
         }
     }
 
+    fn get_column_at_position(&self, position: usize) -> Option<usize> {
+        self.table.get_column_at_position(position)
+    }
+
     fn sort(&mut self, column_no: usize, is_descending: bool) {
         self.table.sort(column_no, is_descending);
     }
@@ -175,6 +179,7 @@ impl Table for ResourcesList {
                         width,
                         namespace_width,
                         name_width + name_extra_width,
+                        self.table.offset(),
                     ),
                     item.data.get_colors(theme, item.is_active, item.is_selected),
                 ));
@@ -188,5 +193,13 @@ impl Table for ResourcesList {
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {
         self.table.header.get_text(view, width)
+    }
+
+    fn offset(&self) -> usize {
+        self.table.offset()
+    }
+
+    fn get_offset(&mut self, width: usize) -> usize {
+        self.table.get_offset(width)
     }
 }

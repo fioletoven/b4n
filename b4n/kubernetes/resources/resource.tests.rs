@@ -26,7 +26,8 @@ fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] te
             &header,
             terminal_width,
             namespace_width,
-            name_width + name_extra_width
+            name_width + name_extra_width,
+            0
         )
     );
 }
@@ -50,7 +51,8 @@ fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case]
             &header,
             terminal_width,
             namespace_width,
-            name_width + name_extra_width
+            name_width + name_extra_width,
+            0
         )
     );
 }
@@ -77,7 +79,8 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
             &header,
             terminal_width,
             namespace_width,
-            name_width + name_extra_width
+            name_width + name_extra_width,
+            0
         )
     );
 }
@@ -128,7 +131,8 @@ fn get_text_pod_test() {
             &header,
             terminal_width,
             namespace_width,
-            name_width + name_extra_width
+            name_width + name_extra_width,
+            0
         )
     );
 }
@@ -177,7 +181,8 @@ fn align_column_to_right_test() {
             &header,
             terminal_width,
             namespace_width,
-            name_width + name_extra_width
+            name_width + name_extra_width,
+            0
         )
     );
 }

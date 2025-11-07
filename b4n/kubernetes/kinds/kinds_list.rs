@@ -89,6 +89,10 @@ impl Table for KindsList {
         }
     }
 
+    fn get_column_at_position(&self, position: usize) -> Option<usize> {
+        if position < self.width { Some(0) } else { None }
+    }
+
     /// Not implemented for [`KindsList`].
     fn toggle_sort(&mut self, _column_no: usize) {
         // pass

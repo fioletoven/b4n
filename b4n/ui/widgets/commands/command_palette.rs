@@ -7,12 +7,8 @@ use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt},
-    ui::widgets::Select,
-};
-
-use super::ActionsList;
+use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::widgets::{ActionsList, Select};
 
 const DEFAULT_PROMPT: &str = " ";
 

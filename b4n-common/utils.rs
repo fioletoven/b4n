@@ -23,9 +23,30 @@ pub fn truncate_left(s: &str, max_chars: usize) -> &str {
         return s;
     }
 
-    let start_index = s.char_indices().nth(total_chars - max_chars).map_or(0, |(idx, _)| idx);
+    let start_idx = s.char_indices().nth(total_chars - max_chars).map_or(0, |(idx, _)| idx);
 
-    &s[start_index..]
+    &s[start_idx..]
+}
+
+/// Returns a substring of a given string slice.
+pub fn substring(s: &str, start: usize, len: usize) -> &str {
+    let mut iter = s.char_indices();
+    let start_idx = iter.nth(start).map(|(i, _)| i).unwrap_or(s.len());
+    let end_idx = iter.nth(len - 1).map(|(i, _)| i).unwrap_or(s.len());
+
+    &s[start_idx..end_idx]
+}
+
+/// Returns a substring of a given String.
+pub fn substring_owned(mut s: String, start: usize, len: usize) -> String {
+    let mut iter = s.char_indices();
+    let start_idx = iter.nth(start).map(|(i, _)| i).unwrap_or(s.len());
+    let end_idx = iter.nth(len - 1).map(|(i, _)| i).unwrap_or(s.len());
+
+    s.truncate(end_idx);
+    s.drain(..start_idx);
+
+    s
 }
 
 /// Adds padding to the string slice.

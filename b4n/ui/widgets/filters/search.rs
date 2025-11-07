@@ -5,12 +5,8 @@ use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
-use crate::{
-    core::{SharedAppData, SharedAppDataExt, SharedBgWorker},
-    ui::widgets::Select,
-};
-
-use super::PatternsList;
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::ui::widgets::{PatternsList, Select};
 
 const HISTORY_SIZE: usize = 20;
 const NOT_FOUND_HINT: &str = " No matches found.";

@@ -43,37 +43,74 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for ScrollableList<T
 
 /// Tabular UI list.
 pub struct TabularList<T: Row + Filterable<Fc>, Fc: FilterContext> {
-    pub list: ScrollableList<T, Fc>,
     pub header: Header,
+    pub list: ScrollableList<T, Fc>,
+    width: usize,
+    offset: usize,
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> {
     fn default() -> Self {
         Self {
-            list: ScrollableList::default(),
             header: Header::default(),
+            list: ScrollableList::default(),
+            width: 0,
+            offset: 0,
         }
     }
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, Fc> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if let TuiEvent::Key(key) = event
-            && key.modifiers == KeyModifiers::ALT
-            && key.code != KeyCode::Char(' ')
-            && let KeyCode::Char(code) = key.code
-        {
-            if code.is_numeric() {
-                let sort_by = code.to_digit(10).unwrap() as usize;
-                self.toggle_sort(sort_by);
-                return ResponseEvent::Handled;
+        if let TuiEvent::Key(key) = event {
+            if key.modifiers == KeyModifiers::CONTROL {
+                match key.code {
+                    KeyCode::Home => {
+                        self.set_offset(0);
+                        return ResponseEvent::Handled;
+                    },
+                    KeyCode::PageUp => {
+                        let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
+                        self.set_offset(self.offset.saturating_sub(width));
+                        return ResponseEvent::Handled;
+                    },
+                    KeyCode::Left => {
+                        self.set_offset(self.offset.saturating_sub(1));
+                        return ResponseEvent::Handled;
+                    },
+                    KeyCode::Right => {
+                        self.set_offset(self.offset + 1);
+                        return ResponseEvent::Handled;
+                    },
+                    KeyCode::PageDown => {
+                        let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
+                        self.set_offset(self.offset + width);
+                        return ResponseEvent::Handled;
+                    },
+                    KeyCode::End => {
+                        self.set_offset(self.header.get_cached_length().unwrap_or_default());
+                        return ResponseEvent::Handled;
+                    },
+                    _ => (),
+                }
             }
 
-            let sort_symbols = self.header.get_sort_symbols();
-            let uppercase = code.to_ascii_uppercase();
-            if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
-                self.toggle_sort(sort_by);
-                return ResponseEvent::Handled;
+            if key.modifiers == KeyModifiers::ALT
+                && key.code != KeyCode::Char(' ')
+                && let KeyCode::Char(code) = key.code
+            {
+                if code.is_numeric() {
+                    let sort_by = code.to_digit(10).unwrap() as usize;
+                    self.toggle_sort(sort_by);
+                    return ResponseEvent::Handled;
+                }
+
+                let sort_symbols = self.header.get_sort_symbols();
+                let uppercase = code.to_ascii_uppercase();
+                if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
+                    self.toggle_sort(sort_by);
+                    return ResponseEvent::Handled;
+                }
             }
         }
 
@@ -82,6 +119,22 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, F
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
+    /// Creates new [`TabularList`] instance.
+    pub fn new(header: Header) -> Self {
+        Self {
+            header,
+            ..Default::default()
+        }
+    }
+
+    /// Sets new header for the table.\
+    /// **Note** that it also clears the list items.
+    pub fn update_header(&mut self, new_header: Header) {
+        self.header = new_header;
+        self.list.clear();
+        self.offset = 0;
+    }
+
     /// Updates max widths for all columns basing on current data in the list.
     pub fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
@@ -104,6 +157,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.header.recalculate_extra_columns();
     }
 
+    /// Returns column number located at the specified character position.
+    pub fn get_column_at_position(&self, position: usize) -> Option<usize> {
+        if position < self.header.get_cached_length().unwrap_or_default() {
+            Some(count_columns_up_to(self.header.get_cached_text(), position))
+        } else {
+            None
+        }
+    }
+
     /// Sorts the list.
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
         if column_no < self.header.get_columns_count() {
@@ -119,10 +181,55 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.sort(column_no, if column_no == old_column_no { !is_descending } else { false });
     }
 
+    /// Sets the current horizontal offset of the table.
+    pub fn set_offset(&mut self, offset: usize) {
+        self.width = self.header.get_cached_width().unwrap_or_default();
+        self.offset = offset.min(self.get_max_offset());
+    }
+
+    /// Gets the current horizontal offset of the table recalculating it if width changed.
+    pub fn get_offset(&mut self, width: usize) -> usize {
+        if self.width != width {
+            self.width = width;
+            self.offset = self.offset.min(self.get_max_offset());
+        }
+
+        self.offset
+    }
+
+    /// Gets the current horizontal offset of the table.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
     /// Sorts the internal list.
     fn sort_internal_list(&mut self, column_no: usize, is_descending: bool) {
         let reverse = self.header.has_reversed_order(column_no);
         self.list
             .sort(column_no, if reverse { !is_descending } else { is_descending });
     }
+
+    fn get_max_offset(&self) -> usize {
+        self.header.get_cached_length().unwrap_or_default().saturating_sub(self.width)
+    }
+}
+
+fn count_columns_up_to(text: &str, position: usize) -> usize {
+    let mut in_column = false;
+    let mut column_count = 0;
+
+    for (i, c) in text.chars().enumerate() {
+        if i > position {
+            break;
+        }
+
+        if c.is_whitespace() {
+            in_column = false;
+        } else if !in_column {
+            column_count += 1;
+            in_column = true;
+        }
+    }
+
+    column_count
 }

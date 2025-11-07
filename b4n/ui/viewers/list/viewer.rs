@@ -46,8 +46,10 @@ impl<T: Table> ListViewer<T> {
 
         {
             let sort_symbols = self.table.get_sort_symbols();
+            let offset = self.table.get_offset(usize::from(self.area.width));
             let mut header = HeaderWidget {
                 header: self.table.get_header(self.view, usize::from(self.area.width)),
+                offset,
                 colors: &theme.colors.header.text,
                 background: theme.colors.text.bg,
                 view: self.view,
@@ -134,13 +136,14 @@ impl<T: Table> Responsive for ListViewer<T> {
                 .contains(Position::new(mouse.column, mouse.row))
             {
                 // mouse click is inside header area
-                let position = mouse.column.saturating_sub(self.area.x);
-                let header = self.table.get_header(self.view, usize::from(self.area.width));
-                let column_no = count_columns_up_to(header, usize::from(position))
-                    .saturating_add(if self.view == ViewType::Full { 0 } else { 1 })
-                    .saturating_sub(1);
+                let position = usize::from(mouse.column.saturating_sub(self.area.x)) + self.table.offset();
+                if let Some(column_no) = self.table.get_column_at_position(position) {
+                    let column_no = column_no
+                        .saturating_add(if self.view == ViewType::Full { 0 } else { 1 })
+                        .saturating_sub(1);
 
-                self.table.toggle_sort(column_no);
+                    self.table.toggle_sort(column_no);
+                }
             }
 
             return ResponseEvent::Handled;
@@ -150,30 +153,11 @@ impl<T: Table> Responsive for ListViewer<T> {
     }
 }
 
-fn count_columns_up_to(text: &str, position: usize) -> usize {
-    let mut in_column = false;
-    let mut column_count = 0;
-
-    for (i, c) in text.chars().enumerate() {
-        if i > position {
-            break;
-        }
-
-        if c.is_whitespace() {
-            in_column = false;
-        } else if !in_column {
-            column_count += 1;
-            in_column = true;
-        }
-    }
-
-    column_count
-}
-
 /// Widget that renders header for the items list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
     pub header: &'a str,
+    pub offset: usize,
     pub colors: &'a TextColors,
     pub background: Color,
     pub view: ViewType,
@@ -197,7 +181,8 @@ impl Widget for &mut HeaderWidget<'_> {
         let mut highlighted = false;
 
         for (i, char) in self.header.chars().enumerate() {
-            let x = x + i as u16;
+            let visible = i >= self.offset;
+            let x = x + i.saturating_sub(self.offset) as u16;
             if x >= max_x {
                 break;
             }
@@ -216,7 +201,13 @@ impl Widget for &mut HeaderWidget<'_> {
 
             if in_column && can_be_highlighted && !highlighted {
                 highlighted = true;
-                buf[(x, y)].set_style(Style::default().underlined());
+                if visible {
+                    buf[(x, y)].set_style(Style::default().underlined());
+                }
+            }
+
+            if !visible {
+                continue;
             }
 
             if char == '↑' || char == '↓' {
