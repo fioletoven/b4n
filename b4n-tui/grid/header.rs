@@ -148,18 +148,21 @@ impl Header {
         self.extra_columns.as_deref()
     }
 
-    /// Gets header text for the provided `width`.
-    pub fn get_text(&mut self, view: ViewType, width: usize) -> &str {
-        if self.cache.area_width.is_some_and(|w| w == width) && self.cache.view == view {
-            return &self.cache.text;
+    /// Updates header text if recalculation is required.
+    pub fn refresh_text(&mut self, view: ViewType, width: usize) {
+        if self.cache.area_width.is_none_or(|w| w != width) || self.cache.view != view {
+            let (group_width, name_width, _) = self.get_widths(view, width);
+            self.cache.text = self.get_text_string(view, group_width, name_width, width);
+            self.cache.view = view;
+            self.cache.area_width = Some(width);
+            self.cache.text_length = Some(self.cache.text.chars().count());
         }
+    }
 
-        let (group_width, name_width, _) = self.get_widths(view, width);
-        self.cache.text = self.get_text_string(view, group_width, name_width, width);
-        self.cache.view = view;
-        self.cache.area_width = Some(width);
-        self.cache.text_length = Some(self.cache.text.chars().count());
-
+    /// Gets header text for the provided `width`.\
+    /// **Note** that it recalculates it if required.
+    pub fn get_text(&mut self, view: ViewType, width: usize) -> &str {
+        self.refresh_text(view, width);
         &self.cache.text
     }
 

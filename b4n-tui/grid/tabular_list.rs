@@ -175,7 +175,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
             let width = self.header.get_cached_width().unwrap_or_default();
             self.header.set_sort_info(column_no, is_descending);
             self.sort_internal_list(column_no, is_descending);
-            let _ = self.header.get_text(view, width);
+            self.header.refresh_text(view, width);
             self.recalculate_offset();
         }
     }

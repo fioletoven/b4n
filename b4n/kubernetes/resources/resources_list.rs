@@ -195,11 +195,15 @@ impl Table for ResourcesList {
         self.table.header.get_text(view, width)
     }
 
+    fn refresh_header(&mut self, view: ViewType, width: usize) {
+        self.table.header.refresh_text(view, width);
+    }
+
     fn offset(&self) -> usize {
         self.table.offset()
     }
 
-    fn get_offset(&mut self) -> usize {
+    fn refresh_offset(&mut self) -> usize {
         self.table.get_offset()
     }
 }

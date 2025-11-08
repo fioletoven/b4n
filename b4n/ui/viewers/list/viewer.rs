@@ -45,8 +45,9 @@ impl<T: Table> ListViewer<T> {
         self.area = layout[1].inner(Margin::new(1, 0));
 
         {
+            self.table.refresh_header(self.view, usize::from(self.area.width));
             let sort_symbols = self.table.get_sort_symbols();
-            let offset = self.table.get_offset();
+            let offset = self.table.refresh_offset();
             let mut header = HeaderWidget {
                 header: self.table.get_header(self.view, usize::from(self.area.width)),
                 offset,

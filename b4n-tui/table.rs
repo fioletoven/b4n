@@ -92,13 +92,19 @@ pub trait Table: Responsive {
     /// Returns header text for the list.
     fn get_header(&mut self, view: ViewType, width: usize) -> &str;
 
-    /// Retunrs table horizontal offset.
+    /// Builds new header text when the view or width changes.
+    fn refresh_header(&mut self, view: ViewType, width: usize) {
+        let _ = width;
+        let _ = view;
+    }
+
+    /// Retunrs the table's horizontal offset.
     fn offset(&self) -> usize {
         0
     }
 
-    /// Returns table horizontal offset recalculating it if needed.
-    fn get_offset(&mut self) -> usize {
+    /// Updates the table's horizontal offset if recalculation is required and returns offset value.
+    fn refresh_offset(&mut self) -> usize {
         0
     }
 }
