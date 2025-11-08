@@ -119,8 +119,8 @@ impl Table for PortForwardsList {
         self.table.offset()
     }
 
-    fn get_offset(&mut self, width: usize) -> usize {
-        self.table.get_offset(width)
+    fn get_offset(&mut self) -> usize {
+        self.table.get_offset()
     }
 }
 

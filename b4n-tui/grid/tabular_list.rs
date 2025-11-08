@@ -46,6 +46,7 @@ pub struct TabularList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub header: Header,
     pub list: ScrollableList<T, Fc>,
     width: usize,
+    length: usize,
     offset: usize,
 }
 
@@ -55,6 +56,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> 
             header: Header::default(),
             list: ScrollableList::default(),
             width: 0,
+            length: 0,
             offset: 0,
         }
     }
@@ -169,8 +171,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     /// Sorts the list.
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
         if column_no < self.header.get_columns_count() {
+            let view = self.header.get_cached_view();
+            let width = self.header.get_cached_width().unwrap_or_default();
             self.header.set_sort_info(column_no, is_descending);
             self.sort_internal_list(column_no, is_descending);
+            let _ = self.header.get_text(view, width);
+            self.recalculate_offset();
         }
     }
 
@@ -184,16 +190,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     /// Sets the current horizontal offset of the table.
     pub fn set_offset(&mut self, offset: usize) {
         self.width = self.header.get_cached_width().unwrap_or_default();
-        self.offset = offset.min(self.get_max_offset());
+        self.length = self.header.get_cached_length().unwrap_or_default();
+        self.offset = offset.min(self.length.saturating_sub(self.width));
     }
 
-    /// Gets the current horizontal offset of the table recalculating it if width changed.
-    pub fn get_offset(&mut self, width: usize) -> usize {
-        if self.width != width {
-            self.width = width;
-            self.offset = self.offset.min(self.get_max_offset());
-        }
-
+    /// Gets the current horizontal offset of the table recalculating it if needed.
+    pub fn get_offset(&mut self) -> usize {
+        self.recalculate_offset();
         self.offset
     }
 
@@ -209,8 +212,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
             .sort(column_no, if reverse { !is_descending } else { is_descending });
     }
 
-    fn get_max_offset(&self) -> usize {
-        self.header.get_cached_length().unwrap_or_default().saturating_sub(self.width)
+    fn recalculate_offset(&mut self) {
+        if let Some(width) = self.header.get_cached_width()
+            && let Some(length) = self.header.get_cached_length()
+            && (self.width != width || self.length != length)
+        {
+            self.width = width;
+            self.length = length;
+            self.offset = self.offset.min(self.length.saturating_sub(self.width));
+        }
     }
 }
 

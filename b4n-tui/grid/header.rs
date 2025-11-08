@@ -178,6 +178,11 @@ impl Header {
         self.cache.area_width
     }
 
+    /// Returns cached header view type.
+    pub fn get_cached_view(&self) -> ViewType {
+        self.cache.view
+    }
+
     /// Returns widths for namespace and name columns together with an extra space for the name column.
     pub fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
         if view == ViewType::Full {

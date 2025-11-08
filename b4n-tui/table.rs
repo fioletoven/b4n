@@ -97,9 +97,8 @@ pub trait Table: Responsive {
         0
     }
 
-    /// Returns table horizontal offset for the specified width.
-    fn get_offset(&mut self, width: usize) -> usize {
-        let _ = width;
+    /// Returns table horizontal offset recalculating it if needed.
+    fn get_offset(&mut self) -> usize {
         0
     }
 }
