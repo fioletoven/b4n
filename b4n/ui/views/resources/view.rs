@@ -420,6 +420,7 @@ impl ResourcesView {
             resource,
             filter: self.table.list.table.get_filter().map(String::from),
             sort_info: self.table.list.table.table.header.sort_info(),
+            offset: self.table.list.table.offset(),
         });
     }
 

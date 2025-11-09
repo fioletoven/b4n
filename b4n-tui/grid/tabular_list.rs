@@ -172,10 +172,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
         if column_no < self.header.get_columns_count() {
             let view = self.header.get_cached_view();
-            let width = self.header.get_cached_width().unwrap_or_default();
+            let width = self.header.get_cached_width();
             self.header.set_sort_info(column_no, is_descending);
             self.sort_internal_list(column_no, is_descending);
-            self.header.refresh_text(view, width);
+            if let Some(width) = width {
+                self.header.refresh_text(view, width);
+            }
             self.recalculate_offset();
         }
     }

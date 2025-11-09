@@ -22,6 +22,7 @@ pub struct NextRefreshActions {
     pub highlight_item: Option<String>,
     pub apply_filter: Option<String>,
     pub sort_info: Option<(usize, bool)>,
+    pub offset: Option<usize>,
     pub clear_header_scope: bool,
 }
 
@@ -40,6 +41,7 @@ impl NextRefreshActions {
             highlight_item: previous.highlighted().map(String::from),
             apply_filter: previous.filter.as_deref().map(String::from),
             sort_info: Some(previous.sort_info),
+            offset: Some(previous.offset),
             clear_header_scope: false,
         }
     }
@@ -226,6 +228,13 @@ impl ResourcesTable {
             if self.next_refresh.clear_header_scope {
                 self.header.set_scope(None);
                 self.next_refresh.clear_header_scope = false;
+            }
+
+            if let Some(offset) = self.next_refresh.offset.take() {
+                let current_width = usize::from(self.list.area.width);
+                // we need to refresh header here, as init data invalidates its cache.
+                self.list.table.refresh_header(self.list.view, current_width);
+                self.list.table.table.set_offset(offset);
             }
         }
 
