@@ -1,8 +1,9 @@
+use b4n_config::keys::KeyCombination;
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::grid::Header;
-use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
+use crate::{MouseEvent, MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates which columns in the list should be displayed.
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
@@ -64,56 +65,17 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> 
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, Fc> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if let TuiEvent::Key(key) = event {
-            if key.modifiers == KeyModifiers::CONTROL {
-                match key.code {
-                    KeyCode::Home => {
-                        self.set_offset(0);
-                        return ResponseEvent::Handled;
-                    },
-                    KeyCode::PageUp => {
-                        let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
-                        self.set_offset(self.offset.saturating_sub(width));
-                        return ResponseEvent::Handled;
-                    },
-                    KeyCode::Left => {
-                        self.set_offset(self.offset.saturating_sub(1));
-                        return ResponseEvent::Handled;
-                    },
-                    KeyCode::Right => {
-                        self.set_offset(self.offset + 1);
-                        return ResponseEvent::Handled;
-                    },
-                    KeyCode::PageDown => {
-                        let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
-                        self.set_offset(self.offset + width);
-                        return ResponseEvent::Handled;
-                    },
-                    KeyCode::End => {
-                        self.set_offset(self.header.get_cached_length().unwrap_or_default());
-                        return ResponseEvent::Handled;
-                    },
-                    _ => (),
-                }
-            }
-
-            if key.modifiers == KeyModifiers::ALT
-                && key.code != KeyCode::Char(' ')
-                && let KeyCode::Char(code) = key.code
-            {
-                if code.is_numeric() {
-                    let sort_by = code.to_digit(10).unwrap() as usize;
-                    self.toggle_sort(sort_by);
+        match event {
+            TuiEvent::Key(key) => {
+                if self.process_key_event(key) == ResponseEvent::Handled {
                     return ResponseEvent::Handled;
                 }
-
-                let sort_symbols = self.header.get_sort_symbols();
-                let uppercase = code.to_ascii_uppercase();
-                if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
-                    self.toggle_sort(sort_by);
+            },
+            TuiEvent::Mouse(mouse) => {
+                if self.process_mouse_event(mouse) == ResponseEvent::Handled {
                     return ResponseEvent::Handled;
                 }
-            }
+            },
         }
 
         self.list.process_event(event)
@@ -223,6 +185,75 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
             self.length = length;
             self.offset = self.offset.min(self.length.saturating_sub(self.width));
         }
+    }
+
+    fn process_key_event(&mut self, key: &KeyCombination) -> ResponseEvent {
+        if key.modifiers == KeyModifiers::CONTROL {
+            match key.code {
+                KeyCode::Home => {
+                    self.set_offset(0);
+                    return ResponseEvent::Handled;
+                },
+                KeyCode::PageUp => {
+                    let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
+                    self.set_offset(self.offset.saturating_sub(width));
+                    return ResponseEvent::Handled;
+                },
+                KeyCode::Left => {
+                    self.set_offset(self.offset.saturating_sub(1));
+                    return ResponseEvent::Handled;
+                },
+                KeyCode::Right => {
+                    self.set_offset(self.offset + 1);
+                    return ResponseEvent::Handled;
+                },
+                KeyCode::PageDown => {
+                    let width = self.header.get_cached_width().unwrap_or_default().saturating_div(2);
+                    self.set_offset(self.offset + width);
+                    return ResponseEvent::Handled;
+                },
+                KeyCode::End => {
+                    self.set_offset(self.header.get_cached_length().unwrap_or_default());
+                    return ResponseEvent::Handled;
+                },
+                _ => (),
+            }
+        }
+
+        if key.modifiers == KeyModifiers::ALT
+            && key.code != KeyCode::Char(' ')
+            && let KeyCode::Char(code) = key.code
+        {
+            if let Some(sort_by) = code.to_digit(10) {
+                self.toggle_sort(sort_by as usize);
+                return ResponseEvent::Handled;
+            }
+
+            let sort_symbols = self.header.get_sort_symbols();
+            let uppercase = code.to_ascii_uppercase();
+            if let Some(sort_by) = sort_symbols.iter().position(|c| *c == uppercase) {
+                self.toggle_sort(sort_by);
+                return ResponseEvent::Handled;
+            }
+        }
+
+        ResponseEvent::NotHandled
+    }
+
+    fn process_mouse_event(&mut self, mouse: &MouseEvent) -> ResponseEvent {
+        if mouse.kind == MouseEventKind::ScrollLeft
+            || (mouse.kind == MouseEventKind::ScrollUp && mouse.modifiers == KeyModifiers::CONTROL)
+        {
+            self.set_offset(self.offset.saturating_sub(1));
+            return ResponseEvent::Handled;
+        } else if mouse.kind == MouseEventKind::ScrollRight
+            || (mouse.kind == MouseEventKind::ScrollDown && mouse.modifiers == KeyModifiers::CONTROL)
+        {
+            self.set_offset(self.offset + 1);
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
     }
 }
 
