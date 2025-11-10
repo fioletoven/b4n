@@ -230,11 +230,8 @@ impl ResourcesTable {
                 self.next_refresh.clear_header_scope = false;
             }
 
-            if let Some(offset) = self.next_refresh.offset.take() {
-                let current_width = usize::from(self.list.area.width);
-                // we need to refresh header here, as init data invalidates its cache.
-                self.list.table.refresh_header(self.list.view, current_width);
-                self.list.table.table.set_offset(offset);
+            if let Some(offset) = self.next_refresh.offset {
+                self.init_offset(offset);
             }
         }
 
@@ -243,6 +240,10 @@ impl ResourcesTable {
                 self.list.table.highlight_item_by_name(&name);
             } else {
                 self.list.table.highlight_first_item();
+            }
+
+            if let Some(offset) = self.next_refresh.offset.take() {
+                self.init_offset(offset);
             }
         }
 
@@ -465,5 +466,12 @@ impl ResourcesTable {
         } else {
             self.process_view_yaml(resource, false)
         }
+    }
+
+    fn init_offset(&mut self, offset: usize) {
+        let current_width = usize::from(self.list.area.width);
+        // we need to refresh header here, as init data invalidates its cache.
+        self.list.table.refresh_header(self.list.view, current_width);
+        self.list.table.table.set_offset(offset);
     }
 }
