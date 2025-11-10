@@ -1,8 +1,9 @@
 use b4n_kube::Namespace;
+use futures::future::join_all;
+use k8s_openapi::serde_json::json;
 use kube::Client;
-use kube::api::{ApiResource, DeleteParams};
+use kube::api::{ApiResource, DeleteParams, Patch, PatchParams};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
-use tracing::error;
 
 use crate::commands::CommandResult;
 
@@ -12,7 +13,8 @@ pub struct DeleteResourcesCommand {
     pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
-    force: bool,
+    terminate_immediately: bool,
+    detach_finalizers: bool,
 }
 
 impl DeleteResourcesCommand {
@@ -22,14 +24,16 @@ impl DeleteResourcesCommand {
         namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
-        force: bool,
+        terminate_immediately: bool,
+        detach_finalizers: bool,
     ) -> Self {
         Self {
             names,
             namespace,
             discovery,
             client,
-            force,
+            terminate_immediately,
+            detach_finalizers,
         }
     }
 
@@ -40,14 +44,19 @@ impl DeleteResourcesCommand {
             return None;
         }
 
-        let namespace = if discovery.1.scope == Scope::Cluster {
-            None
+        let namespace;
+        let info;
+        if discovery.1.scope == Scope::Cluster {
+            namespace = None;
+            info = discovery.0.plural.clone();
         } else {
-            self.namespace.as_option()
-        };
+            namespace = self.namespace.as_option();
+            info = format!("{}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
+        }
+
         let client = b4n_kube::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
 
-        let params = if self.force {
+        let delete_params = if self.terminate_immediately {
             DeleteParams {
                 grace_period_seconds: Some(0),
                 ..Default::default()
@@ -56,12 +65,32 @@ impl DeleteResourcesCommand {
             DeleteParams::default()
         };
 
-        for name in &self.names {
-            let deleted = client.delete(name, &params).await;
-            if let Err(error) = deleted {
-                error!("Cannot delete resource {}: {}", name, error);
-            }
-        }
+        let tasks = self.names.into_iter().map(|name| {
+            let info = info.clone();
+            let client = client.clone();
+            let delete_params = delete_params.clone();
+            let detach_finalizers = self.detach_finalizers;
+
+            tokio::spawn(async move {
+                if detach_finalizers {
+                    let patch = json!({ "metadata": { "finalizers": null } });
+
+                    if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
+                        tracing::error!("Cannot detach finalizers from {} ({}): {}", name, info, err);
+                    } else {
+                        tracing::info!("Detached finalizers from {} ({})", name, info);
+                    }
+                }
+
+                if let Err(err) = client.delete(&name, &delete_params).await {
+                    tracing::error!("Cannot delete resource {} ({}): {}", name, info, err);
+                } else {
+                    tracing::info!("Deleted resource {} ({})", name, info);
+                }
+            })
+        });
+
+        join_all(tasks).await;
 
         None
     }

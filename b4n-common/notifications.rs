@@ -74,9 +74,9 @@ impl Notification {
 /// Notifications sink for breadcrumb trail, messages and icons.
 #[derive(Debug, Clone)]
 pub struct NotificationSink {
-    messages_tx: UnboundedSender<Notification>,
-    icons_tx: UnboundedSender<IconAction>,
-    trail_tx: UnboundedSender<Vec<String>>,
+    messages: UnboundedSender<Notification>,
+    icons: UnboundedSender<IconAction>,
+    trail: UnboundedSender<Vec<String>>,
 }
 
 impl NotificationSink {
@@ -87,20 +87,20 @@ impl NotificationSink {
         trail_tx: UnboundedSender<Vec<String>>,
     ) -> Self {
         Self {
-            messages_tx,
-            icons_tx,
-            trail_tx,
+            messages: messages_tx,
+            icons: icons_tx,
+            trail: trail_tx,
         }
     }
 
     /// Displays an informational message for the specified duration (in milliseconds).
     pub fn show_info(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages_tx.send(Notification::new(text.into(), false, duration));
+        let _ = self.messages.send(Notification::new(text.into(), false, duration));
     }
 
     /// Displays an error message for the specified duration (in milliseconds).
     pub fn show_error(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages_tx.send(Notification::new(text.into(), true, duration));
+        let _ = self.messages.send(Notification::new(text.into(), true, duration));
     }
 
     /// Adds, updates, or removes an icon in the sink by its `id`.
@@ -110,7 +110,7 @@ impl NotificationSink {
         } else {
             IconAction::Remove(id)
         };
-        let _ = self.icons_tx.send(action);
+        let _ = self.icons.send(action);
     }
 
     /// Adds, updates, or removes a text label in the sink by its `id`.
@@ -120,16 +120,16 @@ impl NotificationSink {
         } else {
             IconAction::Remove(id)
         };
-        let _ = self.icons_tx.send(action);
+        let _ = self.icons.send(action);
     }
 
     /// Removes an icon or a text label from the sink by its `id`.
     pub fn reset(&self, id: &'static str) {
-        let _ = self.icons_tx.send(IconAction::Remove(id));
+        let _ = self.icons.send(IconAction::Remove(id));
     }
 
     /// Sets breadcrumb trail data.
     pub fn set_breadcrumb_trail(&self, trail: Vec<String>) {
-        let _ = self.trail_tx.send(trail);
+        let _ = self.trail.send(trail);
     }
 }

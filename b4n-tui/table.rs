@@ -98,7 +98,7 @@ pub trait Table: Responsive {
         let _ = view;
     }
 
-    /// Retunrs the table's horizontal offset.
+    /// Returns the table's horizontal offset.
     fn offset(&self) -> usize {
         0
     }

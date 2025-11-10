@@ -98,6 +98,7 @@ pub struct PreviousData {
     pub highlighted: Option<String>,
     pub filter: Option<String>,
     pub sort_info: (usize, bool),
+    pub offset: usize,
 }
 
 impl PreviousData {
