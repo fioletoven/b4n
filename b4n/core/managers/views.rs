@@ -305,7 +305,7 @@ impl ViewsManager {
     }
 
     /// Deletes resources that are currently selected on [`ResourcesView`].
-    pub fn delete_resources(&mut self, force: bool) {
+    pub fn delete_resources(&mut self, terminate_immediately: bool, detach_finalizers: bool) {
         let list = self.resources.get_selected_items();
         for key in list.keys() {
             let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
@@ -314,9 +314,13 @@ impl ViewsManager {
             } else {
                 Namespace::from((*key).to_owned())
             };
-            self.worker
-                .borrow_mut()
-                .delete_resources(resources, namespace, &self.resources.get_kind(), force);
+            self.worker.borrow_mut().delete_resources(
+                resources,
+                namespace,
+                &self.resources.get_kind(),
+                terminate_immediately,
+                detach_finalizers,
+            );
         }
 
         self.resources.deselect_all();

@@ -69,7 +69,7 @@ pub enum ResponseEvent {
     ListResourcePorts(ResourceRef),
 
     AskDeleteResources,
-    DeleteResources(bool),
+    DeleteResources(bool, bool),
 
     ViewYaml(ResourceRef, bool),
     ViewLogs(ResourceRef),

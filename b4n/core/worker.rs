@@ -313,10 +313,24 @@ impl BgWorker {
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
-    pub fn delete_resources(&mut self, resources: Vec<String>, namespace: Namespace, kind: &Kind, force: bool) {
+    pub fn delete_resources(
+        &mut self,
+        resources: Vec<String>,
+        namespace: Namespace,
+        kind: &Kind,
+        terminate_immediately: bool,
+        detach_finalizers: bool,
+    ) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
-            let command = DeleteResourcesCommand::new(resources, namespace, discovery, client.get_client(), force);
+            let command = DeleteResourcesCommand::new(
+                resources,
+                namespace,
+                discovery,
+                client.get_client(),
+                terminate_immediately,
+                detach_finalizers,
+            );
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
         }
     }

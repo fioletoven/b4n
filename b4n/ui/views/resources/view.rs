@@ -198,7 +198,10 @@ impl ResourcesView {
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.modal.is_visible {
             if self.modal.process_event(event).is_action("delete") {
-                return ResponseEvent::DeleteResources(self.modal.input(0).is_some_and(|i| i.is_checked));
+                return ResponseEvent::DeleteResources(
+                    self.modal.input(0).is_some_and(|i| i.is_checked), // terminate immediately
+                    self.modal.input(1).is_some_and(|i| i.is_checked), // detach finalizers
+                );
             }
 
             return ResponseEvent::Handled;
@@ -404,7 +407,10 @@ impl ResourcesView {
             60,
             colors.modal.text,
         )
-        .with_inputs(vec![CheckBox::new("Terminate immediately", false, &colors.modal.checkbox)])
+        .with_inputs(vec![
+            CheckBox::new("Terminate immediately", false, &colors.modal.checkbox),
+            CheckBox::new("Remove finalizers before deletion", false, &colors.modal.checkbox),
+        ])
     }
 
     pub fn remember_current_resource(&mut self) {
@@ -446,7 +452,7 @@ impl ResourcesView {
 
     fn update_breadcrumb_trail(&self) {
         let data = self.app_data.borrow();
-        let mut elements = data.previous.iter().map(|p| p.get_kind_name()).collect::<Vec<_>>();
+        let mut elements = data.previous.iter().map(PreviousData::get_kind_name).collect::<Vec<_>>();
         if !elements.is_empty() {
             if data.current.resource.is_container() {
                 elements.push(CONTAINERS.to_owned());

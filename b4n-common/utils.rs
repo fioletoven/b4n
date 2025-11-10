@@ -31,8 +31,8 @@ pub fn truncate_left(s: &str, max_chars: usize) -> &str {
 /// Returns a substring of a given string slice.
 pub fn substring(s: &str, start: usize, len: usize) -> &str {
     let mut iter = s.char_indices();
-    let start_idx = iter.nth(start).map(|(i, _)| i).unwrap_or(s.len());
-    let end_idx = iter.nth(len - 1).map(|(i, _)| i).unwrap_or(s.len());
+    let start_idx = iter.nth(start).map_or(s.len(), |(i, _)| i);
+    let end_idx = iter.nth(len - 1).map_or(s.len(), |(i, _)| i);
 
     &s[start_idx..end_idx]
 }
@@ -40,8 +40,8 @@ pub fn substring(s: &str, start: usize, len: usize) -> &str {
 /// Returns a substring of a given String.
 pub fn substring_owned(mut s: String, start: usize, len: usize) -> String {
     let mut iter = s.char_indices();
-    let start_idx = iter.nth(start).map(|(i, _)| i).unwrap_or(s.len());
-    let end_idx = iter.nth(len - 1).map(|(i, _)| i).unwrap_or(s.len());
+    let start_idx = iter.nth(start).map_or(s.len(), |(i, _)| i);
+    let end_idx = iter.nth(len - 1).map_or(s.len(), |(i, _)| i);
 
     s.truncate(end_idx);
     s.drain(..start_idx);

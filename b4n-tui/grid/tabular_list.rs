@@ -72,7 +72,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, F
                 }
             },
             TuiEvent::Mouse(mouse) => {
-                if self.process_mouse_event(mouse) == ResponseEvent::Handled {
+                if self.process_mouse_event(*mouse) == ResponseEvent::Handled {
                     return ResponseEvent::Handled;
                 }
             },
@@ -240,7 +240,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         ResponseEvent::NotHandled
     }
 
-    fn process_mouse_event(&mut self, mouse: &MouseEvent) -> ResponseEvent {
+    fn process_mouse_event(&mut self, mouse: MouseEvent) -> ResponseEvent {
         if mouse.kind == MouseEventKind::ScrollLeft
             || (mouse.kind == MouseEventKind::ScrollUp && mouse.modifiers == KeyModifiers::CONTROL)
         {
