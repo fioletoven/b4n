@@ -100,13 +100,14 @@ impl ShellView {
         let colors = &self.app_data.borrow().theme.colors;
 
         Dialog::new(
-            "Do you want to forcibly close the shell view?\nYou will then need to manually terminate the shell process."
+            "You are about to close the shell view without terminating the running shell process. \
+             It will keep running in the background until you stop it manually. Type 'exit' to close it gracefully."
                 .to_owned(),
             vec![
-                Button::new("Close", ResponseEvent::Cancelled, &colors.modal.btn_delete),
+                Button::new("Close Anyway", ResponseEvent::Cancelled, &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
-            60,
+            65,
             colors.modal.text,
         )
     }
