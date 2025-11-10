@@ -1,5 +1,22 @@
 # Change Log
 
+## 0.2.9 - 2025-11-10
+
+### Features
+
+- add an option to remove finalizers before resource deletion
+- enable horizontal scrolling in the resources view (use CTRL + navigation keys / mouse)
+- add an additional breadcrumb trail in the footer (shown when previous resource history is available)
+
+### Bug fixes
+
+- select pods resource in the right selector when in the containers view
+- position the cursor on the current search match when entering edit mode
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.2.8 - 2025-10-25
 
 ### Features
