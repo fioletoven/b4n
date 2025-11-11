@@ -317,7 +317,11 @@ impl Content for YamlContent {
             if self.modified.is_empty()
                 && let Ok(response) = response
             {
+                // there are no new modifications, we can apply the styled fragment
                 self.styled.splice(requested.start..=requested.end, response.styled);
+            } else {
+                // there are new modifications, we need to rollback modified lines, as the styled fragment is outdated
+                self.modified.extend(requested.first..=requested.last);
             }
 
             self.requested = None;
@@ -343,6 +347,8 @@ impl Content for YamlContent {
             self.requested = Some(RequestedHighlight {
                 start: first,
                 end,
+                first,
+                last,
                 response: rx,
             });
         }
@@ -354,6 +360,8 @@ impl Content for YamlContent {
 struct RequestedHighlight {
     pub start: usize,
     pub end: usize,
+    pub first: usize,
+    pub last: usize,
     pub response: Receiver<Result<HighlightResponse, HighlightError>>,
 }
 
