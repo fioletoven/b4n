@@ -21,8 +21,8 @@ use crate::ui::viewers::{ListHeader, ListViewer};
 pub struct NextRefreshActions {
     pub highlight_item: Option<String>,
     pub apply_filter: Option<String>,
+    pub apply_offset: Option<usize>,
     pub sort_info: Option<(usize, bool)>,
-    pub offset: Option<usize>,
     pub clear_header_scope: bool,
 }
 
@@ -40,8 +40,8 @@ impl NextRefreshActions {
         NextRefreshActions {
             highlight_item: previous.highlighted().map(String::from),
             apply_filter: previous.filter.as_deref().map(String::from),
+            apply_offset: Some(previous.offset),
             sort_info: Some(previous.sort_info),
-            offset: Some(previous.offset),
             clear_header_scope: false,
         }
     }
@@ -230,7 +230,7 @@ impl ResourcesTable {
                 self.next_refresh.clear_header_scope = false;
             }
 
-            if let Some(offset) = self.next_refresh.offset {
+            if let Some(offset) = self.next_refresh.apply_offset {
                 self.init_offset(offset);
             }
         }
@@ -242,7 +242,7 @@ impl ResourcesTable {
                 self.list.table.highlight_first_item();
             }
 
-            if let Some(offset) = self.next_refresh.offset.take() {
+            if let Some(offset) = self.next_refresh.apply_offset.take() {
                 self.init_offset(offset);
             }
         }

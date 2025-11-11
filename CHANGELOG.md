@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix filter behaviour for previous resources
+
 ## 0.2.9 - 2025-11-10
 
 ### Features
