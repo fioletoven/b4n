@@ -1,9 +1,9 @@
 use b4n_kube::Namespace;
-use futures::future::join_all;
 use k8s_openapi::serde_json::json;
-use kube::Client;
-use kube::api::{ApiResource, DeleteParams, Patch, PatchParams};
+use kube::api::{ApiResource, DeleteParams, DynamicObject, Patch, PatchParams};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
+use kube::{Api, Client};
+use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
 
@@ -39,39 +39,17 @@ impl DeleteResourcesCommand {
 
     /// Deletes all resources using provided client.
     pub async fn execute(mut self) -> Option<CommandResult> {
-        let discovery = self.discovery.take()?;
-        if !discovery.1.supports_operation(verbs::DELETE) {
-            return None;
-        }
+        let (client, info, delete_params) = self.prepare_context()?;
 
-        let namespace;
-        let info;
-        if discovery.1.scope == Scope::Cluster {
-            namespace = None;
-            info = discovery.0.plural.clone();
-        } else {
-            namespace = self.namespace.as_option();
-            info = format!("{}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
-        }
+        let mut set = JoinSet::new();
 
-        let client = b4n_kube::client::get_dynamic_api(&discovery.0, &discovery.1, self.client, namespace, namespace.is_none());
-
-        let delete_params = if self.terminate_immediately {
-            DeleteParams {
-                grace_period_seconds: Some(0),
-                ..Default::default()
-            }
-        } else {
-            DeleteParams::default()
-        };
-
-        let tasks = self.names.into_iter().map(|name| {
+        for name in self.names {
             let info = info.clone();
             let client = client.clone();
             let delete_params = delete_params.clone();
             let detach_finalizers = self.detach_finalizers;
 
-            tokio::spawn(async move {
+            set.spawn(async move {
                 if detach_finalizers {
                     let patch = json!({ "metadata": { "finalizers": null } });
 
@@ -87,11 +65,51 @@ impl DeleteResourcesCommand {
                 } else {
                     tracing::info!("Deleted resource {} ({})", name, info);
                 }
-            })
-        });
+            });
+        }
 
-        join_all(tasks).await;
+        while let Some(res) = set.join_next().await {
+            if let Err(err) = res {
+                tracing::error!("Delete task failed to complete: {}", err);
+            }
+        }
 
         None
+    }
+
+    fn prepare_context(&mut self) -> Option<(Api<DynamicObject>, String, DeleteParams)> {
+        let discovery = self.discovery.take()?;
+        if !discovery.1.supports_operation(verbs::DELETE) {
+            return None;
+        }
+
+        let namespace;
+        let info;
+        if discovery.1.scope == Scope::Cluster {
+            namespace = None;
+            info = discovery.0.plural.clone();
+        } else {
+            namespace = self.namespace.as_option();
+            info = format!("{}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
+        }
+
+        let client = b4n_kube::client::get_dynamic_api(
+            &discovery.0,
+            &discovery.1,
+            self.client.clone(),
+            namespace,
+            namespace.is_none(),
+        );
+
+        let delete_params = if self.terminate_immediately {
+            DeleteParams {
+                grace_period_seconds: Some(0),
+                ..Default::default()
+            }
+        } else {
+            DeleteParams::default()
+        };
+
+        Some((client, info, delete_params))
     }
 }

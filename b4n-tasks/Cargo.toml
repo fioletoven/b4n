@@ -13,7 +13,6 @@ b4n-common = { workspace = true }
 b4n-config = { workspace = true }
 b4n-kube = { workspace = true }
 base64 = { workspace = true }
-futures = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 ratatui = { workspace = true }
