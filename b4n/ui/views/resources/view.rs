@@ -73,15 +73,21 @@ impl ResourcesView {
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         let is_init = matches!(result, ObserverResult::Init(_));
-        self.table.update_resources_list(result);
 
         if is_init {
-            self.update_breadcrumb_trail();
+            // apply_filter must be checked before updating the table list, it is cleared there
             if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
                 self.filter.set_value(filter.to_owned());
             } else {
                 self.filter.reset();
             }
+        }
+
+        self.table.update_resources_list(result);
+
+        if is_init {
+            // the breadcrumb trail must be updated after updating the table list
+            self.update_breadcrumb_trail();
         }
     }
 
