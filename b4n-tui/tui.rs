@@ -38,6 +38,7 @@ impl From<crossterm::event::MouseEvent> for MouseEvent {
                     MouseButton::Right => MouseEventKind::RightClick,
                     MouseButton::Middle => MouseEventKind::MiddleClick,
                 },
+                crossterm::event::MouseEventKind::Drag(MouseButton::Left) => MouseEventKind::LeftDrag,
                 crossterm::event::MouseEventKind::ScrollDown => MouseEventKind::ScrollDown,
                 crossterm::event::MouseEventKind::ScrollUp => MouseEventKind::ScrollUp,
                 crossterm::event::MouseEventKind::ScrollLeft => MouseEventKind::ScrollLeft,
@@ -57,6 +58,7 @@ pub enum MouseEventKind {
     None,
     LeftClick,
     LeftDoubleClick,
+    LeftDrag,
     RightClick,
     RightDoubleClick,
     MiddleClick,
@@ -268,7 +270,8 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
                     }
                 },
 
-                crossterm::event::MouseEventKind::ScrollUp
+                crossterm::event::MouseEventKind::Drag(MouseButton::Left)
+                | crossterm::event::MouseEventKind::ScrollUp
                 | crossterm::event::MouseEventKind::ScrollDown
                 | crossterm::event::MouseEventKind::ScrollLeft
                 | crossterm::event::MouseEventKind::ScrollRight => {

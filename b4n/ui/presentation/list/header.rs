@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::core::SharedAppData;
-use crate::ui::viewers::utils::{get_left_breadcrumbs, get_right_breadcrumbs, get_version_text};
+use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs, get_version_text};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
 pub struct ListHeader {

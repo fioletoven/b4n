@@ -14,7 +14,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
 use crate::kubernetes::resources::{ResourceItem, ResourcesList};
-use crate::ui::viewers::{ListHeader, ListViewer};
+use crate::ui::presentation::{ListHeader, ListViewer};
 
 /// Actions to perform on the next table refresh.
 #[derive(Default)]

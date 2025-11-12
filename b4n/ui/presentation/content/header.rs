@@ -4,7 +4,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::{core::SharedAppData, ui::viewers::utils::get_right_breadcrumbs};
+use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
 pub struct ContentHeader {

@@ -10,10 +10,10 @@ use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-use crate::ui::viewers::content::edit::{ContentEditWidget, EditContext};
-use crate::ui::viewers::content::header::ContentHeader;
-use crate::ui::viewers::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
-use crate::ui::viewers::{Content, StyledLineExt};
+use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
+use crate::ui::presentation::content::header::ContentHeader;
+use crate::ui::presentation::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
+use crate::ui::presentation::{Content, StyledLineExt};
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
