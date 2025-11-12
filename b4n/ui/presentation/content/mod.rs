@@ -6,6 +6,7 @@ pub use viewer::ContentViewer;
 mod edit;
 mod header;
 mod search;
+mod select;
 mod styled_line;
 mod viewer;
 

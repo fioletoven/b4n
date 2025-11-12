@@ -10,7 +10,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kubernetes::{kinds::KindsList, resources::ResourcesList};
+use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
 

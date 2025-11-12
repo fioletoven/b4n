@@ -10,7 +10,7 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kubernetes::resources::{ResourceItem, node, pod};
+use crate::kube::resources::{ResourceItem, node, pod};
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter, StepBuilder};
 

@@ -10,7 +10,7 @@ use kube::discovery::{ApiCapabilities, Scope};
 use std::collections::VecDeque;
 use tokio::runtime::Handle;
 
-use crate::kubernetes::resources::ResourceItem;
+use crate::kube::resources::ResourceItem;
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
 pub struct ResourceObserver {

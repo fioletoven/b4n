@@ -5,7 +5,7 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{rc::Rc, slice::IterMut};
 
-use crate::kubernetes::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
 
 const COLUMNS_NO_WITH_STATS: usize = 7;
 

@@ -3,7 +3,7 @@ use b4n_tui::grid::{Column, ItemExt, NAMESPACE, ViewType};
 use rstest::rstest;
 use std::rc::Rc;
 
-use crate::kubernetes::resources::{ResourceData, ResourceItem};
+use crate::kube::resources::{ResourceData, ResourceItem};
 
 use super::*;
 
@@ -92,7 +92,7 @@ fn get_text_pod_test() {
 
     let terminal_width = 112;
 
-    let mut header = crate::kubernetes::resources::pod::header(false);
+    let mut header = crate::kube::resources::pod::header(false);
     header.set_data_length(0, 11);
     header.set_data_length(1, 39);
     header.set_data_length(2, 3);

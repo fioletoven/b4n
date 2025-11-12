@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use super::{Content, search::PagePosition};
 
+/// Context for the content edit mode.
 pub struct EditContext {
     pub is_enabled: bool,
     pub is_modified: bool,

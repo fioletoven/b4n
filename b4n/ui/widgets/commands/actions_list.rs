@@ -6,7 +6,7 @@ use delegate::delegate;
 use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{kubernetes::kinds::KindItem, ui::widgets::ActionItem};
+use crate::{kube::kinds::KindItem, ui::widgets::ActionItem};
 
 /// UI actions list.
 #[derive(Default)]

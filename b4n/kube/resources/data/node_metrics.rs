@@ -3,7 +3,7 @@ use b4n_tui::grid::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::{rc::Rc, str::FromStr};
 
-use crate::kubernetes::resources::{ResourceData, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `nodemetrics` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

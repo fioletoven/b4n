@@ -3,7 +3,7 @@ use k8s_openapi::serde_json::Map;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kubernetes::resources::{ResourceData, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `configmap` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

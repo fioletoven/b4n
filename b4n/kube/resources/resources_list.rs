@@ -7,7 +7,7 @@ use b4n_tui::{ResponseEvent, Responsive, Table, TuiEvent};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
-use crate::kubernetes::resources::{ResourceFilterContext, ResourceItem};
+use crate::kube::resources::{ResourceFilterContext, ResourceItem};
 
 /// Kubernetes resources list.
 #[derive(Default)]

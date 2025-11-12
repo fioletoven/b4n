@@ -13,7 +13,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
-use crate::kubernetes::resources::{ResourceItem, ResourcesList};
+use crate::kube::resources::{ResourceItem, ResourcesList};
 use crate::ui::presentation::{ListHeader, ListViewer};
 
 /// Actions to perform on the next table refresh.

@@ -3,7 +3,7 @@ use k8s_openapi::chrono::{DateTime, Utc};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kubernetes::resources::{ResourceData, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the `job` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {

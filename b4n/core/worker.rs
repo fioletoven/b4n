@@ -16,8 +16,8 @@ use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
-use crate::kubernetes::kinds::{KindItem, KindsList};
-use crate::kubernetes::watchers::ResourceObserver;
+use crate::kube::kinds::{KindItem, KindsList};
+use crate::kube::resources::ResourceObserver;
 use crate::ui::views::PortForwardItem;
 
 pub type SharedBgWorker = Rc<RefCell<BgWorker>>;

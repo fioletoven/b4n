@@ -4,7 +4,7 @@ use k8s_openapi::serde_json::{Value, to_value};
 use kube::api::DynamicObject;
 use std::{collections::HashSet, rc::Rc};
 
-use crate::kubernetes::resources::{ResourceData, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceValue};
 
 /// Returns [`ResourceData`] for the custom resource.
 pub fn data(crd: &CrdColumns, object: &DynamicObject) -> ResourceData {

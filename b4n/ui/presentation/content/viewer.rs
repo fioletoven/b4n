@@ -13,6 +13,7 @@ use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
+use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext};
 use crate::ui::presentation::{Content, StyledLineExt};
 
 /// Content viewer with header.
@@ -23,6 +24,7 @@ pub struct ContentViewer<T: Content> {
     content: Option<T>,
     hash: Option<u64>,
     edit: EditContext,
+    select: SelectContext,
     search: SearchData,
     search_color: Color,
 
@@ -44,6 +46,7 @@ impl<T: Content> ContentViewer<T> {
             content: None,
             hash: None,
             edit: EditContext::new(cursor_color),
+            select: SelectContext::default(),
             search: SearchData::default(),
             search_color,
             page_start: PagePosition::default(),
@@ -337,14 +340,18 @@ impl<T: Content> ContentViewer<T> {
 
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.edit.is_enabled
-            && let Some(content) = &mut self.content
-        {
-            let response = self.edit.process_event(event, content, self.page_start, self.page_area);
-            if response != ResponseEvent::NotHandled {
-                let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
-                self.scroll_to(y, x, 1);
-                return response;
+        if let Some(content) = &mut self.content {
+            if self.select.process_event(event, content, self.page_start, self.page_area) == ResponseEvent::Handled {
+                return ResponseEvent::Handled;
+            }
+
+            if self.edit.is_enabled {
+                let response = self.edit.process_event(event, content, self.page_start, self.page_area);
+                if response != ResponseEvent::NotHandled {
+                    let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
+                    self.scroll_to(y, x, 1);
+                    return response;
+                }
             }
         }
 
@@ -421,6 +428,7 @@ impl<T: Content> ContentViewer<T> {
         self.update_page_start();
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
+        frame.render_widget(ContentSelectWidget::new(&self.select, &self.page_start), area);
 
         if self.search.matches.is_some() {
             frame.render_widget(

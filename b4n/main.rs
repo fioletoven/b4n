@@ -11,7 +11,7 @@ use tracing::{error, info};
 
 pub mod cli;
 pub mod core;
-pub mod kubernetes;
+pub mod kube;
 pub mod ui;
 
 fn main() -> Result<()> {
