@@ -341,9 +341,8 @@ impl<T: Content> ContentViewer<T> {
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(content) = &mut self.content {
-            if self.select.process_event(event, content, self.page_start, self.page_area) == ResponseEvent::Handled {
-                return ResponseEvent::Handled;
-            }
+            self.select
+                .process_event(event, content, &mut self.page_start, self.page_area);
 
             if self.edit.is_enabled {
                 let response = self.edit.process_event(event, content, self.page_start, self.page_area);
@@ -428,13 +427,14 @@ impl<T: Content> ContentViewer<T> {
         self.update_page_start();
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
-        frame.render_widget(ContentSelectWidget::new(&self.select, &self.page_start), area);
+        frame.render_widget(
+            ContentSelectWidget::new(&self.select, &self.page_start, &self.page_area),
+            area,
+        );
 
         if self.search.matches.is_some() {
-            frame.render_widget(
-                SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset),
-                area,
-            );
+            let widget = SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset);
+            frame.render_widget(widget, area);
         }
 
         if self.edit.is_enabled {
@@ -452,17 +452,12 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns max vertical start of the page.
     fn max_vstart(&self) -> usize {
-        self.content
-            .as_ref()
-            .map_or(0, |l| l.len().saturating_sub(self.page_area.height.into()))
+        self.content.as_ref().map_or(0, |c| c.max_vstart(self.page_area.height))
     }
 
     /// Returns max horizontal start of the page.
     fn max_hstart(&self) -> usize {
-        self.content
-            .as_ref()
-            .map(|c| c.max_size().saturating_sub(self.page_area.width.into()))
-            .unwrap_or_default()
+        self.content.as_ref().map_or(0, |c| c.max_hstart(self.page_area.width))
     }
 
     fn update_page_start(&mut self) {

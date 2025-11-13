@@ -37,6 +37,16 @@ pub trait Content {
     /// Returns characters count of the line under `line_no` index.
     fn line_size(&self, line_no: usize) -> usize;
 
+    /// Returns max vertical start of the page for the specified height.
+    fn max_vstart(&self, page_height: u16) -> usize {
+        self.len().saturating_sub(page_height.into())
+    }
+
+    /// Returns max horizontal start of the page for the specified width.
+    fn max_hstart(&self, page_width: u16) -> usize {
+        self.max_size().saturating_sub(page_width.into())
+    }
+
     /// Returns `true` if content can be edited.
     fn is_editable(&self) -> bool {
         false
