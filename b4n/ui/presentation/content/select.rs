@@ -20,6 +20,16 @@ impl SelectContext {
             return;
         };
 
+        if mouse.kind == MouseEventKind::LeftDoubleClick {
+            let pos = get_position_in_content(area, *page_start, mouse.column, mouse.row);
+            if let Some((start, end)) = content.word_bounds(pos.y, pos.x) {
+                self.start = Some(PagePosition { x: start, y: pos.y });
+                self.end = Some(PagePosition { x: end, y: pos.y });
+            }
+
+            return;
+        }
+
         if mouse.kind == MouseEventKind::LeftClick {
             let pos = get_position_in_content(area, *page_start, mouse.column, mouse.row);
             self.start = Some(pos);
@@ -37,17 +47,17 @@ impl SelectContext {
 
 fn scroll_page_if_needed<T: Content>(area: Rect, page_start: &mut PagePosition, content: &mut T, mouse_x: u16, mouse_y: u16) {
     // scroll page vertically while dragging
-    if mouse_y > (area.y + area.height).saturating_sub(5) {
-        page_start.y += 3;
-    } else if mouse_y < area.y + 5 {
-        page_start.y = page_start.y.saturating_sub(3)
+    if mouse_y > (area.y + area.height).saturating_sub(3) {
+        page_start.y += 2;
+    } else if mouse_y < area.y + 3 {
+        page_start.y = page_start.y.saturating_sub(2)
     }
 
     // scroll page horizontally while dragging
-    if mouse_x > (area.x + area.width).saturating_sub(5) {
-        page_start.x += 3;
-    } else if mouse_x < area.x + 5 {
-        page_start.x = page_start.x.saturating_sub(3)
+    if mouse_x > (area.x + area.width).saturating_sub(3) {
+        page_start.x += 2;
+    } else if mouse_x < area.x + 3 {
+        page_start.x = page_start.x.saturating_sub(2)
     }
 
     // apply page start constraints

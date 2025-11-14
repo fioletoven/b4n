@@ -41,7 +41,7 @@ syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }
 time = { version = "0.3", features = ["local-offset"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros", "sync"] }
 tokio-util = { version = "0.7" }
 tracing = { version = "0.1" }
 tracing-appender = { version = "0.2" }

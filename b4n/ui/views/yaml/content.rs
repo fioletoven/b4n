@@ -248,6 +248,14 @@ impl Content for YamlContent {
             .map(|line| line.chars().take_while(|c| *c == ' ').count())
     }
 
+    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
+        if line_no < self.plain.len() {
+            b4n_common::word_bounds(&self.plain[line_no], idx)
+        } else {
+            None
+        }
+    }
+
     fn insert_char(&mut self, x: usize, y: usize, ch: char) {
         self.redo.clear();
         self.undo.push(Undo::insert(x, y, ch));

@@ -57,6 +57,9 @@ pub trait Content {
         if line_no < self.len() { Some(0) } else { None }
     }
 
+    /// Returns the start and end (byte indices) of the word that contains the character at `idx` for the specified `line_no`.
+    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)>;
+
     /// Inserts specified character to the content at a position `x:y`.
     fn insert_char(&mut self, x: usize, y: usize, character: char) {
         let _ = x;

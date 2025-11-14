@@ -424,4 +424,8 @@ impl Content for LogsContent {
             size
         }
     }
+
+    fn word_bounds(&self, _line_no: usize, _idx: usize) -> Option<(usize, usize)> {
+        None
+    }
 }
