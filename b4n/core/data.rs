@@ -6,7 +6,7 @@ use b4n_tui::TuiEvent;
 use kube::discovery::Scope;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
-use crate::kubernetes::kinds::KindItem;
+use crate::kube::kinds::KindItem;
 
 pub type SharedAppData = Rc<RefCell<AppData>>;
 

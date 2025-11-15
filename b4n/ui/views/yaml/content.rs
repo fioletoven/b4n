@@ -5,7 +5,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::ui::viewers::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt};
+use crate::ui::presentation::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -246,6 +246,14 @@ impl Content for YamlContent {
         self.plain
             .get(line_no)
             .map(|line| line.chars().take_while(|c| *c == ' ').count())
+    }
+
+    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
+        if line_no < self.plain.len() {
+            b4n_common::word_bounds(&self.plain[line_no], idx)
+        } else {
+            None
+        }
     }
 
     fn insert_char(&mut self, x: usize, y: usize, ch: char) {

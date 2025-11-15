@@ -1,5 +1,9 @@
 use sha1::{Digest, Sha1};
 
+#[cfg(test)]
+#[path = "./utils.tests.rs"]
+mod utils_tests;
+
 /// Truncates a string slice to the new length.
 pub fn truncate(s: &str, max_chars: usize) -> &str {
     match s.char_indices().nth(max_chars) {
@@ -47,6 +51,34 @@ pub fn substring_owned(mut s: String, start: usize, len: usize) -> String {
     s.drain(..start_idx);
 
     s
+}
+
+/// Finds the start and end (byte indices) of the word that contains the character at `idx`.
+pub fn word_bounds(s: &str, idx: usize) -> Option<(usize, usize)> {
+    if idx >= s.len() {
+        return None;
+    }
+
+    let mut start = 0;
+    let mut end = 0;
+
+    for (i, ch) in s.char_indices() {
+        let is_word = ch.is_alphanumeric() || ch == '_' || ch == '-' || ch == '.' || ch == '/';
+        end = i;
+
+        if i < idx && !is_word {
+            start = i;
+        } else if i >= idx && !is_word {
+            end = i.saturating_sub(1);
+            break;
+        }
+    }
+
+    if start > 0 {
+        start = std::cmp::min(start + 1, end);
+    }
+
+    if start == end || end < idx { None } else { Some((start, end)) }
 }
 
 /// Adds padding to the string slice.
