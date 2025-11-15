@@ -86,43 +86,40 @@ pub struct ContentSelectWidget<'a, T: Content> {
     pub context: &'a SelectContext,
     pub content: &'a T,
     pub page_start: &'a PagePosition,
-    pub page_area: &'a Rect,
 }
 
 impl<'a, T: Content> ContentSelectWidget<'a, T> {
     /// Creates new [`ContentSelectWidget`] instance.
-    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition, page_area: &'a Rect) -> Self {
+    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition) -> Self {
         Self {
             context,
             content,
             page_start,
-            page_area,
         }
     }
 
-    fn get_relative_x(&self, x: usize, area: Rect) -> u16 {
-        let x = if x >= self.page_start.x {
-            u16::try_from(x - self.page_start.x).unwrap_or(self.page_area.width)
-        } else {
-            self.page_area.width
-        };
-
-        x.saturating_add(area.x)
+    fn get_relative_x(&self, x: usize, area: Rect) -> Option<u16> {
+        let x = x.checked_sub(self.page_start.x)?;
+        let x = u16::try_from(x).unwrap_or(area.width);
+        Some(x.saturating_add(area.x))
     }
 
-    fn get_relative_y(&self, y: usize, area: Rect) -> u16 {
-        let y = if y >= self.page_start.y {
-            u16::try_from(y - self.page_start.y).unwrap_or(self.page_area.height)
-        } else {
-            self.page_area.height
-        };
-
-        y.saturating_add(area.y)
+    fn get_relative_y(&self, y: usize, area: Rect) -> Option<u16> {
+        let y = y.checked_sub(self.page_start.y)?;
+        let y = u16::try_from(y).unwrap_or(area.height);
+        Some(y.saturating_add(area.y))
     }
 
-    fn get_max_line_len(&self, area: Rect, current_line: usize) -> u16 {
+    fn get_relative_max_len(&self, area: Rect, current_line: usize) -> Option<u16> {
         let line_len = self.content.line_size(current_line) + 1;
-        u16::try_from(line_len.saturating_sub(usize::from(area.x)) + 1).unwrap_or(u16::MAX)
+        let area_x = usize::from(area.x);
+
+        if current_line >= self.content.len() || line_len < self.page_start.x + area_x {
+            return None;
+        }
+
+        let max_x = line_len.checked_sub(self.page_start.x + area_x)? + 1;
+        Some(u16::try_from(max_x).unwrap_or(u16::MAX))
     }
 }
 
@@ -131,31 +128,40 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     where
         Self: Sized,
     {
-        if let Some(start) = self.context.start
-            && let Some(end) = self.context.end
-        {
-            let (start, end) = sort(start, end);
-            for current_line in start.y..=end.y {
-                let y = self.get_relative_y(current_line, area);
-                if y >= area.y && y < area.bottom() {
-                    let max_x = self.get_max_line_len(area, current_line);
+        let (Some(start), Some(end)) = (self.context.start, self.context.end) else {
+            return;
+        };
+        let (start, end) = sort(start, end);
 
-                    let start = if start.y == current_line {
-                        self.get_relative_x(start.x, area)
-                    } else {
-                        area.x
-                    };
+        for current_line in start.y..=end.y {
+            if let Some(y) = self.get_relative_y(current_line, area)
+                && y >= area.y
+                && y < area.bottom()
+                && let Some(max_x) = self.get_relative_max_len(area, current_line)
+            {
+                let start = if start.y == current_line {
+                    // if this is the first line in the selection
+                    self.get_relative_x(start.x, area).unwrap_or(0)
+                } else {
+                    area.x
+                };
 
-                    let end = if end.y == current_line {
-                        self.get_relative_x(end.x, area).min(max_x)
-                    } else {
-                        max_x
-                    };
+                let end = if end.y == current_line {
+                    // if this is the last line in the selection
+                    self.get_relative_x(end.x, area)
+                } else {
+                    Some(max_x)
+                };
 
-                    for x in start..=end {
-                        if x < area.right() {
-                            buf[(x, y)].bg = ratatui::style::Color::Gray;
-                        }
+                if start < area.right()
+                    && let Some(end) = end
+                    && end >= area.x
+                {
+                    let draw_from = start.max(area.x);
+                    let draw_to = end.min(area.right());
+
+                    for x in draw_from..=draw_to {
+                        buf[(x, y)].bg = ratatui::style::Color::Gray;
                     }
                 }
             }
