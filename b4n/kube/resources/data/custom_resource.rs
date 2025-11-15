@@ -1,5 +1,6 @@
 use b4n_kube::crds::CrdColumns;
 use b4n_tui::grid::{Column, Header, NAMESPACE};
+use jsonpath_rust::JsonPath;
 use k8s_openapi::serde_json::{Value, to_value};
 use kube::api::DynamicObject;
 use std::{collections::HashSet, rc::Rc};
@@ -43,8 +44,10 @@ fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
     let mut data = Vec::with_capacity(crd.columns.as_ref().map(Vec::len).unwrap_or_default());
     if let Some(columns) = &crd.columns {
         for column in columns {
-            if let Some(value) = object_data.pointer(&column.pointer) {
-                data.push(get_resource_value(value, &column.field_type));
+            if let Ok(value) = object_data.query(&column.json_path)
+                && !value.is_empty()
+            {
+                data.push(get_resource_value(value[0], &column.field_type));
             } else {
                 data.push(ResourceValue::from(""));
             }

@@ -29,7 +29,7 @@ impl CrdColumns {
 
         let has_metadata_pointer = columns
             .as_ref()
-            .is_some_and(|c| c.iter().any(|c| c.pointer.starts_with("/metadata")));
+            .is_some_and(|c| c.iter().any(|c| c.json_path.starts_with("$.metadata")));
 
         Self {
             uid: format!("{uid}.{name}"),
@@ -44,7 +44,7 @@ impl CrdColumns {
 #[derive(Debug, Clone)]
 pub struct CrdColumn {
     pub name: String,
-    pub pointer: String,
+    pub json_path: String,
     pub field_type: String,
     pub priority: i64,
 }
@@ -52,9 +52,16 @@ pub struct CrdColumn {
 impl CrdColumn {
     /// Creates new [`CrdColumn`] instance from the json [`Value`].
     pub fn from(value: &Value) -> Self {
+        let path = get_str(value, "jsonPath");
+        let json_path = if path.starts_with('$') {
+            path.to_owned()
+        } else {
+            format!("${}", path)
+        };
+
         Self {
             name: get_string(value, "name"),
-            pointer: to_json_pointer(get_str(value, "jsonPath")),
+            json_path,
             field_type: get_string(value, "type"),
             priority: get_integer(value, "priority"),
         }
@@ -81,24 +88,4 @@ fn is_default(column: &Value) -> bool {
     column
         .get("jsonPath")
         .is_some_and(|p| p.as_str().is_some_and(|s| DEFAULT_PATHS.contains(&s)))
-}
-
-fn to_json_pointer(jsonpath: &str) -> String {
-    let mut result = String::with_capacity(jsonpath.len());
-
-    for ch in jsonpath.chars() {
-        if ch == '.' || ch == '[' {
-            result.push('/');
-        } else if ch == '~' {
-            result.push('~');
-            result.push('0');
-        } else if ch == '/' {
-            result.push('~');
-            result.push('1');
-        } else if ch != ']' && ch != '$' {
-            result.push(ch);
-        }
-    }
-
-    result
 }
