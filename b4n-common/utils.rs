@@ -63,8 +63,8 @@ pub fn word_bounds(s: &str, idx: usize) -> Option<(usize, usize)> {
     let mut end = 0;
 
     for (i, ch) in s.char_indices() {
-        end = i;
         let is_word = ch.is_alphanumeric() || ch == '_' || ch == '-' || ch == '.' || ch == '/';
+        end = i;
 
         if i < idx && !is_word {
             start = i;
@@ -78,11 +78,7 @@ pub fn word_bounds(s: &str, idx: usize) -> Option<(usize, usize)> {
         start = std::cmp::min(start + 1, end);
     }
 
-    if start == end || end < idx {
-        return None;
-    } else {
-        return Some((start, end));
-    }
+    if start == end || end < idx { None } else { Some((start, end)) }
 }
 
 /// Adds padding to the string slice.

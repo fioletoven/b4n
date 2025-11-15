@@ -428,7 +428,12 @@ impl<T: Content> ContentViewer<T> {
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
         frame.render_widget(
-            ContentSelectWidget::new(&self.select, &self.page_start, &self.page_area),
+            ContentSelectWidget::new(
+                &self.select,
+                self.content.as_ref().unwrap(),
+                &self.page_start,
+                &self.page_area,
+            ),
             area,
         );
 
