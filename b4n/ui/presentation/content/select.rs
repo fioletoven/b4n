@@ -1,4 +1,6 @@
-use b4n_tui::{MouseEventKind, TuiEvent};
+use b4n_config::keys::KeyCombination;
+use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{layout::Rect, widgets::Widget};
 
 use crate::ui::presentation::{Content, content::search::PagePosition};
@@ -12,11 +14,69 @@ pub struct SelectContext {
 
 impl SelectContext {
     /// Process UI key/mouse event.
-    pub fn process_event<T: Content>(&mut self, event: &TuiEvent, content: &mut T, page_start: &mut PagePosition, area: Rect) {
-        let TuiEvent::Mouse(mouse) = event else {
+    pub fn process_event<T: Content>(
+        &mut self,
+        event: &TuiEvent,
+        content: &mut T,
+        page_start: &mut PagePosition,
+        cursor: Option<PagePosition>,
+        area: Rect,
+    ) {
+        match event {
+            TuiEvent::Key(key) => self.process_key_start_event(key, cursor),
+            TuiEvent::Mouse(mouse) => self.process_mouse_event(mouse, content, page_start, area),
+        }
+    }
+
+    /// Updates selection end to the current cursor position for appropriate key combinations.
+    pub fn process_end_event(&mut self, event: &TuiEvent, cursor: PagePosition) {
+        let TuiEvent::Key(key) = event else {
             return;
         };
 
+        if key.modifiers != KeyModifiers::SHIFT {
+            self.start = None;
+            self.end = None;
+            return;
+        }
+
+        if is_allowed_key_code(key.code) {
+            self.end = Some(cursor);
+        } else {
+            self.start = None;
+            self.end = None;
+        }
+    }
+
+    fn process_key_start_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
+        let Some(cursor) = cursor else {
+            // if we are not in edit mode just return
+            return;
+        };
+
+        if key.modifiers != KeyModifiers::SHIFT {
+            self.start = None;
+            self.end = None;
+            return;
+        }
+
+        if is_allowed_key_code(key.code) {
+            if self.start.is_none() {
+                self.start = Some(cursor);
+            }
+        } else {
+            self.start = None;
+            self.end = None;
+        }
+    }
+
+    fn process_mouse_event<T: Content>(
+        &mut self,
+        mouse: &MouseEvent,
+        content: &mut T,
+        page_start: &mut PagePosition,
+        area: Rect,
+    ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             if let Some((start, end)) = content.word_bounds(pos.y, pos.x) {
@@ -71,11 +131,11 @@ fn get_position_in_content<T: Content>(
     area: Rect,
     content: &T,
     page_start: PagePosition,
-    mouse_x: u16,
-    mouse_y: u16,
+    screen_x: u16,
+    screen_y: u16,
 ) -> PagePosition {
-    let x = page_start.x.saturating_add(mouse_x.saturating_sub(area.x).into());
-    let y = page_start.y.saturating_add(mouse_y.saturating_sub(area.y).into());
+    let x = page_start.x.saturating_add(screen_x.saturating_sub(area.x).into());
+    let y = page_start.y.saturating_add(screen_y.saturating_sub(area.y).into());
 
     let x = x.min(content.line_size(y));
     PagePosition { x, y }
@@ -175,4 +235,18 @@ fn sort(p1: PagePosition, p2: PagePosition) -> (PagePosition, PagePosition) {
     } else {
         (p1, p2)
     }
+}
+
+fn is_allowed_key_code(key_code: KeyCode) -> bool {
+    matches!(
+        key_code,
+        KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::Home
+            | KeyCode::End
+            | KeyCode::Up
+            | KeyCode::Down
+            | KeyCode::PageUp
+            | KeyCode::PageDown
+    )
 }

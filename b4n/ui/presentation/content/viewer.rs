@@ -341,12 +341,14 @@ impl<T: Content> ContentViewer<T> {
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(content) = &mut self.content {
+            let cursor = if self.edit.is_enabled { Some(self.edit.cursor) } else { None };
             self.select
-                .process_event(event, content, &mut self.page_start, self.page_area);
+                .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
                 let response = self.edit.process_event(event, content, self.page_start, self.page_area);
                 if response != ResponseEvent::NotHandled {
+                    self.select.process_end_event(event, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                     self.scroll_to(y, x, 1);
                     return response;
