@@ -6,6 +6,7 @@
 
 - fix filter behaviour for previous resources
 - fix syntax highlighting for multiline changes
+- better jsonPath support for custom resource definitions
 
 ## 0.2.9 - 2025-11-10
 

@@ -177,6 +177,7 @@ dependencies = [
  "crossterm",
  "delegate",
  "futures",
+ "jsonpath-rust 1.0.4",
  "k8s-openapi",
  "kube",
  "ratatui",
@@ -1255,6 +1256,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonpath-rust"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "633a7320c4bb672863a3782e89b9094ad70285e097ff6832cddd0ec615beadfa"
+dependencies = [
+ "pest",
+ "pest_derive",
+ "regex",
+ "serde_json",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "jsonptr"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1328,7 +1342,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-timeout",
  "hyper-util",
- "jsonpath-rust",
+ "jsonpath-rust 0.7.5",
  "k8s-openapi",
  "kube-core",
  "pem",
