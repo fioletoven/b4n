@@ -96,6 +96,7 @@ impl LogsView {
     }
 
     fn toggle_timestamps(&mut self) {
+        self.logs.clear_selection();
         if let Some(content) = self.logs.content_mut() {
             content.toggle_timestamps();
             if content.show_timestamps {
@@ -425,7 +426,17 @@ impl Content for LogsContent {
         }
     }
 
-    fn word_bounds(&self, _line_no: usize, _idx: usize) -> Option<(usize, usize)> {
-        None
+    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
+        if let Some(line) = self.lines.get(line_no) {
+            if self.show_timestamps {
+                let idx = idx.saturating_sub(TIMESTAMP_TEXT_LENGTH);
+                let bounds = b4n_common::word_bounds(&line.message, idx);
+                bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
+            } else {
+                b4n_common::word_bounds(&line.message, idx)
+            }
+        } else {
+            None
+        }
     }
 }

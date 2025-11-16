@@ -13,6 +13,12 @@ pub struct SelectContext {
 }
 
 impl SelectContext {
+    /// Clears the current selection.
+    pub fn clear_selection(&mut self) {
+        self.start = None;
+        self.end = None;
+    }
+
     /// Process UI key/mouse event.
     pub fn process_event<T: Content>(
         &mut self,
@@ -51,8 +57,7 @@ impl SelectContext {
         };
 
         if key.modifiers != KeyModifiers::SHIFT {
-            self.start = None;
-            self.end = None;
+            self.clear_selection();
             return;
         }
 
@@ -61,8 +66,7 @@ impl SelectContext {
                 self.start = Some(cursor);
             }
         } else {
-            self.start = None;
-            self.end = None;
+            self.clear_selection();
         }
     }
 

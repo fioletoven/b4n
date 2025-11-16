@@ -92,6 +92,11 @@ impl<T: Content> ContentViewer<T> {
         self.content.as_mut()
     }
 
+    /// Clears the current selection.
+    pub fn clear_selection(&mut self) {
+        self.select.clear_selection();
+    }
+
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
         self.edit.is_enabled
