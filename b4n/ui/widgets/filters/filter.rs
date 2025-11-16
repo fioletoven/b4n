@@ -1,6 +1,6 @@
 use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::Rect;
 use ratatui::style::Style;

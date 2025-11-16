@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::grid::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
+use crate::table::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]

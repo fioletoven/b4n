@@ -3,7 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, ValidatorKind};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, Table, TuiEvent, grid::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::{Frame, layout::Rect};

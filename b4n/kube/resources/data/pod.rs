@@ -1,6 +1,6 @@
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
 use b4n_list::Item;
-use b4n_tui::grid::{Column, Header, NAMESPACE};
+use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{rc::Rc, slice::IterMut};

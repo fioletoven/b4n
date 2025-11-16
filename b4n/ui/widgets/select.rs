@@ -1,6 +1,6 @@
 use b4n_config::{keys::KeyCombination, themes::SelectColors, themes::TextColors};
 use b4n_tui::widgets::{ErrorHighlightMode, Input};
-use b4n_tui::{ResponseEvent, Responsive, Table, TuiEvent};
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};

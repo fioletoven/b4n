@@ -4,7 +4,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
 use b4n_tasks::commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError};
 use b4n_tui::widgets::Footer;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, grid::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;

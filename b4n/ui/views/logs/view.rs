@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink, slice_from, slice_to, substring};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, MatchPosition, StyledLine};
+use crate::ui::presentation::{Content, ContentViewer, MatchPosition, PagePosition, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -96,6 +96,7 @@ impl LogsView {
     }
 
     fn toggle_timestamps(&mut self) {
+        self.logs.clear_selection();
         if let Some(content) = self.logs.content_mut() {
             content.toggle_timestamps();
             if content.show_timestamps {
@@ -110,32 +111,16 @@ impl LogsView {
 
     fn copy_logs_to_clipboard(&self) {
         if self.logs.content().is_some() {
+            let range = self.logs.get_selection();
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard.set_text(self.get_logs_as_string()).is_ok()
+                && clipboard
+                    .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
+                    .is_ok()
             {
                 self.footer.show_info(" Container logs copied to clipboard…", 1_500);
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
-        }
-    }
-
-    fn get_logs_as_string(&self) -> String {
-        if let Some(content) = self.logs.content() {
-            let mut result = String::new();
-            for line in &content.lines {
-                if content.show_timestamps {
-                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
-                    result.push(' ');
-                }
-
-                result.push_str(&line.message);
-                result.push('\n');
-            }
-
-            result
-        } else {
-            String::default()
         }
     }
 
@@ -400,6 +385,44 @@ impl Content for LogsContent {
         0
     }
 
+    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
+        let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
+        let start_line = start.min(self.lines.len().saturating_sub(1));
+        let end_line = end.min(self.lines.len().saturating_sub(1));
+        let (start, end) = range
+            .map(|(s, e)| (s.x, e.x))
+            .unwrap_or_else(|| (0, self.line_size(end_line)));
+
+        let mut result = String::new();
+        for (i, line) in self.lines.iter().enumerate().take(end_line + 1).skip(start_line) {
+            if i == start_line || i == end_line {
+                let text = if self.show_timestamps {
+                    format!("{}{}", line.datetime.format(TIMESTAMP_TEXT_FORMAT), line.message)
+                } else {
+                    line.message.clone()
+                };
+
+                if i == start_line && i == end_line {
+                    result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
+                } else if i == start_line {
+                    result.push_str(slice_from(&text, start));
+                    result.push('\n');
+                } else if i == end_line {
+                    result.push_str(slice_to(&text, end + 1));
+                }
+            } else {
+                if self.show_timestamps {
+                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                }
+
+                result.push_str(&line.message);
+                result.push('\n');
+            }
+        }
+
+        result
+    }
+
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
@@ -425,7 +448,17 @@ impl Content for LogsContent {
         }
     }
 
-    fn word_bounds(&self, _line_no: usize, _idx: usize) -> Option<(usize, usize)> {
-        None
+    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
+        if let Some(line) = self.lines.get(line_no) {
+            if self.show_timestamps {
+                let idx = idx.saturating_sub(TIMESTAMP_TEXT_LENGTH);
+                let bounds = b4n_common::word_bounds(&line.message, idx);
+                bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
+            } else {
+                b4n_common::word_bounds(&line.message, idx)
+            }
+        } else {
+            None
+        }
     }
 }

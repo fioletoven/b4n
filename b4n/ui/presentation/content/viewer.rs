@@ -92,6 +92,16 @@ impl<T: Content> ContentViewer<T> {
         self.content.as_mut()
     }
 
+    /// Clears the current selection.
+    pub fn clear_selection(&mut self) {
+        self.select.clear_selection();
+    }
+
+    /// Returns selection range if anything is selected.
+    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+        self.select.get_selection()
+    }
+
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
         self.edit.is_enabled
@@ -116,11 +126,12 @@ impl<T: Content> ContentViewer<T> {
             return false;
         }
 
-        let start = self.current_match_position();
+        let search = self.current_match_position();
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
-            self.edit.enable(self.page_start, start, self.page_area.height, content);
+            self.edit
+                .enable(self.page_start, self.select.end, search, self.page_area.height, content);
             self.header.set_edit('', "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
@@ -341,12 +352,16 @@ impl<T: Content> ContentViewer<T> {
     /// Process UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if let Some(content) = &mut self.content {
+            let cursor = if self.edit.is_enabled { Some(self.edit.cursor) } else { None };
             self.select
-                .process_event(event, content, &mut self.page_start, self.page_area);
+                .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
-                let response = self.edit.process_event(event, content, self.page_start, self.page_area);
+                let response = self
+                    .edit
+                    .process_event(event, content, self.page_start, self.select.end, self.page_area);
                 if response != ResponseEvent::NotHandled {
+                    self.select.process_event_final(event, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                     self.scroll_to(y, x, 1);
                     return response;
@@ -428,12 +443,7 @@ impl<T: Content> ContentViewer<T> {
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
         frame.render_widget(
-            ContentSelectWidget::new(
-                &self.select,
-                self.content.as_ref().unwrap(),
-                &self.page_start,
-                &self.page_area,
-            ),
+            ContentSelectWidget::new(&self.select, self.content.as_ref().unwrap(), &self.page_start),
             area,
         );
 

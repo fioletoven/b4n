@@ -1,3 +1,4 @@
+use b4n_common::{slice_from, slice_to, substring};
 use b4n_tasks::{HighlightError, HighlightRequest, HighlightResponse};
 use b4n_tui::ResponseEvent;
 use std::collections::HashSet;
@@ -5,7 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::ui::presentation::{Content, MatchPosition, StyleFallback, StyledLine, StyledLineExt};
+use crate::ui::presentation::{Content, MatchPosition, PagePosition, StyleFallback, StyledLine, StyledLineExt};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -216,6 +217,31 @@ impl Content for YamlContent {
         let mut hasher = DefaultHasher::new();
         self.plain.hash(&mut hasher);
         hasher.finish()
+    }
+
+    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
+        match range {
+            None => self.plain.join("\n"),
+            Some((start, end)) => {
+                let start_line = start.y.min(self.plain.len().saturating_sub(1));
+                let end_line = end.y.min(self.plain.len().saturating_sub(1));
+
+                let mut result = Vec::new();
+                for (i, line) in self.plain.iter().enumerate().take(end_line + 1).skip(start_line) {
+                    if i == start_line && i == end_line {
+                        result.push(substring(line, start.x, (end.x + 1).saturating_sub(start.x)));
+                    } else if i == start_line {
+                        result.push(slice_from(line, start.x));
+                    } else if i == end_line {
+                        result.push(slice_to(line, end.x + 1));
+                    } else {
+                        result.push(line);
+                    }
+                }
+
+                result.join("\n")
+            },
+        }
     }
 
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {

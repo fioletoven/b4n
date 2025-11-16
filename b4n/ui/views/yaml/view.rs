@@ -8,7 +8,7 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{ContentViewer, StyleFallback};
+use crate::ui::presentation::{Content, ContentViewer, StyleFallback};
 use crate::ui::views::{View, yaml::YamlContent};
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -65,9 +65,10 @@ impl YamlView {
 
     fn copy_yaml_to_clipboard(&self) {
         if self.yaml.content().is_some() {
+            let range = self.yaml.get_selection();
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
                 && clipboard
-                    .set_text(self.yaml.content().map(|c| c.plain.join("\n")).unwrap_or_default())
+                    .set_text(self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
                 self.footer.show_info(" YAML content copied to clipboard…", 1_500);

@@ -1,4 +1,6 @@
-use b4n_tui::{MouseEventKind, TuiEvent};
+use b4n_config::keys::KeyCombination;
+use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{layout::Rect, widgets::Widget};
 
 use crate::ui::presentation::{Content, content::search::PagePosition};
@@ -6,35 +8,94 @@ use crate::ui::presentation::{Content, content::search::PagePosition};
 /// Context for the selected text.
 #[derive(Default)]
 pub struct SelectContext {
-    start: Option<PagePosition>,
-    end: Option<PagePosition>,
+    pub start: Option<PagePosition>,
+    pub end: Option<PagePosition>,
 }
 
 impl SelectContext {
+    /// Clears the current selection.
+    pub fn clear_selection(&mut self) {
+        self.start = None;
+        self.end = None;
+    }
+
+    /// Returns selection range if anything is selected.
+    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+        let (Some(start), Some(end)) = (self.start, self.end) else {
+            return None;
+        };
+        Some(sort(start, end))
+    }
+
     /// Process UI key/mouse event.
-    pub fn process_event<T: Content>(&mut self, event: &TuiEvent, content: &mut T, page_start: &mut PagePosition, area: Rect) {
-        let TuiEvent::Mouse(mouse) = event else {
+    pub fn process_event<T: Content>(
+        &mut self,
+        event: &TuiEvent,
+        content: &mut T,
+        page_start: &mut PagePosition,
+        cursor: Option<PagePosition>,
+        area: Rect,
+    ) {
+        match event {
+            TuiEvent::Key(key) => self.process_key_event(key, cursor),
+            TuiEvent::Mouse(mouse) => self.process_mouse_event(mouse, content, page_start, area),
+        }
+    }
+
+    /// Updates selection end to the current cursor position only for appropriate key combinations.\
+    /// **Note** that it must be executed only in edit mode and after processing edit events.
+    pub fn process_event_final(&mut self, event: &TuiEvent, cursor: PagePosition) {
+        let TuiEvent::Key(key) = event else {
             return;
         };
 
+        if key.modifiers != KeyModifiers::SHIFT {
+            return;
+        }
+
+        if is_allowed_key_code(key.code) {
+            self.end = Some(cursor);
+        }
+    }
+
+    fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
+        let Some(cursor) = cursor else {
+            // if we are not in edit mode just return
+            return;
+        };
+
+        if key.modifiers != KeyModifiers::SHIFT {
+            self.clear_selection();
+            return;
+        }
+
+        if is_allowed_key_code(key.code) {
+            if self.start.is_none() {
+                self.start = Some(cursor);
+            }
+        } else {
+            self.clear_selection();
+        }
+    }
+
+    fn process_mouse_event<T: Content>(
+        &mut self,
+        mouse: &MouseEvent,
+        content: &mut T,
+        page_start: &mut PagePosition,
+        area: Rect,
+    ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             if let Some((start, end)) = content.word_bounds(pos.y, pos.x) {
                 self.start = Some(PagePosition { x: start, y: pos.y });
                 self.end = Some(PagePosition { x: end, y: pos.y });
             }
-
-            return;
-        }
-
-        if mouse.kind == MouseEventKind::LeftClick {
+        } else if mouse.kind == MouseEventKind::LeftClick {
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             self.start = Some(pos);
             self.end = None;
-            return;
-        }
-
-        if mouse.kind == MouseEventKind::LeftDrag {
+        } else if mouse.kind == MouseEventKind::LeftDrag {
             scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             self.end = Some(pos);
@@ -71,11 +132,11 @@ fn get_position_in_content<T: Content>(
     area: Rect,
     content: &T,
     page_start: PagePosition,
-    mouse_x: u16,
-    mouse_y: u16,
+    screen_x: u16,
+    screen_y: u16,
 ) -> PagePosition {
-    let x = page_start.x.saturating_add(mouse_x.saturating_sub(area.x).into());
-    let y = page_start.y.saturating_add(mouse_y.saturating_sub(area.y).into());
+    let x = page_start.x.saturating_add(screen_x.saturating_sub(area.x).into());
+    let y = page_start.y.saturating_add(screen_y.saturating_sub(area.y).into());
 
     let x = x.min(content.line_size(y));
     PagePosition { x, y }
@@ -86,43 +147,40 @@ pub struct ContentSelectWidget<'a, T: Content> {
     pub context: &'a SelectContext,
     pub content: &'a T,
     pub page_start: &'a PagePosition,
-    pub page_area: &'a Rect,
 }
 
 impl<'a, T: Content> ContentSelectWidget<'a, T> {
     /// Creates new [`ContentSelectWidget`] instance.
-    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition, page_area: &'a Rect) -> Self {
+    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition) -> Self {
         Self {
             context,
             content,
             page_start,
-            page_area,
         }
     }
 
-    fn get_relative_x(&self, x: usize, area: Rect) -> u16 {
-        let x = if x >= self.page_start.x {
-            u16::try_from(x - self.page_start.x).unwrap_or(self.page_area.width)
-        } else {
-            self.page_area.width
-        };
-
-        x.saturating_add(area.x)
+    fn get_relative_x(&self, x: usize, area: Rect) -> Option<u16> {
+        let x = x.checked_sub(self.page_start.x)?;
+        let x = u16::try_from(x).unwrap_or(area.width);
+        Some(x.saturating_add(area.x))
     }
 
-    fn get_relative_y(&self, y: usize, area: Rect) -> u16 {
-        let y = if y >= self.page_start.y {
-            u16::try_from(y - self.page_start.y).unwrap_or(self.page_area.height)
-        } else {
-            self.page_area.height
-        };
-
-        y.saturating_add(area.y)
+    fn get_relative_y(&self, y: usize, area: Rect) -> Option<u16> {
+        let y = y.checked_sub(self.page_start.y)?;
+        let y = u16::try_from(y).unwrap_or(area.height);
+        Some(y.saturating_add(area.y))
     }
 
-    fn get_max_line_len(&self, area: Rect, current_line: usize) -> u16 {
+    fn get_relative_max_len(&self, area: Rect, current_line: usize) -> Option<u16> {
         let line_len = self.content.line_size(current_line) + 1;
-        u16::try_from(line_len.saturating_sub(usize::from(area.x)) + 1).unwrap_or(u16::MAX)
+        let area_x = usize::from(area.x);
+
+        if current_line >= self.content.len() || line_len < self.page_start.x + area_x {
+            return None;
+        }
+
+        let max_x = line_len.checked_sub(self.page_start.x + area_x)? + 1;
+        Some(u16::try_from(max_x).unwrap_or(u16::MAX))
     }
 }
 
@@ -131,31 +189,39 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     where
         Self: Sized,
     {
-        if let Some(start) = self.context.start
-            && let Some(end) = self.context.end
-        {
-            let (start, end) = sort(start, end);
-            for current_line in start.y..=end.y {
-                let y = self.get_relative_y(current_line, area);
-                if y >= area.y && y < area.bottom() {
-                    let max_x = self.get_max_line_len(area, current_line);
+        let Some((start, end)) = self.context.get_selection() else {
+            return;
+        };
 
-                    let start = if start.y == current_line {
-                        self.get_relative_x(start.x, area)
-                    } else {
-                        area.x
-                    };
+        for current_line in start.y..=end.y {
+            if let Some(y) = self.get_relative_y(current_line, area)
+                && y >= area.y
+                && y < area.bottom()
+                && let Some(max_x) = self.get_relative_max_len(area, current_line)
+            {
+                let start = if start.y == current_line {
+                    // if this is the first line in the selection
+                    self.get_relative_x(start.x, area).unwrap_or(0)
+                } else {
+                    area.x
+                };
 
-                    let end = if end.y == current_line {
-                        self.get_relative_x(end.x, area).min(max_x)
-                    } else {
-                        max_x
-                    };
+                let end = if end.y == current_line {
+                    // if this is the last line in the selection
+                    self.get_relative_x(end.x, area).map(|x| x.min(max_x.saturating_sub(1)))
+                } else {
+                    Some(max_x)
+                };
 
-                    for x in start..=end {
-                        if x < area.right() {
-                            buf[(x, y)].bg = ratatui::style::Color::Gray;
-                        }
+                if start < area.right()
+                    && let Some(end) = end
+                    && end >= area.x
+                {
+                    let draw_from = start.max(area.x);
+                    let draw_to = end.min(area.right());
+
+                    for x in draw_from..=draw_to {
+                        buf[(x, y)].bg = ratatui::style::Color::Gray;
                     }
                 }
             }
@@ -169,4 +235,18 @@ fn sort(p1: PagePosition, p2: PagePosition) -> (PagePosition, PagePosition) {
     } else {
         (p1, p2)
     }
+}
+
+fn is_allowed_key_code(key_code: KeyCode) -> bool {
+    matches!(
+        key_code,
+        KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::Home
+            | KeyCode::End
+            | KeyCode::Up
+            | KeyCode::Down
+            | KeyCode::PageUp
+            | KeyCode::PageDown
+    )
 }

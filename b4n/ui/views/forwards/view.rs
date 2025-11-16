@@ -2,7 +2,7 @@ use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::Namespace;
 use b4n_tui::widgets::{Button, Dialog};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, grid::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::discovery::Scope;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
