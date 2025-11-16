@@ -97,6 +97,11 @@ impl<T: Content> ContentViewer<T> {
         self.select.clear_selection();
     }
 
+    /// Returns selection range if anything is selected.
+    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+        self.select.start.zip(self.select.end)
+    }
+
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
         self.edit.is_enabled

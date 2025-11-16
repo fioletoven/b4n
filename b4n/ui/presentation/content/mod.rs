@@ -1,5 +1,5 @@
 pub use header::ContentHeader;
-pub use search::MatchPosition;
+pub use search::{MatchPosition, PagePosition};
 pub use styled_line::{StyleFallback, StyledLine, StyledLineExt};
 pub use viewer::ContentViewer;
 
@@ -27,6 +27,9 @@ pub trait Content {
 
     /// Returns a hash calculated over the content.
     fn hash(&self) -> u64;
+
+    /// Converts the content to a plain `String` representation, optionally restricting the range of the content to be converted.
+    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String;
 
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;

@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, MatchPosition, StyledLine};
+use crate::ui::presentation::{Content, ContentViewer, MatchPosition, PagePosition, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -111,32 +111,16 @@ impl LogsView {
 
     fn copy_logs_to_clipboard(&self) {
         if self.logs.content().is_some() {
+            let range = self.logs.get_selection();
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard.set_text(self.get_logs_as_string()).is_ok()
+                && clipboard
+                    .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
+                    .is_ok()
             {
                 self.footer.show_info(" Container logs copied to clipboard…", 1_500);
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
-        }
-    }
-
-    fn get_logs_as_string(&self) -> String {
-        if let Some(content) = self.logs.content() {
-            let mut result = String::new();
-            for line in &content.lines {
-                if content.show_timestamps {
-                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
-                    result.push(' ');
-                }
-
-                result.push_str(&line.message);
-                result.push('\n');
-            }
-
-            result
-        } else {
-            String::default()
         }
     }
 
@@ -399,6 +383,21 @@ impl Content for LogsContent {
 
     fn hash(&self) -> u64 {
         0
+    }
+
+    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
+        let mut result = String::new();
+        for line in &self.lines {
+            if self.show_timestamps {
+                result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                result.push(' ');
+            }
+
+            result.push_str(&line.message);
+            result.push('\n');
+        }
+
+        result
     }
 
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
