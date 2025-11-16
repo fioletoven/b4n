@@ -23,32 +23,28 @@ impl SelectContext {
         area: Rect,
     ) {
         match event {
-            TuiEvent::Key(key) => self.process_key_start_event(key, cursor),
+            TuiEvent::Key(key) => self.process_key_event(key, cursor),
             TuiEvent::Mouse(mouse) => self.process_mouse_event(mouse, content, page_start, area),
         }
     }
 
-    /// Updates selection end to the current cursor position for appropriate key combinations.
-    pub fn process_end_event(&mut self, event: &TuiEvent, cursor: PagePosition) {
+    /// Updates selection end to the current cursor position for appropriate key combinations.\
+    /// **Note** that it must be executed after processing edit events.
+    pub fn process_event_final(&mut self, event: &TuiEvent, cursor: PagePosition) {
         let TuiEvent::Key(key) = event else {
             return;
         };
 
         if key.modifiers != KeyModifiers::SHIFT {
-            self.start = None;
-            self.end = None;
             return;
         }
 
         if is_allowed_key_code(key.code) {
             self.end = Some(cursor);
-        } else {
-            self.start = None;
-            self.end = None;
         }
     }
 
-    fn process_key_start_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
+    fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
         let Some(cursor) = cursor else {
             // if we are not in edit mode just return
             return;
@@ -83,18 +79,11 @@ impl SelectContext {
                 self.start = Some(PagePosition { x: start, y: pos.y });
                 self.end = Some(PagePosition { x: end, y: pos.y });
             }
-
-            return;
-        }
-
-        if mouse.kind == MouseEventKind::LeftClick {
+        } else if mouse.kind == MouseEventKind::LeftClick {
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             self.start = Some(pos);
             self.end = None;
-            return;
-        }
-
-        if mouse.kind == MouseEventKind::LeftDrag {
+        } else if mouse.kind == MouseEventKind::LeftDrag {
             scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
             let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
             self.end = Some(pos);
@@ -208,7 +197,7 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
 
                 let end = if end.y == current_line {
                     // if this is the last line in the selection
-                    self.get_relative_x(end.x, area)
+                    self.get_relative_x(end.x, area).map(|x| x.min(max_x.saturating_sub(1)))
                 } else {
                     Some(max_x)
                 };
