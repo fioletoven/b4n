@@ -8,8 +8,8 @@ use crate::ui::presentation::{Content, content::search::PagePosition};
 /// Context for the selected text.
 #[derive(Default)]
 pub struct SelectContext {
-    start: Option<PagePosition>,
-    end: Option<PagePosition>,
+    pub start: Option<PagePosition>,
+    pub end: Option<PagePosition>,
 }
 
 impl SelectContext {
@@ -28,8 +28,8 @@ impl SelectContext {
         }
     }
 
-    /// Updates selection end to the current cursor position for appropriate key combinations.\
-    /// **Note** that it must be executed after processing edit events.
+    /// Updates selection end to the current cursor position only for appropriate key combinations.\
+    /// **Note** that it must be executed only in edit mode and after processing edit events.
     pub fn process_event_final(&mut self, event: &TuiEvent, cursor: PagePosition) {
         let TuiEvent::Key(key) = event else {
             return;

@@ -116,11 +116,12 @@ impl<T: Content> ContentViewer<T> {
             return false;
         }
 
-        let start = self.current_match_position();
+        let search = self.current_match_position();
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
-            self.edit.enable(self.page_start, start, self.page_area.height, content);
+            self.edit
+                .enable(self.page_start, self.select.end, search, self.page_area.height, content);
             self.header.set_edit('', "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
@@ -346,7 +347,9 @@ impl<T: Content> ContentViewer<T> {
                 .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
-                let response = self.edit.process_event(event, content, self.page_start, self.page_area);
+                let response = self
+                    .edit
+                    .process_event(event, content, self.page_start, self.select.end, self.page_area);
                 if response != ResponseEvent::NotHandled {
                     self.select.process_event_final(event, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);

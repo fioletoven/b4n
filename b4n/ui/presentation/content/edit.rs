@@ -31,9 +31,19 @@ impl EditContext {
     }
 
     /// Sets [`EditContext`] as enabled.
-    pub fn enable<T: Content>(&mut self, position: PagePosition, search: Option<PagePosition>, page_size: u16, content: &mut T) {
+    pub fn enable<T: Content>(
+        &mut self,
+        position: PagePosition,
+        selection_end: Option<PagePosition>,
+        search: Option<PagePosition>,
+        page_size: u16,
+        content: &mut T,
+    ) {
         self.is_enabled = true;
-        if let Some(search) = search {
+        if let Some(selection_end) = selection_end {
+            self.cursor = selection_end;
+            self.constraint_cursor_position(false, content);
+        } else if let Some(search) = search {
             self.cursor = search;
             self.constraint_cursor_position(false, content);
         } else if self.cursor.y < position.y {
@@ -51,6 +61,7 @@ impl EditContext {
         event: &TuiEvent,
         content: &mut T,
         position: PagePosition,
+        selection_end: Option<PagePosition>,
         area: Rect,
     ) -> ResponseEvent {
         match event {
@@ -70,6 +81,10 @@ impl EditContext {
                     let pos = self.process_mouse(*mouse, position, area);
                     self.update_cursor_position(pos, content, true);
                 } else {
+                    if let Some(selection_end) = selection_end {
+                        self.cursor = selection_end;
+                    }
+
                     return ResponseEvent::NotHandled;
                 }
             },
