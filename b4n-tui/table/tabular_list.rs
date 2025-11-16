@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCombination;
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::grid::Header;
+use crate::table::Header;
 use crate::{MouseEvent, MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates which columns in the list should be displayed.

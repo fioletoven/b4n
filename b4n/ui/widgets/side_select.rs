@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Style, Stylize};

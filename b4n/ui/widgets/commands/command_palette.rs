@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, Table, TuiEvent, utils::center_horizontal};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};

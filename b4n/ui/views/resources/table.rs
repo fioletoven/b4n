@@ -4,7 +4,7 @@ use b4n_kube::{
     REPLICA_SETS, ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, Table, TuiEvent, grid::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
 use kube::discovery::Scope;

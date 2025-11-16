@@ -1,7 +1,7 @@
 use b4n_common::{substring_owned, truncate};
 use b4n_list::{FilterContext, Filterable, Item, Row};
 
-use crate::grid::{AGE_COLUMN_WIDTH, Header, ViewType};
+use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType};
 
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
