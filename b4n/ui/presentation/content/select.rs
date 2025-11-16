@@ -19,6 +19,14 @@ impl SelectContext {
         self.end = None;
     }
 
+    /// Returns selection range if anything is selected.
+    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+        let (Some(start), Some(end)) = (self.start, self.end) else {
+            return None;
+        };
+        Some(sort(start, end))
+    }
+
     /// Process UI key/mouse event.
     pub fn process_event<T: Content>(
         &mut self,
@@ -181,10 +189,9 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     where
         Self: Sized,
     {
-        let (Some(start), Some(end)) = (self.context.start, self.context.end) else {
+        let Some((start, end)) = self.context.get_selection() else {
             return;
         };
-        let (start, end) = sort(start, end);
 
         for current_line in start.y..=end.y {
             if let Some(y) = self.get_relative_y(current_line, area)

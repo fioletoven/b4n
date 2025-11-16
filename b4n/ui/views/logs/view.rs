@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink, slice_from, slice_to, substring};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
@@ -386,15 +386,38 @@ impl Content for LogsContent {
     }
 
     fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
-        let mut result = String::new();
-        for line in &self.lines {
-            if self.show_timestamps {
-                result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
-                result.push(' ');
-            }
+        let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
+        let start_line = start.min(self.lines.len().saturating_sub(1));
+        let end_line = end.min(self.lines.len().saturating_sub(1));
+        let (start, end) = range
+            .map(|(s, e)| (s.x, e.x))
+            .unwrap_or_else(|| (0, self.line_size(end_line)));
 
-            result.push_str(&line.message);
-            result.push('\n');
+        let mut result = String::new();
+        for (i, line) in self.lines.iter().enumerate().take(end_line + 1).skip(start_line) {
+            if i == start_line || i == end_line {
+                let text = if self.show_timestamps {
+                    format!("{}{}", line.datetime.format(TIMESTAMP_TEXT_FORMAT), line.message)
+                } else {
+                    line.message.clone()
+                };
+
+                if i == start_line && i == end_line {
+                    result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
+                } else if i == start_line {
+                    result.push_str(slice_from(&text, start));
+                    result.push('\n');
+                } else if i == end_line {
+                    result.push_str(slice_to(&text, end + 1));
+                }
+            } else {
+                if self.show_timestamps {
+                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                }
+
+                result.push_str(&line.message);
+                result.push('\n');
+            }
         }
 
         result

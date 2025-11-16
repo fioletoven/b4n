@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- allow copying selected text in logs and YAML views
+
 ### Bug fixes
 
 - fix filter behaviour for previous resources

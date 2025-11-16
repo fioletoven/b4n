@@ -32,6 +32,18 @@ pub fn truncate_left(s: &str, max_chars: usize) -> &str {
     &s[start_idx..]
 }
 
+/// Returns tail of a given string slice.
+pub fn slice_from(s: &str, start: usize) -> &str {
+    let start_idx = s.char_indices().nth(start).map_or(s.len(), |(i, _)| i);
+    &s[start_idx..]
+}
+
+/// Returns head of a given string slice.
+pub fn slice_to(s: &str, end: usize) -> &str {
+    let end_idx = s.char_indices().nth(end).map_or(s.len(), |(i, _)| i);
+    &s[..end_idx]
+}
+
 /// Returns a substring of a given string slice.
 pub fn substring(s: &str, start: usize, len: usize) -> &str {
     let mut iter = s.char_indices();
