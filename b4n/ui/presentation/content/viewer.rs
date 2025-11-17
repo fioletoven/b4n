@@ -135,6 +135,7 @@ impl<T: Content> ContentViewer<T> {
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
+            self.select.clear_selection_if_partial();
             self.edit.enable(
                 self.page_start,
                 self.select.get_selection_end(),
@@ -375,7 +376,7 @@ impl<T: Content> ContentViewer<T> {
                     self.page_area,
                 );
                 if response != ResponseEvent::NotHandled {
-                    self.select.process_event_final(event, self.edit.cursor);
+                    self.select.process_event_final(event, content, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                     self.scroll_to(y, x, 1);
                     return response;

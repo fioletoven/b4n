@@ -19,6 +19,13 @@ impl SelectContext {
         self.end = None;
     }
 
+    /// Clears the current selection start (if end is not set).
+    pub fn clear_selection_if_partial(&mut self) {
+        if self.end.is_none() {
+            self.start = None;
+        }
+    }
+
     /// Returns ordered selection range if anything is selected.
     pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
         let (Some(start), Some(end)) = (self.start, self.end) else {
@@ -30,12 +37,11 @@ impl SelectContext {
     /// Returns the selection end position along with a flag indicating whether
     /// the end position comes after the start position (`true`) or not (`false`).
     pub fn get_selection_end(&self) -> Option<(PagePosition, bool)> {
-        let (Some(start), Some(end)) = (self.start, self.end) else {
-            return None;
-        };
-
-        let end_after_start = end.y > start.y || (end.y == start.y && end.x >= start.x);
-        Some((end, end_after_start))
+        if let (Some(start), Some(end)) = (self.start, self.end) {
+            Some((end, is_sorted(start, end)))
+        } else {
+            None
+        }
     }
 
     /// Process UI key/mouse event.
@@ -55,7 +61,7 @@ impl SelectContext {
 
     /// Updates selection end to the current cursor position only for appropriate key combinations.\
     /// **Note** that it must be executed only in edit mode and after processing edit events.
-    pub fn process_event_final(&mut self, event: &TuiEvent, cursor: PagePosition) {
+    pub fn process_event_final<T: Content>(&mut self, event: &TuiEvent, content: &T, cursor: PagePosition) {
         let TuiEvent::Key(key) = event else {
             return;
         };
@@ -64,14 +70,32 @@ impl SelectContext {
             return;
         }
 
-        if is_allowed_key_code(key.code) {
-            self.end = Some(cursor);
+        if let Some(start) = self.start
+            && is_allowed_key_code(key.code)
+        {
+            if is_sorted(start, cursor) {
+                if cursor.x > 0 {
+                    self.end = Some(PagePosition {
+                        x: cursor.x - 1,
+                        y: cursor.y,
+                    });
+                } else if cursor.y > 0 {
+                    self.end = Some(PagePosition {
+                        x: content.line_size(cursor.y - 1),
+                        y: cursor.y - 1,
+                    });
+                } else {
+                    self.end = Some(cursor);
+                }
+            } else {
+                self.end = Some(cursor);
+            }
         }
     }
 
     fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
         let Some(cursor) = cursor else {
-            // if we are not in edit mode just return
+            // if we are not in the edit mode just return
             return;
         };
 
@@ -97,19 +121,18 @@ impl SelectContext {
         area: Rect,
     ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
-            let pos = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
-            if let Some((start, end)) = content.word_bounds(pos.y, pos.x) {
+            if let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
+                && let Some((start, end)) = content.word_bounds(pos.y, pos.x)
+            {
                 self.start = Some(PagePosition { x: start, y: pos.y });
                 self.end = Some(PagePosition { x: end, y: pos.y });
             }
         } else if mouse.kind == MouseEventKind::LeftClick {
-            let pos = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
-            self.start = Some(pos);
+            self.start = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
             self.end = None;
         } else if mouse.kind == MouseEventKind::LeftDrag {
             scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
-            let pos = get_position_in_content(area, content, *page_start, self.start, mouse.column, mouse.row);
-            self.end = Some(pos);
+            self.end = get_position_in_content(area, content, *page_start, self.start, mouse.column, mouse.row);
         }
     }
 }
@@ -146,18 +169,34 @@ fn get_position_in_content<T: Content>(
     selection_start: Option<PagePosition>,
     screen_x: u16,
     screen_y: u16,
-) -> PagePosition {
+) -> Option<PagePosition> {
     let x = page_start.x.saturating_add(screen_x.saturating_sub(area.x).into());
     let y = page_start.y.saturating_add(screen_y.saturating_sub(area.y).into());
 
+    if y >= content.len() {
+        let y = content.len().saturating_sub(1);
+        let x = content.line_size(y);
+        return Some(PagePosition { x, y });
+    }
+
     let line_len = content.line_size(y);
-    if let Some(start) = selection_start
-        && start.y < y
-    {
-        let x = x.min(line_len.saturating_sub(1));
-        PagePosition { x, y }
+    if let Some(start) = selection_start {
+        // we already have a selection start
+        if start.y == y && start.x >= line_len && x >= line_len {
+            // selection started on the same line and outside the text, return nothing
+            None
+        } else if start.y <= y {
+            // top-to-bottom selection, clamp x to the last character of the line,
+            // excluding the implicit newline
+            let x = x.min(line_len.saturating_sub(1));
+            Some(PagePosition { x, y })
+        } else {
+            // clamp x to the last character of the line
+            Some(PagePosition { x: x.min(line_len), y })
+        }
     } else {
-        PagePosition { x: x.min(line_len), y }
+        // this is the start of a selection
+        Some(PagePosition { x: x.min(line_len), y })
     }
 }
 
@@ -218,25 +257,25 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
                 && y < area.bottom()
                 && let Some(max_x) = self.get_relative_max_len(area, current_line)
             {
-                let start = if start.y == current_line {
+                let start_x = if start.y == current_line {
                     // if this is the first line in the selection
                     self.get_relative_x(start.x, area).unwrap_or(0)
                 } else {
                     area.x
                 };
 
-                let end = if end.y == current_line {
+                let end_x = if end.y == current_line {
                     // if this is the last line in the selection
-                    self.get_relative_x(end.x, area).map(|x| x.min(max_x.saturating_sub(1)))
+                    self.get_relative_x(end.x, area).map(|x| x.min(max_x))
                 } else {
                     Some(max_x)
                 };
 
-                if start < area.right()
-                    && let Some(end) = end
+                if start_x < area.right()
+                    && let Some(end) = end_x
                     && end >= area.x
                 {
-                    let draw_from = start.max(area.x);
+                    let draw_from = start_x.max(area.x);
                     let draw_to = end.min(area.right());
 
                     for x in draw_from..=draw_to {
@@ -248,12 +287,12 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     }
 }
 
+fn is_sorted(p1: PagePosition, p2: PagePosition) -> bool {
+    p2.y > p1.y || (p2.y == p1.y && p2.x >= p1.x)
+}
+
 fn sort(p1: PagePosition, p2: PagePosition) -> (PagePosition, PagePosition) {
-    if (p1.y > p2.y) || (p1.y == p2.y && p1.x > p2.x) {
-        (p2, p1)
-    } else {
-        (p1, p2)
-    }
+    if is_sorted(p1, p2) { (p1, p2) } else { (p2, p1) }
 }
 
 fn is_allowed_key_code(key_code: KeyCode) -> bool {

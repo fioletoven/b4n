@@ -401,10 +401,11 @@ impl Content for LogsContent {
         let end_line = end.min(self.lines.len().saturating_sub(1));
         let (start, end) = range
             .map(|(s, e)| (s.x, e.x))
-            .unwrap_or_else(|| (0, self.line_size(end_line)));
+            .unwrap_or_else(|| (0, self.line_size(end_line).saturating_sub(1)));
 
         let mut result = String::new();
-        for (i, line) in self.lines.iter().enumerate().take(end_line + 1).skip(start_line) {
+        for i in start_line..=end_line {
+            let line = &self.lines[i];
             if i == start_line || i == end_line {
                 let text = if self.show_timestamps {
                     format!("{}{}", line.datetime.format(TIMESTAMP_TEXT_FORMAT), line.message)
@@ -414,11 +415,17 @@ impl Content for LogsContent {
 
                 if i == start_line && i == end_line {
                     result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
+                    if text.chars().count() < end + 1 {
+                        result.push('\n');
+                    }
                 } else if i == start_line {
                     result.push_str(slice_from(&text, start));
                     result.push('\n');
                 } else if i == end_line {
                     result.push_str(slice_to(&text, end + 1));
+                    if text.chars().count() < end + 1 {
+                        result.push('\n');
+                    }
                 }
             } else {
                 if self.show_timestamps {

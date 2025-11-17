@@ -226,20 +226,29 @@ impl Content for YamlContent {
                 let start_line = start.y.min(self.plain.len().saturating_sub(1));
                 let end_line = end.y.min(self.plain.len().saturating_sub(1));
 
-                let mut result = Vec::new();
-                for (i, line) in self.plain.iter().enumerate().take(end_line + 1).skip(start_line) {
+                let mut result = String::new();
+                for i in start_line..=end_line {
+                    let line = &self.plain[i];
                     if i == start_line && i == end_line {
-                        result.push(substring(line, start.x, (end.x + 1).saturating_sub(start.x)));
+                        result.push_str(substring(line, start.x, (end.x + 1).saturating_sub(start.x)));
+                        if line.chars().count() < end.x + 1 {
+                            result.push('\n');
+                        }
                     } else if i == start_line {
-                        result.push(slice_from(line, start.x));
+                        result.push_str(slice_from(line, start.x));
+                        result.push('\n');
                     } else if i == end_line {
-                        result.push(slice_to(line, end.x + 1));
+                        result.push_str(slice_to(line, end.x + 1));
+                        if line.chars().count() < end.x + 1 {
+                            result.push('\n');
+                        }
                     } else {
-                        result.push(line);
+                        result.push_str(line);
+                        result.push('\n');
                     }
                 }
 
-                result.join("\n")
+                result
             },
         }
     }
