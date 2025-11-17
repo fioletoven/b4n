@@ -71,7 +71,11 @@ impl YamlView {
                     .set_text(self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                self.footer.show_info(" YAML content copied to clipboard…", 1_500);
+                if range.is_some() {
+                    self.footer.show_info(" selection copied to clipboard…", 1_500);
+                } else {
+                    self.footer.show_info(" YAML content copied to clipboard…", 1_500);
+                }
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
@@ -341,6 +345,12 @@ impl View for YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.yaml.disable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
+        if event.is(MouseEventKind::RightClick) && self.yaml.has_selection() {
+            self.copy_yaml_to_clipboard();
+            self.yaml.clear_selection();
             return ResponseEvent::Handled;
         }
 

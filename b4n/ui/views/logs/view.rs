@@ -117,7 +117,11 @@ impl LogsView {
                     .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                if range.is_some() {
+                    self.footer.show_info(" selection copied to clipboard…", 1_500);
+                } else {
+                    self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                }
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
@@ -238,6 +242,12 @@ impl View for LogsView {
 
             self.update_bound_to_bottom();
             return result;
+        }
+
+        if event.is(MouseEventKind::RightClick) && self.logs.has_selection() {
+            self.copy_logs_to_clipboard();
+            self.logs.clear_selection();
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {

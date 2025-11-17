@@ -102,6 +102,11 @@ impl<T: Content> ContentViewer<T> {
         self.select.get_selection()
     }
 
+    /// Returns `true` if there is selected text in the content.
+    pub fn has_selection(&self) -> bool {
+        self.content.is_some() && self.select.start.is_some() && self.select.end.is_some()
+    }
+
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
         self.edit.is_enabled
