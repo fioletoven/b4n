@@ -19,12 +19,23 @@ impl SelectContext {
         self.end = None;
     }
 
-    /// Returns selection range if anything is selected.
+    /// Returns ordered selection range if anything is selected.
     pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
         let (Some(start), Some(end)) = (self.start, self.end) else {
             return None;
         };
         Some(sort(start, end))
+    }
+
+    /// Returns the selection end position along with a flag indicating whether
+    /// the end position comes after the start position (`true`) or not (`false`).
+    pub fn get_selection_end(&self) -> Option<(PagePosition, bool)> {
+        let (Some(start), Some(end)) = (self.start, self.end) else {
+            return None;
+        };
+
+        let end_after_start = end.y > start.y || (end.y == start.y && end.x >= start.x);
+        Some((end, end_after_start))
     }
 
     /// Process UI key/mouse event.
@@ -86,18 +97,18 @@ impl SelectContext {
         area: Rect,
     ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
-            let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
+            let pos = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
             if let Some((start, end)) = content.word_bounds(pos.y, pos.x) {
                 self.start = Some(PagePosition { x: start, y: pos.y });
                 self.end = Some(PagePosition { x: end, y: pos.y });
             }
         } else if mouse.kind == MouseEventKind::LeftClick {
-            let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
+            let pos = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
             self.start = Some(pos);
             self.end = None;
         } else if mouse.kind == MouseEventKind::LeftDrag {
             scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
-            let pos = get_position_in_content(area, content, *page_start, mouse.column, mouse.row);
+            let pos = get_position_in_content(area, content, *page_start, self.start, mouse.column, mouse.row);
             self.end = Some(pos);
         }
     }
@@ -132,14 +143,22 @@ fn get_position_in_content<T: Content>(
     area: Rect,
     content: &T,
     page_start: PagePosition,
+    selection_start: Option<PagePosition>,
     screen_x: u16,
     screen_y: u16,
 ) -> PagePosition {
     let x = page_start.x.saturating_add(screen_x.saturating_sub(area.x).into());
     let y = page_start.y.saturating_add(screen_y.saturating_sub(area.y).into());
 
-    let x = x.min(content.line_size(y));
-    PagePosition { x, y }
+    let line_len = content.line_size(y);
+    if let Some(start) = selection_start
+        && start.y < y
+    {
+        let x = x.min(line_len.saturating_sub(1));
+        PagePosition { x, y }
+    } else {
+        PagePosition { x: x.min(line_len), y }
+    }
 }
 
 /// Widget that draws selection on the content.

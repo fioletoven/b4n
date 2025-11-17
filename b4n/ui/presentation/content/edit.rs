@@ -34,14 +34,14 @@ impl EditContext {
     pub fn enable<T: Content>(
         &mut self,
         position: PagePosition,
-        selection_end: Option<PagePosition>,
+        selection_end: Option<(PagePosition, bool)>,
         search: Option<PagePosition>,
         page_size: u16,
         content: &mut T,
     ) {
         self.is_enabled = true;
-        if let Some(selection_end) = selection_end {
-            self.cursor = selection_end;
+        if let Some((end, end_after_start)) = selection_end {
+            self.cursor = get_cursor_pos_for_selection(content, end, end_after_start);
             self.constraint_cursor_position(false, content);
         } else if let Some(search) = search {
             self.cursor = search;
@@ -61,7 +61,7 @@ impl EditContext {
         event: &TuiEvent,
         content: &mut T,
         position: PagePosition,
-        selection_end: Option<PagePosition>,
+        selection_end: Option<(PagePosition, bool)>,
         area: Rect,
     ) -> ResponseEvent {
         match event {
@@ -81,8 +81,8 @@ impl EditContext {
                     let pos = self.process_mouse(*mouse, position, area);
                     self.update_cursor_position(pos, content, true);
                 } else {
-                    if let Some(selection_end) = selection_end {
-                        self.cursor = selection_end;
+                    if let Some((end, end_after_start)) = selection_end {
+                        self.cursor = get_cursor_pos_for_selection(content, end, end_after_start);
                     }
 
                     return ResponseEvent::NotHandled;
@@ -209,6 +209,15 @@ impl EditContext {
         } else if use_last_x && self.cursor.x < self.last_set_x {
             self.cursor.x = self.last_set_x.min(line_size);
         }
+    }
+}
+
+fn get_cursor_pos_for_selection<T: Content>(content: &T, end: PagePosition, end_after_start: bool) -> PagePosition {
+    if end_after_start {
+        let x = (end.x + 1).min(content.line_size(end.y));
+        PagePosition { x, y: end.y }
+    } else {
+        end
     }
 }
 
