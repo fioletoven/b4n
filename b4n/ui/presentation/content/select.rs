@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCombination;
 use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::{layout::Rect, widgets::Widget};
+use ratatui::{layout::Rect, style::Color, widgets::Widget};
 
 use crate::ui::presentation::{Content, content::search::PagePosition};
 
@@ -204,18 +204,20 @@ fn decrement_curosr_x<T: Content>(cursor: PagePosition, content: &T) -> PagePosi
 
 /// Widget that draws selection on the content.
 pub struct ContentSelectWidget<'a, T: Content> {
-    pub context: &'a SelectContext,
-    pub content: &'a T,
-    pub page_start: &'a PagePosition,
+    context: &'a SelectContext,
+    content: &'a T,
+    page_start: &'a PagePosition,
+    color: Color,
 }
 
 impl<'a, T: Content> ContentSelectWidget<'a, T> {
     /// Creates new [`ContentSelectWidget`] instance.
-    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition) -> Self {
+    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition, color: Color) -> Self {
         Self {
             context,
             content,
             page_start,
+            color,
         }
     }
 
@@ -281,7 +283,7 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
                     let draw_to = end.min(area.right());
 
                     for x in draw_from..=draw_to {
-                        buf[(x, y)].bg = ratatui::style::Color::Gray;
+                        buf[(x, y)].bg = self.color;
                     }
                 }
             }

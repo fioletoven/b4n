@@ -25,6 +25,7 @@ pub struct ContentViewer<T: Content> {
     hash: Option<u64>,
     edit: EditContext,
     select: SelectContext,
+    select_color: Color,
     search: SearchData,
     search_color: Color,
 
@@ -36,7 +37,7 @@ pub struct ContentViewer<T: Content> {
 
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
-    pub fn new(app_data: SharedAppData, search_color: Color) -> Self {
+    pub fn new(app_data: SharedAppData, select_color: Color, search_color: Color) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
         let cursor_color = app_data.borrow().theme.colors.cursor;
 
@@ -47,6 +48,7 @@ impl<T: Content> ContentViewer<T> {
             hash: None,
             edit: EditContext::new(cursor_color),
             select: SelectContext::default(),
+            select_color,
             search: SearchData::default(),
             search_color,
             page_start: PagePosition::default(),
@@ -458,7 +460,12 @@ impl<T: Content> ContentViewer<T> {
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
         frame.render_widget(
-            ContentSelectWidget::new(&self.select, self.content.as_ref().unwrap(), &self.page_start),
+            ContentSelectWidget::new(
+                &self.select,
+                self.content.as_ref().unwrap(),
+                &self.page_start,
+                self.select_color,
+            ),
             area,
         );
 

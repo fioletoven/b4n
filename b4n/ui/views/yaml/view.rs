@@ -36,9 +36,10 @@ impl YamlView {
         resource: ResourceRef,
         footer: NotificationSink,
     ) -> Self {
-        let color = app_data.borrow().theme.colors.syntax.yaml.search;
+        let select = app_data.borrow().theme.colors.syntax.yaml.select;
+        let search = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;
-        let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
+        let yaml = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
             "YAML",
             '',
             resource.namespace,

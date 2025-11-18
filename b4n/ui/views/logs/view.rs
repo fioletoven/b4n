@@ -47,8 +47,9 @@ impl LogsView {
             namespace: resource.namespace.clone(),
             container: resource.container.clone(),
         };
-        let color = app_data.borrow().theme.colors.syntax.logs.search;
-        let logs = ContentViewer::new(Rc::clone(&app_data), color).with_header(
+        let select = app_data.borrow().theme.colors.syntax.logs.select;
+        let search = app_data.borrow().theme.colors.syntax.logs.search;
+        let logs = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
             resource.namespace,
