@@ -120,6 +120,7 @@ impl YamlView {
             return;
         }
 
+        self.yaml.clear_selection();
         self.clear_search();
         self.command_id = self.worker.borrow_mut().get_yaml(
             self.yaml.header.name.clone(),

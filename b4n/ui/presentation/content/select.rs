@@ -74,19 +74,7 @@ impl SelectContext {
             && is_allowed_key_code(key.code)
         {
             if is_sorted(start, cursor) {
-                if cursor.x > 0 {
-                    self.end = Some(PagePosition {
-                        x: cursor.x - 1,
-                        y: cursor.y,
-                    });
-                } else if cursor.y > 0 {
-                    self.end = Some(PagePosition {
-                        x: content.line_size(cursor.y - 1),
-                        y: cursor.y - 1,
-                    });
-                } else {
-                    self.end = Some(cursor);
-                }
+                self.end = Some(decrement_curosr_x(cursor, content))
             } else {
                 self.end = Some(cursor);
             }
@@ -175,7 +163,7 @@ fn get_position_in_content<T: Content>(
 
     if y >= content.len() {
         let y = content.len().saturating_sub(1);
-        let x = content.line_size(y);
+        let x = content.line_size(y).saturating_sub(1);
         return Some(PagePosition { x, y });
     }
 
@@ -185,18 +173,32 @@ fn get_position_in_content<T: Content>(
         if start.y == y && start.x >= line_len && x >= line_len {
             // selection started on the same line and outside the text, return nothing
             None
-        } else if start.y <= y {
-            // top-to-bottom selection, clamp x to the last character of the line,
-            // excluding the implicit newline
-            let x = x.min(line_len.saturating_sub(1));
-            Some(PagePosition { x, y })
-        } else {
-            // clamp x to the last character of the line
+        } else if is_sorted(PagePosition { x, y }, start) {
+            // selection end is before selection start
             Some(PagePosition { x: x.min(line_len), y })
+        } else {
+            let x = x.min(line_len);
+            Some(decrement_curosr_x(PagePosition { x, y }, content))
         }
     } else {
         // this is the start of a selection
         Some(PagePosition { x: x.min(line_len), y })
+    }
+}
+
+fn decrement_curosr_x<T: Content>(cursor: PagePosition, content: &T) -> PagePosition {
+    if cursor.x > 0 {
+        PagePosition {
+            x: cursor.x - 1,
+            y: cursor.y,
+        }
+    } else if cursor.y > 0 {
+        PagePosition {
+            x: content.line_size(cursor.y - 1),
+            y: cursor.y - 1,
+        }
+    } else {
+        cursor
     }
 }
 

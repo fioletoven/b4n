@@ -213,11 +213,19 @@ impl EditContext {
 }
 
 fn get_cursor_pos_for_selection<T: Content>(content: &T, end: PagePosition, end_after_start: bool) -> PagePosition {
-    if end_after_start {
-        let x = (end.x + 1).min(content.line_size(end.y));
-        PagePosition { x, y: end.y }
+    if !end_after_start {
+        return end;
+    }
+
+    let line_len = content.line_size(end.y);
+    if end.x < line_len {
+        return PagePosition { x: end.x + 1, y: end.y };
+    }
+
+    if end.y + 1 >= content.len() {
+        PagePosition { x: line_len, y: end.y }
     } else {
-        end
+        PagePosition { x: 0, y: end.y + 1 }
     }
 }
 
