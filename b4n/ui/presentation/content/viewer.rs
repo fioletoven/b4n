@@ -13,7 +13,7 @@ use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
-use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext};
+use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
 use crate::ui::presentation::{Content, StyledLineExt};
 
 /// Content viewer with header.
@@ -100,7 +100,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Returns selection range if anything is selected.
-    pub fn get_selection(&self) -> Option<(ContentPosition, ContentPosition)> {
+    pub fn get_selection(&self) -> Option<Selection> {
         self.select.get_selection()
     }
 
@@ -140,7 +140,7 @@ impl<T: Content> ContentViewer<T> {
             self.select.clear_selection_if_partial();
             self.edit.enable(
                 self.page_start,
-                self.select.get_selection_end(),
+                self.select.get_selection(),
                 search,
                 self.page_area.height,
                 content,
@@ -370,13 +370,9 @@ impl<T: Content> ContentViewer<T> {
                 .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
-                let response = self.edit.process_event(
-                    event,
-                    content,
-                    self.page_start,
-                    self.select.get_selection_end(),
-                    self.page_area,
-                );
+                let response =
+                    self.edit
+                        .process_event(event, content, self.page_start, self.select.get_selection(), self.page_area);
                 if response != ResponseEvent::NotHandled {
                     self.select.process_event_final(event, content, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);

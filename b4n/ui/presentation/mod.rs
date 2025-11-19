@@ -1,5 +1,5 @@
 pub use content::{
-    Content, ContentHeader, ContentPosition, ContentViewer, MatchPosition, StyleFallback, StyledLine, StyledLineExt,
+    Content, ContentHeader, ContentPosition, ContentViewer, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt,
 };
 pub use list::{ListHeader, ListViewer};
 

@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentPosition, ContentViewer, MatchPosition, StyledLine};
+use crate::ui::presentation::{Content, ContentViewer, MatchPosition, Selection, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -118,7 +118,7 @@ impl LogsView {
                     .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                if range.is_some() {
+                if self.logs.has_selection() {
                     self.footer.show_info(" selection copied to clipboard…", 1_500);
                 } else {
                     self.footer.show_info(" Container logs copied to clipboard…", 1_500);
@@ -396,7 +396,8 @@ impl Content for LogsContent {
         0
     }
 
-    fn to_plain_text(&self, range: Option<(ContentPosition, ContentPosition)>) -> String {
+    fn to_plain_text(&self, range: Option<Selection>) -> String {
+        let range = range.map(|r| r.sorted());
         let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
         let start_line = start.min(self.lines.len().saturating_sub(1));
         let end_line = end.min(self.lines.len().saturating_sub(1));

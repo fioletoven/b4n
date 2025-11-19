@@ -5,6 +5,29 @@ use ratatui::{layout::Rect, style::Color, widgets::Widget};
 
 use crate::ui::presentation::{Content, content::search::ContentPosition};
 
+/// Represents a text selection defined by a `start` and `end` position in the content.
+pub struct Selection {
+    pub start: ContentPosition,
+    pub end: ContentPosition,
+}
+
+impl Selection {
+    /// Creates new [`Selection`] instance.
+    pub fn new(start: ContentPosition, end: ContentPosition) -> Self {
+        Self { start, end }
+    }
+
+    /// Returns `true` if `end` comes after `start` in document order.
+    pub fn is_end_after_start(&self) -> bool {
+        is_sorted(self.start, self.end)
+    }
+
+    /// Returns the two positions sorted in document order, ensuring that the first is always the earlier position.
+    pub fn sorted(&self) -> (ContentPosition, ContentPosition) {
+        sort(self.start, self.end)
+    }
+}
+
 /// Context for the selected text.
 #[derive(Default)]
 pub struct SelectContext {
@@ -26,19 +49,10 @@ impl SelectContext {
         }
     }
 
-    /// Returns ordered selection range if anything is selected.
-    pub fn get_selection(&self) -> Option<(ContentPosition, ContentPosition)> {
-        let (Some(start), Some(end)) = (self.start, self.end) else {
-            return None;
-        };
-        Some(sort(start, end))
-    }
-
-    /// Returns the selection end position along with a flag indicating whether
-    /// the end position comes after the start position (`true`) or not (`false`).
-    pub fn get_selection_end(&self) -> Option<(ContentPosition, bool)> {
+    /// Returns a text selection.
+    pub fn get_selection(&self) -> Option<Selection> {
         if let (Some(start), Some(end)) = (self.start, self.end) {
-            Some((end, is_sorted(start, end)))
+            Some(Selection::new(start, end))
         } else {
             None
         }
@@ -251,7 +265,7 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     where
         Self: Sized,
     {
-        let Some((start, end)) = self.context.get_selection() else {
+        let Some((start, end)) = self.context.get_selection().map(|s| s.sorted()) else {
             return;
         };
 

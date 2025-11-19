@@ -6,7 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::ui::presentation::{Content, ContentPosition, MatchPosition, StyleFallback, StyledLine, StyledLineExt};
+use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -219,8 +219,8 @@ impl Content for YamlContent {
         hasher.finish()
     }
 
-    fn to_plain_text(&self, range: Option<(ContentPosition, ContentPosition)>) -> String {
-        match range {
+    fn to_plain_text(&self, range: Option<Selection>) -> String {
+        match range.map(|r| r.sorted()) {
             None => self.plain.join("\n"),
             Some((start, end)) => {
                 let start_line = start.y.min(self.plain.len().saturating_sub(1));

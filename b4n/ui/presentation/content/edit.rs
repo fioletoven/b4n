@@ -5,7 +5,8 @@ use ratatui::layout::{Position, Rect};
 use ratatui::widgets::Widget;
 use std::time::Instant;
 
-use super::{Content, search::ContentPosition};
+use crate::ui::presentation::Selection;
+use crate::ui::presentation::content::{Content, search::ContentPosition};
 
 /// Context for the content edit mode.
 pub struct EditContext {
@@ -34,14 +35,14 @@ impl EditContext {
     pub fn enable<T: Content>(
         &mut self,
         page_start: ContentPosition,
-        selection_end: Option<(ContentPosition, bool)>,
+        selection: Option<Selection>,
         search: Option<ContentPosition>,
         page_size: u16,
         content: &mut T,
     ) {
         self.is_enabled = true;
-        if let Some((end, end_after_start)) = selection_end {
-            self.cursor = get_cursor_pos_for_selection(content, end, end_after_start);
+        if let Some(selection) = selection {
+            self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
             self.constraint_cursor_position(false, content);
         } else if let Some(search) = search {
             self.cursor = search;
@@ -61,7 +62,7 @@ impl EditContext {
         event: &TuiEvent,
         content: &mut T,
         page_start: ContentPosition,
-        selection_end: Option<(ContentPosition, bool)>,
+        selection: Option<Selection>,
         area: Rect,
     ) -> ResponseEvent {
         match event {
@@ -81,8 +82,8 @@ impl EditContext {
                     let pos = self.process_mouse(*mouse, page_start, area);
                     self.update_cursor_position(pos, content, true);
                 } else {
-                    if let Some((end, end_after_start)) = selection_end {
-                        self.cursor = get_cursor_pos_for_selection(content, end, end_after_start);
+                    if let Some(selection) = selection {
+                        self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
                     }
 
                     return ResponseEvent::NotHandled;

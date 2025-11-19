@@ -72,7 +72,7 @@ impl YamlView {
                     .set_text(self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                if range.is_some() {
+                if self.yaml.has_selection() {
                     self.footer.show_info(" selection copied to clipboard…", 1_500);
                 } else {
                     self.footer.show_info(" YAML content copied to clipboard…", 1_500);
