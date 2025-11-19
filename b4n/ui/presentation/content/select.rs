@@ -3,13 +3,13 @@ use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{layout::Rect, style::Color, widgets::Widget};
 
-use crate::ui::presentation::{Content, content::search::PagePosition};
+use crate::ui::presentation::{Content, content::search::ContentPosition};
 
 /// Context for the selected text.
 #[derive(Default)]
 pub struct SelectContext {
-    pub start: Option<PagePosition>,
-    pub end: Option<PagePosition>,
+    pub start: Option<ContentPosition>,
+    pub end: Option<ContentPosition>,
 }
 
 impl SelectContext {
@@ -27,7 +27,7 @@ impl SelectContext {
     }
 
     /// Returns ordered selection range if anything is selected.
-    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+    pub fn get_selection(&self) -> Option<(ContentPosition, ContentPosition)> {
         let (Some(start), Some(end)) = (self.start, self.end) else {
             return None;
         };
@@ -36,7 +36,7 @@ impl SelectContext {
 
     /// Returns the selection end position along with a flag indicating whether
     /// the end position comes after the start position (`true`) or not (`false`).
-    pub fn get_selection_end(&self) -> Option<(PagePosition, bool)> {
+    pub fn get_selection_end(&self) -> Option<(ContentPosition, bool)> {
         if let (Some(start), Some(end)) = (self.start, self.end) {
             Some((end, is_sorted(start, end)))
         } else {
@@ -49,8 +49,8 @@ impl SelectContext {
         &mut self,
         event: &TuiEvent,
         content: &mut T,
-        page_start: &mut PagePosition,
-        cursor: Option<PagePosition>,
+        page_start: &mut ContentPosition,
+        cursor: Option<ContentPosition>,
         area: Rect,
     ) {
         match event {
@@ -61,7 +61,7 @@ impl SelectContext {
 
     /// Updates selection end to the current cursor position only for appropriate key combinations.\
     /// **Note** that it must be executed only in edit mode and after processing edit events.
-    pub fn process_event_final<T: Content>(&mut self, event: &TuiEvent, content: &T, cursor: PagePosition) {
+    pub fn process_event_final<T: Content>(&mut self, event: &TuiEvent, content: &T, cursor: ContentPosition) {
         let TuiEvent::Key(key) = event else {
             return;
         };
@@ -81,7 +81,7 @@ impl SelectContext {
         }
     }
 
-    fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<PagePosition>) {
+    fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<ContentPosition>) {
         let Some(cursor) = cursor else {
             // if we are not in the edit mode just return
             return;
@@ -105,15 +105,15 @@ impl SelectContext {
         &mut self,
         mouse: &MouseEvent,
         content: &mut T,
-        page_start: &mut PagePosition,
+        page_start: &mut ContentPosition,
         area: Rect,
     ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
             if let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
                 && let Some((start, end)) = content.word_bounds(pos.y, pos.x)
             {
-                self.start = Some(PagePosition { x: start, y: pos.y });
-                self.end = Some(PagePosition { x: end, y: pos.y });
+                self.start = Some(ContentPosition { x: start, y: pos.y });
+                self.end = Some(ContentPosition { x: end, y: pos.y });
             }
         } else if mouse.kind == MouseEventKind::LeftClick {
             self.start = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
@@ -125,7 +125,7 @@ impl SelectContext {
     }
 }
 
-fn scroll_page_if_needed<T: Content>(area: Rect, page_start: &mut PagePosition, content: &mut T, mouse_x: u16, mouse_y: u16) {
+fn scroll_page_if_needed<T: Content>(area: Rect, page_start: &mut ContentPosition, content: &mut T, mouse_x: u16, mouse_y: u16) {
     // scroll page vertically while dragging
     if mouse_y > (area.y + area.height).saturating_sub(3) {
         page_start.y += 2;
@@ -153,18 +153,18 @@ fn scroll_page_if_needed<T: Content>(area: Rect, page_start: &mut PagePosition, 
 fn get_position_in_content<T: Content>(
     area: Rect,
     content: &T,
-    page_start: PagePosition,
-    selection_start: Option<PagePosition>,
+    page_start: ContentPosition,
+    selection_start: Option<ContentPosition>,
     screen_x: u16,
     screen_y: u16,
-) -> Option<PagePosition> {
+) -> Option<ContentPosition> {
     let x = page_start.x.saturating_add(screen_x.saturating_sub(area.x).into());
     let y = page_start.y.saturating_add(screen_y.saturating_sub(area.y).into());
 
     if y >= content.len() {
         let y = content.len().saturating_sub(1);
         let x = content.line_size(y).saturating_sub(1);
-        return Some(PagePosition { x, y });
+        return Some(ContentPosition { x, y });
     }
 
     let line_len = content.line_size(y);
@@ -173,27 +173,27 @@ fn get_position_in_content<T: Content>(
         if start.y == y && start.x >= line_len && x >= line_len {
             // selection started on the same line and outside the text, return nothing
             None
-        } else if is_sorted(PagePosition { x, y }, start) {
+        } else if is_sorted(ContentPosition { x, y }, start) {
             // selection end is before selection start
-            Some(PagePosition { x: x.min(line_len), y })
+            Some(ContentPosition { x: x.min(line_len), y })
         } else {
             let x = x.min(line_len);
-            Some(decrement_curosr_x(PagePosition { x, y }, content))
+            Some(decrement_curosr_x(ContentPosition { x, y }, content))
         }
     } else {
         // this is the start of a selection
-        Some(PagePosition { x: x.min(line_len), y })
+        Some(ContentPosition { x: x.min(line_len), y })
     }
 }
 
-fn decrement_curosr_x<T: Content>(cursor: PagePosition, content: &T) -> PagePosition {
+fn decrement_curosr_x<T: Content>(cursor: ContentPosition, content: &T) -> ContentPosition {
     if cursor.x > 0 {
-        PagePosition {
+        ContentPosition {
             x: cursor.x - 1,
             y: cursor.y,
         }
     } else if cursor.y > 0 {
-        PagePosition {
+        ContentPosition {
             x: content.line_size(cursor.y - 1),
             y: cursor.y - 1,
         }
@@ -206,13 +206,13 @@ fn decrement_curosr_x<T: Content>(cursor: PagePosition, content: &T) -> PagePosi
 pub struct ContentSelectWidget<'a, T: Content> {
     context: &'a SelectContext,
     content: &'a T,
-    page_start: &'a PagePosition,
+    page_start: &'a ContentPosition,
     color: Color,
 }
 
 impl<'a, T: Content> ContentSelectWidget<'a, T> {
     /// Creates new [`ContentSelectWidget`] instance.
-    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a PagePosition, color: Color) -> Self {
+    pub fn new(context: &'a SelectContext, content: &'a T, page_start: &'a ContentPosition, color: Color) -> Self {
         Self {
             context,
             content,
@@ -291,11 +291,11 @@ impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
     }
 }
 
-fn is_sorted(p1: PagePosition, p2: PagePosition) -> bool {
+fn is_sorted(p1: ContentPosition, p2: ContentPosition) -> bool {
     p2.y > p1.y || (p2.y == p1.y && p2.x >= p1.x)
 }
 
-fn sort(p1: PagePosition, p2: PagePosition) -> (PagePosition, PagePosition) {
+fn sort(p1: ContentPosition, p2: ContentPosition) -> (ContentPosition, ContentPosition) {
     if is_sorted(p1, p2) { (p1, p2) } else { (p2, p1) }
 }
 

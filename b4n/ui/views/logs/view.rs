@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, MatchPosition, PagePosition, StyledLine};
+use crate::ui::presentation::{Content, ContentPosition, ContentViewer, MatchPosition, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -396,7 +396,7 @@ impl Content for LogsContent {
         0
     }
 
-    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
+    fn to_plain_text(&self, range: Option<(ContentPosition, ContentPosition)>) -> String {
         let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
         let start_line = start.min(self.lines.len().saturating_sub(1));
         let end_line = end.min(self.lines.len().saturating_sub(1));

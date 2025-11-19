@@ -2,6 +2,13 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::Color;
 use ratatui::widgets::Widget;
 
+/// Represents a position in the content using `x` (column) and `y` (line) coordinates.
+#[derive(Default, Clone, Copy)]
+pub struct ContentPosition {
+    pub x: usize,
+    pub y: usize,
+}
+
 #[derive(Default)]
 pub struct SearchData {
     pub pattern: Option<String>,
@@ -9,7 +16,7 @@ pub struct SearchData {
     pub current: Option<usize>,
 }
 
-/// Describes a match position in the content.
+/// Represents a match position in the content using `x` (column) and `y` (line) coordinates and the match length.
 pub struct MatchPosition {
     pub x: usize,
     pub y: usize,
@@ -41,17 +48,10 @@ pub fn get_search_wrapped_message(forward: bool) -> &'static str {
     }
 }
 
-/// Content page position.
-#[derive(Default, Clone, Copy)]
-pub struct PagePosition {
-    pub x: usize,
-    pub y: usize,
-}
-
 /// Widget that highlights search matches on the provided area.
 pub struct SearchResultsWidget<'a> {
     /// Content's page position.
-    position: PagePosition,
+    page_start: ContentPosition,
 
     /// Search data.
     data: &'a SearchData,
@@ -64,9 +64,9 @@ pub struct SearchResultsWidget<'a> {
 }
 
 impl<'a> SearchResultsWidget<'a> {
-    pub fn new(position: PagePosition, data: &'a SearchData, color: Color) -> Self {
+    pub fn new(page_start: ContentPosition, data: &'a SearchData, color: Color) -> Self {
         Self {
-            position,
+            page_start,
             data,
             color,
             offset: None,
@@ -91,9 +91,9 @@ impl Widget for SearchResultsWidget<'_> {
         if let Some(current) = self.data.current {
             if let Some(offset) = self.offset {
                 let r#match = &matches[current.saturating_sub(1)].adjust_by(offset);
-                highlight_match(area, buf, &self.position, r#match, self.color);
+                highlight_match(area, buf, &self.page_start, r#match, self.color);
             } else {
-                highlight_match(area, buf, &self.position, &matches[current.saturating_sub(1)], self.color);
+                highlight_match(area, buf, &self.page_start, &matches[current.saturating_sub(1)], self.color);
             }
         } else {
             for m in matches {
@@ -102,20 +102,26 @@ impl Widget for SearchResultsWidget<'_> {
                 } else {
                     m
                 };
-                if m.y >= self.position.y && m.x.saturating_add(m.length) > self.position.x {
-                    highlight_match(area, buf, &self.position, m, self.color);
+                if m.y >= self.page_start.y && m.x.saturating_add(m.length) > self.page_start.x {
+                    highlight_match(area, buf, &self.page_start, m, self.color);
                 }
             }
         }
     }
 }
 
-fn highlight_match(area: Rect, buf: &mut ratatui::prelude::Buffer, position: &PagePosition, m: &MatchPosition, color: Color) {
-    let y = u16::try_from(m.y.saturating_sub(position.y)).unwrap_or_default();
+fn highlight_match(
+    area: Rect,
+    buf: &mut ratatui::prelude::Buffer,
+    page_start: &ContentPosition,
+    m: &MatchPosition,
+    color: Color,
+) {
+    let y = u16::try_from(m.y.saturating_sub(page_start.y)).unwrap_or_default();
     let mut length = m.length;
 
     while length > 0 {
-        let x = u16::try_from(m.x.saturating_add(length).saturating_sub(position.x)).unwrap_or_default();
+        let x = u16::try_from(m.x.saturating_add(length).saturating_sub(page_start.x)).unwrap_or_default();
         length -= 1;
 
         let position = Position::new(x.saturating_add(area.x).saturating_sub(1), y.saturating_add(area.y));

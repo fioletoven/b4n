@@ -12,7 +12,7 @@ use std::{rc::Rc, time::Instant};
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
-use crate::ui::presentation::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
+use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
 use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext};
 use crate::ui::presentation::{Content, StyledLineExt};
 
@@ -29,7 +29,7 @@ pub struct ContentViewer<T: Content> {
     search: SearchData,
     search_color: Color,
 
-    page_start: PagePosition,
+    page_start: ContentPosition,
     page_area: Rect,
 
     creation_time: Instant,
@@ -51,7 +51,7 @@ impl<T: Content> ContentViewer<T> {
             select_color,
             search: SearchData::default(),
             search_color,
-            page_start: PagePosition::default(),
+            page_start: ContentPosition::default(),
             page_area: Rect::default(),
             creation_time: Instant::now(),
         }
@@ -100,7 +100,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Returns selection range if anything is selected.
-    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+    pub fn get_selection(&self) -> Option<(ContentPosition, ContentPosition)> {
         self.select.get_selection()
     }
 
@@ -269,12 +269,12 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns currently highlighted match position.\
     /// **Note** that it returns first match if all are highlighted.
-    pub fn current_match_position(&self) -> Option<PagePosition> {
+    pub fn current_match_position(&self) -> Option<ContentPosition> {
         let matches = self.search.matches.as_ref()?;
         let current = self.search.current.unwrap_or_default();
         let current = &matches[current.saturating_sub(1)];
 
-        Some(PagePosition {
+        Some(ContentPosition {
             x: current.x,
             y: current.y,
         })

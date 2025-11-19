@@ -1,4 +1,6 @@
-pub use content::{Content, ContentHeader, ContentViewer, MatchPosition, PagePosition, StyleFallback, StyledLine, StyledLineExt};
+pub use content::{
+    Content, ContentHeader, ContentPosition, ContentViewer, MatchPosition, StyleFallback, StyledLine, StyledLineExt,
+};
 pub use list::{ListHeader, ListViewer};
 
 pub mod utils;

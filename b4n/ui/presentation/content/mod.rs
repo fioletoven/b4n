@@ -1,5 +1,5 @@
 pub use header::ContentHeader;
-pub use search::{MatchPosition, PagePosition};
+pub use search::{ContentPosition, MatchPosition};
 pub use styled_line::{StyleFallback, StyledLine, StyledLineExt};
 pub use viewer::ContentViewer;
 
@@ -29,7 +29,7 @@ pub trait Content {
     fn hash(&self) -> u64;
 
     /// Converts the content to a plain `String` representation, optionally restricting the range of the content to be converted.
-    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String;
+    fn to_plain_text(&self, range: Option<(ContentPosition, ContentPosition)>) -> String;
 
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;
@@ -70,13 +70,28 @@ pub trait Content {
         let _ = character;
     }
 
-    /// Deletes character at a position `x` and `y`.\
+    /// Inserts specified text at a position `x:y`.
+    fn insert_text(&mut self, x: usize, y: usize, text: Vec<String>) {
+        let _ = x;
+        let _ = y;
+        let _ = text;
+    }
+
+    /// Deletes character at a position `x:y`.\
     /// **Note** that it returns a new position.
     fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
         let _ = x;
         let _ = y;
         let _ = is_backspace;
         None
+    }
+
+    /// Deletes the text in the range between `start` and `end` and returns the
+    /// resulting affected lines.
+    fn remove_text(&mut self, start: ContentPosition, end: ContentPosition) -> Vec<String> {
+        let _ = start;
+        let _ = end;
+        Vec::default()
     }
 
     /// Reverts most recent changes done in edit mode.
