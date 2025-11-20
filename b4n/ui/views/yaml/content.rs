@@ -6,7 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt};
+use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -82,22 +82,21 @@ impl YamlContent {
         self.mark_line_as_modified(line_no);
     }
 
-    fn join_lines(&mut self, first: usize, second: usize) -> (usize, usize) {
-        let new_x = self.plain[first].chars().count();
+    fn join_lines(&mut self, line_no: usize) -> (usize, usize) {
+        let new_x = self.plain[line_no].chars().count();
 
-        self.styled[first].sl_push_str(&self.plain[second], &self.fallback);
-        self.styled.remove(second);
+        self.styled.join_lines(line_no);
 
-        let text = self.plain.remove(second);
-        self.plain[first].push_str(&text);
+        let text = self.plain.remove(line_no + 1);
+        self.plain[line_no].push_str(&text);
 
-        let text = self.lowercase.remove(second);
-        self.lowercase[first].push_str(&text);
+        let text = self.lowercase.remove(line_no + 1);
+        self.lowercase[line_no].push_str(&text);
 
-        self.mark_line_as_modified(first);
-        self.mark_line_as_modified(second);
+        self.mark_line_as_modified(line_no);
+        self.mark_line_as_modified(line_no + 1);
 
-        (new_x, first)
+        (new_x, line_no)
     }
 
     fn split_lines(&mut self, x: usize, y: usize) {
@@ -153,7 +152,7 @@ impl YamlContent {
     fn remove_char_internal(&mut self, x: usize, y: usize, is_backspace: bool, track_undo: bool) -> Option<(usize, usize)> {
         if is_backspace && x == 0 {
             if y > 0 && y < self.plain.len() {
-                let (x, y) = self.join_lines(y - 1, y);
+                let (x, y) = self.join_lines(y - 1);
                 return Some(self.track_remove(x, y, '\n', track_undo));
             }
 
@@ -170,7 +169,7 @@ impl YamlContent {
                 let ch = self.remove_ch(r.x.index, y);
                 Some(self.track_remove(r.x.char, y, ch, track_undo))
             } else if y + 1 < self.plain.len() {
-                let (x, y) = self.join_lines(y, y + 1);
+                let (x, y) = self.join_lines(y);
                 Some(self.track_remove(x, y, '\n', track_undo))
             } else {
                 None
@@ -195,6 +194,11 @@ impl YamlContent {
         }
 
         (x, y)
+    }
+
+    fn remove_text_internal(&mut self, range: Selection) -> Vec<String> {
+        self.styled.remove_text(range.clone());
+        Vec::default()
     }
 }
 
@@ -300,6 +304,10 @@ impl Content for YamlContent {
     fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
         self.redo.clear();
         self.remove_char_internal(x, y, is_backspace, true)
+    }
+
+    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+        self.remove_text_internal(range)
     }
 
     fn undo(&mut self) -> Option<(usize, usize)> {

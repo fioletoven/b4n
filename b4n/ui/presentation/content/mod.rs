@@ -1,7 +1,7 @@
 pub use header::ContentHeader;
 pub use search::{ContentPosition, MatchPosition};
 pub use select::Selection;
-pub use styled_line::{StyleFallback, StyledLine, StyledLineExt};
+pub use styled_line::{StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
 pub use viewer::ContentViewer;
 
 mod edit;
@@ -87,11 +87,9 @@ pub trait Content {
         None
     }
 
-    /// Deletes the text in the range between `start` and `end` and returns the
-    /// resulting affected lines.
-    fn remove_text(&mut self, start: ContentPosition, end: ContentPosition) -> Vec<String> {
-        let _ = start;
-        let _ = end;
+    /// Deletes the text in the selection `range` and returns the resulting affected lines.
+    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+        let _ = range;
         Vec::default()
     }
 

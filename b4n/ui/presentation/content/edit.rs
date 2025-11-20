@@ -72,7 +72,7 @@ impl EditContext {
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
                     content.redo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
                 } else {
-                    self.process_key(key.code, content, area)
+                    self.process_key(key.code, content, selection, area)
                 };
                 self.update_cursor_position(pos, content, false);
                 self.last_key_press = Instant::now();
@@ -94,9 +94,21 @@ impl EditContext {
         ResponseEvent::Handled
     }
 
-    fn process_key<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {
+    fn process_key<T: Content>(
+        &mut self,
+        key: KeyCode,
+        content: &mut T,
+        selection: Option<Selection>,
+        area: Rect,
+    ) -> NewCursorPosition {
         let mut x_changed = None;
         let mut y_changed = None;
+
+        if is_content_modifying_key(key)
+            && let Some(selection) = selection
+        {
+            content.remove_text(selection);
+        }
 
         match key {
             // insert character
@@ -211,6 +223,13 @@ impl EditContext {
             self.cursor.x = self.last_set_x.min(line_size);
         }
     }
+}
+
+fn is_content_modifying_key(key: KeyCode) -> bool {
+    matches!(
+        key,
+        KeyCode::Char(_) | KeyCode::Tab | KeyCode::Enter | KeyCode::Backspace | KeyCode::Delete
+    )
 }
 
 fn get_cursor_pos_for_selection<T: Content>(content: &T, end: ContentPosition, end_after_start: bool) -> ContentPosition {

@@ -113,7 +113,8 @@ fn highlighter_task(data: &SyntaxData, mut rx: UnboundedReceiver<HighlightReques
     Ok(())
 }
 
-fn highlight_all(
+/// Highlights specified `lines` with the provided `highlighter`.
+pub fn highlight_all(
     mut highlighter: HighlightLines<'_>,
     syntax_set: &SyntaxSet,
     lines: &[String],

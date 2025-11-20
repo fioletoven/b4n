@@ -9,6 +9,13 @@ pub struct ContentPosition {
     pub y: usize,
 }
 
+impl ContentPosition {
+    /// Creates new [`ContentPosition`] instance.
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+}
+
 #[derive(Default)]
 pub struct SearchData {
     pub pattern: Option<String>,
