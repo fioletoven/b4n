@@ -101,14 +101,16 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        let mut x_changed = None;
-        let mut y_changed = None;
-
         if is_content_modifying_key(key)
             && let Some(selection) = selection
         {
+            let start = selection.sorted().0;
             content.remove_text(selection);
+            return (Some(Some(start.x)), Some(start.y));
         }
+
+        let mut x_changed = None;
+        let mut y_changed = None;
 
         match key {
             // insert character

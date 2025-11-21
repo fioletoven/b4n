@@ -82,6 +82,7 @@ impl SelectContext {
         };
 
         if key.modifiers != KeyModifiers::SHIFT {
+            self.clear_selection();
             return;
         }
 
@@ -103,7 +104,6 @@ impl SelectContext {
         };
 
         if key.modifiers != KeyModifiers::SHIFT {
-            self.clear_selection();
             return;
         }
 

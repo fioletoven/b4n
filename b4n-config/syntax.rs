@@ -20,8 +20,8 @@ impl SyntaxData {
     }
 
     /// Creates [`HighlightLines`] object for the specified `extension`.
-    pub fn get_highlighter(&self, extension: &str) -> HighlightLines<'_> {
-        let syntax = self.syntax_set.find_syntax_by_extension(extension).unwrap();
-        HighlightLines::new(syntax, &self.yaml_theme)
+    pub fn get_highlighter(&self, extension: &str) -> Option<HighlightLines<'_>> {
+        let syntax = self.syntax_set.find_syntax_by_extension(extension)?;
+        Some(HighlightLines::new(syntax, &self.yaml_theme))
     }
 }

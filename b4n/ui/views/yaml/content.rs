@@ -6,6 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
+use crate::ui::presentation::utils::VecStringExt;
 use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
@@ -86,12 +87,8 @@ impl YamlContent {
         let new_x = self.plain[line_no].chars().count();
 
         self.styled.join_lines(line_no);
-
-        let text = self.plain.remove(line_no + 1);
-        self.plain[line_no].push_str(&text);
-
-        let text = self.lowercase.remove(line_no + 1);
-        self.lowercase[line_no].push_str(&text);
+        self.plain.join_lines(line_no);
+        self.lowercase.join_lines(line_no);
 
         self.mark_line_as_modified(line_no);
         self.mark_line_as_modified(line_no + 1);
@@ -198,6 +195,9 @@ impl YamlContent {
 
     fn remove_text_internal(&mut self, range: Selection) -> Vec<String> {
         self.styled.remove_text(range.clone());
+        self.plain.remove_text(range.clone());
+        self.lowercase.remove_text(range);
+
         Vec::default()
     }
 }
