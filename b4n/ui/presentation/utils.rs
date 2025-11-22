@@ -130,7 +130,7 @@ pub trait VecStringExt {
     /// Appends the content of the next line to the line at `line_no` and removes the next line.
     fn join_lines(&mut self, line_no: usize);
 
-    /// Removes the specified `range` from the vector of `Stirng`s.
+    /// Removes the specified `range` from the vector of `String`s.
     fn remove_text(&mut self, range: Selection);
 }
 

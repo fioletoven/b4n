@@ -56,7 +56,7 @@ impl CrdColumn {
         let json_path = if path.starts_with('$') {
             path.to_owned()
         } else {
-            format!("${}", path)
+            format!("${path}")
         };
 
         Self {

@@ -398,12 +398,10 @@ impl Content for LogsContent {
 
     fn to_plain_text(&self, range: Option<Selection>) -> String {
         let range = range.map(|r| r.sorted());
-        let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
+        let (start, end) = range.map_or_else(|| (0, self.lines.len()), |(s, e)| (s.y, e.y));
         let start_line = start.min(self.lines.len().saturating_sub(1));
         let end_line = end.min(self.lines.len().saturating_sub(1));
-        let (start, end) = range
-            .map(|(s, e)| (s.x, e.x))
-            .unwrap_or_else(|| (0, self.line_size(end_line).saturating_sub(1)));
+        let (start, end) = range.map_or_else(|| (0, self.line_size(end_line).saturating_sub(1)), |(s, e)| (s.x, e.x));
 
         let mut result = String::new();
         for i in start_line..=end_line {

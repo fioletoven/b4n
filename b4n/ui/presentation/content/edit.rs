@@ -106,7 +106,12 @@ impl EditContext {
         {
             let start = selection.sorted().0;
             content.remove_text(selection);
-            return (Some(Some(start.x)), Some(start.y));
+
+            if key == KeyCode::Backspace || key == KeyCode::Delete {
+                return (Some(Some(start.x)), Some(start.y));
+            }
+
+            self.cursor = start;
         }
 
         let mut x_changed = None;

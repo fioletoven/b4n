@@ -98,7 +98,7 @@ impl SelectContext {
             if is_sorted(init, cursor) {
                 self.start = self.init;
                 if init == cursor {
-                    self.end = None
+                    self.end = None;
                 } else {
                     self.end = Some(decrement_cursor_x(cursor, content));
                 }
@@ -169,14 +169,14 @@ fn scroll_page_if_needed<T: Content>(area: Rect, page_start: &mut ContentPositio
     if mouse_y > (area.y + area.height).saturating_sub(3) {
         page_start.y += 2;
     } else if mouse_y < area.y + 3 {
-        page_start.y = page_start.y.saturating_sub(2)
+        page_start.y = page_start.y.saturating_sub(2);
     }
 
     // scroll page horizontally while dragging
     if mouse_x > (area.x + area.width).saturating_sub(3) {
         page_start.x += 2;
     } else if mouse_x < area.x + 3 {
-        page_start.x = page_start.x.saturating_sub(2)
+        page_start.x = page_start.x.saturating_sub(2);
     }
 
     // apply page start constraints
@@ -285,7 +285,7 @@ impl<'a, T: Content> ContentSelectWidget<'a, T> {
     }
 }
 
-impl<'a, T: Content> Widget for ContentSelectWidget<'a, T> {
+impl<T: Content> Widget for ContentSelectWidget<'_, T> {
     fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,

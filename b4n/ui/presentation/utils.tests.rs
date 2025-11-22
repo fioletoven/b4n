@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn remove_text_test() {
-    let yaml = r#"apiVersion: v1
+    let yaml = r"apiVersion: v1
 kind: Pod
 metadata:
   creationTimestamp: 2025-08-27T19:31:08Z
@@ -13,7 +13,7 @@ metadata:
     k8s-app: kube-dns
     pod-template-hash: 6799fbcd5
   name: coredns-6799fbcd5-pt4xz
-  namespace: kube-system"#;
+  namespace: kube-system";
 
     let mut lines = yaml.split('\n').map(String::from).collect::<Vec<_>>();
     lines.remove_text(Selection {
@@ -22,14 +22,14 @@ metadata:
     });
 
     assert_eq!(
-        r#"apiVersion: v1
+        r"apiVersion: v1
 kind: Pod
 metadata:
   creatils:
     k8s-app: kube-dns
     pod-template-hash: 6799fbcd5
   name: coredns-6799fbcd5-pt4xz
-  namespace: kube-system"#,
+  namespace: kube-system",
         lines.join("\n")
     );
 }
@@ -43,5 +43,5 @@ fn remove_text_one_line_test() {
         end: ContentPosition::new(8, 0),
     });
 
-    assert_eq!("Some T_Line", text[0])
+    assert_eq!("Some T_Line", text[0]);
 }

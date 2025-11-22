@@ -138,7 +138,7 @@ impl StyledLineExt for StyledLine {
                     span.drain(drain_from..drain_to);
                     remove_start = i + 1;
                 } else if drain_from == 0 {
-                    remove_start = i
+                    remove_start = i;
                 } else {
                     span.drain(drain_from..);
                     remove_start = i + 1;

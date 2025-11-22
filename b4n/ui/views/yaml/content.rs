@@ -307,6 +307,8 @@ impl Content for YamlContent {
     }
 
     fn remove_text(&mut self, range: Selection) -> Vec<String> {
+        self.mark_line_as_modified(range.start.y);
+        self.mark_line_as_modified(range.end.y);
         self.remove_text_internal(range)
     }
 
