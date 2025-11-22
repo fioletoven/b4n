@@ -35,7 +35,7 @@ metadata:
 }
 
 #[test]
-fn remove_text_2_test() {
+fn remove_text_one_line_test() {
     let mut text = vec!["Some Test_Line".to_owned()];
 
     text.remove_text(Selection {

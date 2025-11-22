@@ -34,6 +34,7 @@ impl Selection {
 pub struct SelectContext {
     pub start: Option<ContentPosition>,
     pub end: Option<ContentPosition>,
+    init: Option<ContentPosition>,
 }
 
 impl SelectContext {
@@ -41,12 +42,17 @@ impl SelectContext {
     pub fn clear_selection(&mut self) {
         self.start = None;
         self.end = None;
+        self.init = None;
     }
 
-    /// Clears the current selection start (if end is not set).
-    pub fn clear_selection_if_partial(&mut self) {
+    /// Clears the current selection start (if end is not set) or adjusts the `init` of the selection
+    /// to match situation when cursor is after selection start.
+    pub fn adjust_selection(&mut self) {
         if self.end.is_none() {
             self.start = None;
+            self.init = None;
+        } else {
+            self.init = self.start;
         }
     }
 
@@ -86,12 +92,18 @@ impl SelectContext {
             return;
         }
 
-        if let Some(start) = self.start
+        if let Some(init) = self.init
             && is_allowed_key_code(key.code)
         {
-            if is_sorted(start, cursor) {
-                self.end = Some(decrement_curosr_x(cursor, content))
+            if is_sorted(init, cursor) {
+                self.start = self.init;
+                if init == cursor {
+                    self.end = None
+                } else {
+                    self.end = Some(decrement_cursor_x(cursor, content));
+                }
             } else {
+                self.start = Some(decrement_cursor_x(init, content));
                 self.end = Some(cursor);
             }
         }
@@ -108,7 +120,8 @@ impl SelectContext {
         }
 
         if is_allowed_key_code(key.code) {
-            if self.start.is_none() {
+            if self.init.is_none() {
+                self.init = Some(cursor);
                 self.start = Some(cursor);
             }
         } else {
@@ -127,15 +140,26 @@ impl SelectContext {
             if let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
                 && let Some((start, end)) = content.word_bounds(pos.y, pos.x)
             {
-                self.start = Some(ContentPosition { x: start, y: pos.y });
+                self.init = Some(ContentPosition { x: start, y: pos.y });
+                self.start = self.init;
                 self.end = Some(ContentPosition { x: end, y: pos.y });
             }
         } else if mouse.kind == MouseEventKind::LeftClick {
-            self.start = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
+            self.init = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
+            self.start = self.init;
             self.end = None;
         } else if mouse.kind == MouseEventKind::LeftDrag {
             scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
-            self.end = get_position_in_content(area, content, *page_start, self.start, mouse.column, mouse.row);
+            self.end = get_position_in_content(area, content, *page_start, self.init, mouse.column, mouse.row);
+            if let Some(init) = self.init
+                && let Some(end) = self.end
+            {
+                if is_sorted(init, end) {
+                    self.start = self.init;
+                } else {
+                    self.start = Some(decrement_cursor_x(init, content));
+                }
+            }
         }
     }
 }
@@ -193,7 +217,7 @@ fn get_position_in_content<T: Content>(
             Some(ContentPosition { x: x.min(line_len), y })
         } else {
             let x = x.min(line_len);
-            Some(decrement_curosr_x(ContentPosition { x, y }, content))
+            Some(decrement_cursor_x(ContentPosition { x, y }, content))
         }
     } else {
         // this is the start of a selection
@@ -201,7 +225,7 @@ fn get_position_in_content<T: Content>(
     }
 }
 
-fn decrement_curosr_x<T: Content>(cursor: ContentPosition, content: &T) -> ContentPosition {
+fn decrement_cursor_x<T: Content>(cursor: ContentPosition, content: &T) -> ContentPosition {
     if cursor.x > 0 {
         ContentPosition {
             x: cursor.x - 1,

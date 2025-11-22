@@ -1,8 +1,7 @@
-use std::ops::{Bound, RangeBounds};
-
 use b4n_common::truncate_left;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
+use std::ops::{Bound, RangeBounds};
 
 use crate::ui::presentation::Selection;
 

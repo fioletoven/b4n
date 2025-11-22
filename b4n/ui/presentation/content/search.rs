@@ -3,7 +3,7 @@ use ratatui::style::Color;
 use ratatui::widgets::Widget;
 
 /// Represents a position in the content using `x` (column) and `y` (line) coordinates.
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq)]
 pub struct ContentPosition {
     pub x: usize,
     pub y: usize,

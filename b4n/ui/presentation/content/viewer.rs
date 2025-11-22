@@ -137,7 +137,7 @@ impl<T: Content> ContentViewer<T> {
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
-            self.select.clear_selection_if_partial();
+            self.select.adjust_selection();
             self.edit.enable(
                 self.page_start,
                 self.select.get_selection(),
