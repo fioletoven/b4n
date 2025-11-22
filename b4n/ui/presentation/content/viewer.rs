@@ -12,8 +12,8 @@ use std::{rc::Rc, time::Instant};
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
-use crate::ui::presentation::content::search::{PagePosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
-use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext};
+use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
+use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
 use crate::ui::presentation::{Content, StyledLineExt};
 
 /// Content viewer with header.
@@ -25,10 +25,11 @@ pub struct ContentViewer<T: Content> {
     hash: Option<u64>,
     edit: EditContext,
     select: SelectContext,
+    select_color: Color,
     search: SearchData,
     search_color: Color,
 
-    page_start: PagePosition,
+    page_start: ContentPosition,
     page_area: Rect,
 
     creation_time: Instant,
@@ -36,7 +37,7 @@ pub struct ContentViewer<T: Content> {
 
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
-    pub fn new(app_data: SharedAppData, search_color: Color) -> Self {
+    pub fn new(app_data: SharedAppData, select_color: Color, search_color: Color) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
         let cursor_color = app_data.borrow().theme.colors.cursor;
 
@@ -47,9 +48,10 @@ impl<T: Content> ContentViewer<T> {
             hash: None,
             edit: EditContext::new(cursor_color),
             select: SelectContext::default(),
+            select_color,
             search: SearchData::default(),
             search_color,
-            page_start: PagePosition::default(),
+            page_start: ContentPosition::default(),
             page_area: Rect::default(),
             creation_time: Instant::now(),
         }
@@ -98,8 +100,13 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Returns selection range if anything is selected.
-    pub fn get_selection(&self) -> Option<(PagePosition, PagePosition)> {
+    pub fn get_selection(&self) -> Option<Selection> {
         self.select.get_selection()
+    }
+
+    /// Returns `true` if there is selected text in the content.
+    pub fn has_selection(&self) -> bool {
+        self.content.is_some() && self.select.start.is_some() && self.select.end.is_some()
     }
 
     /// Returns `true` if viewer is in edit mode.
@@ -130,8 +137,14 @@ impl<T: Content> ContentViewer<T> {
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
-            self.edit
-                .enable(self.page_start, self.select.end, search, self.page_area.height, content);
+            self.select.adjust_selection();
+            self.edit.enable(
+                self.page_start,
+                self.select.get_selection(),
+                search,
+                self.page_area.height,
+                content,
+            );
             self.header.set_edit('', "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
@@ -256,12 +269,12 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns currently highlighted match position.\
     /// **Note** that it returns first match if all are highlighted.
-    pub fn current_match_position(&self) -> Option<PagePosition> {
+    pub fn current_match_position(&self) -> Option<ContentPosition> {
         let matches = self.search.matches.as_ref()?;
         let current = self.search.current.unwrap_or_default();
         let current = &matches[current.saturating_sub(1)];
 
-        Some(PagePosition {
+        Some(ContentPosition {
             x: current.x,
             y: current.y,
         })
@@ -357,11 +370,11 @@ impl<T: Content> ContentViewer<T> {
                 .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
-                let response = self
-                    .edit
-                    .process_event(event, content, self.page_start, self.select.end, self.page_area);
+                let response =
+                    self.edit
+                        .process_event(event, content, self.page_start, self.select.get_selection(), self.page_area);
                 if response != ResponseEvent::NotHandled {
-                    self.select.process_event_final(event, self.edit.cursor);
+                    self.select.process_event_final(event, content, self.edit.cursor);
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                     self.scroll_to(y, x, 1);
                     return response;
@@ -443,7 +456,12 @@ impl<T: Content> ContentViewer<T> {
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
         frame.render_widget(
-            ContentSelectWidget::new(&self.select, self.content.as_ref().unwrap(), &self.page_start),
+            ContentSelectWidget::new(
+                &self.select,
+                self.content.as_ref().unwrap(),
+                &self.page_start,
+                self.select_color,
+            ),
             area,
         );
 

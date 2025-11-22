@@ -12,6 +12,10 @@
 - fix syntax highlighting for multiline changes
 - better jsonPath support for custom resource definitions
 
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.2.9 - 2025-11-10
 
 ### Features

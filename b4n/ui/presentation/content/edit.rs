@@ -5,13 +5,14 @@ use ratatui::layout::{Position, Rect};
 use ratatui::widgets::Widget;
 use std::time::Instant;
 
-use super::{Content, search::PagePosition};
+use crate::ui::presentation::Selection;
+use crate::ui::presentation::content::{Content, search::ContentPosition};
 
 /// Context for the content edit mode.
 pub struct EditContext {
     pub is_enabled: bool,
     pub is_modified: bool,
-    pub cursor: PagePosition,
+    pub cursor: ContentPosition,
     color: TextColors,
     last_set_x: usize,
     last_key_press: Instant,
@@ -23,7 +24,7 @@ impl EditContext {
         Self {
             is_enabled: false,
             is_modified: false,
-            cursor: PagePosition::default(),
+            cursor: ContentPosition::default(),
             color,
             last_set_x: 0,
             last_key_press: Instant::now(),
@@ -33,24 +34,24 @@ impl EditContext {
     /// Sets [`EditContext`] as enabled.
     pub fn enable<T: Content>(
         &mut self,
-        position: PagePosition,
-        selection_end: Option<PagePosition>,
-        search: Option<PagePosition>,
+        page_start: ContentPosition,
+        selection: Option<Selection>,
+        search: Option<ContentPosition>,
         page_size: u16,
         content: &mut T,
     ) {
         self.is_enabled = true;
-        if let Some(selection_end) = selection_end {
-            self.cursor = selection_end;
+        if let Some(selection) = selection {
+            self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
             self.constraint_cursor_position(false, content);
         } else if let Some(search) = search {
             self.cursor = search;
             self.constraint_cursor_position(false, content);
-        } else if self.cursor.y < position.y {
-            self.cursor.y = position.y;
+        } else if self.cursor.y < page_start.y {
+            self.cursor.y = page_start.y;
             self.constraint_cursor_position(false, content);
-        } else if self.cursor.y >= position.y + usize::from(page_size) {
-            self.cursor.y = position.y + usize::from(page_size.saturating_sub(1));
+        } else if self.cursor.y >= page_start.y + usize::from(page_size) {
+            self.cursor.y = page_start.y + usize::from(page_size.saturating_sub(1));
             self.constraint_cursor_position(false, content);
         }
     }
@@ -60,8 +61,8 @@ impl EditContext {
         &mut self,
         event: &TuiEvent,
         content: &mut T,
-        position: PagePosition,
-        selection_end: Option<PagePosition>,
+        page_start: ContentPosition,
+        selection: Option<Selection>,
         area: Rect,
     ) -> ResponseEvent {
         match event {
@@ -71,18 +72,18 @@ impl EditContext {
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
                     content.redo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
                 } else {
-                    self.process_key(key.code, content, area)
+                    self.process_key(key.code, content, selection, area)
                 };
                 self.update_cursor_position(pos, content, false);
                 self.last_key_press = Instant::now();
             },
             TuiEvent::Mouse(mouse) => {
                 if mouse.kind == MouseEventKind::LeftClick {
-                    let pos = self.process_mouse(*mouse, position, area);
+                    let pos = self.process_mouse(*mouse, page_start, area);
                     self.update_cursor_position(pos, content, true);
                 } else {
-                    if let Some(selection_end) = selection_end {
-                        self.cursor = selection_end;
+                    if let Some(selection) = selection {
+                        self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
                     }
 
                     return ResponseEvent::NotHandled;
@@ -93,7 +94,26 @@ impl EditContext {
         ResponseEvent::Handled
     }
 
-    fn process_key<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {
+    fn process_key<T: Content>(
+        &mut self,
+        key: KeyCode,
+        content: &mut T,
+        selection: Option<Selection>,
+        area: Rect,
+    ) -> NewCursorPosition {
+        if is_content_modifying_key(key)
+            && let Some(selection) = selection
+        {
+            let start = selection.sorted().0;
+            content.remove_text(selection);
+
+            if key == KeyCode::Backspace || key == KeyCode::Delete {
+                return (Some(Some(start.x)), Some(start.y));
+            }
+
+            self.cursor = start;
+        }
+
         let mut x_changed = None;
         let mut y_changed = None;
 
@@ -155,10 +175,10 @@ impl EditContext {
         (x_changed, y_changed)
     }
 
-    fn process_mouse(&mut self, mouse: MouseEvent, position: PagePosition, area: Rect) -> NewCursorPosition {
+    fn process_mouse(&mut self, mouse: MouseEvent, page_start: ContentPosition, area: Rect) -> NewCursorPosition {
         if mouse.kind == MouseEventKind::LeftClick {
-            let x = position.x.saturating_add(mouse.column.saturating_sub(area.x).into());
-            let y = position.y.saturating_add(mouse.row.saturating_sub(area.y).into());
+            let x = page_start.x.saturating_add(mouse.column.saturating_sub(area.x).into());
+            let y = page_start.y.saturating_add(mouse.row.saturating_sub(area.y).into());
             let x = if self.cursor.x == x { None } else { Some(Some(x)) };
             let y = if self.cursor.y == y { None } else { Some(y) };
             return (x, y);
@@ -212,17 +232,41 @@ impl EditContext {
     }
 }
 
+fn is_content_modifying_key(key: KeyCode) -> bool {
+    matches!(
+        key,
+        KeyCode::Char(_) | KeyCode::Tab | KeyCode::Enter | KeyCode::Backspace | KeyCode::Delete
+    )
+}
+
+fn get_cursor_pos_for_selection<T: Content>(content: &T, end: ContentPosition, end_after_start: bool) -> ContentPosition {
+    if !end_after_start {
+        return end;
+    }
+
+    let line_len = content.line_size(end.y);
+    if end.x < line_len {
+        return ContentPosition { x: end.x + 1, y: end.y };
+    }
+
+    if end.y + 1 >= content.len() {
+        ContentPosition { x: line_len, y: end.y }
+    } else {
+        ContentPosition { x: 0, y: end.y + 1 }
+    }
+}
+
 type NewCursorPosition = (Option<Option<usize>>, Option<usize>);
 
 /// Widget that draws cursor on the content.
 pub struct ContentEditWidget<'a> {
     pub context: &'a EditContext,
-    pub page_start: &'a PagePosition,
+    pub page_start: &'a ContentPosition,
 }
 
 impl<'a> ContentEditWidget<'a> {
     /// Creates new [`ContentEditWidget`] instance.
-    pub fn new(context: &'a EditContext, page_start: &'a PagePosition) -> Self {
+    pub fn new(context: &'a EditContext, page_start: &'a ContentPosition) -> Self {
         Self { context, page_start }
     }
 }

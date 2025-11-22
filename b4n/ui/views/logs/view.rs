@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, MatchPosition, PagePosition, StyledLine};
+use crate::ui::presentation::{Content, ContentViewer, MatchPosition, Selection, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -47,8 +47,9 @@ impl LogsView {
             namespace: resource.namespace.clone(),
             container: resource.container.clone(),
         };
-        let color = app_data.borrow().theme.colors.syntax.logs.search;
-        let logs = ContentViewer::new(Rc::clone(&app_data), color).with_header(
+        let select = app_data.borrow().theme.colors.syntax.logs.select;
+        let search = app_data.borrow().theme.colors.syntax.logs.search;
+        let logs = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
             resource.namespace,
@@ -117,7 +118,11 @@ impl LogsView {
                     .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                if self.logs.has_selection() {
+                    self.footer.show_info(" selection copied to clipboard…", 1_500);
+                } else {
+                    self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                }
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
@@ -238,6 +243,12 @@ impl View for LogsView {
 
             self.update_bound_to_bottom();
             return result;
+        }
+
+        if event.is(MouseEventKind::RightClick) && self.logs.has_selection() {
+            self.copy_logs_to_clipboard();
+            self.logs.clear_selection();
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
@@ -385,16 +396,16 @@ impl Content for LogsContent {
         0
     }
 
-    fn to_plain_text(&self, range: Option<(PagePosition, PagePosition)>) -> String {
-        let (start, end) = range.map(|(s, e)| (s.y, e.y)).unwrap_or_else(|| (0, self.lines.len()));
+    fn to_plain_text(&self, range: Option<Selection>) -> String {
+        let range = range.map(|r| r.sorted());
+        let (start, end) = range.map_or_else(|| (0, self.lines.len()), |(s, e)| (s.y, e.y));
         let start_line = start.min(self.lines.len().saturating_sub(1));
         let end_line = end.min(self.lines.len().saturating_sub(1));
-        let (start, end) = range
-            .map(|(s, e)| (s.x, e.x))
-            .unwrap_or_else(|| (0, self.line_size(end_line)));
+        let (start, end) = range.map_or_else(|| (0, self.line_size(end_line).saturating_sub(1)), |(s, e)| (s.x, e.x));
 
         let mut result = String::new();
-        for (i, line) in self.lines.iter().enumerate().take(end_line + 1).skip(start_line) {
+        for i in start_line..=end_line {
+            let line = &self.lines[i];
             if i == start_line || i == end_line {
                 let text = if self.show_timestamps {
                     format!("{}{}", line.datetime.format(TIMESTAMP_TEXT_FORMAT), line.message)
@@ -404,11 +415,17 @@ impl Content for LogsContent {
 
                 if i == start_line && i == end_line {
                     result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
+                    if text.chars().count() < end + 1 {
+                        result.push('\n');
+                    }
                 } else if i == start_line {
                     result.push_str(slice_from(&text, start));
                     result.push('\n');
                 } else if i == end_line {
                     result.push_str(slice_to(&text, end + 1));
+                    if text.chars().count() < end + 1 {
+                        result.push('\n');
+                    }
                 }
             } else {
                 if self.show_timestamps {

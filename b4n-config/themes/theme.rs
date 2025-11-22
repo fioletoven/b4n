@@ -113,6 +113,7 @@ pub struct YamlSyntaxColors {
     pub language: TextColors,
     pub timestamp: TextColors,
     pub search: Color,
+    pub select: Color,
 }
 
 /// Represents colors for logs syntax highlighting.
@@ -122,6 +123,7 @@ pub struct LogsSyntaxColors {
     pub error: TextColors,
     pub timestamp: TextColors,
     pub search: Color,
+    pub select: Color,
 }
 
 /// All colors in theme.
@@ -244,12 +246,14 @@ impl Default for Theme {
                         language: TextColors::new(Color::LightBlue),
                         timestamp: TextColors::new(Color::Magenta),
                         search: Color::Rgb(135, 114, 72),
+                        select: Color::Rgb(80, 85, 100),
                     },
                     logs: LogsSyntaxColors {
                         string: TextColors::new(Color::Gray),
                         error: TextColors::new(Color::Red),
                         timestamp: TextColors::new(Color::Magenta),
                         search: Color::Rgb(135, 114, 72),
+                        select: Color::Rgb(80, 85, 100),
                     },
                 },
             },

@@ -5,6 +5,11 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
 use crate::core::{AppData, ResourcesInfo};
+use crate::ui::presentation::Selection;
+
+#[cfg(test)]
+#[path = "./utils.tests.rs"]
+mod utils_tests;
 
 /// Returns name of the namespace that can be displayed on the header pane breadcrumbs.
 pub fn get_breadcrumbs_namespace<'a>(scope: Option<&Scope>, data: &'a ResourcesInfo, kind: &str) -> &'a str {
@@ -119,4 +124,54 @@ fn get_context_color(app_data: &AppData) -> TextColors {
         .as_ref()
         .and_then(|contexts| contexts.get(&app_data.current.context))
         .map_or(app_data.theme.colors.header.context, |f| *f)
+}
+
+pub trait VecStringExt {
+    /// Appends the content of the next line to the line at `line_no` and removes the next line.
+    fn join_lines(&mut self, line_no: usize);
+
+    /// Removes the specified `range` from the vector of `String`s.
+    fn remove_text(&mut self, range: Selection);
+}
+
+impl VecStringExt for Vec<String> {
+    fn join_lines(&mut self, line_no: usize) {
+        if line_no + 1 < self.len() {
+            let (left, right) = self.split_at_mut(line_no + 1);
+            left[line_no].push_str(&right[0]);
+            self.remove(line_no + 1);
+        }
+    }
+
+    fn remove_text(&mut self, range: Selection) {
+        let (start, end) = range.sorted();
+        let start_line = start.y.min(self.len().saturating_sub(1));
+        let end_line = end.y.min(self.len().saturating_sub(1));
+
+        if start_line == end_line {
+            if self[end_line].chars().count() == end.x {
+                self[end_line].drain(start.x..);
+                self.join_lines(end_line);
+            } else {
+                self[end_line].drain(start.x..=end.x);
+            }
+        } else {
+            self[start_line].truncate(start.x);
+            if self[end_line].chars().count() == end.x {
+                self.remove(end_line);
+            } else {
+                self[end_line].drain(..=end.x);
+            }
+
+            remove_lines(self, start_line.saturating_add(1), end_line.saturating_sub(1));
+            self.join_lines(start_line);
+        }
+    }
+}
+
+fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) {
+    if from <= to && from < lines.len() {
+        let to = to.min(lines.len());
+        lines.drain(from..=to);
+    }
 }

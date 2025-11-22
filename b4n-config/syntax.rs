@@ -1,4 +1,4 @@
-use syntect::{dumps::from_uncompressed_data, parsing::SyntaxSet};
+use syntect::{dumps::from_uncompressed_data, easy::HighlightLines, parsing::SyntaxSet};
 
 use crate::themes::Theme;
 
@@ -17,5 +17,11 @@ impl SyntaxData {
             syntax_set: from_uncompressed_data::<SyntaxSet>(SYNTAX_SET_DATA).expect("cannot load SyntaxSet"),
             yaml_theme: theme.build_syntect_yaml_theme(),
         }
+    }
+
+    /// Creates [`HighlightLines`] object for the specified `extension`.
+    pub fn get_highlighter(&self, extension: &str) -> Option<HighlightLines<'_>> {
+        let syntax = self.syntax_set.find_syntax_by_extension(extension)?;
+        Some(HighlightLines::new(syntax, &self.yaml_theme))
     }
 }

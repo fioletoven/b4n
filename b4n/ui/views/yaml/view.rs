@@ -36,9 +36,10 @@ impl YamlView {
         resource: ResourceRef,
         footer: NotificationSink,
     ) -> Self {
-        let color = app_data.borrow().theme.colors.syntax.yaml.search;
+        let select = app_data.borrow().theme.colors.syntax.yaml.select;
+        let search = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;
-        let yaml = ContentViewer::new(Rc::clone(&app_data), color).with_header(
+        let yaml = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
             "YAML",
             '',
             resource.namespace,
@@ -71,7 +72,11 @@ impl YamlView {
                     .set_text(self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
                     .is_ok()
             {
-                self.footer.show_info(" YAML content copied to clipboard…", 1_500);
+                if self.yaml.has_selection() {
+                    self.footer.show_info(" selection copied to clipboard…", 1_500);
+                } else {
+                    self.footer.show_info(" YAML content copied to clipboard…", 1_500);
+                }
             } else {
                 self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
             }
@@ -116,6 +121,7 @@ impl YamlView {
             return;
         }
 
+        self.yaml.clear_selection();
         self.clear_search();
         self.command_id = self.worker.borrow_mut().get_yaml(
             self.yaml.header.name.clone(),
@@ -341,6 +347,12 @@ impl View for YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.yaml.disable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
+        if event.is(MouseEventKind::RightClick) && self.yaml.has_selection() {
+            self.copy_yaml_to_clipboard();
+            self.yaml.clear_selection();
             return ResponseEvent::Handled;
         }
 

@@ -19,11 +19,12 @@ palette:
   light_yellow: LightYellow
   light_magenta: LightMagenta
   light_cyan: LightCyan
-  dark_yellow: '#877248'
+  search_yellow: '#877248'
+  select_black: '#444C59'
 
 # style anchors
 filter: &filter
-  cursor: light_cyan:#454c5a
+  cursor: light_cyan:#454C5A
   normal: fg_dark:yellow:bg_dark
   normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light
@@ -102,9 +103,11 @@ colors:
       numeric: blue:no_bg
       language: light_blue:no_bg
       timestamp: magenta:no_bg
-      search: dark_yellow
+      search: search_yellow
+      select: select_black
     logs:
       string: text_light:no_bg
       error: red:no_bg
       timestamp: magenta:no_bg
-      search: dark_yellow
+      search: search_yellow
+      select: select_black

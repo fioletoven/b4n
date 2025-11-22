@@ -187,10 +187,10 @@ impl View for ShellView {
         }
 
         if let TuiEvent::Mouse(mouse) = event {
-            match mouse.kind {
-                MouseEventKind::ScrollUp => return self.set_scrollback(1, true),
-                MouseEventKind::ScrollDown => return self.set_scrollback(1, false),
-                _ => return ResponseEvent::Handled,
+            return match mouse.kind {
+                MouseEventKind::ScrollUp => self.set_scrollback(1, true),
+                MouseEventKind::ScrollDown => self.set_scrollback(1, false),
+                _ => ResponseEvent::Handled,
             }
         }
 
