@@ -68,9 +68,9 @@ impl EditContext {
         match event {
             TuiEvent::Key(key) => {
                 let pos = if key == &KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL) {
-                    content.undo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
+                    content.undo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
-                    content.redo().map_or((None, None), |(x, y)| (Some(Some(x)), Some(y)))
+                    content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
                 } else {
                     self.process_key(key.code, content, selection, area)
                 };
@@ -120,22 +120,22 @@ impl EditContext {
         match key {
             // insert character
             KeyCode::Char(c) => {
-                content.insert_char(self.cursor.x, self.cursor.y, c);
+                content.insert_char(self.cursor, c);
                 x_changed = Some(Some(self.cursor.x + 1));
             },
             KeyCode::Tab => {
-                content.insert_char(self.cursor.x, self.cursor.y, ' ');
-                content.insert_char(self.cursor.x, self.cursor.y, ' ');
+                content.insert_char(self.cursor, ' ');
+                content.insert_char(self.cursor, ' ');
                 x_changed = Some(Some(self.cursor.x + 2));
             },
             KeyCode::Enter => {
-                content.insert_char(self.cursor.x, self.cursor.y, '\n');
+                content.insert_char(self.cursor, '\n');
                 y_changed = Some(self.cursor.y + 1);
                 if self.last_key_press.elapsed().as_millis() > 10
                     && let Some(leading_spaces) = content.leading_spaces(self.cursor.y)
                 {
                     for i in 0..leading_spaces {
-                        content.insert_char(i, self.cursor.y + 1, ' ');
+                        content.insert_char(ContentPosition::new(i, self.cursor.y + 1), ' ');
                     }
                     x_changed = Some(Some(leading_spaces));
                 } else {
@@ -145,15 +145,15 @@ impl EditContext {
 
             // remove character
             KeyCode::Backspace => {
-                if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, true) {
-                    x_changed = Some(Some(x));
-                    y_changed = Some(y);
+                if let Some(position) = content.remove_char(self.cursor, true) {
+                    x_changed = Some(Some(position.x));
+                    y_changed = Some(position.y);
                 }
             },
             KeyCode::Delete => {
-                if let Some((x, y)) = content.remove_char(self.cursor.x, self.cursor.y, false) {
-                    x_changed = Some(Some(x));
-                    y_changed = Some(y);
+                if let Some(position) = content.remove_char(self.cursor, false) {
+                    x_changed = Some(Some(position.x));
+                    y_changed = Some(position.y);
                 }
             },
 

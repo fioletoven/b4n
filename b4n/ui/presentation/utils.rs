@@ -5,7 +5,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
 use crate::core::{AppData, ResourcesInfo};
-use crate::ui::presentation::Selection;
+use crate::ui::presentation::{ContentPosition, Selection};
 
 #[cfg(test)]
 #[path = "./utils.tests.rs"]
@@ -126,6 +126,46 @@ fn get_context_color(app_data: &AppData) -> TextColors {
         .map_or(app_data.theme.colors.header.context, |f| *f)
 }
 
+#[derive(Default)]
+pub struct CharPosition {
+    pub char: usize,
+    pub index: usize,
+}
+
+#[derive(Default)]
+pub struct PositionSet {
+    pub x_prev: CharPosition,
+    pub x: CharPosition,
+}
+
+pub fn get_char_position(lines: &[String], position: ContentPosition) -> Option<PositionSet> {
+    let line = lines.get(position.y)?;
+    let mut result_set = PositionSet::default();
+
+    for (char_idx, (byte_idx, _)) in line.char_indices().enumerate() {
+        if char_idx + 1 == position.x {
+            result_set.x_prev = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
+        }
+
+        if char_idx == position.x {
+            result_set.x = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
+            return Some(result_set);
+        }
+    }
+
+    None
+}
+
+pub fn char_to_index(line: &str, char_idx: usize) -> Option<usize> {
+    line.char_indices().nth(char_idx).map(|(byte_idx, _)| byte_idx)
+}
+
 pub trait VecStringExt {
     /// Appends the content of the next line to the line at `line_no` and removes the next line.
     fn join_lines(&mut self, line_no: usize);
@@ -147,34 +187,59 @@ impl VecStringExt for Vec<String> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
+        let is_eol = self[end_line].chars().count() <= end.x;
 
         if start_line == end_line {
-            if self[end_line].chars().count() == end.x {
-                let removed = self[end_line].drain(start.x..).collect();
-                self.join_lines(end_line);
-                vec![removed]
+            if let Some(start) = char_to_index(&self[end_line], start.x) {
+                if let Some(end) = char_to_index(&self[end_line], end.x + 1) {
+                    let removed = self[end_line].drain(start..end).collect();
+                    vec![removed]
+                } else {
+                    let removed = self[end_line].drain(start..).collect();
+                    if is_eol {
+                        self.join_lines(end_line);
+                    }
+                    vec![removed]
+                }
             } else {
-                let removed = self[end_line].drain(start.x..=end.x).collect();
-                vec![removed]
+                Vec::default()
             }
         } else {
             let mut removed = Vec::new();
-            removed.push(self[start_line].drain(start.x..).collect());
+            let mut remove_start = false;
 
-            let last = if self[end_line].chars().count() == end.x {
-                self.remove(end_line)
+            if let Some(start) = char_to_index(&self[start_line], start.x) {
+                removed.push(self[start_line].drain(start..).collect());
+                remove_start = start == 0;
+            }
+
+            let last = if let Some(end) = char_to_index(&self[end_line], end.x + 1) {
+                self[end_line].drain(..end).collect()
             } else {
-                self[end_line].drain(..=end.x).collect()
+                self[end_line].drain(..).collect()
             };
+
+            if is_eol {
+                self.join_lines(end_line);
+            }
 
             removed.append(&mut remove_lines(
                 self,
                 start_line.saturating_add(1),
                 end_line.saturating_sub(1),
             ));
-            self.join_lines(start_line);
+
+            if remove_start {
+                self.remove(start_line);
+            } else {
+                self.join_lines(start_line);
+            }
 
             removed.push(last);
+            if is_eol {
+                removed.push(String::new());
+            }
+
             removed
         }
     }

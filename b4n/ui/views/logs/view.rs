@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, MatchPosition, Selection, StyledLine};
+use crate::ui::presentation::{Content, ContentPosition, ContentViewer, MatchPosition, Selection, StyledLine};
 use crate::ui::views::View;
 use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
 
@@ -465,14 +465,14 @@ impl Content for LogsContent {
         }
     }
 
-    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
-        if let Some(line) = self.lines.get(line_no) {
+    fn word_bounds(&self, position: ContentPosition) -> Option<(usize, usize)> {
+        if let Some(line) = self.lines.get(position.y) {
             if self.show_timestamps {
-                let idx = idx.saturating_sub(TIMESTAMP_TEXT_LENGTH);
+                let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
                 let bounds = b4n_common::word_bounds(&line.message, idx);
                 bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
             } else {
-                b4n_common::word_bounds(&line.message, idx)
+                b4n_common::word_bounds(&line.message, position.x)
             }
         } else {
             None

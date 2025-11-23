@@ -1,9 +1,9 @@
 use b4n_common::truncate_left;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use std::ops::{Bound, RangeBounds};
 
-use crate::ui::presentation::Selection;
+use crate::ui::presentation::utils::char_to_index;
+use crate::ui::presentation::{ContentPosition, Selection};
 
 pub type StyledLine = Vec<(Style, String)>;
 
@@ -22,8 +22,14 @@ pub struct StyleFallback {
 
 /// Extension methods for `StyledLine`.
 pub trait StyledLineExt {
-    /// Returns the number of characters in the [`StyledLine`].
+    /// Returns byte index from char index for the [`StyledLine`].
+    fn char_to_index(&self, char_idx: usize) -> Option<usize>;
+
+    /// Returns length of the [`StyledLine`].
     fn sl_len(&self) -> usize;
+
+    /// Returns the number of characters in the [`StyledLine`].
+    fn sl_chars_len(&self) -> usize;
 
     /// Inserts a string slice into this [`StyledLine`] at byte position `idx`.
     fn sl_insert_str(&mut self, idx: usize, s: &str);
@@ -44,7 +50,7 @@ pub trait StyledLineExt {
     fn sl_truncate(&mut self, new_len: usize);
 
     /// Removes the specified range from the [`StyledLine`] in bulk.
-    fn sl_drain(&mut self, range: impl RangeBounds<usize>);
+    fn sl_drain(&mut self, start: Option<usize>, end: Option<usize>);
 
     /// Splits [`StyledLine`] at byte position `idx` and returns the second part.
     fn get_second(&self, idx: usize) -> StyledLine;
@@ -54,7 +60,34 @@ pub trait StyledLineExt {
 }
 
 impl StyledLineExt for StyledLine {
+    fn char_to_index(&self, char_idx_22: usize) -> Option<usize> {
+        let mut left = char_idx_22 + 1;
+        let mut idx = 0;
+
+        for (_, span) in self {
+            let mut tmp_char = 0;
+            let mut tmp_idx = 0;
+
+            for (char_idx, (byte_idx, _)) in span.char_indices().enumerate() {
+                tmp_char = char_idx + 1;
+                tmp_idx = byte_idx + 1;
+                if char_idx + 1 == left {
+                    return Some(idx + tmp_idx - 1);
+                }
+            }
+
+            left -= tmp_char;
+            idx += tmp_idx;
+        }
+
+        None
+    }
+
     fn sl_len(&self) -> usize {
+        self.iter().map(|s| s.1.len()).sum()
+    }
+
+    fn sl_chars_len(&self) -> usize {
         self.iter().map(|s| s.1.chars().count()).sum()
     }
 
@@ -118,9 +151,9 @@ impl StyledLineExt for StyledLine {
         }
     }
 
-    fn sl_drain(&mut self, range: impl RangeBounds<usize>) {
-        let start = start_from_bound(&range);
-        let end = end_from_bound(&range);
+    fn sl_drain(&mut self, range_start: Option<usize>, range_end: Option<usize>) {
+        let start = range_start.unwrap_or_default();
+        let end = range_end.unwrap_or(usize::MAX);
 
         let mut remove_start = self.len();
         let mut remove_end = 0;
@@ -132,12 +165,12 @@ impl StyledLineExt for StyledLine {
             if current + span_len <= start {
                 // pass
             } else if current <= start {
-                let drain_from = start.saturating_sub(current);
-                if current + span_len >= end {
-                    let drain_to = end.saturating_sub(current);
+                let drain_from = char_to_index(span, start.saturating_sub(current)).unwrap_or(0);
+                if current + span_len > end {
+                    let drain_to = char_to_index(span, end.saturating_sub(current)).unwrap_or(0);
                     span.drain(drain_from..drain_to);
                     remove_start = i + 1;
-                } else if drain_from == 0 {
+                } else if drain_from == 0 && current + span_len <= end {
                     remove_start = i;
                 } else {
                     span.drain(drain_from..);
@@ -145,8 +178,11 @@ impl StyledLineExt for StyledLine {
                 }
             } else if current >= end {
                 break;
-            } else if current + span_len >= end {
-                let drain_to = end.saturating_sub(current);
+            } else if current + span_len == end {
+                remove_end = i;
+                break;
+            } else if current + span_len > end {
+                let drain_to = char_to_index(span, end.saturating_sub(current)).unwrap_or(0);
                 if drain_to > 0 {
                     span.drain(..drain_to);
                 }
@@ -158,7 +194,7 @@ impl StyledLineExt for StyledLine {
             current += span_len;
         }
 
-        if matches!(range.end_bound(), Bound::Unbounded) {
+        if range_end.is_none() {
             remove_end = self.len().saturating_sub(1);
         }
 
@@ -232,6 +268,12 @@ pub trait VecStyledLineExt {
 
     /// Removes the specified `range` from the vector of `StyledLine`s.
     fn remove_text(&mut self, range: &Selection);
+
+    /// Inserts specified `text` at `position` to the vector of `StyledLine`s.
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>, styles: &StyleFallback);
+
+    /// Inserts specified `text` at `position` to the vector of `StyledLine`s.
+    fn insert_line(&mut self, position: ContentPosition, text: String, styles: &StyleFallback);
 }
 
 impl VecStyledLineExt for Vec<StyledLine> {
@@ -254,25 +296,69 @@ impl VecStyledLineExt for Vec<StyledLine> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
+        let is_eol = self[end_line].sl_chars_len() <= end.x;
 
         if start_line == end_line {
-            if self[end_line].sl_len() == end.x {
-                self[end_line].sl_drain(start.x..);
+            self[end_line].sl_drain(Some(start.x), Some(end.x + 1));
+            if is_eol {
                 self.join_lines(end_line);
-            } else {
-                self[end_line].sl_drain(start.x..=end.x);
             }
         } else {
-            self[start_line].sl_truncate(start.x);
-            if self[end_line].sl_len() == end.x {
-                self.remove(end_line);
-            } else {
-                self[end_line].sl_drain(..=end.x);
+            let mut remove_start = false;
+
+            if let Some(start) = self[start_line].char_to_index(start.x) {
+                self[start_line].sl_truncate(start);
+                remove_start = start == 0;
+            }
+
+            self[end_line].sl_drain(None, Some(end.x + 1));
+
+            if is_eol {
+                self.join_lines(end_line);
             }
 
             remove_lines(self, start_line.saturating_add(1), end_line.saturating_sub(1));
-            self.join_lines(start_line);
+
+            if remove_start {
+                self.remove(start_line);
+            } else {
+                self.join_lines(start_line);
+            }
         }
+    }
+
+    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>, styles: &StyleFallback) {
+        match text.len() {
+            0 => return,
+            1 => return self.insert_line(position, text.swap_remove(0), styles),
+            _ => (),
+        }
+
+        todo!();
+    }
+
+    fn insert_line(&mut self, position: ContentPosition, text: String, styles: &StyleFallback) {
+        if self.is_empty() || position.y >= self.len() {
+            self.push(vec![(styles.fallback, text)]);
+            return;
+        }
+
+        if self.len() == 1 && self[0].is_empty() {
+            self[0] = vec![(styles.fallback, text)];
+            return;
+        }
+
+        if position.x == 0 && position.y == 0 {
+            let style = self[0][0].0;
+            self[0].insert(0, (style, text));
+            return;
+        }
+
+        if let Some(line) = self.get_mut(position.y) {
+            todo!();
+        }
+
+        todo!();
     }
 }
 
@@ -280,21 +366,5 @@ fn remove_lines(lines: &mut Vec<StyledLine>, from: usize, to: usize) {
     if from <= to && from < lines.len() {
         let to = to.min(lines.len());
         lines.drain(from..=to);
-    }
-}
-
-fn start_from_bound<R: RangeBounds<usize>>(range: &R) -> usize {
-    match range.start_bound() {
-        Bound::Included(i) => *i,
-        Bound::Excluded(i) => i + 1,
-        Bound::Unbounded => 0,
-    }
-}
-
-fn end_from_bound<R: RangeBounds<usize>>(range: &R) -> usize {
-    match range.end_bound() {
-        Bound::Included(i) => i + 1,
-        Bound::Excluded(i) => *i,
-        Bound::Unbounded => usize::MAX,
     }
 }

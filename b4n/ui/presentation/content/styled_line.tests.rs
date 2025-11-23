@@ -13,87 +13,133 @@ fn get_styled_text(text: &str) -> Vec<StyledLine> {
 }
 
 #[test]
+fn char_to_index_test() {
+    let styled = get_styled_text("apiVersiąn: v1 #with comment");
+    assert_eq!(Some(5), styled[0].char_to_index(5));
+    assert_eq!(Some(19), styled[0].char_to_index(18));
+    assert_eq!(Some(28), styled[0].char_to_index(27));
+    assert_eq!(None, styled[0].char_to_index(28));
+}
+
+#[test]
+fn char_boundaries_test() {
+    let styled = get_styled_text("  ąęśćńół: test");
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(0), Some(6));
+    assert_eq!("ńół: test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(1), Some(7));
+    assert_eq!(" ół: test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(7));
+    assert_eq!("  ół: test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(8));
+    assert_eq!("  ł: test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(9));
+    assert_eq!("  : test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(10));
+    assert_eq!("   test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(11));
+    assert_eq!("  test", lines.to_string());
+
+    let mut lines = styled.clone();
+    lines[0].sl_drain(Some(2), Some(12));
+    assert_eq!("  est", lines.to_string());
+}
+
+#[test]
 fn sl_drain_test() {
     let styled = get_styled_text("apiVersion: v1 #with comment");
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..5);
+    lines[0].sl_drain(None, Some(5));
     assert_eq!("rsion: v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..9);
+    lines[0].sl_drain(None, Some(9));
     assert_eq!("n: v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..=9);
+    lines[0].sl_drain(None, Some(10));
     assert_eq!(": v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..11);
+    lines[0].sl_drain(None, Some(11));
     assert_eq!(" v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..13);
+    lines[0].sl_drain(None, Some(13));
     assert_eq!("1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(..18);
+    lines[0].sl_drain(None, Some(18));
     assert_eq!("th comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(3..=5);
+    lines[0].sl_drain(Some(3), Some(6));
     assert_eq!("apision: v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(3..12);
+    lines[0].sl_drain(Some(3), Some(12));
     assert_eq!("apiv1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(3..=17);
+    lines[0].sl_drain(Some(3), Some(18));
     assert_eq!("apith comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(10..=10);
+    lines[0].sl_drain(Some(10), Some(11));
     assert_eq!("apiVersion v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(10..=15);
+    lines[0].sl_drain(Some(10), Some(16));
     assert_eq!("apiVersionwith comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(10..=28);
+    lines[0].sl_drain(Some(10), Some(29));
     assert_eq!("apiVersion", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(10..=30);
+    lines[0].sl_drain(Some(10), Some(30));
     assert_eq!("apiVersion", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(10..);
+    lines[0].sl_drain(Some(10), None);
     assert_eq!("apiVersion", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(11..);
+    lines[0].sl_drain(Some(11), None);
     assert_eq!("apiVersion:", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(12..);
+    lines[0].sl_drain(Some(12), None);
     assert_eq!("apiVersion: ", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(14..);
+    lines[0].sl_drain(Some(14), None);
     assert_eq!("apiVersion: v1", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(17..);
+    lines[0].sl_drain(Some(17), None);
     assert_eq!("apiVersion: v1 #w", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(30..);
+    lines[0].sl_drain(Some(30), None);
     assert_eq!("apiVersion: v1 #with comment", lines.to_string());
 
     let mut lines = styled.clone();
-    lines[0].sl_drain(100..=150);
+    lines[0].sl_drain(Some(100), Some(150));
     assert_eq!("apiVersion: v1 #with comment", lines.to_string());
 }
 

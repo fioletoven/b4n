@@ -19,9 +19,9 @@ pub struct Undo {
 }
 
 impl Undo {
-    pub fn insert(x: usize, y: usize, ch: char) -> Self {
+    pub fn insert(pos: ContentPosition, ch: char) -> Self {
         Self {
-            pos: ContentPosition::new(x, y),
+            pos,
             end: None,
             ch,
             text: None,
@@ -30,9 +30,9 @@ impl Undo {
         }
     }
 
-    pub fn remove(x: usize, y: usize, ch: char) -> Self {
+    pub fn remove(pos: ContentPosition, ch: char) -> Self {
         Self {
-            pos: ContentPosition::new(x, y),
+            pos,
             end: None,
             ch,
             text: None,

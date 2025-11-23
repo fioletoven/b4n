@@ -6,8 +6,10 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Duration;
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
-use crate::ui::presentation::utils::VecStringExt;
-use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
+use crate::ui::presentation::utils::{VecStringExt, get_char_position};
+use crate::ui::presentation::{
+    Content, ContentPosition, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt,
+};
 use crate::ui::views::yaml::undo::{Undo, pop_recent_group};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
@@ -84,7 +86,7 @@ impl YamlContent {
         self.mark_line_as_modified(line_no);
     }
 
-    fn join_lines(&mut self, line_no: usize) -> (usize, usize) {
+    fn join_lines(&mut self, line_no: usize) -> ContentPosition {
         let new_x = self.plain[line_no].chars().count();
 
         self.styled.join_lines(line_no);
@@ -94,7 +96,7 @@ impl YamlContent {
         self.mark_line_as_modified(line_no);
         self.mark_line_as_modified(line_no + 1);
 
-        (new_x, line_no)
+        ContentPosition::new(new_x, line_no)
     }
 
     fn split_lines(&mut self, x: usize, y: usize) {
@@ -121,54 +123,54 @@ impl YamlContent {
         self.mark_line_as_modified(insert_at);
     }
 
-    fn insert_char_internal(&mut self, x: usize, y: usize, ch: char) {
-        if let Some(r) = get_char_position(&self.plain, x, y) {
+    fn insert_char_internal(&mut self, pos: ContentPosition, ch: char) {
+        if let Some(r) = get_char_position(&self.plain, pos) {
             if ch == '\n' {
                 if r.x.index == 0 {
-                    self.add_empty_line(y);
+                    self.add_empty_line(pos.y);
                 } else {
-                    self.split_lines(r.x.index, y);
+                    self.split_lines(r.x.index, pos.y);
                 }
             } else {
-                self.plain[y].insert(r.x.index, ch);
-                self.lowercase[y].insert(r.x.index, ch.to_ascii_lowercase());
-                self.styled[y].sl_insert(r.x.index, ch);
-                self.mark_line_as_modified(y);
+                self.plain[pos.y].insert(r.x.index, ch);
+                self.lowercase[pos.y].insert(r.x.index, ch.to_ascii_lowercase());
+                self.styled[pos.y].sl_insert(r.x.index, ch);
+                self.mark_line_as_modified(pos.y);
             }
-        } else if y < self.plain.len() {
+        } else if pos.y < self.plain.len() {
             if ch == '\n' {
-                self.add_empty_line(y + 1);
+                self.add_empty_line(pos.y + 1);
             } else {
-                self.plain[y].push(ch);
-                self.lowercase[y].push(ch.to_ascii_lowercase());
-                self.styled[y].sl_push(ch, &self.fallback);
-                self.mark_line_as_modified(y);
+                self.plain[pos.y].push(ch);
+                self.lowercase[pos.y].push(ch.to_ascii_lowercase());
+                self.styled[pos.y].sl_push(ch, &self.fallback);
+                self.mark_line_as_modified(pos.y);
             }
         }
     }
 
-    fn remove_char_internal(&mut self, x: usize, y: usize, is_backspace: bool, track_undo: bool) -> Option<(usize, usize)> {
-        if is_backspace && x == 0 {
-            if y > 0 && y < self.plain.len() {
-                let (x, y) = self.join_lines(y - 1);
-                return Some(self.track_remove(x, y, '\n', track_undo));
+    fn remove_char_internal(&mut self, pos: ContentPosition, is_backspace: bool, track_undo: bool) -> Option<ContentPosition> {
+        if is_backspace && pos.x == 0 {
+            if pos.y > 0 && pos.y < self.plain.len() {
+                let new_pos = self.join_lines(pos.y - 1);
+                return Some(self.track_remove(new_pos, '\n', track_undo));
             }
 
-            return Some((x, y));
+            return Some(pos);
         }
 
-        if let Some(r) = get_char_position(&self.plain, x, y) {
+        if let Some(r) = get_char_position(&self.plain, pos) {
             let x = if is_backspace { r.x_prev } else { r.x };
-            let ch = self.remove_ch(x.index, y);
-            Some(self.track_remove(x.char, y, ch, track_undo))
-        } else if y < self.plain.len() {
-            let x = if is_backspace { x.saturating_sub(1) } else { x };
-            if let Some(r) = get_char_position(&self.plain, x, y) {
-                let ch = self.remove_ch(r.x.index, y);
-                Some(self.track_remove(r.x.char, y, ch, track_undo))
-            } else if y + 1 < self.plain.len() {
-                let (x, y) = self.join_lines(y);
-                Some(self.track_remove(x, y, '\n', track_undo))
+            let ch = self.remove_ch(x.index, pos.y);
+            Some(self.track_remove(ContentPosition::new(x.char, pos.y), ch, track_undo))
+        } else if pos.y < self.plain.len() {
+            let x = if is_backspace { pos.x.saturating_sub(1) } else { pos.x };
+            if let Some(r) = get_char_position(&self.plain, ContentPosition::new(x, pos.y)) {
+                let ch = self.remove_ch(r.x.index, pos.y);
+                Some(self.track_remove(ContentPosition::new(r.x.char, pos.y), ch, track_undo))
+            } else if pos.y + 1 < self.plain.len() {
+                let new_pos = self.join_lines(pos.y);
+                Some(self.track_remove(new_pos, '\n', track_undo))
             } else {
                 None
             }
@@ -186,12 +188,12 @@ impl YamlContent {
         removed
     }
 
-    fn track_remove(&mut self, x: usize, y: usize, ch: char, track: bool) -> (usize, usize) {
+    fn track_remove(&mut self, pos: ContentPosition, ch: char, track: bool) -> ContentPosition {
         if track {
-            self.undo.push(Undo::remove(x, y, ch));
+            self.undo.push(Undo::remove(pos, ch));
         }
 
-        (x, y)
+        pos
     }
 
     fn remove_text_internal(&mut self, range: &Selection) -> Vec<String> {
@@ -286,23 +288,23 @@ impl Content for YamlContent {
             .map(|line| line.chars().take_while(|c| *c == ' ').count())
     }
 
-    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)> {
-        if line_no < self.plain.len() {
-            b4n_common::word_bounds(&self.plain[line_no], idx)
+    fn word_bounds(&self, position: ContentPosition) -> Option<(usize, usize)> {
+        if position.y < self.plain.len() {
+            b4n_common::word_bounds(&self.plain[position.y], position.x)
         } else {
             None
         }
     }
 
-    fn insert_char(&mut self, x: usize, y: usize, ch: char) {
+    fn insert_char(&mut self, position: ContentPosition, ch: char) {
         self.redo.clear();
-        self.undo.push(Undo::insert(x, y, ch));
-        self.insert_char_internal(x, y, ch);
+        self.undo.push(Undo::insert(position, ch));
+        self.insert_char_internal(position, ch);
     }
 
-    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
+    fn remove_char(&mut self, position: ContentPosition, is_backspace: bool) -> Option<ContentPosition> {
         self.redo.clear();
-        self.remove_char_internal(x, y, is_backspace, true)
+        self.remove_char_internal(position, is_backspace, true)
     }
 
     fn remove_text(&mut self, range: Selection) {
@@ -313,7 +315,7 @@ impl Content for YamlContent {
         self.undo.push(Undo::cut(range, removed));
     }
 
-    fn undo(&mut self) -> Option<(usize, usize)> {
+    fn undo(&mut self) -> Option<ContentPosition> {
         let actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
         if actions.is_empty() {
             None
@@ -322,15 +324,15 @@ impl Content for YamlContent {
             for action in &actions {
                 match action.mode {
                     super::undo::UndoMode::Insert => {
-                        self.remove_char_internal(action.pos.x, action.pos.y, false, false);
-                        result = Some((action.pos.x, action.pos.y));
+                        self.remove_char_internal(action.pos, false, false);
+                        result = Some(action.pos);
                     },
                     super::undo::UndoMode::Remove => {
-                        self.insert_char_internal(action.pos.x, action.pos.y, action.ch);
+                        self.insert_char_internal(action.pos, action.ch);
                         if action.ch == '\n' {
-                            result = Some((0, action.pos.y.saturating_add(1)));
+                            result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
                         } else {
-                            result = Some((action.pos.x.saturating_add(1), action.pos.y));
+                            result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
                         }
                     },
                     _ => (),
@@ -342,7 +344,7 @@ impl Content for YamlContent {
         }
     }
 
-    fn redo(&mut self) -> Option<(usize, usize)> {
+    fn redo(&mut self) -> Option<ContentPosition> {
         if let Some(mut actions) = self.redo.pop() {
             let mut result = None;
 
@@ -350,16 +352,16 @@ impl Content for YamlContent {
             for action in &actions {
                 match action.mode {
                     super::undo::UndoMode::Insert => {
-                        self.insert_char_internal(action.pos.x, action.pos.y, action.ch);
+                        self.insert_char_internal(action.pos, action.ch);
                         if action.ch == '\n' {
-                            result = Some((0, action.pos.y.saturating_add(1)));
+                            result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
                         } else {
-                            result = Some((action.pos.x.saturating_add(1), action.pos.y));
+                            result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
                         }
                     },
                     super::undo::UndoMode::Remove => {
-                        self.remove_char_internal(action.pos.x, action.pos.y, false, false);
-                        result = Some((action.pos.x, action.pos.y));
+                        self.remove_char_internal(action.pos, false, false);
+                        result = Some(action.pos);
                     },
                     _ => (),
                 }
@@ -380,7 +382,9 @@ impl Content for YamlContent {
                 && let Ok(response) = response
             {
                 // there are no new modifications, we can apply the styled fragment
-                self.styled.splice(requested.start..=requested.end, response.styled);
+                let start = requested.start.min(self.styled.len().saturating_sub(1));
+                let end = requested.end.min(self.styled.len().saturating_sub(1));
+                self.styled.splice(start..=end, response.styled);
             } else {
                 // there are new modifications, we need to rollback modified lines, as the styled fragment is outdated
                 self.modified.extend(requested.first..=requested.last);
@@ -425,42 +429,6 @@ struct RequestedHighlight {
     pub first: usize,
     pub last: usize,
     pub response: Receiver<Result<HighlightResponse, HighlightError>>,
-}
-
-#[derive(Default)]
-struct CharPosition {
-    pub char: usize,
-    pub index: usize,
-}
-
-#[derive(Default)]
-struct PositionSet {
-    pub x_prev: CharPosition,
-    pub x: CharPosition,
-}
-
-fn get_char_position(lines: &[String], idx: usize, line_no: usize) -> Option<PositionSet> {
-    let line = lines.get(line_no)?;
-    let mut result_set = PositionSet::default();
-
-    for (char_idx, (byte_idx, _)) in line.char_indices().enumerate() {
-        if char_idx + 1 == idx {
-            result_set.x_prev = CharPosition {
-                char: char_idx,
-                index: byte_idx,
-            };
-        }
-
-        if char_idx == idx {
-            result_set.x = CharPosition {
-                char: char_idx,
-                index: byte_idx,
-            };
-            return Some(result_set);
-        }
-    }
-
-    None
 }
 
 fn get_longest_line(plain: &[String]) -> (usize, usize) {
