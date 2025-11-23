@@ -3,11 +3,12 @@ use b4n_tasks::{HighlightError, HighlightRequest, HighlightResponse};
 use b4n_tui::ResponseEvent;
 use std::collections::HashSet;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
 use crate::ui::presentation::utils::VecStringExt;
 use crate::ui::presentation::{Content, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
+use crate::ui::views::yaml::undo::{Undo, pop_recent_group};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -317,16 +318,20 @@ impl Content for YamlContent {
         } else {
             let mut result = None;
             for action in &actions {
-                if action.is_insert {
-                    self.remove_char_internal(action.x, action.y, false, false);
-                    result = Some((action.x, action.y));
-                } else {
-                    self.insert_char_internal(action.x, action.y, action.ch);
-                    if action.ch == '\n' {
-                        result = Some((0, action.y.saturating_add(1)));
-                    } else {
-                        result = Some((action.x.saturating_add(1), action.y));
-                    }
+                match action.mode {
+                    super::undo::UndoMode::Insert => {
+                        self.remove_char_internal(action.pos.x, action.pos.y, false, false);
+                        result = Some((action.pos.x, action.pos.y));
+                    },
+                    super::undo::UndoMode::Remove => {
+                        self.insert_char_internal(action.pos.x, action.pos.y, action.ch);
+                        if action.ch == '\n' {
+                            result = Some((0, action.pos.y.saturating_add(1)));
+                        } else {
+                            result = Some((action.pos.x.saturating_add(1), action.pos.y));
+                        }
+                    },
+                    _ => (),
                 }
             }
 
@@ -341,16 +346,20 @@ impl Content for YamlContent {
 
             actions.reverse();
             for action in &actions {
-                if action.is_insert {
-                    self.insert_char_internal(action.x, action.y, action.ch);
-                    if action.ch == '\n' {
-                        result = Some((0, action.y.saturating_add(1)));
-                    } else {
-                        result = Some((action.x.saturating_add(1), action.y));
-                    }
-                } else {
-                    self.remove_char_internal(action.x, action.y, false, false);
-                    result = Some((action.x, action.y));
+                match action.mode {
+                    super::undo::UndoMode::Insert => {
+                        self.insert_char_internal(action.pos.x, action.pos.y, action.ch);
+                        if action.ch == '\n' {
+                            result = Some((0, action.pos.y.saturating_add(1)));
+                        } else {
+                            result = Some((action.pos.x.saturating_add(1), action.pos.y));
+                        }
+                    },
+                    super::undo::UndoMode::Remove => {
+                        self.remove_char_internal(action.pos.x, action.pos.y, false, false);
+                        result = Some((action.pos.x, action.pos.y));
+                    },
+                    _ => (),
                 }
             }
 
@@ -450,57 +459,6 @@ fn get_char_position(lines: &[String], idx: usize, line_no: usize) -> Option<Pos
     }
 
     None
-}
-
-struct Undo {
-    x: usize,
-    y: usize,
-    ch: char,
-    is_insert: bool,
-    when: Instant,
-}
-
-impl Undo {
-    fn insert(x: usize, y: usize, ch: char) -> Self {
-        Self {
-            x,
-            y,
-            ch,
-            is_insert: true,
-            when: Instant::now(),
-        }
-    }
-
-    fn remove(x: usize, y: usize, ch: char) -> Self {
-        Self {
-            x,
-            y,
-            ch,
-            is_insert: false,
-            when: Instant::now(),
-        }
-    }
-}
-
-fn pop_recent_group(vec: &mut Vec<Undo>, threshold: Duration) -> Vec<Undo> {
-    let mut group = Vec::new();
-
-    if let Some(last) = vec.pop() {
-        let mut reference_time = last.when;
-        group.push(last);
-
-        while let Some(peek) = vec.last() {
-            if reference_time.duration_since(peek.when) <= threshold {
-                let action = vec.pop().unwrap();
-                reference_time = action.when;
-                group.push(action);
-            } else {
-                break;
-            }
-        }
-    }
-
-    group
 }
 
 fn get_longest_line(plain: &[String]) -> (usize, usize) {
