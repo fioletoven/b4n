@@ -87,10 +87,9 @@ pub trait Content {
         None
     }
 
-    /// Deletes the text in the selection `range` and returns the resulting affected lines.
-    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+    /// Removes the specified `range` from the content.
+    fn remove_text(&mut self, range: Selection) {
         let _ = range;
-        Vec::default()
     }
 
     /// Reverts most recent changes done in edit mode.

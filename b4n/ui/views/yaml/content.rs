@@ -195,10 +195,8 @@ impl YamlContent {
 
     fn remove_text_internal(&mut self, range: Selection) -> Vec<String> {
         self.styled.remove_text(range.clone());
-        self.plain.remove_text(range.clone());
-        self.lowercase.remove_text(range);
-
-        Vec::default()
+        self.lowercase.remove_text(range.clone());
+        self.plain.remove_text(range)
     }
 }
 
@@ -306,10 +304,10 @@ impl Content for YamlContent {
         self.remove_char_internal(x, y, is_backspace, true)
     }
 
-    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+    fn remove_text(&mut self, range: Selection) {
         self.mark_line_as_modified(range.start.y);
         self.mark_line_as_modified(range.end.y);
-        self.remove_text_internal(range)
+        let removed = self.remove_text_internal(range);
     }
 
     fn undo(&mut self) -> Option<(usize, usize)> {

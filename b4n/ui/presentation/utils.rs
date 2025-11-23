@@ -130,8 +130,8 @@ pub trait VecStringExt {
     /// Appends the content of the next line to the line at `line_no` and removes the next line.
     fn join_lines(&mut self, line_no: usize);
 
-    /// Removes the specified `range` from the vector of `String`s.
-    fn remove_text(&mut self, range: Selection);
+    /// Removes and returns the specified `range` from the vector of `String`s.
+    fn remove_text(&mut self, range: Selection) -> Vec<String>;
 }
 
 impl VecStringExt for Vec<String> {
@@ -143,35 +143,48 @@ impl VecStringExt for Vec<String> {
         }
     }
 
-    fn remove_text(&mut self, range: Selection) {
+    fn remove_text(&mut self, range: Selection) -> Vec<String> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
 
         if start_line == end_line {
             if self[end_line].chars().count() == end.x {
-                self[end_line].drain(start.x..);
+                let removed = self[end_line].drain(start.x..).collect();
                 self.join_lines(end_line);
+                vec![removed]
             } else {
-                self[end_line].drain(start.x..=end.x);
+                let removed = self[end_line].drain(start.x..=end.x).collect();
+                vec![removed]
             }
         } else {
-            self[start_line].truncate(start.x);
-            if self[end_line].chars().count() == end.x {
-                self.remove(end_line);
-            } else {
-                self[end_line].drain(..=end.x);
-            }
+            let mut removed = Vec::new();
+            removed.push(self[start_line].drain(start.x..).collect());
 
-            remove_lines(self, start_line.saturating_add(1), end_line.saturating_sub(1));
+            let last = if self[end_line].chars().count() == end.x {
+                self.remove(end_line)
+            } else {
+                self[end_line].drain(..=end.x).collect()
+            };
+
+            removed.append(&mut remove_lines(
+                self,
+                start_line.saturating_add(1),
+                end_line.saturating_sub(1),
+            ));
             self.join_lines(start_line);
+
+            removed.push(last);
+            removed
         }
     }
 }
 
-fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) {
+fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
     if from <= to && from < lines.len() {
         let to = to.min(lines.len());
-        lines.drain(from..=to);
+        lines.drain(from..=to).collect()
+    } else {
+        Vec::default()
     }
 }

@@ -16,7 +16,7 @@ metadata:
   namespace: kube-system";
 
     let mut lines = yaml.split('\n').map(String::from).collect::<Vec<_>>();
-    lines.remove_text(Selection {
+    let removed = lines.remove_text(Selection {
         start: ContentPosition::new(8, 3),
         end: ContentPosition::new(5, 5),
     });
@@ -32,16 +32,24 @@ metadata:
   namespace: kube-system",
         lines.join("\n")
     );
+
+    assert_eq!(
+        r"onTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-
+  labe",
+        removed.join("\n")
+    );
 }
 
 #[test]
 fn remove_text_one_line_test() {
     let mut text = vec!["Some Test_Line".to_owned()];
 
-    text.remove_text(Selection {
+    let removed = text.remove_text(Selection {
         start: ContentPosition::new(6, 0),
         end: ContentPosition::new(8, 0),
     });
 
     assert_eq!("Some T_Line", text[0]);
+    assert_eq!("est", removed[0]);
 }
