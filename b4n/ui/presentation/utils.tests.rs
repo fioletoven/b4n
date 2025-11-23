@@ -16,7 +16,7 @@ metadata:
   namespace: kube-system";
 
     let mut lines = yaml.split('\n').map(String::from).collect::<Vec<_>>();
-    let removed = lines.remove_text(Selection {
+    let removed = lines.remove_text(&Selection {
         start: ContentPosition::new(8, 3),
         end: ContentPosition::new(5, 5),
     });
@@ -45,7 +45,7 @@ metadata:
 fn remove_text_one_line_test() {
     let mut text = vec!["Some Test_Line".to_owned()];
 
-    let removed = text.remove_text(Selection {
+    let removed = text.remove_text(&Selection {
         start: ContentPosition::new(6, 0),
         end: ContentPosition::new(8, 0),
     });

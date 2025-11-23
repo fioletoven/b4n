@@ -111,7 +111,7 @@ metadata:
   namespace: kube-system";
     let mut styled = get_styled_text(yaml);
 
-    styled.remove_text(Selection {
+    styled.remove_text(&Selection {
         start: ContentPosition::new(8, 3),
         end: ContentPosition::new(5, 5),
     });

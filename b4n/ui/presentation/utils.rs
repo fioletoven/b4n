@@ -131,7 +131,7 @@ pub trait VecStringExt {
     fn join_lines(&mut self, line_no: usize);
 
     /// Removes and returns the specified `range` from the vector of `String`s.
-    fn remove_text(&mut self, range: Selection) -> Vec<String>;
+    fn remove_text(&mut self, range: &Selection) -> Vec<String>;
 }
 
 impl VecStringExt for Vec<String> {
@@ -143,7 +143,7 @@ impl VecStringExt for Vec<String> {
         }
     }
 
-    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+    fn remove_text(&mut self, range: &Selection) -> Vec<String> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));

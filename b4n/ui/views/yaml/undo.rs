@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::ui::presentation::ContentPosition;
+use crate::ui::presentation::{ContentPosition, Selection};
 
 pub enum UndoMode {
     Insert,
@@ -11,7 +11,9 @@ pub enum UndoMode {
 
 pub struct Undo {
     pub pos: ContentPosition,
+    pub end: Option<ContentPosition>,
     pub ch: char,
+    pub text: Option<Vec<String>>,
     pub mode: UndoMode,
     pub when: Instant,
 }
@@ -20,7 +22,9 @@ impl Undo {
     pub fn insert(x: usize, y: usize, ch: char) -> Self {
         Self {
             pos: ContentPosition::new(x, y),
+            end: None,
             ch,
+            text: None,
             mode: UndoMode::Insert,
             when: Instant::now(),
         }
@@ -29,8 +33,21 @@ impl Undo {
     pub fn remove(x: usize, y: usize, ch: char) -> Self {
         Self {
             pos: ContentPosition::new(x, y),
+            end: None,
             ch,
+            text: None,
             mode: UndoMode::Remove,
+            when: Instant::now(),
+        }
+    }
+
+    pub fn cut(range: Selection, removed_text: Vec<String>) -> Self {
+        Self {
+            pos: range.start,
+            end: Some(range.end),
+            ch: ' ',
+            text: Some(removed_text),
+            mode: UndoMode::Cut,
             when: Instant::now(),
         }
     }

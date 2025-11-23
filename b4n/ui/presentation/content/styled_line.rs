@@ -231,7 +231,7 @@ pub trait VecStyledLineExt {
     fn join_lines(&mut self, line_no: usize);
 
     /// Removes the specified `range` from the vector of `StyledLine`s.
-    fn remove_text(&mut self, range: Selection);
+    fn remove_text(&mut self, range: &Selection);
 }
 
 impl VecStyledLineExt for Vec<StyledLine> {
@@ -250,7 +250,7 @@ impl VecStyledLineExt for Vec<StyledLine> {
         }
     }
 
-    fn remove_text(&mut self, range: Selection) {
+    fn remove_text(&mut self, range: &Selection) {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
