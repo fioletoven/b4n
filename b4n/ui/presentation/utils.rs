@@ -201,6 +201,9 @@ impl VecStringExt for Vec<String> {
                     }
                     vec![removed]
                 }
+            } else if is_eol {
+                self.join_lines(end_line);
+                vec![String::new()]
             } else {
                 Vec::default()
             }

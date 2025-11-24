@@ -198,7 +198,7 @@ impl StyledLineExt for StyledLine {
             remove_end = self.len().saturating_sub(1);
         }
 
-        if remove_start <= remove_end {
+        if remove_start <= remove_end && remove_end < self.len() {
             self.drain(remove_start..=remove_end);
         }
     }

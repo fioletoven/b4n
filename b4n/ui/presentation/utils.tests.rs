@@ -53,3 +53,16 @@ fn remove_text_one_line_test() {
     assert_eq!("Some T_Line", text[0]);
     assert_eq!("est", removed[0]);
 }
+
+#[test]
+fn remove_text_line_end_test() {
+    let mut text = vec!["first line".to_owned(), "second line".to_owned()];
+
+    let removed = text.remove_text(&Selection {
+        start: ContentPosition::new(10, 0),
+        end: ContentPosition::new(10, 0),
+    });
+
+    assert_eq!("first linesecond line", text[0]);
+    assert_eq!("", removed[0]);
+}
