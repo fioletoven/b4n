@@ -96,3 +96,33 @@ metadata:
         styled.to_string()
     );
 }
+
+#[test]
+fn insert_text_test() {
+    let styles = StyleFallback {
+        excluded: Style::default(),
+        fallback: Style::default(),
+    };
+    let yaml = r"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+    let mut actual = get_styled_text(yaml);
+
+    let to_insert = r"_lines
+to insert
+into the yaml_";
+    let text = to_insert.split('\n').map(String::from).collect::<Vec<_>>();
+    actual.insert_text(ContentPosition::new(5, 3), &text, &styles);
+
+    let expected = r"apiVersion: v1
+kind: Pod
+metadata:
+  cre_lines
+to insert
+into the yaml_ationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    assert_eq!(expected, actual.to_string());
+}

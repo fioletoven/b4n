@@ -172,6 +172,9 @@ pub trait VecStringExt {
 
     /// Removes and returns the specified `range` from the vector of `String`s.
     fn remove_text(&mut self, range: &Selection) -> Vec<String>;
+
+    /// Inserts specified `text` at `position` to the vector of `String`s.
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>);
 }
 
 impl VecStringExt for Vec<String> {
@@ -246,6 +249,14 @@ impl VecStringExt for Vec<String> {
             removed
         }
     }
+
+    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>) {
+        match text.len() {
+            0 => (),
+            1 => insert_line(self, position, text.swap_remove(0)),
+            _ => insert_lines(self, position, text),
+        }
+    }
 }
 
 fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
@@ -254,5 +265,60 @@ fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> 
         lines.drain(from..=to).collect()
     } else {
         Vec::default()
+    }
+}
+
+fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String) {
+    if lines.is_empty() || position.y >= lines.len() {
+        lines.push(text);
+        return;
+    }
+
+    if lines.len() == 1 && lines[0].is_empty() {
+        lines[0] = text;
+        return;
+    }
+
+    if let Some(line) = lines.get_mut(position.y) {
+        if let Some(x) = char_to_index(line, position.x) {
+            line.insert_str(x, &text);
+        } else {
+            line.push_str(&text);
+        }
+    }
+}
+
+fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Vec<String>) {
+    if lines.is_empty() || (lines.len() == 1 && lines[0].is_empty()) {
+        *lines = text;
+        return;
+    }
+
+    if position.y >= lines.len() {
+        lines.append(&mut text);
+        return;
+    }
+
+    let first_line = text.swap_remove(0);
+    let mut middle_lines = if text.len() > 1 { text.split_off(1) } else { Vec::default() };
+    let last_line = text.swap_remove(0);
+    let insert_at = position.y + 1;
+
+    let last_line = if let Some(x) = char_to_index(&lines[position.y], position.x) {
+        let mut rest = lines[position.y][x..].to_string();
+        lines[position.y].truncate(x);
+        lines[position.y].push_str(&first_line);
+        rest.insert_str(0, &last_line);
+        rest
+    } else {
+        last_line
+    };
+
+    middle_lines.push(last_line);
+
+    if insert_at < lines.len() {
+        lines.splice(insert_at..insert_at, middle_lines);
+    } else {
+        lines.append(&mut middle_lines);
     }
 }

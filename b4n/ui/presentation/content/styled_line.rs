@@ -270,10 +270,7 @@ pub trait VecStyledLineExt {
     fn remove_text(&mut self, range: &Selection);
 
     /// Inserts specified `text` at `position` to the vector of `StyledLine`s.
-    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>, styles: &StyleFallback);
-
-    /// Inserts specified `text` at `position` to the vector of `StyledLine`s.
-    fn insert_line(&mut self, position: ContentPosition, text: String, styles: &StyleFallback);
+    fn insert_text(&mut self, position: ContentPosition, text: &[String], styles: &StyleFallback);
 }
 
 impl VecStyledLineExt for Vec<StyledLine> {
@@ -327,38 +324,12 @@ impl VecStyledLineExt for Vec<StyledLine> {
         }
     }
 
-    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>, styles: &StyleFallback) {
+    fn insert_text(&mut self, position: ContentPosition, text: &[String], styles: &StyleFallback) {
         match text.len() {
-            0 => return,
-            1 => return self.insert_line(position, text.swap_remove(0), styles),
-            _ => (),
+            0 => (),
+            1 => insert_line(self, position, &text[0], styles),
+            _ => insert_lines(self, position, text, styles),
         }
-
-        todo!();
-    }
-
-    fn insert_line(&mut self, position: ContentPosition, text: String, styles: &StyleFallback) {
-        if self.is_empty() || position.y >= self.len() {
-            self.push(vec![(styles.fallback, text)]);
-            return;
-        }
-
-        if self.len() == 1 && self[0].is_empty() {
-            self[0] = vec![(styles.fallback, text)];
-            return;
-        }
-
-        if position.x == 0 && position.y == 0 {
-            let style = self[0][0].0;
-            self[0].insert(0, (style, text));
-            return;
-        }
-
-        if let Some(line) = self.get_mut(position.y) {
-            todo!();
-        }
-
-        todo!();
     }
 }
 
@@ -367,4 +338,67 @@ fn remove_lines(lines: &mut Vec<StyledLine>, from: usize, to: usize) {
         let to = to.min(lines.len());
         lines.drain(from..=to);
     }
+}
+
+fn insert_line(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &str, styles: &StyleFallback) {
+    if lines.is_empty() || position.y >= lines.len() {
+        lines.push(vec![(styles.fallback, text.to_owned())]);
+        return;
+    }
+
+    if lines.len() == 1 && lines[0].is_empty() {
+        lines[0] = vec![(styles.fallback, text.to_owned())];
+        return;
+    }
+
+    if let Some(line) = lines.get_mut(position.y) {
+        if let Some(x) = line.char_to_index(position.x) {
+            line.sl_insert_str(x, text);
+        } else {
+            line.sl_push_str(text, styles);
+        }
+    }
+}
+
+fn insert_lines(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &[String], styles: &StyleFallback) {
+    if lines.is_empty() || (lines.len() == 1 && lines[0].is_empty()) {
+        *lines = add_style(text, styles.fallback);
+        return;
+    }
+
+    if position.y >= lines.len() {
+        lines.append(&mut add_style(text, styles.fallback));
+        return;
+    }
+
+    let first_line = &text[0];
+    let last_line = &text[text.len().saturating_sub(1)];
+    let last_line = if let Some(x) = lines[position.y].char_to_index(position.x) {
+        let mut rest = lines[position.y].get_second(x);
+        lines[position.y].sl_truncate(x);
+        lines[position.y].sl_push_str(first_line, styles);
+        rest.sl_insert_str(0, last_line);
+        rest
+    } else {
+        vec![(styles.fallback, last_line.to_owned())]
+    };
+
+    let mut middle_lines = if text.len() > 2 {
+        let mut lines = add_style(&text[1..text.len().saturating_sub(1)], styles.fallback);
+        lines.push(last_line);
+        lines
+    } else {
+        vec![last_line]
+    };
+
+    let insert_at = position.y + 1;
+    if insert_at < lines.len() {
+        lines.splice(insert_at..insert_at, middle_lines);
+    } else {
+        lines.append(&mut middle_lines);
+    }
+}
+
+fn add_style(text: &[String], style: Style) -> Vec<StyledLine> {
+    text.iter().map(|line| vec![(style, line.to_owned())]).collect::<Vec<_>>()
 }

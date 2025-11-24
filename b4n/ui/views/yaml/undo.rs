@@ -6,7 +6,6 @@ pub enum UndoMode {
     Insert,
     Remove,
     Cut,
-    Paste,
 }
 
 pub struct Undo {
@@ -42,9 +41,10 @@ impl Undo {
     }
 
     pub fn cut(range: Selection, removed_text: Vec<String>) -> Self {
+        let (start, end) = range.sorted();
         Self {
-            pos: range.start,
-            end: Some(range.end),
+            pos: start,
+            end: Some(end),
             ch: ' ',
             text: Some(removed_text),
             mode: UndoMode::Cut,

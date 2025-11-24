@@ -66,3 +66,30 @@ fn remove_text_line_end_test() {
     assert_eq!("first linesecond line", text[0]);
     assert_eq!("", removed[0]);
 }
+
+#[test]
+fn insert_text_test() {
+    let yaml = r"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    let to_insert = r"_lines
+to insert
+into the yaml_";
+
+    let text = to_insert.split('\n').map(String::from).collect::<Vec<_>>();
+    let mut actual = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    actual.insert_text(ContentPosition::new(5, 3), text);
+
+    let expected = r"apiVersion: v1
+kind: Pod
+metadata:
+  cre_lines
+to insert
+into the yaml_ationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    assert_eq!(expected, actual.join("\n"));
+}

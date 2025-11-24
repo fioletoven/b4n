@@ -10,7 +10,7 @@ use crate::ui::presentation::utils::{VecStringExt, get_char_position};
 use crate::ui::presentation::{
     Content, ContentPosition, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt,
 };
-use crate::ui::views::yaml::undo::{Undo, pop_recent_group};
+use crate::ui::views::yaml::undo::{Undo, UndoMode, pop_recent_group};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
@@ -315,63 +315,77 @@ impl Content for YamlContent {
         self.undo.push(Undo::cut(range, removed));
     }
 
-    fn undo(&mut self) -> Option<ContentPosition> {
-        let actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
-        if actions.is_empty() {
-            None
-        } else {
-            let mut result = None;
-            for action in &actions {
-                match action.mode {
-                    super::undo::UndoMode::Insert => {
-                        self.remove_char_internal(action.pos, false, false);
-                        result = Some(action.pos);
-                    },
-                    super::undo::UndoMode::Remove => {
-                        self.insert_char_internal(action.pos, action.ch);
-                        if action.ch == '\n' {
-                            result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
-                        } else {
-                            result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
-                        }
-                    },
-                    _ => (),
-                }
-            }
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
+        self.mark_line_as_modified(position.y);
+        self.mark_line_as_modified(position.y + text.len());
+        self.styled.insert_text(position, &text, &self.fallback);
+        self.lowercase
+            .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
+        self.plain.insert_text(position, text);
+    }
 
-            self.redo.push(actions);
-            result
+    fn undo(&mut self) -> Option<ContentPosition> {
+        let mut actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
+        if actions.is_empty() {
+            return None;
         }
+
+        let mut result = None;
+        for action in &mut actions {
+            match action.mode {
+                UndoMode::Insert => {
+                    self.remove_char_internal(action.pos, false, false);
+                    result = Some(action.pos);
+                },
+                UndoMode::Remove => {
+                    self.insert_char_internal(action.pos, action.ch);
+                    if action.ch == '\n' {
+                        result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
+                    } else {
+                        result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
+                    }
+                },
+                UndoMode::Cut => {
+                    let text = action.text.take();
+                    if let Some(text) = text
+                        && let Some(end) = action.end
+                    {
+                        self.insert_text(action.pos, text);
+                        result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                    }
+                },
+            }
+        }
+
+        self.redo.push(actions);
+        result
     }
 
     fn redo(&mut self) -> Option<ContentPosition> {
-        if let Some(mut actions) = self.redo.pop() {
-            let mut result = None;
+        let mut actions = self.redo.pop()?;
+        let mut result = None;
 
-            actions.reverse();
-            for action in &actions {
-                match action.mode {
-                    super::undo::UndoMode::Insert => {
-                        self.insert_char_internal(action.pos, action.ch);
-                        if action.ch == '\n' {
-                            result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
-                        } else {
-                            result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
-                        }
-                    },
-                    super::undo::UndoMode::Remove => {
-                        self.remove_char_internal(action.pos, false, false);
-                        result = Some(action.pos);
-                    },
-                    _ => (),
-                }
+        actions.reverse();
+        for action in &actions {
+            match action.mode {
+                super::undo::UndoMode::Insert => {
+                    self.insert_char_internal(action.pos, action.ch);
+                    if action.ch == '\n' {
+                        result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
+                    } else {
+                        result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
+                    }
+                },
+                super::undo::UndoMode::Remove => {
+                    self.remove_char_internal(action.pos, false, false);
+                    result = Some(action.pos);
+                },
+                _ => (),
             }
-
-            self.undo.extend(actions);
-            result
-        } else {
-            None
         }
+
+        self.undo.extend(actions);
+        result
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
