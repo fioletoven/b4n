@@ -302,6 +302,15 @@ impl Content for YamlContent {
         self.insert_char_internal(position, ch);
     }
 
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
+        self.mark_line_as_modified(position.y);
+        self.mark_line_as_modified(position.y + text.len());
+        self.styled.insert_text(position, &text, &self.fallback);
+        self.lowercase
+            .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
+        self.plain.insert_text(position, text);
+    }
+
     fn remove_char(&mut self, position: ContentPosition, is_backspace: bool) -> Option<ContentPosition> {
         self.redo.clear();
         self.remove_char_internal(position, is_backspace, true)
@@ -313,15 +322,6 @@ impl Content for YamlContent {
         let removed = self.remove_text_internal(&range);
         self.redo.clear();
         self.undo.push(Undo::cut(range, removed));
-    }
-
-    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
-        self.mark_line_as_modified(position.y);
-        self.mark_line_as_modified(position.y + text.len());
-        self.styled.insert_text(position, &text, &self.fallback);
-        self.lowercase
-            .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
-        self.plain.insert_text(position, text);
     }
 
     fn undo(&mut self) -> Option<ContentPosition> {

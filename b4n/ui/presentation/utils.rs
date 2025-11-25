@@ -190,65 +190,11 @@ impl VecStringExt for Vec<String> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
-        let is_eol = self[end_line].chars().count() <= end.x;
 
         if start_line == end_line {
-            if let Some(start) = char_to_index(&self[end_line], start.x) {
-                if let Some(end) = char_to_index(&self[end_line], end.x + 1) {
-                    let removed = self[end_line].drain(start..end).collect();
-                    vec![removed]
-                } else {
-                    let removed = self[end_line].drain(start..).collect();
-                    if is_eol {
-                        self.join_lines(end_line);
-                        vec![removed, String::new()]
-                    } else {
-                        vec![removed]
-                    }
-                }
-            } else if is_eol {
-                self.join_lines(end_line);
-                vec![String::new(), String::new()]
-            } else {
-                Vec::default()
-            }
+            remove_line(self, end_line, start.x, end.x)
         } else {
-            let mut removed = Vec::new();
-            let mut remove_start = false;
-
-            if let Some(start) = char_to_index(&self[start_line], start.x) {
-                removed.push(self[start_line].drain(start..).collect());
-                remove_start = start == 0;
-            }
-
-            let last = if let Some(end) = char_to_index(&self[end_line], end.x + 1) {
-                self[end_line].drain(..end).collect()
-            } else {
-                self[end_line].drain(..).collect()
-            };
-
-            if is_eol {
-                self.join_lines(end_line);
-            }
-
-            removed.append(&mut remove_lines(
-                self,
-                start_line.saturating_add(1),
-                end_line.saturating_sub(1),
-            ));
-
-            if remove_start {
-                self.remove(start_line);
-            } else {
-                self.join_lines(start_line);
-            }
-
-            removed.push(last);
-            if is_eol {
-                removed.push(String::new());
-            }
-
-            removed
+            remove_lines(self, start_line, end_line, start.x, end.x)
         }
     }
 
@@ -261,7 +207,70 @@ impl VecStringExt for Vec<String> {
     }
 }
 
-fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
+fn remove_line(lines: &mut Vec<String>, line_no: usize, start: usize, end: usize) -> Vec<String> {
+    let is_eol = lines[line_no].chars().count() <= end;
+    if let Some(start) = char_to_index(&lines[line_no], start) {
+        if let Some(end) = char_to_index(&lines[line_no], end + 1) {
+            let removed = lines[line_no].drain(start..end).collect();
+            vec![removed]
+        } else {
+            let removed = lines[line_no].drain(start..).collect();
+            if is_eol {
+                lines.join_lines(line_no);
+                vec![removed, String::new()]
+            } else {
+                vec![removed]
+            }
+        }
+    } else if is_eol {
+        lines.join_lines(line_no);
+        vec![String::new(), String::new()]
+    } else {
+        Vec::default()
+    }
+}
+
+fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, start: usize, end: usize) -> Vec<String> {
+    let is_eol = lines[end_line].chars().count() <= end;
+    let mut removed = Vec::new();
+    let mut remove_start = false;
+
+    if let Some(start) = char_to_index(&lines[start_line], start) {
+        removed.push(lines[start_line].drain(start..).collect());
+        remove_start = start == 0;
+    }
+
+    let last = if let Some(end) = char_to_index(&lines[end_line], end + 1) {
+        lines[end_line].drain(..end).collect()
+    } else {
+        lines[end_line].drain(..).collect()
+    };
+
+    if is_eol {
+        lines.join_lines(end_line);
+    }
+
+    removed.append(&mut drain_lines(
+        lines,
+        start_line.saturating_add(1),
+        end_line.saturating_sub(1),
+    ));
+
+    if remove_start {
+        lines.remove(start_line);
+    } else {
+        lines.join_lines(start_line);
+    }
+
+    removed.push(last);
+    if is_eol {
+        removed.push(String::new());
+    }
+
+    removed
+}
+
+fn drain_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
     if from <= to && from < lines.len() {
         let to = to.min(lines.len());
         lines.drain(from..=to).collect()

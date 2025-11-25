@@ -2,12 +2,14 @@ use std::time::{Duration, Instant};
 
 use crate::ui::presentation::{ContentPosition, Selection};
 
+/// Represents the type of change stored in an undo/redo entry.
 pub enum UndoMode {
     Insert,
     Remove,
     Cut,
 }
 
+/// Stores a single undo/redo action.
 pub struct Undo {
     pub pos: ContentPosition,
     pub end: Option<ContentPosition>,
@@ -18,6 +20,7 @@ pub struct Undo {
 }
 
 impl Undo {
+    /// Creates a new undo/redo entry representing an inserted character.
     pub fn insert(pos: ContentPosition, ch: char) -> Self {
         Self {
             pos,
@@ -29,6 +32,7 @@ impl Undo {
         }
     }
 
+    /// Creates a new undo/redo entry representing a removed character.
     pub fn remove(pos: ContentPosition, ch: char) -> Self {
         Self {
             pos,
@@ -40,6 +44,7 @@ impl Undo {
         }
     }
 
+    /// Creates a new undo/redo entry representing a cut (range removal).
     pub fn cut(range: Selection, removed_text: Vec<String>) -> Self {
         let (start, end) = range.sorted();
         Self {
@@ -53,6 +58,8 @@ impl Undo {
     }
 }
 
+/// Pops the most recent undo actions that occurred within the given `threshold` time window.\
+/// This groups quick successive edits into a single undo step.
 pub fn pop_recent_group(vec: &mut Vec<Undo>, threshold: Duration) -> Vec<Undo> {
     let mut group = Vec::new();
 
