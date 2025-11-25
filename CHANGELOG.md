@@ -1,17 +1,17 @@
 # Change Log
 
-## WIP
+## 0.3.0 - 2025-11-25
 
 ### Features
 
-- allow copying selected text in logs and YAML views
+- add the ability to select, copy and cut text in the YAML view
 
 ### Bug fixes
 
 - fix filter behaviour for previous resources
 - fix syntax highlighting for multiline changes
-- better jsonPath support for custom resource definitions
-- fix YAML syntax definition file
+- improve JSONPath support for Custom Resource Definitions
+- fix the YAML syntax definition file
 
 ### Compatibility
 
