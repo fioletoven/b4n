@@ -486,7 +486,10 @@ contexts:
 
   block-key-implicit:
     - meta_content_scope: meta.mapping.key.yaml
-    - match: :(?=\s)
+    - match: :(?=\s*$)
+      scope: meta.mapping.yaml punctuation.separator.key-value.empty.yaml
+      pop: 1
+    - match: :(?=\s+\S)
       scope: meta.mapping.yaml punctuation.separator.key-value.mapping.yaml
       pop: 1
     - include: flow-scalar-out-12

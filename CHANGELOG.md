@@ -11,6 +11,7 @@
 - fix filter behaviour for previous resources
 - fix syntax highlighting for multiline changes
 - better jsonPath support for custom resource definitions
+- fix YAML syntax definition file
 
 ### Compatibility
 
