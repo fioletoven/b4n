@@ -5,7 +5,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
 use crate::core::{AppData, ResourcesInfo};
-use crate::ui::presentation::Selection;
+use crate::ui::presentation::{ContentPosition, Selection};
 
 #[cfg(test)]
 #[path = "./utils.tests.rs"]
@@ -126,12 +126,55 @@ fn get_context_color(app_data: &AppData) -> TextColors {
         .map_or(app_data.theme.colors.header.context, |f| *f)
 }
 
+#[derive(Default)]
+pub struct CharPosition {
+    pub char: usize,
+    pub index: usize,
+}
+
+#[derive(Default)]
+pub struct PositionSet {
+    pub x_prev: CharPosition,
+    pub x: CharPosition,
+}
+
+pub fn get_char_position(lines: &[String], position: ContentPosition) -> Option<PositionSet> {
+    let line = lines.get(position.y)?;
+    let mut result_set = PositionSet::default();
+
+    for (char_idx, (byte_idx, _)) in line.char_indices().enumerate() {
+        if char_idx + 1 == position.x {
+            result_set.x_prev = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
+        }
+
+        if char_idx == position.x {
+            result_set.x = CharPosition {
+                char: char_idx,
+                index: byte_idx,
+            };
+            return Some(result_set);
+        }
+    }
+
+    None
+}
+
+pub fn char_to_index(line: &str, char_idx: usize) -> Option<usize> {
+    line.char_indices().nth(char_idx).map(|(byte_idx, _)| byte_idx)
+}
+
 pub trait VecStringExt {
     /// Appends the content of the next line to the line at `line_no` and removes the next line.
     fn join_lines(&mut self, line_no: usize);
 
-    /// Removes the specified `range` from the vector of `String`s.
-    fn remove_text(&mut self, range: Selection);
+    /// Removes and returns the specified `range` from the vector of `String`s.
+    fn remove_text(&mut self, range: &Selection) -> Vec<String>;
+
+    /// Inserts specified `text` at `position` to the vector of `String`s.
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>);
 }
 
 impl VecStringExt for Vec<String> {
@@ -143,35 +186,150 @@ impl VecStringExt for Vec<String> {
         }
     }
 
-    fn remove_text(&mut self, range: Selection) {
+    fn remove_text(&mut self, range: &Selection) -> Vec<String> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
 
         if start_line == end_line {
-            if self[end_line].chars().count() == end.x {
-                self[end_line].drain(start.x..);
-                self.join_lines(end_line);
-            } else {
-                self[end_line].drain(start.x..=end.x);
-            }
+            remove_line(self, end_line, start.x, end.x)
         } else {
-            self[start_line].truncate(start.x);
-            if self[end_line].chars().count() == end.x {
-                self.remove(end_line);
-            } else {
-                self[end_line].drain(..=end.x);
-            }
+            remove_lines(self, start_line, end_line, start.x, end.x)
+        }
+    }
 
-            remove_lines(self, start_line.saturating_add(1), end_line.saturating_sub(1));
-            self.join_lines(start_line);
+    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>) {
+        match text.len() {
+            0 => (),
+            1 => insert_line(self, position, text.swap_remove(0)),
+            _ => insert_lines(self, position, text),
         }
     }
 }
 
-fn remove_lines(lines: &mut Vec<String>, from: usize, to: usize) {
+fn remove_line(lines: &mut Vec<String>, line_no: usize, start: usize, end: usize) -> Vec<String> {
+    let is_eol = lines[line_no].chars().count() <= end;
+    if let Some(start) = char_to_index(&lines[line_no], start) {
+        if let Some(end) = char_to_index(&lines[line_no], end + 1) {
+            let removed = lines[line_no].drain(start..end).collect();
+            vec![removed]
+        } else {
+            let removed = lines[line_no].drain(start..).collect();
+            if is_eol {
+                lines.join_lines(line_no);
+                vec![removed, String::new()]
+            } else {
+                vec![removed]
+            }
+        }
+    } else if is_eol {
+        lines.join_lines(line_no);
+        vec![String::new(), String::new()]
+    } else {
+        Vec::default()
+    }
+}
+
+fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, start: usize, end: usize) -> Vec<String> {
+    let is_eol = lines[end_line].chars().count() <= end;
+    let mut removed = Vec::new();
+    let mut remove_start = false;
+
+    if let Some(start) = char_to_index(&lines[start_line], start) {
+        removed.push(lines[start_line].drain(start..).collect());
+        remove_start = start == 0;
+    }
+
+    let last = if let Some(end) = char_to_index(&lines[end_line], end + 1) {
+        lines[end_line].drain(..end).collect()
+    } else {
+        lines[end_line].drain(..).collect()
+    };
+
+    if is_eol {
+        lines.join_lines(end_line);
+    }
+
+    removed.append(&mut drain_lines(
+        lines,
+        start_line.saturating_add(1),
+        end_line.saturating_sub(1),
+    ));
+
+    if remove_start {
+        lines.remove(start_line);
+    } else {
+        lines.join_lines(start_line);
+    }
+
+    removed.push(last);
+    if is_eol {
+        removed.push(String::new());
+    }
+
+    removed
+}
+
+fn drain_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
     if from <= to && from < lines.len() {
         let to = to.min(lines.len());
-        lines.drain(from..=to);
+        lines.drain(from..=to).collect()
+    } else {
+        Vec::default()
+    }
+}
+
+fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String) {
+    if lines.is_empty() || position.y >= lines.len() {
+        lines.push(text);
+        return;
+    }
+
+    if lines.len() == 1 && lines[0].is_empty() {
+        lines[0] = text;
+        return;
+    }
+
+    if let Some(line) = lines.get_mut(position.y) {
+        if let Some(x) = char_to_index(line, position.x) {
+            line.insert_str(x, &text);
+        } else {
+            line.push_str(&text);
+        }
+    }
+}
+
+fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Vec<String>) {
+    if lines.is_empty() || (lines.len() == 1 && lines[0].is_empty()) {
+        *lines = text;
+        return;
+    }
+
+    if position.y >= lines.len() {
+        lines.append(&mut text);
+        return;
+    }
+
+    let first_line = text.swap_remove(0);
+    let mut middle_lines = if text.len() > 1 { text.split_off(1) } else { Vec::default() };
+    let last_line = text.swap_remove(0);
+    let insert_at = position.y + 1;
+
+    let last_line = if let Some(x) = char_to_index(&lines[position.y], position.x) {
+        let mut rest = lines[position.y][x..].to_string();
+        lines[position.y].truncate(x);
+        lines[position.y].push_str(&first_line);
+        rest.insert_str(0, &last_line);
+        rest
+    } else {
+        last_line
+    };
+
+    middle_lines.push(last_line);
+
+    if insert_at < lines.len() {
+        lines.splice(insert_at..insert_at, middle_lines);
+    } else {
+        lines.append(&mut middle_lines);
     }
 }

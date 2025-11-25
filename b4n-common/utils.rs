@@ -64,16 +64,16 @@ pub fn substring_owned(mut s: String, start: usize, len: usize) -> String {
     s
 }
 
-/// Finds the start and end (byte indices) of the word that contains the character at `idx`.
+/// Finds the start and end (char indices) of the word that contains the character at `idx`.
 pub fn word_bounds(s: &str, idx: usize) -> Option<(usize, usize)> {
-    if idx >= s.len() {
+    if idx >= s.chars().count() {
         return None;
     }
 
     let mut start = 0;
     let mut end = 0;
 
-    for (i, ch) in s.char_indices() {
+    for (i, ch) in s.chars().enumerate() {
         let is_word = ch.is_alphanumeric() || ch == '_' || ch == '-' || ch == '.' || ch == '/';
         end = i;
 

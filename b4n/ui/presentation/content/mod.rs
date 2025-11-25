@@ -61,45 +61,41 @@ pub trait Content {
         if line_no < self.len() { Some(0) } else { None }
     }
 
-    /// Returns the start and end (byte indices) of the word that contains the character at `idx` for the specified `line_no`.
-    fn word_bounds(&self, line_no: usize, idx: usize) -> Option<(usize, usize)>;
+    /// Returns the start and end (char indices) of the word that contains the character at `idx` for the specified `line_no`.
+    fn word_bounds(&self, position: ContentPosition) -> Option<(usize, usize)>;
 
     /// Inserts specified character to the content at a position `x:y`.
-    fn insert_char(&mut self, x: usize, y: usize, character: char) {
-        let _ = x;
-        let _ = y;
+    fn insert_char(&mut self, position: ContentPosition, character: char) {
+        let _ = position;
         let _ = character;
     }
 
     /// Inserts specified text at a position `x:y`.
-    fn insert_text(&mut self, x: usize, y: usize, text: Vec<String>) {
-        let _ = x;
-        let _ = y;
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
+        let _ = position;
         let _ = text;
     }
 
     /// Deletes character at a position `x:y`.\
     /// **Note** that it returns a new position.
-    fn remove_char(&mut self, x: usize, y: usize, is_backspace: bool) -> Option<(usize, usize)> {
-        let _ = x;
-        let _ = y;
+    fn remove_char(&mut self, position: ContentPosition, is_backspace: bool) -> Option<ContentPosition> {
+        let _ = position;
         let _ = is_backspace;
         None
     }
 
-    /// Deletes the text in the selection `range` and returns the resulting affected lines.
-    fn remove_text(&mut self, range: Selection) -> Vec<String> {
+    /// Removes the specified `range` from the content.
+    fn remove_text(&mut self, range: Selection) {
         let _ = range;
-        Vec::default()
     }
 
     /// Reverts most recent changes done in edit mode.
-    fn undo(&mut self) -> Option<(usize, usize)> {
+    fn undo(&mut self) -> Option<ContentPosition> {
         None
     }
 
     /// Re-applies an action that was previously undone.
-    fn redo(&mut self) -> Option<(usize, usize)> {
+    fn redo(&mut self) -> Option<ContentPosition> {
         None
     }
 
