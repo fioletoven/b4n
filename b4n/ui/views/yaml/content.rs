@@ -346,12 +346,12 @@ impl Content for YamlContent {
                     }
                 },
                 UndoMode::Cut => {
-                    let text = action.text.take();
-                    if let Some(text) = text
-                        && let Some(end) = action.end
-                    {
-                        self.insert_text(action.pos, text);
-                        result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                    if let Some(end) = action.end {
+                        let text = action.text.take();
+                        if let Some(text) = text {
+                            self.insert_text(action.pos, text);
+                            result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                        }
                     }
                 },
             }
@@ -366,9 +366,9 @@ impl Content for YamlContent {
         let mut result = None;
 
         actions.reverse();
-        for action in &actions {
+        for action in &mut actions {
             match action.mode {
-                super::undo::UndoMode::Insert => {
+                UndoMode::Insert => {
                     self.insert_char_internal(action.pos, action.ch);
                     if action.ch == '\n' {
                         result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
@@ -376,11 +376,17 @@ impl Content for YamlContent {
                         result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
                     }
                 },
-                super::undo::UndoMode::Remove => {
+                UndoMode::Remove => {
                     self.remove_char_internal(action.pos, false, false);
                     result = Some(action.pos);
                 },
-                _ => (),
+                UndoMode::Cut => {
+                    if let Some(end) = action.end {
+                        let range = Selection::new(action.pos, end);
+                        action.text = Some(self.remove_text_internal(&range));
+                        result = Some(action.pos);
+                    }
+                },
             }
         }
 

@@ -65,6 +65,7 @@ fn remove_text_line_end_test() {
 
     assert_eq!("first linesecond line", text[0]);
     assert_eq!("", removed[0]);
+    assert_eq!("", removed[1]);
 }
 
 #[test]

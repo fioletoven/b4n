@@ -201,12 +201,14 @@ impl VecStringExt for Vec<String> {
                     let removed = self[end_line].drain(start..).collect();
                     if is_eol {
                         self.join_lines(end_line);
+                        vec![removed, String::new()]
+                    } else {
+                        vec![removed]
                     }
-                    vec![removed]
                 }
             } else if is_eol {
                 self.join_lines(end_line);
-                vec![String::new()]
+                vec![String::new(), String::new()]
             } else {
                 Vec::default()
             }

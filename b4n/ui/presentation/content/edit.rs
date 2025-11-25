@@ -187,13 +187,15 @@ impl EditContext {
         (None, None)
     }
 
-    fn update_cursor_position<T: Content>(&mut self, pos: NewCursorPosition, content: &mut T, is_mouse: bool) {
+    fn update_cursor_position<T: Content>(&mut self, mut pos: NewCursorPosition, content: &mut T, is_mouse: bool) {
         if let Some(new_x) = pos.0 {
             if let Some(x) = new_x {
-                let line_size = content.line_size(pos.1.unwrap_or(self.cursor.y));
-                if !is_mouse && x > line_size && self.cursor.y.saturating_add(1) < content.len() {
+                let pos_y = pos.1.unwrap_or(self.cursor.y);
+                let line_size = content.line_size(pos_y);
+                if !is_mouse && x > line_size && pos_y.saturating_add(1) < content.len() {
                     self.cursor.x = 0;
-                    self.cursor.y = self.cursor.y.saturating_add(1);
+                    self.cursor.y = pos_y.saturating_add(1);
+                    pos.1 = None; // if we changed cursor.y here, we do not want to overwrite it later
                 } else {
                     self.cursor.x = x;
                 }
