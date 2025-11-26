@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix behaviour of the SHIFT key during text selection
+
 ## 0.3.0 - 2025-11-25
 
 ### Features
