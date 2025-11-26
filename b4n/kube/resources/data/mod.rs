@@ -16,6 +16,7 @@ pub mod daemon_set;
 pub mod default;
 pub mod deployment;
 pub mod event;
+pub mod ingress;
 pub mod job;
 pub mod namespace;
 pub mod node;
@@ -46,6 +47,7 @@ pub fn get_resource_data(
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
         "Event" => event::data(object, is_filtered),
+        "Ingress" => ingress::data(object),
         "Job" => job::data(object),
         "Namespace" => namespace::data(object),
         "Node" => node::data(object, stats),
@@ -73,6 +75,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
         "Event" => event::header(is_filtered),
+        "Ingress" => ingress::header(),
         "Job" => job::header(),
         "Namespace" => namespace::header(),
         "Node" => node::header(has_metrics),

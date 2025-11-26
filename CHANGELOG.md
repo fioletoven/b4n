@@ -1,5 +1,16 @@
 # Change Log
 
+## 0.3.1 - 2025-11-26
+
+### Features
+
+- add columns for Ingress kind
+
+### Bug fixes
+
+- fix behaviour of the SHIFT key during text selection
+- fix mouse sorting for columns with spaces in their names
+
 ## 0.3.0 - 2025-11-25
 
 ### Features

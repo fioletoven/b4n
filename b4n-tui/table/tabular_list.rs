@@ -266,7 +266,7 @@ fn count_columns_up_to(text: &str, position: usize) -> usize {
             break;
         }
 
-        if c.is_whitespace() {
+        if c == ' ' {
             in_column = false;
         } else if !in_column {
             column_count += 1;

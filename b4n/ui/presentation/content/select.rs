@@ -87,12 +87,8 @@ impl SelectContext {
             return;
         };
 
-        if key.modifiers != KeyModifiers::SHIFT {
-            self.clear_selection();
-            return;
-        }
-
-        if let Some(init) = self.init
+        if key.modifiers == KeyModifiers::SHIFT
+            && let Some(init) = self.init
             && is_allowed_key_code(key.code)
         {
             if is_sorted(init, cursor) {
@@ -106,6 +102,8 @@ impl SelectContext {
                 self.start = Some(decrement_cursor_x(init, content));
                 self.end = Some(cursor);
             }
+        } else {
+            self.clear_selection();
         }
     }
 
@@ -119,13 +117,9 @@ impl SelectContext {
             return;
         }
 
-        if is_allowed_key_code(key.code) {
-            if self.init.is_none() {
-                self.init = Some(cursor);
-                self.start = Some(cursor);
-            }
-        } else {
-            self.clear_selection();
+        if is_allowed_key_code(key.code) && self.init.is_none() {
+            self.init = Some(cursor);
+            self.start = Some(cursor);
         }
     }
 

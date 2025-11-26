@@ -105,17 +105,17 @@ impl Column {
 
     /// Creates new [`Column`] instance from custom resource column definition.
     pub fn from(column: &CrdColumn) -> Self {
-        let min_len = column.name.chars().count().clamp(10, 20);
+        let min_len = column.name.chars().count().clamp(10, 20) + 1;
 
         Self {
             name: Cow::Owned(column.name.to_uppercase()),
             is_fixed: false,
-            to_right: column.field_type != "string",
+            to_right: column.field_type != "string" && column.field_type != "boolean",
             is_sorted: false,
             has_reversed_order: column.field_type == "date",
             data_len: 10,
             min_len,
-            max_len: 50,
+            max_len: 60,
         }
     }
 
