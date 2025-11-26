@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix behaviour of the SHIFT key during text selection
+- fix mouse sorting for columns with spaces in their names
 
 ## 0.3.0 - 2025-11-25
 
