@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add columns for Ingress kind
+
 ### Bug fixes
 
 - fix behaviour of the SHIFT key during text selection
