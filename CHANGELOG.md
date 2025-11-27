@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- insert extra spaces between columns when the terminal width allows it
+
 ## 0.3.1 - 2025-11-26
 
 ### Features
