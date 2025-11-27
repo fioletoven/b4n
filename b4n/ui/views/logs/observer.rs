@@ -192,7 +192,7 @@ fn process_line(line: &str) -> Option<LogsChunk> {
         end: dt,
         lines: vec![LogLine {
             datetime: dt,
-            message: split.next()?.replace("\t", "    "),
+            message: split.next()?.replace('\t', "    "),
             is_error: false,
         }],
     })

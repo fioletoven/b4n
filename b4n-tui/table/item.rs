@@ -48,6 +48,7 @@ fn get_compact_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     header: &Header,
     name_width: usize,
 ) {
+    let name_width = name_width.saturating_sub(header.double_spaces_count());
     row.push_cell(item.data.name(), name_width, false);
     row.push(' ');
     push_inner_text(item, row, header);
@@ -80,9 +81,13 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(item: &Item<T, Fc
         return;
     };
 
+    let has_double_spaces = header.double_spaces_count() > 0;
     for (i, _) in columns.iter().enumerate() {
         if i > 0 {
             row.push(' ');
+            if has_double_spaces {
+                row.push(' ');
+            }
         }
 
         let len = if i == 0 && columns[i].to_right {

@@ -105,7 +105,7 @@ impl Column {
 
     /// Creates new [`Column`] instance from custom resource column definition.
     pub fn from(column: &CrdColumn) -> Self {
-        let min_len = column.name.chars().count().clamp(10, 20) + 1;
+        let min_len = column.name.chars().count().min(22);
 
         Self {
             name: Cow::Owned(column.name.to_uppercase()),
