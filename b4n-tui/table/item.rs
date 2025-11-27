@@ -81,12 +81,13 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(item: &Item<T, Fc
         return;
     };
 
-    let has_double_spaces = header.double_spaces_count() > 0;
+    let mut double_spaces_count = header.double_spaces_count();
     for (i, _) in columns.iter().enumerate() {
         if i > 0 {
             row.push(' ');
-            if has_double_spaces {
+            if double_spaces_count > 0 {
                 row.push(' ');
+                double_spaces_count -= 1;
             }
         }
 

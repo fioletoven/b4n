@@ -288,19 +288,19 @@ impl Header {
             .map(|c| c.len())
             .unwrap_or_default()
             .saturating_sub(1);
-        let has_enough_space = if double_spaces_count > 0 && self.name.data_len < name_width + self.extra_space {
+        let double_spaces_count = if double_spaces_count > 0 && self.name.data_len < name_width + self.extra_space {
             let free_space = (name_width + self.extra_space).saturating_sub(self.name.data_len);
-            free_space >= double_spaces_count
+            double_spaces_count.min(free_space)
         } else {
-            false
+            0
         };
 
         self.cache.extra_columns_text = Some(get_extra_columns_text(
             self.extra_columns.as_deref(),
             self.is_sorted_descending,
-            has_enough_space,
+            double_spaces_count,
         ));
-        self.cache.double_spaces_count = if has_enough_space { double_spaces_count } else { 0 };
+        self.cache.double_spaces_count = double_spaces_count;
     }
 
     fn column(&self, column_no: usize) -> Option<&Column> {
@@ -391,7 +391,7 @@ fn get_extra_columns_len(extra_columns: Option<&[Column]>) -> usize {
 }
 
 /// Builds extra columns text.
-fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool, double_spaces: bool) -> String {
+fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool, mut double_spaces: usize) -> String {
     let Some(columns) = extra_columns else {
         return String::new();
     };
@@ -401,8 +401,9 @@ fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool,
     for (i, column) in columns.iter().enumerate() {
         if i > 0 {
             header_text.push(' ');
-            if double_spaces {
+            if double_spaces > 0 {
                 header_text.push(' ');
+                double_spaces -= 1;
             }
         }
 
