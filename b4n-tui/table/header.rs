@@ -12,7 +12,6 @@ pub struct Header {
     name: Column,                         // column: 1
     age: Column,                          // column: extra_columns len + 2 (last column)
     extra_columns: Option<Box<[Column]>>, // columns: 2 .. n
-    extra_columns_text: String,
     all_extra_width: usize,
     extra_space: usize,
     sort_symbols: Rc<[char]>,
@@ -31,8 +30,7 @@ impl Header {
     /// Creates new [`Header`] instance with provided columns.\
     /// **Note** that `sort_symbols` must be uppercase ASCII characters.
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
-        let extra_columns_text = get_extra_columns_text(extra_columns.as_deref(), false);
-        let extra_width = extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
+        let extra_width = get_extra_columns_len(extra_columns.as_deref()) + 9; // AGE + all spaces = 9
         let extra_space = get_extra_space(extra_columns.as_deref());
 
         Self {
@@ -40,7 +38,6 @@ impl Header {
             name: NAME,
             age: AGE,
             extra_columns,
-            extra_columns_text,
             all_extra_width: extra_width,
             extra_space,
             sort_symbols,
@@ -106,11 +103,15 @@ impl Header {
         }
     }
 
+    /// Returns the number of doubled spaces for additional columns.
+    pub fn double_spaces_count(&self) -> usize {
+        self.cache.double_spaces_count
+    }
+
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.cache.invalidate();
-        self.extra_columns_text = get_extra_columns_text(self.extra_columns.as_deref(), self.is_sorted_descending);
-        self.all_extra_width = self.extra_columns_text.chars().count() + 9; // AGE + all spaces = 9
+        self.all_extra_width = get_extra_columns_len(self.extra_columns.as_deref()) + 9; // AGE + all spaces = 9
         self.extra_space = get_extra_space(self.extra_columns.as_deref());
     }
 
@@ -152,7 +153,10 @@ impl Header {
     pub fn refresh_text(&mut self, view: ViewType, width: usize) {
         if self.cache.area_width.is_none_or(|w| w != width) || self.cache.view != view {
             let (group_width, name_width, _) = self.get_widths(view, width);
-            self.cache.text = self.get_text_string(view, group_width, name_width, width);
+            self.update_cached_extra_columns_text(name_width);
+
+            let spaces_width = self.cache.double_spaces_count;
+            self.cache.text = self.get_text_string(view, group_width, name_width.saturating_sub(spaces_width), width);
             self.cache.view = view;
             self.cache.area_width = Some(width);
             self.cache.text_length = Some(self.cache.text.chars().count());
@@ -269,12 +273,34 @@ impl Header {
         header.push(' ');
         header.push_column(&self.name, name_width, self.is_sorted_descending);
         header.push(' ');
-        header.push_str(&self.extra_columns_text);
+        header.push_str(self.cache.extra_columns_text());
         header.push(' ');
         header.push_column(&self.age, self.age.max_len(), self.is_sorted_descending);
         header.push(' ');
 
         header
+    }
+
+    fn update_cached_extra_columns_text(&mut self, name_width: usize) {
+        let double_spaces_count = self
+            .extra_columns
+            .as_ref()
+            .map(|c| c.len())
+            .unwrap_or_default()
+            .saturating_sub(1);
+        let double_spaces_count = if double_spaces_count > 0 && self.name.data_len < name_width + self.extra_space {
+            let free_space = (name_width + self.extra_space).saturating_sub(self.name.data_len);
+            double_spaces_count.min(free_space)
+        } else {
+            0
+        };
+
+        self.cache.extra_columns_text = Some(get_extra_columns_text(
+            self.extra_columns.as_deref(),
+            self.is_sorted_descending,
+            double_spaces_count,
+        ));
+        self.cache.double_spaces_count = double_spaces_count;
     }
 
     fn column(&self, column_no: usize) -> Option<&Column> {
@@ -331,6 +357,8 @@ struct HeaderCache {
     pub view: ViewType,
     pub area_width: Option<usize>,
     pub text_length: Option<usize>,
+    pub extra_columns_text: Option<String>,
+    pub double_spaces_count: usize,
 }
 
 impl HeaderCache {
@@ -338,11 +366,32 @@ impl HeaderCache {
     pub fn invalidate(&mut self) {
         self.area_width = None;
         self.text_length = None;
+        self.extra_columns_text = None;
+        self.double_spaces_count = 0;
+    }
+
+    /// Returns the cached extra columns text.
+    pub fn extra_columns_text(&self) -> &str {
+        self.extra_columns_text.as_deref().unwrap_or_default()
     }
 }
 
+/// Returns minimal length of the extra columns text.
+fn get_extra_columns_len(extra_columns: Option<&[Column]>) -> usize {
+    let Some(columns) = extra_columns else {
+        return 0;
+    };
+
+    let len = columns
+        .iter()
+        .map(|c| c.data_len.clamp(c.min_len(), c.max_len()))
+        .sum::<usize>();
+
+    len + columns.len().saturating_sub(1)
+}
+
 /// Builds extra columns text.
-fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool) -> String {
+fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool, mut double_spaces: usize) -> String {
     let Some(columns) = extra_columns else {
         return String::new();
     };
@@ -352,6 +401,10 @@ fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool)
     for (i, column) in columns.iter().enumerate() {
         if i > 0 {
             header_text.push(' ');
+            if double_spaces > 0 {
+                header_text.push(' ');
+                double_spaces -= 1;
+            }
         }
 
         header_text.push_column(
