@@ -24,7 +24,7 @@ palette:
 
 # style anchors
 filter: &filter
-  cursor: light_cyan:#747C8A
+  cursor: Reset:#747C8A
   normal: fg_dark:yellow:bg_dark
   normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light

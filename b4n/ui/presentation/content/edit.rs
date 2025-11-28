@@ -2,6 +2,7 @@ use b4n_config::{keys::KeyCombination, themes::TextColors};
 use b4n_tui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Position, Rect};
+use ratatui::style::Color;
 use ratatui::widgets::Widget;
 use std::time::Instant;
 
@@ -289,8 +290,10 @@ impl Widget for ContentEditWidget<'_> {
             if area.contains(cursor)
                 && let Some(cell) = buf.cell_mut(cursor)
             {
-                cell.fg = self.context.color.fg;
                 cell.bg = self.context.color.bg;
+                if self.context.color.fg != Color::Reset {
+                    cell.fg = self.context.color.fg;
+                }
             }
         }
     }

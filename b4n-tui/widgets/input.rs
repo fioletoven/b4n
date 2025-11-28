@@ -1,6 +1,7 @@
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Position, Rect};
+use ratatui::style::Color;
 use ratatui::widgets::{Block, Widget};
 use tui_input::backend::crossterm::EventHandler;
 
@@ -268,7 +269,10 @@ impl Widget for &mut Input {
             if scroll + cursor == self.input.value().len() {
                 buf[(x, y)].set_char('▊').set_fg(self.cursor_colors.bg);
             } else {
-                buf[(x, y)].set_fg(self.cursor_colors.fg).set_bg(self.cursor_colors.bg);
+                buf[(x, y)].set_bg(self.cursor_colors.bg);
+                if self.cursor_colors.fg != Color::Reset {
+                    buf[(x, y)].set_fg(self.cursor_colors.fg);
+                }
             }
         }
     }

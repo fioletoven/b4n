@@ -91,7 +91,7 @@ impl Default for SelectColors {
                 prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
                 error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
             },
-            cursor: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+            cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
         }
     }
 }

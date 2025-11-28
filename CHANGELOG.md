@@ -5,6 +5,11 @@
 ### Features
 
 - insert extra spaces between columns when the terminal width allows it
+- allow Reset to be used as a foreground cursor color
+
+### Bug fixes
+
+- convert tabs to spaces in logs to prevent display issues
 
 ## 0.3.1 - 2025-11-26
 
