@@ -317,6 +317,16 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
+    /// Returns text of the line under the cursor.\
+    /// **Note** that it works only in edit mode (when the cursor is visible).
+    pub fn get_current_line(&self) -> Option<&str> {
+        if self.edit.is_enabled {
+            self.content()?.line(self.edit.cursor.y)
+        } else {
+            None
+        }
+    }
+
     /// Returns currently visible lines.
     pub fn get_page_lines(&mut self) -> Vec<Line<'_>> {
         let start = self.page_start.y.clamp(0, self.max_vstart());
@@ -510,10 +520,10 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn disable_keys(&self, is_disabled: bool) {
-        self.app_data
-            .disable_key(KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL), is_disabled);
-        self.app_data
-            .disable_key(KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL), is_disabled);
+        for ch in ['x', 'c', 'v', 'y', 'z'] {
+            self.app_data
+                .disable_key(KeyCombination::new(KeyCode::Char(ch), KeyModifiers::CONTROL), is_disabled);
+        }
     }
 }
 

@@ -151,7 +151,7 @@ impl Responsive for Search {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
             || event.is_out(MouseEventKind::LeftClick, self.patterns.area)
-            || event.is(MouseEventKind::RightClick)
+            || event.is_mouse(MouseEventKind::RightClick)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;

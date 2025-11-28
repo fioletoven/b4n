@@ -1,9 +1,10 @@
 use b4n_common::{IconKind, NotificationSink};
-use b4n_config::keys::KeyCommand;
+use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{CommandResult, SetResourceYamlAction};
 use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -64,16 +65,21 @@ impl YamlView {
         }
     }
 
-    fn copy_yaml_to_clipboard(&self) {
+    fn copy_yaml_to_clipboard(&self, is_current_line: bool) {
         if self.yaml.content().is_some() {
-            let range = self.yaml.get_selection();
+            let text = if is_current_line && !self.yaml.has_selection() {
+                self.yaml.get_current_line().map(String::from).unwrap_or_default()
+            } else {
+                let range = self.yaml.get_selection();
+                self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default()
+            };
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard
-                    .set_text(self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
-                    .is_ok()
+                && clipboard.set_text(text).is_ok()
             {
                 if self.yaml.has_selection() {
                     self.footer.show_info(" selection copied to clipboard…", 1_500);
+                } else if is_current_line {
+                    self.footer.show_info(" line copied to clipboard…", 1_500);
                 } else {
                     self.footer.show_info(" YAML content copied to clipboard…", 1_500);
                 }
@@ -158,7 +164,7 @@ impl YamlView {
         if response == ResponseEvent::Cancelled {
             self.clear_search();
         } else if response.is_action("copy") {
-            self.copy_yaml_to_clipboard();
+            self.copy_yaml_to_clipboard(false);
             return ResponseEvent::Handled;
         } else if response.is_action("decode") {
             self.toggle_yaml_decode();
@@ -350,10 +356,21 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if event.is(MouseEventKind::RightClick) && self.yaml.has_selection() {
-            self.copy_yaml_to_clipboard();
+        if event.is_mouse(MouseEventKind::RightClick) && self.yaml.has_selection() {
+            self.copy_yaml_to_clipboard(false);
             self.yaml.clear_selection();
             return ResponseEvent::Handled;
+        }
+
+        if self.yaml.is_in_edit_mode() {
+            if event.is_key(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL)) {
+                self.copy_yaml_to_clipboard(true);
+                return ResponseEvent::Handled;
+            }
+
+            if event.is_key(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL)) {
+                self.copy_yaml_to_clipboard(true);
+            }
         }
 
         let response = self.yaml.process_event(event);
@@ -365,7 +382,7 @@ impl View for YamlView {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is_mouse(MouseEventKind::RightClick) {
             self.show_command_palette();
             return ResponseEvent::Handled;
         }
@@ -390,7 +407,7 @@ impl View for YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
-            self.copy_yaml_to_clipboard();
+            self.copy_yaml_to_clipboard(false);
             return ResponseEvent::Handled;
         }
 

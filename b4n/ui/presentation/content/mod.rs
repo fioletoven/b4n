@@ -38,6 +38,12 @@ pub trait Content {
     /// Returns characters count for the longest line in the content.
     fn max_size(&self) -> usize;
 
+    /// Returns text of the line under `line_no` index.
+    fn line(&self, line_no: usize) -> Option<&str> {
+        let _ = line_no;
+        None
+    }
+
     /// Returns characters count of the line under `line_no` index.
     fn line_size(&self, line_no: usize) -> usize;
 

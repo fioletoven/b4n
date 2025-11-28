@@ -274,6 +274,10 @@ impl Content for YamlContent {
         self.max_size + 1
     }
 
+    fn line(&self, line_no: usize) -> Option<&str> {
+        self.plain.get(line_no).map(|l| l.as_str())
+    }
+
     fn line_size(&self, line_no: usize) -> usize {
         self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
     }

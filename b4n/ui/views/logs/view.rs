@@ -245,13 +245,13 @@ impl View for LogsView {
             return result;
         }
 
-        if event.is(MouseEventKind::RightClick) && self.logs.has_selection() {
+        if event.is_mouse(MouseEventKind::RightClick) && self.logs.has_selection() {
             self.copy_logs_to_clipboard();
             self.logs.clear_selection();
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is_mouse(MouseEventKind::RightClick) {
             self.show_command_palette();
             return ResponseEvent::Handled;
         }

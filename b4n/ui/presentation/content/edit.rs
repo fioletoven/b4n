@@ -73,7 +73,7 @@ impl EditContext {
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
                     content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
                 } else {
-                    self.process_key(key.code, content, selection, area)
+                    self.process_key(key, content, selection, area)
                 };
                 self.update_cursor_position(pos, content, false);
                 self.last_key_press = Instant::now();
@@ -97,28 +97,36 @@ impl EditContext {
 
     fn process_key<T: Content>(
         &mut self,
-        key: KeyCode,
+        key: &KeyCombination,
         content: &mut T,
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        if is_content_modifying_key(key)
+        let is_ctrl_x = key == &KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
+        if (is_hiding_selection_key(key) || is_ctrl_x)
             && let Some(selection) = selection
         {
             let start = selection.sorted().0;
             content.remove_text(selection);
 
-            if key == KeyCode::Backspace || key == KeyCode::Delete {
+            if key.code == KeyCode::Backspace || key.code == KeyCode::Delete || is_ctrl_x {
                 return (Some(Some(start.x)), Some(start.y));
             }
 
             self.cursor = start;
         }
 
+        if is_ctrl_x {
+            let start = ContentPosition::new(0, self.cursor.y);
+            let range = Selection::new(start, ContentPosition::new(content.line_size(start.y), start.y));
+            content.remove_text(range);
+            return (Some(Some(start.x)), Some(start.y));
+        }
+
         let mut x_changed = None;
         let mut y_changed = None;
 
-        match key {
+        match key.code {
             // insert character
             KeyCode::Char(c) => {
                 content.insert_char(self.cursor, c);
@@ -235,9 +243,9 @@ impl EditContext {
     }
 }
 
-fn is_content_modifying_key(key: KeyCode) -> bool {
+fn is_hiding_selection_key(key: &KeyCombination) -> bool {
     matches!(
-        key,
+        key.code,
         KeyCode::Char(_) | KeyCode::Tab | KeyCode::Enter | KeyCode::Backspace | KeyCode::Delete
     )
 }
