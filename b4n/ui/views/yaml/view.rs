@@ -105,7 +105,7 @@ impl YamlView {
             && let Ok(text) = clipboard.get_text()
         {
             if self.copied_line.as_ref().is_some_and(|l| *l == text) {
-                self.yaml.insert_text(vec![String::new(), text], true);
+                self.yaml.insert_text(vec![text, String::new()], true);
             } else {
                 self.yaml
                     .insert_text(text.split('\n').map(String::from).collect::<Vec<_>>(), false);

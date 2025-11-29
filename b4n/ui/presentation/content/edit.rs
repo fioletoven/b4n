@@ -102,6 +102,14 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
+        if selection.is_none() {
+            let is_alt_up = key == &KeyCombination::new(KeyCode::Up, KeyModifiers::ALT);
+            let is_alt_down = key == &KeyCombination::new(KeyCode::Down, KeyModifiers::ALT);
+            if is_alt_up || is_alt_down {
+                // TODO
+            }
+        }
+
         let is_ctrl_x = key == &KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
         if (is_hiding_selection_key(key) || is_ctrl_x)
             && let Some(selection) = selection
@@ -118,10 +126,9 @@ impl EditContext {
 
         let is_ctrl_d = key == &KeyCombination::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
         if is_ctrl_x || is_ctrl_d {
-            let start = ContentPosition::new(0, self.cursor.y);
-            let range = Selection::new(start, ContentPosition::new(content.line_size(start.y), start.y));
+            let range = Selection::from_line_end(content.line_size(self.cursor.y), self.cursor.y);
             content.remove_text(range);
-            return (Some(Some(start.x)), Some(start.y));
+            return (None, None);
         }
 
         self.process_key_code(key.code, content, area)

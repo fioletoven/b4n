@@ -317,7 +317,9 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    pub fn insert_text(&mut self, text: Vec<String>, on_line_end: bool) {
+    /// Inserts specified text to the content at the current cursor position.\
+    /// `on_line_start` - adds text at the start of the current line if text is a line from Ctrl+C/Ctrl+X.
+    pub fn insert_text(&mut self, text: Vec<String>, on_line_start: bool) {
         if let Some(content) = &mut self.content {
             if let Some(range) = self.select.get_selection() {
                 self.edit.cursor = range.start;
@@ -325,10 +327,9 @@ impl<T: Content> ContentViewer<T> {
             }
 
             self.select.clear_selection();
-            let line_len = content.line_size(self.edit.cursor.y);
-            let new_pos = if on_line_end {
-                let pos = ContentPosition::new(line_len, self.edit.cursor.y);
-                content.insert_text(pos, text)
+            let new_pos = if on_line_start && text.len() == 2 {
+                content.insert_text(ContentPosition::new(0, self.edit.cursor.y), text);
+                ContentPosition::new(self.edit.cursor.x, self.edit.cursor.y + 1)
             } else {
                 content.insert_text(self.edit.cursor, text)
             };

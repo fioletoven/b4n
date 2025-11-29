@@ -18,6 +18,14 @@ impl Selection {
         Self { start, end }
     }
 
+    /// Creates new [`Selection`] from `0` to the end at `x:y`.
+    pub fn from_line_end(x: usize, y: usize) -> Self {
+        Self {
+            start: ContentPosition::new(0, y),
+            end: ContentPosition::new(x, y),
+        }
+    }
+
     /// Returns `true` if `end` comes after `start` in document order.
     pub fn is_end_after_start(&self) -> bool {
         is_sorted(self.start, self.end)
