@@ -152,7 +152,7 @@ impl<T: Content> ContentViewer<T> {
                 self.hash = Some(content.hash());
             }
 
-            self.scroll_to(self.edit.cursor.y, self.edit.cursor.x, 1);
+            self.scroll_to_cursor();
             self.disable_keys(true);
             true
         } else {
@@ -212,6 +212,11 @@ impl<T: Content> ContentViewer<T> {
                 );
             }
         }
+    }
+
+    /// Scrolls to the current cursor position.
+    pub fn scroll_to_cursor(&mut self) {
+        self.scroll_to(self.edit.cursor.y, self.edit.cursor.x, 1);
     }
 
     /// Scrolls content to the end.

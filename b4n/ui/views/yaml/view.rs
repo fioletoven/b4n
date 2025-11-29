@@ -387,8 +387,11 @@ impl View for YamlView {
         }
 
         if self.yaml.is_in_edit_mode() {
-            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
+            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL))
+                || event.is_mouse(MouseEventKind::RightClick)
+            {
                 self.insert_from_clipboard();
+                self.yaml.scroll_to_cursor();
                 return ResponseEvent::Handled;
             }
 
