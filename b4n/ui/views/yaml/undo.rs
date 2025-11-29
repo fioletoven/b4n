@@ -46,7 +46,7 @@ impl Undo {
     }
 
     /// Creates a new undo/redo entry representing a cut (range removal).
-    pub fn cut(range: Selection, removed_text: Vec<String>) -> Self {
+    pub fn cut(range: &Selection, removed_text: Vec<String>) -> Self {
         let (start, end) = range.sorted();
         Self {
             pos: start,
@@ -59,7 +59,7 @@ impl Undo {
     }
 
     /// Creates a new undo/redo entry representing a paste (range insertion).
-    pub fn paste(range: Selection) -> Self {
+    pub fn paste(range: &Selection) -> Self {
         let (start, end) = range.sorted();
         Self {
             pos: start,

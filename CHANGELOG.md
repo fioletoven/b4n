@@ -5,12 +5,14 @@
 ### Features
 
 - insert extra spaces between columns when the terminal width allows it
-- allow Reset to be used as a foreground cursor color
+- allow `Reset` to be used as a foreground cursor color
+- add support for CTRL+C, CTRL+X, and CTRL+V in edit mode
+- enable CTRL+D to delete the current line in edit mode
 
 ### Bug fixes
 
-- convert tabs to spaces in logs to prevent display issues
-- fix text insert at the end of the line for content view
+- convert tabs to spaces in logs to avoid display issues
+- fix text insertion at end-of-line in content view
 
 ## 0.3.1 - 2025-11-26
 

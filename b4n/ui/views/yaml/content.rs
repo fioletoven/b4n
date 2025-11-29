@@ -295,7 +295,7 @@ impl Content for YamlContent {
     }
 
     fn line(&self, line_no: usize) -> Option<&str> {
-        self.plain.get(line_no).map(|l| l.as_str())
+        self.plain.get(line_no).map(String::as_str)
     }
 
     fn line_size(&self, line_no: usize) -> usize {
@@ -330,7 +330,7 @@ impl Content for YamlContent {
         self.redo.clear();
         let end = self.insert_text_internal(position, text);
         self.undo
-            .push(Undo::paste(Selection::new(position, self.move_position_left(end))));
+            .push(Undo::paste(&Selection::new(position, self.move_position_left(end))));
         end
     }
 
@@ -342,7 +342,7 @@ impl Content for YamlContent {
     fn remove_text(&mut self, range: Selection) {
         let removed = self.remove_text_internal(&range);
         self.redo.clear();
-        self.undo.push(Undo::cut(range, removed));
+        self.undo.push(Undo::cut(&range, removed));
     }
 
     fn undo(&mut self) -> Option<ContentPosition> {

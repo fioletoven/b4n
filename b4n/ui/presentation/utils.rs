@@ -295,10 +295,10 @@ fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String)
         if let Some(x) = char_to_index(line, position.x) {
             line.insert_str(x, &text);
             return ContentPosition::new(x + text_len, position.y);
-        } else {
-            line.push_str(&text);
-            return ContentPosition::new(line.chars().count(), position.y);
         }
+
+        line.push_str(&text);
+        return ContentPosition::new(line.chars().count(), position.y);
     }
 
     position
