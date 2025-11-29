@@ -103,10 +103,12 @@ impl EditContext {
         area: Rect,
     ) -> NewCursorPosition {
         if selection.is_none() {
-            let is_alt_up = key == &KeyCombination::new(KeyCode::Up, KeyModifiers::ALT);
-            let is_alt_down = key == &KeyCombination::new(KeyCode::Down, KeyModifiers::ALT);
-            if is_alt_up || is_alt_down {
-                // TODO
+            if key == &KeyCombination::new(KeyCode::Up, KeyModifiers::ALT) && self.cursor.y > 0 {
+                content.swap_lines(self.cursor.y.saturating_sub(1), self.cursor.y);
+            }
+
+            if key == &KeyCombination::new(KeyCode::Down, KeyModifiers::ALT) && self.cursor.y + 1 < content.len() {
+                content.swap_lines(self.cursor.y, self.cursor.y + 1);
             }
         }
 

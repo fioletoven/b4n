@@ -8,6 +8,7 @@ pub enum UndoMode {
     Remove,
     Cut,
     Paste,
+    Swap,
 }
 
 /// Stores a single undo/redo action.
@@ -67,6 +68,18 @@ impl Undo {
             ch: ' ',
             text: None,
             mode: UndoMode::Paste,
+            when: Instant::now(),
+        }
+    }
+
+    /// Creates a new undo/redo entry representing a lines swap.
+    pub fn swap(first_line: usize, second_line: usize) -> Self {
+        Self {
+            pos: ContentPosition::new(0, first_line),
+            end: Some(ContentPosition::new(0, second_line)),
+            ch: ' ',
+            text: None,
+            mode: UndoMode::Swap,
             when: Instant::now(),
         }
     }
