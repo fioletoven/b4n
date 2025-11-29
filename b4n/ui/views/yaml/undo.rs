@@ -7,6 +7,7 @@ pub enum UndoMode {
     Insert,
     Remove,
     Cut,
+    Paste,
 }
 
 /// Stores a single undo/redo action.
@@ -53,6 +54,19 @@ impl Undo {
             ch: ' ',
             text: Some(removed_text),
             mode: UndoMode::Cut,
+            when: Instant::now(),
+        }
+    }
+
+    /// Creates a new undo/redo entry representing a paste (range insertion).
+    pub fn paste(range: Selection) -> Self {
+        let (start, end) = range.sorted();
+        Self {
+            pos: start,
+            end: Some(end),
+            ch: ' ',
+            text: None,
+            mode: UndoMode::Paste,
             when: Instant::now(),
         }
     }

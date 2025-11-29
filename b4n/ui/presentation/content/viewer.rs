@@ -320,14 +320,13 @@ impl<T: Content> ContentViewer<T> {
     pub fn insert_text(&mut self, text: Vec<String>, on_line_end: bool) {
         if let Some(content) = &mut self.content {
             let line_len = content.line_size(self.edit.cursor.y);
-            if on_line_end {
+            let new_pos = if on_line_end {
                 let pos = ContentPosition::new(line_len, self.edit.cursor.y);
-                content.insert_text(pos, text);
+                content.insert_text(pos, text)
             } else {
-                content.insert_text(self.edit.cursor, text);
-            }
-
-            // TODO: move cursor
+                content.insert_text(self.edit.cursor, text)
+            };
+            self.edit.cursor = new_pos;
         }
     }
 

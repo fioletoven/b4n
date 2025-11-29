@@ -77,9 +77,10 @@ pub trait Content {
     }
 
     /// Inserts specified text at a position `x:y`.
-    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) -> ContentPosition {
         let _ = position;
         let _ = text;
+        position
     }
 
     /// Deletes character at a position `x:y`.\
