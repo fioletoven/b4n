@@ -319,6 +319,12 @@ impl<T: Content> ContentViewer<T> {
 
     pub fn insert_text(&mut self, text: Vec<String>, on_line_end: bool) {
         if let Some(content) = &mut self.content {
+            if let Some(range) = self.select.get_selection() {
+                self.edit.cursor = range.start;
+                content.remove_text(range);
+            }
+
+            self.select.clear_selection();
             let line_len = content.line_size(self.edit.cursor.y);
             let new_pos = if on_line_end {
                 let pos = ContentPosition::new(line_len, self.edit.cursor.y);
