@@ -10,6 +10,7 @@
 ### Bug fixes
 
 - convert tabs to spaces in logs to prevent display issues
+- fix text insert at the end of the line for content view
 
 ## 0.3.1 - 2025-11-26
 

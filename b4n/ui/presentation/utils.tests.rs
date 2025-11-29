@@ -94,3 +94,51 @@ into the yaml_ationTimestamp: 2025-08-27T19:31:08Z
 
     assert_eq!(expected, actual.join("\n"));
 }
+
+#[test]
+fn insert_text_line_end_test() {
+    let yaml = r"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    let to_insert = r"_lines
+to insert
+into the yaml_";
+
+    let text = to_insert.split('\n').map(String::from).collect::<Vec<_>>();
+    let mut actual = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    actual.insert_text(ContentPosition::new(9, 1), text);
+
+    let expected = r"apiVersion: v1
+kind: Pod_lines
+to insert
+into the yaml_
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    assert_eq!(expected, actual.join("\n"));
+}
+
+#[test]
+fn insert_line_line_end_test() {
+    let yaml = r"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    let text = vec!["_one_line_".to_owned()];
+    let mut actual = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    actual.insert_text(ContentPosition::new(9, 1), text);
+
+    let expected = r"apiVersion: v1
+kind: Pod_one_line_
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    assert_eq!(expected, actual.join("\n"));
+}

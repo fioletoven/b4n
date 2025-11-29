@@ -321,6 +321,9 @@ fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Ve
         lines[position.y].push_str(&first_line);
         rest.insert_str(0, &last_line);
         rest
+    } else if lines[position.y].chars().count() == position.x {
+        lines[position.y].push_str(&first_line);
+        last_line
     } else {
         last_line
     };
