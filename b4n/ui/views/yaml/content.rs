@@ -221,6 +221,16 @@ impl YamlContent {
             ContentPosition::new(position.x.saturating_sub(1), position.y)
         }
     }
+
+    fn swap_lines_internal(&mut self, first_line: usize, second_line: usize) {
+        self.mark_line_as_modified(first_line);
+        self.mark_line_as_modified(second_line);
+        if first_line < self.styled.len() && second_line < self.styled.len() {
+            self.styled.swap(first_line, second_line);
+            self.plain.swap(first_line, second_line);
+            self.lowercase.swap(first_line, second_line);
+        }
+    }
 }
 
 impl Content for YamlContent {
@@ -345,6 +355,12 @@ impl Content for YamlContent {
         self.undo.push(Undo::cut(&range, removed));
     }
 
+    fn swap_lines(&mut self, first_line: usize, second_line: usize) {
+        self.swap_lines_internal(first_line, second_line);
+        self.redo.clear();
+        self.undo.push(Undo::swap(first_line, second_line));
+    }
+
     fn undo(&mut self) -> Option<ContentPosition> {
         let mut actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
         if actions.is_empty() {
@@ -380,6 +396,12 @@ impl Content for YamlContent {
                         let range = Selection::new(action.pos, end);
                         action.text = Some(self.remove_text_internal(&range));
                         result = Some(action.pos);
+                    }
+                },
+                UndoMode::Swap => {
+                    if let Some(end) = action.end {
+                        self.swap_lines_internal(action.pos.y, end.y);
+                        result = Some(end);
                     }
                 },
             }
@@ -422,6 +444,12 @@ impl Content for YamlContent {
                             self.insert_text_internal(action.pos, text);
                             result = Some(ContentPosition { x: end.x + 1, y: end.y });
                         }
+                    }
+                },
+                UndoMode::Swap => {
+                    if let Some(end) = action.end {
+                        self.swap_lines_internal(action.pos.y, end.y);
+                        result = Some(end);
                     }
                 },
             }

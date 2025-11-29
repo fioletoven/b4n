@@ -96,6 +96,12 @@ pub trait Content {
         let _ = range;
     }
 
+    /// Swaps two lines in the content.
+    fn swap_lines(&mut self, first_line: usize, second_line: usize) {
+        let _ = first_line;
+        let _ = second_line;
+    }
+
     /// Reverts most recent changes done in edit mode.
     fn undo(&mut self) -> Option<ContentPosition> {
         None

@@ -288,8 +288,9 @@ impl Header {
             .map(|c| c.len())
             .unwrap_or_default()
             .saturating_sub(1);
-        let double_spaces_count = if double_spaces_count > 0 && self.name.data_len < name_width + self.extra_space {
-            let free_space = (name_width + self.extra_space).saturating_sub(self.name.data_len);
+        let min_name_len = self.name.data_len.max(6 + self.extra_space);
+        let double_spaces_count = if double_spaces_count > 0 && min_name_len < name_width + self.extra_space {
+            let free_space = (name_width + self.extra_space).saturating_sub(min_name_len);
             double_spaces_count.min(free_space)
         } else {
             0

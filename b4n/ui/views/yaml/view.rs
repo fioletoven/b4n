@@ -105,7 +105,7 @@ impl YamlView {
             && let Ok(text) = clipboard.get_text()
         {
             if self.copied_line.as_ref().is_some_and(|l| *l == text) {
-                self.yaml.insert_text(vec![String::new(), text], true);
+                self.yaml.insert_text(vec![text, String::new()], true);
             } else {
                 self.yaml
                     .insert_text(text.split('\n').map(String::from).collect::<Vec<_>>(), false);
@@ -387,8 +387,11 @@ impl View for YamlView {
         }
 
         if self.yaml.is_in_edit_mode() {
-            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
+            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL))
+                || event.is_mouse(MouseEventKind::RightClick)
+            {
                 self.insert_from_clipboard();
+                self.yaml.scroll_to_cursor();
                 return ResponseEvent::Handled;
             }
 
