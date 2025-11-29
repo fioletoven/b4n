@@ -174,7 +174,7 @@ pub trait VecStringExt {
     fn remove_text(&mut self, range: &Selection) -> Vec<String>;
 
     /// Inserts specified `text` at `position` to the vector of `String`s.
-    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>);
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) -> ContentPosition;
 }
 
 impl VecStringExt for Vec<String> {
@@ -198,9 +198,9 @@ impl VecStringExt for Vec<String> {
         }
     }
 
-    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>) {
+    fn insert_text(&mut self, position: ContentPosition, mut text: Vec<String>) -> ContentPosition {
         match text.len() {
-            0 => (),
+            0 => position,
             1 => insert_line(self, position, text.swap_remove(0)),
             _ => insert_lines(self, position, text),
         }
@@ -279,40 +279,46 @@ fn drain_lines(lines: &mut Vec<String>, from: usize, to: usize) -> Vec<String> {
     }
 }
 
-fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String) {
+fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String) -> ContentPosition {
+    let text_len = text.chars().count();
     if lines.is_empty() || position.y >= lines.len() {
         lines.push(text);
-        return;
+        return ContentPosition::new(text_len, lines.len().saturating_sub(1));
     }
 
     if lines.len() == 1 && lines[0].is_empty() {
         lines[0] = text;
-        return;
+        return ContentPosition::new(text_len, 0);
     }
 
     if let Some(line) = lines.get_mut(position.y) {
         if let Some(x) = char_to_index(line, position.x) {
             line.insert_str(x, &text);
-        } else {
-            line.push_str(&text);
+            return ContentPosition::new(x + text_len, position.y);
         }
+
+        line.push_str(&text);
+        return ContentPosition::new(line.chars().count(), position.y);
     }
+
+    position
 }
 
-fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Vec<String>) {
+fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Vec<String>) -> ContentPosition {
     if lines.is_empty() || (lines.len() == 1 && lines[0].is_empty()) {
         *lines = text;
-        return;
+        return get_end_position(lines);
     }
 
     if position.y >= lines.len() {
         lines.append(&mut text);
-        return;
+        return get_end_position(lines);
     }
 
     let first_line = text.swap_remove(0);
     let mut middle_lines = if text.len() > 1 { text.split_off(1) } else { Vec::default() };
     let last_line = text.swap_remove(0);
+    let last_line_len = last_line.chars().count();
     let insert_at = position.y + 1;
 
     let last_line = if let Some(x) = char_to_index(&lines[position.y], position.x) {
@@ -321,6 +327,9 @@ fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Ve
         lines[position.y].push_str(&first_line);
         rest.insert_str(0, &last_line);
         rest
+    } else if lines[position.y].chars().count() == position.x {
+        lines[position.y].push_str(&first_line);
+        last_line
     } else {
         last_line
     };
@@ -328,8 +337,18 @@ fn insert_lines(lines: &mut Vec<String>, position: ContentPosition, mut text: Ve
     middle_lines.push(last_line);
 
     if insert_at < lines.len() {
+        let new_y = insert_at + middle_lines.len().saturating_sub(1);
         lines.splice(insert_at..insert_at, middle_lines);
+        ContentPosition::new(last_line_len, new_y)
     } else {
         lines.append(&mut middle_lines);
+        ContentPosition::new(last_line_len, lines.len().saturating_sub(1))
     }
+}
+
+fn get_end_position(lines: &[String]) -> ContentPosition {
+    ContentPosition::new(
+        lines.last().map(|l| l.chars().count()).unwrap_or_default(),
+        lines.len().saturating_sub(1),
+    )
 }

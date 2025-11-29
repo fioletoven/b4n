@@ -317,6 +317,35 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
+    pub fn insert_text(&mut self, text: Vec<String>, on_line_end: bool) {
+        if let Some(content) = &mut self.content {
+            if let Some(range) = self.select.get_selection() {
+                self.edit.cursor = range.start;
+                content.remove_text(range);
+            }
+
+            self.select.clear_selection();
+            let line_len = content.line_size(self.edit.cursor.y);
+            let new_pos = if on_line_end {
+                let pos = ContentPosition::new(line_len, self.edit.cursor.y);
+                content.insert_text(pos, text)
+            } else {
+                content.insert_text(self.edit.cursor, text)
+            };
+            self.edit.cursor = new_pos;
+        }
+    }
+
+    /// Returns text of the line under the cursor.\
+    /// **Note** that it works only in edit mode (when the cursor is visible).
+    pub fn get_current_line(&self) -> Option<&str> {
+        if self.edit.is_enabled {
+            self.content()?.line(self.edit.cursor.y)
+        } else {
+            None
+        }
+    }
+
     /// Returns currently visible lines.
     pub fn get_page_lines(&mut self) -> Vec<Line<'_>> {
         let start = self.page_start.y.clamp(0, self.max_vstart());
@@ -510,10 +539,10 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn disable_keys(&self, is_disabled: bool) {
-        self.app_data
-            .disable_key(KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL), is_disabled);
-        self.app_data
-            .disable_key(KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL), is_disabled);
+        for ch in ['x', 'c', 'v', 'd', 'y', 'z'] {
+            self.app_data
+                .disable_key(KeyCombination::new(KeyCode::Char(ch), KeyModifiers::CONTROL), is_disabled);
+        }
     }
 }
 

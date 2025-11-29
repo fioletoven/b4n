@@ -379,6 +379,9 @@ fn insert_lines(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &[
         lines[position.y].sl_push_str(first_line, styles);
         rest.sl_insert_str(0, last_line);
         rest
+    } else if lines[position.y].sl_chars_len() == position.x {
+        lines[position.y].sl_push_str(first_line, styles);
+        vec![(styles.fallback, last_line.to_owned())]
     } else {
         vec![(styles.fallback, last_line.to_owned())]
     };

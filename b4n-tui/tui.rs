@@ -90,8 +90,13 @@ impl TuiEvent {
         }
     }
 
+    /// Returns `true` if this event is a key event matching specified combination.
+    pub fn is_key(&self, combination: &KeyCombination) -> bool {
+        matches!(self, TuiEvent::Key(key) if key == combination)
+    }
+
     /// Returns `true` if this event is a mouse event of a specified kind.
-    pub fn is(&self, kind: MouseEventKind) -> bool {
+    pub fn is_mouse(&self, kind: MouseEventKind) -> bool {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind)
     }
 

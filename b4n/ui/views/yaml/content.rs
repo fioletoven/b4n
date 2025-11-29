@@ -197,9 +197,29 @@ impl YamlContent {
     }
 
     fn remove_text_internal(&mut self, range: &Selection) -> Vec<String> {
+        self.mark_line_as_modified(range.start.y);
+        self.mark_line_as_modified(range.end.y);
         self.styled.remove_text(range);
         self.lowercase.remove_text(range);
         self.plain.remove_text(range)
+    }
+
+    fn insert_text_internal(&mut self, position: ContentPosition, text: Vec<String>) -> ContentPosition {
+        self.mark_line_as_modified(position.y);
+        self.mark_line_as_modified(position.y + text.len());
+        self.styled.insert_text(position, &text, &self.fallback);
+        self.lowercase
+            .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
+        self.plain.insert_text(position, text)
+    }
+
+    fn move_position_left(&self, position: ContentPosition) -> ContentPosition {
+        if position.x == 0 && position.y > 0 {
+            let new_y = position.y.saturating_sub(1);
+            ContentPosition::new(self.plain[new_y].chars().count(), new_y)
+        } else {
+            ContentPosition::new(position.x.saturating_sub(1), position.y)
+        }
     }
 }
 
@@ -274,6 +294,10 @@ impl Content for YamlContent {
         self.max_size + 1
     }
 
+    fn line(&self, line_no: usize) -> Option<&str> {
+        self.plain.get(line_no).map(String::as_str)
+    }
+
     fn line_size(&self, line_no: usize) -> usize {
         self.plain.get(line_no).map(|l| l.chars().count()).unwrap_or_default()
     }
@@ -302,13 +326,12 @@ impl Content for YamlContent {
         self.insert_char_internal(position, ch);
     }
 
-    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) {
-        self.mark_line_as_modified(position.y);
-        self.mark_line_as_modified(position.y + text.len());
-        self.styled.insert_text(position, &text, &self.fallback);
-        self.lowercase
-            .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
-        self.plain.insert_text(position, text);
+    fn insert_text(&mut self, position: ContentPosition, text: Vec<String>) -> ContentPosition {
+        self.redo.clear();
+        let end = self.insert_text_internal(position, text);
+        self.undo
+            .push(Undo::paste(&Selection::new(position, self.move_position_left(end))));
+        end
     }
 
     fn remove_char(&mut self, position: ContentPosition, is_backspace: bool) -> Option<ContentPosition> {
@@ -317,11 +340,9 @@ impl Content for YamlContent {
     }
 
     fn remove_text(&mut self, range: Selection) {
-        self.mark_line_as_modified(range.start.y);
-        self.mark_line_as_modified(range.end.y);
         let removed = self.remove_text_internal(&range);
         self.redo.clear();
-        self.undo.push(Undo::cut(range, removed));
+        self.undo.push(Undo::cut(&range, removed));
     }
 
     fn undo(&mut self) -> Option<ContentPosition> {
@@ -349,9 +370,16 @@ impl Content for YamlContent {
                     if let Some(end) = action.end {
                         let text = action.text.take();
                         if let Some(text) = text {
-                            self.insert_text(action.pos, text);
+                            self.insert_text_internal(action.pos, text);
                             result = Some(ContentPosition { x: end.x + 1, y: end.y });
                         }
+                    }
+                },
+                UndoMode::Paste => {
+                    if let Some(end) = action.end {
+                        let range = Selection::new(action.pos, end);
+                        action.text = Some(self.remove_text_internal(&range));
+                        result = Some(action.pos);
                     }
                 },
             }
@@ -385,6 +413,15 @@ impl Content for YamlContent {
                         let range = Selection::new(action.pos, end);
                         action.text = Some(self.remove_text_internal(&range));
                         result = Some(action.pos);
+                    }
+                },
+                UndoMode::Paste => {
+                    if let Some(end) = action.end {
+                        let text = action.text.take();
+                        if let Some(text) = text {
+                            self.insert_text_internal(action.pos, text);
+                            result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                        }
                     }
                 },
             }

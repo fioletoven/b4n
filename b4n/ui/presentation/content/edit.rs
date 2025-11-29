@@ -2,6 +2,7 @@ use b4n_config::{keys::KeyCombination, themes::TextColors};
 use b4n_tui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Position, Rect};
+use ratatui::style::Color;
 use ratatui::widgets::Widget;
 use std::time::Instant;
 
@@ -72,7 +73,7 @@ impl EditContext {
                 } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
                     content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
                 } else {
-                    self.process_key(key.code, content, selection, area)
+                    self.process_key(key, content, selection, area)
                 };
                 self.update_cursor_position(pos, content, false);
                 self.last_key_press = Instant::now();
@@ -96,24 +97,37 @@ impl EditContext {
 
     fn process_key<T: Content>(
         &mut self,
-        key: KeyCode,
+        key: &KeyCombination,
         content: &mut T,
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        if is_content_modifying_key(key)
+        let is_ctrl_x = key == &KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
+        if (is_hiding_selection_key(key) || is_ctrl_x)
             && let Some(selection) = selection
         {
             let start = selection.sorted().0;
             content.remove_text(selection);
 
-            if key == KeyCode::Backspace || key == KeyCode::Delete {
+            if key.code == KeyCode::Backspace || key.code == KeyCode::Delete || is_ctrl_x {
                 return (Some(Some(start.x)), Some(start.y));
             }
 
             self.cursor = start;
         }
 
+        let is_ctrl_d = key == &KeyCombination::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+        if is_ctrl_x || is_ctrl_d {
+            let start = ContentPosition::new(0, self.cursor.y);
+            let range = Selection::new(start, ContentPosition::new(content.line_size(start.y), start.y));
+            content.remove_text(range);
+            return (Some(Some(start.x)), Some(start.y));
+        }
+
+        self.process_key_code(key.code, content, area)
+    }
+
+    fn process_key_code<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {
         let mut x_changed = None;
         let mut y_changed = None;
 
@@ -234,9 +248,9 @@ impl EditContext {
     }
 }
 
-fn is_content_modifying_key(key: KeyCode) -> bool {
+fn is_hiding_selection_key(key: &KeyCombination) -> bool {
     matches!(
-        key,
+        key.code,
         KeyCode::Char(_) | KeyCode::Tab | KeyCode::Enter | KeyCode::Backspace | KeyCode::Delete
     )
 }
@@ -289,8 +303,10 @@ impl Widget for ContentEditWidget<'_> {
             if area.contains(cursor)
                 && let Some(cell) = buf.cell_mut(cursor)
             {
-                cell.fg = self.context.color.fg;
                 cell.bg = self.context.color.bg;
+                if self.context.color.fg != Color::Reset {
+                    cell.fg = self.context.color.fg;
+                }
             }
         }
     }

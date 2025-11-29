@@ -76,7 +76,7 @@ impl SelectContext {
     ) {
         match event {
             TuiEvent::Key(key) => self.process_key_event(key, cursor),
-            TuiEvent::Mouse(mouse) => self.process_mouse_event(mouse, content, page_start, area),
+            TuiEvent::Mouse(mouse) => self.process_mouse_event(*mouse, content, page_start, area),
         }
     }
 
@@ -125,7 +125,7 @@ impl SelectContext {
 
     fn process_mouse_event<T: Content>(
         &mut self,
-        mouse: &MouseEvent,
+        mouse: MouseEvent,
         content: &mut T,
         page_start: &mut ContentPosition,
         area: Rect,
