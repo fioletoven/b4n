@@ -317,6 +317,20 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
+    pub fn insert_text(&mut self, text: Vec<String>, on_line_end: bool) {
+        if let Some(content) = &mut self.content {
+            let line_len = content.line_size(self.edit.cursor.y);
+            if on_line_end {
+                let pos = ContentPosition::new(line_len, self.edit.cursor.y);
+                content.insert_text(pos, text);
+            } else {
+                content.insert_text(self.edit.cursor, text);
+            }
+
+            // TODO: move cursor
+        }
+    }
+
     /// Returns text of the line under the cursor.\
     /// **Note** that it works only in edit mode (when the cursor is visible).
     pub fn get_current_line(&self) -> Option<&str> {
@@ -520,7 +534,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn disable_keys(&self, is_disabled: bool) {
-        for ch in ['x', 'c', 'v', 'y', 'z'] {
+        for ch in ['x', 'c', 'v', 'd', 'y', 'z'] {
             self.app_data
                 .disable_key(KeyCombination::new(KeyCode::Char(ch), KeyModifiers::CONTROL), is_disabled);
         }

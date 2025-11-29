@@ -116,17 +116,22 @@ impl EditContext {
             self.cursor = start;
         }
 
-        if is_ctrl_x {
+        let is_ctrl_d = key == &KeyCombination::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+        if is_ctrl_x || is_ctrl_d {
             let start = ContentPosition::new(0, self.cursor.y);
             let range = Selection::new(start, ContentPosition::new(content.line_size(start.y), start.y));
             content.remove_text(range);
             return (Some(Some(start.x)), Some(start.y));
         }
 
+        self.process_key_code(key.code, content, area)
+    }
+
+    fn process_key_code<T: Content>(&mut self, key: KeyCode, content: &mut T, area: Rect) -> NewCursorPosition {
         let mut x_changed = None;
         let mut y_changed = None;
 
-        match key.code {
+        match key {
             // insert character
             KeyCode::Char(c) => {
                 content.insert_char(self.cursor, c);
