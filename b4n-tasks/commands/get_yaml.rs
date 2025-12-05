@@ -61,6 +61,7 @@ pub struct GetResourceYamlCommand {
     client: Option<Client>,
     highlighter: UnboundedSender<HighlightRequest>,
     decode: bool,
+    sanitize: bool,
 }
 
 impl GetResourceYamlCommand {
@@ -81,11 +82,12 @@ impl GetResourceYamlCommand {
             client: Some(client),
             highlighter,
             decode: false,
+            sanitize: false,
         }
     }
 
     /// Creates new [`GetResourceYamlCommand`] instance that will try to decode secret's data.
-    pub fn decode(
+    pub fn decoded(
         name: String,
         namespace: Namespace,
         kind: Kind,
@@ -96,6 +98,20 @@ impl GetResourceYamlCommand {
         let decode = kind.as_str() == SECRETS;
         let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, highlighter);
         command.decode = decode;
+        command
+    }
+
+    /// Creates new [`GetResourceYamlCommand`] instance that will sanitize fetched resource.
+    pub fn sanitized(
+        name: String,
+        namespace: Namespace,
+        kind: Kind,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        client: Client,
+        highlighter: UnboundedSender<HighlightRequest>,
+    ) -> Self {
+        let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, highlighter);
+        command.sanitize = true;
         command
     }
 
@@ -129,6 +145,10 @@ impl GetResourceYamlCommand {
     ) -> Result<ResourceYamlResult, ResourceYamlError> {
         if self.decode {
             decode_secret_data(&mut resource)?;
+        }
+
+        if self.sanitize {
+            sanitize(&mut resource);
         }
 
         let yaml = b4n_kube::utils::serialize_resource(&mut resource)?;
@@ -170,4 +190,20 @@ fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
     }
 
     Ok(())
+}
+
+fn sanitize(resource: &mut DynamicObject) {
+    resource.metadata.creation_timestamp = None;
+    resource.metadata.deletion_grace_period_seconds = None;
+    resource.metadata.deletion_timestamp = None;
+    resource.metadata.generate_name = None;
+    resource.metadata.generation = None;
+    resource.metadata.managed_fields = None;
+    resource.metadata.owner_references = None;
+    resource.metadata.resource_version = None;
+    resource.metadata.self_link = None;
+    resource.metadata.uid = None;
+    if let Value::Object(map) = &mut resource.data {
+        map.remove("status");
+    }
 }

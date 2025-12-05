@@ -351,7 +351,7 @@ impl BgWorker {
         {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = if decode {
-                GetResourceYamlCommand::decode(name, namespace, kind.clone(), discovery, client.get_client(), sender)
+                GetResourceYamlCommand::decoded(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             } else {
                 GetResourceYamlCommand::new(name, namespace, kind.clone(), discovery, client.get_client(), sender)
             };
