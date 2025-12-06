@@ -9,6 +9,7 @@ pub use self::list_contexts::ListKubeContextsCommand;
 pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
 pub use self::new_kubernetes_client::{KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
+pub use self::new_yaml::{NewResourceYamlCommand, NewResourceYamlError, NewResourceYamlResult};
 pub use self::save_configuration::SaveConfigurationCommand;
 pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResourceYamlError};
 
@@ -18,6 +19,7 @@ mod list_contexts;
 mod list_resource_ports;
 mod list_themes;
 mod new_kubernetes_client;
+mod new_yaml;
 mod save_configuration;
 mod set_yaml;
 
@@ -30,6 +32,7 @@ pub enum Command {
     SaveConfig(Box<SaveConfigurationCommand<Config>>),
     SaveHistory(Box<SaveConfigurationCommand<History>>),
     DeleteResource(Box<DeleteResourcesCommand>),
+    NewYaml(Box<NewResourceYamlCommand>),
     GetYaml(Box<GetResourceYamlCommand>),
     SetYaml(Box<SetResourceYamlCommand>),
 }
@@ -40,6 +43,7 @@ pub enum CommandResult {
     ResourcePortsList(Vec<Port>),
     ThemesList(Vec<PathBuf>),
     KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
+    NewResourceYaml(Result<NewResourceYamlResult, NewResourceYamlError>),
     GetResourceYaml(Result<ResourceYamlResult, ResourceYamlError>),
     SetResourceYaml(Result<String, SetResourceYamlError>),
 }

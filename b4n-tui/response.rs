@@ -71,6 +71,7 @@ pub enum ResponseEvent {
     AskDeleteResources,
     DeleteResources(bool, bool),
 
+    NewYaml(ResourceRef),
     ViewYaml(ResourceRef, bool),
     ViewLogs(ResourceRef),
     ViewPreviousLogs(ResourceRef),

@@ -257,6 +257,7 @@ dependencies = [
  "b4n-config",
  "b4n-kube",
  "base64",
+ "http",
  "k8s-openapi",
  "kube",
  "ratatui",

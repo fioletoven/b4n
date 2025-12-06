@@ -1,4 +1,5 @@
 use b4n_config::{SyntaxData, themes::from_syntect_color};
+use kube::api::DynamicObject;
 use ratatui::style::Style;
 use std::thread::JoinHandle;
 use syntect::{easy::HighlightLines, parsing::SyntaxSet};
@@ -135,4 +136,46 @@ fn convert_style(style: syntect::highlighting::Style) -> Style {
     Style::default()
         .fg(from_syntect_color(style.foreground))
         .bg(from_syntect_color(style.background))
+}
+
+/// Possible errors from highlighting kubernetes resource.
+#[derive(thiserror::Error, Debug)]
+pub enum HighlightResourceError {
+    /// Cannot serialize resource's YAML.
+    #[error("cannot serialize resource's YAML")]
+    SerializationError(#[from] serde_yaml::Error),
+
+    /// Cannot send syntax highlight request to the highlighter thread.
+    #[error("cannot send syntax highlight request")]
+    CannotSendRequest(#[from] tokio::sync::mpsc::error::SendError<HighlightRequest>),
+
+    /// Cannot receive syntax highlight request from the highlighter thread.
+    #[error("cannot receive syntax highlight request")]
+    CannotRecvResponse(#[from] tokio::sync::oneshot::error::RecvError),
+
+    /// Cannot highlight provided data.
+    #[error("cannot highlight provided data")]
+    HighlighterError(#[from] HighlightError),
+}
+
+/// Sends DynamicObject to the specified background highlighter.
+pub async fn highlight_resource(
+    highlighter: &UnboundedSender<HighlightRequest>,
+    mut resource: DynamicObject,
+) -> Result<HighlightResponse, HighlightResourceError> {
+    let yaml = b4n_kube::utils::serialize_resource(&mut resource)?;
+    highlight_yaml(highlighter, yaml).await
+}
+
+/// Sends YAML string to the specified background highlighter.
+pub async fn highlight_yaml(
+    highlighter: &UnboundedSender<HighlightRequest>,
+    yaml: String,
+) -> Result<HighlightResponse, HighlightResourceError> {
+    let lines = yaml.lines().map(String::from).collect::<Vec<_>>();
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    highlighter.send(HighlightRequest::Full { lines, response: tx })?;
+
+    rx.await?.map_err(Into::into)
 }

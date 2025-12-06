@@ -7,7 +7,7 @@ use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{HighlightError, HighlightRequest, commands::CommandResult};
+use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, highlight_resource};
 
 /// Possible errors from fetching or styling resource's YAML.
 #[derive(thiserror::Error, Debug)]
@@ -20,25 +20,13 @@ pub enum ResourceYamlError {
     #[error("unable to retrieve the resource's YAML")]
     GetYamlError(#[from] kube::Error),
 
-    /// Cannot serialize resource's YAML.
-    #[error("cannot serialize resource's YAML")]
-    SerializationError(#[from] serde_yaml::Error),
-
-    /// Cannot send syntax highlight request to the highlighter thread.
-    #[error("cannot send syntax highlight request")]
-    CannotSendRequest(#[from] tokio::sync::mpsc::error::SendError<HighlightRequest>),
-
-    /// Cannot send syntax highlight request to the highlighter thread.
-    #[error("cannot send syntax highlight request")]
-    CannotRecvResponse(#[from] tokio::sync::oneshot::error::RecvError),
-
     /// Cannot decode resource's data.
     #[error("cannot decode resource's data")]
     SecretDecodeError(#[from] DecodeError),
 
     /// Cannot highlight provided data.
     #[error("cannot highlight provided data")]
-    HighlighterError(#[from] HighlightError),
+    HighlighterError(#[from] HighlightResourceError),
 }
 
 /// Result for the [`GetResourceYamlCommand`] command.
@@ -151,19 +139,7 @@ impl GetResourceYamlCommand {
             sanitize(&mut resource);
         }
 
-        let yaml = b4n_kube::utils::serialize_resource(&mut resource)?;
-        let mut plain = yaml.split('\n').map(String::from).collect::<Vec<_>>();
-        if yaml.ends_with('\n') {
-            plain.pop();
-        }
-
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        self.highlighter.send(HighlightRequest::Full {
-            lines: plain,
-            response: tx,
-        })?;
-
-        match rx.await? {
+        match highlight_resource(&self.highlighter, resource).await {
             Ok(response) => Ok(ResourceYamlResult {
                 name: self.name,
                 namespace: self.namespace,

@@ -96,6 +96,7 @@ async fn run_command(command: Command) -> Option<CommandResult> {
         Command::SaveConfig(command) => command.execute().await,
         Command::SaveHistory(command) => command.execute().await,
         Command::DeleteResource(command) => command.execute().await,
+        Command::NewYaml(command) => command.execute().await,
         Command::GetYaml(command) => command.execute().await,
         Command::SetYaml(command) => command.execute().await,
     }
