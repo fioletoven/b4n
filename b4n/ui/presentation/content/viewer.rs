@@ -551,7 +551,7 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn disable_keys(&self, is_disabled: bool) {
-        for ch in ['x', 'c', 'v', 'd', 'y', 'z'] {
+        for ch in ['x', 'c', 'v', 'd', 'a', 'y', 'z'] {
             self.app_data
                 .disable_key(KeyCombination::new(KeyCode::Char(ch), KeyModifiers::CONTROL), is_disabled);
         }

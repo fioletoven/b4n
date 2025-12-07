@@ -66,6 +66,13 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> ResponseEvent {
+        if event.is_key(&KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL)) {
+            let last = content.len().saturating_sub(1);
+            self.cursor = ContentPosition::new(content.line_size(last), last);
+            self.last_key_press = Instant::now();
+            return ResponseEvent::Handled;
+        }
+
         match event {
             TuiEvent::Key(key) => {
                 let pos = if key == &KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL) {

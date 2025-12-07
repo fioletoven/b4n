@@ -1,6 +1,5 @@
+use b4n_kube::utils::encode_secret_data;
 use b4n_kube::{Namespace, SECRETS};
-use base64::{Engine, engine};
-use k8s_openapi::serde_json::Value;
 use kube::api::{ApiResource, DynamicObject, Patch, PatchParams};
 use kube::discovery::{ApiCapabilities, verbs};
 use kube::{Api, Client};
@@ -128,17 +127,5 @@ impl SetResourceYamlCommand {
             })?;
 
         Ok(self.name)
-    }
-}
-
-fn encode_secret_data(resource: &mut DynamicObject) {
-    if resource.data.get("data").is_some_and(Value::is_object) {
-        let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let encoded = engine.encode(data.as_bytes());
-                *data = encoded;
-            }
-        }
     }
 }

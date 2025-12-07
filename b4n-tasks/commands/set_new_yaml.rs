@@ -1,6 +1,5 @@
 use b4n_kube::Namespace;
-use base64::{Engine, engine};
-use k8s_openapi::serde_json::Value;
+use b4n_kube::utils::encode_secret_data;
 use kube::api::DynamicObject;
 use kube::api::PostParams;
 use kube::core::GroupVersionKind;
@@ -95,17 +94,5 @@ impl SetNewResourceYamlCommand {
         }
 
         Err(SetNewResourceYamlError::ResourceNotFound)
-    }
-}
-
-fn encode_secret_data(resource: &mut DynamicObject) {
-    if resource.data.get("data").is_some_and(Value::is_object) {
-        let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let encoded = engine.encode(data.as_bytes());
-                *data = encoded;
-            }
-        }
     }
 }

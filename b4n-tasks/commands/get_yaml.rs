@@ -1,5 +1,5 @@
+use b4n_kube::utils::decode_secret_data;
 use b4n_kube::{Kind, Namespace, SECRETS};
-use base64::{DecodeError, Engine, engine};
 use k8s_openapi::serde_json::Value;
 use kube::Client;
 use kube::api::{ApiResource, DynamicObject};
@@ -23,7 +23,7 @@ pub enum ResourceYamlError {
 
     /// Cannot decode resource's data.
     #[error("cannot decode resource's data")]
-    SecretDecodeError(#[from] DecodeError),
+    SecretDecodeError,
 
     /// Cannot highlight provided data.
     #[error("cannot highlight provided data")]
@@ -149,7 +149,7 @@ impl GetResourceYamlCommand {
         cap: &ApiCapabilities,
     ) -> Result<ResourceYamlResult, ResourceYamlError> {
         if self.decode {
-            decode_secret_data(&mut resource)?;
+            decode_secret_data(&mut resource).map_err(|_| ResourceYamlError::SecretDecodeError)?;
         }
 
         if self.sanitize {
@@ -169,20 +169,6 @@ impl GetResourceYamlCommand {
             Err(err) => Err(err.into()),
         }
     }
-}
-
-fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
-    if resource.data.get("data").is_some_and(Value::is_object) {
-        let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let decoded_bytes = engine.decode(&data)?;
-                *data = String::from_utf8_lossy(&decoded_bytes).to_string();
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn sanitize(resource: &mut DynamicObject) {

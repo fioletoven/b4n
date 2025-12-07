@@ -229,6 +229,7 @@ name = "b4n-kube"
 version = "0.3.2"
 dependencies = [
  "b4n-common",
+ "base64",
  "delegate",
  "futures",
  "k8s-openapi",
@@ -256,7 +257,6 @@ dependencies = [
  "b4n-common",
  "b4n-config",
  "b4n-kube",
- "base64",
  "http",
  "k8s-openapi",
  "kube",
