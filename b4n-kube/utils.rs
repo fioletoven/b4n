@@ -74,6 +74,18 @@ pub fn get_match_labels(object: &DynamicObject) -> Box<[String]> {
     }
 }
 
+/// Deserializes just kind from the provided YAML.
+pub fn deserialize_kind(yaml: &[String]) -> Option<String> {
+    for line in yaml {
+        if line.starts_with("kind:") {
+            let v = serde_yaml::from_str::<Value>(line).ok()?;
+            return v.get("kind").and_then(|k| k.as_str()).map(String::from);
+        }
+    }
+
+    None
+}
+
 /// Gets first matching plural resource name for the specified `kind`.
 pub fn get_plural<'a>(list: Option<&'a DiscoveryList>, kind: &Kind) -> Option<&'a str> {
     if let Some(resource) = get_resource_internal(list, kind) {

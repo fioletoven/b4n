@@ -3,7 +3,8 @@ use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
 use b4n_tasks::commands::{
-    CommandResult, NewResourceYamlError, NewResourceYamlResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError,
+    CommandResult, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError, ResourceYamlResult,
+    SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
@@ -371,18 +372,23 @@ impl ViewsManager {
     }
 
     /// Shows returned resource's template YAML in an already opened YAML view.
-    pub fn new_yaml_result(&mut self, command_id: &str, result: Result<NewResourceYamlResult, NewResourceYamlError>) {
-        self.handle_yaml_result(command_id, result, CommandResult::NewResourceYaml, "New YAML error", true);
+    pub fn new_yaml_result(&mut self, command_id: &str, result: Result<GetNewResourceYamlResult, GetNewResourceYamlError>) {
+        self.handle_yaml_result(command_id, result, CommandResult::GetNewResourceYaml, "New YAML", true);
     }
 
     /// Shows returned resource's YAML in an already opened YAML view.
     pub fn show_yaml_result(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
-        self.handle_yaml_result(command_id, result, CommandResult::GetResourceYaml, "View YAML error", true);
+        self.handle_yaml_result(command_id, result, CommandResult::GetResourceYaml, "View YAML", true);
+    }
+
+    /// Process YAML patch result.
+    pub fn create_yaml_result(&mut self, command_id: &str, result: Result<String, SetNewResourceYamlError>) {
+        self.handle_yaml_result(command_id, result, CommandResult::SetNewResourceYaml, "Create YAML", false);
     }
 
     /// Process YAML patch result.
     pub fn edit_yaml_result(&mut self, command_id: &str, result: Result<String, SetResourceYamlError>) {
-        self.handle_yaml_result(command_id, result, CommandResult::SetResourceYaml, "Patch YAML error", false);
+        self.handle_yaml_result(command_id, result, CommandResult::SetResourceYaml, "Patch YAML", false);
     }
 
     fn handle_yaml_result<R, E, F>(&mut self, command_id: &str, result: Result<R, E>, wrap: F, error_msg: &str, close: bool)
@@ -395,7 +401,7 @@ impl ViewsManager {
         }
 
         if let Err(error) = result {
-            let msg = format!("{error_msg}: {error}");
+            let msg = format!("{error_msg} error: {error}");
             tracing::warn!("{}", msg);
             self.footer.transmitter().show_error(msg, 0);
             if close {

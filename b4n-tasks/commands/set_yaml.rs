@@ -58,6 +58,7 @@ pub struct SetResourceYamlCommand {
     action: SetResourceYamlAction,
     discovery: Option<(ApiResource, ApiCapabilities)>,
     client: Option<Client>,
+    encode: bool,
 }
 
 impl SetResourceYamlCommand {
@@ -67,6 +68,7 @@ impl SetResourceYamlCommand {
         namespace: Namespace,
         yaml: String,
         action: SetResourceYamlAction,
+        encode: bool,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
     ) -> Self {
@@ -77,6 +79,7 @@ impl SetResourceYamlCommand {
             action,
             discovery,
             client: Some(client),
+            encode,
         }
     }
 
@@ -94,9 +97,9 @@ impl SetResourceYamlCommand {
             self.namespace.is_all(),
         );
 
-        let is_secret = discovery.0.plural == SECRETS;
+        let encode = discovery.0.plural == SECRETS && self.encode;
 
-        Some(CommandResult::SetResourceYaml(self.save_yaml(client, is_secret).await))
+        Some(CommandResult::SetResourceYaml(self.save_yaml(client, encode).await))
     }
 
     async fn save_yaml(self, api: Api<DynamicObject>, encode: bool) -> Result<String, SetResourceYamlError> {

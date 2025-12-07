@@ -356,18 +356,20 @@ impl ResourcesView {
         }
 
         if !is_containers && !is_events {
-            builder = builder
-                .with_action(
-                    ActionItem::new("show events")
-                        .with_description("shows events for the selected resource")
-                        .with_response(ResponseEvent::Action("show_events")),
-                )
-                .with_action(
+            builder = builder.with_action(
+                ActionItem::new("show events")
+                    .with_description("shows events for the selected resource")
+                    .with_response(ResponseEvent::Action("show_events")),
+            );
+
+            if self.table.list.table.data.is_creatable {
+                builder = builder.with_action(
                     ActionItem::new("create")
                         .with_description("creates new Kubernetes resource")
                         .with_aliases(&["new"])
                         .with_response(ResponseEvent::Action("create")),
-                );
+                )
+            }
         }
 
         if let Some(resource) = self.table.list.table.get_highlighted_resource()
@@ -421,7 +423,7 @@ impl ResourcesView {
     }
 
     fn show_create_resource_palette(&mut self) {
-        if self.kind_plural() == CONTAINERS || self.kind_plural() == EVENTS {
+        if self.kind_plural() == CONTAINERS || self.kind_plural() == EVENTS || !self.table.list.table.data.is_creatable {
             return;
         }
 

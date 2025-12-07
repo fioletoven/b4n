@@ -9,7 +9,7 @@ use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, h
 
 /// Errors that may occur while fetching or styling a resource's YAML template.
 #[derive(thiserror::Error, Debug)]
-pub enum NewResourceYamlError {
+pub enum GetNewResourceYamlError {
     /// Cannot fetch OpenAPI resource schemas.
     #[error("cannot fetch OpenAPI resource schemas")]
     OpenApiRequest(#[from] kube::Error),
@@ -33,7 +33,7 @@ pub enum NewResourceYamlError {
 
 /// Result of generating YAML for a resource.
 #[derive(Debug)]
-pub struct NewResourceYamlResult {
+pub struct GetNewResourceYamlResult {
     pub namespace: Namespace,
     pub kind: Kind,
     pub yaml: Vec<String>,
@@ -41,7 +41,7 @@ pub struct NewResourceYamlResult {
 }
 
 /// Command for generating a YAML template for a Kubernetes resource.
-pub struct NewResourceYamlCommand {
+pub struct GetNewResourceYamlCommand {
     namespace: Namespace,
     kind: Kind,
     discovery: Option<(ApiResource, ApiCapabilities)>,
@@ -50,7 +50,7 @@ pub struct NewResourceYamlCommand {
     required_only: bool,
 }
 
-impl NewResourceYamlCommand {
+impl GetNewResourceYamlCommand {
     /// Creates a new command instance.
     pub fn new(
         namespace: Namespace,
@@ -83,12 +83,12 @@ impl NewResourceYamlCommand {
         }
         .await;
 
-        Some(CommandResult::NewResourceYaml(result))
+        Some(CommandResult::GetNewResourceYaml(result))
     }
 
-    async fn style_yaml(&self, yaml: String) -> Result<NewResourceYamlResult, NewResourceYamlError> {
+    async fn style_yaml(&self, yaml: String) -> Result<GetNewResourceYamlResult, GetNewResourceYamlError> {
         match highlight_yaml(&self.highlighter, yaml).await {
-            Ok(resp) => Ok(NewResourceYamlResult {
+            Ok(resp) => Ok(GetNewResourceYamlResult {
                 namespace: self.namespace.clone(),
                 kind: self.kind.clone(),
                 yaml: resp.plain,
@@ -99,7 +99,7 @@ impl NewResourceYamlCommand {
     }
 }
 
-async fn get_resource_schema(client: &Client, resource: &ApiResource) -> Result<(Value, Value), NewResourceYamlError> {
+async fn get_resource_schema(client: &Client, resource: &ApiResource) -> Result<(Value, Value), GetNewResourceYamlError> {
     if let Ok((root, schema)) = get_builtin_schema(client, resource).await {
         return Ok((root, schema));
     }
@@ -108,10 +108,10 @@ async fn get_resource_schema(client: &Client, resource: &ApiResource) -> Result<
         return Ok((Value::Null, schema));
     }
 
-    Err(NewResourceYamlError::SchemaNotFound)
+    Err(GetNewResourceYamlError::SchemaNotFound)
 }
 
-async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(Value, Value), NewResourceYamlError> {
+async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(Value, Value), GetNewResourceYamlError> {
     let path = if resource.group.is_empty() {
         format!("/openapi/v3/api/{}", resource.version)
     } else {
@@ -129,7 +129,7 @@ async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(
         .get_mut("components")
         .and_then(|c| c.get_mut("schemas"))
         .map(|v| v.take())
-        .ok_or(NewResourceYamlError::SchemaNotFound)?;
+        .ok_or(GetNewResourceYamlError::SchemaNotFound)?;
 
     let key = format!(
         "io.k8s.api.{}.{}.{}",
@@ -142,12 +142,12 @@ async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(
         .as_object()
         .and_then(|map| map.get(&key))
         .cloned()
-        .ok_or(NewResourceYamlError::SchemaNotFound)?;
+        .ok_or(GetNewResourceYamlError::SchemaNotFound)?;
 
     Ok((schemas, schema))
 }
 
-async fn get_crd_schema(client: &Client, res: &ApiResource) -> Result<Value, NewResourceYamlError> {
+async fn get_crd_schema(client: &Client, res: &ApiResource) -> Result<Value, GetNewResourceYamlError> {
     let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
 
     let crd_name = format!("{}.{}", res.plural, res.group);
@@ -161,7 +161,7 @@ async fn get_crd_schema(client: &Client, res: &ApiResource) -> Result<Value, New
         }
     }
 
-    Err(NewResourceYamlError::SchemaNotFound)
+    Err(GetNewResourceYamlError::SchemaNotFound)
 }
 
 fn build_resource(
@@ -171,7 +171,7 @@ fn build_resource(
     root: &Value,
     schema: &Value,
     required_only: bool,
-) -> Result<Value, NewResourceYamlError> {
+) -> Result<Value, GetNewResourceYamlError> {
     let mut new_resource = Map::new();
 
     let api_version = if res.group.is_empty() {

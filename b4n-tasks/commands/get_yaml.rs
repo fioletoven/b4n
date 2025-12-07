@@ -7,7 +7,7 @@ use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::commands::NewResourceYamlResult;
+use crate::commands::GetNewResourceYamlResult;
 use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, highlight_resource};
 
 /// Possible errors from fetching or styling resource's YAML.
@@ -41,8 +41,8 @@ pub struct ResourceYamlResult {
     pub is_editable: bool,
 }
 
-impl From<NewResourceYamlResult> for ResourceYamlResult {
-    fn from(value: NewResourceYamlResult) -> Self {
+impl From<GetNewResourceYamlResult> for ResourceYamlResult {
+    fn from(value: GetNewResourceYamlResult) -> Self {
         Self {
             name: String::new(),
             namespace: value.namespace,
@@ -104,7 +104,7 @@ impl GetResourceYamlCommand {
         command
     }
 
-    /// Creates new [`GetResourceYamlCommand`] instance that will sanitize fetched resource.
+    /// Creates new [`GetResourceYamlCommand`] instance that will decode and sanitize fetched resource.
     pub fn sanitized(
         name: String,
         namespace: Namespace,
@@ -113,8 +113,10 @@ impl GetResourceYamlCommand {
         client: Client,
         highlighter: UnboundedSender<HighlightRequest>,
     ) -> Self {
+        let decode = kind.name() == SECRETS;
         let mut command = GetResourceYamlCommand::new(name, namespace, kind, discovery, client, highlighter);
         command.sanitize = true;
+        command.decode = decode;
         command
     }
 

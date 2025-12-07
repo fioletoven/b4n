@@ -7,8 +7,8 @@ use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
-    Command, DeleteResourcesCommand, GetResourceYamlCommand, ListResourcePortsCommand, NewResourceYamlCommand,
-    SaveConfigurationCommand, SetResourceYamlAction, SetResourceYamlCommand,
+    Command, DeleteResourcesCommand, GetNewResourceYamlCommand, GetResourceYamlCommand, ListResourcePortsCommand,
+    SaveConfigurationCommand, SetNewResourceYamlCommand, SetResourceYamlAction, SetResourceYamlCommand,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -344,7 +344,7 @@ impl BgWorker {
         }
     }
 
-    /// Sends either a [`GetResourceYamlCommand`] or a [`NewResourceYamlCommand`] to the background executor.\
+    /// Sends either a [`GetResourceYamlCommand`] or a [`GetNewResourceYamlCommand`] to the background executor.\
     /// **Note** that the command that is sent depends on whether a resource `name` is provided. If it is provided
     /// it means that we would like to duplicate an existing resource, so we need to get sanitized YAML veraion
     /// for the resource.
@@ -356,8 +356,8 @@ impl BgWorker {
             let command = GetResourceYamlCommand::sanitized(name, namespace, kind, discovery, client.get_client(), sender);
             Command::GetYaml(Box::new(command))
         } else {
-            let command = NewResourceYamlCommand::new(namespace, kind, discovery, client.get_client(), sender, !is_full);
-            Command::NewYaml(Box::new(command))
+            let command = GetNewResourceYamlCommand::new(namespace, kind, discovery, client.get_client(), sender, !is_full);
+            Command::GetNewYaml(Box::new(command))
         };
 
         Some(self.executor.run_task(command))
@@ -380,6 +380,16 @@ impl BgWorker {
         }
     }
 
+    /// Sends [`SetNewResourceYamlCommand`] to the background executor.
+    pub fn set_new_yaml(&mut self, yaml: String, encode: bool) -> Option<String> {
+        if let Some(client) = &self.client {
+            let command = SetNewResourceYamlCommand::new(yaml, encode, client.get_client());
+            Some(self.executor.run_task(Command::SetNewYaml(Box::new(command))))
+        } else {
+            None
+        }
+    }
+
     /// Sends [`SetResourceYamlCommand`] to the background executor.
     pub fn set_yaml(
         &mut self,
@@ -388,10 +398,11 @@ impl BgWorker {
         kind: &Kind,
         yaml: String,
         action: SetResourceYamlAction,
+        encode: bool,
     ) -> Option<String> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
-            let command = SetResourceYamlCommand::new(name, namespace, yaml, action, discovery, client.get_client());
+            let command = SetResourceYamlCommand::new(name, namespace, yaml, action, encode, discovery, client.get_client());
             Some(self.executor.run_task(Command::SetYaml(Box::new(command))))
         } else {
             None

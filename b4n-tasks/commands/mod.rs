@@ -4,23 +4,25 @@ use kube::config::NamedContext;
 use std::path::PathBuf;
 
 pub use self::delete_resources::DeleteResourcesCommand;
+pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
 pub use self::list_contexts::ListKubeContextsCommand;
 pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
 pub use self::new_kubernetes_client::{KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
-pub use self::new_yaml::{NewResourceYamlCommand, NewResourceYamlError, NewResourceYamlResult};
 pub use self::save_configuration::SaveConfigurationCommand;
+pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError};
 pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResourceYamlError};
 
 mod delete_resources;
+mod get_new_yaml;
 mod get_yaml;
 mod list_contexts;
 mod list_resource_ports;
 mod list_themes;
 mod new_kubernetes_client;
-mod new_yaml;
 mod save_configuration;
+mod set_new_yaml;
 mod set_yaml;
 
 /// List of all possible commands for [`BgExecutor`](super::BgExecutor).
@@ -32,8 +34,9 @@ pub enum Command {
     SaveConfig(Box<SaveConfigurationCommand<Config>>),
     SaveHistory(Box<SaveConfigurationCommand<History>>),
     DeleteResource(Box<DeleteResourcesCommand>),
-    NewYaml(Box<NewResourceYamlCommand>),
+    GetNewYaml(Box<GetNewResourceYamlCommand>),
     GetYaml(Box<GetResourceYamlCommand>),
+    SetNewYaml(Box<SetNewResourceYamlCommand>),
     SetYaml(Box<SetResourceYamlCommand>),
 }
 
@@ -43,7 +46,8 @@ pub enum CommandResult {
     ResourcePortsList(Vec<Port>),
     ThemesList(Vec<PathBuf>),
     KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
-    NewResourceYaml(Result<NewResourceYamlResult, NewResourceYamlError>),
+    GetNewResourceYaml(Result<GetNewResourceYamlResult, GetNewResourceYamlError>),
     GetResourceYaml(Result<ResourceYamlResult, ResourceYamlError>),
+    SetNewResourceYaml(Result<String, SetNewResourceYamlError>),
     SetResourceYaml(Result<String, SetResourceYamlError>),
 }
