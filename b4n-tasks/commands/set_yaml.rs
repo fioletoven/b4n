@@ -1,6 +1,5 @@
+use b4n_kube::utils::encode_secret_data;
 use b4n_kube::{Namespace, SECRETS};
-use base64::{Engine, engine};
-use k8s_openapi::serde_json::Value;
 use kube::api::{ApiResource, DynamicObject, Patch, PatchParams};
 use kube::discovery::{ApiCapabilities, verbs};
 use kube::{Api, Client};
@@ -58,6 +57,7 @@ pub struct SetResourceYamlCommand {
     action: SetResourceYamlAction,
     discovery: Option<(ApiResource, ApiCapabilities)>,
     client: Option<Client>,
+    encode: bool,
 }
 
 impl SetResourceYamlCommand {
@@ -67,6 +67,7 @@ impl SetResourceYamlCommand {
         namespace: Namespace,
         yaml: String,
         action: SetResourceYamlAction,
+        encode: bool,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
     ) -> Self {
@@ -77,6 +78,7 @@ impl SetResourceYamlCommand {
             action,
             discovery,
             client: Some(client),
+            encode,
         }
     }
 
@@ -94,9 +96,9 @@ impl SetResourceYamlCommand {
             self.namespace.is_all(),
         );
 
-        let is_secret = discovery.0.plural == SECRETS;
+        let encode = discovery.0.plural == SECRETS && self.encode;
 
-        Some(CommandResult::SetResourceYaml(self.save_yaml(client, is_secret).await))
+        Some(CommandResult::SetResourceYaml(self.save_yaml(client, encode).await))
     }
 
     async fn save_yaml(self, api: Api<DynamicObject>, encode: bool) -> Result<String, SetResourceYamlError> {
@@ -125,17 +127,5 @@ impl SetResourceYamlCommand {
             })?;
 
         Ok(self.name)
-    }
-}
-
-fn encode_secret_data(resource: &mut DynamicObject) {
-    if resource.data.get("data").is_some_and(Value::is_object) {
-        let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let encoded = engine.encode(data.as_bytes());
-                *data = encoded;
-            }
-        }
     }
 }

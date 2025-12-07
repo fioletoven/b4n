@@ -92,16 +92,22 @@ impl<T: Table> Select<T> {
         self.items.filter(None);
     }
 
-    /// Highlights an item by name.
-    pub fn highlight(&mut self, selected_name: &str) {
+    /// Highlights first item.
+    pub fn highlight_first(&mut self) {
         self.items.filter(None);
-        self.items.highlight_item_by_name(selected_name);
+        self.items.highlight_first_item();
+    }
+
+    /// Highlights an item by name.
+    pub fn highlight(&mut self, name: &str) {
+        self.items.filter(None);
+        self.items.highlight_item_by_name(name);
     }
 
     /// Highlights an item by uid.
-    pub fn highlight_by_uid(&mut self, selected_uid: &str) {
+    pub fn highlight_by_uid(&mut self, uid: &str) {
         self.items.filter(None);
-        self.items.highlight_item_by_uid(selected_uid);
+        self.items.highlight_item_by_uid(uid);
     }
 
     /// Draws [`Select`] on the provided frame area.

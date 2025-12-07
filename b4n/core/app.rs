@@ -204,6 +204,7 @@ impl App {
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(force, detach) => self.views_manager.delete_resources(force, detach),
+            ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
             ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
             ResponseEvent::ViewLogs(container) => self.views_manager.show_logs(container, false),
             ResponseEvent::ViewPreviousLogs(container) => self.views_manager.show_logs(container, true),
@@ -222,7 +223,9 @@ impl App {
         for command in commands {
             match command.result {
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
+                CommandResult::GetNewResourceYaml(result) => self.views_manager.new_yaml_result(&command.id, result),
                 CommandResult::GetResourceYaml(result) => self.views_manager.show_yaml_result(&command.id, result),
+                CommandResult::SetNewResourceYaml(result) => self.views_manager.create_yaml_result(&command.id, result),
                 CommandResult::SetResourceYaml(result) => self.views_manager.edit_yaml_result(&command.id, result),
                 CommandResult::ContextsList(list) => self.views_manager.show_contexts_list(&list),
                 CommandResult::ThemesList(list) => self.views_manager.show_themes_list(list),
@@ -441,16 +444,28 @@ impl App {
         self.client_manager.request_new_client(context, kind, namespace);
     }
 
+    /// Sends command to fetch resource's YAML template to the background executor.
+    fn request_yaml_template(&mut self, resource: ResourceRef, is_full: bool) {
+        let command_id = self.worker.borrow_mut().get_yaml_template(
+            resource.name.clone(),
+            resource.namespace.clone(),
+            resource.kind.clone(),
+            is_full,
+        );
+
+        self.views_manager.show_yaml(command_id, resource, true);
+    }
+
     /// Sends command to fetch resource's YAML to the background executor.
     fn request_yaml(&mut self, resource: ResourceRef, decode: bool) {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.name.clone().unwrap_or_default(),
             resource.namespace.clone(),
-            &resource.kind,
+            resource.kind.clone(),
             decode,
         );
 
-        self.views_manager.show_yaml(command_id, resource);
+        self.views_manager.show_yaml(command_id, resource, false);
     }
 
     /// Creates port forward task for the specified resource.

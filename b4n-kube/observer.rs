@@ -68,6 +68,8 @@ pub struct InitData {
     pub scope: Scope,
     pub crd: Option<CrdColumns>,
     pub has_metrics: bool,
+    pub is_editable: bool,
+    pub is_creatable: bool,
 }
 
 impl Default for InitData {
@@ -82,13 +84,15 @@ impl Default for InitData {
             scope: Scope::Cluster,
             crd: None,
             has_metrics: false,
+            is_editable: false,
+            is_creatable: false,
         }
     }
 }
 
 impl InitData {
     /// Creates new initial data for [`ObserverResult`].
-    fn new(rt: &ResourceRef, ar: &ApiResource, scope: Scope, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
+    fn new(rt: &ResourceRef, ar: &ApiResource, cap: &ApiCapabilities, crd: Option<CrdColumns>, has_metrics: bool) -> Self {
         let kind = if rt.is_container() { "Container" } else { ar.kind.as_str() };
         let kind_plural = if rt.is_container() { CONTAINERS } else { ar.plural.as_str() };
         Self {
@@ -101,9 +105,11 @@ impl InitData {
             kind_plural: kind_plural.to_lowercase(),
             group: ar.group.clone(),
             version: ar.version.clone(),
-            scope,
+            scope: cap.scope.clone(),
             crd,
             has_metrics,
+            is_editable: cap.supports_operation(verbs::PATCH),
+            is_creatable: cap.supports_operation(verbs::CREATE),
         }
     }
 }
@@ -163,7 +169,7 @@ impl BgObserver {
         self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
 
-        let init_data = InitData::new(&self.resource, &ar, cap.scope.clone(), None, false);
+        let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
         let api_client = client.get_api(
             &ar,
             &cap,

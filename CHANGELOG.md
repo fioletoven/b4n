@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.3.3 - 2025-12-07
+
+### Features
+
+- add creation of new Kubernetes resources from YAML specifications
+- add support for CTRL+A in YAML view and in edit mode
+
 ## 0.3.2 - 2025-11-29
 
 ### Features

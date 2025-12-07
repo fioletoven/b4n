@@ -72,6 +72,13 @@ impl CommandPalette {
         self
     }
 
+    /// Selects first action from the last added step of the command palette.
+    pub fn with_first_selected(mut self) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.highlight_first();
+        self
+    }
+
     /// Sets closure that will be executed to generate [`ResponseEvent`] when all steps will be processed.
     pub fn with_response<F>(mut self, response: F) -> Self
     where

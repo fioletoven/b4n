@@ -1,7 +1,9 @@
 use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::{KeyCombination, KeyCommand};
+use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
-use b4n_tasks::commands::{CommandResult, SetResourceYamlAction};
+use b4n_tasks::commands::{CommandResult, ResourceYamlResult, SetResourceYamlAction};
+use b4n_tui::utils::get_terminal_size;
 use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -18,6 +20,7 @@ pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    is_new: bool,
     is_secret: bool,
     is_decoded: bool,
     command_id: Option<String>,
@@ -37,16 +40,19 @@ impl YamlView {
         command_id: Option<String>,
         resource: ResourceRef,
         footer: NotificationSink,
+        is_new: bool,
     ) -> Self {
         let select = app_data.borrow().theme.colors.syntax.yaml.select;
         let search = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;
-        let yaml = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
-            "YAML",
+        let name = if is_new { None } else { resource.name };
+        let area = ContentViewer::<YamlContent>::get_content_area(get_terminal_size());
+        let yaml = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
+            if is_new { "create new resource" } else { "YAML" },
             '',
             resource.namespace,
             resource.kind,
-            resource.name.unwrap_or_default(),
+            name,
             None,
         );
         let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
@@ -55,6 +61,7 @@ impl YamlView {
             yaml,
             app_data,
             worker,
+            is_new,
             is_secret,
             is_decoded: false,
             command_id,
@@ -154,9 +161,9 @@ impl YamlView {
         self.yaml.clear_selection();
         self.clear_search();
         self.command_id = self.worker.borrow_mut().get_yaml(
-            self.yaml.header.name.clone(),
+            self.yaml.header.name.as_deref().map(String::from).unwrap_or_default(),
             self.yaml.header.namespace.clone(),
-            &self.yaml.header.kind,
+            self.yaml.header.kind.clone(),
             !self.is_decoded,
         );
     }
@@ -211,9 +218,14 @@ impl YamlView {
         let response = self.modal.process_event(event);
         if response.is_action("apply") {
             let force = self.modal.input(0).is_some_and(|i| i.is_checked);
-            return self.save_yaml(true, force);
+            let disable_encoding = self.modal.input(1).is_some_and(|i| i.is_checked);
+            return self.save_yaml(true, force, disable_encoding);
         } else if response.is_action("patch") {
-            return self.save_yaml(false, false);
+            let disable_encoding = self.modal.input(1).is_some_and(|i| i.is_checked);
+            return self.save_yaml(false, false, disable_encoding);
+        } else if response.is_action("create") {
+            let disable_encoding = self.modal.input(0).is_some_and(|i| i.is_checked);
+            return self.create_resource(disable_encoding);
         }
 
         response
@@ -235,7 +247,42 @@ impl YamlView {
     }
 
     fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
+        if self.is_new {
+            self.new_save_new_dialog(response)
+        } else {
+            self.new_save_existing_dialog(response)
+        }
+    }
+
+    fn new_save_new_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
+        let inputs = if let Some(content) = self.yaml.content()
+            && deserialize_kind(&content.plain).is_some_and(|k| k == "Secret")
+        {
+            vec![CheckBox::new("Do not encode data fields", false, &colors.modal.checkbox)]
+        } else {
+            Vec::new()
+        };
+
+        Dialog::new(
+            "You have made changes to the new resource's YAML. Do you want to create it now?".to_owned(),
+            vec![
+                Button::new("Create", ResponseEvent::Action("create"), &colors.modal.btn_accent),
+                Button::new("Discard", response, &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
+        .with_inputs(inputs)
+    }
+
+    fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+        let mut inputs = vec![CheckBox::new("Force ownership (apply only)", false, &colors.modal.checkbox)];
+        if self.is_secret {
+            inputs.push(CheckBox::new("Do not encode data fields", false, &colors.modal.checkbox));
+        }
 
         Dialog::new(
             "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
@@ -248,26 +295,36 @@ impl YamlView {
             60,
             colors.modal.text,
         )
-        .with_inputs(vec![CheckBox::new(
-            "Force ownership (apply only)",
-            false,
-            &colors.modal.checkbox,
-        )])
+        .with_inputs(inputs)
     }
 
-    fn save_yaml(&mut self, is_apply: bool, is_forced: bool) -> ResponseEvent {
+    fn create_resource(&mut self, disable_encoding: bool) -> ResponseEvent {
         if let Some(yaml) = self.yaml.content() {
-            let name = self.yaml.header.name.clone();
+            let yaml = yaml.plain.join("\n");
+            let encode = self.is_secret && !disable_encoding;
+
+            self.command_id = self.worker.borrow_mut().set_new_yaml(yaml, encode);
+
+            ResponseEvent::Handled
+        } else {
+            ResponseEvent::Cancelled
+        }
+    }
+
+    fn save_yaml(&mut self, is_apply: bool, is_forced: bool, disable_encoding: bool) -> ResponseEvent {
+        if let Some(yaml) = self.yaml.content() {
+            let name = self.yaml.header.name.as_deref().map(String::from).unwrap_or_default();
             let namespace = self.yaml.header.namespace.clone();
             let kind = &self.yaml.header.kind;
             let yaml = yaml.plain.join("\n");
+            let encode = self.is_secret && !disable_encoding;
             let action = match (is_apply, is_forced) {
                 (true, true) => SetResourceYamlAction::ForceApply,
                 (true, false) => SetResourceYamlAction::Apply,
                 _ => SetResourceYamlAction::Patch,
             };
 
-            self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, action);
+            self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, action, encode);
 
             ResponseEvent::Handled
         } else {
@@ -282,12 +339,51 @@ impl YamlView {
             return false;
         }
 
-        if self.yaml.enable_edit_mode() {
+        if self.yaml.enable_edit_mode(self.is_new) {
             self.clear_search();
             return true;
         }
 
         false
+    }
+
+    fn process_new_content(&mut self, result: ResourceYamlResult) {
+        let Some(highlighter) = self.worker.borrow().get_highlighter() else {
+            return;
+        };
+        let name = if self.is_new { None } else { Some(result.name) };
+        let icon = if result.is_decoded { '' } else { '' };
+        let styles = {
+            let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
+            StyleFallback {
+                excluded: (&colors.normal).into(),
+                fallback: (&colors.string).into(),
+            }
+        };
+        self.is_decoded = result.is_decoded;
+        self.yaml.header.set_icon(icon);
+        self.yaml.header.set_data(result.namespace, result.kind, name, None);
+        self.yaml.set_content(YamlContent::new(
+            result.styled,
+            result.yaml,
+            highlighter,
+            result.is_editable,
+            styles,
+        ));
+        if self.is_new || (self.state == ViewState::WaitingForEdit && self.is_decoded) {
+            self.state = ViewState::Idle;
+            self.yaml.enable_edit_mode(self.is_new);
+        }
+    }
+
+    fn update_view_state(&mut self) {
+        if self.state == ViewState::WaitingForClose {
+            self.state = ViewState::Closing;
+        } else if self.state == ViewState::WaitingForQuit {
+            self.state = ViewState::Quitting;
+        } else {
+            self.state = ViewState::Idle;
+        }
     }
 }
 
@@ -298,41 +394,18 @@ impl View for YamlView {
 
     fn process_command_result(&mut self, result: CommandResult) {
         match result {
+            CommandResult::GetNewResourceYaml(Ok(result)) => {
+                self.process_new_content(result.into());
+            },
             CommandResult::GetResourceYaml(Ok(result)) => {
-                if let Some(highlighter) = self.worker.borrow().get_highlighter() {
-                    let icon = if result.is_decoded { '' } else { '' };
-                    let styles = {
-                        let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
-                        StyleFallback {
-                            excluded: (&colors.normal).into(),
-                            fallback: (&colors.string).into(),
-                        }
-                    };
-                    self.is_decoded = result.is_decoded;
-                    self.yaml.header.set_icon(icon);
-                    self.yaml.header.set_data(result.namespace, result.kind, result.name, None);
-                    self.yaml.set_content(YamlContent::new(
-                        result.styled,
-                        result.yaml,
-                        highlighter,
-                        result.is_editable,
-                        styles,
-                    ));
-                    if self.state == ViewState::WaitingForEdit && self.is_decoded {
-                        self.state = ViewState::Idle;
-                        self.yaml.enable_edit_mode();
-                    }
-                }
+                self.process_new_content(result);
+            },
+            CommandResult::SetNewResourceYaml(Ok(name)) => {
+                self.update_view_state();
+                self.footer.show_info(format!(" '{name}' created successfully…"), 2_000);
             },
             CommandResult::SetResourceYaml(Ok(name)) => {
-                if self.state == ViewState::WaitingForClose {
-                    self.state = ViewState::Closing;
-                } else if self.state == ViewState::WaitingForQuit {
-                    self.state = ViewState::Quitting;
-                } else {
-                    self.state = ViewState::Idle;
-                }
-
+                self.update_view_state();
                 self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 2_000);
             },
             _ => (),
@@ -376,8 +449,12 @@ impl View for YamlView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.yaml.disable_edit_mode() {
-            return ResponseEvent::Handled;
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+            if self.is_new {
+                return self.process_view_close_event(ResponseEvent::Cancelled, false);
+            } else if self.yaml.disable_edit_mode() {
+                return ResponseEvent::Handled;
+            }
         }
 
         if event.is_mouse(MouseEventKind::RightClick) && self.yaml.has_selection() {

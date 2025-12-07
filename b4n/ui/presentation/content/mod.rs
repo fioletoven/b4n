@@ -32,6 +32,9 @@ pub trait Content {
     /// Converts the content to a plain `String` representation, optionally restricting the range of the content to be converted.
     fn to_plain_text(&self, range: Option<Selection>) -> String;
 
+    /// Searches content for the specified pattern and returns the first match.
+    fn search_first(&self, pattern: &str) -> Option<MatchPosition>;
+
     /// Searches content for the specified pattern.
     fn search(&self, pattern: &str) -> Vec<MatchPosition>;
 

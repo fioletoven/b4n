@@ -288,6 +288,17 @@ impl Content for YamlContent {
         }
     }
 
+    fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
+        let pattern = pattern.to_ascii_lowercase();
+        for (y, line) in self.lowercase.iter().enumerate() {
+            if let Some(x) = line.find(&pattern) {
+                return Some(MatchPosition::new(x, y, pattern.len()));
+            }
+        }
+
+        None
+    }
+
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();

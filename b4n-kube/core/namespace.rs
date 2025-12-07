@@ -21,15 +21,6 @@ impl Display for Namespace {
 }
 
 impl Namespace {
-    /// Creates new [`Namespace`] instance.
-    pub fn from(value: String) -> Self {
-        if value.is_empty() || value == ALL_NAMESPACES {
-            Self { value: None }
-        } else {
-            Self { value: Some(value) }
-        }
-    }
-
     /// Creates new [`Namespace`] instance that represents all namespaces.
     pub fn all() -> Self {
         Self { value: None }

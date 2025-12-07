@@ -12,7 +12,7 @@ pub struct ContentHeader {
     pub icon: char,
     pub namespace: Namespace,
     pub kind: Kind,
-    pub name: String,
+    pub name: Option<String>,
     pub descr: Option<String>,
     app_data: SharedAppData,
     edit_icon: char,
@@ -30,7 +30,7 @@ impl ContentHeader {
             icon: ' ',
             namespace: Namespace::all(),
             kind: Kind::default(),
-            name: String::new(),
+            name: None,
             descr: None,
             app_data,
             edit_icon: ' ',
@@ -42,7 +42,7 @@ impl ContentHeader {
     }
 
     /// Sets header data.
-    pub fn set_data(&mut self, namespace: Namespace, kind: Kind, name: String, descr: Option<String>) {
+    pub fn set_data(&mut self, namespace: Namespace, kind: Kind, name: Option<String>, descr: Option<String>) {
         self.namespace = namespace;
         self.kind = kind;
         self.name = name;
@@ -115,18 +115,25 @@ impl ContentHeader {
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
             Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             Span::styled(format!(" {} ", self.kind.name().to_lowercase()), &colors.resource),
-            Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
-            Span::styled(format!(" {} ", self.name.to_lowercase()), &colors.name),
         ];
 
-        if self.descr.is_some() {
+        let mut end_bg_color = colors.resource.bg;
+        if let Some(name) = &self.name {
             path.append(&mut vec![
-                Span::styled("", Style::new().fg(colors.name.bg).bg(colors.count.bg)),
-                Span::styled(format!(" {} ", self.descr.as_ref().unwrap()), &colors.count),
+                Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
+                Span::styled(format!(" {} ", name.to_lowercase()), &colors.name),
+            ]);
+            end_bg_color = colors.name.bg;
+        }
+
+        if let Some(descr) = &self.descr {
+            path.append(&mut vec![
+                Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),
+                Span::styled(format!(" {descr} "), &colors.count),
                 Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {
-            path.push(Span::styled("", Style::new().fg(colors.name.bg).bg(bg)));
+            path.push(Span::styled("", Style::new().fg(end_bg_color).bg(bg)));
         }
 
         Line::from(path)

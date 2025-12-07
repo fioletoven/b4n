@@ -251,10 +251,17 @@ impl ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette(false);
+            return ResponseEvent::Handled;
         }
 
         if event.is_in(MouseEventKind::RightClick, self.table.list.area) {
             self.show_command_palette(true);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlCreate) {
+            self.show_create_resource_palette();
+            return ResponseEvent::Handled;
         }
 
         let result = self.table.process_event(event);
@@ -273,6 +280,9 @@ impl ResourcesView {
             })
             .when_action_then("filter", || {
                 self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
+            })
+            .when_action_then("create", || {
+                self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate))
             })
             .when_action_then("show_events", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow))
@@ -301,6 +311,9 @@ impl ResourcesView {
                 self.table
                     .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
             })
+            .when_action_then("new_clone", || self.create_new_resource(true, false))
+            .when_action_then("new_full", || self.create_new_resource(false, true))
+            .when_action_then("new_minimal", || self.create_new_resource(false, false))
     }
 
     fn show_command_palette(&mut self, simplified: bool) {
@@ -348,6 +361,15 @@ impl ResourcesView {
                     .with_description("shows events for the selected resource")
                     .with_response(ResponseEvent::Action("show_events")),
             );
+
+            if self.table.list.table.data.is_creatable {
+                builder = builder.with_action(
+                    ActionItem::new("create")
+                        .with_description("creates new Kubernetes resource")
+                        .with_aliases(&["new"])
+                        .with_response(ResponseEvent::Action("create")),
+                );
+            }
         }
 
         if let Some(resource) = self.table.list.table.get_highlighted_resource()
@@ -400,7 +422,38 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
-    /// Creates new delete dialog.
+    fn show_create_resource_palette(&mut self) {
+        if self.kind_plural() == CONTAINERS || self.kind_plural() == EVENTS || !self.table.list.table.data.is_creatable {
+            return;
+        }
+
+        let mut builder = ActionsListBuilder::new()
+            .with_action(
+                ActionItem::new("full")
+                    .with_description("get all possible fields for the spec")
+                    .with_response(ResponseEvent::Action("new_full")),
+            )
+            .with_action(
+                ActionItem::new("minimal")
+                    .with_description("get only required fields for the spec")
+                    .with_response(ResponseEvent::Action("new_minimal")),
+            );
+
+        if self.table.list.table.is_anything_highlighted() && self.kind_plural() != NAMESPACES {
+            builder = builder.with_action(
+                ActionItem::new("duplicate")
+                    .with_description("use the spec of the highlighted resource")
+                    .with_aliases(&["clone"])
+                    .with_response(ResponseEvent::Action("new_clone")),
+            );
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_prompt("create new resource")
+            .with_first_selected();
+        self.command_palette.show();
+    }
+
     fn new_delete_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
 
@@ -468,6 +521,25 @@ impl ResourcesView {
         }
 
         self.footer_tx.set_breadcrumb_trail(elements);
+    }
+
+    fn create_new_resource(&self, is_clone: bool, is_full: bool) -> ResponseEvent {
+        let resource = &self.app_data.borrow().current;
+        if is_clone && let Some(current) = self.table.list.table.get_highlighted_resource() {
+            ResponseEvent::NewYaml(
+                ResourceRef::named(
+                    resource.resource.kind.clone(),
+                    current.namespace.as_deref().into(),
+                    current.name.clone(),
+                ),
+                false,
+            )
+        } else {
+            ResponseEvent::NewYaml(
+                ResourceRef::new(resource.resource.kind.clone(), resource.namespace.clone()),
+                is_full,
+            )
+        }
     }
 }
 

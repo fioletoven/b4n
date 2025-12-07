@@ -15,6 +15,7 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 The following features are currently supported:
 
 - View a list of Kubernetes resources.
+- Create Kubernetes resources.
 - Delete selected resources.
 - Display and edit YAML of the highlighted resource.
 - View events for the highlighted resource.
@@ -27,7 +28,6 @@ The following features are currently supported:
 The following features are planned for future development:
 
 - View combined logs for all containers in a pod.
-- Create Kubernetes resources (YAML).
 - Describe Kubernetes resources.
 
 ## Default Key Bindings
@@ -36,6 +36,7 @@ The following features are planned for future development:
 |:-----------------------------------------|:----------------|:------------------------------------------------------------|
 | Attach to the container's shell          | `s`             | Works only in containers view                               |
 | Copy YAML / logs to the clipboard        | `c`             | Works only in YAML and logs views                           |
+| Create new resource                      | `n`             |                                                             |
 | Decode highlighted secret                | `x`             |                                                             |
 | Delete selected resources                | `CTRL` + `d`    | Displays a confirmation dialog                              |
 | Enable / disable mouse support           | `CTRL` + `n`    | Not available inside a shell session                        |

@@ -308,6 +308,18 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Returns `true` if anything is highlighted.
+    pub fn is_anything_highlighted(&self) -> bool {
+        if let Some(items) = &self.items
+            && let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+        {
+            true
+        } else {
+            false
+        }
+    }
+
     /// Gets the highlighted item index from the `is_active` property.
     pub fn recover_highlighted_item_index(&self) -> Option<usize> {
         if let Some(items) = &self.items {

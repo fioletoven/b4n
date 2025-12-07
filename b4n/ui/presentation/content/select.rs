@@ -83,7 +83,7 @@ impl SelectContext {
         area: Rect,
     ) {
         match event {
-            TuiEvent::Key(key) => self.process_key_event(key, cursor),
+            TuiEvent::Key(key) => self.process_key_event(key, content, cursor),
             TuiEvent::Mouse(mouse) => self.process_mouse_event(*mouse, content, page_start, area),
         }
     }
@@ -110,12 +110,20 @@ impl SelectContext {
                 self.start = Some(decrement_cursor_x(init, content));
                 self.end = Some(cursor);
             }
-        } else {
+        } else if key != &KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL) {
             self.clear_selection();
         }
     }
 
-    fn process_key_event(&mut self, key: &KeyCombination, cursor: Option<ContentPosition>) {
+    fn process_key_event<T: Content>(&mut self, key: &KeyCombination, content: &T, cursor: Option<ContentPosition>) {
+        if key == &KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL) {
+            let last = content.len().saturating_sub(1);
+            self.init = Some(ContentPosition::new(0, 0));
+            self.start = Some(ContentPosition::new(0, 0));
+            self.end = Some(ContentPosition::new(content.line_size(last).saturating_sub(1), last));
+            return;
+        }
+
         let Some(cursor) = cursor else {
             // if we are not in the edit mode just return
             return;

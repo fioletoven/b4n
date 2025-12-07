@@ -100,7 +100,7 @@ impl TuiEvent {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind)
     }
 
-    /// Returns `true` if this event is a mouse event of a specified kind in a specified area.
+    /// Returns `true` if this event is a mouse event of a specified kind inside a specified area.
     pub fn is_in(&self, kind: MouseEventKind, area: Rect) -> bool {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && area.contains(Position::new(mouse.column, mouse.row)))
     }

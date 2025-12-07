@@ -1,3 +1,4 @@
+use base64::{DecodeError, Engine, engine};
 use k8s_openapi::chrono::{DateTime, Utc};
 use k8s_openapi::serde_json::{Map, Value};
 use kube::ResourceExt;
@@ -16,6 +17,34 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
     }
 
     Ok(yaml)
+}
+
+/// Encodes `data` property in the provided resource.
+pub fn encode_secret_data(resource: &mut DynamicObject) {
+    if resource.data.get("data").is_some_and(Value::is_object) {
+        let engine = engine::general_purpose::STANDARD;
+        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
+            if let Value::String(data) = &mut data.1 {
+                let encoded = engine.encode(data.as_bytes());
+                *data = encoded;
+            }
+        }
+    }
+}
+
+/// Decodes `data` property in the provided resource.
+pub fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
+    if resource.data.get("data").is_some_and(Value::is_object) {
+        let engine = engine::general_purpose::STANDARD;
+        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
+            if let Value::String(data) = &mut data.1 {
+                let decoded_bytes = engine.decode(&data)?;
+                *data = String::from_utf8_lossy(&decoded_bytes).to_string();
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Gets [`DynamicObject`]'s UID.
@@ -72,6 +101,18 @@ pub fn get_match_labels(object: &DynamicObject) -> Box<[String]> {
     } else {
         Box::default()
     }
+}
+
+/// Deserializes just kind from the provided YAML.
+pub fn deserialize_kind(yaml: &[String]) -> Option<String> {
+    for line in yaml {
+        if line.starts_with("kind:") {
+            let v = serde_yaml::from_str::<Value>(line).ok()?;
+            return v.get("kind").and_then(|k| k.as_str()).map(String::from);
+        }
+    }
+
+    None
 }
 
 /// Gets first matching plural resource name for the specified `kind`.
