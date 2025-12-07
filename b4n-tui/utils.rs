@@ -6,6 +6,12 @@ use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
 
+/// Returns current terminal size.
+pub fn get_terminal_size() -> Rect {
+    let (columns, rows) = crossterm::terminal::size().unwrap_or_default();
+    Rect::new(0, 0, columns, rows)
+}
+
 /// Centers a [`Rect`] within another [`Rect`] using the provided [`Constraint`]s.
 pub fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
     let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);

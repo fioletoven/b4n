@@ -37,7 +37,7 @@ pub struct ContentViewer<T: Content> {
 
 impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
-    pub fn new(app_data: SharedAppData, select_color: Color, search_color: Color) -> Self {
+    pub fn new(app_data: SharedAppData, select_color: Color, search_color: Color, area: Rect) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
         let cursor_color = app_data.borrow().theme.colors.cursor;
 
@@ -52,7 +52,7 @@ impl<T: Content> ContentViewer<T> {
             search: SearchData::default(),
             search_color,
             page_start: ContentPosition::default(),
-            page_area: Rect::default(),
+            page_area: area,
             creation_time: Instant::now(),
         }
     }
@@ -128,12 +128,17 @@ impl<T: Content> ContentViewer<T> {
     }
 
     /// Enables edit mode for the content viewer.
-    pub fn enable_edit_mode(&mut self) -> bool {
+    pub fn enable_edit_mode(&mut self, is_new: bool) -> bool {
         if self.edit.is_enabled {
             return false;
         }
 
-        let search = self.current_match_position();
+        let cursor_start = if is_new && let Some(content) = self.content() {
+            let start = content.search_first("  name: ''");
+            start.map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
+        } else {
+            self.current_match_position()
+        };
         if let Some(content) = &mut self.content
             && content.is_editable()
         {
@@ -141,7 +146,7 @@ impl<T: Content> ContentViewer<T> {
             self.edit.enable(
                 self.page_start,
                 self.select.get_selection(),
-                search,
+                cursor_start,
                 self.page_area.height,
                 content,
             );
@@ -469,11 +474,7 @@ impl<T: Content> ContentViewer<T> {
     /// Draws the [`ContentViewer`] onto the given frame within the specified area.\
     /// `highlight_offset` - used to adjust the position of search highlights.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-            .split(area);
-
+        let layout = get_layout(area);
         self.header.draw(frame, layout[0]);
         frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), layout[1]);
 
@@ -482,6 +483,11 @@ impl<T: Content> ContentViewer<T> {
         } else if self.creation_time.elapsed().as_millis() > 80 {
             self.draw_empty(frame, area);
         }
+    }
+
+    /// Returns size of the content area for the specified area.
+    pub fn get_content_area(area: Rect) -> Rect {
+        get_layout(area)[1].inner(Margin::new(1, 0))
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
@@ -556,4 +562,11 @@ impl<T: Content> Drop for ContentViewer<T> {
     fn drop(&mut self) {
         self.disable_keys(false);
     }
+}
+
+fn get_layout(area: Rect) -> Rc<[Rect]> {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+        .split(area)
 }

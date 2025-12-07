@@ -3,6 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
+use b4n_tui::utils::get_terminal_size;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
@@ -49,7 +50,8 @@ impl LogsView {
         };
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
-        let logs = ContentViewer::new(Rc::clone(&app_data), select, search).with_header(
+        let area = ContentViewer::<LogsContent>::get_content_area(get_terminal_size());
+        let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
             resource.namespace,
@@ -438,6 +440,17 @@ impl Content for LogsContent {
         }
 
         result
+    }
+
+    fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
+        let pattern = pattern.to_ascii_lowercase();
+        for (y, line) in self.lowercase.iter().enumerate() {
+            if let Some(x) = line.find(&pattern) {
+                return Some(MatchPosition::new(x, y, pattern.len()));
+            }
+        }
+
+        None
     }
 
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {

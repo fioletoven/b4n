@@ -37,7 +37,7 @@ impl EditContext {
         &mut self,
         page_start: ContentPosition,
         selection: Option<Selection>,
-        search: Option<ContentPosition>,
+        cursor_start: Option<ContentPosition>,
         page_size: u16,
         content: &mut T,
     ) {
@@ -45,8 +45,8 @@ impl EditContext {
         if let Some(selection) = selection {
             self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
             self.constraint_cursor_position(false, content);
-        } else if let Some(search) = search {
-            self.cursor = search;
+        } else if let Some(cursor_start) = cursor_start {
+            self.cursor = cursor_start;
             self.constraint_cursor_position(false, content);
         } else if self.cursor.y < page_start.y {
             self.cursor.y = page_start.y;
