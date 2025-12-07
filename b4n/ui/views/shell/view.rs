@@ -58,7 +58,7 @@ impl ShellView {
         };
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(" shell");
-        header.set_data(pod_namespace, PODS.into(), pod_name, pod_container);
+        header.set_data(pod_namespace, PODS.into(), Some(pod_name), pod_container);
 
         let parser = Arc::new(RwLock::new(vt100::Parser::new(
             DEFAULT_SIZE.height,
@@ -191,7 +191,7 @@ impl View for ShellView {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
                 MouseEventKind::ScrollDown => self.set_scrollback(1, false),
                 _ => ResponseEvent::Handled,
-            }
+            };
         }
 
         if let TuiEvent::Key(key) = event {

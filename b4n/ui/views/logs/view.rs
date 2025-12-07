@@ -54,7 +54,7 @@ impl LogsView {
             '',
             resource.namespace,
             PODS.into(),
-            resource.name.unwrap_or_default(),
+            resource.name,
             resource.container,
         );
 

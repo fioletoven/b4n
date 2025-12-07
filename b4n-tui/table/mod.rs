@@ -49,6 +49,9 @@ pub trait Table: crate::Responsive {
         Rc::default()
     }
 
+    /// Returns `true` if any item in the list is highlighted.
+    fn is_anything_highlighted(&self) -> bool;
+
     /// Gets highlighted element index.
     fn get_highlighted_item_index(&self) -> Option<usize>;
 

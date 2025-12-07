@@ -2,7 +2,9 @@ use anyhow::Result;
 use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, ResourceRef};
-use b4n_tasks::commands::{CommandResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError};
+use b4n_tasks::commands::{
+    CommandResult, NewResourceYamlError, NewResourceYamlResult, ResourceYamlError, ResourceYamlResult, SetResourceYamlError,
+};
 use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
@@ -357,45 +359,50 @@ impl ViewsManager {
     }
 
     /// Sends command to fetch resource's YAML to the background executor and opens empty YAML view.
-    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef) {
+    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef, is_new: bool) {
         self.view = Some(Box::new(YamlView::new(
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             command_id,
             resource,
             self.footer.get_transmitter(),
+            is_new,
         )));
+    }
+
+    /// Shows returned resource's template YAML in an already opened YAML view.
+    pub fn new_yaml_result(&mut self, command_id: &str, result: Result<NewResourceYamlResult, NewResourceYamlError>) {
+        self.handle_yaml_result(command_id, result, CommandResult::NewResourceYaml, "New YAML error", true);
     }
 
     /// Shows returned resource's YAML in an already opened YAML view.
     pub fn show_yaml_result(&mut self, command_id: &str, result: Result<ResourceYamlResult, ResourceYamlError>) {
-        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
-            return;
-        }
-
-        if let Err(error) = result {
-            self.view = None;
-            let msg = format!("View YAML error: {error}");
-            tracing::warn!("{}", msg);
-            self.footer.transmitter().show_error(msg, 0);
-        } else if let Some(view) = &mut self.view {
-            view.process_command_result(CommandResult::GetResourceYaml(result));
-        }
+        self.handle_yaml_result(command_id, result, CommandResult::GetResourceYaml, "View YAML error", true);
     }
 
     /// Process YAML patch result.
     pub fn edit_yaml_result(&mut self, command_id: &str, result: Result<String, SetResourceYamlError>) {
+        self.handle_yaml_result(command_id, result, CommandResult::SetResourceYaml, "Patch YAML error", false);
+    }
+
+    fn handle_yaml_result<R, E, F>(&mut self, command_id: &str, result: Result<R, E>, wrap: F, error_msg: &str, close: bool)
+    where
+        E: std::fmt::Display,
+        F: FnOnce(Result<R, E>) -> CommandResult,
+    {
         if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
             return;
         }
 
         if let Err(error) = result {
-            tracing::warn!("Patch YAML error: {error}");
-            self.footer
-                .transmitter()
-                .show_error("Patching the resource with the specified YAML failed…", 0);
+            let msg = format!("{error_msg}: {error}");
+            tracing::warn!("{}", msg);
+            self.footer.transmitter().show_error(msg, 0);
+            if close {
+                self.view = None;
+            }
         } else if let Some(view) = &mut self.view {
-            view.process_command_result(CommandResult::SetResourceYaml(result));
+            view.process_command_result(wrap(result));
         }
     }
 

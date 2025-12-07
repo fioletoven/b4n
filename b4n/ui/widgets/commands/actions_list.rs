@@ -31,6 +31,7 @@ impl Table for ActionsList {
             fn filter(&mut self, filter: Option<String>);
             fn get_filter(&self) -> Option<&str>;
             fn sort(&mut self, column_no: usize, is_descending: bool);
+            fn is_anything_highlighted(&self) -> bool;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
             fn get_highlighted_item_uid(&self) -> Option<&str>;
@@ -82,6 +83,11 @@ pub struct ActionsListBuilder {
 }
 
 impl ActionsListBuilder {
+    /// Creates a new [`ActionsListBuilder`] instance.
+    pub fn new() -> Self {
+        Self { actions: Vec::new() }
+    }
+
     /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
     /// If `primary_only` is `true`, only kinds without a group will be included.
     pub fn from_kinds(kinds: Option<&[KindItem]>, primary_only: bool) -> Self {
@@ -191,7 +197,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("delete")
                 .with_description("deletes selected resources")
-                .with_aliases(&["del"])
+                .with_aliases(&["del", "remove"])
                 .with_response(ResponseEvent::AskDeleteResources),
         );
         self

@@ -7,6 +7,7 @@ use kube::discovery::{ApiCapabilities, verbs};
 use ratatui::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::commands::NewResourceYamlResult;
 use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, highlight_resource};
 
 /// Possible errors from fetching or styling resource's YAML.
@@ -38,6 +39,20 @@ pub struct ResourceYamlResult {
     pub styled: Vec<Vec<(Style, String)>>,
     pub is_decoded: bool,
     pub is_editable: bool,
+}
+
+impl From<NewResourceYamlResult> for ResourceYamlResult {
+    fn from(value: NewResourceYamlResult) -> Self {
+        Self {
+            name: String::new(),
+            namespace: value.namespace,
+            kind: value.kind,
+            yaml: value.yaml,
+            styled: value.styled,
+            is_decoded: false,
+            is_editable: true,
+        }
+    }
 }
 
 /// Command that gets a specified resource from the kubernetes API and then styles it.
@@ -141,7 +156,7 @@ impl GetResourceYamlCommand {
 
         match highlight_resource(&self.highlighter, resource).await {
             Ok(response) => Ok(ResourceYamlResult {
-                name: self.name,
+                name: if self.sanitize { String::new() } else { self.name },
                 namespace: self.namespace,
                 kind: self.kind,
                 yaml: response.plain,
@@ -175,6 +190,7 @@ fn sanitize(resource: &mut DynamicObject) {
     resource.metadata.generate_name = None;
     resource.metadata.generation = None;
     resource.metadata.managed_fields = None;
+    resource.metadata.name = Some(String::new());
     resource.metadata.owner_references = None;
     resource.metadata.resource_version = None;
     resource.metadata.self_link = None;

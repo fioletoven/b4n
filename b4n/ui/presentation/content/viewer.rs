@@ -64,7 +64,7 @@ impl<T: Content> ContentViewer<T> {
         icon: char,
         namespace: Namespace,
         kind: Kind,
-        name: String,
+        name: Option<String>,
         descr: Option<String>,
     ) -> Self {
         self.header.set_title(title);
