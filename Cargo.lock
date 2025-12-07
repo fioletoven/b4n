@@ -163,7 +163,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "b4n"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "arboard",
@@ -192,7 +192,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-common"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "backon",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-config"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "b4n-common",
@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-kube"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "b4n-common",
  "base64",
@@ -244,7 +244,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-list"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "crossterm",
  "k8s-openapi",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-tasks"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "b4n-common",
  "b4n-config",
@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "b4n-tui"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "b4n-common",
