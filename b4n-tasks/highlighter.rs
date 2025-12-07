@@ -158,7 +158,7 @@ pub enum HighlightResourceError {
     HighlighterError(#[from] HighlightError),
 }
 
-/// Sends DynamicObject to the specified background highlighter.
+/// Sends `DynamicObject` to the specified background highlighter.
 pub async fn highlight_resource(
     highlighter: &UnboundedSender<HighlightRequest>,
     mut resource: DynamicObject,

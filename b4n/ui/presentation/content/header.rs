@@ -129,7 +129,7 @@ impl ContentHeader {
         if let Some(descr) = &self.descr {
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),
-                Span::styled(format!(" {} ", descr), &colors.count),
+                Span::styled(format!(" {descr} "), &colors.count),
                 Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {

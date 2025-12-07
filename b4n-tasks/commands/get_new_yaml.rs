@@ -10,7 +10,7 @@ use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, h
 /// Errors that may occur while fetching or styling a resource's YAML template.
 #[derive(thiserror::Error, Debug)]
 pub enum GetNewResourceYamlError {
-    /// Cannot fetch OpenAPI resource schemas.
+    /// Cannot fetch `OpenAPI` resource schemas.
     #[error("cannot fetch OpenAPI resource schemas")]
     OpenApiRequest(#[from] kube::Error),
 
@@ -77,7 +77,7 @@ impl GetNewResourceYamlCommand {
 
         let result = async {
             let (root, schema) = get_resource_schema(client, res).await?;
-            let yaml_val = build_resource(res, cap, self.namespace.clone(), &root, &schema, self.required_only)?;
+            let yaml_val = build_resource(res, cap, self.namespace.clone(), &root, &schema, self.required_only);
             let yaml_str = serde_yaml::to_string(&yaml_val)?;
             self.style_yaml(yaml_str).await
         }
@@ -119,7 +119,7 @@ async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(
     };
 
     let req = http::Request::get(&path)
-        .body(Default::default())
+        .body(Vec::default())
         .expect("failed to build OpenAPI request");
 
     let text = client.request_text(req).await?;
@@ -128,7 +128,7 @@ async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(
     let schemas = doc
         .get_mut("components")
         .and_then(|c| c.get_mut("schemas"))
-        .map(|v| v.take())
+        .map(Value::take)
         .ok_or(GetNewResourceYamlError::SchemaNotFound)?;
 
     let key = format!(
@@ -171,7 +171,7 @@ fn build_resource(
     root: &Value,
     schema: &Value,
     required_only: bool,
-) -> Result<Value, GetNewResourceYamlError> {
+) -> Value {
     let mut new_resource = Map::new();
 
     let api_version = if res.group.is_empty() {
@@ -198,7 +198,7 @@ fn build_resource(
         new_resource.insert("spec".into(), template_from_schema(root, spec_schema, required_only));
     }
 
-    Ok(Value::Object(new_resource))
+    Value::Object(new_resource)
 }
 
 fn template_from_schema(root: &Value, schema: &Value, required_only: bool) -> Value {
@@ -207,7 +207,7 @@ fn template_from_schema(root: &Value, schema: &Value, required_only: bool) -> Va
     let required: Vec<String> = resolved
         .get("required")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(ToString::to_string)).collect())
         .unwrap_or_default();
 
     match resolved.get("type").and_then(|v| v.as_str()) {
@@ -226,7 +226,7 @@ fn template_from_schema(root: &Value, schema: &Value, required_only: bool) -> Va
         },
         Some("array") => Value::Array(Vec::new()),
         Some("string") => Value::String(String::new()),
-        Some("integer") | Some("number") => Value::Number(0.into()),
+        Some("integer" | "number") => Value::Number(0.into()),
         Some("boolean") => Value::Bool(false),
 
         _ => Value::Null,

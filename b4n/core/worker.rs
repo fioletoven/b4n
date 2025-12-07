@@ -346,7 +346,7 @@ impl BgWorker {
 
     /// Sends either a [`GetResourceYamlCommand`] or a [`GetNewResourceYamlCommand`] to the background executor.\
     /// **Note** that the command that is sent depends on whether a resource `name` is provided. If it is provided
-    /// it means that we would like to duplicate an existing resource, so we need to get sanitized YAML veraion
+    /// it means that we would like to duplicate an existing resource, so we need to get sanitized YAML version
     /// for the resource.
     pub fn get_yaml_template(&mut self, name: Option<String>, namespace: Namespace, kind: Kind, is_full: bool) -> Option<String> {
         let client = self.client.as_ref()?;

@@ -368,7 +368,7 @@ impl ResourcesView {
                         .with_description("creates new Kubernetes resource")
                         .with_aliases(&["new"])
                         .with_response(ResponseEvent::Action("create")),
-                )
+                );
             }
         }
 
