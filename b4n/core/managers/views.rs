@@ -25,6 +25,7 @@ pub struct ViewsManager {
     res_selector: SideSelect<KindsList>,
     view: Option<Box<dyn View>>,
     footer: Footer,
+    workspace: Rect,
     areas: Rc<[Rect]>,
 }
 
@@ -55,6 +56,7 @@ impl ViewsManager {
             res_selector,
             view: None,
             footer,
+            workspace: Rect::default(),
             areas: Rc::default(),
         }
     }
@@ -99,6 +101,7 @@ impl ViewsManager {
     /// Draws visible views on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>) {
         let layout = Footer::get_layout(frame.area());
+        self.workspace = layout[0];
         self.footer.show_breadcrumb_trail(self.view.is_none());
         self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
 
@@ -352,6 +355,7 @@ impl ViewsManager {
                 resource,
                 previous,
                 self.footer.get_transmitter(),
+                self.workspace,
             );
             if let Ok(view) = view {
                 self.view = Some(Box::new(view));
@@ -368,6 +372,7 @@ impl ViewsManager {
             resource,
             self.footer.get_transmitter(),
             is_new,
+            self.workspace,
         )));
     }
 

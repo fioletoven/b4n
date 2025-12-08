@@ -3,7 +3,6 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
-use b4n_tui::utils::get_terminal_size;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
@@ -31,6 +30,7 @@ pub struct LogsView {
     search: Search,
     footer: NotificationSink,
     bound_to_bottom: bool,
+    area: Rect,
 }
 
 impl LogsView {
@@ -42,6 +42,7 @@ impl LogsView {
         resource: ResourceRef,
         previous: bool,
         footer: NotificationSink,
+        workspace: Rect,
     ) -> Result<Self, LogsObserverError> {
         let pod = PodRef {
             name: resource.name.clone().unwrap_or_default(),
@@ -50,7 +51,7 @@ impl LogsView {
         };
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
-        let area = ContentViewer::<LogsContent>::get_content_area(get_terminal_size());
+        let area = ContentViewer::<LogsContent>::get_content_area(workspace);
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
@@ -72,6 +73,7 @@ impl LogsView {
             search,
             footer,
             bound_to_bottom: true,
+            area: workspace,
         })
     }
 
@@ -307,6 +309,11 @@ impl View for LogsView {
         self.logs.draw(frame, area, self.get_offset());
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
+
+        if area.height != self.area.height && self.bound_to_bottom {
+            self.area = area;
+            self.logs.scroll_to_end();
+        }
     }
 }
 

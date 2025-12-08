@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix logs behaviour for `stick to bottom` function
+
 ## 0.3.3 - 2025-12-07
 
 ### Features

@@ -3,7 +3,6 @@ use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{CommandResult, ResourceYamlResult, SetResourceYamlAction};
-use b4n_tui::utils::get_terminal_size;
 use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -41,12 +40,13 @@ impl YamlView {
         resource: ResourceRef,
         footer: NotificationSink,
         is_new: bool,
+        workspace: Rect,
     ) -> Self {
         let select = app_data.borrow().theme.colors.syntax.yaml.select;
         let search = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;
         let name = if is_new { None } else { resource.name };
-        let area = ContentViewer::<YamlContent>::get_content_area(get_terminal_size());
+        let area = ContentViewer::<YamlContent>::get_content_area(workspace);
         let yaml = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if is_new { "create new resource" } else { "YAML" },
             '',
