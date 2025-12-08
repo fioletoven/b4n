@@ -51,9 +51,9 @@ impl Dialog {
         self
     }
 
-    /// Returns input under index `idx`.
-    pub fn input(&self, idx: usize) -> Option<&CheckBox> {
-        self.controls.inputs.get(idx)
+    /// Returns input under specified `id`.
+    pub fn input(&self, id: usize) -> Option<&CheckBox> {
+        self.controls.inputs.iter().find(|i| i.id == id)
     }
 
     /// Marks [`Dialog`] as a visible.

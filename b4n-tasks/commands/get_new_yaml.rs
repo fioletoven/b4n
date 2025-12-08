@@ -1,3 +1,4 @@
+use b4n_kube::utils::can_patch_status;
 use b4n_kube::{Kind, Namespace, Scope};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use k8s_openapi::serde_json::{self, Map, Value};
@@ -38,6 +39,7 @@ pub struct GetNewResourceYamlResult {
     pub kind: Kind,
     pub yaml: Vec<String>,
     pub styled: Vec<Vec<(Style, String)>>,
+    pub can_patch_status: bool,
 }
 
 /// Command for generating a YAML template for a Kubernetes resource.
@@ -79,20 +81,21 @@ impl GetNewResourceYamlCommand {
             let (root, schema) = get_resource_schema(client, res).await?;
             let yaml_val = build_resource(res, cap, self.namespace.clone(), &root, &schema, self.required_only);
             let yaml_str = serde_yaml::to_string(&yaml_val)?;
-            self.style_yaml(yaml_str).await
+            self.style_yaml(yaml_str, cap).await
         }
         .await;
 
         Some(CommandResult::GetNewResourceYaml(result))
     }
 
-    async fn style_yaml(&self, yaml: String) -> Result<GetNewResourceYamlResult, GetNewResourceYamlError> {
+    async fn style_yaml(&self, yaml: String, cap: &ApiCapabilities) -> Result<GetNewResourceYamlResult, GetNewResourceYamlError> {
         match highlight_yaml(&self.highlighter, yaml).await {
             Ok(resp) => Ok(GetNewResourceYamlResult {
                 namespace: self.namespace.clone(),
                 kind: self.kind.clone(),
                 yaml: resp.plain,
                 styled: resp.styled,
+                can_patch_status: can_patch_status(cap),
             }),
             Err(e) => Err(e.into()),
         }

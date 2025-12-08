@@ -1,4 +1,4 @@
-use b4n_kube::utils::decode_secret_data;
+use b4n_kube::utils::{can_patch_status, decode_secret_data};
 use b4n_kube::{Kind, Namespace, SECRETS};
 use k8s_openapi::serde_json::Value;
 use kube::Client;
@@ -39,6 +39,7 @@ pub struct ResourceYamlResult {
     pub styled: Vec<Vec<(Style, String)>>,
     pub is_decoded: bool,
     pub is_editable: bool,
+    pub can_patch_status: bool,
 }
 
 impl From<GetNewResourceYamlResult> for ResourceYamlResult {
@@ -51,6 +52,7 @@ impl From<GetNewResourceYamlResult> for ResourceYamlResult {
             styled: value.styled,
             is_decoded: false,
             is_editable: true,
+            can_patch_status: value.can_patch_status,
         }
     }
 }
@@ -165,6 +167,7 @@ impl GetResourceYamlCommand {
                 styled: response.styled,
                 is_decoded: self.decode,
                 is_editable: cap.supports_operation(verbs::PATCH),
+                can_patch_status: can_patch_status(cap),
             }),
             Err(err) => Err(err.into()),
         }

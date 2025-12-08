@@ -2,7 +2,7 @@ use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
-use b4n_tasks::commands::{CommandResult, ResourceYamlResult, SetResourceYamlAction};
+use b4n_tasks::commands::{CommandResult, ResourceYamlResult, SetResourceYamlAction, SetResourceYamlOptions};
 use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -22,6 +22,7 @@ pub struct YamlView {
     is_new: bool,
     is_secret: bool,
     is_decoded: bool,
+    can_patch_status: bool,
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
@@ -64,6 +65,7 @@ impl YamlView {
             is_new,
             is_secret,
             is_decoded: false,
+            can_patch_status: false,
             command_id,
             command_palette: CommandPalette::default(),
             search,
@@ -215,16 +217,15 @@ impl YamlView {
     }
 
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let force = self.modal.input(0).is_some_and(|i| i.is_checked);
+        let patch_status = self.modal.input(1).is_some_and(|i| i.is_checked);
+        let disable_encoding = self.modal.input(2).is_some_and(|i| i.is_checked);
         let response = self.modal.process_event(event);
         if response.is_action("apply") {
-            let force = self.modal.input(0).is_some_and(|i| i.is_checked);
-            let disable_encoding = self.modal.input(1).is_some_and(|i| i.is_checked);
-            return self.save_yaml(true, force, disable_encoding);
+            return self.save_yaml(true, force, disable_encoding, patch_status);
         } else if response.is_action("patch") {
-            let disable_encoding = self.modal.input(1).is_some_and(|i| i.is_checked);
-            return self.save_yaml(false, false, disable_encoding);
+            return self.save_yaml(false, false, disable_encoding, patch_status);
         } else if response.is_action("create") {
-            let disable_encoding = self.modal.input(0).is_some_and(|i| i.is_checked);
             return self.create_resource(disable_encoding);
         }
 
@@ -255,11 +256,11 @@ impl YamlView {
     }
 
     fn new_save_new_dialog(&mut self, response: ResponseEvent) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = &self.app_data.borrow().theme.colors.modal;
         let inputs = if let Some(content) = self.yaml.content()
             && deserialize_kind(&content.plain).is_some_and(|k| k == "Secret")
         {
-            vec![CheckBox::new("Do not encode data fields", false, &colors.modal.checkbox)]
+            vec![CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox)]
         } else {
             Vec::new()
         };
@@ -267,33 +268,36 @@ impl YamlView {
         Dialog::new(
             "You have made changes to the new resource's YAML. Do you want to create it now?".to_owned(),
             vec![
-                Button::new("Create", ResponseEvent::Action("create"), &colors.modal.btn_accent),
-                Button::new("Discard", response, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Create", ResponseEvent::Action("create"), &colors.btn_accent),
+                Button::new("Discard", response, &colors.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
             ],
             60,
-            colors.modal.text,
+            colors.text,
         )
         .with_inputs(inputs)
     }
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        let mut inputs = vec![CheckBox::new("Force ownership (apply only)", false, &colors.modal.checkbox)];
+        let colors = &self.app_data.borrow().theme.colors.modal;
+        let mut inputs = vec![CheckBox::new(0, "Force ownership (apply only)", false, &colors.checkbox)];
+        if self.can_patch_status {
+            inputs.push(CheckBox::new(1, "Update along with status", false, &colors.checkbox));
+        }
         if self.is_secret {
-            inputs.push(CheckBox::new("Do not encode data fields", false, &colors.modal.checkbox));
+            inputs.push(CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox));
         }
 
         Dialog::new(
             "You have made changes to the resource's YAML. Do you want to apply / patch them now?".to_owned(),
             vec![
-                Button::new("Apply", ResponseEvent::Action("apply"), &colors.modal.btn_accent),
-                Button::new("Patch", ResponseEvent::Action("patch"), &colors.modal.btn_accent),
-                Button::new("Discard", response, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Apply", ResponseEvent::Action("apply"), &colors.btn_accent),
+                Button::new("Patch", ResponseEvent::Action("patch"), &colors.btn_accent),
+                Button::new("Discard", response, &colors.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
             ],
             60,
-            colors.modal.text,
+            colors.text,
         )
         .with_inputs(inputs)
     }
@@ -311,7 +315,7 @@ impl YamlView {
         }
     }
 
-    fn save_yaml(&mut self, is_apply: bool, is_forced: bool, disable_encoding: bool) -> ResponseEvent {
+    fn save_yaml(&mut self, is_apply: bool, is_forced: bool, disable_encoding: bool, patch_status: bool) -> ResponseEvent {
         if let Some(yaml) = self.yaml.content() {
             let name = self.yaml.header.name.as_deref().map(String::from).unwrap_or_default();
             let namespace = self.yaml.header.namespace.clone();
@@ -323,8 +327,13 @@ impl YamlView {
                 (true, false) => SetResourceYamlAction::Apply,
                 _ => SetResourceYamlAction::Patch,
             };
+            let options = SetResourceYamlOptions {
+                action,
+                encode,
+                patch_status,
+            };
 
-            self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, action, encode);
+            self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, options);
 
             ResponseEvent::Handled
         } else {
@@ -361,6 +370,7 @@ impl YamlView {
             }
         };
         self.is_decoded = result.is_decoded;
+        self.can_patch_status = result.can_patch_status;
         self.yaml.header.set_icon(icon);
         self.yaml.header.set_data(result.namespace, result.kind, name, None);
         self.yaml.set_content(YamlContent::new(

@@ -1,4 +1,4 @@
-use b4n_kube::utils::encode_secret_data;
+use b4n_kube::utils::{can_patch_status, encode_secret_data};
 use b4n_kube::{Namespace, SECRETS};
 use kube::api::{ApiResource, DynamicObject, Patch, PatchParams};
 use kube::discovery::{ApiCapabilities, verbs};
@@ -32,6 +32,7 @@ pub enum SetResourceYamlError {
     },
 }
 
+/// Represents patch action.
 #[derive(Debug, Clone, Copy)]
 pub enum SetResourceYamlAction {
     Apply,
@@ -49,15 +50,21 @@ impl Display for SetResourceYamlAction {
     }
 }
 
+/// Holds additional [`SetResourceYamlCommand`] options.
+pub struct SetResourceYamlOptions {
+    pub action: SetResourceYamlAction,
+    pub encode: bool,
+    pub patch_status: bool,
+}
+
 /// Command that apply/patch specified kubernetes resource.
 pub struct SetResourceYamlCommand {
     name: String,
     namespace: Namespace,
     yaml: String,
-    action: SetResourceYamlAction,
     discovery: Option<(ApiResource, ApiCapabilities)>,
     client: Option<Client>,
-    encode: bool,
+    options: SetResourceYamlOptions,
 }
 
 impl SetResourceYamlCommand {
@@ -66,19 +73,17 @@ impl SetResourceYamlCommand {
         name: String,
         namespace: Namespace,
         yaml: String,
-        action: SetResourceYamlAction,
-        encode: bool,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
+        options: SetResourceYamlOptions,
     ) -> Self {
         Self {
             name,
             namespace,
             yaml,
-            action,
             discovery,
             client: Some(client),
-            encode,
+            options,
         }
     }
 
@@ -96,12 +101,15 @@ impl SetResourceYamlCommand {
             self.namespace.is_all(),
         );
 
-        let encode = discovery.0.plural == SECRETS && self.encode;
+        let encode = discovery.0.plural == SECRETS && self.options.encode;
+        let patch_status = can_patch_status(&discovery.1) && self.options.patch_status;
 
-        Some(CommandResult::SetResourceYaml(self.save_yaml(client, encode).await))
+        Some(CommandResult::SetResourceYaml(
+            self.save_yaml(client, encode, patch_status).await,
+        ))
     }
 
-    async fn save_yaml(self, api: Api<DynamicObject>, encode: bool) -> Result<String, SetResourceYamlError> {
+    async fn save_yaml(self, api: Api<DynamicObject>, encode: bool, update_status: bool) -> Result<String, SetResourceYamlError> {
         let mut resource =
             serde_yaml::from_str::<DynamicObject>(&self.yaml).map_err(|e| SetResourceYamlError::SerializationError {
                 resource: self.name.clone(),
@@ -112,7 +120,12 @@ impl SetResourceYamlCommand {
             encode_secret_data(&mut resource);
         }
 
-        let (patch, patch_params) = match self.action {
+        let mut status_part = None;
+        if let Some(status_val) = resource.data.as_object_mut().and_then(|s| s.remove("status")) {
+            status_part = Some(k8s_openapi::serde_json::json!({ "status": status_val }));
+        }
+
+        let (patch, patch_params) = match self.options.action {
             SetResourceYamlAction::Apply => (Patch::Apply(&resource), PatchParams::apply(b4n_config::APP_NAME)),
             SetResourceYamlAction::ForceApply => (Patch::Apply(&resource), PatchParams::apply(b4n_config::APP_NAME).force()),
             SetResourceYamlAction::Patch => (Patch::Merge(&resource), PatchParams::default()),
@@ -121,10 +134,28 @@ impl SetResourceYamlCommand {
         api.patch(&self.name, &patch_params, &patch)
             .await
             .map_err(|e| SetResourceYamlError::PatchError {
-                action: self.action,
+                action: self.options.action,
                 resource: self.name.clone(),
                 source: e,
             })?;
+
+        if let Some(status) = status_part
+            && update_status
+        {
+            let (patch, patch_params) = match self.options.action {
+                SetResourceYamlAction::Apply => (Patch::Apply(&status), PatchParams::apply(b4n_config::APP_NAME)),
+                SetResourceYamlAction::ForceApply => (Patch::Apply(&status), PatchParams::apply(b4n_config::APP_NAME).force()),
+                SetResourceYamlAction::Patch => (Patch::Merge(&status), PatchParams::default()),
+            };
+
+            api.patch_status(&self.name, &patch_params, &patch)
+                .await
+                .map_err(|e| SetResourceYamlError::PatchError {
+                    action: self.options.action,
+                    resource: self.name.clone(),
+                    source: e,
+                })?;
+        }
 
         Ok(self.name)
     }
