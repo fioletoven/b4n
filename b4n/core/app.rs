@@ -429,7 +429,8 @@ impl App {
 
     /// Requests new kubernetes client with configured kind and namespace.
     fn request_kubernetes_client(&mut self, context: String) {
-        if self.data.borrow().current.context == context {
+        // if we are disconnected allow to reload the same context in case it changed
+        if self.data.borrow().current.context == context && self.data.borrow().is_connected {
             return;
         }
 
