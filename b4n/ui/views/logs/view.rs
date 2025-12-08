@@ -173,8 +173,9 @@ impl View for LogsView {
     fn process_tick(&mut self) -> ResponseEvent {
         if !self.observer.is_empty() {
             if !self.logs.has_content() {
-                self.logs
-                    .set_content(LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone()));
+                let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
+                content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
+                self.logs.set_content(content);
             }
 
             let content = self.logs.content_mut().unwrap();
@@ -347,6 +348,13 @@ impl LogsContent {
             max_size: 0,
             start: 0,
             count: 0,
+        }
+    }
+
+    fn set_timestamps(&mut self, enabled: bool) {
+        if self.show_timestamps != enabled {
+            self.show_timestamps = enabled;
+            self.count = 0;
         }
     }
 

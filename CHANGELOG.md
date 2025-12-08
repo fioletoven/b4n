@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add `logs.timestamps` to the configuration
+
 ### Bug fixes
 
 - fix logs behaviour for `stick to bottom` function
