@@ -1,3 +1,4 @@
+use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Color;
 use ratatui::widgets::Widget;
@@ -87,7 +88,7 @@ impl<'a> SearchResultsWidget<'a> {
 }
 
 impl Widget for SearchResultsWidget<'_> {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
@@ -96,46 +97,42 @@ impl Widget for SearchResultsWidget<'_> {
         };
 
         if let Some(current) = self.data.current {
-            if let Some(offset) = self.offset {
-                let r#match = &matches[current.saturating_sub(1)].adjust_by(offset);
-                highlight_match(area, buf, &self.page_start, r#match, self.color);
-            } else {
-                highlight_match(area, buf, &self.page_start, &matches[current.saturating_sub(1)], self.color);
-            }
+            self.highlight_match(area, buf, &matches[current.saturating_sub(1)]);
         } else {
             for m in matches {
-                let m = if let Some(offset) = self.offset {
-                    &m.adjust_by(offset)
-                } else {
-                    m
-                };
-                if m.y >= self.page_start.y && m.x.saturating_add(m.length) > self.page_start.x {
-                    highlight_match(area, buf, &self.page_start, m, self.color);
-                }
+                self.highlight_match(area, buf, m);
             }
         }
     }
 }
 
-fn highlight_match(
-    area: Rect,
-    buf: &mut ratatui::prelude::Buffer,
-    page_start: &ContentPosition,
-    m: &MatchPosition,
-    color: Color,
-) {
-    let y = u16::try_from(m.y.saturating_sub(page_start.y)).unwrap_or_default();
-    let mut length = m.length;
+impl SearchResultsWidget<'_> {
+    fn highlight_match(&self, area: Rect, buf: &mut Buffer, position: &MatchPosition) {
+        let m = if let Some(offset) = self.offset {
+            &position.adjust_by(offset)
+        } else {
+            position
+        };
 
-    while length > 0 {
-        let x = u16::try_from(m.x.saturating_add(length).saturating_sub(page_start.x)).unwrap_or_default();
-        length -= 1;
+        if m.y >= self.page_start.y && m.x.saturating_add(m.length) > self.page_start.x {
+            self.highlight_cells(area, buf, m);
+        }
+    }
 
-        let position = Position::new(x.saturating_add(area.x).saturating_sub(1), y.saturating_add(area.y));
-        if area.contains(position)
-            && let Some(cell) = buf.cell_mut(position)
-        {
-            cell.bg = color;
+    fn highlight_cells(&self, area: Rect, buf: &mut Buffer, m: &MatchPosition) {
+        let y = u16::try_from(m.y.saturating_sub(self.page_start.y)).unwrap_or_default();
+        let mut length = m.length;
+
+        while length > 0 {
+            let x = u16::try_from(m.x.saturating_add(length).saturating_sub(self.page_start.x)).unwrap_or_default();
+            length -= 1;
+
+            let position = Position::new(x.saturating_add(area.x).saturating_sub(1), y.saturating_add(area.y));
+            if area.contains(position)
+                && let Some(cell) = buf.cell_mut(position)
+            {
+                cell.bg = self.color;
+            }
         }
     }
 }

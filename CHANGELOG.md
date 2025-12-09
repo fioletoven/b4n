@@ -8,7 +8,8 @@
 
 ### Bug fixes
 
-- fix logs behaviour for `stick to bottom` function
+- fix logs behaviour for the `stick to bottom` function
+- fix an issue where search-match highlights were not hidden when scrolled out of view
 
 ## 0.3.3 - 2025-12-07
 
