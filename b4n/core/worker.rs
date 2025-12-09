@@ -8,7 +8,8 @@ use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, GetNewResourceYamlCommand, GetResourceYamlCommand, ListResourcePortsCommand,
-    SaveConfigurationCommand, SetNewResourceYamlCommand, SetResourceYamlCommand, SetResourceYamlOptions,
+    SaveConfigurationCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand,
+    SetResourceYamlOptions,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -381,9 +382,9 @@ impl BgWorker {
     }
 
     /// Sends [`SetNewResourceYamlCommand`] to the background executor.
-    pub fn set_new_yaml(&mut self, yaml: String, encode: bool) -> Option<String> {
+    pub fn set_new_yaml(&mut self, yaml: String, options: SetNewResourceYamlOptions) -> Option<String> {
         if let Some(client) = &self.client {
-            let command = SetNewResourceYamlCommand::new(yaml, encode, client.get_client());
+            let command = SetNewResourceYamlCommand::new(yaml, client.get_client(), options);
             Some(self.executor.run_task(Command::SetNewYaml(Box::new(command))))
         } else {
             None

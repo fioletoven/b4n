@@ -11,7 +11,7 @@ pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
 pub use self::new_kubernetes_client::{KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
 pub use self::save_configuration::SaveConfigurationCommand;
-pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError};
+pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError, SetNewResourceYamlOptions};
 pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResourceYamlError, SetResourceYamlOptions};
 
 mod delete_resources;

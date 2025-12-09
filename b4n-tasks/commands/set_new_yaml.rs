@@ -1,6 +1,8 @@
 use b4n_kube::Namespace;
+use b4n_kube::utils::can_patch_status;
 use b4n_kube::utils::encode_secret_data;
 use kube::api::DynamicObject;
+use kube::api::Patch;
 use kube::api::PostParams;
 use kube::core::GroupVersionKind;
 use kube::{Client, Discovery};
@@ -35,20 +37,26 @@ pub enum SetNewResourceYamlError {
     CreateError(#[from] kube::Error),
 }
 
+/// Holds additional [`SetNewResourceYamlCommand`] options.
+pub struct SetNewResourceYamlOptions {
+    pub encode: bool,
+    pub patch_status: bool,
+}
+
 /// Command that apply/patch specified kubernetes resource.
 pub struct SetNewResourceYamlCommand {
     yaml: String,
     client: Option<Client>,
-    encode: bool,
+    options: SetNewResourceYamlOptions,
 }
 
 impl SetNewResourceYamlCommand {
     /// Creates new [`SetNewResourceYamlCommand`] instance.
-    pub fn new(yaml: String, encode: bool, client: Client) -> Self {
+    pub fn new(yaml: String, client: Client, options: SetNewResourceYamlOptions) -> Self {
         Self {
             yaml,
             client: Some(client),
-            encode,
+            options,
         }
     }
 
@@ -62,7 +70,7 @@ impl SetNewResourceYamlCommand {
 
     async fn create_resource(self, client: Client) -> Result<String, SetNewResourceYamlError> {
         let mut resource = serde_yaml::from_str::<DynamicObject>(&self.yaml)?;
-        if self.encode {
+        if self.options.encode {
             encode_secret_data(&mut resource);
         }
 
@@ -89,6 +97,16 @@ impl SetNewResourceYamlCommand {
             let namespace = Namespace::from(resource.metadata.namespace.as_deref());
             let api = b4n_kube::client::get_dynamic_api(&ar, &cap, client, namespace.as_option(), namespace.is_all());
             let created = api.create(&PostParams::default(), &resource).await?;
+
+            if can_patch_status(&cap)
+                && self.options.patch_status
+                && let Some(name) = created.metadata.name.as_deref()
+                && let Some(status_val) = resource.data.as_object_mut().and_then(|s| s.remove("status"))
+            {
+                let status_patch = k8s_openapi::serde_json::json!({ "status": status_val });
+                api.patch_status(name, &Default::default(), &Patch::Merge(status_patch))
+                    .await?;
+            }
 
             return Ok(created.metadata.name.unwrap_or_default());
         }

@@ -2,7 +2,9 @@ use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
-use b4n_tasks::commands::{CommandResult, ResourceYamlResult, SetResourceYamlAction, SetResourceYamlOptions};
+use b4n_tasks::commands::{
+    CommandResult, ResourceYamlResult, SetNewResourceYamlOptions, SetResourceYamlAction, SetResourceYamlOptions,
+};
 use b4n_tui::widgets::{Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -23,6 +25,7 @@ pub struct YamlView {
     is_secret: bool,
     is_decoded: bool,
     can_patch_status: bool,
+    origin_kind: Option<String>,
     command_id: Option<String>,
     command_palette: CommandPalette,
     search: Search,
@@ -66,6 +69,7 @@ impl YamlView {
             is_secret,
             is_decoded: false,
             can_patch_status: false,
+            origin_kind: None,
             command_id,
             command_palette: CommandPalette::default(),
             search,
@@ -226,7 +230,7 @@ impl YamlView {
         } else if response.is_action("patch") {
             return self.save_yaml(false, false, disable_encoding, patch_status);
         } else if response.is_action("create") {
-            return self.create_resource(disable_encoding);
+            return self.create_resource(disable_encoding, patch_status);
         }
 
         response
@@ -257,13 +261,20 @@ impl YamlView {
 
     fn new_save_new_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
-        let inputs = if let Some(content) = self.yaml.content()
-            && deserialize_kind(&content.plain).is_some_and(|k| k == "Secret")
-        {
-            vec![CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox)]
-        } else {
-            Vec::new()
-        };
+        let mut inputs = Vec::new();
+        if let Some(content) = self.yaml.content() {
+            let kind = deserialize_kind(&content.plain);
+            if self.can_patch_status
+                && let Some(origin) = self.origin_kind.as_deref()
+                && kind.as_deref().is_some_and(|k| k == origin)
+            {
+                inputs.push(CheckBox::new(1, "Update along with status", false, &colors.checkbox));
+            }
+
+            if kind.as_deref().is_some_and(|k| k == "Secret") {
+                inputs.push(CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox));
+            }
+        }
 
         Dialog::new(
             "You have made changes to the new resource's YAML. Do you want to create it now?".to_owned(),
@@ -302,12 +313,13 @@ impl YamlView {
         .with_inputs(inputs)
     }
 
-    fn create_resource(&mut self, disable_encoding: bool) -> ResponseEvent {
+    fn create_resource(&mut self, disable_encoding: bool, patch_status: bool) -> ResponseEvent {
         if let Some(yaml) = self.yaml.content() {
             let yaml = yaml.plain.join("\n");
             let encode = self.is_secret && !disable_encoding;
+            let options = SetNewResourceYamlOptions { encode, patch_status };
 
-            self.command_id = self.worker.borrow_mut().set_new_yaml(yaml, encode);
+            self.command_id = self.worker.borrow_mut().set_new_yaml(yaml, options);
 
             ResponseEvent::Handled
         } else {
@@ -371,6 +383,7 @@ impl YamlView {
         };
         self.is_decoded = result.is_decoded;
         self.can_patch_status = result.can_patch_status;
+        self.origin_kind = Some(result.singular);
         self.yaml.header.set_icon(icon);
         self.yaml.header.set_data(result.namespace, result.kind, name, None);
         self.yaml.set_content(YamlContent::new(
