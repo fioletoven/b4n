@@ -4,8 +4,8 @@
 
 ### Features
 
-- add `logs.timestamps` to the configuration
 - allow status patching for new and edited resources
+- add `logs.timestamps` to the configuration
 
 ### Bug fixes
 

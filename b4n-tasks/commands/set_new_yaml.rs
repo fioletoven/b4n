@@ -1,9 +1,7 @@
 use b4n_kube::Namespace;
 use b4n_kube::utils::can_patch_status;
 use b4n_kube::utils::encode_secret_data;
-use kube::api::DynamicObject;
-use kube::api::Patch;
-use kube::api::PostParams;
+use kube::api::{DynamicObject, Patch, PatchParams, PostParams};
 use kube::core::GroupVersionKind;
 use kube::{Client, Discovery};
 
@@ -104,7 +102,7 @@ impl SetNewResourceYamlCommand {
                 && let Some(status_val) = resource.data.as_object_mut().and_then(|s| s.remove("status"))
             {
                 let status_patch = k8s_openapi::serde_json::json!({ "status": status_val });
-                api.patch_status(name, &Default::default(), &Patch::Merge(status_patch))
+                api.patch_status(name, &PatchParams::default(), &Patch::Merge(status_patch))
                     .await?;
             }
 

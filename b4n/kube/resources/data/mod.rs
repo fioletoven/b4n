@@ -8,6 +8,7 @@ use k8s_openapi::serde_json::{Value, from_value};
 use kube::api::DynamicObject;
 use std::borrow::Cow;
 
+pub mod api_service;
 pub mod config_map;
 pub mod container;
 pub mod crd;
@@ -18,6 +19,7 @@ pub mod deployment;
 pub mod event;
 pub mod ingress;
 pub mod job;
+pub mod lease;
 pub mod namespace;
 pub mod node;
 pub mod node_metrics;
@@ -42,6 +44,7 @@ pub fn get_resource_data(
     }
 
     match kind {
+        "APIService" => api_service::data(object),
         "ConfigMap" => config_map::data(object),
         "CustomResourceDefinition" => crd::data(object),
         "DaemonSet" => daemon_set::data(object),
@@ -49,6 +52,7 @@ pub fn get_resource_data(
         "Event" => event::data(object, is_filtered),
         "Ingress" => ingress::data(object),
         "Job" => job::data(object),
+        "Lease" => lease::data(object),
         "Namespace" => namespace::data(object),
         "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
@@ -70,6 +74,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
     }
 
     match kind {
+        "APIService" => api_service::header(),
         "ConfigMap" => config_map::header(),
         "CustomResourceDefinition" => crd::header(),
         "DaemonSet" => daemon_set::header(),
@@ -77,6 +82,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "Event" => event::header(is_filtered),
         "Ingress" => ingress::header(),
         "Job" => job::header(),
+        "Lease" => lease::header(),
         "Namespace" => namespace::header(),
         "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
