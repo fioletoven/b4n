@@ -29,11 +29,15 @@ pub enum ConfigError {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Logs {
     pub lines: Option<i64>,
+    pub timestamps: Option<bool>,
 }
 
 impl Default for Logs {
     fn default() -> Self {
-        Self { lines: Some(800) }
+        Self {
+            lines: Some(800),
+            timestamps: Some(true),
+        }
     }
 }
 

@@ -467,8 +467,8 @@ impl ResourcesView {
             colors.modal.text,
         )
         .with_inputs(vec![
-            CheckBox::new("Terminate immediately", false, &colors.modal.checkbox),
-            CheckBox::new("Remove finalizers before deletion", false, &colors.modal.checkbox),
+            CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
+            CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
         ])
     }
 

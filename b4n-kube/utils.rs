@@ -103,6 +103,11 @@ pub fn get_match_labels(object: &DynamicObject) -> Box<[String]> {
     }
 }
 
+/// Returns `true` if resource supports status patching.
+pub fn can_patch_status(cap: &ApiCapabilities) -> bool {
+    cap.subresources.iter().any(|(subresource, _)| subresource.plural == "status")
+}
+
 /// Deserializes just kind from the provided YAML.
 pub fn deserialize_kind(yaml: &[String]) -> Option<String> {
     for line in yaml {

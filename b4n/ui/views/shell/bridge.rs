@@ -83,11 +83,9 @@ impl ShellBridge {
             let stdout = attached.stdout().unwrap();
             let tty_resize = attached.terminal_size().unwrap();
 
-            _is_running.store(true, Ordering::Relaxed);
-
             let ((), output_closed_too_soon, ()) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
-                output_bridge(stdout, _parser, _cancellation_token.clone()),
+                output_bridge(stdout, _parser, _cancellation_token.clone(), Arc::clone(&_is_running)),
                 resize_bridge(tty_resize, _size_rx, _cancellation_token.clone())
             };
 
@@ -104,6 +102,7 @@ impl ShellBridge {
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
+            self.is_running.store(false, Ordering::Relaxed);
         }
     }
 
@@ -139,7 +138,7 @@ impl ShellBridge {
 
     /// Returns `true` if attached process is running.
     pub fn is_running(&self) -> bool {
-        self.task.as_ref().is_some_and(|t| !t.is_finished()) && self.is_running.load(Ordering::Relaxed)
+        self.was_started && self.task.as_ref().is_some_and(|t| !t.is_finished()) && self.is_running.load(Ordering::Relaxed)
     }
 
     /// Returns `true` if attached process has finished.
@@ -187,6 +186,7 @@ async fn output_bridge(
     mut stdout: impl AsyncRead + Unpin,
     parser: Arc<RwLock<vt100::Parser>>,
     cancellation_token: CancellationToken,
+    is_running: Arc<AtomicBool>,
 ) -> bool {
     let mut buf = [0u8; 8192];
     let mut processed_buf = Vec::new();
@@ -200,13 +200,14 @@ async fn output_bridge(
                     cancellation_token.cancel();
                     return total_bytes_read == 0;
                 }
-                if size > 0 {
-                    processed_buf.extend_from_slice(&buf[..size]);
-                    let mut parser = parser.write().unwrap();
-                    parser.process(&processed_buf);
-                    processed_buf.clear();
-                    total_bytes_read += size;
-                }
+
+                is_running.store(true, Ordering::Relaxed);
+
+                processed_buf.extend_from_slice(&buf[..size]);
+                let mut parser = parser.write().unwrap();
+                parser.process(&processed_buf);
+                processed_buf.clear();
+                total_bytes_read += size;
             }
         }
     }

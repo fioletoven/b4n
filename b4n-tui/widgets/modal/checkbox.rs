@@ -7,6 +7,7 @@ use crate::ResponseEvent;
 
 /// UI `CheckBox`.
 pub struct CheckBox {
+    pub id: usize,
     pub is_checked: bool,
     is_focused: bool,
     caption: &'static str,
@@ -18,8 +19,9 @@ pub struct CheckBox {
 
 impl CheckBox {
     /// Creates new [`CheckBox`] instance.
-    pub fn new(caption: &'static str, is_checked: bool, colors: &ControlColors) -> Self {
+    pub fn new(id: usize, caption: &'static str, is_checked: bool, colors: &ControlColors) -> Self {
         Self {
+            id,
             is_checked,
             is_focused: false,
             caption,

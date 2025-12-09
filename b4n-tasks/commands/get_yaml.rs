@@ -1,4 +1,4 @@
-use b4n_kube::utils::decode_secret_data;
+use b4n_kube::utils::{can_patch_status, decode_secret_data};
 use b4n_kube::{Kind, Namespace, SECRETS};
 use k8s_openapi::serde_json::Value;
 use kube::Client;
@@ -35,10 +35,12 @@ pub struct ResourceYamlResult {
     pub name: String,
     pub namespace: Namespace,
     pub kind: Kind,
+    pub singular: String,
     pub yaml: Vec<String>,
     pub styled: Vec<Vec<(Style, String)>>,
     pub is_decoded: bool,
     pub is_editable: bool,
+    pub can_patch_status: bool,
 }
 
 impl From<GetNewResourceYamlResult> for ResourceYamlResult {
@@ -47,10 +49,12 @@ impl From<GetNewResourceYamlResult> for ResourceYamlResult {
             name: String::new(),
             namespace: value.namespace,
             kind: value.kind,
+            singular: value.singular,
             yaml: value.yaml,
             styled: value.styled,
             is_decoded: false,
             is_editable: true,
+            can_patch_status: value.can_patch_status,
         }
     }
 }
@@ -137,7 +141,7 @@ impl GetResourceYamlCommand {
 
         match client.get(&self.name).await {
             Ok(resource) => Some(CommandResult::GetResourceYaml(
-                self.style_resource(resource, &discovery.1).await,
+                self.style_resource(resource, &discovery.0, &discovery.1).await,
             )),
             Err(err) => Some(CommandResult::GetResourceYaml(Err(ResourceYamlError::GetYamlError(err)))),
         }
@@ -146,14 +150,17 @@ impl GetResourceYamlCommand {
     async fn style_resource(
         self,
         mut resource: DynamicObject,
+        res: &ApiResource,
         cap: &ApiCapabilities,
     ) -> Result<ResourceYamlResult, ResourceYamlError> {
+        let can_patch_status = can_patch_status(cap);
+
         if self.decode {
             decode_secret_data(&mut resource).map_err(|_| ResourceYamlError::SecretDecodeError)?;
         }
 
         if self.sanitize {
-            sanitize(&mut resource);
+            sanitize(&mut resource, can_patch_status);
         }
 
         match highlight_resource(&self.highlighter, resource).await {
@@ -161,17 +168,19 @@ impl GetResourceYamlCommand {
                 name: if self.sanitize { String::new() } else { self.name },
                 namespace: self.namespace,
                 kind: self.kind,
+                singular: res.kind.clone(),
                 yaml: response.plain,
                 styled: response.styled,
                 is_decoded: self.decode,
                 is_editable: cap.supports_operation(verbs::PATCH),
+                can_patch_status,
             }),
             Err(err) => Err(err.into()),
         }
     }
 }
 
-fn sanitize(resource: &mut DynamicObject) {
+fn sanitize(resource: &mut DynamicObject, can_patch_status: bool) {
     resource.metadata.creation_timestamp = None;
     resource.metadata.deletion_grace_period_seconds = None;
     resource.metadata.deletion_timestamp = None;
@@ -183,7 +192,10 @@ fn sanitize(resource: &mut DynamicObject) {
     resource.metadata.resource_version = None;
     resource.metadata.self_link = None;
     resource.metadata.uid = None;
-    if let Value::Object(map) = &mut resource.data {
+
+    if let Value::Object(map) = &mut resource.data
+        && !can_patch_status
+    {
         map.remove("status");
     }
 }

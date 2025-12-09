@@ -1,10 +1,17 @@
 # Change Log
 
-## WIP
+## 0.3.4 - 2025-12-09
+
+### Features
+
+- allow status patching for new and edited resources
+- add `logs.timestamps` to the configuration
 
 ### Bug fixes
 
-- fix logs behaviour for `stick to bottom` function
+- fix logs behaviour for the `stick to bottom` function
+- fix an issue where search-match highlights were not hidden when scrolled out of view
+- fix cursor flickering when a fallback shell is used
 
 ## 0.3.3 - 2025-12-07
 

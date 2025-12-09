@@ -90,6 +90,7 @@ Here is an example structure:
 ```yaml
 logs:
   lines: 800
+  timestamps: true
 mouse: true
 theme: light
 contexts:
@@ -104,6 +105,7 @@ key_bindings:
 #### Configuration Options
 
 - `logs.lines` – The number of log lines to retrieve from the Kubernetes API for selected container.
+- `logs.timestamps` – Indicates whether timestamps are enabled by default for logs; this setting can still be toggled while viewing the logs.
 - `mouse` – Indicates if mouse support should be enabled when the application starts. Mouse support can also be toggled while the app is running.
 - `theme` – The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
