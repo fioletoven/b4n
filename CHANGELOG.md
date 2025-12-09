@@ -10,6 +10,7 @@
 
 - fix logs behaviour for the `stick to bottom` function
 - fix an issue where search-match highlights were not hidden when scrolled out of view
+- fix cursor filckering when a fallback shell is used
 
 ## 0.3.3 - 2025-12-07
 
