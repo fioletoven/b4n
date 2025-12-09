@@ -39,7 +39,8 @@ impl ForwardsView {
         let header = ListHeader::new(Rc::clone(&app_data), list.table.len())
             .with_kind(VIEW_NAME)
             .with_namespace(namespace.as_str())
-            .with_scope(Scope::Namespaced);
+            .with_scope(Scope::Namespaced)
+            .with_hide_previous(true);
 
         Self {
             header,

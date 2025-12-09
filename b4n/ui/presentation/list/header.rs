@@ -14,6 +14,7 @@ pub struct ListHeader {
     fixed_kind: Option<&'static str>,
     fixed_namespace: Option<String>,
     is_filtered: bool,
+    hide_previous: bool,
 }
 
 impl ListHeader {
@@ -27,6 +28,7 @@ impl ListHeader {
             fixed_kind: None,
             fixed_namespace: None,
             is_filtered: false,
+            hide_previous: false,
         }
     }
 
@@ -50,6 +52,12 @@ impl ListHeader {
     /// Sets fixed scope for the header.
     pub fn with_scope(mut self, scope: Scope) -> Self {
         self.fixed_scope = Some(scope);
+        self
+    }
+
+    /// Sets whether the header should hide the "previous" indicator.
+    pub fn with_hide_previous(mut self, hide: bool) -> Self {
+        self.hide_previous = hide;
         self
     }
 
@@ -119,7 +127,9 @@ impl ListHeader {
             self.is_filtered,
         );
 
-        if let Some(previous) = self.app_data.borrow().previous.last() {
+        if !self.hide_previous
+            && let Some(previous) = self.app_data.borrow().previous.last()
+        {
             line.push_span(Span::from(format!(" 󰕍 {}", previous.resource.kind.name())).style(&data.theme.colors.header.previous));
         }
 
