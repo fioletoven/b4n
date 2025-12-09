@@ -268,7 +268,7 @@ impl YamlView {
                 && let Some(origin) = self.origin_kind.as_deref()
                 && kind.as_deref().is_some_and(|k| k == origin)
             {
-                inputs.push(CheckBox::new(1, "Update along with status", false, &colors.checkbox));
+                inputs.push(CheckBox::new(1, "Create along with status", false, &colors.checkbox));
             }
 
             if kind.as_deref().is_some_and(|k| k == "Secret") {
@@ -315,9 +315,10 @@ impl YamlView {
 
     fn create_resource(&mut self, disable_encoding: bool, patch_status: bool) -> ResponseEvent {
         if let Some(yaml) = self.yaml.content() {
-            let yaml = yaml.plain.join("\n");
-            let encode = self.is_secret && !disable_encoding;
+            let kind = deserialize_kind(&yaml.plain);
+            let encode = kind.as_deref().is_some_and(|k| k == "Secret") && !disable_encoding;
             let options = SetNewResourceYamlOptions { encode, patch_status };
+            let yaml = yaml.plain.join("\n");
 
             self.command_id = self.worker.borrow_mut().set_new_yaml(yaml, options);
 
