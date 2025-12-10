@@ -55,6 +55,7 @@ impl EditContext {
             self.cursor.y = page_start.y + usize::from(page_size.saturating_sub(1));
             self.constraint_cursor_position(false, content);
         }
+        self.last_set_x = self.cursor.x;
     }
 
     /// Process UI key/mouse event.

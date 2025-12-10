@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix syntax highlighting for `'` and `"` characters
+
 ## 0.3.4 - 2025-12-09
 
 ### Features
