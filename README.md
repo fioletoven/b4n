@@ -15,9 +15,7 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 The following features are currently supported:
 
 - View a list of Kubernetes resources.
-- Create Kubernetes resources.
-- Delete selected resources.
-- Display and edit YAML of the highlighted resource.
+- Create, read, update and delete Kubernetes resources.
 - View events for the highlighted resource.
 - View logs for the highlighted container.
 - Open a shell session in the highlighted container.
