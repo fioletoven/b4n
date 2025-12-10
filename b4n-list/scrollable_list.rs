@@ -211,14 +211,14 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Clears items selection.
     pub fn deselect_all(&mut self) {
         if let Some(items) = &mut self.items {
-            items.iter_mut().for_each(|item| item.is_selected = false);
+            items.iter_mut().for_each(|item| item.select(false));
         }
     }
 
     /// Inverts selection of items in list.
     pub fn invert_selection(&mut self) {
         if let Some(items) = &mut self.items {
-            items.iter_mut().for_each(|item| item.is_selected = !item.is_selected);
+            items.iter_mut().for_each(|item| item.invert_selection());
         }
     }
 
@@ -228,7 +228,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             && let Some(highlighted) = self.highlighted
             && highlighted < items.len()
         {
-            items[highlighted].is_selected = !items[highlighted].is_selected;
+            items[highlighted].invert_selection();
         }
     }
 
@@ -237,7 +237,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(items) = &mut self.items {
             items
                 .iter_mut()
-                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid()));
+                .for_each(|item| item.select(uids.iter().any(|u| u.as_ref() == item.data.uid())));
         }
     }
 
