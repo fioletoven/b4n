@@ -275,6 +275,7 @@ impl Theme {
             scopes: vec![
                 get_theme_item("meta.mapping.key", self.colors.syntax.yaml.property),
                 get_theme_item("string -meta.mapping.key, constant.character", self.colors.syntax.yaml.string),
+                get_theme_item("punctuation.definition.string", self.colors.syntax.yaml.normal),
                 get_theme_item("constant.numeric", self.colors.syntax.yaml.numeric),
                 get_theme_item("constant.language", self.colors.syntax.yaml.language),
                 get_theme_item("constant.other.timestamp", self.colors.syntax.yaml.timestamp),

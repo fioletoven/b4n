@@ -531,6 +531,8 @@ contexts:
       scope: constant.character.escape.double-quoted.yaml
     - match: \\\n
       scope: constant.character.escape.double-quoted.newline.yaml
+    - match: (?=$)
+      pop: 1
     - match: \"
       scope: punctuation.definition.string.end.yaml
       pop: 1
@@ -558,6 +560,8 @@ contexts:
     - meta_scope: meta.string.yaml string.quoted.single.yaml
     - match: \'\'
       scope: constant.character.escape.single-quoted.yaml
+    - match: (?=$)
+      pop: 1
     - match: \'
       scope: punctuation.definition.string.end.yaml
       pop: 1
