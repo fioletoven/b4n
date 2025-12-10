@@ -147,7 +147,8 @@ impl SelectContext {
         area: Rect,
     ) {
         if mouse.kind == MouseEventKind::LeftDoubleClick {
-            if let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
+            if area.contains((mouse.column, mouse.row).into())
+                && let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
                 && let Some((start, end)) = content.word_bounds(pos)
             {
                 self.init = Some(ContentPosition { x: start, y: pos.y });
