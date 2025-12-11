@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix syntax highlighting for `'` and `"` characters
+- sanitize clipboard text before insertion
 
 ## 0.3.4 - 2025-12-09
 

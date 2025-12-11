@@ -15,7 +15,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::KubernetesClient;

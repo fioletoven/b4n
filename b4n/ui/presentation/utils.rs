@@ -57,10 +57,10 @@ pub fn get_left_breadcrumbs<'a>(
 
     path.push(Span::styled(format!(" {kind} "), &colors.resource));
 
-    if name.is_some() {
+    if let Some(name) = name {
         path.append(&mut vec![
             Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
-            Span::styled(format!(" {} ", name.as_ref().unwrap()), &colors.name),
+            Span::styled(format!(" {name} "), &colors.name),
             Span::styled("", Style::new().fg(colors.name.bg).bg(colors.count.bg)),
         ]);
     } else {

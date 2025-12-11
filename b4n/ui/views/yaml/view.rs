@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink};
+use b4n_common::{IconKind, NotificationSink, sanitize_and_split};
 use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
@@ -120,8 +120,7 @@ impl YamlView {
             if self.copied_line.as_ref().is_some_and(|l| *l == text) {
                 self.yaml.insert_text(vec![text, String::new()], true);
             } else {
-                self.yaml
-                    .insert_text(text.split('\n').map(String::from).collect::<Vec<_>>(), false);
+                self.yaml.insert_text(sanitize_and_split(&text), false);
             }
         }
     }
