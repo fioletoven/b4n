@@ -118,7 +118,8 @@ impl ResourcesView {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.table.list.table.is_anything_selected() && !self.table.has_containers() {
+        if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
+        {
             self.modal = self.new_delete_dialog();
             self.modal.show();
         }
@@ -327,9 +328,10 @@ impl ResourcesView {
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
+        let is_deletable = self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable;
 
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplified)
-            .with_resources_actions(!is_containers)
+            .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
             .with_action(
                 ActionItem::new("show YAML")

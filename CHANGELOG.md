@@ -6,6 +6,7 @@
 
 - fix syntax highlighting for `'` and `"` characters
 - sanitize clipboard text before insertion
+- hide the `delete` option if a resource does not support deletion
 
 ## 0.3.4 - 2025-12-09
 

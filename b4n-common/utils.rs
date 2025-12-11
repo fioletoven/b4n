@@ -144,6 +144,7 @@ pub fn sanitize_and_split(input: &str) -> Vec<String> {
         match ch {
             '\r' => found_cr = true,
             '\n' => lines.push(std::mem::take(&mut current)),
+            '\t' => current.push_str("  "),
             '\u{00A0}' => current.push(' '), // convert NBSP to a normal space
             c if c.is_control() => {},
             c if INVISIBLE.contains(&c) => {},

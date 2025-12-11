@@ -70,6 +70,7 @@ pub struct InitData {
     pub has_metrics: bool,
     pub is_editable: bool,
     pub is_creatable: bool,
+    pub is_deletable: bool,
 }
 
 impl Default for InitData {
@@ -86,6 +87,7 @@ impl Default for InitData {
             has_metrics: false,
             is_editable: false,
             is_creatable: false,
+            is_deletable: false,
         }
     }
 }
@@ -110,6 +112,7 @@ impl InitData {
             has_metrics,
             is_editable: cap.supports_operation(verbs::PATCH),
             is_creatable: cap.supports_operation(verbs::CREATE),
+            is_deletable: cap.supports_operation(verbs::DELETE),
         }
     }
 }
