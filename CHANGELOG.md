@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add support for CTRL+A in resources view
+
 ### Bug fixes
 
 - fix syntax highlighting for `'` and `"` characters

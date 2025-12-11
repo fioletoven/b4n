@@ -208,6 +208,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Selects all items.
+    pub fn select_all(&mut self) {
+        if let Some(items) = &mut self.items {
+            items.iter_mut().for_each(|item| item.select(true));
+        }
+    }
+
     /// Clears items selection.
     pub fn deselect_all(&mut self) {
         if let Some(items) = &mut self.items {

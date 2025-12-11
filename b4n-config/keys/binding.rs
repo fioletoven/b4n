@@ -24,6 +24,7 @@ impl Default for KeyBindings {
             .with("Esc", KeyCommand::NavigateBack)
             .with("Space", KeyCommand::NavigateSelect)
             .with("Ctrl+Space", KeyCommand::NavigateInvertSelection)
+            .with("Ctrl+A", KeyCommand::NavigateSelectAll)
             .with("Tab", KeyCommand::NavigateComplete)
             .with("Ctrl+D", KeyCommand::NavigateDelete)
             .with("Ctrl+N", KeyCommand::MouseSupportToggle)

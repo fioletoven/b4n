@@ -119,6 +119,11 @@ impl<T: Table> Responsive for ListViewer<T> {
             return ResponseEvent::Handled;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::NavigateSelectAll) {
+            self.table.select_all();
+            return ResponseEvent::Handled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::NavigateInvertSelection) {
             self.table.invert_selection();
             return ResponseEvent::Handled;
