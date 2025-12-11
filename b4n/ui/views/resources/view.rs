@@ -380,9 +380,7 @@ impl ResourcesView {
             }
         }
 
-        if let Some(resource) = self.table.list.table.get_highlighted_resource()
-            && resource.involved_object.is_some()
-        {
+        if self.has_involved_object() {
             builder = builder.with_action(
                 ActionItem::new("involved object")
                     .with_description("navigates to the involved object")
@@ -442,34 +440,38 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::default();
 
         if self.table.kind_plural() != NAMESPACES {
-            builder = builder.with_action(ActionItem::menu("back", "back"));
+            builder = builder.with_action(ActionItem::menu("󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            builder = builder.with_action(ActionItem::menu("delete", "").with_response(ResponseEvent::AskDeleteResources));
+            builder = builder.with_action(ActionItem::menu(" delete", "").with_response(ResponseEvent::AskDeleteResources));
         }
 
         if !is_containers && !is_events {
             if is_highlighted {
-                builder = builder.with_action(ActionItem::menu("show events", "show_events"));
+                builder = builder.with_action(ActionItem::menu("󰑏 events", "show_events"));
             }
             if self.table.list.table.data.is_creatable {
-                builder = builder.with_action(ActionItem::menu("create new", "create"));
+                builder = builder.with_action(ActionItem::menu("󰐕 create new", "create"));
             }
         }
 
         if is_highlighted {
-            builder = builder.with_action(ActionItem::menu("show YAML", "show_yaml"));
+            builder = builder.with_action(ActionItem::menu(" YAML", "show_yaml"));
             if is_containers || is_pods {
                 builder = builder
-                    .with_action(ActionItem::menu("show logs", "show_logs"))
-                    .with_action(ActionItem::menu("show previous logs", "show_plogs"))
-                    .with_action(ActionItem::menu("shell", "open_shell"))
-                    .with_action(ActionItem::menu("forward port", "port_forward"));
+                    .with_action(ActionItem::menu(" logs", "show_logs"))
+                    .with_action(ActionItem::menu(" logs [previous]", "show_plogs"))
+                    .with_action(ActionItem::menu(" shell", "open_shell"))
+                    .with_action(ActionItem::menu(" forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder = builder.with_action(ActionItem::menu("decode", "decode_yaml"));
+                builder = builder.with_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
+            }
+
+            if self.has_involved_object() {
+                builder = builder.with_action(ActionItem::menu("󰑏 involved object", "show_involved"));
             }
         }
 
@@ -599,6 +601,14 @@ impl ResourcesView {
                 is_full,
             )
         }
+    }
+
+    fn has_involved_object(&self) -> bool {
+        self.table
+            .list
+            .table
+            .get_highlighted_resource()
+            .is_some_and(|res| res.involved_object.is_some())
     }
 }
 

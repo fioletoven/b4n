@@ -73,10 +73,10 @@ impl<T: Table> Select<T> {
 
     /// Returns height needed to display all items in select.
     pub fn get_full_height(&self) -> usize {
-        if self.filter_disabled {
-            self.items.len()
-        } else {
+        if self.is_filter_visible() {
             self.items.len() + 1
+        } else {
+            self.items.len()
         }
     }
 
@@ -128,7 +128,7 @@ impl<T: Table> Select<T> {
 
     /// Draws [`Select`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let draw_filter = !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some();
+        let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
         self.area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(self.area.height);
@@ -167,6 +167,10 @@ impl<T: Table> Select<T> {
         if self.items.get_highlighted_item_index().is_none() {
             self.items.highlight_first_item();
         }
+    }
+
+    fn is_filter_visible(&self) -> bool {
+        !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some()
     }
 }
 
