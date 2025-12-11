@@ -26,7 +26,7 @@ pub struct ViewsManager {
     view: Option<Box<dyn View>>,
     footer: Footer,
     workspace: Rect,
-    areas: Rc<[Rect]>,
+    areas: Vec<Rect>,
 }
 
 impl ViewsManager {
@@ -57,7 +57,7 @@ impl ViewsManager {
             view: None,
             footer,
             workspace: Rect::default(),
-            areas: Rc::default(),
+            areas: vec![Rect::default(), Rect::default()],
         }
     }
 
@@ -126,14 +126,8 @@ impl ViewsManager {
             self.res_selector.draw(frame, bottom[1]);
         }
 
-        self.areas = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(self.ns_selector.width()),
-                Constraint::Fill(1),
-                Constraint::Length(self.res_selector.width()),
-            ])
-            .split(area);
+        self.areas[0] = Rect::new(0, 1, 4, area.height);
+        self.areas[1] = Rect::new(area.width.saturating_sub(4), 1, 4, area.height);
     }
 
     /// Processes single TUI event.
@@ -178,7 +172,7 @@ impl ViewsManager {
             }
 
             if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
                 && view.is_resources_selector_allowed()
             {
                 self.res_selector
@@ -207,7 +201,7 @@ impl ViewsManager {
             }
 
             if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
                 && self.resources.is_resources_selector_allowed()
             {
                 self.res_selector

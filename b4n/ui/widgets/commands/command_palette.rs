@@ -79,6 +79,13 @@ impl CommandPalette {
         self
     }
 
+    /// Sets if text input is enabled for the last added step of the command palette.
+    pub fn with_input(mut self, enabled: bool) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.set_filter(enabled);
+        self
+    }
+
     /// Sets closure that will be executed to generate [`ResponseEvent`] when all steps will be processed.
     pub fn with_response<F>(mut self, response: F) -> Self
     where
@@ -105,7 +112,7 @@ impl CommandPalette {
         }
 
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center_horizontal(area, width, self.select().items.list.len() + 1);
+        let area = center_horizontal(area, width, self.select().get_full_height());
 
         {
             let colors = &self.app_data.borrow().theme.colors;

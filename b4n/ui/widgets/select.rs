@@ -15,6 +15,7 @@ pub struct Select<T: Table> {
     colors: SelectColors,
     filter: Input,
     filter_auto_hide: bool,
+    filter_disabled: bool,
 }
 
 impl<T: Table> Select<T> {
@@ -35,6 +36,7 @@ impl<T: Table> Select<T> {
             colors,
             filter,
             filter_auto_hide,
+            filter_disabled: false,
         }
     }
 
@@ -50,6 +52,11 @@ impl<T: Table> Select<T> {
         self
     }
 
+    /// Sets flag indicating if filter is enabled for this [`Select`] instance.
+    pub fn set_filter(&mut self, enabled: bool) {
+        self.filter_disabled = !enabled;
+    }
+
     /// Sets prompt for the filter input.
     pub fn set_prompt(&mut self, prompt: impl Into<String>) {
         self.filter
@@ -62,6 +69,15 @@ impl<T: Table> Select<T> {
         self.filter.set_prompt_colors(colors.filter.prompt.unwrap_or_default());
         self.filter.set_error_colors(colors.filter.error);
         self.colors = colors;
+    }
+
+    /// Returns height needed to display all items in select.
+    pub fn get_full_height(&self) -> usize {
+        if self.filter_disabled {
+            self.items.len()
+        } else {
+            self.items.len() + 1
+        }
     }
 
     delegate! {
@@ -112,7 +128,7 @@ impl<T: Table> Select<T> {
 
     /// Draws [`Select`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let draw_filter = !self.filter_auto_hide || self.items.get_filter().is_some();
+        let draw_filter = !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some();
         let layout = get_layout(area, draw_filter);
         self.area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(self.area.height);
@@ -167,10 +183,13 @@ impl<T: Table> Responsive for Select<T> {
 
         // Process Home and End keys directly by filter input if we show cursor
         // (that means move cursor to start or end of the filter input text).
-        if (self.filter.is_cursor_visible() && (key.code == KeyCode::Home || key.code == KeyCode::End))
+        if (self.filter.is_cursor_visible() && !self.filter_disabled && (key.code == KeyCode::Home || key.code == KeyCode::End))
             || self.items.process_event(event) == ResponseEvent::NotHandled
         {
-            self.filter.process_event(event);
+            if !self.filter_disabled {
+                self.filter.process_event(event);
+            }
+
             self.update_items_filter();
         }
 

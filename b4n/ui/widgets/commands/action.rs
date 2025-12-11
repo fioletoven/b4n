@@ -19,7 +19,7 @@ pub struct ActionItem {
     pub name: String,
     pub response: ResponseEvent,
     description: Option<String>,
-    icon: Option<String>,
+    icon: Option<&'static str>,
     aliases: Option<Vec<String>>,
 }
 
@@ -30,7 +30,19 @@ impl ActionItem {
             uid: format!("_action:{name}_"),
             group: "action".to_owned(),
             name: name.to_owned(),
-            icon: Some("".to_owned()),
+            icon: Some(""),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new menu [`ActionItem`] instance.
+    pub fn menu(name: &str, action: &'static str) -> Self {
+        Self {
+            uid: format!("_menu:{name}_"),
+            group: "menu".to_owned(),
+            name: name.to_owned(),
+            response: ResponseEvent::Action(action),
+            icon: None,
             ..Default::default()
         }
     }

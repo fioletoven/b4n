@@ -91,14 +91,8 @@ impl ActionsListBuilder {
 
     /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
     /// If `primary_only` is `true`, only kinds without a group will be included.
-    pub fn from_kinds(kinds: Option<&[KindItem]>, primary_only: bool) -> Self {
-        let actions = kinds
-            .unwrap_or(&[])
-            .iter()
-            .filter(|item| !primary_only || !item.kind.has_group())
-            .map(ActionItem::from_kind)
-            .collect();
-
+    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
+        let actions = kinds.unwrap_or(&[]).iter().map(ActionItem::from_kind).collect();
         ActionsListBuilder { actions }
     }
 

@@ -6,6 +6,7 @@ use b4n_tui::widgets::{Button, CheckBox, Dialog, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
+use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
@@ -222,7 +223,7 @@ impl ResourcesView {
             if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
                 || event.is_in(MouseEventKind::RightClick, self.table.list.area)
             {
-                self.show_command_palette(true);
+                self.show_command_palette();
             }
 
             return ResponseEvent::Handled;
@@ -251,12 +252,17 @@ impl ResourcesView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette(false);
+            self.show_command_palette();
             return ResponseEvent::Handled;
         }
 
-        if event.is_in(MouseEventKind::RightClick, self.table.list.area) {
-            self.show_command_palette(true);
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+            && self.table.list.area.contains(Position::new(mouse.column, mouse.row))
+        {
+            let line_no = mouse.row.saturating_sub(self.table.list.area.y);
+            self.table.list.table.highlight_item_by_line(line_no);
+            self.show_mouse_menu();
             return ResponseEvent::Handled;
         }
 
@@ -317,7 +323,7 @@ impl ResourcesView {
             .when_action_then("new_minimal", || self.create_new_resource(false, false))
     }
 
-    fn show_command_palette(&mut self, simplified: bool) {
+    fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
@@ -330,7 +336,7 @@ impl ResourcesView {
         let is_events = self.table.kind_plural() == EVENTS;
         let is_deletable = self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable;
 
-        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), simplified)
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
             .with_action(
@@ -424,8 +430,59 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
+    fn show_mouse_menu(&mut self) {
+        if !self.app_data.borrow().is_connected {
+            return;
+        }
+
+        let is_highlighted = self.table.list.table.is_anything_highlighted();
+        let is_containers = self.table.kind_plural() == CONTAINERS;
+        let is_pods = self.table.kind_plural() == PODS;
+        let is_events = self.table.kind_plural() == EVENTS;
+        let mut builder = ActionsListBuilder::default();
+
+        if self.table.kind_plural() != NAMESPACES {
+            builder = builder.with_action(ActionItem::menu("back", "back"));
+        }
+
+        if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
+            builder = builder.with_action(ActionItem::menu("delete", "").with_response(ResponseEvent::AskDeleteResources));
+        }
+
+        if !is_containers && !is_events {
+            if is_highlighted {
+                builder = builder.with_action(ActionItem::menu("show events", "show_events"));
+            }
+            if self.table.list.table.data.is_creatable {
+                builder = builder.with_action(ActionItem::menu("create new", "create"));
+            }
+        }
+
+        if is_highlighted {
+            builder = builder.with_action(ActionItem::menu("show YAML", "show_yaml"));
+            if is_containers || is_pods {
+                builder = builder
+                    .with_action(ActionItem::menu("show logs", "show_logs"))
+                    .with_action(ActionItem::menu("show previous logs", "show_plogs"))
+                    .with_action(ActionItem::menu("shell", "open_shell"))
+                    .with_action(ActionItem::menu("forward port", "port_forward"));
+            }
+
+            if self.table.kind_plural() == SECRETS {
+                builder = builder.with_action(ActionItem::menu("decode", "decode_yaml"));
+            }
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).with_input(false);
+        self.command_palette.show();
+    }
+
     fn show_create_resource_palette(&mut self) {
-        if self.kind_plural() == CONTAINERS || self.kind_plural() == EVENTS || !self.table.list.table.data.is_creatable {
+        if self.kind_plural() == CONTAINERS
+            || self.kind_plural() == EVENTS
+            || !self.table.list.table.data.is_creatable
+            || !self.app_data.borrow().is_connected
+        {
             return;
         }
 
