@@ -1,9 +1,11 @@
+use std::u16;
+
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::{Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
@@ -21,6 +23,7 @@ pub struct CommandPalette {
     steps: Vec<Step>,
     index: usize,
     width: u16,
+    position: Option<Position>,
     response: Option<Box<dyn FnOnce(Vec<String>) -> ResponseEvent>>,
 }
 
@@ -98,6 +101,13 @@ impl CommandPalette {
     /// Marks [`CommandPalette`] as visible.
     pub fn show(&mut self) {
         self.is_visible = true;
+        self.position = None;
+    }
+
+    /// Marks [`CommandPalette`] as visible and sets position to show.
+    pub fn show_at(&mut self, x: u16, y: u16) {
+        self.is_visible = true;
+        self.position = Some(Position::new(x, y));
     }
 
     /// Marks [`CommandPalette`] as hidden.
@@ -111,8 +121,7 @@ impl CommandPalette {
             return;
         }
 
-        let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center_horizontal(area, width, self.select().get_full_height());
+        let area = self.get_area_to_draw(area);
 
         {
             let colors = &self.app_data.borrow().theme.colors;
@@ -127,6 +136,18 @@ impl CommandPalette {
         }
 
         self.select_mut().draw(frame, area);
+    }
+
+    fn get_area_to_draw(&self, area: Rect) -> Rect {
+        let width = std::cmp::min(area.width, self.width).max(2) - 2;
+        if let Some(position) = self.position {
+            let height = u16::try_from(self.select().get_full_height()).unwrap_or(u16::MAX);
+            let x = position.x.min(area.width.saturating_sub(width));
+            let y = position.y.min(area.height.saturating_sub(height));
+            Rect::new(x, y, width, height)
+        } else {
+            center_horizontal(area, width, self.select().get_full_height())
+        }
     }
 
     fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
@@ -241,10 +262,14 @@ impl Responsive for CommandPalette {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
             || event.is_out(MouseEventKind::LeftClick, self.select().area)
-            || event.is_mouse(MouseEventKind::RightClick)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;
+        }
+
+        if event.is_mouse(MouseEventKind::RightClick) {
+            self.is_visible = false;
+            return ResponseEvent::NotHandled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

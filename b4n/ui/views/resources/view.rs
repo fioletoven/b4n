@@ -216,7 +216,10 @@ impl ResourcesView {
         }
 
         if self.command_palette.is_visible {
-            return self.process_command_palette_event(event);
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if !self.app_data.borrow().is_connected {
@@ -262,7 +265,7 @@ impl ResourcesView {
         {
             let line_no = mouse.row.saturating_sub(self.table.list.area.y);
             self.table.list.table.highlight_item_by_line(line_no);
-            self.show_mouse_menu();
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 
@@ -428,7 +431,7 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
-    fn show_mouse_menu(&mut self) {
+    fn show_mouse_menu(&mut self, x: u16, y: u16) {
         if !self.app_data.borrow().is_connected {
             return;
         }
@@ -476,7 +479,7 @@ impl ResourcesView {
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).with_input(false);
-        self.command_palette.show();
+        self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
     fn show_create_resource_palette(&mut self) {

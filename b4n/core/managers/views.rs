@@ -126,8 +126,8 @@ impl ViewsManager {
             self.res_selector.draw(frame, bottom[1]);
         }
 
-        self.areas[0] = Rect::new(0, 1, 4, area.height);
-        self.areas[1] = Rect::new(area.width.saturating_sub(4), 1, 4, area.height);
+        self.areas[0] = Rect::new(area.x, area.y + 1, 4, area.height);
+        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), area.y + 1, 4, area.height);
     }
 
     /// Processes single TUI event.
