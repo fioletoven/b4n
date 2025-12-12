@@ -40,6 +40,11 @@ impl DeleteResourcesCommand {
     /// Deletes all resources using provided client.
     pub async fn execute(mut self) -> Option<CommandResult> {
         let (client, info, delete_params) = self.prepare_context()?;
+        tracing::info!(
+            "About to delete the following resources: {} ({})",
+            self.names.join(", "),
+            info
+        );
 
         let mut set = JoinSet::new();
 
@@ -55,6 +60,7 @@ impl DeleteResourcesCommand {
 
                     if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
                         tracing::error!("Cannot detach finalizers from {} ({}): {}", name, info, err);
+                        return;
                     } else {
                         tracing::info!("Detached finalizers from {} ({})", name, info);
                     }
@@ -90,7 +96,7 @@ impl DeleteResourcesCommand {
             info = discovery.0.plural.clone();
         } else {
             namespace = self.namespace.as_option();
-            info = format!("{}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
+            info = format!("kind: {}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
         }
 
         let client = b4n_kube::client::get_dynamic_api(
