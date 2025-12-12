@@ -264,7 +264,9 @@ impl ResourcesView {
             && self.table.list.area.contains(Position::new(mouse.column, mouse.row))
         {
             let line_no = mouse.row.saturating_sub(self.table.list.area.y);
-            self.table.list.table.highlight_item_by_line(line_no);
+            if !self.table.list.table.highlight_item_by_line(line_no) {
+                self.table.list.table.unhighlight_item();
+            }
             self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
@@ -466,7 +468,7 @@ impl ResourcesView {
                     .with_action(ActionItem::menu(" logs", "show_logs"))
                     .with_action(ActionItem::menu(" logs [previous]", "show_plogs"))
                     .with_action(ActionItem::menu(" shell", "open_shell"))
-                    .with_action(ActionItem::menu(" forward port", "port_forward"));
+                    .with_action(ActionItem::menu(" forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {

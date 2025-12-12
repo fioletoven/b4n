@@ -157,11 +157,15 @@ impl<T: Table> Responsive for SideSelect<T> {
         if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) && self.position == Position::Right)
             || (self.app_data.has_binding(event, KeyCommand::SelectorRight) && self.position == Position::Left)
             || self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.select.area)
-            || event.is_mouse(MouseEventKind::RightClick)
         {
             self.is_visible = false;
             return ResponseEvent::Handled;
+        }
+
+        if event.is_out(MouseEventKind::LeftClick, self.select.area) || event.is_out(MouseEventKind::RightClick, self.select.area)
+        {
+            self.is_visible = false;
+            return ResponseEvent::NotHandled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::SelectorLeft)

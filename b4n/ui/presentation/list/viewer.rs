@@ -135,8 +135,12 @@ impl<T: Table> Responsive for ListViewer<T> {
             if self.area.contains(Position::new(mouse.column, mouse.row)) {
                 // mouse click is inside list area
                 let line_no = mouse.row.saturating_sub(self.area.y);
-                if self.table.highlight_item_by_line(line_no) && mouse.modifiers == KeyModifiers::CONTROL {
-                    self.table.select_highlighted_item();
+                if self.table.highlight_item_by_line(line_no) {
+                    if mouse.modifiers == KeyModifiers::CONTROL {
+                        self.table.select_highlighted_item();
+                    }
+                } else {
+                    self.table.unhighlight_item();
                 }
             } else if Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
                 .contains(Position::new(mouse.column, mouse.row))

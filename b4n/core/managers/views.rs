@@ -138,7 +138,9 @@ impl ViewsManager {
                 view.handle_namespaces_selector_event(&result);
             }
 
-            return result;
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.res_selector.is_visible {
@@ -147,7 +149,9 @@ impl ViewsManager {
                 view.handle_resources_selector_event(&result);
             }
 
-            return result;
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.view.is_some() {

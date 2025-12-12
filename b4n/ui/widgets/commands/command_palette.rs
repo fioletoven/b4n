@@ -1,5 +1,3 @@
-use std::u16;
-
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
@@ -144,7 +142,7 @@ impl CommandPalette {
             let height = u16::try_from(self.select().get_full_height()).unwrap_or(u16::MAX);
             let x = position.x.min(area.width.saturating_sub(width));
             let y = position.y.min(area.height.saturating_sub(height));
-            Rect::new(x, y, width, height)
+            Rect::new(x, y, width, height.min(area.height))
         } else {
             center_horizontal(area, width, self.select().get_full_height())
         }
@@ -260,14 +258,14 @@ impl Responsive for CommandPalette {
             }
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.select().area)
-        {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }
 
-        if event.is_mouse(MouseEventKind::RightClick) {
+        if event.is_out(MouseEventKind::RightClick, self.select().area)
+            || event.is_out(MouseEventKind::LeftClick, self.select().area)
+        {
             self.is_visible = false;
             return ResponseEvent::NotHandled;
         }
