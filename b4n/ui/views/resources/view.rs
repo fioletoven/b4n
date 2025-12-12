@@ -336,6 +336,7 @@ impl ResourcesView {
             return;
         }
 
+        let is_highlighted = self.table.list.table.is_anything_highlighted();
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
@@ -344,16 +345,6 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
-            .with_action(
-                ActionItem::new("show YAML")
-                    .with_description(if is_containers {
-                        "shows YAML of the container's resource"
-                    } else {
-                        "shows YAML of the selected resource"
-                    })
-                    .with_aliases(&["yaml", "yml"])
-                    .with_response(ResponseEvent::Action("show_yaml")),
-            )
             .with_action(
                 ActionItem::new("filter")
                     .with_description("shows resources filter input")
@@ -369,11 +360,13 @@ impl ResourcesView {
         }
 
         if !is_containers && !is_events {
-            builder = builder.with_action(
-                ActionItem::new("show events")
-                    .with_description("shows events for the selected resource")
-                    .with_response(ResponseEvent::Action("show_events")),
-            );
+            if is_highlighted {
+                builder = builder.with_action(
+                    ActionItem::new("show events")
+                        .with_description("shows events for the selected resource")
+                        .with_response(ResponseEvent::Action("show_events")),
+                );
+            }
 
             if self.table.list.table.data.is_creatable {
                 builder = builder.with_action(
@@ -393,40 +386,53 @@ impl ResourcesView {
             );
         }
 
-        if is_containers || is_pods {
-            builder = builder
-                .with_action(
-                    ActionItem::new("show logs")
-                        .with_description("shows container logs")
-                        .with_aliases(&["logs"])
-                        .with_response(ResponseEvent::Action("show_logs")),
-                )
-                .with_action(
-                    ActionItem::new("show previous logs")
-                        .with_description("shows container previous logs")
-                        .with_aliases(&["previous"])
-                        .with_response(ResponseEvent::Action("show_plogs")),
-                )
-                .with_action(
-                    ActionItem::new("shell")
-                        .with_description("opens container shell")
-                        .with_response(ResponseEvent::Action("open_shell")),
-                )
-                .with_action(
-                    ActionItem::new("forward port")
-                        .with_description("forwards container port")
-                        .with_aliases(&["port", "pf"])
-                        .with_response(ResponseEvent::Action("port_forward")),
-                );
-        }
-
-        if self.table.kind_plural() == SECRETS {
+        if is_highlighted {
             builder = builder.with_action(
-                ActionItem::new("decode")
-                    .with_description("shows decoded YAML of the selected secret")
-                    .with_aliases(&["decode", "x"])
-                    .with_response(ResponseEvent::Action("decode_yaml")),
+                ActionItem::new("show YAML")
+                    .with_description(if is_containers {
+                        "shows YAML of the container's resource"
+                    } else {
+                        "shows YAML of the selected resource"
+                    })
+                    .with_aliases(&["yaml", "yml"])
+                    .with_response(ResponseEvent::Action("show_yaml")),
             );
+
+            if is_containers || is_pods {
+                builder = builder
+                    .with_action(
+                        ActionItem::new("show logs")
+                            .with_description("shows container logs")
+                            .with_aliases(&["logs"])
+                            .with_response(ResponseEvent::Action("show_logs")),
+                    )
+                    .with_action(
+                        ActionItem::new("show previous logs")
+                            .with_description("shows container previous logs")
+                            .with_aliases(&["previous"])
+                            .with_response(ResponseEvent::Action("show_plogs")),
+                    )
+                    .with_action(
+                        ActionItem::new("shell")
+                            .with_description("opens container shell")
+                            .with_response(ResponseEvent::Action("open_shell")),
+                    )
+                    .with_action(
+                        ActionItem::new("forward port")
+                            .with_description("forwards container port")
+                            .with_aliases(&["port", "pf"])
+                            .with_response(ResponseEvent::Action("port_forward")),
+                    );
+            }
+
+            if self.table.kind_plural() == SECRETS {
+                builder = builder.with_action(
+                    ActionItem::new("decode")
+                        .with_description("shows decoded YAML of the selected secret")
+                        .with_aliases(&["decode", "x"])
+                        .with_response(ResponseEvent::Action("decode_yaml")),
+                );
+            }
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
@@ -461,6 +467,10 @@ impl ResourcesView {
             }
         }
 
+        if self.has_involved_object() {
+            builder = builder.with_action(ActionItem::menu("󰑏 involved object", "show_involved"));
+        }
+
         if is_highlighted {
             builder = builder.with_action(ActionItem::menu(" YAML", "show_yaml"));
             if is_containers || is_pods {
@@ -473,10 +483,6 @@ impl ResourcesView {
 
             if self.table.kind_plural() == SECRETS {
                 builder = builder.with_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
-            }
-
-            if self.has_involved_object() {
-                builder = builder.with_action(ActionItem::menu("󰑏 involved object", "show_involved"));
             }
         }
 

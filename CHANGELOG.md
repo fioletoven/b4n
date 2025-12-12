@@ -5,6 +5,7 @@
 ### Features
 
 - add support for CTRL+A in resources view
+- include the resource's `uid` in the delete precondition
 
 ### Bug fixes
 
