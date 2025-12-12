@@ -73,6 +73,15 @@ impl ResourcesList {
         })
     }
 
+    /// Gets selected resources.
+    pub fn get_selected_resources(&self) -> Vec<&ResourceItem> {
+        if let Some(items) = &self.table.list.items {
+            items.iter().filter(|i| i.is_selected).map(|i| &i.data).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        }
+    }
+
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
         self.table.update_header(ResourceItem::header(

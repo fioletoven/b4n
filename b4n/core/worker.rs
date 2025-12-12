@@ -317,6 +317,7 @@ impl BgWorker {
     pub fn delete_resources(
         &mut self,
         resources: Vec<String>,
+        uids: Vec<String>,
         namespace: Namespace,
         kind: &Kind,
         terminate_immediately: bool,
@@ -326,6 +327,7 @@ impl BgWorker {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(
                 resources,
+                uids,
                 namespace,
                 discovery,
                 client.get_client(),

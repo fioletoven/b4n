@@ -10,9 +10,11 @@ use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kube::resources::ResourceItem;
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
@@ -310,17 +312,18 @@ impl ViewsManager {
 
     /// Deletes resources that are currently selected on [`ResourcesView`].
     pub fn delete_resources(&mut self, terminate_immediately: bool, detach_finalizers: bool) {
-        let list = self.resources.get_selected_items();
-        for key in list.keys() {
-            let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
-            let namespace = if self.resources.scope() == &Scope::Cluster {
-                Namespace::all()
-            } else {
-                Namespace::from((*key).to_owned())
-            };
+        let resources = self.resources.table.list.table.get_selected_resources();
+        let mut grouped: HashMap<&str, Vec<&ResourceItem>> = HashMap::new();
+        for resource in resources {
+            let namespace = resource.namespace.as_deref().unwrap_or_default();
+            grouped.entry(namespace).or_default().push(resource);
+        }
+
+        for (namespace, resources) in grouped {
             self.worker.borrow_mut().delete_resources(
-                resources,
-                namespace,
+                resources.iter().map(|r| r.name.clone()).collect(),
+                resources.iter().map(|r| r.uid.clone()).collect(),
+                namespace.into(),
                 &self.resources.get_kind(),
                 terminate_immediately,
                 detach_finalizers,
