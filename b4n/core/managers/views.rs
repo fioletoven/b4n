@@ -365,8 +365,8 @@ impl ViewsManager {
     }
 
     /// Sends command to fetch resource's YAML to the background executor and opens empty YAML view.
-    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef, is_new: bool) {
-        self.view = Some(Box::new(YamlView::new(
+    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef, is_new: bool, edit: bool) {
+        let mut view = YamlView::new(
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             command_id,
@@ -374,7 +374,12 @@ impl ViewsManager {
             self.footer.get_transmitter(),
             is_new,
             self.workspace,
-        )));
+        );
+        if edit {
+            view.switch_to_edit();
+        }
+
+        self.view = Some(Box::new(view));
     }
 
     /// Shows returned resource's template YAML in an already opened YAML view.

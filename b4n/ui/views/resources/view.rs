@@ -306,6 +306,9 @@ impl ResourcesView {
             .when_action_then("show_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen))
             })
+            .when_action_then("edit_yaml", || {
+                self.table.process_event(&self.app_data.get_event(KeyCommand::YamlEdit))
+            })
             .when_action_then("decode_yaml", || {
                 self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode))
             })
@@ -392,7 +395,7 @@ impl ResourcesView {
                     .with_description(if is_containers {
                         "shows YAML of the container's resource"
                     } else {
-                        "shows YAML of the selected resource"
+                        "shows YAML of the highlighted resource"
                     })
                     .with_aliases(&["yaml", "yml"])
                     .with_response(ResponseEvent::Action("show_yaml")),
@@ -428,9 +431,18 @@ impl ResourcesView {
             if self.table.kind_plural() == SECRETS {
                 builder = builder.with_action(
                     ActionItem::new("decode")
-                        .with_description("shows decoded YAML of the selected secret")
+                        .with_description("shows decoded YAML of the highlighted secret")
                         .with_aliases(&["decode", "x"])
                         .with_response(ResponseEvent::Action("decode_yaml")),
+                );
+            }
+
+            if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
+                builder = builder.with_action(
+                    ActionItem::new("edit YAML")
+                        .with_description("displays YAML and switches to edit mode")
+                        .with_aliases(&["yaml", "yml"])
+                        .with_response(ResponseEvent::Action("edit_yaml")),
                 );
             }
         }
@@ -483,6 +495,10 @@ impl ResourcesView {
 
             if self.table.kind_plural() == SECRETS {
                 builder = builder.with_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
+            }
+
+            if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
+                builder = builder.with_action(ActionItem::menu(" edit", "edit_yaml"));
             }
         }
 

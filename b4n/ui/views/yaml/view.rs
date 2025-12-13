@@ -80,6 +80,11 @@ impl YamlView {
         }
     }
 
+    /// Marks YAML view to switch to edit when data is received.
+    pub fn switch_to_edit(&mut self) {
+        self.state = ViewState::WaitingForEdit;
+    }
+
     fn copy_to_clipboard(&mut self, is_current_line: bool) {
         if self.yaml.content().is_none() {
             return;
@@ -393,7 +398,7 @@ impl YamlView {
             result.is_editable,
             styles,
         ));
-        if self.is_new || (self.state == ViewState::WaitingForEdit && self.is_decoded) {
+        if self.is_new || self.state == ViewState::WaitingForEdit {
             self.state = ViewState::Idle;
             self.yaml.enable_edit_mode(self.is_new);
         }
