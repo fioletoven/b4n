@@ -139,6 +139,17 @@ impl ActionsListBuilder {
         self
     }
 
+    /// Adds custom action with response [`ResponseEvent::Action`].
+    pub fn with_command(mut self, command: &str, description: &str, aliases: &[&str], action: &'static str) -> Self {
+        self.actions.push(
+            ActionItem::new(command)
+                .with_description(description)
+                .with_aliases(aliases)
+                .with_response(ResponseEvent::Action(action)),
+        );
+        self
+    }
+
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
         let builder = self.with_context().with_theme().with_quit();

@@ -35,16 +35,16 @@ impl ActionItem {
         }
     }
 
-    /// Creates new menu [`ActionItem`] instance.
+    /// Creates new [`ActionItem`] instance with action response.
+    pub fn action(name: &str, action: &'static str) -> Self {
+        ActionItem::new(name).with_response(ResponseEvent::Action(action))
+    }
+
+    /// Creates new [`ActionItem`] instance for mouse menu.
     pub fn menu(name: &str, action: &'static str) -> Self {
-        Self {
-            uid: format!("_menu:{name}_"),
-            group: "menu".to_owned(),
-            name: name.to_owned(),
-            response: ResponseEvent::Action(action),
-            icon: None,
-            ..Default::default()
-        }
+        ActionItem::new(name)
+            .with_response(ResponseEvent::Action(action))
+            .with_no_icon()
     }
 
     /// Creates new [`ActionItem`] instance from [`KindItem`].
