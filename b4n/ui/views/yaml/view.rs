@@ -133,6 +133,10 @@ impl YamlView {
         }
     }
 
+    fn can_encode_decode(&self) -> bool {
+        self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected && !self.yaml.is_modified()
+    }
+
     fn show_command_palette(&mut self) {
         let mut builder = ActionsListBuilder::default()
             .with_back()
@@ -144,14 +148,32 @@ impl YamlView {
                     .with_description("switches to the edit mode")
                     .with_aliases(&["insert"]),
             );
-        if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected && !self.yaml.is_modified() {
+        if self.can_encode_decode() {
             let action = if self.is_decoded { "encode" } else { "decode" };
-            builder = builder
-                .with_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
+            builder.add_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
         self.command_palette.show();
+    }
+
+    fn show_mouse_menu(&mut self, x: u16, y: u16) {
+        let mut builder = ActionsListBuilder::default()
+            .with_action(
+                ActionItem::new("󰕍 back")
+                    .with_response(ResponseEvent::Cancelled)
+                    .with_no_icon(),
+            )
+            .with_action(ActionItem::menu(" search", "search"))
+            .with_action(ActionItem::menu(" copy all", "copy"))
+            .with_action(ActionItem::menu(" edit", "edit"));
+        if self.can_encode_decode() {
+            let action = if self.is_decoded { " encode" } else { " decode" };
+            builder.add_action(ActionItem::menu(action, "decode"));
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
     fn toggle_yaml_decode(&mut self) {
@@ -447,7 +469,10 @@ impl View for YamlView {
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
-            return self.process_command_palette_event(event);
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.search.is_visible {
@@ -511,8 +536,15 @@ impl View for YamlView {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is_mouse(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 
