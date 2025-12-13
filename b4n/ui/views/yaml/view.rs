@@ -159,17 +159,14 @@ impl YamlView {
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
         let mut builder = ActionsListBuilder::default()
-            .with_action(
-                ActionItem::new("󰕍 back")
-                    .with_response(ResponseEvent::Cancelled)
-                    .with_no_icon(),
-            )
-            .with_action(ActionItem::menu(" search", "search"))
-            .with_action(ActionItem::menu(" copy all", "copy"))
-            .with_action(ActionItem::menu(" edit", "edit"));
+            .with_action(ActionItem::back())
+            .with_action(ActionItem::command_palette())
+            .with_action(ActionItem::menu(1, " copy all", "copy"))
+            .with_action(ActionItem::menu(2, " search", "search"))
+            .with_action(ActionItem::menu(4, " edit", "edit"));
         if self.can_encode_decode() {
             let action = if self.is_decoded { " encode" } else { " decode" };
-            builder.add_action(ActionItem::menu(action, "decode"));
+            builder.add_action(ActionItem::menu(3, action, "decode"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
@@ -217,6 +214,8 @@ impl YamlView {
 
         if response == ResponseEvent::Cancelled {
             self.clear_search();
+        } else if response.is_action("palette") {
+            return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("copy") {
             self.copy_to_clipboard(false);
             return ResponseEvent::Handled;

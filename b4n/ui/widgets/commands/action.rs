@@ -18,6 +18,7 @@ pub struct ActionItem {
     pub group: String,
     pub name: String,
     pub response: ResponseEvent,
+    pub id: Option<usize>,
     description: Option<String>,
     icon: Option<&'static str>,
     aliases: Option<Vec<String>>,
@@ -41,9 +42,26 @@ impl ActionItem {
     }
 
     /// Creates new [`ActionItem`] instance for mouse menu.
-    pub fn menu(name: &str, action: &'static str) -> Self {
+    pub fn menu(id: usize, name: &str, action: &'static str) -> Self {
         ActionItem::new(name)
             .with_response(ResponseEvent::Action(action))
+            .with_id(id)
+            .with_no_icon()
+    }
+
+    /// Creates new [`ActionItem`] instance `command palette` for mouse menu.
+    pub fn command_palette() -> Self {
+        ActionItem::new(" command palette")
+            .with_response(ResponseEvent::Action("palette"))
+            .with_id(50)
+            .with_no_icon()
+    }
+
+    /// Creates new [`ActionItem`] instance `back` for mouse menu.
+    pub fn back() -> Self {
+        ActionItem::new("󰕍 back")
+            .with_response(ResponseEvent::Cancelled)
+            .with_id(100)
             .with_no_icon()
     }
 
@@ -101,6 +119,12 @@ impl ActionItem {
     /// Hides icon for this action instance.
     pub fn with_no_icon(mut self) -> Self {
         self.icon = None;
+        self
+    }
+
+    /// Sets sort `id` for this action instance.
+    pub fn with_id(mut self, id: usize) -> Self {
+        self.id = Some(id);
         self
     }
 

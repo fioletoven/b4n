@@ -90,13 +90,10 @@ impl LogsView {
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
         let builder = ActionsListBuilder::default()
-            .with_action(
-                ActionItem::new("󰕍 back")
-                    .with_response(ResponseEvent::Cancelled)
-                    .with_no_icon(),
-            )
-            .with_action(ActionItem::menu(" search", "search"))
-            .with_action(ActionItem::menu(" copy all", "copy"));
+            .with_action(ActionItem::back())
+            .with_action(ActionItem::command_palette())
+            .with_action(ActionItem::menu(1, " copy all", "copy"))
+            .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
         self.command_palette.show_at(x.saturating_sub(1), y);
     }
@@ -168,6 +165,26 @@ impl LogsView {
             None
         }
     }
+
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let response = self.command_palette.process_event(event);
+        if response == ResponseEvent::Cancelled {
+            self.clear_search();
+        } else if response.is_action("palette") {
+            return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+        } else if response.is_action("timestamps") {
+            self.toggle_timestamps();
+            return ResponseEvent::Handled;
+        } else if response.is_action("copy") {
+            self.copy_logs_to_clipboard();
+            return ResponseEvent::Handled;
+        } else if response.is_action("search") {
+            self.search.show();
+            return ResponseEvent::Handled;
+        }
+
+        response
+    }
 }
 
 impl View for LogsView {
@@ -223,22 +240,9 @@ impl View for LogsView {
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
-            let response = self.command_palette.process_event(event);
-            if response == ResponseEvent::Cancelled {
-                self.clear_search();
-            } else if response.is_action("timestamps") {
-                self.toggle_timestamps();
-                return ResponseEvent::Handled;
-            } else if response.is_action("copy") {
-                self.copy_logs_to_clipboard();
-                return ResponseEvent::Handled;
-            } else if response.is_action("search") {
-                self.search.show();
-                return ResponseEvent::Handled;
-            }
-
-            if response != ResponseEvent::NotHandled {
-                return response;
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
             }
         }
 

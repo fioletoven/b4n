@@ -1,7 +1,9 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::stats::SharedStatistics;
-use b4n_kube::{CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS};
+use b4n_kube::{
+    ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
+};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
@@ -289,6 +291,7 @@ impl ResourcesView {
         if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
+                "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
                 "filter" => self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen)),
                 "create" => self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate)),
                 "show_events" => self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow)),
@@ -418,49 +421,50 @@ impl ResourcesView {
             return;
         }
 
-        let is_highlighted = self.table.list.table.is_anything_highlighted();
+        let highlighted_name = self.table.list.table.get_highlighted_item_name();
+        let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
-        let mut builder = ActionsListBuilder::default();
+        let mut builder = ActionsListBuilder::default().with_action(ActionItem::command_palette());
 
         if self.table.kind_plural() != NAMESPACES {
-            builder.add_action(ActionItem::menu("󰕍 back", "back"));
+            builder.add_action(ActionItem::menu(100, "󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            builder.add_action(ActionItem::menu(" delete", "").with_response(ResponseEvent::AskDeleteResources));
+            builder.add_action(ActionItem::menu(9, " delete [selected]", "").with_response(ResponseEvent::AskDeleteResources));
         }
 
         if !is_containers && !is_events {
-            if is_highlighted {
-                builder.add_action(ActionItem::menu("󰑏 events", "show_events"));
-            }
             if self.table.list.table.data.is_creatable {
-                builder.add_action(ActionItem::menu("󰐕 create new", "create"));
+                builder.add_action(ActionItem::menu(7, "󰐕 create new", "create"));
+            }
+            if is_highlighted {
+                builder.add_action(ActionItem::menu(98, "󰑏 events", "show_events"));
             }
         }
 
         if self.has_involved_object() {
-            builder.add_action(ActionItem::menu("󰑏 involved object", "show_involved"));
+            builder.add_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
         }
 
         if is_highlighted {
-            builder.add_action(ActionItem::menu(" YAML", "show_yaml"));
+            builder.add_action(ActionItem::menu(1, " YAML", "show_yaml"));
             if is_containers || is_pods {
                 builder = builder
-                    .with_action(ActionItem::menu(" logs", "show_logs"))
-                    .with_action(ActionItem::menu(" logs [previous]", "show_plogs"))
-                    .with_action(ActionItem::menu(" shell", "open_shell"))
-                    .with_action(ActionItem::menu(" forward port", "port_forward"));
+                    .with_action(ActionItem::menu(2, " logs", "show_logs"))
+                    .with_action(ActionItem::menu(3, " logs [previous]", "show_plogs"))
+                    .with_action(ActionItem::menu(5, " shell", "open_shell"))
+                    .with_action(ActionItem::menu(6, "󱘖 forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder.add_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
+                builder.add_action(ActionItem::menu(4, " YAML [decoded]", "decode_yaml"));
             }
 
             if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
-                builder.add_action(ActionItem::menu(" edit", "edit_yaml"));
+                builder.add_action(ActionItem::menu(8, " edit", "edit_yaml"));
             }
         }
 

@@ -92,14 +92,12 @@ impl ForwardsView {
             return;
         }
 
-        let mut builder = ActionsListBuilder::default().with_action(
-            ActionItem::new("󰕍 back")
-                .with_response(ResponseEvent::Cancelled)
-                .with_no_icon(),
-        );
+        let mut builder = ActionsListBuilder::default()
+            .with_action(ActionItem::back())
+            .with_action(ActionItem::command_palette());
 
         if self.list.table.is_anything_selected() {
-            builder.add_action(ActionItem::menu(" stop", "stop_selected"));
+            builder.add_action(ActionItem::menu(1, " stop [selected]", "stop_selected"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
@@ -211,6 +209,9 @@ impl View for ForwardsView {
                 ResponseEvent::Action("stop_selected") => {
                     self.ask_stop_port_forwards();
                     return ResponseEvent::Handled;
+                },
+                ResponseEvent::Action("palette") => {
+                    return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
                 },
                 ResponseEvent::NotHandled => (),
                 response_event => return response_event,

@@ -124,8 +124,14 @@ impl ActionsListBuilder {
 
     /// Builds the [`ActionsList`] instance.
     pub fn build(self) -> ActionsList {
+        let has_ids = self.actions.iter().any(|a| a.id.is_some());
         let mut list = ScrollableList::from(self.actions);
-        list.sort(1, false);
+
+        if has_ids && let Some(items) = &mut list.items {
+            items.full_sort_by(|a, b| a.data.id.cmp(&b.data.id));
+        } else {
+            list.sort(1, false);
+        }
 
         ActionsList {
             list,
