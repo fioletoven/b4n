@@ -209,4 +209,9 @@ impl ActionsListBuilder {
         );
         self
     }
+
+    /// Adds custom action.
+    pub fn add_action(&mut self, action: ActionItem) {
+        self.actions.push(action);
+    }
 }

@@ -22,6 +22,7 @@ pub struct YamlView {
     app_data: SharedAppData,
     worker: SharedBgWorker,
     is_new: bool,
+    is_edit: bool,
     is_secret: bool,
     is_decoded: bool,
     can_patch_status: bool,
@@ -66,6 +67,7 @@ impl YamlView {
             app_data,
             worker,
             is_new,
+            is_edit: false,
             is_secret,
             is_decoded: false,
             can_patch_status: false,
@@ -82,6 +84,7 @@ impl YamlView {
 
     /// Marks YAML view to switch to edit when data is received.
     pub fn switch_to_edit(&mut self) {
+        self.is_edit = true;
         self.state = ViewState::WaitingForEdit;
     }
 
@@ -480,6 +483,8 @@ impl View for YamlView {
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             if self.is_new {
                 return self.process_view_close_event(ResponseEvent::Cancelled, false);
+            } else if self.is_edit && !self.yaml.is_modified() {
+                return ResponseEvent::Cancelled;
             } else if self.yaml.disable_edit_mode() {
                 return ResponseEvent::Handled;
             }

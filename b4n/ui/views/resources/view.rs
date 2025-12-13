@@ -355,7 +355,7 @@ impl ResourcesView {
             );
 
         if self.table.kind_plural() != NAMESPACES {
-            builder = builder.with_action(
+            builder.add_action(
                 ActionItem::new("back")
                     .with_description("returns to the previous view")
                     .with_response(ResponseEvent::Action("back")),
@@ -364,7 +364,7 @@ impl ResourcesView {
 
         if !is_containers && !is_events {
             if is_highlighted {
-                builder = builder.with_action(
+                builder.add_action(
                     ActionItem::new("show events")
                         .with_description("shows events for the selected resource")
                         .with_response(ResponseEvent::Action("show_events")),
@@ -372,17 +372,17 @@ impl ResourcesView {
             }
 
             if self.table.list.table.data.is_creatable {
-                builder = builder.with_action(
+                builder.add_action(
                     ActionItem::new("create")
                         .with_description("creates new Kubernetes resource")
-                        .with_aliases(&["new"])
+                        .with_aliases(&["new", "add"])
                         .with_response(ResponseEvent::Action("create")),
                 );
             }
         }
 
         if self.has_involved_object() {
-            builder = builder.with_action(
+            builder.add_action(
                 ActionItem::new("involved object")
                     .with_description("navigates to the involved object")
                     .with_response(ResponseEvent::Action("show_involved")),
@@ -390,14 +390,14 @@ impl ResourcesView {
         }
 
         if is_highlighted {
-            builder = builder.with_action(
+            builder.add_action(
                 ActionItem::new("show YAML")
                     .with_description(if is_containers {
                         "shows YAML of the container's resource"
                     } else {
                         "shows YAML of the highlighted resource"
                     })
-                    .with_aliases(&["yaml", "yml"])
+                    .with_aliases(&["yaml", "yml", "view"])
                     .with_response(ResponseEvent::Action("show_yaml")),
             );
 
@@ -429,7 +429,7 @@ impl ResourcesView {
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder = builder.with_action(
+                builder.add_action(
                     ActionItem::new("decode")
                         .with_description("shows decoded YAML of the highlighted secret")
                         .with_aliases(&["decode", "x"])
@@ -438,10 +438,10 @@ impl ResourcesView {
             }
 
             if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
-                builder = builder.with_action(
+                builder.add_action(
                     ActionItem::new("edit YAML")
                         .with_description("displays YAML and switches to edit mode")
-                        .with_aliases(&["yaml", "yml"])
+                        .with_aliases(&["yaml", "yml", "patch"])
                         .with_response(ResponseEvent::Action("edit_yaml")),
                 );
             }
@@ -463,28 +463,28 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::default();
 
         if self.table.kind_plural() != NAMESPACES {
-            builder = builder.with_action(ActionItem::menu("󰕍 back", "back"));
+            builder.add_action(ActionItem::menu("󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            builder = builder.with_action(ActionItem::menu(" delete", "").with_response(ResponseEvent::AskDeleteResources));
+            builder.add_action(ActionItem::menu(" delete", "").with_response(ResponseEvent::AskDeleteResources));
         }
 
         if !is_containers && !is_events {
             if is_highlighted {
-                builder = builder.with_action(ActionItem::menu("󰑏 events", "show_events"));
+                builder.add_action(ActionItem::menu("󰑏 events", "show_events"));
             }
             if self.table.list.table.data.is_creatable {
-                builder = builder.with_action(ActionItem::menu("󰐕 create new", "create"));
+                builder.add_action(ActionItem::menu("󰐕 create new", "create"));
             }
         }
 
         if self.has_involved_object() {
-            builder = builder.with_action(ActionItem::menu("󰑏 involved object", "show_involved"));
+            builder.add_action(ActionItem::menu("󰑏 involved object", "show_involved"));
         }
 
         if is_highlighted {
-            builder = builder.with_action(ActionItem::menu(" YAML", "show_yaml"));
+            builder.add_action(ActionItem::menu(" YAML", "show_yaml"));
             if is_containers || is_pods {
                 builder = builder
                     .with_action(ActionItem::menu(" logs", "show_logs"))
@@ -494,11 +494,11 @@ impl ResourcesView {
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder = builder.with_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
+                builder.add_action(ActionItem::menu(" YAML [decoded]", "decode_yaml"));
             }
 
             if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
-                builder = builder.with_action(ActionItem::menu(" edit", "edit_yaml"));
+                builder.add_action(ActionItem::menu(" edit", "edit_yaml"));
             }
         }
 

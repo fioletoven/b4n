@@ -98,6 +98,12 @@ impl ActionItem {
         }
     }
 
+    /// Hides icon for this action instance.
+    pub fn with_no_icon(mut self) -> Self {
+        self.icon = None;
+        self
+    }
+
     /// Sets the provided description.
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = Some(description.to_owned());
