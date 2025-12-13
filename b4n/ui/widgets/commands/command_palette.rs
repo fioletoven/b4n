@@ -16,6 +16,7 @@ const DEFAULT_PROMPT: &str = " ";
 #[derive(Default)]
 pub struct CommandPalette {
     pub is_visible: bool,
+    is_mouse_menu: bool,
     app_data: SharedAppData,
     header: Option<String>,
     steps: Vec<Step>,
@@ -80,19 +81,20 @@ impl CommandPalette {
         self
     }
 
-    /// Sets if text input is enabled for the last added step of the command palette.
-    pub fn with_input(mut self, enabled: bool) -> Self {
-        let index = self.steps.len().saturating_sub(1);
-        self.steps[index].select.set_filter(enabled);
-        self
-    }
-
     /// Sets closure that will be executed to generate [`ResponseEvent`] when all steps will be processed.
     pub fn with_response<F>(mut self, response: F) -> Self
     where
         F: FnOnce(Vec<String>) -> ResponseEvent + 'static,
     {
         self.response = Some(Box::new(response));
+        self
+    }
+
+    /// Sets this command palette to behave as mouse menu.
+    pub fn as_mouse_menu(mut self) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.disable_filter(true);
+        self.is_mouse_menu = true;
         self
     }
 
@@ -267,7 +269,11 @@ impl Responsive for CommandPalette {
             || event.is_out(MouseEventKind::LeftClick, self.select().area)
         {
             self.is_visible = false;
-            return ResponseEvent::NotHandled;
+            if self.is_mouse_menu {
+                return ResponseEvent::NotHandled;
+            } else {
+                return ResponseEvent::Handled;
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

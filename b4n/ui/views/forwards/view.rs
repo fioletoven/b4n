@@ -78,11 +78,8 @@ impl ForwardsView {
             .with_quit();
 
         if self.list.table.is_anything_selected() {
-            builder.add_action(
-                ActionItem::new("stop")
-                    .with_description("stops selected port forwarding rules")
-                    .with_response(ResponseEvent::Action("stop_selected")),
-            );
+            builder
+                .add_action(ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
@@ -105,7 +102,7 @@ impl ForwardsView {
             builder.add_action(ActionItem::menu(" stop", "stop_selected"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).with_input(false);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
         self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
@@ -206,16 +203,17 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return match self.command_palette.process_event(event) {
+            match self.command_palette.process_event(event) {
                 ResponseEvent::ChangeKind(kind) => {
                     self.is_closing = true;
-                    ResponseEvent::ChangeKind(kind)
+                    return ResponseEvent::ChangeKind(kind);
                 },
                 ResponseEvent::Action("stop_selected") => {
                     self.ask_stop_port_forwards();
-                    ResponseEvent::Handled
+                    return ResponseEvent::Handled;
                 },
-                response_event => response_event,
+                ResponseEvent::NotHandled => (),
+                response_event => return response_event,
             };
         }
 

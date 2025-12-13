@@ -137,29 +137,17 @@ impl YamlView {
         let mut builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
+            .with_action(ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"))
+            .with_action(ActionItem::action("search", "search").with_description("searches YAML using the provided query"))
             .with_action(
-                ActionItem::new("copy")
-                    .with_description("copies YAML to the clipboard")
-                    .with_response(ResponseEvent::Action("copy")),
-            )
-            .with_action(
-                ActionItem::new("search")
-                    .with_description("searches YAML using the provided query")
-                    .with_response(ResponseEvent::Action("search")),
-            )
-            .with_action(
-                ActionItem::new("edit")
+                ActionItem::action("edit", "edit")
                     .with_description("switches to the edit mode")
-                    .with_aliases(&["insert"])
-                    .with_response(ResponseEvent::Action("edit")),
+                    .with_aliases(&["insert"]),
             );
         if self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected && !self.yaml.is_modified() {
             let action = if self.is_decoded { "encode" } else { "decode" };
-            builder = builder.with_action(
-                ActionItem::new(action)
-                    .with_description(&format!("{action}s the resource's data"))
-                    .with_response(ResponseEvent::Action("decode")),
-            );
+            builder = builder
+                .with_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);

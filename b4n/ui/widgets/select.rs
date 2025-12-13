@@ -52,9 +52,9 @@ impl<T: Table> Select<T> {
         self
     }
 
-    /// Sets flag indicating if filter is enabled for this [`Select`] instance.
-    pub fn set_filter(&mut self, enabled: bool) {
-        self.filter_disabled = !enabled;
+    /// Sets flag indicating if filter is disabled for this [`Select`] instance.
+    pub fn disable_filter(&mut self, disabled: bool) {
+        self.filter_disabled = disabled;
     }
 
     /// Sets prompt for the filter input.

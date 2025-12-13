@@ -81,23 +81,24 @@ impl LogsView {
         let builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
-            .with_action(
-                ActionItem::new("timestamps")
-                    .with_description("toggles the display of timestamps")
-                    .with_response(ResponseEvent::Action("timestamps")),
-            )
-            .with_action(
-                ActionItem::new("copy")
-                    .with_description("copies logs to the clipboard")
-                    .with_response(ResponseEvent::Action("copy")),
-            )
-            .with_action(
-                ActionItem::new("search")
-                    .with_description("searches logs using the provided query")
-                    .with_response(ResponseEvent::Action("search")),
-            );
+            .with_action(ActionItem::action("timestamps", "timestamps").with_description("toggles the display of timestamps"))
+            .with_action(ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"))
+            .with_action(ActionItem::action("search", "search").with_description("searches logs using the provided query"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
         self.command_palette.show();
+    }
+
+    fn show_mouse_menu(&mut self, x: u16, y: u16) {
+        let builder = ActionsListBuilder::default()
+            .with_action(
+                ActionItem::new("󰕍 back")
+                    .with_response(ResponseEvent::Cancelled)
+                    .with_no_icon(),
+            )
+            .with_action(ActionItem::menu(" search", "search"))
+            .with_action(ActionItem::menu(" copy all", "copy"));
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
     fn toggle_timestamps(&mut self) {
@@ -236,7 +237,9 @@ impl View for LogsView {
                 return ResponseEvent::Handled;
             }
 
-            return response;
+            if response != ResponseEvent::NotHandled {
+                return response;
+            }
         }
 
         if self.search.is_visible {
@@ -256,8 +259,15 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) || event.is_mouse(MouseEventKind::RightClick) {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 
