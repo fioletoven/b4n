@@ -36,7 +36,7 @@ filter: &filter
 # theme itself
 colors:
   text: text_light:no_bg
-  cursor: fg_dark:bg_dark
+  cursor: bg_dark:fg_dark
   header:
     text: fg_dark:light_yellow:bg_dark
     context: white:#D80060
@@ -55,6 +55,7 @@ colors:
   filter: *filter
   search: *filter
   command_palette: *filter
+  mouse_menu: *filter
   modal:
     text: fg_dark:bg_dark
     checkbox:

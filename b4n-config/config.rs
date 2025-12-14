@@ -47,7 +47,7 @@ pub struct Config {
     #[serde(default)]
     pub logs: Logs,
 
-    #[serde(default)]
+    #[serde(default = "default_mouse")]
     pub mouse: bool,
 
     #[serde(default = "default_theme_name")]
@@ -63,12 +63,16 @@ fn default_theme_name() -> String {
     DEFAULT_THEME_NAME.to_owned()
 }
 
+fn default_mouse() -> bool {
+    true
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
             logs: Logs::default(),
-            mouse: false,
-            theme: DEFAULT_THEME_NAME.to_owned(),
+            mouse: default_mouse(),
+            theme: default_theme_name(),
             contexts: None,
             key_bindings: Some(KeyBindings::default()),
         }

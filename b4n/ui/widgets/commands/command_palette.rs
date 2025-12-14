@@ -3,7 +3,7 @@ use b4n_config::themes::SelectColors;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::{Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
@@ -16,11 +16,13 @@ const DEFAULT_PROMPT: &str = " ";
 #[derive(Default)]
 pub struct CommandPalette {
     pub is_visible: bool,
+    is_mouse_menu: bool,
     app_data: SharedAppData,
     header: Option<String>,
     steps: Vec<Step>,
     index: usize,
     width: u16,
+    position: Option<Position>,
     response: Option<Box<dyn FnOnce(Vec<String>) -> ResponseEvent>>,
 }
 
@@ -88,9 +90,27 @@ impl CommandPalette {
         self
     }
 
+    /// Sets this command palette to behave as mouse menu.
+    pub fn as_mouse_menu(mut self) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.disable_filter(true);
+        self.steps[index]
+            .select
+            .set_colors(self.app_data.borrow().theme.colors.mouse_menu.clone());
+        self.is_mouse_menu = true;
+        self
+    }
+
     /// Marks [`CommandPalette`] as visible.
     pub fn show(&mut self) {
         self.is_visible = true;
+        self.position = None;
+    }
+
+    /// Marks [`CommandPalette`] as visible and sets position to show.
+    pub fn show_at(&mut self, x: u16, y: u16) {
+        self.is_visible = true;
+        self.position = Some(Position::new(x, y));
     }
 
     /// Marks [`CommandPalette`] as hidden.
@@ -104,22 +124,39 @@ impl CommandPalette {
             return;
         }
 
-        let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center_horizontal(area, width, self.select().items.list.len() + 1);
+        let area = self.get_area_to_draw(area);
 
         {
-            let colors = &self.app_data.borrow().theme.colors;
-            Self::clear_area(frame, area, colors.command_palette.normal.bg);
+            let colors = if self.is_mouse_menu {
+                &self.app_data.borrow().theme.colors.mouse_menu
+            } else {
+                &self.app_data.borrow().theme.colors.command_palette
+            };
+
+            Self::clear_area(frame, area, colors.normal.bg);
+
             if area.top() > 0
                 && let Some(header) = self.header.as_deref()
             {
                 let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-                Self::clear_area(frame, area, colors.command_palette.header.unwrap_or_default().bg);
+                Self::clear_area(frame, area, colors.header.unwrap_or_default().bg);
                 self.draw_header(frame, area, header);
             }
         }
 
         self.select_mut().draw(frame, area);
+    }
+
+    fn get_area_to_draw(&self, area: Rect) -> Rect {
+        let width = std::cmp::min(area.width, self.width).max(2) - 2;
+        if let Some(position) = self.position {
+            let height = u16::try_from(self.select().get_full_height()).unwrap_or(u16::MAX);
+            let x = position.x.min(area.width.saturating_sub(width));
+            let y = position.y.min(area.height.saturating_sub(height));
+            Rect::new(x, y, width, height.min(area.height))
+        } else {
+            center_horizontal(area, width, self.select().get_full_height())
+        }
     }
 
     fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
@@ -130,12 +167,13 @@ impl CommandPalette {
     }
 
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, text: &str) {
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = if self.is_mouse_menu {
+            &self.app_data.borrow().theme.colors.mouse_menu
+        } else {
+            &self.app_data.borrow().theme.colors.command_palette
+        };
         let area = area.inner(Margin::new(1, 0));
-        frame.render_widget(
-            Paragraph::new(text).style(&colors.command_palette.header.unwrap_or_default()),
-            area,
-        );
+        frame.render_widget(Paragraph::new(text).style(&colors.header.unwrap_or_default()), area);
     }
 
     fn select(&self) -> &Select<ActionsList> {
@@ -232,12 +270,20 @@ impl Responsive for CommandPalette {
             }
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.select().area)
-            || event.is_mouse(MouseEventKind::RightClick)
-        {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             self.is_visible = false;
             return ResponseEvent::Handled;
+        }
+
+        if event.is_out(MouseEventKind::RightClick, self.select().area)
+            || event.is_out(MouseEventKind::LeftClick, self.select().area)
+        {
+            self.is_visible = false;
+            return if self.is_mouse_menu {
+                ResponseEvent::NotHandled
+            } else {
+                ResponseEvent::Handled
+            };
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

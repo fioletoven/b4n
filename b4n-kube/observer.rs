@@ -15,7 +15,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::KubernetesClient;
@@ -70,6 +70,7 @@ pub struct InitData {
     pub has_metrics: bool,
     pub is_editable: bool,
     pub is_creatable: bool,
+    pub is_deletable: bool,
 }
 
 impl Default for InitData {
@@ -86,6 +87,7 @@ impl Default for InitData {
             has_metrics: false,
             is_editable: false,
             is_creatable: false,
+            is_deletable: false,
         }
     }
 }
@@ -110,6 +112,7 @@ impl InitData {
             has_metrics,
             is_editable: cap.supports_operation(verbs::PATCH),
             is_creatable: cap.supports_operation(verbs::CREATE),
+            is_deletable: cap.supports_operation(verbs::DELETE),
         }
     }
 }

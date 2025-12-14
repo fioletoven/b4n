@@ -90,6 +90,16 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Item<T, Fc> {
         item.is_fixed = true;
         item
     }
+
+    /// Sets flag indicating if an item is selected.
+    pub fn select(&mut self, is_selected: bool) {
+        self.is_selected = !self.is_fixed && is_selected;
+    }
+
+    /// Inverts flag indicating if an item is selected.
+    pub fn invert_selection(&mut self) {
+        self.is_selected = !self.is_fixed && !self.is_selected;
+    }
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Filterable<Fc> for Item<T, Fc> {

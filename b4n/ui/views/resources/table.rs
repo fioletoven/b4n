@@ -282,12 +282,6 @@ impl ResourcesTable {
                 return self.process_enter_key(resource);
             }
 
-            if self.app_data.has_binding(event, KeyCommand::YamlOpen)
-                || (self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
-            {
-                return self.process_view_yaml(resource, self.app_data.has_binding(event, KeyCommand::YamlDecode));
-            }
-
             let is_container = self.kind_plural() == CONTAINERS;
             if self.app_data.has_binding(event, KeyCommand::EventsShow) {
                 if !is_container && resource.name() != ALL_NAMESPACES {
@@ -297,16 +291,24 @@ impl ResourcesTable {
                 return ResponseEvent::NotHandled;
             }
 
-            if self.app_data.has_binding(event, KeyCommand::InvolvedObjectShow) {
-                if let Some(involved) = &resource.involved_object {
-                    return ResponseEvent::ViewInvolved(
-                        involved.kind.clone().into(),
-                        involved.namespace.clone().into(),
-                        Some(involved.name.clone()),
-                    );
-                }
+            if self.app_data.has_binding(event, KeyCommand::InvolvedObjectShow)
+                && let Some(involved) = &resource.involved_object
+            {
+                return ResponseEvent::ViewInvolved(
+                    involved.kind.clone().into(),
+                    involved.namespace.clone().into(),
+                    Some(involved.name.clone()),
+                );
+            }
 
-                return ResponseEvent::NotHandled;
+            if self.app_data.has_binding(event, KeyCommand::YamlOpen)
+                || (self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
+            {
+                return self.process_view_yaml(resource, self.app_data.has_binding(event, KeyCommand::YamlDecode), false);
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.list.table.data.is_editable {
+                return self.process_view_yaml(resource, true, true);
             }
 
             let is_container_name_known =
@@ -370,7 +372,7 @@ impl ResourcesTable {
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, false),
-            _ => self.process_view_yaml(resource, false),
+            _ => self.process_view_yaml(resource, false, false),
         }
     }
 
@@ -393,9 +395,9 @@ impl ResourcesTable {
             .map_or(ResponseEvent::NotHandled, ResponseEvent::OpenShell)
     }
 
-    fn process_view_yaml(&self, resource: &ResourceItem, decode: bool) -> ResponseEvent {
+    fn process_view_yaml(&self, resource: &ResourceItem, decode: bool, edit: bool) -> ResponseEvent {
         self.resource_ref_from(resource, false)
-            .map_or(ResponseEvent::NotHandled, |r| ResponseEvent::ViewYaml(r, decode))
+            .map_or(ResponseEvent::NotHandled, |r| ResponseEvent::ViewYaml(r, decode, edit))
     }
 
     fn resource_ref_from(&self, resource: &ResourceItem, prefer_container: bool) -> Option<ResourceRef> {
@@ -464,7 +466,7 @@ impl ResourcesTable {
                 ScopeData::namespace_hidden(filter),
             )
         } else {
-            self.process_view_yaml(resource, false)
+            self.process_view_yaml(resource, false, false)
         }
     }
 

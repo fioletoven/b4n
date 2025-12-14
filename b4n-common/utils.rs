@@ -116,3 +116,45 @@ pub fn calculate_hash(t: &str, len: usize) -> String {
 
     hash
 }
+
+/// Removes some of the invisible/control characters in a specified text and splits it into separate lines.
+pub fn sanitize_and_split(input: &str) -> Vec<String> {
+    const INVISIBLE: [char; 6] = [
+        '\u{200B}', // zero-width space
+        '\u{200C}', // zero-width non-joiner
+        '\u{200D}', // zero-width joiner
+        '\u{200E}', // LTR mark
+        '\u{200F}', // RTL mark
+        '\u{FEFF}', // BOM
+    ];
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut found_cr = false;
+
+    for ch in input.chars() {
+        if found_cr {
+            lines.push(std::mem::take(&mut current));
+            found_cr = false;
+            if ch == '\n' {
+                continue;
+            }
+        }
+
+        match ch {
+            '\r' => found_cr = true,
+            '\n' => lines.push(std::mem::take(&mut current)),
+            '\t' => current.push_str("  "),
+            '\u{00A0}' => current.push(' '), // convert NBSP to a normal space
+            c if c.is_control() => {},
+            c if INVISIBLE.contains(&c) => {},
+            other => current.push(other),
+        }
+    }
+
+    if found_cr || !current.is_empty() {
+        lines.push(current);
+    }
+
+    lines
+}

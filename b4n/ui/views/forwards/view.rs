@@ -5,7 +5,7 @@ use b4n_tui::widgets::{Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::discovery::Scope;
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -73,16 +73,35 @@ impl ForwardsView {
 
     /// Shows command palette.
     fn show_command_palette(&mut self) {
-        let builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref(), false)
+        let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_back()
-            .with_quit()
-            .with_action(
-                ActionItem::new("stop")
-                    .with_description("stops selected port forwarding rules")
-                    .with_response(ResponseEvent::Action("stop_selected")),
-            );
+            .with_quit();
+
+        if self.list.table.is_anything_selected() {
+            builder
+                .add_action(ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"));
+        }
+
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
         self.command_palette.show();
+    }
+
+    /// Shows menu for right mouse button.
+    fn show_mouse_menu(&mut self, x: u16, y: u16) {
+        if !self.app_data.borrow().is_connected {
+            return;
+        }
+
+        let mut builder = ActionsListBuilder::default()
+            .with_action(ActionItem::back())
+            .with_action(ActionItem::command_palette());
+
+        if self.list.table.is_anything_selected() {
+            builder.add_action(ActionItem::menu(1, " stop [selected]", "stop_selected"));
+        }
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
     /// Shows dialog to stop port forwarding rules if anything is selected.
@@ -182,23 +201,37 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            return match self.command_palette.process_event(event) {
+            match self.command_palette.process_event(event) {
                 ResponseEvent::ChangeKind(kind) => {
                     self.is_closing = true;
-                    ResponseEvent::ChangeKind(kind)
+                    return ResponseEvent::ChangeKind(kind);
                 },
                 ResponseEvent::Action("stop_selected") => {
                     self.ask_stop_port_forwards();
-                    ResponseEvent::Handled
+                    return ResponseEvent::Handled;
                 },
-                response_event => response_event,
-            };
+                ResponseEvent::Action("palette") => {
+                    return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+                },
+                ResponseEvent::NotHandled => (),
+                response_event => return response_event,
+            }
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-            || event.is_in(MouseEventKind::RightClick, self.list.area)
-        {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+            && self.list.area.contains(Position::new(mouse.column, mouse.row))
+        {
+            let line_no = mouse.row.saturating_sub(self.list.area.y);
+            if !self.list.table.highlight_item_by_line(line_no) {
+                self.list.table.unhighlight_item();
+            }
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 

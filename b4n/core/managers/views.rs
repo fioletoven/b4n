@@ -10,9 +10,11 @@ use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kube::resources::ResourceItem;
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
@@ -26,7 +28,7 @@ pub struct ViewsManager {
     view: Option<Box<dyn View>>,
     footer: Footer,
     workspace: Rect,
-    areas: Rc<[Rect]>,
+    areas: Vec<Rect>,
 }
 
 impl ViewsManager {
@@ -57,7 +59,7 @@ impl ViewsManager {
             view: None,
             footer,
             workspace: Rect::default(),
-            areas: Rc::default(),
+            areas: vec![Rect::default(), Rect::default()],
         }
     }
 
@@ -126,14 +128,8 @@ impl ViewsManager {
             self.res_selector.draw(frame, bottom[1]);
         }
 
-        self.areas = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(self.ns_selector.width()),
-                Constraint::Fill(1),
-                Constraint::Length(self.res_selector.width()),
-            ])
-            .split(area);
+        self.areas[0] = Rect::new(area.x, area.y + 1, 4, area.height);
+        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), area.y + 1, 4, area.height);
     }
 
     /// Processes single TUI event.
@@ -144,7 +140,9 @@ impl ViewsManager {
                 view.handle_namespaces_selector_event(&result);
             }
 
-            return result;
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.res_selector.is_visible {
@@ -153,7 +151,9 @@ impl ViewsManager {
                 view.handle_resources_selector_event(&result);
             }
 
-            return result;
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.view.is_some() {
@@ -178,7 +178,7 @@ impl ViewsManager {
             }
 
             if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
                 && view.is_resources_selector_allowed()
             {
                 self.res_selector
@@ -207,7 +207,7 @@ impl ViewsManager {
             }
 
             if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::RightClick, self.areas[2]))
+                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
                 && self.resources.is_resources_selector_allowed()
             {
                 self.res_selector
@@ -312,17 +312,18 @@ impl ViewsManager {
 
     /// Deletes resources that are currently selected on [`ResourcesView`].
     pub fn delete_resources(&mut self, terminate_immediately: bool, detach_finalizers: bool) {
-        let list = self.resources.get_selected_items();
-        for key in list.keys() {
-            let resources = list[key].iter().map(|r| (*r).to_owned()).collect();
-            let namespace = if self.resources.scope() == &Scope::Cluster {
-                Namespace::all()
-            } else {
-                Namespace::from((*key).to_owned())
-            };
+        let resources = self.resources.table.list.table.get_selected_resources();
+        let mut grouped: HashMap<&str, Vec<&ResourceItem>> = HashMap::new();
+        for resource in resources {
+            let namespace = resource.namespace.as_deref().unwrap_or_default();
+            grouped.entry(namespace).or_default().push(resource);
+        }
+
+        for (namespace, resources) in grouped {
             self.worker.borrow_mut().delete_resources(
-                resources,
-                namespace,
+                resources.iter().map(|r| r.name.clone()).collect(),
+                resources.iter().map(|r| r.uid.clone()).collect(),
+                namespace.into(),
                 &self.resources.get_kind(),
                 terminate_immediately,
                 detach_finalizers,
@@ -364,8 +365,8 @@ impl ViewsManager {
     }
 
     /// Sends command to fetch resource's YAML to the background executor and opens empty YAML view.
-    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef, is_new: bool) {
-        self.view = Some(Box::new(YamlView::new(
+    pub fn show_yaml(&mut self, command_id: Option<String>, resource: ResourceRef, is_new: bool, edit: bool) {
+        let mut view = YamlView::new(
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             command_id,
@@ -373,7 +374,12 @@ impl ViewsManager {
             self.footer.get_transmitter(),
             is_new,
             self.workspace,
-        )));
+        );
+        if edit {
+            view.switch_to_edit();
+        }
+
+        self.view = Some(Box::new(view));
     }
 
     /// Shows returned resource's template YAML in an already opened YAML view.

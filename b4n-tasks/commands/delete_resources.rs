@@ -1,6 +1,6 @@
 use b4n_kube::Namespace;
 use k8s_openapi::serde_json::json;
-use kube::api::{ApiResource, DeleteParams, DynamicObject, Patch, PatchParams};
+use kube::api::{ApiResource, DeleteParams, DynamicObject, Patch, PatchParams, Preconditions};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use kube::{Api, Client};
 use tokio::task::JoinSet;
@@ -10,6 +10,7 @@ use crate::commands::CommandResult;
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
     pub names: Vec<String>,
+    pub uids: Vec<String>,
     pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
@@ -21,6 +22,7 @@ impl DeleteResourcesCommand {
     /// Creates new [`DeleteResourcesCommand`] instance.
     pub fn new(
         names: Vec<String>,
+        uids: Vec<String>,
         namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
@@ -29,6 +31,7 @@ impl DeleteResourcesCommand {
     ) -> Self {
         Self {
             names,
+            uids,
             namespace,
             discovery,
             client,
@@ -40,13 +43,18 @@ impl DeleteResourcesCommand {
     /// Deletes all resources using provided client.
     pub async fn execute(mut self) -> Option<CommandResult> {
         let (client, info, delete_params) = self.prepare_context()?;
+        tracing::info!(
+            "About to delete the following resources: {} ({})",
+            self.names.join(", "),
+            info
+        );
 
         let mut set = JoinSet::new();
 
-        for name in self.names {
+        for (name, uid) in self.names.into_iter().zip(self.uids.into_iter()) {
             let info = info.clone();
             let client = client.clone();
-            let delete_params = delete_params.clone();
+            let mut delete_params = delete_params.clone();
             let detach_finalizers = self.detach_finalizers;
 
             set.spawn(async move {
@@ -55,9 +63,17 @@ impl DeleteResourcesCommand {
 
                     if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
                         tracing::error!("Cannot detach finalizers from {} ({}): {}", name, info, err);
-                    } else {
-                        tracing::info!("Detached finalizers from {} ({})", name, info);
+                        return;
                     }
+
+                    tracing::info!("Detached finalizers from {} ({})", name, info);
+                }
+
+                if !uid.is_empty() {
+                    delete_params.preconditions = Some(Preconditions {
+                        resource_version: None,
+                        uid: Some(uid),
+                    });
                 }
 
                 if let Err(err) = client.delete(&name, &delete_params).await {
@@ -90,7 +106,7 @@ impl DeleteResourcesCommand {
             info = discovery.0.plural.clone();
         } else {
             namespace = self.namespace.as_option();
-            info = format!("{}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
+            info = format!("kind: {}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
         }
 
         let client = b4n_kube::client::get_dynamic_api(

@@ -253,6 +253,11 @@ impl BgWorker {
         }
     }
 
+    /// Creates new background highlighter with new [`SyntaxData`].
+    pub fn update_syntax_data(&mut self, syntax_data: SyntaxData) {
+        self.highlighter = BgHighlighter::new(syntax_data);
+    }
+
     /// Returns `true` if CRDs list is ready.
     pub fn is_crds_list_ready(&self) -> bool {
         self.crds.is_ready()
@@ -317,6 +322,7 @@ impl BgWorker {
     pub fn delete_resources(
         &mut self,
         resources: Vec<String>,
+        uids: Vec<String>,
         namespace: Namespace,
         kind: &Kind,
         terminate_immediately: bool,
@@ -326,6 +332,7 @@ impl BgWorker {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(
                 resources,
+                uids,
                 namespace,
                 discovery,
                 client.get_client(),

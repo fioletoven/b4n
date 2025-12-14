@@ -77,6 +77,12 @@ pub trait Table: crate::Responsive {
     /// Highlights first item on list, returns `true` on success.
     fn highlight_first_item(&mut self) -> bool;
 
+    /// Unhighlights any highlighted item.
+    fn unhighlight_item(&mut self);
+
+    /// Selects all items.
+    fn select_all(&mut self);
+
     /// Clears selection of items.
     fn deselect_all(&mut self);
 

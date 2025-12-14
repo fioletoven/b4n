@@ -208,17 +208,24 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Selects all items.
+    pub fn select_all(&mut self) {
+        if let Some(items) = &mut self.items {
+            items.iter_mut().for_each(|item| item.select(true));
+        }
+    }
+
     /// Clears items selection.
     pub fn deselect_all(&mut self) {
         if let Some(items) = &mut self.items {
-            items.iter_mut().for_each(|item| item.is_selected = false);
+            items.iter_mut().for_each(|item| item.select(false));
         }
     }
 
     /// Inverts selection of items in list.
     pub fn invert_selection(&mut self) {
         if let Some(items) = &mut self.items {
-            items.iter_mut().for_each(|item| item.is_selected = !item.is_selected);
+            items.iter_mut().for_each(Item::invert_selection);
         }
     }
 
@@ -228,7 +235,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             && let Some(highlighted) = self.highlighted
             && highlighted < items.len()
         {
-            items[highlighted].is_selected = !items[highlighted].is_selected;
+            items[highlighted].invert_selection();
         }
     }
 
@@ -237,7 +244,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         if let Some(items) = &mut self.items {
             items
                 .iter_mut()
-                .for_each(|item| item.is_selected = uids.iter().any(|u| u.as_ref() == item.data.uid()));
+                .for_each(|item| item.select(uids.iter().any(|u| u.as_ref() == item.data.uid())));
         }
     }
 
@@ -279,6 +286,28 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
 
         false
+    }
+
+    /// Returns the names of items on the current page along with their active status.
+    pub fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
+        self.get_paged_names_with_description(width, "")
+    }
+
+    /// Returns the names of items on the current page along with their active status.\
+    /// **Note** that the highlighted (active) item may include an additional `description`.
+    pub fn get_paged_names_with_description(&self, width: usize, description: &str) -> Option<Vec<(String, bool)>> {
+        self.get_page().map(|list| {
+            let mut result = Vec::with_capacity(self.page_height.into());
+            for item in list {
+                if item.is_active && !description.is_empty() {
+                    result.push((item.data.get_name_with_description(width, description), true));
+                } else {
+                    result.push((item.data.get_name(width), item.is_active));
+                }
+            }
+
+            result
+        })
     }
 
     /// Gets highlighted element index.
@@ -385,26 +414,17 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         true
     }
 
-    /// Returns the names of items on the current page along with their active status.
-    pub fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
-        self.get_paged_names_with_description(width, "")
-    }
+    /// Unhighlights any highlighted item.
+    pub fn unhighlight_item(&mut self) {
+        if let Some(items) = &mut self.items
+            && !items.is_empty()
+            && let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+        {
+            items[highlighted].is_active = false;
+        }
 
-    /// Returns the names of items on the current page along with their active status.\
-    /// **Note** that the highlighted (active) item may include an additional `description`.
-    pub fn get_paged_names_with_description(&self, width: usize, description: &str) -> Option<Vec<(String, bool)>> {
-        self.get_page().map(|list| {
-            let mut result = Vec::with_capacity(self.page_height.into());
-            for item in list {
-                if item.is_active && !description.is_empty() {
-                    result.push((item.data.get_name_with_description(width, description), true));
-                } else {
-                    result.push((item.data.get_name(width), item.is_active));
-                }
-            }
-
-            result
-        })
+        self.highlighted = None;
     }
 
     /// Tries to highlight item finding it by closure.

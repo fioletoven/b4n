@@ -55,6 +55,7 @@ colors:
   filter: *filter
   search: *filter
   command_palette: *filter
+  mouse_menu: *filter
   modal:
     text: fg_dark:bg_dark
     checkbox:

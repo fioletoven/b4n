@@ -72,7 +72,7 @@ pub enum ResponseEvent {
     DeleteResources(bool, bool),
 
     NewYaml(ResourceRef, bool),
-    ViewYaml(ResourceRef, bool),
+    ViewYaml(ResourceRef, bool, bool),
     ViewLogs(ResourceRef),
     ViewPreviousLogs(ResourceRef),
 

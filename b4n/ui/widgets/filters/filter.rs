@@ -154,7 +154,7 @@ impl Responsive for Filter {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
             || event.is_out(MouseEventKind::LeftClick, self.patterns.area)
-            || event.is_mouse(MouseEventKind::RightClick)
+            || event.is_out(MouseEventKind::RightClick, self.patterns.area)
         {
             self.is_visible = false;
             self.patterns.set_value(self.current.clone());

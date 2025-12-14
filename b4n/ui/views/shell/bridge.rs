@@ -68,7 +68,10 @@ impl ShellBridge {
 
         let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
-            let attach_params = AttachParams::interactive_tty();
+            let mut attach_params = AttachParams::interactive_tty();
+            if let Some(container) = pod.container {
+                attach_params = attach_params.container(container.clone());
+            }
 
             let mut attached = match api.exec(&pod.name, vec![_shell], &attach_params).await {
                 Ok(attached) => attached,

@@ -127,6 +127,7 @@ impl App {
         }
 
         if let Some(theme) = self.theme_watcher.try_next() {
+            self.worker.borrow_mut().update_syntax_data(SyntaxData::new(&theme));
             self.data.borrow_mut().theme = theme;
         }
 
@@ -205,7 +206,7 @@ impl App {
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(force, detach) => self.views_manager.delete_resources(force, detach),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
-            ResponseEvent::ViewYaml(resource, decode) => self.request_yaml(resource, decode),
+            ResponseEvent::ViewYaml(resource, decode, edit) => self.request_yaml(resource, decode, edit),
             ResponseEvent::ViewLogs(container) => self.views_manager.show_logs(container, false),
             ResponseEvent::ViewPreviousLogs(container) => self.views_manager.show_logs(container, true),
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container),
@@ -454,11 +455,11 @@ impl App {
             is_full,
         );
 
-        self.views_manager.show_yaml(command_id, resource, true);
+        self.views_manager.show_yaml(command_id, resource, true, true);
     }
 
     /// Sends command to fetch resource's YAML to the background executor.
-    fn request_yaml(&mut self, resource: ResourceRef, decode: bool) {
+    fn request_yaml(&mut self, resource: ResourceRef, decode: bool, edit: bool) {
         let command_id = self.worker.borrow_mut().get_yaml(
             resource.name.clone().unwrap_or_default(),
             resource.namespace.clone(),
@@ -466,7 +467,7 @@ impl App {
             decode,
         );
 
-        self.views_manager.show_yaml(command_id, resource, false);
+        self.views_manager.show_yaml(command_id, resource, false, edit);
     }
 
     /// Creates port forward task for the specified resource.

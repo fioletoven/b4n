@@ -40,6 +40,8 @@ impl Table for ActionsList {
             fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
             fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
             fn highlight_first_item(&mut self) -> bool;
+            fn unhighlight_item(&mut self);
+            fn select_all(&mut self);
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
             fn select_highlighted_item(&mut self);
@@ -90,14 +92,8 @@ impl ActionsListBuilder {
 
     /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
     /// If `primary_only` is `true`, only kinds without a group will be included.
-    pub fn from_kinds(kinds: Option<&[KindItem]>, primary_only: bool) -> Self {
-        let actions = kinds
-            .unwrap_or(&[])
-            .iter()
-            .filter(|item| !primary_only || !item.kind.has_group())
-            .map(ActionItem::from_kind)
-            .collect();
-
+    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
+        let actions = kinds.unwrap_or(&[]).iter().map(ActionItem::from_kind).collect();
         ActionsListBuilder { actions }
     }
 
@@ -128,8 +124,14 @@ impl ActionsListBuilder {
 
     /// Builds the [`ActionsList`] instance.
     pub fn build(self) -> ActionsList {
+        let has_ids = self.actions.iter().any(|a| a.id.is_some());
         let mut list = ScrollableList::from(self.actions);
-        list.sort(1, false);
+
+        if has_ids && let Some(items) = &mut list.items {
+            items.full_sort_by(|a, b| a.data.id.cmp(&b.data.id));
+        } else {
+            list.sort(1, false);
+        }
 
         ActionsList {
             list,
@@ -140,6 +142,17 @@ impl ActionsListBuilder {
     /// Adds custom action.
     pub fn with_action(mut self, action: ActionItem) -> Self {
         self.actions.push(action);
+        self
+    }
+
+    /// Adds custom action with response [`ResponseEvent::Action`].
+    pub fn with_command(mut self, command: &str, description: &str, aliases: &[&str], action: &'static str) -> Self {
+        self.actions.push(
+            ActionItem::new(command)
+                .with_description(description)
+                .with_aliases(aliases)
+                .with_response(ResponseEvent::Action(action)),
+        );
         self
     }
 
@@ -212,5 +225,10 @@ impl ActionsListBuilder {
                 .with_response(ResponseEvent::ShowPortForwards),
         );
         self
+    }
+
+    /// Adds custom action.
+    pub fn add_action(&mut self, action: ActionItem) {
+        self.actions.push(action);
     }
 }

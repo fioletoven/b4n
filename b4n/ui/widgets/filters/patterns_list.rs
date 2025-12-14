@@ -97,6 +97,8 @@ impl Table for PatternsList {
             fn highlight_item_by_uid(&mut self, uid: &str) -> bool;
             fn highlight_item_by_line(&mut self, line_no: u16) -> bool;
             fn highlight_first_item(&mut self) -> bool;
+            fn unhighlight_item(&mut self);
+            fn select_all(&mut self);
             fn deselect_all(&mut self);
             fn invert_selection(&mut self);
             fn select_highlighted_item(&mut self);

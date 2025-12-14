@@ -18,8 +18,9 @@ pub struct ActionItem {
     pub group: String,
     pub name: String,
     pub response: ResponseEvent,
+    pub id: Option<usize>,
     description: Option<String>,
-    icon: Option<String>,
+    icon: Option<&'static str>,
     aliases: Option<Vec<String>>,
 }
 
@@ -30,9 +31,38 @@ impl ActionItem {
             uid: format!("_action:{name}_"),
             group: "action".to_owned(),
             name: name.to_owned(),
-            icon: Some("".to_owned()),
+            icon: Some(""),
             ..Default::default()
         }
+    }
+
+    /// Creates new [`ActionItem`] instance with action response.
+    pub fn action(name: &str, action: &'static str) -> Self {
+        ActionItem::new(name).with_response(ResponseEvent::Action(action))
+    }
+
+    /// Creates new [`ActionItem`] instance for mouse menu.
+    pub fn menu(id: usize, name: &str, action: &'static str) -> Self {
+        ActionItem::new(name)
+            .with_response(ResponseEvent::Action(action))
+            .with_id(id)
+            .with_no_icon()
+    }
+
+    /// Creates new [`ActionItem`] instance `command palette` for mouse menu.
+    pub fn command_palette() -> Self {
+        ActionItem::new(" command palette")
+            .with_response(ResponseEvent::Action("palette"))
+            .with_id(50)
+            .with_no_icon()
+    }
+
+    /// Creates new [`ActionItem`] instance `back` for mouse menu.
+    pub fn back() -> Self {
+        ActionItem::new("󰕍 back")
+            .with_response(ResponseEvent::Cancelled)
+            .with_id(100)
+            .with_no_icon()
     }
 
     /// Creates new [`ActionItem`] instance from [`KindItem`].
@@ -86,6 +116,18 @@ impl ActionItem {
         }
     }
 
+    /// Hides icon for this action instance.
+    pub fn with_no_icon(mut self) -> Self {
+        self.icon = None;
+        self
+    }
+
+    /// Sets sort `id` for this action instance.
+    pub fn with_id(mut self, id: usize) -> Self {
+        self.id = Some(id);
+        self
+    }
+
     /// Sets the provided description.
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = Some(description.to_owned());
@@ -107,8 +149,12 @@ impl ActionItem {
     fn get_text_width(&self, width: usize) -> usize {
         self.icon.as_ref().map_or(width, |i| {
             let icon_width = i.chars().count();
-            width.max(icon_width + 1) - icon_width - 1
+            width.saturating_sub(icon_width + 1)
         })
+    }
+
+    fn get_name_width(&self) -> usize {
+        self.name.chars().filter(|c| *c != '[' && *c != ']').count()
     }
 
     fn add_icon(&self, text: &mut String) {
@@ -134,7 +180,7 @@ impl Row for ActionItem {
 
     fn get_name(&self, width: usize) -> String {
         let text_width = self.get_text_width(width);
-        let name_width = self.name.chars().count().min(text_width);
+        let name_width = self.get_name_width().min(text_width);
 
         let mut text = String::with_capacity(text_width + 2);
         text.push_str(truncate(&self.name, text_width));

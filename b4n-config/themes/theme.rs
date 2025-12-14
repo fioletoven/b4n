@@ -137,6 +137,7 @@ pub struct ThemeColors {
     pub search: SelectColors,
     pub command_palette: SelectColors,
     pub side_select: SelectColors,
+    pub mouse_menu: SelectColors,
     pub modal: ModalColors,
     pub line: ResourceColors,
     pub syntax: SyntaxColors,
@@ -161,7 +162,7 @@ impl Default for Theme {
         Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
-                cursor: TextColors::bg(Color::Gray, Color::DarkGray),
+                cursor: TextColors::bg(Color::DarkGray, Color::Gray),
                 header: HeaderColors {
                     text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
                     context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
@@ -192,6 +193,7 @@ impl Default for Theme {
                     header: None,
                     cursor: None,
                 },
+                mouse_menu: SelectColors::default(),
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
                     checkbox: ControlColors {
