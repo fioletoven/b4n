@@ -4,6 +4,7 @@
 
 ### Features
 
+- add a dedicated menu under right mouse click
 - add support for CTRL+A in resources view
 - include the resource's `uid` in the delete precondition
 

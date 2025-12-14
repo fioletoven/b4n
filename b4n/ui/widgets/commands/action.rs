@@ -149,8 +149,12 @@ impl ActionItem {
     fn get_text_width(&self, width: usize) -> usize {
         self.icon.as_ref().map_or(width, |i| {
             let icon_width = i.chars().count();
-            width.max(icon_width + 1) - icon_width - 1
+            width.saturating_sub(icon_width + 1)
         })
+    }
+
+    fn get_name_width(&self) -> usize {
+        self.name.chars().filter(|c| *c != '[' && *c != ']').count()
     }
 
     fn add_icon(&self, text: &mut String) {
@@ -176,7 +180,7 @@ impl Row for ActionItem {
 
     fn get_name(&self, width: usize) -> String {
         let text_width = self.get_text_width(width);
-        let name_width = self.name.chars().count().min(text_width);
+        let name_width = self.get_name_width().min(text_width);
 
         let mut text = String::with_capacity(text_width + 2);
         text.push_str(truncate(&self.name, text_width));
