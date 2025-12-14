@@ -225,7 +225,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Inverts selection of items in list.
     pub fn invert_selection(&mut self) {
         if let Some(items) = &mut self.items {
-            items.iter_mut().for_each(|item| item.invert_selection());
+            items.iter_mut().for_each(Item::invert_selection);
         }
     }
 

@@ -279,11 +279,11 @@ impl Responsive for CommandPalette {
             || event.is_out(MouseEventKind::LeftClick, self.select().area)
         {
             self.is_visible = false;
-            if self.is_mouse_menu {
-                return ResponseEvent::NotHandled;
+            return if self.is_mouse_menu {
+                ResponseEvent::NotHandled
             } else {
-                return ResponseEvent::Handled;
-            }
+                ResponseEvent::Handled
+            };
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

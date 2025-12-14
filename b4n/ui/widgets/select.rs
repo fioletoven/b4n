@@ -178,7 +178,7 @@ impl<T: Table> Responsive for Select<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let key = match event {
             TuiEvent::Key(key) => key,
-            _ => &KeyCombination::default(),
+            TuiEvent::Mouse(_) => &KeyCombination::default(),
         };
 
         if key.modifiers == KeyModifiers::ALT {

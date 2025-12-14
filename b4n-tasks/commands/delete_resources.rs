@@ -64,9 +64,9 @@ impl DeleteResourcesCommand {
                     if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
                         tracing::error!("Cannot detach finalizers from {} ({}): {}", name, info, err);
                         return;
-                    } else {
-                        tracing::info!("Detached finalizers from {} ({})", name, info);
                     }
+
+                    tracing::info!("Detached finalizers from {} ({})", name, info);
                 }
 
                 if !uid.is_empty() {

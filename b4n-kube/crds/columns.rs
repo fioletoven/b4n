@@ -50,7 +50,7 @@ pub struct CrdColumn {
 }
 
 impl CrdColumn {
-    /// Creates new [`CrdColumn`] instance from the json [`Value`].
+    /// Creates new [`CrdColumn`] instance from the JSON [`Value`].
     pub fn from(value: &Value) -> Self {
         let path = get_str(value, "jsonPath");
         let json_path = if path.starts_with('$') {

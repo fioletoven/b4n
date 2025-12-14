@@ -79,7 +79,7 @@ fn application_loop(app: &mut App) -> Result<(), anyhow::Error> {
 
         let frame_time = frame_start.elapsed();
         if frame_time < FRAME_DURATION {
-            sleep(FRAME_DURATION - frame_time);
+            sleep(FRAME_DURATION.saturating_sub(frame_time));
         }
     }
 

@@ -24,7 +24,7 @@ impl BgExecutor {
     }
 
     /// Creates a task with the specified command and runs it.\
-    /// **Note** that it returns a unique task ID by which the task can be cancelled.
+    /// **Note** that it returns a unique task ID by which the task can be canceled.
     pub fn run_task(&mut self, command: Command) -> String {
         let mut task = BgTask::new(command);
         task.run(&self.runtime, self.results_tx.clone());

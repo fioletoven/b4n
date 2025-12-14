@@ -215,7 +215,7 @@ impl View for ForwardsView {
                 },
                 ResponseEvent::NotHandled => (),
                 response_event => return response_event,
-            };
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
