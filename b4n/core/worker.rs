@@ -253,6 +253,11 @@ impl BgWorker {
         }
     }
 
+    /// Creates new background highlighter with new [`SyntaxData`].
+    pub fn update_syntax_data(&mut self, syntax_data: SyntaxData) {
+        self.highlighter = BgHighlighter::new(syntax_data);
+    }
+
     /// Returns `true` if CRDs list is ready.
     pub fn is_crds_list_ready(&self) -> bool {
         self.crds.is_ready()

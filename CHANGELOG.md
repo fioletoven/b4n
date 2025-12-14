@@ -4,7 +4,7 @@
 
 ### Features
 
-- add a dedicated menu under right mouse click
+- add a dedicated menu under the right mouse button
 - add support for CTRL+A in resources view
 - include the resource's `uid` in the delete precondition
 
@@ -12,7 +12,8 @@
 
 - fix syntax highlighting for `'` and `"` characters
 - sanitize clipboard text before insertion
-- hide the `delete` option if a resource does not support deletion
+- hide the `delete` option if a resource does not support it
+- reload YAML syntax colors on theme change
 
 ## 0.3.4 - 2025-12-09
 

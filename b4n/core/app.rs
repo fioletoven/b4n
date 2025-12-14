@@ -127,6 +127,7 @@ impl App {
         }
 
         if let Some(theme) = self.theme_watcher.try_next() {
+            self.worker.borrow_mut().update_syntax_data(SyntaxData::new(&theme));
             self.data.borrow_mut().theme = theme;
         }
 
