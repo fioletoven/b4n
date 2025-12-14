@@ -15,6 +15,10 @@
 - hide the `delete` option if a resource does not support it
 - reload YAML syntax colors on theme change
 
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.3.4 - 2025-12-09
 
 ### Features
