@@ -94,6 +94,9 @@ impl CommandPalette {
     pub fn as_mouse_menu(mut self) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.disable_filter(true);
+        self.steps[index]
+            .select
+            .set_colors(self.app_data.borrow().theme.colors.mouse_menu.clone());
         self.is_mouse_menu = true;
         self
     }
@@ -124,13 +127,19 @@ impl CommandPalette {
         let area = self.get_area_to_draw(area);
 
         {
-            let colors = &self.app_data.borrow().theme.colors;
-            Self::clear_area(frame, area, colors.command_palette.normal.bg);
+            let colors = if self.is_mouse_menu {
+                &self.app_data.borrow().theme.colors.mouse_menu
+            } else {
+                &self.app_data.borrow().theme.colors.command_palette
+            };
+
+            Self::clear_area(frame, area, colors.normal.bg);
+
             if area.top() > 0
                 && let Some(header) = self.header.as_deref()
             {
                 let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-                Self::clear_area(frame, area, colors.command_palette.header.unwrap_or_default().bg);
+                Self::clear_area(frame, area, colors.header.unwrap_or_default().bg);
                 self.draw_header(frame, area, header);
             }
         }
@@ -158,12 +167,13 @@ impl CommandPalette {
     }
 
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, text: &str) {
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = if self.is_mouse_menu {
+            &self.app_data.borrow().theme.colors.mouse_menu
+        } else {
+            &self.app_data.borrow().theme.colors.command_palette
+        };
         let area = area.inner(Margin::new(1, 0));
-        frame.render_widget(
-            Paragraph::new(text).style(&colors.command_palette.header.unwrap_or_default()),
-            area,
-        );
+        frame.render_widget(Paragraph::new(text).style(&colors.header.unwrap_or_default()), area);
     }
 
     fn select(&self) -> &Select<ActionsList> {

@@ -40,7 +40,8 @@ The following features are planned for future development:
 | Enable / disable mouse support           | `CTRL` + `n`    | Not available inside a shell session                        |
 | Forward container's port                 | `f`             | Works only in containers view                               |
 | Go back to namespaces; clear filter      | `ESC`           | Also clears input in the filter widget                      |
-| Navigate to the involved object          | `i`             | Works only for a resource that has an involved object       |
+| Navigate to the involved object          | `i`             | Works only for `events` kind                                |
+| Open / switch to the edit mode           | `i`             | Press `Esc` to exit                                         |
 | Quit the application                     | `CTRL` + `c`    |                                                             |
 | Reverse selection                        | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Select resource                          | ` `             | (`SPACE`)                                                   |
@@ -54,7 +55,6 @@ The following features are planned for future development:
 | Show resources selector                  | `→`             | To select the first item quickly press `→` again            |
 | Show YAML for the highlighted resource   | `y`             |                                                             |
 | Sort column                              | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
-| Switch to the edit mode                  | `i`             | Works only in YAML view, press `Esc` to exit                |
 
 ## Configuration Files
 
