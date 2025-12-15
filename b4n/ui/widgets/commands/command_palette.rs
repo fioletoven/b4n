@@ -1,7 +1,8 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
+use b4n_tui::utils::{center_horizontal, get_proportional_width};
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Position, Rect};
 use ratatui::style::{Color, Style};
@@ -148,14 +149,14 @@ impl CommandPalette {
     }
 
     fn get_area_to_draw(&self, area: Rect) -> Rect {
-        let width = std::cmp::min(area.width, self.width).max(2) - 2;
+        let width = get_proportional_width(area.width, self.width);
+        let height = self.select().get_screen_height();
         if let Some(position) = self.position {
-            let height = u16::try_from(self.select().get_full_height()).unwrap_or(u16::MAX);
             let x = position.x.min(area.width.saturating_sub(width));
             let y = position.y.min(area.height.saturating_sub(height));
             Rect::new(x, y, width, height.min(area.height))
         } else {
-            center_horizontal(area, width, self.select().get_full_height())
+            center_horizontal(area, width, height)
         }
     }
 

@@ -1,5 +1,6 @@
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
+use b4n_tui::utils::{center_horizontal, get_proportional_width};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Color, Style};
@@ -81,8 +82,8 @@ impl Search {
             return;
         }
 
-        let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
+        let width = get_proportional_width(area.width, self.width);
+        let area = center_horizontal(area, width, self.patterns.get_screen_height());
 
         let colors = &self.app_data.borrow().theme.colors.search;
         Self::clear_area(frame, area, colors.normal.bg);

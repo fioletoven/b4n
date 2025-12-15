@@ -7,6 +7,8 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::Widget;
 use std::rc::Rc;
 
+const MAX_ITEMS_ON_SCREEN: u16 = 25;
+
 /// Select widget for TUI.
 #[derive(Default)]
 pub struct Select<T: Table> {
@@ -71,13 +73,15 @@ impl<T: Table> Select<T> {
         self.colors = colors;
     }
 
-    /// Returns height needed to display all items in select.
-    pub fn get_full_height(&self) -> usize {
-        if self.is_filter_visible() {
+    /// Returns height needed to display items on screen.\
+    /// **Note** that it counts filter line if needed.
+    pub fn get_screen_height(&self) -> u16 {
+        let items = if self.is_filter_visible() {
             self.items.len() + 1
         } else {
             self.items.len()
-        }
+        };
+        u16::try_from(items).unwrap_or(MAX_ITEMS_ON_SCREEN).min(MAX_ITEMS_ON_SCREEN)
     }
 
     delegate! {
