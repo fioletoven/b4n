@@ -113,6 +113,12 @@ impl TuiEvent {
     }
 }
 
+impl From<KeyCombination> for TuiEvent {
+    fn from(value: KeyCombination) -> Self {
+        TuiEvent::Key(value)
+    }
+}
+
 /// Terminal UI.
 pub struct Tui {
     pub terminal: Terminal<CrosstermBackend<std::io::Stdout>>,
