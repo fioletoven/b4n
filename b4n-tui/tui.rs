@@ -39,6 +39,7 @@ impl From<crossterm::event::MouseEvent> for MouseEvent {
                     MouseButton::Middle => MouseEventKind::MiddleClick,
                 },
                 crossterm::event::MouseEventKind::Drag(MouseButton::Left) => MouseEventKind::LeftDrag,
+                crossterm::event::MouseEventKind::Moved => MouseEventKind::Moved,
                 crossterm::event::MouseEventKind::ScrollDown => MouseEventKind::ScrollDown,
                 crossterm::event::MouseEventKind::ScrollUp => MouseEventKind::ScrollUp,
                 crossterm::event::MouseEventKind::ScrollLeft => MouseEventKind::ScrollLeft,
@@ -63,6 +64,7 @@ pub enum MouseEventKind {
     RightDoubleClick,
     MiddleClick,
     MiddleDoubleClick,
+    Moved,
     ScrollDown,
     ScrollUp,
     ScrollLeft,
@@ -77,8 +79,8 @@ pub enum TuiEvent {
 }
 
 impl TuiEvent {
-    /// Returns the line number if this is a mouse event inside a specified area.
-    pub fn get_clicked_line_no(&self, kind: MouseEventKind, modifiers: KeyModifiers, area: Rect) -> Option<u16> {
+    /// Returns the line number if the mouse event matches the specified kind, modifiers, and is within the given area.
+    pub fn get_line_no(&self, kind: MouseEventKind, modifiers: KeyModifiers, area: Rect) -> Option<u16> {
         if let TuiEvent::Mouse(mouse) = self
             && mouse.kind == kind
             && mouse.modifiers == modifiers
@@ -276,6 +278,7 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
                 },
 
                 crossterm::event::MouseEventKind::Drag(MouseButton::Left)
+                | crossterm::event::MouseEventKind::Moved
                 | crossterm::event::MouseEventKind::ScrollUp
                 | crossterm::event::MouseEventKind::ScrollDown
                 | crossterm::event::MouseEventKind::ScrollLeft

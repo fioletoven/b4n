@@ -17,7 +17,6 @@ const DEFAULT_PROMPT: &str = " ";
 #[derive(Default)]
 pub struct CommandPalette {
     pub is_visible: bool,
-    is_mouse_menu: bool,
     app_data: SharedAppData,
     header: Option<String>,
     steps: Vec<Step>,
@@ -25,6 +24,8 @@ pub struct CommandPalette {
     width: u16,
     position: Option<Position>,
     response: Option<Box<dyn FnOnce(Vec<String>) -> ResponseEvent>>,
+    is_mouse_menu: bool,
+    highlight_menu_item: bool,
 }
 
 impl CommandPalette {
@@ -111,6 +112,7 @@ impl CommandPalette {
     /// Marks [`CommandPalette`] as visible and sets position to show.
     pub fn show_at(&mut self, x: u16, y: u16) {
         self.is_visible = true;
+        self.highlight_menu_item = true;
         self.position = Some(Position::new(x, y));
     }
 
@@ -126,6 +128,16 @@ impl CommandPalette {
         }
 
         let area = self.get_area_to_draw(area);
+
+        if self.highlight_menu_item {
+            self.highlight_menu_item = false;
+            if let Some(Position { x: _, y: line }) = self.position
+                && self.is_mouse_menu
+            {
+                let line = line.saturating_sub(area.y);
+                self.select_mut().items.highlight_item_by_line(line);
+            }
+        }
 
         {
             let colors = if self.is_mouse_menu {
@@ -292,7 +304,7 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if let Some(line) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select().area) {
+        if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select().area) {
             self.select_mut().items.highlight_item_by_line(line);
             return self.process_enter_key();
         }
@@ -302,6 +314,11 @@ impl Responsive for CommandPalette {
         }
 
         let response = self.select_mut().process_event(event);
+
+        if self.is_mouse_menu && event.is_out(MouseEventKind::Moved, self.select().area) {
+            self.select_mut().items.unhighlight_item();
+        }
+
         self.steps[self.index].validate();
 
         response

@@ -163,7 +163,7 @@ impl Responsive for Filter {
             return ResponseEvent::Cancelled;
         }
 
-        if let Some(line) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
+        if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
             self.patterns.items.highlight_item_by_line(line);
             self.complete_with_selected_item();
             self.is_visible = false;

@@ -163,14 +163,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Process mouse `ScrollUp` event.
     pub fn process_scroll_up(&mut self) {
-        self.move_highlighted(-1);
-        self.page_start = self.page_start.saturating_sub(1);
+        if self.page_start > 0 {
+            self.move_highlighted(-1);
+            self.page_start = self.page_start.saturating_sub(1);
+        }
     }
 
     /// Process mouse `ScrollDown` event.
     pub fn process_scroll_down(&mut self) {
-        self.move_highlighted(1);
-        self.page_start = self.page_start.saturating_add(1);
+        if let Some(items) = &self.items
+            && self.page_start < items.len().saturating_sub(usize::from(self.page_height))
+        {
+            self.move_highlighted(1);
+            self.page_start = self.page_start.saturating_add(1);
+        }
     }
 
     /// Updates page start for the current page size and highlighted resource item.
@@ -382,6 +388,10 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             if let Some(highlighted) = self.highlighted
                 && highlighted < items.len()
             {
+                if highlighted == index {
+                    return true;
+                }
+
                 items[highlighted].is_active = false;
             }
 

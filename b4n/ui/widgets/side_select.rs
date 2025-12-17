@@ -180,7 +180,7 @@ impl<T: Table> Responsive for SideSelect<T> {
         self.is_key_pressed = true;
 
         let mut navigate_into = false;
-        if let Some(line_no) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select.area) {
+        if let Some(line_no) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select.area) {
             self.select.items.highlight_item_by_line(line_no);
             navigate_into = true;
         }
