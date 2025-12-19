@@ -1,11 +1,14 @@
-use b4n_config::{keys::KeyCombination, themes::SelectColors, themes::TextColors};
+use b4n_config::{themes::SelectColors, themes::TextColors};
+use b4n_tui::MouseEventKind;
 use b4n_tui::widgets::{ErrorHighlightMode, Input};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui::widgets::Widget;
 use std::rc::Rc;
+
+const MAX_ITEMS_ON_SCREEN: u16 = 25;
 
 /// Select widget for TUI.
 #[derive(Default)]
@@ -71,13 +74,15 @@ impl<T: Table> Select<T> {
         self.colors = colors;
     }
 
-    /// Returns height needed to display all items in select.
-    pub fn get_full_height(&self) -> usize {
-        if self.is_filter_visible() {
+    /// Returns height needed to display items on screen.\
+    /// **Note** that it counts filter line if needed.
+    pub fn get_screen_height(&self) -> u16 {
+        let items = if self.is_filter_visible() {
             self.items.len() + 1
         } else {
             self.items.len()
-        }
+        };
+        u16::try_from(items).unwrap_or(MAX_ITEMS_ON_SCREEN).min(MAX_ITEMS_ON_SCREEN)
     }
 
     delegate! {
@@ -176,25 +181,34 @@ impl<T: Table> Select<T> {
 
 impl<T: Table> Responsive for Select<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        let key = match event {
-            TuiEvent::Key(key) => key,
-            TuiEvent::Mouse(_) => &KeyCombination::default(),
-        };
+        match event {
+            TuiEvent::Key(key) => {
+                if key.modifiers == KeyModifiers::ALT {
+                    return ResponseEvent::Handled;
+                }
 
-        if key.modifiers == KeyModifiers::ALT {
-            return ResponseEvent::Handled;
-        }
+                // Process Home and End keys directly by filter input if we show cursor
+                // (that means move cursor to start or end of the filter input text).
+                if (self.filter.is_cursor_visible()
+                    && !self.filter_disabled
+                    && (key.code == KeyCode::Home || key.code == KeyCode::End))
+                    || self.items.process_event(event) == ResponseEvent::NotHandled
+                {
+                    if !self.filter_disabled {
+                        self.filter.process_event(event);
+                    }
 
-        // Process Home and End keys directly by filter input if we show cursor
-        // (that means move cursor to start or end of the filter input text).
-        if (self.filter.is_cursor_visible() && !self.filter_disabled && (key.code == KeyCode::Home || key.code == KeyCode::End))
-            || self.items.process_event(event) == ResponseEvent::NotHandled
-        {
-            if !self.filter_disabled {
-                self.filter.process_event(event);
-            }
+                    self.update_items_filter();
+                }
+            },
+            TuiEvent::Mouse(mouse) => {
+                if mouse.kind == MouseEventKind::Moved && self.area.contains(Position::new(mouse.column, mouse.row)) {
+                    let line = mouse.row.saturating_sub(self.area.y);
+                    self.items.highlight_item_by_line(line);
+                }
 
-            self.update_items_filter();
+                self.items.process_event(event);
+            },
         }
 
         ResponseEvent::Handled

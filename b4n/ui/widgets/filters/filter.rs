@@ -1,6 +1,7 @@
 use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, utils::center_horizontal};
+use b4n_tui::utils::{center_horizontal, get_proportional_width};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
@@ -86,9 +87,10 @@ impl Filter {
             return;
         }
 
+        let width = get_proportional_width(area.width, self.width, true);
+        let area = center_horizontal(area, width, self.patterns.get_screen_height());
+
         let colors = &self.app_data.borrow().theme.colors.filter;
-        let width = std::cmp::min(area.width, self.width).max(2) - 2;
-        let area = center_horizontal(area, width, self.patterns.items.list.len() + 1);
         let block = Block::new().style(Style::default().bg(colors.normal.bg));
 
         frame.render_widget(Clear, area);
@@ -161,7 +163,7 @@ impl Responsive for Filter {
             return ResponseEvent::Cancelled;
         }
 
-        if let Some(line) = event.get_clicked_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
+        if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
             self.patterns.items.highlight_item_by_line(line);
             self.complete_with_selected_item();
             self.is_visible = false;

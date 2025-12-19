@@ -89,10 +89,11 @@ impl LogsView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
+        let copy = if self.logs.has_selection() { "selection" } else { "all" };
         let builder = ActionsListBuilder::default()
             .with_action(ActionItem::back())
             .with_action(ActionItem::command_palette())
-            .with_action(ActionItem::menu(1, " copy all", "copy"))
+            .with_action(ActionItem::menu(1, &format!("󰆏 copy [{}]", copy), "copy"))
             .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
         self.command_palette.show_at(x.saturating_sub(1), y);
@@ -121,7 +122,7 @@ impl LogsView {
                     .is_ok()
             {
                 if self.logs.has_selection() {
-                    self.footer.show_info(" selection copied to clipboard…", 1_500);
+                    self.footer.show_info(" Selection copied to clipboard…", 1_500);
                 } else {
                     self.footer.show_info(" Container logs copied to clipboard…", 1_500);
                 }
@@ -241,7 +242,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
+            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
                 return result;
             }
         }
@@ -255,12 +256,6 @@ impl View for LogsView {
 
             self.update_bound_to_bottom();
             return result;
-        }
-
-        if event.is_mouse(MouseEventKind::RightClick) && self.logs.has_selection() {
-            self.copy_logs_to_clipboard();
-            self.logs.clear_selection();
-            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {

@@ -106,9 +106,9 @@ impl YamlView {
             && clipboard.set_text(text).is_ok()
         {
             if self.yaml.has_selection() {
-                self.footer.show_info(" selection copied to clipboard…", 1_500);
+                self.footer.show_info(" Selection copied to clipboard…", 1_500);
             } else if is_current_line {
-                self.footer.show_info(" line copied to clipboard…", 1_500);
+                self.footer.show_info(" Line copied to clipboard…", 1_500);
             } else {
                 self.footer.show_info(" YAML content copied to clipboard…", 1_500);
             }
@@ -158,18 +158,32 @@ impl YamlView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
-        let mut builder = ActionsListBuilder::default()
-            .with_action(ActionItem::back())
-            .with_action(ActionItem::command_palette())
-            .with_action(ActionItem::menu(1, " copy all", "copy"))
-            .with_action(ActionItem::menu(2, " search", "search"))
-            .with_action(ActionItem::menu(4, " edit", "edit"));
-        if self.can_encode_decode() {
-            let action = if self.is_decoded { " encode" } else { " decode" };
-            builder.add_action(ActionItem::menu(3, action, "decode"));
+        let mut size = 22;
+        let mut builder = ActionsListBuilder::default();
+        if self.yaml.is_in_edit_mode() {
+            size = 17;
+            builder = builder
+                .with_action(ActionItem::menu(1, "󰆐 cut", "cut"))
+                .with_action(ActionItem::menu(2, "󰆏 copy", "copy_2"))
+                .with_action(ActionItem::menu(3, "󰆒 paste", "paste"))
+                .with_action(ActionItem::menu(4, "󰕌 undo", "undo"))
+                .with_action(ActionItem::menu(5, "󰑎 redo", "redo"))
+                .with_action(ActionItem::menu(100, " close edit", "back"));
+        } else {
+            let copy = if self.yaml.has_selection() { "selection" } else { "all" };
+            builder = builder
+                .with_action(ActionItem::back())
+                .with_action(ActionItem::command_palette())
+                .with_action(ActionItem::menu(1, &format!("󰆏 copy [{}]", copy), "copy"))
+                .with_action(ActionItem::menu(2, " search", "search"))
+                .with_action(ActionItem::menu(4, " edit", "edit"));
+            if self.can_encode_decode() {
+                let action = if self.is_decoded { " encode" } else { " decode" };
+                builder.add_action(ActionItem::menu(3, action, "decode"));
+            }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), size).as_mouse_menu();
         self.command_palette.show_at(x.saturating_sub(1), y);
     }
 
@@ -214,11 +228,23 @@ impl YamlView {
 
         if response == ResponseEvent::Cancelled {
             self.clear_search();
+        } else if response.is_action("back") {
+            return self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack));
         } else if response.is_action("palette") {
             return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("copy") {
             self.copy_to_clipboard(false);
             return ResponseEvent::Handled;
+        } else if response.is_action("copy_2") {
+            return self.process_event(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL).into());
+        } else if response.is_action("paste") {
+            return self.process_event(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL).into());
+        } else if response.is_action("cut") {
+            return self.process_event(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL).into());
+        } else if response.is_action("undo") {
+            return self.process_event(&KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL).into());
+        } else if response.is_action("redo") {
+            return self.process_event(&KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL).into());
         } else if response.is_action("decode") {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
@@ -469,7 +495,7 @@ impl View for YamlView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
+            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
                 return result;
             }
         }
@@ -502,16 +528,15 @@ impl View for YamlView {
             }
         }
 
-        if event.is_mouse(MouseEventKind::RightClick) && self.yaml.has_selection() {
-            self.copy_to_clipboard(false);
-            self.yaml.clear_selection();
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 
         if self.yaml.is_in_edit_mode() {
-            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL))
-                || event.is_mouse(MouseEventKind::RightClick)
-            {
+            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
                 self.insert_from_clipboard();
                 self.yaml.scroll_to_cursor();
                 return ResponseEvent::Handled;
@@ -537,13 +562,6 @@ impl View for YamlView {
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-        {
-            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 

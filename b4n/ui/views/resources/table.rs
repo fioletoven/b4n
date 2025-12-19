@@ -276,7 +276,7 @@ impl ResourcesTable {
                 return self.process_enter_key(resource);
             }
 
-            if let Some(line_no) = event.get_clicked_line_no(MouseEventKind::LeftDoubleClick, KeyModifiers::NONE, self.list.area)
+            if let Some(line_no) = event.get_line_no(MouseEventKind::LeftDoubleClick, KeyModifiers::NONE, self.list.area)
                 && usize::from(line_no) < self.list.table.len()
             {
                 return self.process_enter_key(resource);
