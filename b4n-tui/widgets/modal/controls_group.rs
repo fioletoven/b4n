@@ -95,7 +95,7 @@ impl ControlsGroup {
     }
 
     fn focus_prev(&mut self) {
-        self.focus(if self.focused > 0 { self.focused - 1 } else { 0 });
+        self.focus(self.focused.saturating_sub(1));
     }
 
     fn focus_next(&mut self) {
@@ -142,6 +142,21 @@ impl ControlsGroup {
             _ => (),
         }
     }
+
+    fn focus_element_at(&mut self, x: u16, y: u16) {
+        if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
+            self.set_focus(self.focused, false);
+            self.buttons[i].set_focus(true);
+            self.focused = i;
+            return;
+        }
+
+        if let Some(i) = self.inputs.iter().position(|i| i.contains(x, y)) {
+            self.set_focus(self.focused, false);
+            self.inputs[i].set_focus(true);
+            self.focused = self.buttons.len() + i;
+        }
+    }
 }
 
 impl Responsive for ControlsGroup {
@@ -150,19 +165,22 @@ impl Responsive for ControlsGroup {
             return ResponseEvent::NotHandled;
         }
 
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::LeftClick
-        {
-            for input in &mut self.inputs {
-                if input.contains(mouse.column, mouse.row) {
-                    return input.click();
+        if let TuiEvent::Mouse(mouse) = event {
+            if mouse.kind == MouseEventKind::LeftClick {
+                for input in &mut self.inputs {
+                    if input.contains(mouse.column, mouse.row) {
+                        return input.click();
+                    }
                 }
-            }
 
-            for btn in &self.buttons {
-                if btn.contains(mouse.column, mouse.row) {
-                    return btn.result();
+                for btn in &self.buttons {
+                    if btn.contains(mouse.column, mouse.row) {
+                        return btn.result();
+                    }
                 }
+            } else if mouse.kind == MouseEventKind::Moved {
+                self.focus_element_at(mouse.column, mouse.row);
+                return ResponseEvent::Handled;
             }
         }
 
