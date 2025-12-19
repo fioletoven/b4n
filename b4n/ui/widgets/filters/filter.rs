@@ -87,7 +87,7 @@ impl Filter {
             return;
         }
 
-        let width = get_proportional_width(area.width, self.width);
+        let width = get_proportional_width(area.width, self.width, true);
         let area = center_horizontal(area, width, self.patterns.get_screen_height());
 
         let colors = &self.app_data.borrow().theme.colors.filter;

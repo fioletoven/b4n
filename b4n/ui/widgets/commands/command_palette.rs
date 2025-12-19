@@ -161,7 +161,7 @@ impl CommandPalette {
     }
 
     fn get_area_to_draw(&self, area: Rect) -> Rect {
-        let width = get_proportional_width(area.width, self.width);
+        let width = get_proportional_width(area.width, self.width, !self.is_mouse_menu);
         let height = self.select().get_screen_height();
         if let Some(position) = self.position {
             let x = position.x.min(area.width.saturating_sub(width));

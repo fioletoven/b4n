@@ -35,10 +35,10 @@ pub fn center_horizontal(area: Rect, width: u16, max_height: u16) -> Rect {
 }
 
 /// Recalculates width for a bigger terminal screen (`> 140`).
-pub fn get_proportional_width(area_width: u16, width: u16) -> u16 {
+pub fn get_proportional_width(area_width: u16, width: u16, use_proportion: bool) -> u16 {
     const MIN_SCREEN_WIDTH: u16 = 140;
 
-    if area_width > MIN_SCREEN_WIDTH && area_width > width {
+    if use_proportion && area_width > MIN_SCREEN_WIDTH && area_width > width {
         let width = area_width * width / MIN_SCREEN_WIDTH;
         return area_width.min(width).saturating_sub(2);
     }
