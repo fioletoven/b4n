@@ -15,6 +15,7 @@ b4n-kube = { workspace = true }
 b4n-list = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
+delegate = { workspace = true }
 futures = { workspace = true }
 ratatui = { workspace = true }
 textwrap = { workspace = true }

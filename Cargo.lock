@@ -280,6 +280,7 @@ dependencies = [
  "b4n-kube",
  "b4n-list",
  "crossterm",
+ "delegate",
  "futures",
  "ratatui",
  "textwrap",

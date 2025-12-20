@@ -1,12 +1,14 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, ScrollableList};
-use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
-use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{kube::kinds::KindItem, ui::widgets::ActionItem};
+use crate::{
+    ResponseEvent, Responsive, TuiEvent,
+    table::{Table, ViewType},
+    widgets::ActionItem,
+};
 
 /// UI actions list.
 #[derive(Default)]
@@ -86,22 +88,8 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates a new [`ActionsListBuilder`] instance.
-    pub fn new() -> Self {
-        Self { actions: Vec::new() }
-    }
-
-    /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
-    /// If `primary_only` is `true`, only kinds without a group will be included.
-    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
-        let actions = kinds.unwrap_or(&[]).iter().map(ActionItem::from_kind).collect();
-        ActionsListBuilder { actions }
-    }
-
-    /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.
-    pub fn from_contexts(contexts: &[NamedContext]) -> Self {
-        ActionsListBuilder {
-            actions: contexts.iter().map(ActionItem::from_context).collect::<Vec<ActionItem>>(),
-        }
+    pub fn new(actions: Vec<ActionItem>) -> Self {
+        Self { actions }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`PathBuf`]s.

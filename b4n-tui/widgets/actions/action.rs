@@ -1,11 +1,9 @@
 use b4n_common::truncate;
 use b4n_kube::Port;
 use b4n_list::{BasicFilterContext, Filterable, Row};
-use b4n_tui::ResponseEvent;
-use kube::config::NamedContext;
 use std::{borrow::Cow, path::PathBuf};
 
-use crate::kube::kinds::KindItem;
+use crate::ResponseEvent;
 
 #[cfg(test)]
 #[path = "./action.tests.rs"]
@@ -32,6 +30,17 @@ impl ActionItem {
             group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some(""),
+            ..Default::default()
+        }
+    }
+
+    /// Creates new raw [`ActionItem`] instance.
+    pub fn raw(uid: String, group: String, name: String, icon: Option<&'static str>) -> Self {
+        Self {
+            uid,
+            group,
+            name,
+            icon,
             ..Default::default()
         }
     }
@@ -63,33 +72,6 @@ impl ActionItem {
             .with_response(ResponseEvent::Cancelled)
             .with_id(100)
             .with_no_icon()
-    }
-
-    /// Creates new [`ActionItem`] instance from [`KindItem`].
-    pub fn from_kind(kind: &KindItem) -> Self {
-        Self {
-            uid: kind.uid().to_owned(),
-            group: "resource".to_owned(),
-            name: kind.name().to_owned(),
-            response: ResponseEvent::ChangeKind(kind.name().to_owned()),
-            ..Default::default()
-        }
-    }
-
-    /// Creates new [`ActionItem`] instance from [`NamedContext`].
-    pub fn from_context(context: &NamedContext) -> Self {
-        Self {
-            uid: format!(
-                "_{}:{}_",
-                context.name,
-                context.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default()
-            ),
-            group: "context".to_owned(),
-            name: context.name.clone(),
-            response: ResponseEvent::ChangeContext(context.name.clone()),
-            description: context.context.as_ref().map(|c| c.cluster.clone()),
-            ..Default::default()
-        }
     }
 
     /// Creates new [`ActionItem`] instance from [`PathBuf`].
@@ -130,7 +112,10 @@ impl ActionItem {
 
     /// Sets the provided description.
     pub fn with_description(mut self, description: &str) -> Self {
-        self.description = Some(description.to_owned());
+        if !description.is_empty() {
+            self.description = Some(description.to_owned());
+        }
+
         self
     }
 

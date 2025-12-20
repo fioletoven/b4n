@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::utils::{center_horizontal, get_proportional_width};
-use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind};
+use b4n_tui::widgets::{ActionsList, ErrorHighlightMode, InputValidator, Select, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Position, Rect};
@@ -9,7 +9,6 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-use crate::ui::widgets::ActionsList;
 
 const DEFAULT_PROMPT: &str = " ";
 

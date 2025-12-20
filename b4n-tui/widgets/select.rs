@@ -1,5 +1,6 @@
 use b4n_config::{themes::SelectColors, themes::TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
+use delegate::delegate;
 use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui::widgets::Widget;
 use std::rc::Rc;
@@ -85,34 +86,15 @@ impl<T: Table> Select<T> {
         u16::try_from(items).unwrap_or(MAX_ITEMS_ON_SCREEN).min(MAX_ITEMS_ON_SCREEN)
     }
 
-    /// Sets whether to show the cursor.
-    pub fn set_cursor(&mut self, show_cursor: bool) {
-        self.filter.set_cursor(show_cursor);
-    }
-
-    /// Sets error highlight mode.
-    pub fn set_error_mode(&mut self, mode: ErrorHighlightMode) {
-        self.filter.set_error_mode(mode);
-    }
-
-    /// Returns `true` if the input has an error set.
-    pub fn has_error(&self) -> bool {
-        self.filter.has_error()
-    }
-
-    /// Sets error position.
-    pub fn set_error(&mut self, error_index: Option<usize>) {
-        self.filter.set_error(error_index);
-    }
-
-    /// Gets the prompt text.
-    pub fn prompt(&self) -> Option<&str> {
-        self.filter.prompt()
-    }
-
-    /// Returns the input value.
-    pub fn value(&self) -> &str {
-        self.filter.value()
+    delegate! {
+        to self.filter {
+            pub fn set_cursor(&mut self, show_cursor: bool);
+            pub fn set_error_mode(&mut self, mode: ErrorHighlightMode);
+            pub fn has_error(&self) -> bool;
+            pub fn set_error(&mut self, error_index: Option<usize>);
+            pub fn prompt(&self) -> Option<&str>;
+            pub fn value(&self) -> &str;
+        }
     }
 
     /// Sets the filter value.

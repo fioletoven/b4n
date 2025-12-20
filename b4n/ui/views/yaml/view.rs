@@ -5,7 +5,7 @@ use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{
     CommandResult, ResourceYamlResult, SetNewResourceYamlOptions, SetResourceYamlAction, SetResourceYamlOptions,
 };
-use b4n_tui::widgets::{Button, CheckBox, Dialog};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{Frame, layout::Rect};
@@ -14,7 +14,7 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::{Content, ContentViewer, StyleFallback};
 use crate::ui::views::{View, yaml::YamlContent};
-use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
+use crate::ui::widgets::{CommandPalette, Search};
 
 /// YAML view.
 pub struct YamlView {
@@ -263,9 +263,9 @@ impl YamlView {
     }
 
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        let force = self.modal.input(0).is_some_and(|i| i.is_checked);
-        let patch_status = self.modal.input(1).is_some_and(|i| i.is_checked);
-        let disable_encoding = self.modal.input(2).is_some_and(|i| i.is_checked);
+        let force = self.modal.checkbox(0).is_some_and(|i| i.is_checked);
+        let patch_status = self.modal.checkbox(1).is_some_and(|i| i.is_checked);
+        let disable_encoding = self.modal.checkbox(2).is_some_and(|i| i.is_checked);
         let response = self.modal.process_event(event);
         if response.is_action("apply") {
             return self.save_yaml(true, force, disable_encoding, patch_status);
@@ -328,7 +328,7 @@ impl YamlView {
             60,
             colors.text,
         )
-        .with_inputs(inputs)
+        .with_checkboxes(inputs)
     }
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
@@ -352,7 +352,7 @@ impl YamlView {
             60,
             colors.text,
         )
-        .with_inputs(inputs)
+        .with_checkboxes(inputs)
     }
 
     fn create_resource(&mut self, disable_encoding: bool, patch_status: bool) -> ResponseEvent {
