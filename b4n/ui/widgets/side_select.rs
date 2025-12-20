@@ -1,4 +1,5 @@
 use b4n_config::keys::KeyCommand;
+use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -8,8 +9,6 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::time::Instant;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-
-use super::Select;
 
 /// Possible positions for the [`SideSelect`] widget.
 #[derive(PartialEq)]

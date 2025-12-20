@@ -1,5 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_tui::utils::{center_horizontal, get_proportional_width};
+use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
@@ -7,7 +8,7 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::widgets::{PatternsList, Select};
+use crate::ui::widgets::PatternsList;
 
 const HISTORY_SIZE: usize = 20;
 const NOT_FOUND_HINT: &str = " No matches found.";

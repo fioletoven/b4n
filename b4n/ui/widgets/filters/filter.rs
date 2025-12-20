@@ -1,6 +1,7 @@
 use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
 use b4n_tui::utils::{center_horizontal, get_proportional_width};
+use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::Rect;
@@ -8,7 +9,7 @@ use ratatui::style::Style;
 use ratatui::widgets::{Block, Clear};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::widgets::{PatternsList, Select};
+use crate::ui::widgets::PatternsList;
 
 const HISTORY_SIZE: usize = 20;
 
