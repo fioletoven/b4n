@@ -3,6 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, PodRef, ResourceRef};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
@@ -13,7 +14,7 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::{Content, ContentPosition, ContentViewer, MatchPosition, Selection, StyledLine};
 use crate::ui::views::View;
-use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Search};
+use crate::ui::widgets::{CommandPalette, Search};
 
 use super::{LogLine, LogsObserver, LogsObserverError};
 
@@ -93,7 +94,7 @@ impl LogsView {
         let builder = ActionsListBuilder::default()
             .with_action(ActionItem::back())
             .with_action(ActionItem::command_palette())
-            .with_action(ActionItem::menu(1, &format!("󰆏 copy [{}]", copy), "copy"))
+            .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
             .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
         self.command_palette.show_at(x.saturating_sub(1), y);

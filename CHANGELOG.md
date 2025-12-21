@@ -4,6 +4,7 @@
 
 ### Features
 
+- add propagation policy to the delete resources dialog
 - track mouse movement in dialogs and menus
 
 ## 0.3.5 - 2025-12-14

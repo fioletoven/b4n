@@ -241,7 +241,7 @@ impl Widget for &mut Input {
     where
         Self: Sized,
     {
-        if area.width <= 2 {
+        if area.width <= 1 {
             return;
         }
 
@@ -250,9 +250,9 @@ impl Widget for &mut Input {
 
         buf[(x, y)].set_char(' ').set_fg(self.colors.fg).set_bg(self.colors.bg);
 
-        let max_x = area.left() + area.width - if self.show_cursor { 2 } else { 1 };
+        let max_x = area.left() + area.width.saturating_sub(u16::from(self.show_cursor));
 
-        let x = x + 1 + self.render_prompt(x + 1, y, max_x, buf);
+        let x = x + self.render_prompt(x, y, max_x, buf);
         if x >= max_x {
             return;
         }

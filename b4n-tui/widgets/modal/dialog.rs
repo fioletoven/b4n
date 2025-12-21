@@ -6,6 +6,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph};
 use textwrap::Options;
 
+use crate::widgets::Selector;
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center};
 
 use super::{Button, CheckBox, ControlsGroup};
@@ -31,7 +32,7 @@ impl Dialog {
     /// Creates new [`Dialog`] instance.
     pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
-        let mut buttons = ControlsGroup::new(Vec::new(), buttons);
+        let mut buttons = ControlsGroup::new(buttons);
         buttons.focus(default_button);
 
         Self {
@@ -45,15 +46,32 @@ impl Dialog {
         }
     }
 
-    /// Sets provided inputs for the dialog.
-    pub fn with_inputs(mut self, inputs: Vec<CheckBox>) -> Self {
-        self.controls.inputs = inputs;
+    /// Sets provided checkboxes for the dialog.
+    pub fn with_checkboxes(mut self, checkboxes: Vec<CheckBox>) -> Self {
+        for checkbox in checkboxes {
+            self.controls.add_checkbox(checkbox);
+        }
+
         self
     }
 
-    /// Returns input under specified `id`.
-    pub fn input(&self, id: usize) -> Option<&CheckBox> {
-        self.controls.inputs.iter().find(|i| i.id == id)
+    /// Sets provided selectors for the dialog.
+    pub fn with_selectors(mut self, selectors: Vec<Selector>) -> Self {
+        for selector in selectors {
+            self.controls.add_selector(selector);
+        }
+
+        self
+    }
+
+    /// Returns checkbox under specified `id`.
+    pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
+        self.controls.checkbox(id)
+    }
+
+    /// Returns selector under specified `id`.
+    pub fn selector(&self, id: usize) -> Option<&Selector> {
+        self.controls.selector(id)
     }
 
     /// Marks [`Dialog`] as a visible.
@@ -72,7 +90,7 @@ impl Dialog {
             &self.message,
             Options::new(width.into()).initial_indent("  ").subsequent_indent("  "),
         );
-        let lines = u16::try_from(self.controls.inputs.len()).unwrap_or_default();
+        let lines = u16::try_from(self.controls.controls_len()).unwrap_or_default();
         let lines = if lines == 0 { 3 } else { lines + 4 };
         let height = u16::try_from(text.len()).unwrap_or_default() + lines + 1;
 
@@ -100,7 +118,10 @@ impl Responsive for Dialog {
             return ResponseEvent::NotHandled;
         }
 
-        if matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc) || event.is_out(MouseEventKind::LeftClick, self.area) {
+        if !self.controls.has_opened_selector()
+            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc)
+                || event.is_out(MouseEventKind::LeftClick, self.area))
+        {
             self.is_visible = false;
             return self.controls.result(self.default_button);
         }

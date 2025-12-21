@@ -204,7 +204,7 @@ impl App {
             ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
-            ResponseEvent::DeleteResources(force, detach) => self.views_manager.delete_resources(force, detach),
+            ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
             ResponseEvent::ViewYaml(resource, decode, edit) => self.request_yaml(resource, decode, edit),
             ResponseEvent::ViewLogs(container) => self.views_manager.show_logs(container, false),

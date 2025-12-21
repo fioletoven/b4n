@@ -5,7 +5,9 @@ use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
 use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
-use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::{
+    BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, PropagationPolicy, ResourceRef,
+};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, GetNewResourceYamlCommand, GetResourceYamlCommand, ListResourcePortsCommand,
     SaveConfigurationCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand,
@@ -321,10 +323,10 @@ impl BgWorker {
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.
     pub fn delete_resources(
         &mut self,
-        resources: Vec<String>,
-        uids: Vec<String>,
+        resources: Vec<(String, String)>,
         namespace: Namespace,
         kind: &Kind,
+        propagation_policy: PropagationPolicy,
         terminate_immediately: bool,
         detach_finalizers: bool,
     ) {
@@ -332,13 +334,14 @@ impl BgWorker {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
             let command = DeleteResourcesCommand::new(
                 resources,
-                uids,
                 namespace,
                 discovery,
                 client.get_client(),
+                propagation_policy,
                 terminate_immediately,
                 detach_finalizers,
             );
+
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
         }
     }

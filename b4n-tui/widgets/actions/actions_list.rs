@@ -1,12 +1,12 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, ScrollableList};
-use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
-use kube::config::NamedContext;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{kube::kinds::KindItem, ui::widgets::ActionItem};
+use crate::table::{Table, ViewType};
+use crate::widgets::ActionItem;
+use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI actions list.
 #[derive(Default)]
@@ -86,39 +86,36 @@ pub struct ActionsListBuilder {
 
 impl ActionsListBuilder {
     /// Creates a new [`ActionsListBuilder`] instance.
-    pub fn new() -> Self {
-        Self { actions: Vec::new() }
+    pub fn new(actions: Vec<ActionItem>) -> Self {
+        Self { actions }
     }
 
-    /// Creates a new [`ActionsListBuilder`] from the given `kinds`.\
-    /// If `primary_only` is `true`, only kinds without a group will be included.
-    pub fn from_kinds(kinds: Option<&[KindItem]>) -> Self {
-        let actions = kinds.unwrap_or(&[]).iter().map(ActionItem::from_kind).collect();
-        ActionsListBuilder { actions }
-    }
-
-    /// Creates new [`ActionsListBuilder`] instance from the list of [`NamedContext`]s.
-    pub fn from_contexts(contexts: &[NamedContext]) -> Self {
-        ActionsListBuilder {
-            actions: contexts.iter().map(ActionItem::from_context).collect::<Vec<ActionItem>>(),
-        }
+    /// Creates new [`ActionsListBuilder`] instance from the list of string slices.\
+    /// **Note** that items order is preserved.
+    pub fn from_strings(items: &[&str]) -> Self {
+        let actions = items
+            .iter()
+            .enumerate()
+            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_id(idx))
+            .collect();
+        Self { actions }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`PathBuf`]s.
     pub fn from_paths(themes: Vec<PathBuf>) -> Self {
-        ActionsListBuilder {
-            actions: themes.into_iter().map(ActionItem::from_path).collect::<Vec<ActionItem>>(),
+        Self {
+            actions: themes.into_iter().map(ActionItem::from_path).collect(),
         }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
     pub fn from_resource_ports(ports: &[Port]) -> Self {
-        ActionsListBuilder {
+        Self {
             actions: ports
                 .iter()
                 .filter(|p| p.protocol == PortProtocol::TCP)
                 .map(ActionItem::from_port)
-                .collect::<Vec<ActionItem>>(),
+                .collect(),
         }
     }
 

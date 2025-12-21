@@ -4,7 +4,7 @@ use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
-use b4n_tui::widgets::{Button, CheckBox, Dialog, ValidatorKind};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -13,9 +13,10 @@ use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kube::kinds::ActionsListBuilderKindExt;
 use crate::kube::resources::{ResourceItem, node, pod};
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
-use crate::ui::widgets::{ActionItem, ActionsListBuilder, CommandPalette, Filter, StepBuilder};
+use crate::ui::widgets::{CommandPalette, Filter, StepBuilder};
 
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
@@ -209,8 +210,9 @@ impl ResourcesView {
         if self.modal.is_visible {
             if self.modal.process_event(event).is_action("delete") {
                 return ResponseEvent::DeleteResources(
-                    self.modal.input(0).is_some_and(|i| i.is_checked), // terminate immediately
-                    self.modal.input(1).is_some_and(|i| i.is_checked), // detach finalizers
+                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
                 );
             }
 
@@ -481,7 +483,7 @@ impl ResourcesView {
             return;
         }
 
-        let mut builder = ActionsListBuilder::new()
+        let mut builder = ActionsListBuilder::default()
             .with_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
             .with_action(ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"));
 
@@ -511,10 +513,17 @@ impl ResourcesView {
             60,
             colors.modal.text,
         )
-        .with_inputs(vec![
+        .with_checkboxes(vec![
             CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
             CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
         ])
+        .with_selectors(vec![Selector::new(
+            0,
+            "Propagation",
+            &["None", "Background", "Foreground", "Orphan"],
+            colors.mouse_menu.clone(),
+            &colors.modal.checkbox,
+        )])
     }
 
     pub fn remember_current_resource(&mut self) {
@@ -604,5 +613,23 @@ fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) ->
         ResponseEvent::PortForward(resource, container_port, local_port, address)
     } else {
         ResponseEvent::Handled
+    }
+}
+
+trait ActionsListBuilderExt {
+    fn from_contexts(items: &[NamedContext]) -> ActionsListBuilder;
+}
+
+impl ActionsListBuilderExt for ActionsListBuilder {
+    fn from_contexts(items: &[NamedContext]) -> ActionsListBuilder {
+        let actions = items.iter().map(|item| {
+            let cluster = item.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default();
+            let uid = format!("_{}:{}_", item.name, cluster);
+            ActionItem::raw(uid, "context".to_owned(), item.name.clone(), None)
+                .with_description(cluster)
+                .with_response(ResponseEvent::ChangeContext(item.name.clone()))
+        });
+
+        ActionsListBuilder::new(actions.collect())
     }
 }

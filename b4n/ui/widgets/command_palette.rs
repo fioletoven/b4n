@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::utils::{center_horizontal, get_proportional_width};
-use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
+use b4n_tui::widgets::{ActionsList, ErrorHighlightMode, InputValidator, Select, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Position, Rect};
@@ -9,7 +9,6 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-use crate::ui::widgets::{ActionsList, Select};
 
 const DEFAULT_PROMPT: &str = " ";
 
@@ -157,7 +156,7 @@ impl CommandPalette {
             }
         }
 
-        self.select_mut().draw(frame, area);
+        self.select_mut().draw(frame, area.inner(Margin::new(1, 0)));
     }
 
     fn get_area_to_draw(&self, area: Rect) -> Rect {

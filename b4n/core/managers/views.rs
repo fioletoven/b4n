@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_common::{IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{Namespace, Port, ResourceRef};
+use b4n_kube::{Namespace, Port, PropagationPolicy, ResourceRef};
 use b4n_tasks::commands::{
     CommandResult, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError, ResourceYamlResult,
     SetNewResourceYamlError, SetResourceYamlError,
@@ -311,7 +311,12 @@ impl ViewsManager {
     }
 
     /// Deletes resources that are currently selected on [`ResourcesView`].
-    pub fn delete_resources(&mut self, terminate_immediately: bool, detach_finalizers: bool) {
+    pub fn delete_resources(
+        &mut self,
+        propagation_policy: PropagationPolicy,
+        terminate_immediately: bool,
+        detach_finalizers: bool,
+    ) {
         let resources = self.resources.table.list.table.get_selected_resources();
         let mut grouped: HashMap<&str, Vec<&ResourceItem>> = HashMap::new();
         for resource in resources {
@@ -321,10 +326,10 @@ impl ViewsManager {
 
         for (namespace, resources) in grouped {
             self.worker.borrow_mut().delete_resources(
-                resources.iter().map(|r| r.name.clone()).collect(),
-                resources.iter().map(|r| r.uid.clone()).collect(),
+                resources.iter().map(|r| (r.name.clone(), r.uid.clone())).collect(),
                 namespace.into(),
                 &self.resources.get_kind(),
+                propagation_policy,
                 terminate_immediately,
                 detach_finalizers,
             );

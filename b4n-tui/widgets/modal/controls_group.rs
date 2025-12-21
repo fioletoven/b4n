@@ -1,35 +1,98 @@
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
+use crate::widgets::{Button, CheckBox, Selector};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
-use super::{Button, CheckBox};
+pub enum Control {
+    CheckBox(Box<CheckBox>),
+    Selector(Box<Selector>),
+}
 
-/// Events used to handle press and focus actions.
-#[derive(PartialEq)]
-enum ControlEvent {
-    None,
-    FocusPrev,
-    FocusNext,
-    Pressed,
-    Checked,
+impl Control {
+    fn set_focus(&mut self, is_active: bool) {
+        match self {
+            Control::CheckBox(checkbox) => checkbox.set_focus(is_active),
+            Control::Selector(selector) => selector.set_focus(is_active),
+        }
+    }
+
+    fn contains(&self, x: u16, y: u16) -> bool {
+        match self {
+            Control::CheckBox(checkbox) => checkbox.contains(x, y),
+            Control::Selector(selector) => selector.contains(x, y),
+        }
+    }
+
+    fn click(&mut self) -> ResponseEvent {
+        match self {
+            Control::CheckBox(checkbox) => checkbox.click(),
+            Control::Selector(selector) => selector.click(),
+        }
+    }
 }
 
 /// Represents group of the controls in UI.
 pub struct ControlsGroup {
-    pub inputs: Vec<CheckBox>,
-    pub buttons: Vec<Button>,
+    controls: Vec<Control>,
+    buttons: Vec<Button>,
     focused: usize,
 }
 
 impl ControlsGroup {
     /// Creates new [`ControlsGroup`] instance.
-    pub fn new(inputs: Vec<CheckBox>, buttons: Vec<Button>) -> Self {
+    pub fn new(buttons: Vec<Button>) -> Self {
         Self {
-            inputs,
+            controls: Vec::default(),
             buttons,
             focused: 0,
         }
+    }
+
+    /// Adds a `CheckBox` to the end of controls list.
+    pub fn add_checkbox(&mut self, checkbox: CheckBox) {
+        self.controls.push(Control::CheckBox(Box::new(checkbox)));
+    }
+
+    /// Adds a Selector to the end of controls list.
+    pub fn add_selector(&mut self, selector: Selector) {
+        self.controls.push(Control::Selector(Box::new(selector)));
+    }
+
+    /// Gets a `CheckBox` with the specified `id` from the controls list.
+    pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
+        self.controls.iter().find_map(|control| match control {
+            Control::CheckBox(cb) if cb.id == id => Some(cb.as_ref()),
+            _ => None,
+        })
+    }
+
+    /// Gets a Selector with the specified `id` from the controls list.
+    pub fn selector(&self, id: usize) -> Option<&Selector> {
+        self.controls.iter().find_map(|control| match control {
+            Control::Selector(sel) if sel.id == id => Some(sel.as_ref()),
+            _ => None,
+        })
+    }
+
+    /// Gets a focused Selector from the controls list.
+    pub fn focused_selector(&mut self) -> Option<&mut Selector> {
+        self.controls.iter_mut().find_map(|control| match control {
+            Control::Selector(sel) if sel.is_focused() => Some(sel.as_mut()),
+            _ => None,
+        })
+    }
+
+    /// Returns `true` if there is a focused selector that is in the middle of selecting an item.
+    pub fn has_opened_selector(&self) -> bool {
+        self.controls
+            .iter()
+            .any(|control| matches!(control, Control::Selector(sel) if sel.is_opened()))
+    }
+
+    /// Returns the number of controls on the list.
+    pub fn controls_len(&self) -> usize {
+        self.controls.len()
     }
 
     /// Returns result for the control under provided index.
@@ -44,7 +107,7 @@ impl ControlsGroup {
     /// Focus control under provided index.
     pub fn focus(&mut self, idx: usize) {
         self.set_focus(self.focused, false);
-        let idx = idx.clamp(0, (self.inputs.len() + self.buttons.len()).saturating_sub(1));
+        let idx = idx.clamp(0, (self.controls.len() + self.buttons.len()).saturating_sub(1));
         self.set_focus(idx, true);
         self.focused = idx;
     }
@@ -56,22 +119,26 @@ impl ControlsGroup {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(2)])
             .split(area);
 
-        self.draw_inputs(frame, layout[1]);
+        self.draw_controls(frame, layout[1]);
         self.draw_buttons(frame, layout[2]);
+        self.draw_focused_selector(frame);
     }
 
-    fn draw_inputs(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if self.inputs.is_empty() {
+    fn draw_controls(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        if self.controls.is_empty() {
             return;
         }
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1); self.inputs.len()])
+            .constraints(vec![Constraint::Length(1); self.controls.len()])
             .split(area);
 
-        for (i, input) in self.inputs.iter_mut().enumerate() {
-            input.draw(frame, layout[i]);
+        for (i, control) in self.controls.iter_mut().enumerate() {
+            match control {
+                Control::CheckBox(checkbox) => checkbox.draw(frame, layout[i]),
+                Control::Selector(selector) => selector.draw(frame, layout[i]),
+            }
         }
     }
 
@@ -90,6 +157,12 @@ impl ControlsGroup {
         }
     }
 
+    fn draw_focused_selector(&mut self, frame: &mut ratatui::Frame<'_>) {
+        if let Some(selector) = self.focused_selector() {
+            selector.draw_options(frame);
+        }
+    }
+
     fn focus_first(&mut self) {
         self.focus(0);
     }
@@ -100,13 +173,13 @@ impl ControlsGroup {
 
     fn focus_next(&mut self) {
         self.focus(std::cmp::min(
-            (self.inputs.len() + self.buttons.len()).saturating_sub(1),
+            (self.controls.len() + self.buttons.len()).saturating_sub(1),
             self.focused + 1,
         ));
     }
 
     fn focus_last(&mut self) {
-        self.focus((self.inputs.len() + self.buttons.len()).saturating_sub(1));
+        self.focus((self.controls.len() + self.buttons.len()).saturating_sub(1));
     }
 
     fn get_buttons_constraints(&self) -> Vec<Constraint> {
@@ -128,7 +201,7 @@ impl ControlsGroup {
         }
 
         let index = index.saturating_sub(self.buttons.len());
-        if index < self.inputs.len() {
+        if index < self.controls.len() {
             (Some(index), None)
         } else {
             (None, None)
@@ -137,7 +210,7 @@ impl ControlsGroup {
 
     fn set_focus(&mut self, idx: usize, is_active: bool) {
         match self.get_index(idx) {
-            (Some(idx), None) => self.inputs[idx].set_focus(is_active),
+            (Some(idx), None) => self.controls[idx].set_focus(is_active),
             (None, Some(idx)) => self.buttons[idx].set_focus(is_active),
             _ => (),
         }
@@ -151,9 +224,9 @@ impl ControlsGroup {
             return;
         }
 
-        if let Some(i) = self.inputs.iter().position(|i| i.contains(x, y)) {
+        if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
             self.set_focus(self.focused, false);
-            self.inputs[i].set_focus(true);
+            self.controls[i].set_focus(true);
             self.focused = self.buttons.len() + i;
         }
     }
@@ -165,9 +238,15 @@ impl Responsive for ControlsGroup {
             return ResponseEvent::NotHandled;
         }
 
+        if let Some(selector) = self.focused_selector()
+            && selector.process_event(event) == ResponseEvent::Handled
+        {
+            return ResponseEvent::Handled;
+        }
+
         if let TuiEvent::Mouse(mouse) = event {
             if mouse.kind == MouseEventKind::LeftClick {
-                for input in &mut self.inputs {
+                for input in &mut self.controls {
                     if input.contains(mouse.column, mouse.row) {
                         return input.click();
                     }
@@ -188,14 +267,14 @@ impl Responsive for ControlsGroup {
         if event == ControlEvent::Checked
             && let (Some(idx), None) = self.get_index(self.focused)
         {
-            self.inputs[idx].click();
+            self.controls[idx].click();
             return ResponseEvent::Handled;
         }
 
         if event == ControlEvent::Pressed {
             let (inputs, buttons) = self.get_index(self.focused);
             if let Some(idx) = inputs {
-                self.inputs[idx].click();
+                self.controls[idx].click();
                 return ResponseEvent::Handled;
             } else if let Some(idx) = buttons {
                 return self.buttons[idx].result();
@@ -211,7 +290,7 @@ impl Responsive for ControlsGroup {
         }
 
         if event == ControlEvent::FocusNext {
-            if self.focused == (self.inputs.len() + self.buttons.len()).saturating_sub(1) {
+            if self.focused == (self.controls.len() + self.buttons.len()).saturating_sub(1) {
                 self.focus_first();
             } else {
                 self.focus_next();
@@ -220,6 +299,16 @@ impl Responsive for ControlsGroup {
 
         ResponseEvent::Handled
     }
+}
+
+/// Events used to handle press and focus actions.
+#[derive(PartialEq)]
+enum ControlEvent {
+    None,
+    FocusPrev,
+    FocusNext,
+    Pressed,
+    Checked,
 }
 
 fn map_to_button_event(event: &TuiEvent) -> ControlEvent {
