@@ -210,8 +210,9 @@ impl ResourcesView {
         if self.modal.is_visible {
             if self.modal.process_event(event).is_action("delete") {
                 return ResponseEvent::DeleteResources(
-                    self.modal.checkbox(0).is_some_and(|i| i.is_checked), // terminate immediately
-                    self.modal.checkbox(1).is_some_and(|i| i.is_checked), // detach finalizers
+                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
                 );
             }
 
@@ -513,8 +514,8 @@ impl ResourcesView {
             colors.modal.text,
         )
         .with_checkboxes(vec![
-            CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
             CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
+            CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
         ])
         .with_selectors(vec![Selector::new(
             0,

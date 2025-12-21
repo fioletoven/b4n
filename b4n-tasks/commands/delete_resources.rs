@@ -1,4 +1,4 @@
-use b4n_kube::Namespace;
+use b4n_kube::{Namespace, PropagationPolicy};
 use k8s_openapi::serde_json::json;
 use kube::api::{ApiResource, DeleteParams, DynamicObject, Patch, PatchParams, Preconditions};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
@@ -9,11 +9,11 @@ use crate::commands::CommandResult;
 
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
-    pub names: Vec<String>,
-    pub uids: Vec<String>,
+    pub resources: Vec<(String, String)>,
     pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
+    propagation_policy: PropagationPolicy,
     terminate_immediately: bool,
     detach_finalizers: bool,
 }
@@ -21,20 +21,20 @@ pub struct DeleteResourcesCommand {
 impl DeleteResourcesCommand {
     /// Creates new [`DeleteResourcesCommand`] instance.
     pub fn new(
-        names: Vec<String>,
-        uids: Vec<String>,
+        resources: Vec<(String, String)>,
         namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
+        propagation_policy: PropagationPolicy,
         terminate_immediately: bool,
         detach_finalizers: bool,
     ) -> Self {
         Self {
-            names,
-            uids,
+            resources,
             namespace,
             discovery,
             client,
+            propagation_policy,
             terminate_immediately,
             detach_finalizers,
         }
@@ -45,13 +45,17 @@ impl DeleteResourcesCommand {
         let (client, info, delete_params) = self.prepare_context()?;
         tracing::info!(
             "About to delete the following resources: {} ({})",
-            self.names.join(", "),
+            self.resources
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
             info
         );
 
         let mut set = JoinSet::new();
 
-        for (name, uid) in self.names.into_iter().zip(self.uids.into_iter()) {
+        for (name, uid) in self.resources {
             let info = info.clone();
             let client = client.clone();
             let mut delete_params = delete_params.clone();
@@ -120,6 +124,7 @@ impl DeleteResourcesCommand {
         let delete_params = if self.terminate_immediately {
             DeleteParams {
                 grace_period_seconds: Some(0),
+                propagation_policy: self.propagation_policy.into(),
                 ..Default::default()
             }
         } else {

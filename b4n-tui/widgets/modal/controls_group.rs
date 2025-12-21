@@ -49,7 +49,7 @@ impl ControlsGroup {
         }
     }
 
-    /// Adds a CheckBox to the end of controls list.
+    /// Adds a `CheckBox` to the end of controls list.
     pub fn add_checkbox(&mut self, checkbox: CheckBox) {
         self.controls.push(Control::CheckBox(Box::new(checkbox)));
     }
@@ -59,7 +59,7 @@ impl ControlsGroup {
         self.controls.push(Control::Selector(Box::new(selector)));
     }
 
-    /// Gets a CheckBox with the specified `id` from the controls list.
+    /// Gets a `CheckBox` with the specified `id` from the controls list.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.iter().find_map(|control| match control {
             Control::CheckBox(cb) if cb.id == id => Some(cb.as_ref()),

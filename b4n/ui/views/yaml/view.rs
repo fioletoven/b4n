@@ -174,7 +174,7 @@ impl YamlView {
             builder = builder
                 .with_action(ActionItem::back())
                 .with_action(ActionItem::command_palette())
-                .with_action(ActionItem::menu(1, &format!("󰆏 copy [{}]", copy), "copy"))
+                .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
                 .with_action(ActionItem::menu(2, " search", "search"))
                 .with_action(ActionItem::menu(4, " edit", "edit"));
             if self.can_encode_decode() {

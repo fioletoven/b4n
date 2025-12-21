@@ -105,7 +105,7 @@ pub trait ActionsListBuilderKindExt {
 
 impl ActionsListBuilderKindExt for ActionsListBuilder {
     fn from_kinds(items: Option<&[KindItem]>) -> Self {
-        let actions = items.unwrap_or(&[]).iter().map(|item| item.into()).collect();
+        let actions = items.unwrap_or(&[]).iter().map(Into::into).collect();
         ActionsListBuilder::new(actions)
     }
 }

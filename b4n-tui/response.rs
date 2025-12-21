@@ -1,4 +1,4 @@
-use b4n_kube::{ResourceRef, ResourceRefFilter, Scope};
+use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, Scope};
 
 use crate::TuiEvent;
 
@@ -69,7 +69,7 @@ pub enum ResponseEvent {
     ListResourcePorts(ResourceRef),
 
     AskDeleteResources,
-    DeleteResources(bool, bool),
+    DeleteResources(PropagationPolicy, bool, bool),
 
     NewYaml(ResourceRef, bool),
     ViewYaml(ResourceRef, bool, bool),

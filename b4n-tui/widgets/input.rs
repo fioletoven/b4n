@@ -250,7 +250,7 @@ impl Widget for &mut Input {
 
         buf[(x, y)].set_char(' ').set_fg(self.colors.fg).set_bg(self.colors.bg);
 
-        let max_x = area.left() + area.width.saturating_sub(if self.show_cursor { 1 } else { 0 });
+        let max_x = area.left() + area.width.saturating_sub(u16::from(self.show_cursor));
 
         let x = x + self.render_prompt(x, y, max_x, buf);
         if x >= max_x {

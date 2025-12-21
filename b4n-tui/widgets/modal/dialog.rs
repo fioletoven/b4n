@@ -48,7 +48,7 @@ impl Dialog {
 
     /// Sets provided checkboxes for the dialog.
     pub fn with_checkboxes(mut self, checkboxes: Vec<CheckBox>) -> Self {
-        for checkbox in checkboxes.into_iter() {
+        for checkbox in checkboxes {
             self.controls.add_checkbox(checkbox);
         }
 
@@ -57,7 +57,7 @@ impl Dialog {
 
     /// Sets provided selectors for the dialog.
     pub fn with_selectors(mut self, selectors: Vec<Selector>) -> Self {
-        for selector in selectors.into_iter() {
+        for selector in selectors {
             self.controls.add_selector(selector);
         }
 
@@ -67,6 +67,11 @@ impl Dialog {
     /// Returns checkbox under specified `id`.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.checkbox(id)
+    }
+
+    /// Returns selector under specified `id`.
+    pub fn selector(&self, id: usize) -> Option<&Selector> {
+        self.controls.selector(id)
     }
 
     /// Marks [`Dialog`] as a visible.
