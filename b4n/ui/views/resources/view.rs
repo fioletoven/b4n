@@ -26,6 +26,7 @@ pub struct ResourcesView {
     generation: u16,
     modal: Dialog,
     command_palette: CommandPalette,
+    last_mouse_click: Option<Position>,
     filter: Filter,
     footer_tx: NotificationSink,
 }
@@ -45,6 +46,7 @@ impl ResourcesView {
             generation,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
+            last_mouse_click: None,
             filter,
             footer_tx,
         }
@@ -134,7 +136,7 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_contexts(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("context")
-            .with_selected(&self.app_data.borrow().current.context);
+            .with_highlighted(&self.app_data.borrow().current.context);
         self.command_palette.show();
     }
 
@@ -143,7 +145,7 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_paths(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("theme")
-            .with_selected(&self.app_data.borrow().config.theme);
+            .with_highlighted(&self.app_data.borrow().config.theme);
         self.command_palette.show();
     }
 
@@ -293,7 +295,10 @@ impl ResourcesView {
         if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
-                "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
+                "palette" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen))
+                },
                 "filter" => self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen)),
                 "create" => self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate)),
                 "show_events" => self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow)),
@@ -324,7 +329,8 @@ impl ResourcesView {
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60)
+                .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
             return;
         }
@@ -414,7 +420,8 @@ impl ResourcesView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -497,7 +504,7 @@ impl ResourcesView {
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_prompt("create new resource")
-            .with_first_selected();
+            .with_first_highlighted();
         self.command_palette.show();
     }
 
