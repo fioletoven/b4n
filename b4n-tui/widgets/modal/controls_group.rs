@@ -1,5 +1,5 @@
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 
 use crate::widgets::{Button, CheckBox, Selector};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -24,10 +24,10 @@ impl Control {
         }
     }
 
-    fn click(&mut self) -> ResponseEvent {
+    fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
-            Control::Selector(selector) => selector.click(),
+            Control::Selector(selector) => selector.click(position),
         }
     }
 }
@@ -248,7 +248,7 @@ impl Responsive for ControlsGroup {
             if mouse.kind == MouseEventKind::LeftClick {
                 for input in &mut self.controls {
                     if input.contains(mouse.column, mouse.row) {
-                        return input.click();
+                        return input.click(Some(Position::new(mouse.column, mouse.row)));
                     }
                 }
 
@@ -267,14 +267,14 @@ impl Responsive for ControlsGroup {
         if event == ControlEvent::Checked
             && let (Some(idx), None) = self.get_index(self.focused)
         {
-            self.controls[idx].click();
+            self.controls[idx].click(None);
             return ResponseEvent::Handled;
         }
 
         if event == ControlEvent::Pressed {
             let (inputs, buttons) = self.get_index(self.focused);
             if let Some(idx) = inputs {
-                self.controls[idx].click();
+                self.controls[idx].click(None);
                 return ResponseEvent::Handled;
             } else if let Some(idx) = buttons {
                 return self.buttons[idx].result();

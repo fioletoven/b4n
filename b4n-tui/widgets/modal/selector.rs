@@ -86,9 +86,18 @@ impl Selector {
     }
 
     /// Process selector click.
-    pub fn click(&mut self) -> ResponseEvent {
+    pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         self.is_selecting = true;
-        self.options.items.highlight_item_by_name(&self.selected);
+
+        let area = self.get_options_area();
+        if let Some(position) = position
+            && area.contains(position)
+        {
+            self.options.items.highlight_item_by_line(position.y.saturating_sub(area.y));
+        } else {
+            self.options.items.highlight_item_by_name(&self.selected);
+        }
+
         ResponseEvent::Handled
     }
 

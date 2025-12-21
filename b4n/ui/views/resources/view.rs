@@ -519,7 +519,7 @@ impl ResourcesView {
         ])
         .with_selectors(vec![Selector::new(
             0,
-            "Propagation",
+            "Propagation policy",
             &["None", "Background", "Foreground", "Orphan"],
             colors.mouse_menu.clone(),
             &colors.modal.checkbox,
