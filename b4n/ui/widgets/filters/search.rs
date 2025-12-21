@@ -94,7 +94,7 @@ impl Search {
             self.draw_header(frame, area);
         }
 
-        self.patterns.draw(frame, area);
+        self.patterns.draw(frame, area.inner(Margin::new(1, 0)));
     }
 
     fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {

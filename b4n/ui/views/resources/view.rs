@@ -4,7 +4,7 @@ use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog, ValidatorKind};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -513,9 +513,16 @@ impl ResourcesView {
             colors.modal.text,
         )
         .with_checkboxes(vec![
-            CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
             CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
+            CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
         ])
+        .with_selectors(vec![Selector::new(
+            0,
+            "Propagation",
+            &["None", "Background", "Foreground", "Orphan"],
+            colors.mouse_menu.clone(),
+            &colors.modal.checkbox,
+        )])
     }
 
     pub fn remember_current_resource(&mut self) {

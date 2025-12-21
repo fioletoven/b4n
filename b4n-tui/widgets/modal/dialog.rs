@@ -113,7 +113,10 @@ impl Responsive for Dialog {
             return ResponseEvent::NotHandled;
         }
 
-        if matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc) || event.is_out(MouseEventKind::LeftClick, self.area) {
+        if !self.controls.has_opened_selector()
+            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc)
+                || event.is_out(MouseEventKind::LeftClick, self.area))
+        {
             self.is_visible = false;
             return self.controls.result(self.default_button);
         }

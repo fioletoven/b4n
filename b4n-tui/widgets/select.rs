@@ -75,6 +75,11 @@ impl<T: Table> Select<T> {
         self.colors = colors;
     }
 
+    /// Gets colors set for this [`Select`] instance.
+    pub fn colors(&self) -> &SelectColors {
+        &self.colors
+    }
+
     /// Returns height needed to display items on screen.\
     /// **Note** that it counts filter line if needed.
     pub fn get_screen_height(&self) -> u16 {
@@ -138,7 +143,7 @@ impl<T: Table> Select<T> {
         let layout = get_layout(area, draw_filter);
         self.area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(self.area.height);
-        if let Some(list) = self.items.get_paged_names(usize::from(self.area.width.max(2) - 2)) {
+        if let Some(list) = self.items.get_paged_names(usize::from(self.area.width)) {
             frame.render_widget(
                 &mut ListWidget {
                     list,
@@ -242,7 +247,7 @@ impl Widget for &mut ListWidget<'_> {
     where
         Self: Sized,
     {
-        let x = area.left() + 1;
+        let x = area.left();
         let y = area.top();
         for (i, row) in self.list.iter().enumerate() {
             let mut is_dimmed = false;

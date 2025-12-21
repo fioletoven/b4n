@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -106,7 +106,8 @@ impl<T: Table> SideSelect<T> {
             Paragraph::new(self.header.clone()).fg(colors.side_select.normal.fg),
             layout[0],
         );
-        self.select.draw(frame, layout[1]);
+
+        self.select.draw(frame, layout[1].inner(Margin::new(1, 0)));
     }
 
     /// Returns width of the [`SideSelect`].

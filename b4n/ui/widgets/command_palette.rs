@@ -156,7 +156,7 @@ impl CommandPalette {
             }
         }
 
-        self.select_mut().draw(frame, area);
+        self.select_mut().draw(frame, area.inner(Margin::new(1, 0)));
     }
 
     fn get_area_to_draw(&self, area: Rect) -> Rect {

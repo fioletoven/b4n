@@ -4,7 +4,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use crate::widgets::{Button, CheckBox, Selector};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
-enum Control {
+pub enum Control {
     CheckBox(Box<CheckBox>),
     Selector(Box<Selector>),
 }
@@ -49,14 +49,17 @@ impl ControlsGroup {
         }
     }
 
+    /// Adds a CheckBox to the end of controls list.
     pub fn add_checkbox(&mut self, checkbox: CheckBox) {
         self.controls.push(Control::CheckBox(Box::new(checkbox)));
     }
 
+    /// Adds a Selector to the end of controls list.
     pub fn add_selector(&mut self, selector: Selector) {
         self.controls.push(Control::Selector(Box::new(selector)));
     }
 
+    /// Gets a CheckBox with the specified `id` from the controls list.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.iter().find_map(|control| match control {
             Control::CheckBox(cb) if cb.id == id => Some(cb.as_ref()),
@@ -64,6 +67,7 @@ impl ControlsGroup {
         })
     }
 
+    /// Gets a Selector with the specified `id` from the controls list.
     pub fn selector(&self, id: usize) -> Option<&Selector> {
         self.controls.iter().find_map(|control| match control {
             Control::Selector(sel) if sel.id == id => Some(sel.as_ref()),
@@ -71,6 +75,22 @@ impl ControlsGroup {
         })
     }
 
+    /// Gets a focused Selector from the controls list.
+    pub fn focused_selector(&mut self) -> Option<&mut Selector> {
+        self.controls.iter_mut().find_map(|control| match control {
+            Control::Selector(sel) if sel.is_focused() => Some(sel.as_mut()),
+            _ => None,
+        })
+    }
+
+    /// Returns `true` if there is a focused selector that is in the middle of selecting an item.
+    pub fn has_opened_selector(&self) -> bool {
+        self.controls
+            .iter()
+            .any(|control| matches!(control, Control::Selector(sel) if sel.is_opened()))
+    }
+
+    /// Returns the number of controls on the list.
     pub fn controls_len(&self) -> usize {
         self.controls.len()
     }
@@ -101,6 +121,7 @@ impl ControlsGroup {
 
         self.draw_controls(frame, layout[1]);
         self.draw_buttons(frame, layout[2]);
+        self.draw_focused_selector(frame);
     }
 
     fn draw_controls(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
@@ -133,6 +154,12 @@ impl ControlsGroup {
 
         for (i, btn) in self.buttons.iter_mut().enumerate() {
             btn.draw(frame, layout[i + 1]);
+        }
+    }
+
+    fn draw_focused_selector(&mut self, frame: &mut ratatui::Frame<'_>) {
+        if let Some(selector) = self.focused_selector() {
+            selector.draw_options(frame);
         }
     }
 
@@ -209,6 +236,12 @@ impl Responsive for ControlsGroup {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
+        }
+
+        if let Some(selector) = self.focused_selector()
+            && selector.process_event(event) == ResponseEvent::Handled
+        {
+            return ResponseEvent::Handled;
         }
 
         if let TuiEvent::Mouse(mouse) = event {

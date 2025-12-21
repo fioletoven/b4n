@@ -4,7 +4,7 @@ use b4n_tui::utils::{center_horizontal, get_proportional_width};
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::Rect;
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Clear};
 
@@ -97,7 +97,7 @@ impl Filter {
         frame.render_widget(Clear, area);
         frame.render_widget(block, area);
 
-        self.patterns.draw(frame, area);
+        self.patterns.draw(frame, area.inner(Margin::new(1, 0)));
     }
 
     /// Validates the filter value as a logical expression.

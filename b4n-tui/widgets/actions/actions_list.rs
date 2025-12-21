@@ -4,11 +4,9 @@ use b4n_list::{BasicFilterContext, ScrollableList};
 use delegate::delegate;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{
-    ResponseEvent, Responsive, TuiEvent,
-    table::{Table, ViewType},
-    widgets::ActionItem,
-};
+use crate::table::{Table, ViewType};
+use crate::widgets::ActionItem;
+use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI actions list.
 #[derive(Default)]
@@ -92,21 +90,32 @@ impl ActionsListBuilder {
         Self { actions }
     }
 
+    /// Creates new [`ActionsListBuilder`] instance from the list of string slices.\
+    /// **Note** that items order is preserved.
+    pub fn from_strings(items: &[&str]) -> Self {
+        let actions = items
+            .iter()
+            .enumerate()
+            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_id(idx))
+            .collect();
+        Self { actions }
+    }
+
     /// Creates new [`ActionsListBuilder`] instance from the list of [`PathBuf`]s.
     pub fn from_paths(themes: Vec<PathBuf>) -> Self {
-        ActionsListBuilder {
-            actions: themes.into_iter().map(ActionItem::from_path).collect::<Vec<ActionItem>>(),
+        Self {
+            actions: themes.into_iter().map(ActionItem::from_path).collect(),
         }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
     pub fn from_resource_ports(ports: &[Port]) -> Self {
-        ActionsListBuilder {
+        Self {
             actions: ports
                 .iter()
                 .filter(|p| p.protocol == PortProtocol::TCP)
                 .map(ActionItem::from_port)
-                .collect::<Vec<ActionItem>>(),
+                .collect(),
         }
     }
 
