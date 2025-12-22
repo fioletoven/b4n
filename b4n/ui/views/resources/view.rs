@@ -24,9 +24,9 @@ pub struct ResourcesView {
     app_data: SharedAppData,
     stats: SharedStatistics,
     generation: u16,
+    last_mouse_click: Option<Position>,
     modal: Dialog,
     command_palette: CommandPalette,
-    last_mouse_click: Option<Position>,
     filter: Filter,
     footer_tx: NotificationSink,
 }
@@ -44,9 +44,9 @@ impl ResourcesView {
             app_data,
             stats,
             generation,
+            last_mouse_click: None,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
-            last_mouse_click: None,
             filter,
             footer_tx,
         }

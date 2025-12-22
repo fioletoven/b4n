@@ -23,9 +23,10 @@ pub struct ForwardsView {
     app_data: SharedAppData,
     namespace: Namespace,
     worker: SharedBgWorker,
+    last_mouse_click: Option<Position>,
+    modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
-    modal: Dialog,
     footer_tx: NotificationSink,
     is_closing: bool,
 }
@@ -49,9 +50,10 @@ impl ForwardsView {
             app_data,
             namespace,
             worker,
+            last_mouse_click: None,
+            modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
-            modal: Dialog::default(),
             footer_tx,
             is_closing: false,
         }
@@ -83,7 +85,8 @@ impl ForwardsView {
                 .add_action(ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -137,6 +140,7 @@ impl ForwardsView {
             60,
             colors.modal.text,
         )
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 }
 
@@ -208,10 +212,12 @@ impl View for ForwardsView {
                     return ResponseEvent::ChangeKind(kind);
                 },
                 ResponseEvent::Action("stop_selected") => {
+                    self.last_mouse_click = event.position();
                     self.ask_stop_port_forwards();
                     return ResponseEvent::Handled;
                 },
                 ResponseEvent::Action("palette") => {
+                    self.last_mouse_click = event.position();
                     return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
                 },
                 ResponseEvent::NotHandled => (),

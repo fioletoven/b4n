@@ -3,7 +3,7 @@ use b4n_tui::utils::{center_horizontal, get_proportional_width};
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::{Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
@@ -22,6 +22,7 @@ pub struct Search {
     matches: Option<usize>,
     width: u16,
     hint: String,
+    highlight_position: Option<Position>,
 }
 
 impl Search {
@@ -41,7 +42,13 @@ impl Search {
             matches: None,
             width,
             hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
+            highlight_position: None,
         }
+    }
+
+    /// Highlights item under the specified mouse position on the first search draw.
+    pub fn highlight_position(&mut self, position: Option<Position>) {
+        self.highlight_position = position;
     }
 
     /// Returns the search value.
@@ -85,6 +92,16 @@ impl Search {
 
         let width = get_proportional_width(area.width, self.width, true);
         let area = center_horizontal(area, width, self.patterns.get_screen_height());
+
+        if let Some(position) = self.highlight_position.take()
+            && area.contains(position)
+        {
+            let line = position
+                .y
+                .saturating_sub(area.y)
+                .saturating_sub(u16::from(self.patterns.is_filter_visible()));
+            self.patterns.items.highlight_item_by_line(line);
+        }
 
         let colors = &self.app_data.borrow().theme.colors.search;
         Self::clear_area(frame, area, colors.normal.bg);

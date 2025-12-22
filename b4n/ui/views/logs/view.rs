@@ -27,6 +27,7 @@ pub struct LogsView {
     logs: ContentViewer<LogsContent>,
     app_data: SharedAppData,
     observer: LogsObserver,
+    last_mouse_click: Option<Position>,
     command_palette: CommandPalette,
     search: Search,
     footer: NotificationSink,
@@ -70,6 +71,7 @@ impl LogsView {
             logs,
             app_data,
             observer,
+            last_mouse_click: None,
             command_palette: CommandPalette::default(),
             search,
             footer,
@@ -85,7 +87,8 @@ impl LogsView {
             .with_action(ActionItem::action("timestamps", "timestamps").with_description("toggles the display of timestamps"))
             .with_action(ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"))
             .with_action(ActionItem::action("search", "search").with_description("searches logs using the provided query"));
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -173,6 +176,7 @@ impl LogsView {
         if response == ResponseEvent::Cancelled {
             self.clear_search();
         } else if response.is_action("palette") {
+            self.last_mouse_click = event.position();
             return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("timestamps") {
             self.toggle_timestamps();
@@ -181,6 +185,7 @@ impl LogsView {
             self.copy_logs_to_clipboard();
             return ResponseEvent::Handled;
         } else if response.is_action("search") {
+            self.search.highlight_position(event.position());
             self.search.show();
             return ResponseEvent::Handled;
         }
