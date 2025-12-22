@@ -1,6 +1,6 @@
 use b4n_config::themes::TextColors;
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph};
@@ -44,6 +44,12 @@ impl Dialog {
             default_button,
             area: Rect::default(),
         }
+    }
+
+    /// Highlights item under the specified mouse position on the first dialog draw.
+    pub fn with_highlighted_position(mut self, position: Option<Position>) -> Self {
+        self.controls.highlighted_position(position);
+        self
     }
 
     /// Sets provided checkboxes for the dialog.

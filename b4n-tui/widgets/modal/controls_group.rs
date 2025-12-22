@@ -1,5 +1,5 @@
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 
 use crate::widgets::{Button, CheckBox, Selector};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -24,10 +24,10 @@ impl Control {
         }
     }
 
-    fn click(&mut self) -> ResponseEvent {
+    fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
-            Control::Selector(selector) => selector.click(),
+            Control::Selector(selector) => selector.click(position),
         }
     }
 }
@@ -37,6 +37,7 @@ pub struct ControlsGroup {
     controls: Vec<Control>,
     buttons: Vec<Button>,
     focused: usize,
+    highlight_position: Option<Position>,
 }
 
 impl ControlsGroup {
@@ -46,7 +47,13 @@ impl ControlsGroup {
             controls: Vec::default(),
             buttons,
             focused: 0,
+            highlight_position: None,
         }
+    }
+
+    /// Highlights item under the specified mouse position on the first controls group draw.
+    pub fn highlighted_position(&mut self, position: Option<Position>) {
+        self.highlight_position = position;
     }
 
     /// Adds a `CheckBox` to the end of controls list.
@@ -116,8 +123,23 @@ impl ControlsGroup {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1), Constraint::Length(2)])
+            .constraints(vec![
+                Constraint::Length(1),
+                Constraint::Fill(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
             .split(area);
+
+        if let Some(position) = self.highlight_position.take()
+            && area.contains(position)
+        {
+            // we need to draw all before focusing element to get controls positions
+            self.draw_controls(frame, layout[1]);
+            self.draw_buttons(frame, layout[2]);
+
+            self.focus_element_at(position.x, position.y);
+        }
 
         self.draw_controls(frame, layout[1]);
         self.draw_buttons(frame, layout[2]);
@@ -239,16 +261,25 @@ impl Responsive for ControlsGroup {
         }
 
         if let Some(selector) = self.focused_selector()
-            && selector.process_event(event) == ResponseEvent::Handled
+            && selector.is_opened()
         {
-            return ResponseEvent::Handled;
+            let result = selector.process_event(event);
+            if !selector.is_opened()
+                && let Some(position) = event.position()
+            {
+                self.focus_element_at(position.x, position.y);
+            }
+
+            if result == ResponseEvent::Handled {
+                return ResponseEvent::Handled;
+            }
         }
 
         if let TuiEvent::Mouse(mouse) = event {
             if mouse.kind == MouseEventKind::LeftClick {
                 for input in &mut self.controls {
                     if input.contains(mouse.column, mouse.row) {
-                        return input.click();
+                        return input.click(Some(Position::new(mouse.column, mouse.row)));
                     }
                 }
 
@@ -267,14 +298,14 @@ impl Responsive for ControlsGroup {
         if event == ControlEvent::Checked
             && let (Some(idx), None) = self.get_index(self.focused)
         {
-            self.controls[idx].click();
+            self.controls[idx].click(None);
             return ResponseEvent::Handled;
         }
 
         if event == ControlEvent::Pressed {
             let (inputs, buttons) = self.get_index(self.focused);
             if let Some(idx) = inputs {
-                self.controls[idx].click();
+                self.controls[idx].click(None);
                 return ResponseEvent::Handled;
             } else if let Some(idx) = buttons {
                 return self.buttons[idx].result();

@@ -24,6 +24,7 @@ pub struct ResourcesView {
     app_data: SharedAppData,
     stats: SharedStatistics,
     generation: u16,
+    last_mouse_click: Option<Position>,
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
@@ -43,6 +44,7 @@ impl ResourcesView {
             app_data,
             stats,
             generation,
+            last_mouse_click: None,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
@@ -134,7 +136,7 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_contexts(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("context")
-            .with_selected(&self.app_data.borrow().current.context);
+            .with_highlighted(&self.app_data.borrow().current.context);
         self.command_palette.show();
     }
 
@@ -143,7 +145,7 @@ impl ResourcesView {
         let actions_list = ActionsListBuilder::from_paths(list).build();
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
             .with_prompt("theme")
-            .with_selected(&self.app_data.borrow().config.theme);
+            .with_highlighted(&self.app_data.borrow().config.theme);
         self.command_palette.show();
     }
 
@@ -172,7 +174,8 @@ impl ResourcesView {
                         .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
                         .build(),
                 )
-                .with_response(|v| build_port_forward_response(v, resource));
+                .with_response(|v| build_port_forward_response(v, resource))
+                .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
         }
     }
@@ -290,7 +293,10 @@ impl ResourcesView {
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
-        if let ResponseEvent::Action(action) = response {
+        if response == ResponseEvent::AskDeleteResources {
+            self.last_mouse_click = event.position();
+        } else if let ResponseEvent::Action(action) = response {
+            self.last_mouse_click = event.position();
             return match action {
                 "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
                 "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
@@ -324,7 +330,8 @@ impl ResourcesView {
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60);
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60)
+                .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
             return;
         }
@@ -414,7 +421,8 @@ impl ResourcesView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -497,7 +505,8 @@ impl ResourcesView {
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_prompt("create new resource")
-            .with_first_selected();
+            .with_first_highlighted()
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -519,11 +528,12 @@ impl ResourcesView {
         ])
         .with_selectors(vec![Selector::new(
             0,
-            "Propagation",
+            "Propagation policy",
             &["None", "Background", "Foreground", "Orphan"],
             colors.mouse_menu.clone(),
             &colors.modal.checkbox,
         )])
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     pub fn remember_current_resource(&mut self) {

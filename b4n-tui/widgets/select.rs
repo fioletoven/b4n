@@ -91,6 +91,11 @@ impl<T: Table> Select<T> {
         u16::try_from(items).unwrap_or(MAX_ITEMS_ON_SCREEN).min(MAX_ITEMS_ON_SCREEN)
     }
 
+    /// Return `true` if filter line is visible.
+    pub fn is_filter_visible(&self) -> bool {
+        !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some()
+    }
+
     delegate! {
         to self.filter {
             pub fn set_cursor(&mut self, show_cursor: bool);
@@ -178,10 +183,6 @@ impl<T: Table> Select<T> {
         if self.items.get_highlighted_item_index().is_none() {
             self.items.highlight_first_item();
         }
-    }
-
-    fn is_filter_visible(&self) -> bool {
-        !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some()
     }
 }
 

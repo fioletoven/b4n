@@ -86,9 +86,18 @@ impl Selector {
     }
 
     /// Process selector click.
-    pub fn click(&mut self) -> ResponseEvent {
+    pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         self.is_selecting = true;
-        self.options.items.highlight_item_by_name(&self.selected);
+
+        let area = self.get_options_area();
+        if let Some(position) = position
+            && area.contains(position)
+        {
+            self.options.items.highlight_item_by_line(position.y.saturating_sub(area.y));
+        } else {
+            self.options.items.highlight_item_by_name(&self.selected);
+        }
+
         ResponseEvent::Handled
     }
 
@@ -96,7 +105,8 @@ impl Selector {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let text = format!("  {}: {} ", self.caption, self.selected);
+        let icon = if self.is_opened() { '' } else { '' };
+        let text = format!(" {} {}: {} ", icon, self.caption, self.selected);
         let line = Line::styled(text, &colors);
 
         frame.render_widget(Paragraph::new(line), area);
@@ -127,32 +137,32 @@ impl Selector {
 
 impl Responsive for Selector {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.is_opened() {
-            if event.is_key(&KeyCombination::new(KeyCode::Tab, KeyModifiers::empty())) {
-                self.is_selecting = false;
-                return ResponseEvent::NotHandled;
-            }
-
-            let area = self.get_options_area();
-            if event.is_key(&KeyCombination::new(KeyCode::Esc, KeyModifiers::empty()))
-                || event.is_out(MouseEventKind::LeftClick, area)
-            {
-                self.is_selecting = false;
-                return ResponseEvent::Handled;
-            }
-
-            if event.is_key(&KeyCombination::new(KeyCode::Enter, KeyModifiers::empty()))
-                || event.is_key(&KeyCombination::new(KeyCode::Char(' '), KeyModifiers::empty()))
-                || event.is_in(MouseEventKind::LeftClick, area)
-            {
-                self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
-                self.is_selecting = false;
-                return ResponseEvent::Handled;
-            }
-
-            return self.options.process_event(event);
+        if !self.is_opened() {
+            return ResponseEvent::NotHandled;
         }
 
-        ResponseEvent::NotHandled
+        if event.is_key(&KeyCombination::new(KeyCode::Tab, KeyModifiers::empty())) {
+            self.is_selecting = false;
+            return ResponseEvent::NotHandled;
+        }
+
+        let area = self.get_options_area();
+        if event.is_key(&KeyCombination::new(KeyCode::Esc, KeyModifiers::empty()))
+            || event.is_out(MouseEventKind::LeftClick, area)
+        {
+            self.is_selecting = false;
+            return ResponseEvent::Handled;
+        }
+
+        if event.is_key(&KeyCombination::new(KeyCode::Enter, KeyModifiers::empty()))
+            || event.is_key(&KeyCombination::new(KeyCode::Char(' '), KeyModifiers::empty()))
+            || event.is_in(MouseEventKind::LeftClick, area)
+        {
+            self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
+            self.is_selecting = false;
+            return ResponseEvent::Handled;
+        }
+
+        self.options.process_event(event)
     }
 }

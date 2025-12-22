@@ -111,6 +111,14 @@ impl TuiEvent {
     pub fn is_out(&self, kind: MouseEventKind, area: Rect) -> bool {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && !area.contains(Position::new(mouse.column, mouse.row)))
     }
+
+    /// Returns mouse position if this event is a mouse event.
+    pub fn position(&self) -> Option<Position> {
+        match self {
+            TuiEvent::Mouse(mouse) => Some(Position::new(mouse.column, mouse.row)),
+            TuiEvent::Key(_) => None,
+        }
+    }
 }
 
 impl From<KeyCombination> for TuiEvent {

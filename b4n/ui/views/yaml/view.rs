@@ -8,6 +8,7 @@ use b4n_tasks::commands::{
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -28,9 +29,10 @@ pub struct YamlView {
     can_patch_status: bool,
     origin_kind: Option<String>,
     command_id: Option<String>,
-    command_palette: CommandPalette,
+    last_mouse_click: Option<Position>,
     search: Search,
     modal: Dialog,
+    command_palette: CommandPalette,
     footer: NotificationSink,
     state: ViewState,
     copied_line: Option<String>,
@@ -73,9 +75,10 @@ impl YamlView {
             can_patch_status: false,
             origin_kind: None,
             command_id,
-            command_palette: CommandPalette::default(),
+            last_mouse_click: None,
             search,
             modal: Dialog::default(),
+            command_palette: CommandPalette::default(),
             footer,
             state: ViewState::Idle,
             copied_line: None,
@@ -153,7 +156,8 @@ impl YamlView {
             builder.add_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -229,8 +233,10 @@ impl YamlView {
         if response == ResponseEvent::Cancelled {
             self.clear_search();
         } else if response.is_action("back") {
+            self.last_mouse_click = event.position();
             return self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack));
         } else if response.is_action("palette") {
+            self.last_mouse_click = event.position();
             return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("copy") {
             self.copy_to_clipboard(false);
@@ -249,6 +255,7 @@ impl YamlView {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         } else if response.is_action("search") {
+            self.search.highlight_position(event.position());
             self.search.show();
             return ResponseEvent::Handled;
         } else if response.is_action("edit") && self.enable_edit_mode() {
@@ -256,6 +263,7 @@ impl YamlView {
         }
 
         if (response == ResponseEvent::Cancelled || response == ResponseEvent::ExitApplication) && self.yaml.is_modified() {
+            self.last_mouse_click = event.position();
             return self.process_view_close_event(response, true);
         }
 
@@ -329,6 +337,7 @@ impl YamlView {
             colors.text,
         )
         .with_checkboxes(inputs)
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
@@ -353,6 +362,7 @@ impl YamlView {
             colors.text,
         )
         .with_checkboxes(inputs)
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     fn create_resource(&mut self, disable_encoding: bool, patch_status: bool) -> ResponseEvent {

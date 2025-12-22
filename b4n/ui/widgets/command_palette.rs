@@ -22,9 +22,9 @@ pub struct CommandPalette {
     index: usize,
     width: u16,
     position: Option<Position>,
+    highlight_position: Option<Position>,
     response: Option<Box<dyn FnOnce(Vec<String>) -> ResponseEvent>>,
     is_mouse_menu: bool,
-    highlight_menu_item: bool,
 }
 
 impl CommandPalette {
@@ -68,15 +68,21 @@ impl CommandPalette {
         self
     }
 
-    /// Selects one of the actions from the last added step of the command palette.
-    pub fn with_selected(mut self, name: &str) -> Self {
+    /// Highlights one of the actions from the last added step of the command palette.
+    pub fn with_highlighted(mut self, name: &str) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.highlight(name);
         self
     }
 
-    /// Selects first action from the last added step of the command palette.
-    pub fn with_first_selected(mut self) -> Self {
+    /// Highlights item under the specified mouse position on the first command palette draw.
+    pub fn with_highlighted_position(mut self, position: Option<Position>) -> Self {
+        self.highlight_position = position;
+        self
+    }
+
+    /// Highlights first action from the last added step of the command palette.
+    pub fn with_first_highlighted(mut self) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.highlight_first();
         self
@@ -111,7 +117,7 @@ impl CommandPalette {
     /// Marks [`CommandPalette`] as visible and sets position to show.
     pub fn show_at(&mut self, x: u16, y: u16) {
         self.is_visible = true;
-        self.highlight_menu_item = true;
+        self.highlight_position = Some(Position::new(x, y));
         self.position = Some(Position::new(x, y));
     }
 
@@ -128,14 +134,14 @@ impl CommandPalette {
 
         let area = self.get_area_to_draw(area);
 
-        if self.highlight_menu_item {
-            self.highlight_menu_item = false;
-            if let Some(Position { x: _, y: line }) = self.position
-                && self.is_mouse_menu
-            {
-                let line = line.saturating_sub(area.y);
-                self.select_mut().items.highlight_item_by_line(line);
-            }
+        if let Some(position) = self.highlight_position.take()
+            && area.contains(position)
+        {
+            let line = position
+                .y
+                .saturating_sub(area.y)
+                .saturating_sub(u16::from(self.select().is_filter_visible()));
+            self.select_mut().items.highlight_item_by_line(line);
         }
 
         {
