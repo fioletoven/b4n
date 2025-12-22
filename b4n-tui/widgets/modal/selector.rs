@@ -136,32 +136,32 @@ impl Selector {
 
 impl Responsive for Selector {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.is_opened() {
-            if event.is_key(&KeyCombination::new(KeyCode::Tab, KeyModifiers::empty())) {
-                self.is_selecting = false;
-                return ResponseEvent::NotHandled;
-            }
-
-            let area = self.get_options_area();
-            if event.is_key(&KeyCombination::new(KeyCode::Esc, KeyModifiers::empty()))
-                || event.is_out(MouseEventKind::LeftClick, area)
-            {
-                self.is_selecting = false;
-                return ResponseEvent::Handled;
-            }
-
-            if event.is_key(&KeyCombination::new(KeyCode::Enter, KeyModifiers::empty()))
-                || event.is_key(&KeyCombination::new(KeyCode::Char(' '), KeyModifiers::empty()))
-                || event.is_in(MouseEventKind::LeftClick, area)
-            {
-                self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
-                self.is_selecting = false;
-                return ResponseEvent::Handled;
-            }
-
-            return self.options.process_event(event);
+        if !self.is_opened() {
+            return ResponseEvent::NotHandled;
         }
 
-        ResponseEvent::NotHandled
+        if event.is_key(&KeyCombination::new(KeyCode::Tab, KeyModifiers::empty())) {
+            self.is_selecting = false;
+            return ResponseEvent::NotHandled;
+        }
+
+        let area = self.get_options_area();
+        if event.is_key(&KeyCombination::new(KeyCode::Esc, KeyModifiers::empty()))
+            || event.is_out(MouseEventKind::LeftClick, area)
+        {
+            self.is_selecting = false;
+            return ResponseEvent::Handled;
+        }
+
+        if event.is_key(&KeyCombination::new(KeyCode::Enter, KeyModifiers::empty()))
+            || event.is_key(&KeyCombination::new(KeyCode::Char(' '), KeyModifiers::empty()))
+            || event.is_in(MouseEventKind::LeftClick, area)
+        {
+            self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
+            self.is_selecting = false;
+            return ResponseEvent::Handled;
+        }
+
+        self.options.process_event(event)
     }
 }

@@ -292,13 +292,13 @@ impl ResourcesView {
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
-        if let ResponseEvent::Action(action) = response {
+        if response == ResponseEvent::AskDeleteResources {
+            self.last_mouse_click = event.position();
+        } else if let ResponseEvent::Action(action) = response {
+            self.last_mouse_click = event.position();
             return match action {
                 "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
-                "palette" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen))
-                },
+                "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
                 "filter" => self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen)),
                 "create" => self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate)),
                 "show_events" => self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow)),
@@ -531,6 +531,7 @@ impl ResourcesView {
             colors.mouse_menu.clone(),
             &colors.modal.checkbox,
         )])
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     pub fn remember_current_resource(&mut self) {
