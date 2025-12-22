@@ -105,7 +105,8 @@ impl Selector {
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let text = format!("  {}: {} ", self.caption, self.selected);
+        let icon = if self.is_opened() { '' } else { '' };
+        let text = format!(" {} {}: {} ", icon, self.caption, self.selected);
         let line = Line::styled(text, &colors);
 
         frame.render_widget(Paragraph::new(line), area);

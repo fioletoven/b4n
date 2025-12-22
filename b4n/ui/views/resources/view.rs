@@ -174,7 +174,8 @@ impl ResourcesView {
                         .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
                         .build(),
                 )
-                .with_response(|v| build_port_forward_response(v, resource));
+                .with_response(|v| build_port_forward_response(v, resource))
+                .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
         }
     }
@@ -504,7 +505,8 @@ impl ResourcesView {
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_prompt("create new resource")
-            .with_first_highlighted();
+            .with_first_highlighted()
+            .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
