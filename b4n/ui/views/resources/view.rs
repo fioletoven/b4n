@@ -541,7 +541,7 @@ impl ResourcesView {
             0,
             "Propagation policy",
             &["None", "Background", "Foreground", "Orphan"],
-            colors.mouse_menu.clone(),
+            colors.modal.selector.clone(),
             &colors.modal.checkbox,
         )])
         .with_highlighted_position(self.last_mouse_click.take())

@@ -72,6 +72,7 @@ impl<T: Table> Select<T> {
         self.filter.set_colors(colors.filter.input);
         self.filter.set_prompt_colors(colors.filter.prompt.unwrap_or_default());
         self.filter.set_error_colors(colors.filter.error);
+        self.filter.set_cursor_colors(colors.cursor);
         self.colors = colors;
     }
 

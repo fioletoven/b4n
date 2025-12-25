@@ -108,6 +108,13 @@ impl Input {
         self.show_cursor = show_cursor;
     }
 
+    /// Sets cursor colors if specified.
+    pub fn set_cursor_colors(&mut self, colors: Option<TextColors>) {
+        if let Some(colors) = colors {
+            self.cursor_colors = colors;
+        }
+    }
+
     /// Returns `true` if cursor is visible.
     pub fn is_cursor_visible(&self) -> bool {
         self.show_cursor

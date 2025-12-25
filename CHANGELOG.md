@@ -8,6 +8,10 @@
 - track mouse movement in dialogs and menus
 - command palette aliases
 
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.3.5 - 2025-12-14
 
 ### Features
