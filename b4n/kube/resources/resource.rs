@@ -2,7 +2,7 @@ use b4n_common::expr::{Expression, ExpressionExt, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::stats::{Metrics, Statistics};
-use b4n_kube::{Kind, Namespace};
+use b4n_kube::{Kind, Namespace, PV};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
@@ -61,7 +61,7 @@ impl ResourceItem {
         let filter = get_filter_metadata(&object);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
-        let involved_object = get_involved_object(&object);
+        let involved_object = get_involved_object(kind, &object);
 
         Self {
             age: get_age_string(&object.metadata),
@@ -149,18 +149,40 @@ fn get_age_time(metadata: &ObjectMeta) -> Option<DateTime<Utc>> {
     }
 }
 
-fn get_involved_object(object: &DynamicObject) -> Option<InvolvedObject> {
-    object.data.get("involvedObject").map(|object| {
-        let kind = Kind::from_api_version(
-            object["kind"].as_str().unwrap_or_default(),
-            object["apiVersion"].as_str().unwrap_or_default(),
-        );
-        InvolvedObject {
-            kind,
+fn get_involved_object(kind: &str, object: &DynamicObject) -> Option<InvolvedObject> {
+    if let Some(object) = object.data.get("involvedObject") {
+        return get_involved_object_from_ref(object);
+    }
+
+    if let Some(object) = object.data["spec"].get("claimRef") {
+        return get_involved_object_from_ref(object);
+    }
+
+    if kind == "PersistentVolumeClaim"
+        && let Some(name) = object.data["spec"]["volumeName"].as_str()
+    {
+        return Some(InvolvedObject {
+            kind: PV.into(),
+            namespace: Namespace::all(),
+            name: name.to_owned(),
+        });
+    }
+
+    None
+}
+
+fn get_involved_object_from_ref(object: &Value) -> Option<InvolvedObject> {
+    if let Some(kind) = object["kind"].as_str()
+        && let Some(version) = object["apiVersion"].as_str()
+    {
+        Some(InvolvedObject {
+            kind: Kind::from_api_version(kind, version),
             namespace: object["namespace"].as_str().unwrap_or_default().into(),
             name: object["name"].as_str().unwrap_or_default().to_owned(),
-        }
-    })
+        })
+    } else {
+        None
+    }
 }
 
 impl Row for ResourceItem {
