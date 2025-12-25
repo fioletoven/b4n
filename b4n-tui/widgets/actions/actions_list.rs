@@ -1,6 +1,6 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Port, PortProtocol};
-use b4n_list::{BasicFilterContext, ScrollableList};
+use b4n_list::{BasicFilterContext, Row, ScrollableList};
 use delegate::delegate;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -134,6 +134,19 @@ impl ActionsListBuilder {
             list,
             ..Default::default()
         }
+    }
+
+    /// Adds aliases to the existing actions.
+    pub fn with_aliases(mut self, aliases: Option<&HashMap<String, String>>) -> Self {
+        if let Some(aliases) = aliases {
+            for action in &mut self.actions {
+                if let Some(aliases) = aliases.get(action.name()) {
+                    action.add_aliases(aliases.split(',').map(String::from).collect());
+                }
+            }
+        }
+
+        self
     }
 
     /// Adds custom action.

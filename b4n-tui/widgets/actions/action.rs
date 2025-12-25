@@ -131,6 +131,15 @@ impl ActionItem {
         self
     }
 
+    /// Adds specified aliases to the existing ones.
+    pub fn add_aliases(&mut self, mut aliases: Vec<String>) {
+        if let Some(existing) = &mut self.aliases {
+            existing.append(&mut aliases);
+        } else {
+            self.aliases = Some(aliases);
+        }
+    }
+
     fn get_text_width(&self, width: usize) -> usize {
         self.icon.as_ref().map_or(width, |i| {
             let icon_width = i.chars().count();

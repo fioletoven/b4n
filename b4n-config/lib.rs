@@ -9,4 +9,5 @@ pub mod themes;
 mod config;
 mod history;
 mod syntax;
+mod utils;
 mod watcher;

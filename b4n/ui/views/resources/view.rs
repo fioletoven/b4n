@@ -296,12 +296,20 @@ impl ResourcesView {
         if response == ResponseEvent::AskDeleteResources {
             self.last_mouse_click = event.position();
         } else if let ResponseEvent::Action(action) = response {
-            self.last_mouse_click = event.position();
             return match action {
                 "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
-                "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
-                "filter" => self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen)),
-                "create" => self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate)),
+                "palette" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen))
+                },
+                "filter" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen))
+                },
+                "create" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate))
+                },
                 "show_events" => self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow)),
                 "show_involved" => self
                     .table
@@ -314,9 +322,11 @@ impl ResourcesView {
                     .table
                     .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen)),
                 "open_shell" => self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen)),
-                "port_forward" => self
-                    .table
-                    .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate)),
+                "port_forward" => {
+                    self.last_mouse_click = event.position();
+                    self.table
+                        .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate))
+                },
                 "new_clone" => self.create_new_resource(true, false),
                 "new_full" => self.create_new_resource(false, true),
                 "new_minimal" => self.create_new_resource(false, false),
@@ -421,6 +431,7 @@ impl ResourcesView {
             }
         }
 
+        builder = builder.with_aliases(self.app_data.borrow().config.aliases.as_ref());
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -479,7 +490,7 @@ impl ResourcesView {
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     fn show_create_resource_palette(&mut self) {

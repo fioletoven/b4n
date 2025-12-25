@@ -167,8 +167,8 @@ impl YamlView {
         if self.yaml.is_in_edit_mode() {
             size = 17;
             builder = builder
-                .with_action(ActionItem::menu(1, "󰆐 cut", "cut"))
-                .with_action(ActionItem::menu(2, "󰆏 copy", "copy_2"))
+                .with_action(ActionItem::menu(1, "󰆏 copy", "copy_2"))
+                .with_action(ActionItem::menu(2, "󰆐 cut", "cut"))
                 .with_action(ActionItem::menu(3, "󰆒 paste", "paste"))
                 .with_action(ActionItem::menu(4, "󰕌 undo", "undo"))
                 .with_action(ActionItem::menu(5, "󰑎 redo", "redo"))
@@ -188,7 +188,7 @@ impl YamlView {
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), size).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     fn toggle_yaml_decode(&mut self) {

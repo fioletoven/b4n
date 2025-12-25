@@ -114,11 +114,11 @@ impl CommandPalette {
         self.position = None;
     }
 
-    /// Marks [`CommandPalette`] as visible and sets position to show.
-    pub fn show_at(&mut self, x: u16, y: u16) {
+    /// Marks [`CommandPalette`] as visible and sets position to show and highlight.
+    pub fn show_at(&mut self, position: Position) {
         self.is_visible = true;
-        self.highlight_position = Some(Position::new(x, y));
-        self.position = Some(Position::new(x, y));
+        self.highlight_position = Some(position);
+        self.position = Some(position);
     }
 
     /// Marks [`CommandPalette`] as hidden.

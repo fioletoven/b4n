@@ -100,7 +100,7 @@ impl LogsView {
             .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
             .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     fn toggle_timestamps(&mut self) {
