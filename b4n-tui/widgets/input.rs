@@ -239,6 +239,7 @@ impl Responsive for Input {
                 ResponseEvent::Handled
             },
             TuiEvent::Mouse(_) => ResponseEvent::NotHandled,
+            TuiEvent::Command(_) => ResponseEvent::NotHandled,
         }
     }
 }

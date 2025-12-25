@@ -352,5 +352,6 @@ fn map_to_button_event(event: &TuiEvent) -> ControlEvent {
             _ => ControlEvent::None,
         },
         TuiEvent::Mouse(_) => ControlEvent::None,
+        TuiEvent::Command(_) => ControlEvent::None,
     }
 }

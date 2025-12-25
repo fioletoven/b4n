@@ -38,6 +38,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for ScrollableList<T
                 }
                 ResponseEvent::Handled
             },
+            TuiEvent::Command(_) => ResponseEvent::NotHandled,
         }
     }
 }
@@ -76,6 +77,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Responsive for TabularList<T, F
                     return ResponseEvent::Handled;
                 }
             },
+            TuiEvent::Command(_) => (),
         }
 
         self.list.process_event(event)

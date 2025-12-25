@@ -177,7 +177,7 @@ impl LogsView {
             self.clear_search();
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
-            return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+            return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("timestamps") {
             self.toggle_timestamps();
             return ResponseEvent::Handled;

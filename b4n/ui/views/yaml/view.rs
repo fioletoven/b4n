@@ -145,12 +145,14 @@ impl YamlView {
             .with_back()
             .with_quit()
             .with_action(ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"))
-            .with_action(ActionItem::action("search", "search").with_description("searches YAML using the provided query"))
-            .with_action(
+            .with_action(ActionItem::action("search", "search").with_description("searches YAML using the provided query"));
+        if self.yaml.content().is_some_and(|c| c.is_editable()) {
+            builder.add_action(
                 ActionItem::action("edit", "edit")
                     .with_description("switches to the edit mode")
                     .with_aliases(&["insert"]),
             );
+        }
         if self.can_encode_decode() {
             let action = if self.is_decoded { "encode" } else { "decode" };
             builder.add_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
@@ -179,8 +181,10 @@ impl YamlView {
                 .with_action(ActionItem::back())
                 .with_action(ActionItem::command_palette())
                 .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
-                .with_action(ActionItem::menu(2, " search", "search"))
-                .with_action(ActionItem::menu(4, " edit", "edit"));
+                .with_action(ActionItem::menu(2, " search", "search"));
+            if self.yaml.content().is_some_and(|c| c.is_editable()) {
+                builder.add_action(ActionItem::menu(4, " edit", "edit"));
+            }
             if self.can_encode_decode() {
                 let action = if self.is_decoded { " encode" } else { " decode" };
                 builder.add_action(ActionItem::menu(3, action, "decode"));
@@ -234,10 +238,10 @@ impl YamlView {
             self.clear_search();
         } else if response.is_action("back") {
             self.last_mouse_click = event.position();
-            return self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack));
+            return self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack));
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
-            return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+            return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("copy") {
             self.copy_to_clipboard(false);
             return ResponseEvent::Handled;

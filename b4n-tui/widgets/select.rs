@@ -217,6 +217,7 @@ impl<T: Table> Responsive for Select<T> {
 
                 self.items.process_event(event);
             },
+            TuiEvent::Command(_) => (),
         }
 
         ResponseEvent::Handled

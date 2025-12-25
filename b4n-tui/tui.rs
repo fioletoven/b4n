@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_config::keys::KeyCombination;
+use b4n_config::keys::{KeyCombination, KeyCommand};
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyModifiers, MouseButton};
 use futures::{FutureExt, StreamExt};
@@ -76,6 +76,7 @@ pub enum MouseEventKind {
 pub enum TuiEvent {
     Key(KeyCombination),
     Mouse(MouseEvent),
+    Command(KeyCommand),
 }
 
 impl TuiEvent {
@@ -117,6 +118,7 @@ impl TuiEvent {
         match self {
             TuiEvent::Mouse(mouse) => Some(Position::new(mouse.column, mouse.row)),
             TuiEvent::Key(_) => None,
+            TuiEvent::Command(_) => None,
         }
     }
 }

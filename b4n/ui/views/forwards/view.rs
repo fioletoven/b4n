@@ -219,7 +219,7 @@ impl View for ForwardsView {
                 },
                 ResponseEvent::Action("palette") => {
                     self.last_mouse_click = event.position();
-                    return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+                    return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
                 },
                 ResponseEvent::NotHandled => (),
                 response_event => return response_event,

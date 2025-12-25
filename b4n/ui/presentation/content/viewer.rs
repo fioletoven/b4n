@@ -465,6 +465,7 @@ impl<T: Content> ContentViewer<T> {
 
                 _ => return ResponseEvent::NotHandled,
             },
+            TuiEvent::Command(_) => return ResponseEvent::NotHandled,
         }
 
         self.update_page_start();
