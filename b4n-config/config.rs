@@ -79,7 +79,8 @@ fn default_aliases() -> Option<HashMap<String, String>> {
             ("daemonsets", "ds,dms"),
             ("namespaces", "ns"),
             ("persistentvolumeclaims", "pvc"),
-            ("persistentvolumes", "pvs"),
+            ("persistentvolumes", "pv"),
+            ("pods", "pp"),
             ("services", "svc"),
             ("statefulsets", "ss,sts"),
         ]

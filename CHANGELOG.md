@@ -6,7 +6,8 @@
 
 - add propagation policy to the delete resources dialog
 - track mouse movement in dialogs and menus
-- command palette aliases
+- add command palette aliases
+- add columns for PersistentVolume and PersistentVolumeClaim kinds
 
 ### Compatibility
 

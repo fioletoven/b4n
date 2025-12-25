@@ -371,7 +371,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Highlights first element on the list which name starts with `text`.
     pub fn highlight_item_by_name_start(&mut self, text: &str) -> bool {
-        self.highlight_item_by(|i| i.data.starts_with(text))
+        self.highlight_item_by(|i| i.data.is_equal(text)) || self.highlight_item_by(|i| i.data.starts_with(text))
     }
 
     /// Highlights element on list by its `uid`.
