@@ -205,13 +205,15 @@ pub trait SharedAppDataExt {
 
 impl SharedAppDataExt for SharedAppData {
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
-        if let TuiEvent::Key(key) = event {
-            let data = self.borrow();
-            !data.disabled_keys.contains(key)
-                && !data.disabled_commands.contains(&command)
-                && data.key_bindings.has_binding(key, command)
-        } else {
-            false
+        match event {
+            TuiEvent::Key(key) => {
+                let data = self.borrow();
+                !data.disabled_keys.contains(key)
+                    && !data.disabled_commands.contains(&command)
+                    && data.key_bindings.has_binding(key, command)
+            },
+            TuiEvent::Command(cmd) => command == *cmd,
+            TuiEvent::Mouse(_) => false,
         }
     }
 

@@ -62,6 +62,7 @@ pub struct ControlColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ModalColors {
     pub text: TextColors,
+    pub selector: SelectColors,
     pub checkbox: ControlColors,
     pub btn_accent: ControlColors,
     pub btn_delete: ControlColors,
@@ -196,6 +197,7 @@ impl Default for Theme {
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors {
                     text: TextColors::bg(Color::Gray, Color::DarkGray),
+                    selector: SelectColors::default(),
                     checkbox: ControlColors {
                         normal: TextColors::bg(Color::Gray, Color::DarkGray),
                         focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
@@ -248,14 +250,14 @@ impl Default for Theme {
                         language: TextColors::new(Color::LightBlue),
                         timestamp: TextColors::new(Color::Magenta),
                         search: Color::Rgb(135, 114, 72),
-                        select: Color::Rgb(80, 85, 100),
+                        select: Color::DarkGray,
                     },
                     logs: LogsSyntaxColors {
                         string: TextColors::new(Color::Gray),
                         error: TextColors::new(Color::Red),
                         timestamp: TextColors::new(Color::Magenta),
                         search: Color::Rgb(135, 114, 72),
-                        select: Color::Rgb(80, 85, 100),
+                        select: Color::DarkGray,
                     },
                 },
             },

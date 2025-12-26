@@ -94,6 +94,10 @@ theme: light
 contexts:
   test-cluster: '#43464f:#8aad81'
   production: '#d8d8d8:#e1140a'
+aliases:
+  daemonsets: ds,dms
+  namespaces: ns
+  services: svc
 key_bindings:
   action.name: list of key bindings for that action
   command-palette.open: :, >, Shift+:, Shift+>
@@ -107,7 +111,8 @@ key_bindings:
 - `mouse` – Indicates if mouse support should be enabled when the application starts. Mouse support can also be toggled while the app is running.
 - `theme` – The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
-- `key_bindings` – Defines custom key bindings for various application actions.  
+- `aliases` - _(Optional)_ Command palette aliases.
+- `key_bindings` – _(Optional)_ Defines custom key bindings for various application actions.  
   Example key bindings: `Ctrl+C`, `Ctrl+Alt+A`, `F7`, `Z`, `Left`, `Enter`.
 
 If `config.yaml` does not exist, the application will create it automatically with default values.

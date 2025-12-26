@@ -296,27 +296,32 @@ impl ResourcesView {
         if response == ResponseEvent::AskDeleteResources {
             self.last_mouse_click = event.position();
         } else if let ResponseEvent::Action(action) = response {
-            self.last_mouse_click = event.position();
             return match action {
-                "back" => self.process_event(&self.app_data.get_event(KeyCommand::NavigateBack)),
-                "palette" => self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen)),
-                "filter" => self.process_event(&self.app_data.get_event(KeyCommand::FilterOpen)),
-                "create" => self.process_event(&self.app_data.get_event(KeyCommand::YamlCreate)),
-                "show_events" => self.table.process_event(&self.app_data.get_event(KeyCommand::EventsShow)),
-                "show_involved" => self
-                    .table
-                    .process_event(&self.app_data.get_event(KeyCommand::InvolvedObjectShow)),
-                "show_yaml" => self.table.process_event(&self.app_data.get_event(KeyCommand::YamlOpen)),
-                "edit_yaml" => self.table.process_event(&self.app_data.get_event(KeyCommand::YamlEdit)),
-                "decode_yaml" => self.table.process_event(&self.app_data.get_event(KeyCommand::YamlDecode)),
-                "show_logs" => self.table.process_event(&self.app_data.get_event(KeyCommand::LogsOpen)),
-                "show_plogs" => self
-                    .table
-                    .process_event(&self.app_data.get_event(KeyCommand::PreviousLogsOpen)),
-                "open_shell" => self.table.process_event(&self.app_data.get_event(KeyCommand::ShellOpen)),
-                "port_forward" => self
-                    .table
-                    .process_event(&self.app_data.get_event(KeyCommand::PortForwardsCreate)),
+                "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
+                "palette" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
+                },
+                "filter" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
+                },
+                "create" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
+                },
+                "show_events" => self.table.process_event(&TuiEvent::Command(KeyCommand::EventsShow)),
+                "show_involved" => self.table.process_event(&TuiEvent::Command(KeyCommand::InvolvedObjectShow)),
+                "show_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
+                "edit_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlEdit)),
+                "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
+                "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
+                "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
+                "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
+                "port_forward" => {
+                    self.last_mouse_click = event.position();
+                    self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
+                },
                 "new_clone" => self.create_new_resource(true, false),
                 "new_full" => self.create_new_resource(false, true),
                 "new_minimal" => self.create_new_resource(false, false),
@@ -412,7 +417,7 @@ impl ResourcesView {
                 );
             }
 
-            if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
+            if self.table.list.table.data.is_editable {
                 builder.add_action(
                     ActionItem::action("edit YAML", "edit_yaml")
                         .with_description("displays YAML and switches to edit mode")
@@ -421,6 +426,7 @@ impl ResourcesView {
             }
         }
 
+        builder = builder.with_aliases(self.app_data.borrow().config.aliases.as_ref());
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -473,13 +479,13 @@ impl ResourcesView {
                 builder.add_action(ActionItem::menu(4, " YAML [decoded]", "decode_yaml"));
             }
 
-            if self.table.list.table.data.is_editable && self.table.kind_plural() != EVENTS {
+            if self.table.list.table.data.is_editable {
                 builder.add_action(ActionItem::menu(8, " edit", "edit_yaml"));
             }
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     fn show_create_resource_palette(&mut self) {
@@ -530,7 +536,7 @@ impl ResourcesView {
             0,
             "Propagation policy",
             &["None", "Background", "Foreground", "Orphan"],
-            colors.mouse_menu.clone(),
+            colors.modal.selector.clone(),
             &colors.modal.checkbox,
         )])
         .with_highlighted_position(self.last_mouse_click.take())

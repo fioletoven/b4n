@@ -100,7 +100,7 @@ impl LogsView {
             .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
             .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     fn toggle_timestamps(&mut self) {
@@ -177,7 +177,7 @@ impl LogsView {
             self.clear_search();
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
-            return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+            return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("timestamps") {
             self.toggle_timestamps();
             return ResponseEvent::Handled;

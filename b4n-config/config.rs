@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
 use crate::themes::{TextColors, Theme};
-use crate::{ConfigWatcher, Persistable, keys::KeyBindings};
+use crate::{ConfigWatcher, Persistable, keys::KeyBindings, utils::sorted_map};
 
 pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -56,6 +56,10 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contexts: Option<HashMap<String, TextColors>>,
 
+    #[serde(default = "default_aliases")]
+    #[serde(serialize_with = "sorted_map")]
+    pub aliases: Option<HashMap<String, String>>,
+
     pub key_bindings: Option<KeyBindings>,
 }
 
@@ -67,6 +71,26 @@ fn default_mouse() -> bool {
     true
 }
 
+#[allow(clippy::unnecessary_wraps)]
+fn default_aliases() -> Option<HashMap<String, String>> {
+    Some(
+        [
+            ("clusterrolebindings", "crb"),
+            ("clusterroles", "cr"),
+            ("daemonsets", "ds,dms"),
+            ("namespaces", "ns"),
+            ("persistentvolumeclaims", "pvc"),
+            ("persistentvolumes", "pv"),
+            ("pods", "pp"),
+            ("services", "svc"),
+            ("statefulsets", "ss,sts"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect(),
+    )
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -75,6 +99,7 @@ impl Default for Config {
             theme: default_theme_name(),
             contexts: None,
             key_bindings: Some(KeyBindings::default()),
+            aliases: default_aliases(),
         }
     }
 }

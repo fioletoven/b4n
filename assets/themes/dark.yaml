@@ -19,12 +19,12 @@ palette:
   light_yellow: LightYellow
   light_magenta: LightMagenta
   light_cyan: LightCyan
-  search_yellow: '#877248'
-  select_black: '#444C59'
+  select_yellow: '#877248'
+  select_dark: '#2D446F'
 
 # style anchors
 filter: &filter
-  cursor: Reset:#454C5A
+  cursor: Reset:#C4C7CC
   normal: fg_dark:yellow:bg_dark
   normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light
@@ -58,6 +58,7 @@ colors:
   mouse_menu: *filter
   modal:
     text: fg_dark:bg_dark
+    selector: *filter
     checkbox:
       normal: fg_dark:bg_dark
       focused: light_magenta:bg_dark
@@ -104,11 +105,11 @@ colors:
       numeric: blue:no_bg
       language: light_blue:no_bg
       timestamp: magenta:no_bg
-      search: search_yellow
-      select: select_black
+      search: select_yellow
+      select: select_dark
     logs:
       string: text_light:no_bg
       error: red:no_bg
       timestamp: magenta:no_bg
-      search: search_yellow
-      select: select_black
+      search: select_yellow
+      select: select_dark

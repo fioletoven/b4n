@@ -98,6 +98,7 @@ impl EditContext {
                     return ResponseEvent::NotHandled;
                 }
             },
+            TuiEvent::Command(_) => (),
         }
 
         ResponseEvent::Handled

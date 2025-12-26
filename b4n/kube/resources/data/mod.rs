@@ -23,6 +23,8 @@ pub mod lease;
 pub mod namespace;
 pub mod node;
 pub mod node_metrics;
+pub mod persistent_volume;
+pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_metrics;
 pub mod replica_set;
@@ -56,6 +58,8 @@ pub fn get_resource_data(
         "Namespace" => namespace::data(object),
         "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
+        "PersistentVolume" => persistent_volume::data(object),
+        "PersistentVolumeClaim" => persistent_volume_claim::data(object),
         "Pod" => pod::data(object, stats),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::data(object),
         "ReplicaSet" => replica_set::data(object),
@@ -86,6 +90,8 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "Namespace" => namespace::header(),
         "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
+        "PersistentVolume" => persistent_volume::header(),
+        "PersistentVolumeClaim" => persistent_volume_claim::header(),
         "Pod" => pod::header(has_metrics),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),
         "ReplicaSet" => replica_set::header(),

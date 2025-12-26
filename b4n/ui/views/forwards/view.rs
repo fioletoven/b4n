@@ -85,6 +85,7 @@ impl ForwardsView {
                 .add_action(ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"));
         }
 
+        builder = builder.with_aliases(self.app_data.borrow().config.aliases.as_ref());
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
             .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -105,7 +106,7 @@ impl ForwardsView {
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
-        self.command_palette.show_at(x.saturating_sub(1), y);
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
     /// Shows dialog to stop port forwarding rules if anything is selected.
@@ -218,7 +219,7 @@ impl View for ForwardsView {
                 },
                 ResponseEvent::Action("palette") => {
                     self.last_mouse_click = event.position();
-                    return self.process_event(&self.app_data.get_event(KeyCommand::CommandPaletteOpen));
+                    return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
                 },
                 ResponseEvent::NotHandled => (),
                 response_event => return response_event,

@@ -85,6 +85,7 @@ impl SelectContext {
         match event {
             TuiEvent::Key(key) => self.process_key_event(key, content, cursor),
             TuiEvent::Mouse(mouse) => self.process_mouse_event(*mouse, content, page_start, area),
+            TuiEvent::Command(_) => (),
         }
     }
 
