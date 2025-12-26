@@ -351,7 +351,6 @@ fn map_to_button_event(event: &TuiEvent) -> ControlEvent {
             KeyCode::Char(' ') => ControlEvent::Checked,
             _ => ControlEvent::None,
         },
-        TuiEvent::Mouse(_) => ControlEvent::None,
-        TuiEvent::Command(_) => ControlEvent::None,
+        TuiEvent::Mouse(_) | TuiEvent::Command(_) => ControlEvent::None,
     }
 }

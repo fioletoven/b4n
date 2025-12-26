@@ -117,8 +117,7 @@ impl TuiEvent {
     pub fn position(&self) -> Option<Position> {
         match self {
             TuiEvent::Mouse(mouse) => Some(Position::new(mouse.column, mouse.row)),
-            TuiEvent::Key(_) => None,
-            TuiEvent::Command(_) => None,
+            TuiEvent::Key(_) | TuiEvent::Command(_) => None,
         }
     }
 }

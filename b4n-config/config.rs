@@ -71,6 +71,7 @@ fn default_mouse() -> bool {
     true
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_aliases() -> Option<HashMap<String, String>> {
     Some(
         [

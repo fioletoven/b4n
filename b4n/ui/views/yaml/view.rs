@@ -146,7 +146,7 @@ impl YamlView {
             .with_quit()
             .with_action(ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"))
             .with_action(ActionItem::action("search", "search").with_description("searches YAML using the provided query"));
-        if self.yaml.content().is_some_and(|c| c.is_editable()) {
+        if self.yaml.content().is_some_and(Content::is_editable) {
             builder.add_action(
                 ActionItem::action("edit", "edit")
                     .with_description("switches to the edit mode")
@@ -182,7 +182,7 @@ impl YamlView {
                 .with_action(ActionItem::command_palette())
                 .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
                 .with_action(ActionItem::menu(2, " search", "search"));
-            if self.yaml.content().is_some_and(|c| c.is_editable()) {
+            if self.yaml.content().is_some_and(Content::is_editable) {
                 builder.add_action(ActionItem::menu(4, " edit", "edit"));
             }
             if self.can_encode_decode() {
