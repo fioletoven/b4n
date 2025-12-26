@@ -1,13 +1,13 @@
 # Change Log
 
-## WIP
+## 0.3.6 - 2025-12-26
 
 ### Features
 
 - add propagation policy to the delete resources dialog
-- track mouse movement in dialogs and menus
-- add command palette aliases
 - add columns for PersistentVolume and PersistentVolumeClaim kinds
+- add command palette aliases
+- track mouse movement in dialogs and menus
 
 ### Compatibility
 
