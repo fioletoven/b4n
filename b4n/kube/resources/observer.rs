@@ -42,6 +42,7 @@ impl ResourceObserver {
                 client: &KubernetesClient,
                 resource: ResourceRef,
                 discovery: Option<(ApiResource, ApiCapabilities)>,
+                stop_on_access_error: bool,
             ) -> Result<Scope, BgObserverError>;
 
             pub fn restart(
@@ -49,6 +50,7 @@ impl ResourceObserver {
                 client: &KubernetesClient,
                 new_resource: ResourceRef,
                 discovery: Option<(ApiResource, ApiCapabilities)>,
+                stop_on_access_error: bool,
             ) -> Result<Scope, BgObserverError>;
 
             pub fn cancel(&mut self);
@@ -58,6 +60,8 @@ impl ResourceObserver {
             pub fn is_filtered(&self) -> bool;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
+            pub fn has_access(&self) -> bool;
+            pub fn has_connection_error(&self) -> bool;
         }
     }
 
@@ -69,6 +73,7 @@ impl ResourceObserver {
         new_kind: Kind,
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         if self.observer.resource.kind != new_kind
             || self.observer.resource.is_container() != new_kind.is_containers()
@@ -80,7 +85,7 @@ impl ResourceObserver {
                 ResourceRef::new(new_kind, Namespace::all())
             };
 
-            self.restart(client, resource, discovery)?;
+            self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
         Ok(self.observer.scope.clone())
@@ -92,13 +97,14 @@ impl ResourceObserver {
         client: &KubernetesClient,
         new_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         if self.observer.is_container() {
             let resource = ResourceRef::new(PODS.into(), new_namespace);
-            self.restart(client, resource, discovery)?;
+            self.restart(client, resource, discovery, stop_on_access_error)?;
         } else if self.observer.resource.namespace != new_namespace {
             let resource = ResourceRef::new(self.observer.resource.kind.clone(), new_namespace);
-            self.restart(client, resource, discovery)?;
+            self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
         Ok(self.observer.scope.clone())
@@ -111,10 +117,11 @@ impl ResourceObserver {
         pod_name: String,
         pod_namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         if !self.observer.resource.is_container() || self.observer.resource.name.as_ref().is_none_or(|n| n != &pod_name) {
             let resource = ResourceRef::containers(pod_name, pod_namespace);
-            self.restart(client, resource, discovery)?;
+            self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
         Ok(self.observer.scope.clone())

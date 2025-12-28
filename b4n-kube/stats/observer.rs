@@ -194,7 +194,7 @@ impl BgStatistics {
         self.has_metrics = false;
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", ""))
-            && self.pods.start(client, (&discovery.0).into(), Some(discovery)).is_err()
+            && self.pods.start(client, (&discovery.0).into(), Some(discovery), true).is_err()
         {
             self.footer_tx.show_error("Cannot run statistics task", 0);
         }
@@ -202,14 +202,14 @@ impl BgStatistics {
         if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .pods_metrics
-                .start(client, (&discovery.0).into(), Some(discovery))
+                .start(client, (&discovery.0).into(), Some(discovery), true)
                 .is_ok();
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .nodes_metrics
-                .start(client, (&discovery.0).into(), Some(discovery))
+                .start(client, (&discovery.0).into(), Some(discovery), true)
                 .is_ok();
         }
     }
@@ -268,6 +268,11 @@ impl BgStatistics {
     /// Returns `true` if pods statistics observer has an error.
     pub fn has_error(&self) -> bool {
         self.pods.has_error()
+    }
+
+    /// Returns `true` if pods statistics observer has a connection error.
+    pub fn has_connection_error(&self) -> bool {
+        self.pods.has_connection_error()
     }
 
     fn recalculate_statistics(&mut self) {

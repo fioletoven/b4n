@@ -36,6 +36,7 @@ impl ResourcesList {
             },
             ObserverResult::InitDone => false,
             ObserverResult::Apply(resource) => {
+                self.add_all_namespaces_item();
                 self.update_list(resource, false);
                 self.sort(sort_by, is_descending);
                 false
@@ -91,10 +92,6 @@ impl ResourcesList {
             self.data.has_metrics,
             self.data.resource.is_filtered(),
         ));
-
-        if self.data.kind_plural == NAMESPACES {
-            self.table.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
-        }
     }
 
     /// Adds, updates or deletes `new_item` from the resources list.
@@ -115,6 +112,12 @@ impl ResourcesList {
         }
 
         self.table.update_data_lengths();
+    }
+
+    fn add_all_namespaces_item(&mut self) {
+        if self.table.list.items.as_ref().is_none_or(|l| l.full_len() == 0) && self.data.kind_plural == NAMESPACES {
+            self.table.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
+        }
     }
 }
 
