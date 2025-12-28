@@ -641,9 +641,10 @@ impl ActionsListBuilderExt for ActionsListBuilder {
         let actions = items.iter().map(|item| {
             let cluster = item.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default();
             let uid = format!("_{}:{}_", item.name, cluster);
+            let namespace = item.context.as_ref().and_then(|c| c.namespace.clone());
             ActionItem::raw(uid, "context".to_owned(), item.name.clone(), None)
                 .with_description(cluster)
-                .with_response(ResponseEvent::ChangeContext(item.name.clone()))
+                .with_response(ResponseEvent::ChangeContext(item.name.clone(), namespace))
         });
 
         ActionsListBuilder::new(actions.collect())
