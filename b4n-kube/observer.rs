@@ -131,8 +131,10 @@ pub struct BgObserver {
     context_tx: ObserverResultSender,
     context_rx: ObserverResultReceiver,
     footer_tx: NotificationSink,
+    stop_on_access_error: bool,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
+    has_access: Arc<AtomicBool>,
 }
 
 impl BgObserver {
@@ -149,8 +151,10 @@ impl BgObserver {
             context_tx,
             context_rx,
             footer_tx,
+            stop_on_access_error: false,
             is_ready: Arc::new(AtomicBool::new(false)),
             has_error: Arc::new(AtomicBool::new(true)),
+            has_access: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -161,8 +165,10 @@ impl BgObserver {
         client: &KubernetesClient,
         resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         self.stop();
+        self.stop_on_access_error = stop_on_access_error;
 
         let cancellation_token = CancellationToken::new();
         let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
@@ -171,6 +177,7 @@ impl BgObserver {
         self.scope = cap.scope.clone();
         self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
+        self.has_access.store(true, Ordering::Relaxed);
 
         let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
         let api_client = client.get_api(
@@ -201,9 +208,10 @@ impl BgObserver {
         client: &KubernetesClient,
         new_resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource {
-            self.start(client, new_resource, discovery)?;
+            self.start(client, new_resource, discovery, stop_on_access_error)?;
         }
 
         Ok(self.scope.clone())
@@ -215,6 +223,7 @@ impl BgObserver {
             cancellation_token.cancel();
             self.resource = ResourceRef::default();
             self.has_error.store(true, Ordering::Relaxed);
+            self.has_access.store(false, Ordering::Relaxed);
         }
     }
 
@@ -260,6 +269,16 @@ impl BgObserver {
         self.has_error.load(Ordering::Relaxed)
     }
 
+    /// Returns `true` if user has access to the observed resource.
+    pub fn has_access(&self) -> bool {
+        self.has_access.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if the observer is not running or is in a connection error state (access error is not counted).
+    pub fn has_connection_error(&self) -> bool {
+        self.has_error.load(Ordering::Relaxed) && self.has_access.load(Ordering::Relaxed)
+    }
+
     fn watch(
         &mut self,
         client: Api<DynamicObject>,
@@ -271,8 +290,10 @@ impl BgObserver {
                 init_data,
                 context_tx: self.context_tx.clone(),
                 footer_tx: self.footer_tx.clone(),
+                stop_on_access_error: self.stop_on_access_error,
                 is_ready: Arc::clone(&self.is_ready),
                 has_error: Arc::clone(&self.has_error),
+                has_access: Arc::clone(&self.has_access),
                 last_watch_error: None,
             };
             let fields = build_fields_filter(&self.resource);
@@ -294,9 +315,10 @@ impl BgObserver {
                         tokio::select! {
                             () = cancellation_token.cancelled() => (),
                             result = watch.try_next() => {
-                                if !processor.process_event(result) {
-                                    // we need to restart watcher, so go up one while loop
-                                    break;
+                                match processor.process_event(result) {
+                                    ProcessorResult::Continue => (),
+                                    ProcessorResult::Restart => break, // we need to restart watcher, so go up one while loop
+                                    ProcessorResult::Stop => return,
                                 }
                             },
                         }
@@ -310,6 +332,8 @@ impl BgObserver {
         self.runtime.spawn({
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
+            let has_access = Arc::clone(&self.has_access);
+            let stop_on_access_error = self.stop_on_access_error;
             let context_tx = self.context_tx.clone();
             let fields = build_fields_filter(&self.resource);
             let labels = build_labels_filter(&self.resource);
@@ -331,12 +355,19 @@ impl BgObserver {
                             results = Some(emit_results(objects, results, &init_data, &context_tx));
                             is_ready.store(true, Ordering::Relaxed);
                             has_error.store(false, Ordering::Relaxed);
+                            has_access.store(true, Ordering::Relaxed);
                         },
                         Err(error) => {
                             results = None;
-                            warn!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
+                            let is_access_error = matches!(&error, kube::Error::Api(response) if response.code == 403);
                             is_ready.store(false, Ordering::Relaxed);
                             has_error.store(true, Ordering::Relaxed);
+                            has_access.store(!is_access_error, Ordering::Relaxed);
+                            if stop_on_access_error && is_access_error {
+                                break;
+                            }
+
+                            warn!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
                         },
                     }
 
@@ -401,20 +432,29 @@ impl Drop for BgObserver {
     }
 }
 
+/// Internal watcher's events processor result.
+enum ProcessorResult {
+    Continue,
+    Restart,
+    Stop,
+}
+
 /// Internal watcher's events processor.
 struct EventsProcessor {
     init_data: InitData,
     context_tx: ObserverResultSender,
     footer_tx: NotificationSink,
+    stop_on_access_error: bool,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
+    has_access: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
 }
 
 impl EventsProcessor {
     /// Process event received from the kubernetes resource watcher.\
     /// Returns `true` if all was OK or `false` if the watcher needs to be restarted.
-    pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> bool {
+    pub fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> ProcessorResult {
         match result {
             Ok(event) => {
                 let mut reset_error = true;
@@ -433,12 +473,20 @@ impl EventsProcessor {
                     _ => (),
                 }
 
+                self.has_access.store(true, Ordering::Relaxed);
                 if reset_error {
                     self.last_watch_error = None;
                     self.has_error.store(false, Ordering::Relaxed);
                 }
             },
             Err(error) => {
+                let is_access_error = is_access_error(&error);
+                self.has_error.store(true, Ordering::Relaxed);
+                self.has_access.store(!is_access_error, Ordering::Relaxed);
+                if self.stop_on_access_error && is_access_error {
+                    return ProcessorResult::Stop;
+                }
+
                 let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
                 warn!("{}", msg);
                 self.footer_tx.show_error(msg, 0);
@@ -451,20 +499,18 @@ impl EventsProcessor {
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
                             warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
-                            self.has_error.store(true, Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
-
-                            return false;
+                            return ProcessorResult::Restart;
                         }
 
                         self.last_watch_error = Some(Instant::now());
                     },
-                    _ => self.has_error.store(true, Ordering::Relaxed),
+                    _ => (),
                 }
             },
         }
 
-        true
+        ProcessorResult::Continue
     }
 
     fn send_init_result(&self) {
@@ -475,5 +521,15 @@ impl EventsProcessor {
 
     fn send_result(&self, object: DynamicObject, is_delete: bool) {
         let _ = self.context_tx.send(Box::new(ObserverResult::new(object, is_delete)));
+    }
+}
+
+fn is_access_error(error: &watcher::Error) -> bool {
+    match error {
+        watcher::Error::InitialListFailed(kube::Error::Api(response))
+        | watcher::Error::WatchStartFailed(kube::Error::Api(response))
+        | watcher::Error::WatchError(response)
+        | watcher::Error::WatchFailed(kube::Error::Api(response)) => response.code == 403,
+        _ => false,
     }
 }

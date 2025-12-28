@@ -1,31 +1,31 @@
 use b4n_kube::ALL_NAMESPACES;
 use clap::Parser;
 
-/// Simple program to view resources in a Kubernetes cluster.
+/// Interactive TUI for exploring and managing Kubernetes clusters.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// Path to the kubeconfig file.
-    #[arg(long)]
+    /// Path to the kubeconfig file (defaults to $HOME/.kube/config).
+    #[arg(long, env = "KUBECONFIG")]
     pub kube_config: Option<String>,
 
-    /// Context to use, as defined in the kubeconfig.
+    /// Context to use from the kubeconfig file.
     #[arg(long)]
     pub context: Option<String>,
 
-    /// Kubernetes resource to view (e.g., pods, services).
+    /// Kubernetes resource kind to show (e.g. pods, deployments, services).
     #[arg()]
     pub resource: Option<String>,
 
-    /// Namespace of the resource to view.
+    /// Namespace to focus on at startup.
     #[arg(long, short)]
     pub namespace: Option<String>,
 
-    /// View resources in all namespaces.
-    #[arg(long)]
+    /// Start with cluster-wide view (all namespaces).
+    #[arg(long, short = 'A')]
     pub all_namespaces: bool,
 
-    /// Allow insecure connections (skip TLS verification).
+    /// Skip TLS certificate verification (insecure).
     #[arg(long)]
     pub insecure: bool,
 }

@@ -54,7 +54,7 @@ pub enum ResponseEvent {
     ChangeKind(String),
     ChangeKindAndSelect(String, Option<String>),
     ChangeNamespace(String),
-    ChangeContext(String),
+    ChangeContext(String, Option<String>),
     ChangeTheme(String),
 
     ViewPreviousResource,

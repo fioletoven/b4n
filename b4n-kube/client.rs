@@ -44,6 +44,21 @@ pub struct ClientOptions {
     pub allow_insecure: bool,
 }
 
+/// Holds simplified context info.
+pub struct ContextInfo {
+    pub name: String,
+    pub namespace: Option<String>,
+}
+
+impl From<&NamedContext> for ContextInfo {
+    fn from(value: &NamedContext) -> Self {
+        Self {
+            name: value.name.clone(),
+            namespace: value.context.as_ref().and_then(|c| c.namespace.clone()),
+        }
+    }
+}
+
 /// Wrapper for the kubernetes [`Client`].
 pub struct KubernetesClient {
     /// Kubernetes client.
@@ -136,17 +151,17 @@ pub async fn get_context(
     kube_config_path: Option<&str>,
     kube_context: Option<&str>,
     fallback_to_default: bool,
-) -> Result<(Option<String>, Option<String>), ClientError> {
+) -> Result<(Option<ContextInfo>, Option<String>), ClientError> {
     let (kube_config, kube_config_path) = get_kube_config(kube_config_path).await?;
-    let Some(context) = kube_context else {
-        return Ok((kube_config.current_context, kube_config_path));
-    };
-
-    let context = kube_config.contexts.into_iter().find(|c| c.name == context);
-    if let Some(context) = context {
-        Ok((Some(context.name), kube_config_path))
-    } else if fallback_to_default {
-        Ok((kube_config.current_context, kube_config_path))
+    if let Some(context_name) = kube_context
+        && let Some(context) = kube_config.contexts.iter().find(|c| c.name == context_name)
+    {
+        Ok((Some(context.into()), kube_config_path))
+    } else if fallback_to_default
+        && let Some(context_name) = kube_config.current_context.as_deref()
+        && let Some(context) = kube_config.contexts.iter().find(|c| c.name == context_name)
+    {
+        Ok((Some(context.into()), kube_config_path))
     } else {
         Ok((None, kube_config_path))
     }

@@ -168,12 +168,13 @@ impl AppData {
 
     /// Returns resource's `kind` and `namespace` from the history data.\
     /// **Note** that if provided `context` is not found in the history file, current context resource is used.
-    pub fn get_namespaced_resource_from_config(&self, context: &str) -> (Kind, Namespace) {
+    pub fn get_namespaced_resource_from_config(&self, context: &str, namespace: Option<&str>) -> (Kind, Namespace) {
         if let Some(kind) = self.history.get_kind(context) {
-            let namespace = self.history.get_namespace(context).unwrap_or_default();
+            let namespace = self.history.get_namespace(context).or(namespace).unwrap_or_default();
             (kind.into(), namespace.into())
         } else {
-            (self.current.resource.kind.clone(), self.current.namespace.clone())
+            let namespace = namespace.unwrap_or(self.current.namespace.as_str());
+            (self.current.resource.kind.clone(), namespace.into())
         }
     }
 

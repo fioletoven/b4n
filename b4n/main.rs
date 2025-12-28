@@ -51,14 +51,15 @@ fn run_application(args: &cli::Args) -> Result<()> {
     };
     history.set_kube_config_path(kube_config_path);
 
-    let kind = args.kind(history.get_kind(&context)).unwrap_or(PODS).into();
-    let namespace = args.namespace(history.get_namespace(&context)).map(String::from).into();
+    let kind = args.kind(history.get_kind(&context.name)).unwrap_or(PODS).into();
+    let namespace = history.get_namespace(&context.name).or(context.namespace.as_deref());
+    let namespace = args.namespace(namespace).map(String::from).into();
 
     let config = rt.block_on(Config::load_or_create())?;
     let theme = rt.block_on(config.load_or_create_theme())?;
     let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
 
-    app.start(context, kind, namespace)?;
+    app.start(context.name, kind, namespace)?;
     application_loop(&mut app)?;
     app.stop()?;
 

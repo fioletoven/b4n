@@ -87,15 +87,23 @@ impl NewKubernetesClientCommand {
             )));
         };
         let namespaces = client.get_api(&namespaces.0, &namespaces.1, None, true);
-        let Ok(namespaces) = namespaces.list(&ListParams::default()).await else {
-            return Some(CommandResult::KubernetesClient(Err(
-                KubernetesClientError::NamespaceFetchFailure,
-            )));
-        };
-        let namespace = if namespaces.iter().any(|n| self.namespace.is_equal(n.metadata.name.as_deref())) {
-            self.namespace
-        } else {
-            Namespace::default()
+        let namespace = match namespaces.list(&ListParams::default()).await {
+            Ok(namespaces) => {
+                if namespaces.iter().any(|n| self.namespace.is_equal(n.metadata.name.as_deref())) {
+                    self.namespace
+                } else {
+                    Namespace::default()
+                }
+            },
+            Err(error) => {
+                if !matches!(error, kube::Error::Api(response) if response.code == 403) {
+                    return Some(CommandResult::KubernetesClient(Err(
+                        KubernetesClientError::NamespaceFetchFailure,
+                    )));
+                }
+
+                self.namespace
+            },
         };
 
         Some(CommandResult::KubernetesClient(Ok(KubernetesClientResult {

@@ -171,6 +171,7 @@ impl ViewsManager {
         if self.app_data.borrow().is_connected {
             if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+                && self.worker.borrow().namespaces.has_access()
                 && view.is_namespaces_selector_allowed()
             {
                 self.ns_selector.show_selected(view.displayed_namespace());
@@ -199,6 +200,7 @@ impl ViewsManager {
         if self.app_data.borrow().is_connected {
             if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+                && self.worker.borrow().namespaces.has_access()
                 && self.resources.is_namespaces_selector_allowed()
             {
                 self.ns_selector

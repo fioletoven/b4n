@@ -201,7 +201,7 @@ impl App {
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
-            ResponseEvent::ChangeContext(context) => self.request_kubernetes_client(context),
+            ResponseEvent::ChangeContext(context, namespace) => self.request_kubernetes_client(context, namespace.as_deref()),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
@@ -429,7 +429,7 @@ impl App {
     }
 
     /// Requests new kubernetes client with configured kind and namespace.
-    fn request_kubernetes_client(&mut self, context: String) {
+    fn request_kubernetes_client(&mut self, context: String, namespace: Option<&str>) {
         // if we are disconnected allow to reload the same context in case it changed
         if self.data.borrow().current.context == context && self.data.borrow().is_connected {
             return;
@@ -438,7 +438,7 @@ impl App {
         self.client_manager.erase_request(true);
         self.worker.borrow_mut().stop();
 
-        let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context);
+        let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context, namespace);
         self.views_manager.reset();
         self.views_manager
             .process_context_change(context.clone(), namespace.clone(), String::default(), Scope::Cluster);

@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix `b4n` behaviour for restricted users
+
 ## 0.3.6 - 2025-12-26
 
 ### Features

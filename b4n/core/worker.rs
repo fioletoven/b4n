@@ -87,10 +87,10 @@ impl BgWorker {
         let namespaces = Kind::from(NAMESPACES);
         let discovery = get_resource(self.discovery_list.as_ref(), &namespaces);
         self.namespaces
-            .start(&client, ResourceRef::new(namespaces, Namespace::default()), discovery)?;
+            .start(&client, ResourceRef::new(namespaces, Namespace::default()), discovery, true)?;
 
         let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
-        let scope = self.resources.start(&client, resource, discovery)?;
+        let scope = self.resources.start(&client, resource, discovery, false)?;
 
         let discovery = get_resource(self.discovery_list.as_ref(), &Kind::from(CRDS));
         self.crds.start(&client, discovery)?;
@@ -106,7 +106,7 @@ impl BgWorker {
     pub fn restart(&mut self, resource: ResourceRef) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
-            Ok(self.resources.restart(client, resource, discovery)?)
+            Ok(self.resources.restart(client, resource, discovery, false)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -116,7 +116,9 @@ impl BgWorker {
     pub fn restart_new_kind(&mut self, kind: Kind, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), &kind);
-            Ok(self.resources.restart_new_kind(client, kind, last_namespace, discovery)?)
+            Ok(self
+                .resources
+                .restart_new_kind(client, kind, last_namespace, discovery, false)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -127,7 +129,9 @@ impl BgWorker {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), self.resources.get_resource_kind())
                 .or_else(|| get_resource(self.discovery_list.as_ref(), &PODS.into()));
-            Ok(self.resources.restart_new_namespace(client, resource_namespace, discovery)?)
+            Ok(self
+                .resources
+                .restart_new_namespace(client, resource_namespace, discovery, false)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -139,7 +143,7 @@ impl BgWorker {
             let discovery = get_resource(self.discovery_list.as_ref(), &PODS.into());
             Ok(self
                 .resources
-                .restart_containers(client, pod_name, pod_namespace, discovery)?)
+                .restart_containers(client, pod_name, pod_namespace, discovery, false)?)
         } else {
             Err(BgWorkerError::NoKubernetesClient)
         }
@@ -262,7 +266,7 @@ impl BgWorker {
 
     /// Returns `true` if CRDs list is ready.
     pub fn is_crds_list_ready(&self) -> bool {
-        self.crds.is_ready()
+        self.crds.is_ready() || !self.crds.has_access()
     }
 
     /// Updates CRDs list.
@@ -305,7 +309,7 @@ impl BgWorker {
 
     /// Returns `true` if there are connection problems.
     pub fn has_errors(&self) -> bool {
-        self.statistics.has_error() || self.namespaces.has_error() || self.discovery.has_error()
+        self.discovery.has_error() || self.statistics.has_connection_error() || self.namespaces.has_connection_error()
     }
 
     /// Saves the provided app configuration to a file.
