@@ -137,12 +137,10 @@ impl ActionsListBuilder {
     }
 
     /// Adds aliases to the existing actions.
-    pub fn with_aliases(mut self, aliases: Option<&HashMap<String, String>>) -> Self {
-        if let Some(aliases) = aliases {
-            for action in &mut self.actions {
-                if let Some(aliases) = aliases.get(action.name()) {
-                    action.add_aliases(aliases.split(',').map(String::from).collect());
-                }
+    pub fn with_aliases(mut self, aliases: &HashMap<String, String>) -> Self {
+        for action in &mut self.actions {
+            if let Some(aliases) = aliases.get(action.name()) {
+                action.add_aliases(aliases.split(',').map(String::from).collect());
             }
         }
 

@@ -8,6 +8,23 @@
 
 The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols, is required for proper display of the user interface in the terminal.
 
+## Building
+
+To build `b4n` ensure you have a recent Rust toolchain installed (1.88+ recommended). Clone the repository and navigate into the project directory:
+
+```bash
+git clone https://github.com/fioletoven/b4n.git
+cd b4n
+```
+
+Then compile the project in release mode for optimal performance:
+
+```bash
+cargo build --release
+```
+
+The resulting binary will be available at `./target/release/b4n`.
+
 ## Features
 
 ### Currently Supported
@@ -111,8 +128,8 @@ key_bindings:
 - `mouse` – Indicates if mouse support should be enabled when the application starts. Mouse support can also be toggled while the app is running.
 - `theme` – The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
-- `aliases` - _(Optional)_ Command palette aliases.
-- `key_bindings` – _(Optional)_ Defines custom key bindings for various application actions.  
+- `aliases` - Command palette aliases.
+- `key_bindings` – Defines custom key bindings for various application actions.  
   Example key bindings: `Ctrl+C`, `Ctrl+Alt+A`, `F7`, `Z`, `Left`, `Enter`.
 
 If `config.yaml` does not exist, the application will create it automatically with default values.
