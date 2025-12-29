@@ -1,7 +1,7 @@
 use b4n_kube::ALL_NAMESPACES;
 use clap::Parser;
 
-/// Interactive TUI for exploring and managing Kubernetes clusters.
+/// b4n is an interactive TUI for managing Kubernetes clusters.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
