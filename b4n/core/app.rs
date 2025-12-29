@@ -277,7 +277,9 @@ impl App {
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
     fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
-        if !self.data.borrow().current.is_kind_equal(&kind) || self.data.borrow().current.resource.filter.is_some() {
+        if (!self.data.borrow().current.is_kind_equal(&kind) || self.data.borrow().current.resource.filter.is_some())
+            && (!kind.is_namespaces() || self.worker.borrow().namespaces.has_access())
+        {
             let namespace = self.data.borrow().current.get_namespace();
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             if to_select.is_none() && kind.as_str() == NAMESPACES {

@@ -58,7 +58,7 @@ pub struct Config {
 
     #[serde(default = "default_aliases")]
     #[serde(serialize_with = "sorted_map")]
-    pub aliases: Option<HashMap<String, String>>,
+    pub aliases: HashMap<String, String>,
 
     pub key_bindings: Option<KeyBindings>,
 }
@@ -71,24 +71,21 @@ fn default_mouse() -> bool {
     true
 }
 
-#[allow(clippy::unnecessary_wraps)]
-fn default_aliases() -> Option<HashMap<String, String>> {
-    Some(
-        [
-            ("clusterrolebindings", "crb"),
-            ("clusterroles", "cr"),
-            ("daemonsets", "ds,dms"),
-            ("namespaces", "ns"),
-            ("persistentvolumeclaims", "pvc"),
-            ("persistentvolumes", "pv"),
-            ("pods", "pp"),
-            ("services", "svc"),
-            ("statefulsets", "ss,sts"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect(),
-    )
+fn default_aliases() -> HashMap<String, String> {
+    [
+        ("clusterrolebindings", "crb"),
+        ("clusterroles", "cr"),
+        ("daemonsets", "ds,dms"),
+        ("namespaces", "ns"),
+        ("persistentvolumeclaims", "pvc"),
+        ("persistentvolumes", "pv"),
+        ("pods", "pp"),
+        ("services", "svc"),
+        ("statefulsets", "ss,sts"),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 }
 
 impl Default for Config {

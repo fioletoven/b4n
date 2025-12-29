@@ -481,9 +481,9 @@ impl EventsProcessor {
             },
             Err(error) => {
                 let is_access_error = is_access_error(&error);
-                self.has_error.store(true, Ordering::Relaxed);
                 self.has_access.store(!is_access_error, Ordering::Relaxed);
                 if self.stop_on_access_error && is_access_error {
+                    self.has_error.store(true, Ordering::Relaxed);
                     return ProcessorResult::Stop;
                 }
 
@@ -499,13 +499,15 @@ impl EventsProcessor {
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
                             warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
+                            self.has_error.store(true, Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
+
                             return ProcessorResult::Restart;
                         }
 
                         self.last_watch_error = Some(Instant::now());
                     },
-                    _ => (),
+                    _ => self.has_error.store(true, Ordering::Relaxed),
                 }
             },
         }

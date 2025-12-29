@@ -31,6 +31,7 @@ pub mod replica_set;
 pub mod secret;
 pub mod service;
 pub mod stateful_set;
+pub mod storage_class;
 
 /// Returns [`ResourceData`] for provided Kubernetes resource.
 pub fn get_resource_data(
@@ -66,6 +67,7 @@ pub fn get_resource_data(
         "Secret" => secret::data(object),
         "Service" => service::data(object),
         "StatefulSet" => stateful_set::data(object),
+        "StorageClass" => storage_class::data(object),
 
         _ => default::data(object),
     }
@@ -98,6 +100,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "Secret" => secret::header(),
         "Service" => service::header(),
         "StatefulSet" => stateful_set::header(),
+        "StorageClass" => storage_class::header(),
 
         "Container" => container::header(has_metrics),
         _ => default::header(),
