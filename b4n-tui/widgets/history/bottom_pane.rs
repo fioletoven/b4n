@@ -9,20 +9,28 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use textwrap::Options;
 
 use crate::table::Table;
+use crate::widgets::history::MessageItem;
 use crate::widgets::{List, history::MessagesList};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
+/// Footer bottom history pane.
 pub struct BottomPane {
     history: List<MessagesList>,
     area: Rect,
 }
 
 impl BottomPane {
+    /// Creates new [`MessagesList`] instance.
     pub fn new(messages: MessagesList) -> Self {
         Self {
             history: List::new(messages),
             area: Rect::default(),
         }
+    }
+
+    /// Updates [`BottomPane`] with new messages list.
+    pub fn update(&mut self, messages: Vec<MessageItem>) {
+        self.history.items.update(messages);
     }
 
     /// Draws [`BottomPane`] on the provided frame area.

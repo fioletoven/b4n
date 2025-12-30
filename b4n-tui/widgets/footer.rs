@@ -23,12 +23,13 @@ pub struct Footer {
     message: Option<Notification>,
     messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
-    message_history: VecDeque<(Instant, Notification)>,
+    message_history: VecDeque<(usize, Instant, Notification)>,
+    message_count: usize,
     icons: Vec<Icon>,
     icons_rx: UnboundedReceiver<IconAction>,
     notifications_tx: NotificationSink,
-    area: Rect,
     history_pane: Option<BottomPane>,
+    area: Rect,
 }
 
 impl Default for Footer {
@@ -46,11 +47,12 @@ impl Default for Footer {
             messages_rx,
             message_received_time: Instant::now(),
             message_history: VecDeque::with_capacity(MESSAGE_HISTORY_SIZE),
+            message_count: 0,
             icons: Vec::new(),
             icons_rx,
             notifications_tx,
-            area: Rect::default(),
             history_pane: None,
+            area: Rect::default(),
         }
     }
 }
@@ -88,8 +90,7 @@ impl Footer {
     /// Shows history pane.
     pub fn show_message_history(&mut self) {
         if self.history_pane.is_none() {
-            let messages: Vec<MessageItem> = self.message_history.iter().map(|(t, n)| MessageItem::from(n, *t)).collect();
-            self.history_pane = Some(BottomPane::new(messages.into()))
+            self.history_pane = Some(BottomPane::new(self.get_history_messages().into()))
         }
     }
 
@@ -229,13 +230,22 @@ impl Footer {
                 self.message_history.pop_back();
             }
 
-            self.message_history.push_front((Instant::now(), current.clone()));
+            self.message_history
+                .push_front((self.message_count, Instant::now(), current.clone()));
+            self.message_count = self.message_count.overflowing_add(1).0;
             message = Some(current);
         }
 
         if message.is_some() {
             self.message = message;
             self.message_received_time = Instant::now();
+
+            if self.history_pane.is_some() {
+                let new_messages = self.get_history_messages();
+                if let Some(pane) = &mut self.history_pane {
+                    pane.update(new_messages);
+                }
+            }
         }
     }
 
@@ -286,6 +296,13 @@ impl Footer {
 
         spans.push(Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
         Line::from(spans)
+    }
+
+    fn get_history_messages(&self) -> Vec<MessageItem> {
+        self.message_history
+            .iter()
+            .map(|(c, t, n)| MessageItem::from(n, *t, *c))
+            .collect()
     }
 }
 

@@ -2,10 +2,9 @@ use b4n_common::{Notification, add_padding, truncate};
 use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::borrow::Cow;
-use std::hash::Hasher;
-use std::hash::{DefaultHasher, Hash};
 use std::time::Instant;
 
+/// Footer history message item.
 pub struct MessageItem {
     pub uid: String,
     pub group: &'static str,
@@ -15,13 +14,10 @@ pub struct MessageItem {
 }
 
 impl MessageItem {
-    pub fn from(notification: &Notification, time: Instant) -> Self {
-        let mut hasher = DefaultHasher::new();
-        notification.text.hash(&mut hasher);
-        let hash = hasher.finish();
-
+    /// Creates new [`MessageItem`] instance from the [`Notification`] and it's time.
+    pub fn from(notification: &Notification, time: Instant, id: usize) -> Self {
         Self {
-            uid: format!("_{}_", hash),
+            uid: format!("_{}_", id),
             group: "notification",
             message: notification.text.clone(),
             time,
@@ -29,12 +25,14 @@ impl MessageItem {
         }
     }
 
+    /// Returns text that can be displayed as a list line.
     pub fn get_text(&self, width: usize) -> String {
         let time = format_elapsed(self.time);
         let width = width.saturating_sub(9);
         format!("{:<width$}  {time:>7}", truncate(&self.message, width))
     }
 
+    /// Returns color for the message item.
     pub fn get_color(&self, theme: &Theme, is_active: bool) -> TextColors {
         if is_active {
             if self.is_error {

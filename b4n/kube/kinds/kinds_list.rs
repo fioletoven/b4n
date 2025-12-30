@@ -1,4 +1,3 @@
-use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;

@@ -20,6 +20,16 @@ impl From<Vec<MessageItem>> for MessagesList {
     }
 }
 
+impl MessagesList {
+    pub fn update(&mut self, new_list: Vec<MessageItem>) {
+        let uid = self.list.get_highlighted_item_uid().map(String::from);
+        self.list = ScrollableList::from(new_list);
+        if let Some(uid) = uid {
+            self.list.highlight_item_by_uid(&uid);
+        }
+    }
+}
+
 impl Responsive for MessagesList {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.list.process_event(event)
@@ -67,7 +77,7 @@ impl Table for MessagesList {
     }
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
-    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
+    fn get_paged_items(&self, theme: &Theme, _view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
             let mut result = Vec::with_capacity(self.list.page_height.into());
             for item in list {
