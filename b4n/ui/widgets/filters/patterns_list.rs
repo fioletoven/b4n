@@ -124,14 +124,4 @@ impl Table for PatternsList {
             self.list.get_paged_names(width)
         }
     }
-
-    /// Not implemented for [`PatternsList`].
-    fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
-        None
-    }
-
-    /// Not implemented for [`PatternsList`].
-    fn get_header(&mut self, _view: ViewType, _width: usize) -> &str {
-        "n/a"
-    }
 }

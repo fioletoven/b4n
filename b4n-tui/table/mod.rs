@@ -105,15 +105,24 @@ pub trait Table: crate::Responsive {
     fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
-    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>>;
+    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
+        let _ = theme;
+        let _ = view;
+        let _ = width;
+        None
+    }
 
     /// Returns header text for the list.
-    fn get_header(&mut self, view: ViewType, width: usize) -> &str;
+    fn get_header(&mut self, view: ViewType, width: usize) -> &str {
+        let _ = view;
+        let _ = width;
+        "n/a"
+    }
 
     /// Builds new header text when the view or width changes.
     fn refresh_header(&mut self, view: ViewType, width: usize) {
-        let _ = width;
         let _ = view;
+        let _ = width;
     }
 
     /// Returns the table's horizontal offset.

@@ -54,6 +54,7 @@ impl Icon {
 }
 
 /// Message notification to show.
+#[derive(Clone)]
 pub struct Notification {
     pub text: String,
     pub is_error: bool,

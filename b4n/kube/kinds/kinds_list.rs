@@ -116,11 +116,6 @@ impl Table for KindsList {
         })
     }
 
-    /// Not implemented for [`KindsList`].
-    fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
-        None
-    }
-
     fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
         if self.width == width {
             return &self.header;

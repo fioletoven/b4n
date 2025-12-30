@@ -1,4 +1,3 @@
-use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, Row, ScrollableList};
 use delegate::delegate;
@@ -59,11 +58,6 @@ impl Table for ActionsList {
     /// Not implemented for [`ActionsList`].
     fn toggle_sort(&mut self, _column_no: usize) {
         // pass
-    }
-
-    /// Not implemented for [`ActionsList`].
-    fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
-        None
     }
 
     fn get_header(&mut self, _view: ViewType, width: usize) -> &str {

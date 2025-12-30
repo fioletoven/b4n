@@ -5,10 +5,15 @@ use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
+use std::collections::VecDeque;
 use std::{rc::Rc, time::Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
+use crate::widgets::history::{BottomPane, MessageItem};
+use crate::{ResponseEvent, Responsive, TuiEvent};
+
 const FOOTER_APP_VERSION: &str = concat!(" b4n v", env!("CARGO_PKG_VERSION"), " ");
+const MESSAGE_HISTORY_SIZE: usize = 20;
 
 /// Footer widget.
 pub struct Footer {
@@ -18,9 +23,12 @@ pub struct Footer {
     message: Option<Notification>,
     messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
+    message_history: VecDeque<(Instant, Notification)>,
     icons: Vec<Icon>,
     icons_rx: UnboundedReceiver<IconAction>,
     notifications_tx: NotificationSink,
+    area: Rect,
+    history_pane: Option<BottomPane>,
 }
 
 impl Default for Footer {
@@ -37,9 +45,12 @@ impl Default for Footer {
             message: None,
             messages_rx,
             message_received_time: Instant::now(),
+            message_history: VecDeque::with_capacity(MESSAGE_HISTORY_SIZE),
             icons: Vec::new(),
             icons_rx,
             notifications_tx,
+            area: Rect::default(),
+            history_pane: None,
         }
     }
 }
@@ -71,6 +82,7 @@ impl Footer {
 
     /// Draws [`Footer`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+        self.area = area;
         self.draw_footer(frame, area, theme);
 
         if self.has_message_to_show()
@@ -81,6 +93,20 @@ impl Footer {
                 .areas(area.inner(Margin::new(2, 0)));
             frame.render_widget(Footer::get_message(&message.text, message.is_error, &theme.colors), area);
         }
+    }
+
+    /// Draws messages history on the bottom of the specified area.
+    pub fn draw_history(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+        let Some(pane) = &mut self.history_pane else {
+            return;
+        };
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Fill(1), Constraint::Length(10)])
+            .split(area);
+
+        pane.draw(frame, layout[1], theme);
     }
 
     fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
@@ -186,6 +212,11 @@ impl Footer {
     fn update_current_message(&mut self) {
         let mut message = None;
         while let Ok(current) = self.messages_rx.try_recv() {
+            if self.message_history.len() >= MESSAGE_HISTORY_SIZE {
+                self.message_history.pop_back();
+            }
+
+            self.message_history.push_front((Instant::now(), current.clone()));
             message = Some(current);
         }
 
@@ -242,5 +273,27 @@ impl Footer {
 
         spans.push(Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
         Line::from(spans)
+    }
+
+    fn show_message_history(&mut self) {
+        let messages: Vec<MessageItem> = self.message_history.iter().map(|(t, n)| MessageItem::from(n, *t)).collect();
+        self.history_pane = Some(BottomPane::new(messages.into()))
+    }
+}
+
+impl Responsive for Footer {
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if let Some(pane) = &mut self.history_pane {
+            if pane.process_event(event) == ResponseEvent::Cancelled {
+                self.history_pane = None;
+            }
+
+            return ResponseEvent::Handled;
+        } else if event.is_in(crate::MouseEventKind::LeftClick, self.area) {
+            self.show_message_history();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
     }
 }

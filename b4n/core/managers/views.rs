@@ -114,6 +114,7 @@ impl ViewsManager {
         }
 
         self.draw_selectors(frame, layout[0]);
+        self.footer.draw_history(frame, layout[0], &self.app_data.borrow().theme);
     }
 
     /// Draws namespace / resource selector located on the left / right of the views.
@@ -154,6 +155,10 @@ impl ViewsManager {
             if result != ResponseEvent::NotHandled {
                 return result;
             }
+        }
+
+        if self.footer.process_event(event) == ResponseEvent::Handled {
+            return ResponseEvent::Handled;
         }
 
         if self.view.is_some() {
