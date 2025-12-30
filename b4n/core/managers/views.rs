@@ -135,7 +135,14 @@ impl ViewsManager {
 
     /// Processes single TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.footer.is_history_visible() {
+        if self.footer.is_message_history_visible() {
+            if self.app_data.has_binding(event, KeyCommand::HistoryOpen)
+                || self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            {
+                self.footer.hide_message_history();
+                return ResponseEvent::Handled;
+            }
+
             return self.footer.process_event(event);
         }
 
@@ -168,6 +175,11 @@ impl ViewsManager {
         };
 
         if result == ResponseEvent::NotHandled {
+            if self.app_data.has_binding(event, KeyCommand::HistoryOpen) {
+                self.footer.show_message_history();
+                return ResponseEvent::Handled;
+            }
+
             return self.footer.process_event(event);
         }
 

@@ -81,8 +81,23 @@ impl Footer {
     }
 
     /// Returns `true` if footer is showing history pane at the moment.
-    pub fn is_history_visible(&self) -> bool {
+    pub fn is_message_history_visible(&self) -> bool {
         self.history_pane.is_some()
+    }
+
+    /// Shows history pane.
+    pub fn show_message_history(&mut self) {
+        if self.history_pane.is_none() {
+            let messages: Vec<MessageItem> = self.message_history.iter().map(|(t, n)| MessageItem::from(n, *t)).collect();
+            self.history_pane = Some(BottomPane::new(messages.into()))
+        }
+    }
+
+    /// Hides history pane.
+    pub fn hide_message_history(&mut self) {
+        if self.history_pane.is_some() {
+            self.history_pane = None;
+        }
     }
 
     /// Draws [`Footer`] on the provided frame area.
@@ -271,11 +286,6 @@ impl Footer {
 
         spans.push(Span::styled(" ".repeat(width.saturating_sub(total)), &colors.footer.text));
         Line::from(spans)
-    }
-
-    fn show_message_history(&mut self) {
-        let messages: Vec<MessageItem> = self.message_history.iter().map(|(t, n)| MessageItem::from(n, *t)).collect();
-        self.history_pane = Some(BottomPane::new(messages.into()))
     }
 }
 
