@@ -302,10 +302,12 @@ impl View for LogsView {
 
         if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
             self.navigate_match(true);
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
             self.navigate_match(false);
+            return ResponseEvent::Handled;
         }
 
         if let TuiEvent::Key(key) = event
@@ -314,11 +316,13 @@ impl View for LogsView {
         {
             self.update_bound_to_bottom();
             self.logs.process_event(event);
+            return ResponseEvent::Handled;
         } else if self.logs.process_event(event) == ResponseEvent::Handled {
             self.update_bound_to_bottom();
+            return ResponseEvent::Handled;
         }
 
-        ResponseEvent::Handled
+        ResponseEvent::NotHandled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

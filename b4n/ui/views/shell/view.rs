@@ -190,7 +190,7 @@ impl View for ShellView {
             return match mouse.kind {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
                 MouseEventKind::ScrollDown => self.set_scrollback(1, false),
-                _ => ResponseEvent::Handled,
+                _ => ResponseEvent::NotHandled,
             };
         }
 

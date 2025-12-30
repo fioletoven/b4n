@@ -80,6 +80,11 @@ impl Footer {
             .split(area)
     }
 
+    /// Returns `true` if footer is showing history pane at the moment.
+    pub fn is_history_visible(&self) -> bool {
+        self.history_pane.is_some()
+    }
+
     /// Draws [`Footer`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;

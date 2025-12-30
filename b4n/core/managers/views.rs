@@ -135,6 +135,10 @@ impl ViewsManager {
 
     /// Processes single TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.footer.is_history_visible() {
+            return self.footer.process_event(event);
+        }
+
         if self.ns_selector.is_visible {
             let result = self.ns_selector.process_event(event);
             if let Some(view) = &mut self.view {
@@ -157,20 +161,22 @@ impl ViewsManager {
             }
         }
 
-        if self.footer.process_event(event) == ResponseEvent::Handled {
-            return ResponseEvent::Handled;
-        }
-
-        if self.view.is_some() {
+        let result = if self.view.is_some() {
             self.process_view_event(event)
         } else {
             self.process_resources_event(event)
+        };
+
+        if result == ResponseEvent::NotHandled {
+            return self.footer.process_event(event);
         }
+
+        result
     }
 
     fn process_view_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let Some(view) = &mut self.view else {
-            return ResponseEvent::Handled;
+            return ResponseEvent::NotHandled;
         };
 
         if self.app_data.borrow().is_connected {
@@ -196,6 +202,7 @@ impl ViewsManager {
         let response = view.process_event(event);
         if response == ResponseEvent::Cancelled {
             self.view = None;
+            return ResponseEvent::Handled;
         }
 
         response
