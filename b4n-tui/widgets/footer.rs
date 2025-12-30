@@ -97,16 +97,9 @@ impl Footer {
 
     /// Draws messages history on the bottom of the specified area.
     pub fn draw_history(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
-        let Some(pane) = &mut self.history_pane else {
-            return;
+        if let Some(pane) = &mut self.history_pane {
+            pane.draw(frame, area, theme);
         };
-
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Fill(1), Constraint::Length(10)])
-            .split(area);
-
-        pane.draw(frame, layout[1], theme);
     }
 
     fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
