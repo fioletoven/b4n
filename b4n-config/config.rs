@@ -77,6 +77,7 @@ fn default_aliases() -> HashMap<String, String> {
         ("clusterroles", "cr"),
         ("daemonsets", "ds,dms"),
         ("namespaces", "ns"),
+        ("networkpolicies", "np"),
         ("persistentvolumeclaims", "pvc"),
         ("persistentvolumes", "pv"),
         ("pods", "pp"),

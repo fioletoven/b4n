@@ -22,6 +22,7 @@ pub mod ingress;
 pub mod job;
 pub mod lease;
 pub mod namespace;
+pub mod network_policy;
 pub mod node;
 pub mod node_metrics;
 pub mod persistent_volume;
@@ -59,6 +60,7 @@ pub fn get_resource_data(
         "Job" => job::data(object),
         "Lease" => lease::data(object),
         "Namespace" => namespace::data(object),
+        "NetworkPolicy" => network_policy::data(object),
         "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
         "PersistentVolume" => persistent_volume::data(object),
@@ -93,6 +95,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "Job" => job::header(),
         "Lease" => lease::header(),
         "Namespace" => namespace::header(),
+        "NetworkPolicy" => network_policy::header(),
         "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
         "PersistentVolume" => persistent_volume::header(),

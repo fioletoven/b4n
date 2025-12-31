@@ -1,10 +1,8 @@
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use crate::kube::resources::{ResourceData, ResourceValue};
 
