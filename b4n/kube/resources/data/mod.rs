@@ -16,6 +16,7 @@ pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
 pub mod deployment;
+pub mod endpoints;
 pub mod event;
 pub mod ingress;
 pub mod job;
@@ -52,6 +53,7 @@ pub fn get_resource_data(
         "CustomResourceDefinition" => crd::data(object),
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
+        "Endpoints" => endpoints::data(object),
         "Event" => event::data(object, is_filtered),
         "Ingress" => ingress::data(object),
         "Job" => job::data(object),
@@ -85,6 +87,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "CustomResourceDefinition" => crd::header(),
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
+        "Endpoints" => endpoints::header(),
         "Event" => event::header(is_filtered),
         "Ingress" => ingress::header(),
         "Job" => job::header(),

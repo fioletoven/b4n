@@ -6,7 +6,7 @@ use std::{marker::PhantomData, pin::Pin, task::Poll};
 use tokio::time::{Instant, Sleep, sleep};
 
 /// Based on https://github.com/kube-rs/kube/blob/2.0.1/kube-runtime/src/utils/stream_backoff.rs
-/// If fixes the backoff reset on receiving Poll::Ready(Some(Ok(Event::Init))) which is sent also after errors.
+/// It fixes the backoff reset on receiving Poll::Ready(Some(Ok(Event::Init))) which is sent also after errors.
 ///
 /// Applies a [`Backoff`] policy to a [`Stream`]
 ///
