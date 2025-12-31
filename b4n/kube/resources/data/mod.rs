@@ -32,6 +32,7 @@ pub mod pod_metrics;
 pub mod replica_set;
 pub mod secret;
 pub mod service;
+pub mod service_account;
 pub mod stateful_set;
 pub mod storage_class;
 
@@ -70,6 +71,7 @@ pub fn get_resource_data(
         "ReplicaSet" => replica_set::data(object),
         "Secret" => secret::data(object),
         "Service" => service::data(object),
+        "ServiceAccount" => service_account::data(object),
         "StatefulSet" => stateful_set::data(object),
         "StorageClass" => storage_class::data(object),
 
@@ -105,6 +107,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "ReplicaSet" => replica_set::header(),
         "Secret" => secret::header(),
         "Service" => service::header(),
+        "ServiceAccount" => service_account::header(),
         "StatefulSet" => stateful_set::header(),
         "StorageClass" => storage_class::header(),
 
