@@ -1,12 +1,10 @@
 use b4n_common::NotificationSink;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use kube::Api;
 use kube::api::{ApiResource, DynamicObject, ListParams, ObjectList};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
-use kube::runtime::WatchStreamExt;
-use kube::runtime::watcher::{self, Error, Event, watcher};
+use kube::runtime::watcher::{self, DefaultBackoff, Error, Event, watcher};
 use std::collections::HashMap;
-use std::pin::pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -20,6 +18,7 @@ use uuid::Uuid;
 
 use crate::client::KubernetesClient;
 use crate::crds::CrdColumns;
+use crate::stream_backoff::StreamBackoff;
 use crate::utils::get_object_uid;
 use crate::{CONTAINERS, Kind, ResourceRef};
 
@@ -308,8 +307,8 @@ impl BgObserver {
                     if let Some(filter) = labels.as_ref() {
                         config = config.labels(filter);
                     }
-                    let watch = watcher(client.clone(), config).default_backoff();
-                    let mut watch = pin!(watch);
+
+                    let mut watch = StreamBackoff::new(watcher(client.clone(), config), DefaultBackoff::default()).boxed();
 
                     while !cancellation_token.is_cancelled() {
                         tokio::select! {
