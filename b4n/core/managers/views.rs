@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_common::{IconKind, NotificationSink};
+use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, PropagationPolicy, ResourceRef};
 use b4n_tasks::commands::{
@@ -364,7 +364,7 @@ impl ViewsManager {
         self.resources.deselect_all();
         self.footer
             .transmitter()
-            .show_info(" Selected resources marked for deletion…", 2_000);
+            .show_info(" Selected resources marked for deletion…", 3_000);
     }
 
     /// Displays a list of available contexts to choose from.
@@ -445,7 +445,7 @@ impl ViewsManager {
         if let Err(error) = result {
             let msg = format!("{error_msg} error: {error}");
             tracing::warn!("{}", msg);
-            self.footer.transmitter().show_error(msg, 0);
+            self.footer.transmitter().show_error(msg, DEFAULT_ERROR_DURATION);
             if close {
                 self.view = None;
             }

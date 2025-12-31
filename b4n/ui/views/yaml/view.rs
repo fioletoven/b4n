@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink, sanitize_and_split};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, sanitize_and_split};
 use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
@@ -109,14 +109,14 @@ impl YamlView {
             && clipboard.set_text(text).is_ok()
         {
             if self.yaml.has_selection() {
-                self.footer.show_info(" Selection copied to clipboard…", 1_500);
+                self.footer.show_info(" Selection copied to clipboard…", 3_000);
             } else if is_current_line {
-                self.footer.show_info(" Line copied to clipboard…", 1_500);
+                self.footer.show_info(" Line copied to clipboard…", 3_000);
             } else {
-                self.footer.show_info(" YAML content copied to clipboard…", 1_500);
+                self.footer.show_info(" YAML content copied to clipboard…", 3_000);
             }
         } else {
-            self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
+            self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
         }
     }
 
@@ -227,7 +227,7 @@ impl YamlView {
         self.footer
             .set_text("900_yaml_search", self.yaml.get_footer_text(), IconKind::Default);
         if let Some(message) = self.yaml.get_footer_message(forward) {
-            self.footer.show_info(message, 0);
+            self.footer.show_info(message, DEFAULT_MESSAGE_DURATION);
         }
     }
 
@@ -482,11 +482,11 @@ impl View for YamlView {
             },
             CommandResult::SetNewResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' created successfully…"), 2_000);
+                self.footer.show_info(format!(" '{name}' created successfully…"), 3_000);
             },
             CommandResult::SetResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 2_000);
+                self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 3_000);
             },
             _ => (),
         }

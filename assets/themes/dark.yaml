@@ -36,7 +36,7 @@ filter: &filter
 # theme itself
 colors:
   text: text_light:no_bg
-  cursor: bg_dark:fg_dark
+  cursor: fg_light:bg_light
   header:
     text: fg_dark:light_yellow:bg_dark
     context: white:#D80060
@@ -52,6 +52,7 @@ colors:
     trail: blue:yellow:bg_dark
     info: light_green:bg_dark
     error: light_red:bg_dark
+    hint: fg_light:bg_light
   filter: *filter
   search: *filter
   command_palette: *filter

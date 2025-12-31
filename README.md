@@ -67,6 +67,7 @@ The following features are planned for future development:
 | Show command palette                     | `:`, `>`        | For example, entering `:q`↲ quits the application           |
 | Show events for the highlighted resource | `e`             |                                                             |
 | Show filter / search input               | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show footer messages history pane        | `h`             | Also works left mouse button click on the footer            |
 | Show logs for the highlighted container  | `l`             | Press `p` to display previous logs for the container        |
 | Show namespaces selector                 | `←`             | To select `all` quickly press `←` again                     |
 | Show resources selector                  | `→`             | To select the first item quickly press `→` again            |

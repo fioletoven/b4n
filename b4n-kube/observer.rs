@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use futures::{StreamExt, TryStreamExt};
 use kube::Api;
 use kube::api::{ApiResource, DynamicObject, ListParams, ObjectList};
@@ -129,7 +129,7 @@ pub struct BgObserver {
     cancellation_token: Option<CancellationToken>,
     context_tx: ObserverResultSender,
     context_rx: ObserverResultReceiver,
-    footer_tx: NotificationSink,
+    footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
@@ -138,7 +138,7 @@ pub struct BgObserver {
 
 impl BgObserver {
     /// Creates new [`BgObserver`] instance.
-    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
+    pub fn new(runtime: Handle, footer_tx: Option<NotificationSink>) -> Self {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
@@ -334,6 +334,7 @@ impl BgObserver {
             let has_access = Arc::clone(&self.has_access);
             let stop_on_access_error = self.stop_on_access_error;
             let context_tx = self.context_tx.clone();
+            let footer_tx = self.footer_tx.clone();
             let fields = build_fields_filter(&self.resource);
             let labels = build_labels_filter(&self.resource);
             let mut results = None;
@@ -366,7 +367,11 @@ impl BgObserver {
                                 break;
                             }
 
-                            warn!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
+                            let msg = format!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
+                            warn!("{}", msg);
+                            if let Some(footer_tx) = &footer_tx {
+                                footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+                            }
                         },
                     }
 
@@ -442,7 +447,7 @@ enum ProcessorResult {
 struct EventsProcessor {
     init_data: InitData,
     context_tx: ObserverResultSender,
-    footer_tx: NotificationSink,
+    footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
@@ -488,7 +493,9 @@ impl EventsProcessor {
 
                 let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
                 warn!("{}", msg);
-                self.footer_tx.show_error(msg, 0);
+                if let Some(footer_tx) = &self.footer_tx {
+                    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+                }
 
                 match error {
                     Error::WatchStartFailed(_) | Error::WatchFailed(_) => {

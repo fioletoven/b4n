@@ -106,7 +106,9 @@ impl Footer {
         self.area = area;
         self.draw_footer(frame, area, theme);
 
-        if self.has_message_to_show()
+        self.update_current_message();
+        if !self.is_message_history_visible()
+            && self.has_message_to_show()
             && let Some(message) = &self.message
         {
             let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
@@ -158,7 +160,6 @@ impl Footer {
 
     /// Returns `true` if there is a message to show.
     fn has_message_to_show(&mut self) -> bool {
-        self.update_current_message();
         if let Some(message) = &self.message {
             if self.message_received_time.elapsed().as_millis() <= u128::from(message.duration) {
                 true
@@ -237,8 +238,10 @@ impl Footer {
         }
 
         if message.is_some() {
-            self.message = message;
-            self.message_received_time = Instant::now();
+            if message.as_ref().is_some_and(|m| m.duration > 0) {
+                self.message = message;
+                self.message_received_time = Instant::now();
+            }
 
             if self.history_pane.is_some() {
                 let new_messages = self.get_history_messages();

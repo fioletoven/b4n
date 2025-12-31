@@ -1,5 +1,7 @@
 pub use self::backoff::ResettableBackoff;
-pub use self::notifications::{Icon, IconAction, IconKind, Notification, NotificationSink};
+pub use self::notifications::{
+    DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, Icon, IconAction, IconKind, Notification, NotificationSink,
+};
 pub use self::tracker::StateChangeTracker;
 pub use self::utils::*;
 

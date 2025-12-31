@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink, slice_from, slice_to, substring};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, slice_from, slice_to, substring};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
@@ -126,12 +126,12 @@ impl LogsView {
                     .is_ok()
             {
                 if self.logs.has_selection() {
-                    self.footer.show_info(" Selection copied to clipboard…", 1_500);
+                    self.footer.show_info(" Selection copied to clipboard…", 3_000);
                 } else {
-                    self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                    self.footer.show_info(" Container logs copied to clipboard…", 3_000);
                 }
             } else {
-                self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
+                self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
             }
         }
     }
@@ -159,7 +159,7 @@ impl LogsView {
         self.footer
             .set_text("900_logs_search", self.logs.get_footer_text(), IconKind::Default);
         if let Some(message) = self.logs.get_footer_message(forward) {
-            self.footer.show_info(message, 0);
+            self.footer.show_info(message, DEFAULT_MESSAGE_DURATION);
         }
     }
 
