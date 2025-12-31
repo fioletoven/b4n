@@ -32,7 +32,7 @@ impl<T: Table> List<T> {
             .min(MAX_ITEMS_ON_SCREEN)
     }
 
-    /// Returns `true` if anything on the List list is highlighted.
+    /// Returns `true` if anything on the list is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
         self.items.get_highlighted_item_name().is_some()
     }

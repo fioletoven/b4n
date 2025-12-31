@@ -5,6 +5,7 @@
 ### Features
 
 - add footer messages history pane
+- add columns for Endpoints, NetworkPolicy and ServiceAccount kinds
 
 ### Bug fixes
 

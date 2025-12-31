@@ -17,7 +17,7 @@ impl MessageItem {
     /// Creates new [`MessageItem`] instance from the [`Notification`] and it's time.
     pub fn from(notification: &Notification, time: Instant, id: usize) -> Self {
         Self {
-            uid: format!("_{}_", id),
+            uid: format!("_{id}_"),
             group: "notification",
             message: notification.text.clone(),
             time,

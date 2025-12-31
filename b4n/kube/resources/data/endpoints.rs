@@ -55,7 +55,7 @@ fn get_endpoints(subsets: Option<&Vec<Value>>) -> Option<String> {
         endpoints.sort_by_key(|(ip, _)| *ip);
 
         for (i, (address, ports)) in endpoints.iter().enumerate() {
-            let mut ports = ports.iter().map(|p| p.to_string()).collect::<Vec<_>>();
+            let mut ports = ports.iter().map(ToString::to_string).collect::<Vec<_>>();
             ports.sort();
 
             if i > 0 {

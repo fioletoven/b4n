@@ -147,7 +147,7 @@ pub enum HighlightResourceError {
 
     /// Cannot send syntax highlight request to the highlighter thread.
     #[error("cannot send syntax highlight request")]
-    CannotSendRequest(#[from] tokio::sync::mpsc::error::SendError<HighlightRequest>),
+    CannotSendRequest(#[from] mpsc::error::SendError<HighlightRequest>),
 
     /// Cannot receive syntax highlight request from the highlighter thread.
     #[error("cannot receive syntax highlight request")]

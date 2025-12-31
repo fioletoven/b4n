@@ -25,7 +25,7 @@ pub fn header() -> Header {
 fn get_selector(labels: Option<&Map<String, Value>>) -> Option<String> {
     let labels = labels?
         .iter()
-        .filter_map(|(k, v)| v.as_str().map(|v| format!("{}={}", k, v)))
+        .filter_map(|(k, v)| v.as_str().map(|v| format!("{k}={v}")))
         .collect::<Vec<_>>();
 
     Some(labels.join(","))

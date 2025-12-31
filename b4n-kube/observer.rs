@@ -534,10 +534,10 @@ impl EventsProcessor {
 
 fn is_access_error(error: &watcher::Error) -> bool {
     match error {
-        watcher::Error::InitialListFailed(kube::Error::Api(response))
-        | watcher::Error::WatchStartFailed(kube::Error::Api(response))
-        | watcher::Error::WatchError(response)
-        | watcher::Error::WatchFailed(kube::Error::Api(response)) => response.code == 403,
+        Error::InitialListFailed(kube::Error::Api(response))
+        | Error::WatchStartFailed(kube::Error::Api(response))
+        | Error::WatchError(response)
+        | Error::WatchFailed(kube::Error::Api(response)) => response.code == 403,
         _ => false,
     }
 }
