@@ -90,7 +90,7 @@ impl Footer {
     /// Shows history pane.
     pub fn show_message_history(&mut self) {
         if self.history_pane.is_none() {
-            self.history_pane = Some(BottomPane::new(self.get_history_messages().into()))
+            self.history_pane = Some(BottomPane::new(self.get_history_messages().into()));
         }
     }
 
@@ -122,7 +122,7 @@ impl Footer {
     pub fn draw_history(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         if let Some(pane) = &mut self.history_pane {
             pane.draw(frame, area, theme);
-        };
+        }
     }
 
     fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {

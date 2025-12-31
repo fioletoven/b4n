@@ -1,10 +1,11 @@
 # Change Log
 
-## WIP
+## 0.3.7 - 2025-12-31
 
 ### Features
 
 - add footer messages history pane
+- add columns for Endpoints, NetworkPolicy and ServiceAccount kinds
 
 ### Bug fixes
 

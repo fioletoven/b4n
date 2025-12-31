@@ -16,11 +16,13 @@ pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
 pub mod deployment;
+pub mod endpoints;
 pub mod event;
 pub mod ingress;
 pub mod job;
 pub mod lease;
 pub mod namespace;
+pub mod network_policy;
 pub mod node;
 pub mod node_metrics;
 pub mod persistent_volume;
@@ -30,6 +32,7 @@ pub mod pod_metrics;
 pub mod replica_set;
 pub mod secret;
 pub mod service;
+pub mod service_account;
 pub mod stateful_set;
 pub mod storage_class;
 
@@ -52,11 +55,13 @@ pub fn get_resource_data(
         "CustomResourceDefinition" => crd::data(object),
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
+        "Endpoints" => endpoints::data(object),
         "Event" => event::data(object, is_filtered),
         "Ingress" => ingress::data(object),
         "Job" => job::data(object),
         "Lease" => lease::data(object),
         "Namespace" => namespace::data(object),
+        "NetworkPolicy" => network_policy::data(object),
         "Node" => node::data(object, stats),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::data(object),
         "PersistentVolume" => persistent_volume::data(object),
@@ -66,6 +71,7 @@ pub fn get_resource_data(
         "ReplicaSet" => replica_set::data(object),
         "Secret" => secret::data(object),
         "Service" => service::data(object),
+        "ServiceAccount" => service_account::data(object),
         "StatefulSet" => stateful_set::data(object),
         "StorageClass" => storage_class::data(object),
 
@@ -85,11 +91,13 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "CustomResourceDefinition" => crd::header(),
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
+        "Endpoints" => endpoints::header(),
         "Event" => event::header(is_filtered),
         "Ingress" => ingress::header(),
         "Job" => job::header(),
         "Lease" => lease::header(),
         "Namespace" => namespace::header(),
+        "NetworkPolicy" => network_policy::header(),
         "Node" => node::header(has_metrics),
         "NodeMetrics" if group == "metrics.k8s.io" => node_metrics::header(),
         "PersistentVolume" => persistent_volume::header(),
@@ -99,6 +107,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "ReplicaSet" => replica_set::header(),
         "Secret" => secret::header(),
         "Service" => service::header(),
+        "ServiceAccount" => service_account::header(),
         "StatefulSet" => stateful_set::header(),
         "StorageClass" => storage_class::header(),
 

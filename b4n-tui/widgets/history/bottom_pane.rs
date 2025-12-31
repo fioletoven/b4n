@@ -20,7 +20,7 @@ pub struct BottomPane {
 }
 
 impl BottomPane {
-    /// Creates new [`MessagesList`] instance.
+    /// Creates new [`BottomPane`] instance.
     pub fn new(messages: MessagesList) -> Self {
         Self {
             history: List::new(messages),
