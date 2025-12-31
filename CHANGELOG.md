@@ -2,9 +2,18 @@
 
 ## WIP
 
+### Features
+
+- add footer messages history pane
+
 ### Bug fixes
 
 - fix `b4n` behaviour for restricted users
+- fix backoff mechanism for watched resources
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.3.6 - 2025-12-26
 

@@ -51,6 +51,7 @@ pub enum KeyCommand {
     ShellEscape,
     PortForwardsOpen,
     PortForwardsCreate,
+    HistoryOpen,
 }
 
 impl Display for KeyCommand {
@@ -89,6 +90,7 @@ impl Display for KeyCommand {
             KeyCommand::ShellEscape => f.write_str("shell.escape")?,
             KeyCommand::PortForwardsOpen => f.write_str("port-forwards.open")?,
             KeyCommand::PortForwardsCreate => f.write_str("port-forwards.create")?,
+            KeyCommand::HistoryOpen => f.write_str("history.open")?,
         }
         Ok(())
     }
@@ -132,6 +134,7 @@ impl FromStr for KeyCommand {
             "shell.escape" => Ok(KeyCommand::ShellEscape),
             "port-forwards.open" => Ok(KeyCommand::PortForwardsOpen),
             "port-forwards.create" => Ok(KeyCommand::PortForwardsCreate),
+            "history.open" => Ok(KeyCommand::HistoryOpen),
             _ => Err(KeyCommandError::UnknownCommand),
         }
     }

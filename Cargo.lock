@@ -234,6 +234,7 @@ dependencies = [
  "futures",
  "k8s-openapi",
  "kube",
+ "pin-project",
  "serde_yaml",
  "thiserror 2.0.17",
  "tokio",

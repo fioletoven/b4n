@@ -1,6 +1,5 @@
-use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, FilterableList, ScrollableList};
-use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
+use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
 use std::collections::HashMap;
 
@@ -123,15 +122,5 @@ impl Table for PatternsList {
         } else {
             self.list.get_paged_names(width)
         }
-    }
-
-    /// Not implemented for [`PatternsList`].
-    fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
-        None
-    }
-
-    /// Not implemented for [`PatternsList`].
-    fn get_header(&mut self, _view: ViewType, _width: usize) -> &str {
-        "n/a"
     }
 }

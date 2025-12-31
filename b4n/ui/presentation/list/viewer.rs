@@ -142,6 +142,8 @@ impl<T: Table> Responsive for ListViewer<T> {
                 } else {
                     self.table.unhighlight_item();
                 }
+
+                return ResponseEvent::Handled;
             } else if Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
                 .contains(Position::new(mouse.column, mouse.row))
             {
@@ -154,9 +156,9 @@ impl<T: Table> Responsive for ListViewer<T> {
 
                     self.table.toggle_sort(column_no);
                 }
-            }
 
-            return ResponseEvent::Handled;
+                return ResponseEvent::Handled;
+            }
         }
 
         ResponseEvent::NotHandled

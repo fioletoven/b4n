@@ -1,12 +1,11 @@
-use b4n_config::{themes::SelectColors, themes::TextColors};
+use b4n_config::themes::SelectColors;
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
-use ratatui::widgets::Widget;
 use std::rc::Rc;
 
 use crate::MouseEventKind;
-use crate::widgets::{ErrorHighlightMode, Input};
+use crate::widgets::{ErrorHighlightMode, Input, ListWidget};
 use crate::{ResponseEvent, Responsive, TuiEvent, table::Table};
 
 const MAX_ITEMS_ON_SCREEN: u16 = 25;
@@ -150,14 +149,11 @@ impl<T: Table> Select<T> {
         self.area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(self.area.height);
         if let Some(list) = self.items.get_paged_names(usize::from(self.area.width)) {
-            frame.render_widget(
-                &mut ListWidget {
-                    list,
-                    normal: &self.colors.normal,
-                    highlighted: &self.colors.normal_hl,
-                },
-                self.area,
-            );
+            let list = list
+                .into_iter()
+                .map(|(s, is_hl)| (s, if is_hl { self.colors.normal_hl } else { self.colors.normal }))
+                .collect::<Vec<_>>();
+            frame.render_widget(&mut ListWidget { list }, self.area);
         }
 
         if draw_filter {
@@ -235,45 +231,4 @@ fn get_layout(area: Rect, is_filter_shown: bool) -> Rc<[Rect]> {
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(area)
-}
-
-/// Widget that renders all visible rows in select.\
-/// **Note** that it removes `[` and `]` characters from the output dimming the inside text.
-struct ListWidget<'a> {
-    pub list: Vec<(String, bool)>,
-    pub normal: &'a TextColors,
-    pub highlighted: &'a TextColors,
-}
-
-impl Widget for &mut ListWidget<'_> {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        let x = area.left();
-        let y = area.top();
-        for (i, row) in self.list.iter().enumerate() {
-            let mut is_dimmed = false;
-            let mut skipped = 0;
-            for (j, char) in row.0.chars().enumerate() {
-                if !is_dimmed && char == '[' {
-                    is_dimmed = true;
-                    skipped += 1;
-                    continue;
-                } else if is_dimmed && char == ']' {
-                    is_dimmed = false;
-                    skipped += 1;
-                    continue;
-                }
-
-                let colors = if row.1 { self.highlighted } else { self.normal };
-                let buf = &mut buf[(x + j as u16 - skipped, y + i as u16)];
-                if is_dimmed {
-                    buf.set_char(char).set_fg(colors.dim).set_bg(colors.bg);
-                } else {
-                    buf.set_char(char).set_style(colors);
-                }
-            }
-        }
-    }
 }

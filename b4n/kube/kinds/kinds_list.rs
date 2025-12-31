@@ -1,4 +1,3 @@
-use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
@@ -114,11 +113,6 @@ impl Table for KindsList {
 
             result
         })
-    }
-
-    /// Not implemented for [`KindsList`].
-    fn get_paged_items(&self, _theme: &Theme, _view: ViewType, _width: usize) -> Option<Vec<(String, TextColors)>> {
-        None
     }
 
     fn get_header(&mut self, _view: ViewType, width: usize) -> &str {

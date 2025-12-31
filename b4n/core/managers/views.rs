@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_common::{IconKind, NotificationSink};
+use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, PropagationPolicy, ResourceRef};
 use b4n_tasks::commands::{
@@ -114,6 +114,7 @@ impl ViewsManager {
         }
 
         self.draw_selectors(frame, layout[0]);
+        self.footer.draw_history(frame, layout[0], &self.app_data.borrow().theme);
     }
 
     /// Draws namespace / resource selector located on the left / right of the views.
@@ -134,6 +135,17 @@ impl ViewsManager {
 
     /// Processes single TUI event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.footer.is_message_history_visible() {
+            if self.app_data.has_binding(event, KeyCommand::HistoryOpen)
+                || self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            {
+                self.footer.hide_message_history();
+                return ResponseEvent::Handled;
+            }
+
+            return self.footer.process_event(event);
+        }
+
         if self.ns_selector.is_visible {
             let result = self.ns_selector.process_event(event);
             if let Some(view) = &mut self.view {
@@ -156,16 +168,27 @@ impl ViewsManager {
             }
         }
 
-        if self.view.is_some() {
+        let result = if self.view.is_some() {
             self.process_view_event(event)
         } else {
             self.process_resources_event(event)
+        };
+
+        if result == ResponseEvent::NotHandled {
+            if self.app_data.has_binding(event, KeyCommand::HistoryOpen) {
+                self.footer.show_message_history();
+                return ResponseEvent::Handled;
+            }
+
+            return self.footer.process_event(event);
         }
+
+        result
     }
 
     fn process_view_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let Some(view) = &mut self.view else {
-            return ResponseEvent::Handled;
+            return ResponseEvent::NotHandled;
         };
 
         if self.app_data.borrow().is_connected {
@@ -191,6 +214,7 @@ impl ViewsManager {
         let response = view.process_event(event);
         if response == ResponseEvent::Cancelled {
             self.view = None;
+            return ResponseEvent::Handled;
         }
 
         response
@@ -340,7 +364,7 @@ impl ViewsManager {
         self.resources.deselect_all();
         self.footer
             .transmitter()
-            .show_info(" Selected resources marked for deletion…", 2_000);
+            .show_info(" Selected resources marked for deletion…", 3_000);
     }
 
     /// Displays a list of available contexts to choose from.
@@ -421,7 +445,7 @@ impl ViewsManager {
         if let Err(error) = result {
             let msg = format!("{error_msg} error: {error}");
             tracing::warn!("{}", msg);
-            self.footer.transmitter().show_error(msg, 0);
+            self.footer.transmitter().show_error(msg, DEFAULT_ERROR_DURATION);
             if close {
                 self.view = None;
             }

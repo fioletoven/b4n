@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_common::IconKind;
+use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
@@ -146,7 +146,9 @@ impl App {
                     }
                 },
                 Err(error) => {
-                    self.views_manager.footer().show_error(error.to_string(), 0);
+                    self.views_manager
+                        .footer()
+                        .show_error(error.to_string(), DEFAULT_ERROR_DURATION);
                 },
             }
         }
@@ -414,7 +416,7 @@ impl App {
             let _ = self.theme_watcher.change_file(self.data.borrow().config.theme_path());
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
-            self.views_manager.footer().show_info(msg, 0);
+            self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
         }
     }
 

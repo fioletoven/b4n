@@ -57,6 +57,7 @@ impl Default for KeyBindings {
             .with("Esc", KeyCommand::ShellEscape)
             .with("Ctrl+F", KeyCommand::PortForwardsOpen)
             .with("F", KeyCommand::PortForwardsCreate)
+            .with("H", KeyCommand::HistoryOpen)
     }
 }
 

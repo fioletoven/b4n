@@ -234,9 +234,10 @@ impl ResourcesView {
                 || event.is_in(MouseEventKind::RightClick, self.table.list.area)
             {
                 self.show_command_palette();
+                return ResponseEvent::Handled;
             }
 
-            return ResponseEvent::Handled;
+            return ResponseEvent::NotHandled;
         }
 
         if self.filter.is_visible {

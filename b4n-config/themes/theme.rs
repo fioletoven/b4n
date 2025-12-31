@@ -10,7 +10,7 @@ use crate::themes::{LineColors, TextColors, to_syntect_color};
 use crate::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
 /// Represents header colors.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct HeaderColors {
     pub text: TextColors,
     pub context: TextColors,
@@ -23,13 +23,42 @@ pub struct HeaderColors {
     pub previous: TextColors,
 }
 
+impl Default for HeaderColors {
+    fn default() -> Self {
+        Self {
+            text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
+            context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
+            namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
+            resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
+            name: TextColors::bg(Color::DarkGray, Color::Rgb(229, 233, 240)),
+            count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
+            info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
+            disconnected: TextColors::bg(Color::White, Color::LightRed),
+            previous: TextColors::new(Color::DarkGray),
+        }
+    }
+}
+
 /// Represents footer colors.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FooterColors {
     pub text: TextColors,
     pub trail: TextColors,
     pub info: TextColors,
     pub error: TextColors,
+    pub hint: TextColors,
+}
+
+impl Default for FooterColors {
+    fn default() -> Self {
+        Self {
+            text: TextColors::bg(Color::Gray, Color::DarkGray),
+            trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
+            info: TextColors::bg(Color::LightGreen, Color::DarkGray),
+            error: TextColors::bg(Color::LightRed, Color::DarkGray),
+            hint: TextColors::bg(Color::DarkGray, Color::Gray),
+        }
+    }
 }
 
 /// Represents filter colors.
@@ -59,7 +88,7 @@ pub struct ControlColors {
 }
 
 /// Represents colors for modal dialogs.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ModalColors {
     pub text: TextColors,
     pub selector: SelectColors,
@@ -67,6 +96,31 @@ pub struct ModalColors {
     pub btn_accent: ControlColors,
     pub btn_delete: ControlColors,
     pub btn_cancel: ControlColors,
+}
+
+impl Default for ModalColors {
+    fn default() -> Self {
+        Self {
+            text: TextColors::bg(Color::Gray, Color::DarkGray),
+            selector: SelectColors::default(),
+            checkbox: ControlColors {
+                normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
+            },
+            btn_accent: ControlColors {
+                normal: TextColors::bg(Color::White, Color::DarkGray),
+                focused: TextColors::bg(Color::White, Color::LightBlue),
+            },
+            btn_delete: ControlColors {
+                normal: TextColors::bg(Color::White, Color::DarkGray),
+                focused: TextColors::bg(Color::White, Color::LightRed),
+            },
+            btn_cancel: ControlColors {
+                normal: TextColors::bg(Color::White, Color::DarkGray),
+                focused: TextColors::bg(Color::White, Color::LightGreen),
+            },
+        }
+    }
 }
 
 /// Represents colors for selector widget.
@@ -164,23 +218,8 @@ impl Default for Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
                 cursor: TextColors::bg(Color::DarkGray, Color::Gray),
-                header: HeaderColors {
-                    text: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
-                    context: TextColors::bg(Color::White, Color::Rgb(216, 0, 96)),
-                    namespace: TextColors::bg(Color::DarkGray, Color::Rgb(253, 202, 79)),
-                    resource: TextColors::bg(Color::DarkGray, Color::Rgb(92, 166, 227)),
-                    name: TextColors::bg(Color::DarkGray, Color::Rgb(229, 233, 240)),
-                    count: TextColors::bg(Color::DarkGray, Color::Rgb(170, 217, 46)),
-                    info: TextColors::bg(Color::White, Color::Rgb(153, 113, 195)),
-                    disconnected: TextColors::bg(Color::White, Color::LightRed),
-                    previous: TextColors::new(Color::DarkGray),
-                },
-                footer: FooterColors {
-                    text: TextColors::bg(Color::Gray, Color::DarkGray),
-                    trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
-                    info: TextColors::bg(Color::LightGreen, Color::DarkGray),
-                    error: TextColors::bg(Color::LightRed, Color::DarkGray),
-                },
+                header: HeaderColors::default(),
+                footer: FooterColors::default(),
                 filter: SelectColors::default(),
                 search: SelectColors::default(),
                 command_palette: SelectColors::default(),
@@ -195,26 +234,7 @@ impl Default for Theme {
                     cursor: None,
                 },
                 mouse_menu: SelectColors::default(),
-                modal: ModalColors {
-                    text: TextColors::bg(Color::Gray, Color::DarkGray),
-                    selector: SelectColors::default(),
-                    checkbox: ControlColors {
-                        normal: TextColors::bg(Color::Gray, Color::DarkGray),
-                        focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
-                    },
-                    btn_accent: ControlColors {
-                        normal: TextColors::bg(Color::White, Color::DarkGray),
-                        focused: TextColors::bg(Color::White, Color::LightBlue),
-                    },
-                    btn_delete: ControlColors {
-                        normal: TextColors::bg(Color::White, Color::DarkGray),
-                        focused: TextColors::bg(Color::White, Color::LightRed),
-                    },
-                    btn_cancel: ControlColors {
-                        normal: TextColors::bg(Color::White, Color::DarkGray),
-                        focused: TextColors::bg(Color::White, Color::LightGreen),
-                    },
-                },
+                modal: ModalColors::default(),
                 line: ResourceColors {
                     ready: LineColors {
                         normal: TextColors::new(Color::LightBlue),

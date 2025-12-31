@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -77,7 +77,7 @@ impl BgDiscovery {
                             Err(error) => {
                                 let msg = format!("Discovery error: {error}");
                                 tracing::warn!("{}", msg);
-                                _footer_tx.show_error(msg, 0);
+                                _footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                                 if !_has_error.swap(true, Ordering::Relaxed) {
                                     backoff.reset();
                                 }

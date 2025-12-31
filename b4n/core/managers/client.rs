@@ -1,12 +1,10 @@
-use b4n_common::{NotificationSink, StateChangeTracker};
+use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink, StateChangeTracker};
 use b4n_kube::{Kind, Namespace};
 use b4n_tasks::commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
 use std::time::Instant;
 use tracing::warn;
 
 use crate::core::{SharedAppData, SharedBgWorker};
-
-const ERROR_DURATION: u16 = 10_000;
 
 /// Kubernetes client request data.
 struct RequestInfo {
@@ -59,7 +57,7 @@ impl KubernetesClientManager {
         }
 
         let msg = format!("Requested kubernetes client for '{context}'.");
-        self.footer_tx.show_info(msg, 5_000);
+        self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
         self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 
@@ -90,7 +88,7 @@ impl KubernetesClientManager {
 
             let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
             warn!("{}", msg);
-            self.footer_tx.show_error(msg, ERROR_DURATION);
+            self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
             self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
         }
     }
@@ -106,14 +104,14 @@ impl KubernetesClientManager {
                 Ok(result) => {
                     self.request = None;
                     let msg = format!("Connected to '{}'.", result.client.context());
-                    self.footer_tx.show_info(msg, 5_000);
+                    self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
                     Some(result)
                 },
                 Err(err) => {
                     self.set_request_as_faulty();
                     let msg = format!("Requested client error: {err}.");
                     warn!("{}", msg);
-                    self.footer_tx.show_error(msg, ERROR_DURATION);
+                    self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                     None
                 },
             }

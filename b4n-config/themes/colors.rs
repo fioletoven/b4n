@@ -27,6 +27,15 @@ impl TextColors {
     pub fn dim(fg: Color, dim: Color, bg: Color) -> Self {
         Self { fg, dim, bg }
     }
+
+    /// Returns new [`TextColors`] instance reverting `fg` with `bg` from the current one.
+    pub fn to_reverted(self) -> Self {
+        Self {
+            fg: self.bg,
+            dim: self.dim,
+            bg: self.fg,
+        }
+    }
 }
 
 impl From<&TextColors> for Style {

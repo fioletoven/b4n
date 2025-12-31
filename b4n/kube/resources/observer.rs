@@ -24,7 +24,7 @@ pub struct ResourceObserver {
 
 impl ResourceObserver {
     /// Creates new [`ResourceObserver`] instance.
-    pub fn new(runtime: Handle, crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: NotificationSink) -> Self {
+    pub fn new(runtime: Handle, crds: SharedCrdsList, statistics: SharedStatistics, footer_tx: Option<NotificationSink>) -> Self {
         Self {
             observer: BgObserver::new(runtime, footer_tx),
             queue: VecDeque::with_capacity(200),

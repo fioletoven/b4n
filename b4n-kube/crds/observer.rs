@@ -1,4 +1,3 @@
-use b4n_common::NotificationSink;
 use delegate::delegate;
 use kube::ResourceExt;
 use kube::api::{ApiResource, DynamicObject};
@@ -16,9 +15,9 @@ pub struct CrdObserver {
 
 impl CrdObserver {
     /// Creates new [`CrdObserver`] instance.
-    pub fn new(runtime: Handle, footer_tx: NotificationSink) -> Self {
+    pub fn new(runtime: Handle) -> Self {
         Self {
-            observer: BgObserver::new(runtime, footer_tx),
+            observer: BgObserver::new(runtime, None),
         }
     }
 

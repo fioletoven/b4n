@@ -1,6 +1,7 @@
 use tokio::sync::mpsc::UnboundedSender;
 
-const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
+pub const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
+pub const DEFAULT_ERROR_DURATION: u16 = 10_000;
 
 /// Represents notification icon or text kind.
 pub enum IconKind {
@@ -54,6 +55,7 @@ impl Icon {
 }
 
 /// Message notification to show.
+#[derive(Clone)]
 pub struct Notification {
     pub text: String,
     pub is_error: bool,
@@ -66,7 +68,7 @@ impl Notification {
         Self {
             text,
             is_error,
-            duration: if duration == 0 { DEFAULT_MESSAGE_DURATION } else { duration },
+            duration,
         }
     }
 }

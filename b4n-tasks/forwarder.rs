@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, ResourceRef};
 use k8s_openapi::api::core::v1::Pod;
@@ -238,7 +238,7 @@ impl PortForwardTask {
                 Err(error) => {
                     let msg = format!("Port forward for {_pod_name}: cannot bind to {_bind_address}");
                     warn!("{msg}: {error}");
-                    _footer_tx.show_error(msg, 10_000);
+                    _footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                 },
             }
 
@@ -287,7 +287,7 @@ fn accept_error(
     let msg = format!("error accepting port forward connection: {error}");
 
     warn!(msg);
-    footer_tx.show_error(msg, 0);
+    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 
     connection_errors.fetch_add(1, Ordering::Relaxed);
     events_tx.send(PortForwardEvent::ConnectionError).unwrap();

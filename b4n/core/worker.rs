@@ -59,11 +59,16 @@ impl BgWorker {
         let crds_list = Rc::new(RefCell::new(Vec::new()));
         let statistics = BgStatistics::new(runtime.clone(), footer_tx.clone());
         Self {
-            namespaces: ResourceObserver::new(runtime.clone(), Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
-            resources: ResourceObserver::new(runtime.clone(), Rc::clone(&crds_list), statistics.share(), footer_tx.clone()),
+            namespaces: ResourceObserver::new(runtime.clone(), Rc::clone(&crds_list), statistics.share(), None),
+            resources: ResourceObserver::new(
+                runtime.clone(),
+                Rc::clone(&crds_list),
+                statistics.share(),
+                Some(footer_tx.clone()),
+            ),
             statistics,
             runtime: runtime.clone(),
-            crds: CrdObserver::new(runtime.clone(), footer_tx.clone()),
+            crds: CrdObserver::new(runtime.clone()),
             crds_list,
             forwarder: PortForwarder::new(runtime.clone(), footer_tx.clone()),
             executor: BgExecutor::new(runtime.clone()),

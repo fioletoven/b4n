@@ -1,4 +1,4 @@
-use b4n_common::{IconKind, NotificationSink, slice_from, slice_to, substring};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, slice_from, slice_to, substring};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
@@ -126,12 +126,12 @@ impl LogsView {
                     .is_ok()
             {
                 if self.logs.has_selection() {
-                    self.footer.show_info(" Selection copied to clipboard…", 1_500);
+                    self.footer.show_info(" Selection copied to clipboard…", 3_000);
                 } else {
-                    self.footer.show_info(" Container logs copied to clipboard…", 1_500);
+                    self.footer.show_info(" Container logs copied to clipboard…", 3_000);
                 }
             } else {
-                self.footer.show_error(" Unable to access clipboard functionality…", 2_000);
+                self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
             }
         }
     }
@@ -159,7 +159,7 @@ impl LogsView {
         self.footer
             .set_text("900_logs_search", self.logs.get_footer_text(), IconKind::Default);
         if let Some(message) = self.logs.get_footer_message(forward) {
-            self.footer.show_info(message, 0);
+            self.footer.show_info(message, DEFAULT_MESSAGE_DURATION);
         }
     }
 
@@ -302,10 +302,12 @@ impl View for LogsView {
 
         if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
             self.navigate_match(true);
+            return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
             self.navigate_match(false);
+            return ResponseEvent::Handled;
         }
 
         if let TuiEvent::Key(key) = event
@@ -314,11 +316,13 @@ impl View for LogsView {
         {
             self.update_bound_to_bottom();
             self.logs.process_event(event);
+            return ResponseEvent::Handled;
         } else if self.logs.process_event(event) == ResponseEvent::Handled {
             self.update_bound_to_bottom();
+            return ResponseEvent::Handled;
         }
 
-        ResponseEvent::Handled
+        ResponseEvent::NotHandled
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

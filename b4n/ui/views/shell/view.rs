@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{Namespace, PODS, PodRef};
@@ -162,8 +162,10 @@ impl View for ShellView {
                 ResponseEvent::Handled
             } else {
                 if self.bridge.has_error() {
-                    self.footer_tx
-                        .show_error("Unable to attach to the shell process of the selected container", 0);
+                    self.footer_tx.show_error(
+                        "Unable to attach to the shell process of the selected container",
+                        DEFAULT_ERROR_DURATION,
+                    );
                 }
                 ResponseEvent::Cancelled
             }
@@ -190,7 +192,7 @@ impl View for ShellView {
             return match mouse.kind {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
                 MouseEventKind::ScrollDown => self.set_scrollback(1, false),
-                _ => ResponseEvent::Handled,
+                _ => ResponseEvent::NotHandled,
             };
         }
 

@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use kube::{ResourceExt, api::DynamicObject};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -176,9 +176,9 @@ impl BgStatistics {
                 data: HashMap::new(),
                 has_metrics: false,
             })),
-            pods: BgObserver::new(runtime.clone(), footer_tx.clone()),
-            pods_metrics: BgObserver::new(runtime.clone(), footer_tx.clone()),
-            nodes_metrics: BgObserver::new(runtime, footer_tx.clone()),
+            pods: BgObserver::new(runtime.clone(), None),
+            pods_metrics: BgObserver::new(runtime.clone(), None),
+            nodes_metrics: BgObserver::new(runtime, None),
             pod_data: HashMap::new(),
             node_data: HashMap::new(),
             footer_tx,
@@ -196,7 +196,8 @@ impl BgStatistics {
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", ""))
             && self.pods.start(client, (&discovery.0).into(), Some(discovery), true).is_err()
         {
-            self.footer_tx.show_error("Cannot run statistics task", 0);
+            self.footer_tx
+                .show_error("Cannot run statistics task", DEFAULT_ERROR_DURATION);
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io", "")) {
