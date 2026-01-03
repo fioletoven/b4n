@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Style};
+use ratatui_core::style::{Color, Style};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self};

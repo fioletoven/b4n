@@ -3,7 +3,7 @@ use b4n_kube::{Kind, Namespace, Scope};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use k8s_openapi::serde_json::{self, Map, Value};
 use kube::{Api, Client, api::ApiResource, discovery::ApiCapabilities};
-use ratatui::style::Style;
+use ratatui_core::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{HighlightRequest, HighlightResourceError, commands::CommandResult, highlight_yaml};

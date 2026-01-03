@@ -1,8 +1,8 @@
 use anyhow::Result;
+use crossterm::ExecutableCommand;
 use crossterm::cursor::SetCursorStyle;
-use ratatui::crossterm::ExecutableCommand;
-use ratatui::crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
-use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
+use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
+use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Rect};
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
 

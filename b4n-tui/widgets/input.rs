@@ -1,8 +1,11 @@
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use ratatui::layout::{Position, Rect};
-use ratatui::style::Color;
-use ratatui::widgets::{Block, Widget};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::style::Color;
+use ratatui_core::terminal::Frame;
+use ratatui_core::widgets::Widget;
+use ratatui_widgets::block::Block;
 use tui_input::backend::crossterm::EventHandler;
 
 use crate::{ResponseEvent, Responsive, TuiEvent};
@@ -158,12 +161,12 @@ impl Input {
     }
 
     /// Draws [`Input`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         frame.render_widget(Block::new().style(&self.colors), area);
         frame.render_widget(&mut *self, area);
     }
 
-    fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut ratatui::prelude::Buffer) -> u16 {
+    fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut Buffer) -> u16 {
         let mut count = 0;
         if let Some(prompt) = &self.prompt {
             for (i, char) in prompt.0.chars().enumerate() {
@@ -188,7 +191,7 @@ impl Input {
         count
     }
 
-    fn render_input(&self, x: u16, y: u16, max_x: u16, scroll: usize, buf: &mut ratatui::prelude::Buffer) {
+    fn render_input(&self, x: u16, y: u16, max_x: u16, scroll: usize, buf: &mut Buffer) {
         if max_x == 0 {
             return;
         }
@@ -244,7 +247,7 @@ impl Responsive for Input {
 }
 
 impl Widget for &mut Input {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {

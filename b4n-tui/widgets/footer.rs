@@ -1,10 +1,11 @@
 use b4n_common::{Icon, IconAction, IconKind, Notification, NotificationSink};
 use b4n_config::themes::{Theme, ThemeColors};
-use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
-use ratatui::style::Style;
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph};
+use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
+use ratatui_core::style::Style;
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::{Line, Span};
+use ratatui_widgets::block::Block;
+use ratatui_widgets::paragraph::Paragraph;
 use std::collections::VecDeque;
 use std::{rc::Rc, time::Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver};

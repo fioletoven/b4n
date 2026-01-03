@@ -4,7 +4,7 @@ use k8s_openapi::serde_json::Value;
 use kube::Client;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, verbs};
-use ratatui::style::Style;
+use ratatui_core::style::Style;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::commands::GetNewResourceYamlResult;
