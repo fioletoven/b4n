@@ -1,7 +1,8 @@
 use b4n_config::themes::{ControlColors, TextColors};
-use ratatui::layout::{Margin, Position, Rect};
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
+use ratatui_core::layout::{Margin, Position, Rect};
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::Line;
+use ratatui_widgets::paragraph::Paragraph;
 
 use crate::ResponseEvent;
 
@@ -49,7 +50,7 @@ impl CheckBox {
     }
 
     /// Draws [`CheckBox`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
         let text = format!(" {} {} ", if self.is_checked { '󰄵' } else { '' }, &self.caption);

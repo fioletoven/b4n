@@ -66,7 +66,6 @@ impl Hash for KeyCombination {
 
 impl Display for KeyCombination {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: can be changed to KeyModifiers.to_string() when upgrades to crossterm 0.29
         if !self.modifiers.is_empty() {
             let mut first = true;
 
@@ -80,6 +79,7 @@ impl Display for KeyCombination {
                     KeyModifiers::SHIFT => f.write_str("Shift")?,
                     KeyModifiers::ALT => f.write_str("Alt")?,
                     KeyModifiers::CONTROL => f.write_str("Ctrl")?,
+                    KeyModifiers::SUPER => f.write_str("Super")?,
                     _ => (),
                 }
             }
@@ -222,6 +222,7 @@ fn get_modifier_from_name(modifier: &str) -> Result<KeyModifiers, KeyCombination
         "shift" => Ok(KeyModifiers::SHIFT),
         "alt" | "option" => Ok(KeyModifiers::ALT),
         "ctrl" | "control" => Ok(KeyModifiers::CONTROL),
+        "super" | "windows" | "command" => Ok(KeyModifiers::SUPER),
         _ => Err(KeyCombinationError::UnknownModifier),
     }
 }

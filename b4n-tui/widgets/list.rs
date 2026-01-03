@@ -1,7 +1,9 @@
 use b4n_config::themes::{TextColors, Theme};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Position, Rect};
-use ratatui::widgets::Widget;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::terminal::Frame;
+use ratatui_core::widgets::Widget;
 
 use crate::MouseEventKind;
 use crate::table::ViewType;
@@ -56,7 +58,7 @@ impl<T: Table> List<T> {
     }
 
     /// Draws [`List`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, theme: &Theme) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;
         self.items.update_page(self.area.height);
         if let Some(list) = self
@@ -100,7 +102,7 @@ pub struct ListWidget {
 }
 
 impl Widget for &mut ListWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {

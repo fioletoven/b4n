@@ -1,7 +1,8 @@
 use b4n_config::themes::SelectColors;
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
-use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::terminal::Frame;
 use std::rc::Rc;
 
 use crate::MouseEventKind;
@@ -143,7 +144,7 @@ impl<T: Table> Select<T> {
     }
 
     /// Draws [`Select`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
         self.area = if draw_filter { layout[1] } else { layout[0] };

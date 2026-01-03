@@ -1,6 +1,6 @@
 use b4n_config::{SyntaxData, themes::from_syntect_color};
 use kube::api::DynamicObject;
-use ratatui::style::Style;
+use ratatui_core::style::Style;
 use std::thread::JoinHandle;
 use syntect::{easy::HighlightLines, parsing::SyntaxSet};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};

@@ -1,9 +1,12 @@
 use b4n_config::themes::TextColors;
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
-use ratatui::style::{Style, Stylize};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Clear, Paragraph};
+use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::style::{Style, Stylize};
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::Line;
+use ratatui_widgets::block::Block;
+use ratatui_widgets::clear::Clear;
+use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
 use crate::widgets::Selector;
@@ -86,7 +89,7 @@ impl Dialog {
     }
 
     /// Draws [`Dialog`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         if !self.is_visible {
             return;
         }

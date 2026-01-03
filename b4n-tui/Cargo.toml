@@ -17,7 +17,9 @@ anyhow = { workspace = true }
 crossterm = { workspace = true }
 delegate = { workspace = true }
 futures = { workspace = true }
-ratatui = { workspace = true }
+ratatui-core = { workspace = true }
+ratatui-widgets = { workspace = true }
+ratatui-crossterm = { workspace = true }
 textwrap = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }

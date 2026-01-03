@@ -1,7 +1,8 @@
 use b4n_config::themes::{ControlColors, TextColors};
-use ratatui::layout::{Position, Rect};
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::Line;
+use ratatui_widgets::paragraph::Paragraph;
 
 use crate::ResponseEvent;
 
@@ -54,7 +55,7 @@ impl Button {
     }
 
     /// Draws [`Button`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let colors = if self.is_focused { self.focused } else { self.normal };
         let line = Line::styled(format!(" {} ", &self.caption), &colors);
         frame.render_widget(Paragraph::new(line), area);

@@ -1,9 +1,12 @@
 use b4n_config::keys::KeyCombination;
 use b4n_config::themes::{ControlColors, SelectColors, TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::layout::{Margin, Position, Rect};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Clear, Paragraph};
+use ratatui_core::layout::{Margin, Position, Rect};
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::Line;
+use ratatui_widgets::block::Block;
+use ratatui_widgets::clear::Clear;
+use ratatui_widgets::paragraph::Paragraph;
 
 use crate::table::Table;
 use crate::widgets::{ActionsList, ActionsListBuilder, Select};
@@ -102,7 +105,7 @@ impl Selector {
     }
 
     /// Draws [`Selector`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
         let icon = if self.is_opened() { '' } else { '' };
@@ -116,7 +119,7 @@ impl Selector {
     }
 
     /// Draws selector options on the provided frame.
-    pub fn draw_options(&mut self, frame: &mut ratatui::Frame<'_>) {
+    pub fn draw_options(&mut self, frame: &mut Frame<'_>) {
         if self.is_opened() {
             let area = self.get_options_area();
             frame.render_widget(Clear, area);

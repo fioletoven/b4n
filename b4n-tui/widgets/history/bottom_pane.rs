@@ -1,11 +1,15 @@
 use b4n_config::keys::KeyCombination;
 use b4n_config::themes::Theme;
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::style::{Color, Style, Stylize};
-use ratatui::symbols::border;
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui_core::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui_core::style::{Color, Style, Stylize};
+use ratatui_core::symbols::border;
+use ratatui_core::terminal::Frame;
+use ratatui_core::text::Line;
+use ratatui_widgets::block::Block;
+use ratatui_widgets::borders::Borders;
+use ratatui_widgets::clear::Clear;
+use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
 use crate::table::Table;
@@ -34,7 +38,7 @@ impl BottomPane {
     }
 
     /// Draws [`BottomPane`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, theme: &Theme) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         let hint_lines = if let Some(text) = self.history.items.get_highlighted_item_name() {
             let width = area.width.saturating_sub(4);
             let text = textwrap::wrap(text, Options::new(width.into()).initial_indent(" "));

@@ -15,7 +15,7 @@ b4n-kube = { workspace = true }
 http = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
-ratatui = { workspace = true }
+ratatui-core = { workspace = true }
 serde_yaml = { workspace = true }
 syntect = { workspace = true }
 thiserror = { workspace = true }

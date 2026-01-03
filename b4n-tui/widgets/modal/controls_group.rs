@@ -1,5 +1,6 @@
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::terminal::Frame;
 
 use crate::widgets::{Button, CheckBox, Selector};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -120,7 +121,7 @@ impl ControlsGroup {
     }
 
     /// Draws [`ControlsGroup`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
@@ -146,7 +147,7 @@ impl ControlsGroup {
         self.draw_focused_selector(frame);
     }
 
-    fn draw_controls(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    fn draw_controls(&mut self, frame: &mut Frame<'_>, area: Rect) {
         if self.controls.is_empty() {
             return;
         }
@@ -164,7 +165,7 @@ impl ControlsGroup {
         }
     }
 
-    fn draw_buttons(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+    fn draw_buttons(&mut self, frame: &mut Frame<'_>, area: Rect) {
         if self.buttons.is_empty() {
             return;
         }
@@ -179,7 +180,7 @@ impl ControlsGroup {
         }
     }
 
-    fn draw_focused_selector(&mut self, frame: &mut ratatui::Frame<'_>) {
+    fn draw_focused_selector(&mut self, frame: &mut Frame<'_>) {
         if let Some(selector) = self.focused_selector() {
             selector.draw_options(frame);
         }
