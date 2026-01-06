@@ -50,11 +50,7 @@ impl Filter {
     /// Marks [`Filter`] as visible.
     pub fn show(&mut self) {
         let context = self.app_data.borrow().current.context.clone();
-        let key_name = self
-            .app_data
-            .get_key(KeyCommand::NavigateComplete)
-            .to_string()
-            .to_ascii_uppercase();
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         self.patterns.items = PatternsList::from(
             self.app_data.borrow_mut().history.get_filter_history(&context),
             Some(&key_name),

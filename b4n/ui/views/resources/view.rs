@@ -37,7 +37,7 @@ impl ResourcesView {
         let stats = worker.borrow().statistics.share();
         let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
-        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
+        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 65);
 
         Self {
             table,
@@ -133,8 +133,8 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
-        let actions_list = ActionsListBuilder::from_contexts(list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+        let actions_list = ActionsListBuilder::from_contexts(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("context")
             .with_highlighted(&self.app_data.borrow().current.context);
         self.command_palette.show();
@@ -142,8 +142,8 @@ impl ResourcesView {
 
     /// Displays a list of available themes to choose from.
     pub fn show_themes_list(&mut self, list: Vec<PathBuf>) {
-        let actions_list = ActionsListBuilder::from_paths(list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+        let actions_list = ActionsListBuilder::from_paths(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("theme")
             .with_highlighted(&self.app_data.borrow().config.theme);
         self.command_palette.show();
@@ -152,8 +152,9 @@ impl ResourcesView {
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            let actions_list = ActionsListBuilder::from_resource_ports(list).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+            let actions_list =
+                ActionsListBuilder::from_resource_ports(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
                 .with_header(format!(
                     " Add port forward for {} container:",
                     resource.container.as_deref().unwrap_or_default()
@@ -335,8 +336,10 @@ impl ResourcesView {
 
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
-            let actions = ActionsListBuilder::default().with_resources_actions(false).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60)
+            let actions = ActionsListBuilder::default()
+                .with_resources_actions(false)
+                .build(self.app_data.borrow().config.key_bindings.as_ref());
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
                 .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
             return;
@@ -428,8 +431,9 @@ impl ResourcesView {
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
-            .with_highlighted_position(self.last_mouse_click.take());
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -485,7 +489,7 @@ impl ResourcesView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -510,7 +514,8 @@ impl ResourcesView {
             );
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
             .with_prompt("create new resource")
             .with_first_highlighted()
             .with_highlighted_position(self.last_mouse_click.take());

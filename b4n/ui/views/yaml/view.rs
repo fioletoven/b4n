@@ -62,7 +62,7 @@ impl YamlView {
             name,
             None,
         );
-        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
+        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
 
         Self {
             yaml,
@@ -158,8 +158,9 @@ impl YamlView {
             builder.add_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
-            .with_highlighted_position(self.last_mouse_click.take());
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -191,7 +192,7 @@ impl YamlView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), size).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

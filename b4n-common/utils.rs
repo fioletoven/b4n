@@ -100,7 +100,7 @@ pub fn add_padding(s: &str, width: usize) -> String {
     text.push_str(truncate(s, width));
 
     let padding_len = width.saturating_sub(name_width);
-    (0..padding_len).for_each(|_| text.push(' '));
+    text.extend(std::iter::repeat_n(' ', padding_len));
 
     text
 }

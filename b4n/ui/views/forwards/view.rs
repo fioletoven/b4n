@@ -35,7 +35,7 @@ impl ForwardsView {
     /// Creates new [`ForwardsView`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink) -> Self {
         let (namespace, view) = get_current_namespace(&app_data);
-        let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
+        let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let mut list = ListViewer::new(Rc::clone(&app_data), PortForwardsList::default(), view);
         list.table.update(worker.borrow_mut().get_port_forwards_list(&namespace));
         let header = ListHeader::new(Rc::clone(&app_data), list.table.len())
@@ -86,8 +86,9 @@ impl ForwardsView {
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
-            .with_highlighted_position(self.last_mouse_click.take());
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -105,7 +106,7 @@ impl ForwardsView {
             builder.add_action(ActionItem::menu(1, " stop [selected]", "stop_selected"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
