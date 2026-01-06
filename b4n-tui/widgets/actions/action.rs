@@ -157,7 +157,7 @@ impl ActionItem {
     }
 
     fn get_name_width(&self) -> usize {
-        self.name.chars().filter(|c| *c != '[' && *c != ']').count()
+        self.name.chars().filter(|c| *c != '␝').count()
     }
 
     fn add_icon(&self, text: &mut String) {
@@ -171,9 +171,9 @@ impl ActionItem {
         if let Some(key) = &self.key {
             text.push(' ');
             text.push('❬');
-            text.push('[');
+            text.push('␝');
             text.push_str(key);
-            text.push(']');
+            text.push('␝');
             text.push('❭');
         }
     }
@@ -202,17 +202,18 @@ impl Row for ActionItem {
         if let Some(descr) = &self.description {
             let descr_width = descr.chars().count();
             if name_width + descr_width + 1 > text_width {
+                let new_len = text_width.saturating_sub(text.len() + 1);
                 if name_width + 2 < text_width {
-                    text.push_str(" [");
-                    text.push_str(truncate(descr, text_width - text.len() + 1));
-                    text.push(']');
+                    text.push_str(" ␝");
+                    text.push_str(truncate(descr, new_len));
+                    text.push('␝');
                 }
             } else {
                 let padding_len = text_width.saturating_sub(name_width).saturating_sub(descr_width);
                 text.extend(std::iter::repeat_n(' ', padding_len));
-                text.push('[');
+                text.push('␝');
                 text.push_str(descr);
-                text.push(']');
+                text.push('␝');
             }
         } else {
             let padding_len = text_width.saturating_sub(name_width);

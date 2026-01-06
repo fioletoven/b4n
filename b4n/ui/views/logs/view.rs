@@ -98,7 +98,7 @@ impl LogsView {
         let builder = ActionsListBuilder::default()
             .with_action(ActionItem::back())
             .with_action(ActionItem::command_palette())
-            .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
+            .with_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());

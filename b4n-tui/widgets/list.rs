@@ -112,11 +112,11 @@ impl Widget for &mut ListWidget {
             let mut is_dimmed = false;
             let mut skipped = 0;
             for (j, char) in row.0.chars().enumerate() {
-                if !is_dimmed && char == '[' {
+                if !is_dimmed && char == '␝' {
                     is_dimmed = true;
                     skipped += 1;
                     continue;
-                } else if is_dimmed && char == ']' {
+                } else if is_dimmed && char == '␝' {
                     is_dimmed = false;
                     skipped += 1;
                     continue;

@@ -181,7 +181,7 @@ impl YamlView {
             builder = builder
                 .with_action(ActionItem::back())
                 .with_action(ActionItem::command_palette())
-                .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
+                .with_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
                 .with_action(ActionItem::menu(2, " search", "search"));
             if self.yaml.content().is_some_and(Content::is_editable) {
                 builder.add_action(ActionItem::menu(4, " edit", "edit"));

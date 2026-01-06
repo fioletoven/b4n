@@ -103,7 +103,7 @@ impl ForwardsView {
             .with_action(ActionItem::command_palette());
 
         if self.list.table.is_anything_selected() {
-            builder.add_action(ActionItem::menu(1, " stop [selected]", "stop_selected"));
+            builder.add_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();

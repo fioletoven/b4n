@@ -454,7 +454,7 @@ impl ResourcesView {
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            builder.add_action(ActionItem::menu(9, " delete [selected]", "").with_response(ResponseEvent::AskDeleteResources));
+            builder.add_action(ActionItem::menu(9, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources));
         }
 
         if !is_containers && !is_events {
@@ -475,13 +475,13 @@ impl ResourcesView {
             if is_containers || is_pods {
                 builder = builder
                     .with_action(ActionItem::menu(2, " logs", "show_logs"))
-                    .with_action(ActionItem::menu(3, " logs [previous]", "show_plogs"))
+                    .with_action(ActionItem::menu(3, " logs ␝previous␝", "show_plogs"))
                     .with_action(ActionItem::menu(5, " shell", "open_shell"))
                     .with_action(ActionItem::menu(6, "󱘖 forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder.add_action(ActionItem::menu(4, " YAML [decoded]", "decode_yaml"));
+                builder.add_action(ActionItem::menu(4, " YAML ␝decoded␝", "decode_yaml"));
             }
 
             if self.table.list.table.data.is_editable {

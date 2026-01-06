@@ -69,7 +69,7 @@ impl Row for PatternItem {
     fn get_name_with_description(&self, width: usize, description: &str) -> String {
         let description = truncate(description, width.saturating_sub(1));
         let width = width.saturating_sub(description.len().saturating_add(1));
-        format!("{1:<0$} [{2}]", width, truncate(&self.value, width), description)
+        format!("{1:<0$} ␝{2}␝", width, truncate(&self.value, width), description)
     }
 
     fn column_text(&self, column: usize) -> Cow<'_, str> {
