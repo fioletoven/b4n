@@ -86,6 +86,18 @@ impl KeyBindings {
         self
     }
 
+    /// Returns inverted hash map with key commands and theirs key combinations.
+    pub fn inverted(&self) -> HashMap<KeyCommand, HashSet<KeyCombination>> {
+        let mut inverted: HashMap<KeyCommand, HashSet<KeyCombination>> = HashMap::new();
+        for (combination, commands) in &self.bindings {
+            for command in commands {
+                inverted.entry(*command).or_default().insert(*combination);
+            }
+        }
+
+        inverted
+    }
+
     /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`].
     pub fn has_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
         if let Some(commands) = self.bindings.get(key) {
@@ -95,28 +107,30 @@ impl KeyBindings {
         }
     }
 
-    /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`].
-    pub fn get_key(&self, command: KeyCommand) -> Option<KeyCombination> {
-        self.bindings
+    /// Returns the first [`KeyCombination`] name associated with the specified [`KeyCommand`].
+    pub fn get_key_name(&self, command: KeyCommand) -> Option<String> {
+        let mut keys = self
+            .bindings
             .iter()
-            .find(|(_, commands)| commands.contains(&command))
-            .map(|(combination, _)| combination)
-            .copied()
+            .filter(|(_, commands)| commands.contains(&command))
+            .map(|(combination, _)| combination.to_string())
+            .collect::<Vec<_>>();
+        keys.sort();
+
+        if !keys.is_empty() { Some(keys.swap_remove(0)) } else { None }
     }
 }
 
 impl Serialize for KeyBindings {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut inverted: HashMap<String, Vec<String>> = HashMap::new();
-        for (combination, commands) in &self.bindings {
-            for command in commands {
-                inverted.entry(command.to_string()).or_default().push(combination.to_string());
-            }
-        }
-
-        let inverted = inverted
+        let inverted = self
+            .inverted()
             .into_iter()
-            .map(|(command, combinations)| (command, combinations.join(", ")))
+            .map(|(command, combinations)| {
+                let mut combinations = combinations.iter().map(|c| c.to_string()).collect::<Vec<_>>();
+                combinations.sort();
+                (command.to_string(), combinations.join(", "))
+            })
             .collect::<HashMap<_, _>>();
 
         let mut keys = inverted.keys().collect::<Vec<_>>();

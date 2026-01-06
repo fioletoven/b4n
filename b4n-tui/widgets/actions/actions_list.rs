@@ -1,3 +1,4 @@
+use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, Row, ScrollableList};
 use delegate::delegate;
@@ -76,12 +77,14 @@ impl Table for ActionsList {
 #[derive(Default)]
 pub struct ActionsListBuilder {
     actions: Vec<ActionItem>,
+    commands: Vec<Option<KeyCommand>>,
 }
 
 impl ActionsListBuilder {
     /// Creates a new [`ActionsListBuilder`] instance.
     pub fn new(actions: Vec<ActionItem>) -> Self {
-        Self { actions }
+        let commands = vec![None; actions.len()];
+        Self { actions, commands }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of string slices.\
@@ -92,13 +95,16 @@ impl ActionsListBuilder {
             .enumerate()
             .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_id(idx))
             .collect();
-        Self { actions }
+        let commands = vec![None; items.len()];
+        Self { actions, commands }
     }
 
     /// Creates new [`ActionsListBuilder`] instance from the list of [`PathBuf`]s.
     pub fn from_paths(themes: Vec<PathBuf>) -> Self {
+        let commands = vec![None; themes.len()];
         Self {
             actions: themes.into_iter().map(ActionItem::from_path).collect(),
+            commands,
         }
     }
 
@@ -110,11 +116,17 @@ impl ActionsListBuilder {
                 .filter(|p| p.protocol == PortProtocol::TCP)
                 .map(ActionItem::from_port)
                 .collect(),
+            commands: vec![None; ports.len()],
         }
     }
 
-    /// Builds the [`ActionsList`] instance.
-    pub fn build(self) -> ActionsList {
+    /// Builds the [`ActionsList`] instance.\
+    /// **Note** that if `key_bindings` is provided all items in the list will have an additional key hint.
+    pub fn build(mut self, key_bindings: Option<&KeyBindings>) -> ActionsList {
+        if let Some(key_bindings) = key_bindings {
+            self.update_key_bindings(key_bindings);
+        }
+
         let has_ids = self.actions.iter().any(|a| a.id.is_some());
         let mut list = ScrollableList::from(self.actions);
 
@@ -142,8 +154,16 @@ impl ActionsListBuilder {
     }
 
     /// Adds custom action.
-    pub fn with_action(mut self, action: ActionItem) -> Self {
+    pub fn with_action(mut self, action: ActionItem, command: Option<KeyCommand>) -> Self {
         self.actions.push(action);
+        self.commands.push(command);
+        self
+    }
+
+    /// Adds custom menu action.
+    pub fn with_menu_action(mut self, action: ActionItem) -> Self {
+        self.actions.push(action);
+        self.commands.push(None);
         self
     }
 
@@ -155,6 +175,7 @@ impl ActionsListBuilder {
                 .with_aliases(aliases)
                 .with_response(ResponseEvent::Action(action)),
         );
+        self.commands.push(None);
         self
     }
 
@@ -172,6 +193,7 @@ impl ActionsListBuilder {
                 .with_aliases(&["q", "exit"])
                 .with_response(ResponseEvent::ExitApplication),
         );
+        self.commands.push(Some(KeyCommand::ApplicationExit));
         self
     }
 
@@ -183,6 +205,7 @@ impl ActionsListBuilder {
                 .with_aliases(&["cancel", "close"])
                 .with_response(ResponseEvent::Cancelled),
         );
+        self.commands.push(Some(KeyCommand::NavigateBack));
         self
     }
 
@@ -194,6 +217,7 @@ impl ActionsListBuilder {
                 .with_aliases(&["ctx"])
                 .with_response(ResponseEvent::ListKubeContexts),
         );
+        self.commands.push(None);
         self
     }
 
@@ -204,6 +228,7 @@ impl ActionsListBuilder {
                 .with_description("selects the theme used by the application")
                 .with_response(ResponseEvent::ListThemes),
         );
+        self.commands.push(None);
         self
     }
 
@@ -215,6 +240,7 @@ impl ActionsListBuilder {
                 .with_aliases(&["del", "remove"])
                 .with_response(ResponseEvent::AskDeleteResources),
         );
+        self.commands.push(Some(KeyCommand::NavigateDelete));
         self
     }
 
@@ -226,11 +252,35 @@ impl ActionsListBuilder {
                 .with_aliases(&["port", "pf", "forward"])
                 .with_response(ResponseEvent::ShowPortForwards),
         );
+        self.commands.push(Some(KeyCommand::PortForwardsOpen));
         self
     }
 
     /// Adds custom action.
-    pub fn add_action(&mut self, action: ActionItem) {
+    pub fn add_action(&mut self, action: ActionItem, command: Option<KeyCommand>) {
         self.actions.push(action);
+        self.commands.push(command);
+    }
+
+    /// Adds custom menu action.
+    pub fn add_menu_action(&mut self, action: ActionItem) {
+        self.actions.push(action);
+        self.commands.push(None);
+    }
+
+    fn update_key_bindings(&mut self, key_bindings: &KeyBindings) {
+        let commands = key_bindings.inverted();
+        for (action, command) in self.actions.iter_mut().zip(self.commands.iter()) {
+            if let Some(command) = command
+                && let Some(keys) = commands.get(command)
+            {
+                let mut keys = keys.iter().map(|k| k.to_string()).collect::<Vec<_>>();
+                keys.sort();
+
+                if !keys.is_empty() {
+                    action.set_key(Some(keys.swap_remove(0)));
+                }
+            }
+        }
     }
 }

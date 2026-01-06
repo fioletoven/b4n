@@ -62,7 +62,7 @@ impl YamlView {
             name,
             None,
         );
-        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 60);
+        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
 
         Self {
             yaml,
@@ -144,22 +144,33 @@ impl YamlView {
         let mut builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
-            .with_action(ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"))
-            .with_action(ActionItem::action("search", "search").with_description("searches YAML using the provided query"));
+            .with_action(
+                ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"),
+                Some(KeyCommand::ContentCopy),
+            )
+            .with_action(
+                ActionItem::action("search", "search").with_description("searches YAML using the provided query"),
+                Some(KeyCommand::SearchOpen),
+            );
         if self.yaml.content().is_some_and(Content::is_editable) {
             builder.add_action(
                 ActionItem::action("edit", "edit")
                     .with_description("switches to the edit mode")
                     .with_aliases(&["insert"]),
+                Some(KeyCommand::YamlEdit),
             );
         }
         if self.can_encode_decode() {
             let action = if self.is_decoded { "encode" } else { "decode" };
-            builder.add_action(ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")));
+            builder.add_action(
+                ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")),
+                Some(KeyCommand::YamlDecode),
+            );
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
-            .with_highlighted_position(self.last_mouse_click.take());
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -169,29 +180,29 @@ impl YamlView {
         if self.yaml.is_in_edit_mode() {
             size = 17;
             builder = builder
-                .with_action(ActionItem::menu(1, "󰆏 copy", "copy_2"))
-                .with_action(ActionItem::menu(2, "󰆐 cut", "cut"))
-                .with_action(ActionItem::menu(3, "󰆒 paste", "paste"))
-                .with_action(ActionItem::menu(4, "󰕌 undo", "undo"))
-                .with_action(ActionItem::menu(5, "󰑎 redo", "redo"))
-                .with_action(ActionItem::menu(100, " close edit", "back"));
+                .with_menu_action(ActionItem::menu(1, "󰆏 copy", "copy_2"))
+                .with_menu_action(ActionItem::menu(2, "󰆐 cut", "cut"))
+                .with_menu_action(ActionItem::menu(3, "󰆒 paste", "paste"))
+                .with_menu_action(ActionItem::menu(4, "󰕌 undo", "undo"))
+                .with_menu_action(ActionItem::menu(5, "󰑎 redo", "redo"))
+                .with_menu_action(ActionItem::menu(100, " close edit", "back"));
         } else {
             let copy = if self.yaml.has_selection() { "selection" } else { "all" };
             builder = builder
-                .with_action(ActionItem::back())
-                .with_action(ActionItem::command_palette())
-                .with_action(ActionItem::menu(1, &format!("󰆏 copy [{copy}]"), "copy"))
-                .with_action(ActionItem::menu(2, " search", "search"));
+                .with_menu_action(ActionItem::back())
+                .with_menu_action(ActionItem::command_palette())
+                .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
+                .with_menu_action(ActionItem::menu(2, " search", "search"));
             if self.yaml.content().is_some_and(Content::is_editable) {
-                builder.add_action(ActionItem::menu(4, " edit", "edit"));
+                builder.add_menu_action(ActionItem::menu(4, " edit", "edit"));
             }
             if self.can_encode_decode() {
                 let action = if self.is_decoded { " encode" } else { " decode" };
-                builder.add_action(ActionItem::menu(3, action, "decode"));
+                builder.add_menu_action(ActionItem::menu(3, action, "decode"));
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), size).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

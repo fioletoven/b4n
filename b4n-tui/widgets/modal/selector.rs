@@ -31,7 +31,7 @@ pub struct Selector {
 impl Selector {
     /// Creates new [`Selector`] instance.
     pub fn new(id: usize, caption: &'static str, options: &[&str], select: SelectColors, control: &ControlColors) -> Self {
-        let mut options = ActionsListBuilder::from_strings(options).build();
+        let mut options = ActionsListBuilder::from_strings(options).build(None);
         options.highlight_first_item();
         let selected = options.get_highlighted_item_name().unwrap_or_default().to_owned();
 

@@ -9,7 +9,7 @@ use super::*;
 #[test]
 fn esc_reverts_value_test() {
     let data = Rc::new(RefCell::new(AppData::default()));
-    let mut filter = Filter::new(data, None, 60);
+    let mut filter = Filter::new(data, None, 65);
 
     filter.show();
     filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));
@@ -27,7 +27,7 @@ fn esc_reverts_value_test() {
 #[test]
 fn enter_stores_value_test() {
     let data = Rc::new(RefCell::new(AppData::default()));
-    let mut filter = Filter::new(data, None, 60);
+    let mut filter = Filter::new(data, None, 65);
 
     filter.show();
     filter.process_event(&TuiEvent::Key(KeyCombination::from('t')));

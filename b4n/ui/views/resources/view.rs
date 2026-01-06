@@ -37,7 +37,7 @@ impl ResourcesView {
         let stats = worker.borrow().statistics.share();
         let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
-        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 60);
+        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 65);
 
         Self {
             table,
@@ -133,8 +133,8 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
-        let actions_list = ActionsListBuilder::from_contexts(list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+        let actions_list = ActionsListBuilder::from_contexts(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("context")
             .with_highlighted(&self.app_data.borrow().current.context);
         self.command_palette.show();
@@ -142,8 +142,8 @@ impl ResourcesView {
 
     /// Displays a list of available themes to choose from.
     pub fn show_themes_list(&mut self, list: Vec<PathBuf>) {
-        let actions_list = ActionsListBuilder::from_paths(list).build();
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+        let actions_list = ActionsListBuilder::from_paths(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("theme")
             .with_highlighted(&self.app_data.borrow().config.theme);
         self.command_palette.show();
@@ -152,8 +152,9 @@ impl ResourcesView {
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            let actions_list = ActionsListBuilder::from_resource_ports(list).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 60)
+            let actions_list =
+                ActionsListBuilder::from_resource_ports(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
                 .with_header(format!(
                     " Add port forward for {} container:",
                     resource.container.as_deref().unwrap_or_default()
@@ -335,8 +336,10 @@ impl ResourcesView {
 
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected {
-            let actions = ActionsListBuilder::default().with_resources_actions(false).build();
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 60)
+            let actions = ActionsListBuilder::default()
+                .with_resources_actions(false)
+                .build(self.app_data.borrow().config.key_bindings.as_ref());
+            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
                 .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
             return;
@@ -351,16 +354,23 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
-            .with_action(ActionItem::action("filter", "filter").with_description("shows resources filter input"));
+            .with_action(
+                ActionItem::action("filter", "filter").with_description("shows resources filter input"),
+                Some(KeyCommand::FilterOpen),
+            );
 
         if self.table.kind_plural() != NAMESPACES {
-            builder.add_action(ActionItem::action("back", "back").with_description("returns to the previous view"));
+            builder.add_action(
+                ActionItem::action("back", "back").with_description("returns to the previous view"),
+                Some(KeyCommand::NavigateBack),
+            );
         }
 
         if !is_containers && !is_events {
             if is_highlighted {
                 builder.add_action(
                     ActionItem::action("show events", "show_events").with_description("shows events for the selected resource"),
+                    Some(KeyCommand::EventsShow),
                 );
             }
 
@@ -369,6 +379,7 @@ impl ResourcesView {
                     ActionItem::action("create", "create")
                         .with_description("creates new Kubernetes resource")
                         .with_aliases(&["new", "add"]),
+                    Some(KeyCommand::YamlCreate),
                 );
             }
         }
@@ -376,6 +387,7 @@ impl ResourcesView {
         if self.has_involved_object() {
             builder.add_action(
                 ActionItem::action("involved object", "show_involved").with_description("navigates to the involved object"),
+                Some(KeyCommand::InvolvedObjectShow),
             );
         }
 
@@ -388,6 +400,7 @@ impl ResourcesView {
                         "shows YAML of the highlighted resource"
                     })
                     .with_aliases(&["yaml", "yml", "view"]),
+                Some(KeyCommand::YamlOpen),
             );
 
             if is_containers || is_pods {
@@ -396,17 +409,23 @@ impl ResourcesView {
                         ActionItem::action("show logs", "show_logs")
                             .with_description("shows container logs")
                             .with_aliases(&["logs"]),
+                        Some(KeyCommand::LogsOpen),
                     )
                     .with_action(
                         ActionItem::action("show previous logs", "show_plogs")
                             .with_description("shows container previous logs")
                             .with_aliases(&["previous"]),
+                        Some(KeyCommand::PreviousLogsOpen),
                     )
-                    .with_action(ActionItem::action("shell", "open_shell").with_description("opens container shell"))
+                    .with_action(
+                        ActionItem::action("shell", "open_shell").with_description("opens container shell"),
+                        Some(KeyCommand::ShellOpen),
+                    )
                     .with_action(
                         ActionItem::action("forward port", "port_forward")
                             .with_description("forwards container port")
                             .with_aliases(&["port", "pf"]),
+                        Some(KeyCommand::PortForwardsCreate),
                     );
             }
 
@@ -415,6 +434,7 @@ impl ResourcesView {
                     ActionItem::action("decode", "decode_yaml")
                         .with_description("shows decoded YAML of the highlighted secret")
                         .with_aliases(&["decode", "x"]),
+                    Some(KeyCommand::YamlDecode),
                 );
             }
 
@@ -423,13 +443,15 @@ impl ResourcesView {
                     ActionItem::action("edit YAML", "edit_yaml")
                         .with_description("displays YAML and switches to edit mode")
                         .with_aliases(&["yaml", "yml", "patch"]),
+                    Some(KeyCommand::YamlEdit),
                 );
             }
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
-            .with_highlighted_position(self.last_mouse_click.take());
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
     }
 
@@ -443,49 +465,50 @@ impl ResourcesView {
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
-        let mut builder = ActionsListBuilder::default().with_action(ActionItem::command_palette());
+        let mut builder = ActionsListBuilder::default().with_menu_action(ActionItem::command_palette());
 
         if self.table.kind_plural() != NAMESPACES {
-            builder.add_action(ActionItem::menu(100, "󰕍 back", "back"));
+            builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            builder.add_action(ActionItem::menu(9, " delete [selected]", "").with_response(ResponseEvent::AskDeleteResources));
+            let action = ActionItem::menu(9, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+            builder.add_menu_action(action);
         }
 
         if !is_containers && !is_events {
             if self.table.list.table.data.is_creatable {
-                builder.add_action(ActionItem::menu(7, "󰐕 create new", "create"));
+                builder.add_menu_action(ActionItem::menu(7, "󰐕 create new", "create"));
             }
             if is_highlighted {
-                builder.add_action(ActionItem::menu(98, "󰑏 events", "show_events"));
+                builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
             }
         }
 
         if self.has_involved_object() {
-            builder.add_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
+            builder.add_menu_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
         }
 
         if is_highlighted {
-            builder.add_action(ActionItem::menu(1, " YAML", "show_yaml"));
+            builder.add_menu_action(ActionItem::menu(1, " YAML", "show_yaml"));
             if is_containers || is_pods {
                 builder = builder
-                    .with_action(ActionItem::menu(2, " logs", "show_logs"))
-                    .with_action(ActionItem::menu(3, " logs [previous]", "show_plogs"))
-                    .with_action(ActionItem::menu(5, " shell", "open_shell"))
-                    .with_action(ActionItem::menu(6, "󱘖 forward port", "port_forward"));
+                    .with_menu_action(ActionItem::menu(2, " logs", "show_logs"))
+                    .with_menu_action(ActionItem::menu(3, " logs ␝previous␝", "show_plogs"))
+                    .with_menu_action(ActionItem::menu(5, " shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(6, "󱘖 forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder.add_action(ActionItem::menu(4, " YAML [decoded]", "decode_yaml"));
+                builder.add_menu_action(ActionItem::menu(4, " YAML ␝decoded␝", "decode_yaml"));
             }
 
             if self.table.list.table.data.is_editable {
-                builder.add_action(ActionItem::menu(8, " edit", "edit_yaml"));
+                builder.add_menu_action(ActionItem::menu(8, " edit", "edit_yaml"));
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 22).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -499,18 +522,21 @@ impl ResourcesView {
         }
 
         let mut builder = ActionsListBuilder::default()
-            .with_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
-            .with_action(ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"));
+            .with_menu_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
+            .with_menu_action(
+                ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"),
+            );
 
         if self.table.list.table.is_anything_highlighted() && self.kind_plural() != NAMESPACES {
-            builder = builder.with_action(
+            builder = builder.with_menu_action(
                 ActionItem::action("duplicate", "new_clone")
                     .with_description("use the spec of the highlighted resource")
                     .with_aliases(&["clone"]),
             );
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(), 60)
+        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
             .with_prompt("create new resource")
             .with_first_highlighted()
             .with_highlighted_position(self.last_mouse_click.take());

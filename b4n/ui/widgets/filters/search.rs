@@ -30,9 +30,9 @@ impl Search {
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.search.clone();
         let patterns = Select::new(PatternsList::default(), colors, false, true).with_prompt(" ");
-        let enter = app_data.get_key(KeyCommand::NavigateInto).to_string().to_ascii_uppercase();
-        let next = app_data.get_key(KeyCommand::MatchNext).to_string().to_ascii_uppercase();
-        let prev = app_data.get_key(KeyCommand::MatchPrevious).to_string().to_ascii_uppercase();
+        let enter = app_data.get_key_name(KeyCommand::NavigateInto).to_ascii_uppercase();
+        let next = app_data.get_key_name(KeyCommand::MatchNext).to_ascii_uppercase();
+        let prev = app_data.get_key_name(KeyCommand::MatchPrevious).to_ascii_uppercase();
 
         Self {
             is_visible: false,
@@ -59,11 +59,7 @@ impl Search {
     /// Marks [`Search`] as visible.
     pub fn show(&mut self) {
         let context = self.app_data.borrow().current.context.clone();
-        let key_name = self
-            .app_data
-            .get_key(KeyCommand::NavigateComplete)
-            .to_string()
-            .to_ascii_uppercase();
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         self.patterns.items = PatternsList::from(
             self.app_data.borrow_mut().history.get_search_history(&context),
             Some(&key_name),

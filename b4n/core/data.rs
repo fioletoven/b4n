@@ -197,11 +197,8 @@ pub trait SharedAppDataExt {
     /// Temporarily disables or enables the given [`KeyCombination`] from being matched by `has_binding`.
     fn disable_key(&self, key: KeyCombination, hide: bool);
 
-    /// Returns the [`TuiEvent::Key`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
-    fn get_event(&self, command: KeyCommand) -> TuiEvent;
-
-    /// Returns the [`KeyCombination`] associated with the specified [`KeyCommand`] from the [`KeyBindings`].
-    fn get_key(&self, command: KeyCommand) -> KeyCombination;
+    /// Returns the first [`KeyCombination`] name associated with the specified [`KeyCommand`] from the [`KeyBindings`].
+    fn get_key_name(&self, command: KeyCommand) -> String;
 }
 
 impl SharedAppDataExt for SharedAppData {
@@ -234,11 +231,7 @@ impl SharedAppDataExt for SharedAppData {
         }
     }
 
-    fn get_event(&self, command: KeyCommand) -> TuiEvent {
-        TuiEvent::Key(self.borrow().key_bindings.get_key(command).unwrap_or_default())
-    }
-
-    fn get_key(&self, command: KeyCommand) -> KeyCombination {
-        self.borrow().key_bindings.get_key(command).unwrap_or_default()
+    fn get_key_name(&self, command: KeyCommand) -> String {
+        self.borrow().key_bindings.get_key_name(command).unwrap_or_default()
     }
 }

@@ -20,6 +20,7 @@ pub struct ActionItem {
     description: Option<String>,
     icon: Option<&'static str>,
     aliases: Option<Vec<String>>,
+    key: Option<String>,
 }
 
 impl ActionItem {
@@ -140,21 +141,37 @@ impl ActionItem {
         }
     }
 
+    /// Sets key name for this action.
+    pub fn set_key(&mut self, key: Option<String>) {
+        self.key = key;
+    }
+
     fn get_text_width(&self, width: usize) -> usize {
-        self.icon.as_ref().map_or(width, |i| {
-            let icon_width = i.chars().count();
-            width.saturating_sub(icon_width + 1)
-        })
+        let width = self
+            .key
+            .as_ref()
+            .map_or(width, |k| width.saturating_sub(k.chars().count() + 4));
+        self.icon
+            .as_ref()
+            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
     }
 
     fn get_name_width(&self) -> usize {
-        self.name.chars().filter(|c| *c != '[' && *c != ']').count()
+        self.name.chars().filter(|c| *c != '␝').count()
     }
 
     fn add_icon(&self, text: &mut String) {
         if let Some(icon) = &self.icon {
             text.push(' ');
             text.push_str(icon);
+        }
+    }
+
+    fn add_key(&self, text: &mut String) {
+        if let Some(key) = &self.key {
+            text.push_str("  ␝❬␝");
+            text.push_str(key);
+            text.push_str("␝❭␝");
         }
     }
 }
@@ -182,24 +199,27 @@ impl Row for ActionItem {
         if let Some(descr) = &self.description {
             let descr_width = descr.chars().count();
             if name_width + descr_width + 1 > text_width {
+                let new_len = text_width.saturating_sub(text.len() + 1);
                 if name_width + 2 < text_width {
-                    text.push_str(" [");
-                    text.push_str(truncate(descr, text_width - text.len() + 1));
-                    text.push(']');
+                    text.push_str(" ␝");
+                    text.push_str(truncate(descr, new_len));
+                    text.push('␝');
                 }
             } else {
                 let padding_len = text_width.saturating_sub(name_width).saturating_sub(descr_width);
-                (0..padding_len).for_each(|_| text.push(' '));
-                text.push('[');
+                text.extend(std::iter::repeat_n(' ', padding_len));
+                text.push('␝');
                 text.push_str(descr);
-                text.push(']');
+                text.push('␝');
             }
         } else {
             let padding_len = text_width.saturating_sub(name_width);
-            (0..padding_len).for_each(|_| text.push(' '));
+            text.extend(std::iter::repeat_n(' ', padding_len));
         }
 
+        self.add_key(&mut text);
         self.add_icon(&mut text);
+
         text
     }
 

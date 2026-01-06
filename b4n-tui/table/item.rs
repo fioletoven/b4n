@@ -115,13 +115,13 @@ impl RowStringExt for String {
 
         let padding_len = len.saturating_sub(s.chars().count());
         if to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
+            self.extend(std::iter::repeat_n(' ', padding_len));
         }
 
         self.push_str(truncate(s, len));
 
         if !to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
+            self.extend(std::iter::repeat_n(' ', padding_len));
         }
     }
 }

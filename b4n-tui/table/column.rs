@@ -185,7 +185,7 @@ impl ColumnStringExt for String {
 
         let padding_len = len.saturating_sub(column.name.chars().count() + usize::from(column.is_sorted));
         if column.to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
+            self.extend(std::iter::repeat_n(' ', padding_len));
         }
 
         for ch in truncate(column.name.as_ref(), len - usize::from(column.is_sorted)).chars() {
@@ -197,7 +197,7 @@ impl ColumnStringExt for String {
         }
 
         if !column.to_right && padding_len > 0 {
-            (0..padding_len).for_each(|_| self.push(' '));
+            self.extend(std::iter::repeat_n(' ', padding_len));
         }
     }
 }

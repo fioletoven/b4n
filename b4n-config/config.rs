@@ -75,6 +75,8 @@ fn default_aliases() -> HashMap<String, String> {
     [
         ("clusterrolebindings", "crb"),
         ("clusterroles", "cr"),
+        ("configmaps", "cm"),
+        ("customresourcedefinitions", "crd"),
         ("daemonsets", "ds,dms"),
         ("namespaces", "ns"),
         ("networkpolicies", "np"),
