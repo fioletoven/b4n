@@ -16,7 +16,7 @@ fn get_name_test() {
 
     let mut action = ActionItem::new("text").with_description("descr");
     action.set_key(Some("Ctrl+C".to_owned()));
-    assert_eq!("text  ␝descr␝ ❬␝Ctrl+C␝❭ ".to_owned(), action.get_name(22));
+    assert_eq!("text ␝descr␝  ␝❬␝Ctrl+C␝❭␝ ".to_owned(), action.get_name(22));
 
     let action = ActionItem::menu(9, " delete ␝selected␝", "");
     assert_eq!(" delete ␝selected␝     ".to_owned(), action.get_name(22));

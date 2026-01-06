@@ -154,7 +154,14 @@ impl ActionsListBuilder {
     }
 
     /// Adds custom action.
-    pub fn with_action(mut self, action: ActionItem) -> Self {
+    pub fn with_action(mut self, action: ActionItem, command: Option<KeyCommand>) -> Self {
+        self.actions.push(action);
+        self.commands.push(command);
+        self
+    }
+
+    /// Adds custom menu action.
+    pub fn with_menu_action(mut self, action: ActionItem) -> Self {
         self.actions.push(action);
         self.commands.push(None);
         self
@@ -250,7 +257,13 @@ impl ActionsListBuilder {
     }
 
     /// Adds custom action.
-    pub fn add_action(&mut self, action: ActionItem) {
+    pub fn add_action(&mut self, action: ActionItem, command: Option<KeyCommand>) {
+        self.actions.push(action);
+        self.commands.push(command);
+    }
+
+    /// Adds custom menu action.
+    pub fn add_menu_action(&mut self, action: ActionItem) {
         self.actions.push(action);
         self.commands.push(None);
     }

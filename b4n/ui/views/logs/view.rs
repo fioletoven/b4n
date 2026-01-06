@@ -84,9 +84,18 @@ impl LogsView {
         let builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
-            .with_action(ActionItem::action("timestamps", "timestamps").with_description("toggles the display of timestamps"))
-            .with_action(ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"))
-            .with_action(ActionItem::action("search", "search").with_description("searches logs using the provided query"));
+            .with_action(
+                ActionItem::action("timestamps", "timestamps").with_description("toggles the display of timestamps"),
+                Some(KeyCommand::LogsTimestamps),
+            )
+            .with_action(
+                ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"),
+                Some(KeyCommand::ContentCopy),
+            )
+            .with_action(
+                ActionItem::action("search", "search").with_description("searches logs using the provided query"),
+                Some(KeyCommand::SearchOpen),
+            );
         let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
@@ -96,10 +105,10 @@ impl LogsView {
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
         let copy = if self.logs.has_selection() { "selection" } else { "all" };
         let builder = ActionsListBuilder::default()
-            .with_action(ActionItem::back())
-            .with_action(ActionItem::command_palette())
-            .with_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-            .with_action(ActionItem::menu(2, " search", "search"));
+            .with_menu_action(ActionItem::back())
+            .with_menu_action(ActionItem::command_palette())
+            .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
+            .with_menu_action(ActionItem::menu(2, " search", "search"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }

@@ -81,8 +81,10 @@ impl ForwardsView {
             .with_quit();
 
         if self.list.table.is_anything_selected() {
-            builder
-                .add_action(ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"));
+            builder.add_action(
+                ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"),
+                Some(KeyCommand::NavigateDelete),
+            );
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
@@ -99,11 +101,11 @@ impl ForwardsView {
         }
 
         let mut builder = ActionsListBuilder::default()
-            .with_action(ActionItem::back())
-            .with_action(ActionItem::command_palette());
+            .with_menu_action(ActionItem::back())
+            .with_menu_action(ActionItem::command_palette());
 
         if self.list.table.is_anything_selected() {
-            builder.add_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
+            builder.add_menu_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).as_mouse_menu();

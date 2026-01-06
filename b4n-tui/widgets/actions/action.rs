@@ -150,7 +150,7 @@ impl ActionItem {
         let width = self
             .key
             .as_ref()
-            .map_or(width, |k| width.saturating_sub(k.chars().count() + 3));
+            .map_or(width, |k| width.saturating_sub(k.chars().count() + 4));
         self.icon
             .as_ref()
             .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
@@ -169,12 +169,9 @@ impl ActionItem {
 
     fn add_key(&self, text: &mut String) {
         if let Some(key) = &self.key {
-            text.push(' ');
-            text.push('❬');
-            text.push('␝');
+            text.push_str("  ␝❬␝");
             text.push_str(key);
-            text.push('␝');
-            text.push('❭');
+            text.push_str("␝❭␝");
         }
     }
 }
