@@ -56,7 +56,7 @@ impl KubernetesClientManager {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
         }
 
-        let msg = format!("Requested kubernetes client for '{context}'.");
+        let msg = format!("Requested kubernetes client for '{context}'");
         self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
         self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }
@@ -86,7 +86,7 @@ impl KubernetesClientManager {
         {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
 
-            let msg = format!("Request is overdue, resending for '{}'.", connecting.context);
+            let msg = format!("Request is overdue, resending for '{}'", connecting.context);
             warn!("{}", msg);
             self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
             self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
@@ -103,13 +103,13 @@ impl KubernetesClientManager {
             match result {
                 Ok(result) => {
                     self.request = None;
-                    let msg = format!("Connected to '{}'.", result.client.context());
+                    let msg = format!("Connected to '{}'", result.client.context());
                     self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
                     Some(result)
                 },
                 Err(err) => {
                     self.set_request_as_faulty();
-                    let msg = format!("Requested client error: {err}.");
+                    let msg = format!("Requested client error: {err}");
                     warn!("{}", msg);
                     self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                     None

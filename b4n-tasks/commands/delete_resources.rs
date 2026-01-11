@@ -1,3 +1,4 @@
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_kube::{Namespace, PropagationPolicy};
 use k8s_openapi::serde_json::json;
 use kube::api::{ApiResource, DeleteParams, DynamicObject, Patch, PatchParams, Preconditions};
@@ -7,15 +8,21 @@ use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
 
+/// Holds additional [`DeleteResourcesCommand`] options.
+pub struct DeleteResourcesOptions {
+    pub propagation_policy: PropagationPolicy,
+    pub terminate_immediately: bool,
+    pub detach_finalizers: bool,
+}
+
 /// Command that deletes all named resources for provided namespace and discovery.
 pub struct DeleteResourcesCommand {
     pub resources: Vec<(String, String)>,
     pub namespace: Namespace,
     pub discovery: Option<(ApiResource, ApiCapabilities)>,
     pub client: Client,
-    propagation_policy: PropagationPolicy,
-    terminate_immediately: bool,
-    detach_finalizers: bool,
+    options: DeleteResourcesOptions,
+    footer_tx: NotificationSink,
 }
 
 impl DeleteResourcesCommand {
@@ -25,18 +32,16 @@ impl DeleteResourcesCommand {
         namespace: Namespace,
         discovery: Option<(ApiResource, ApiCapabilities)>,
         client: Client,
-        propagation_policy: PropagationPolicy,
-        terminate_immediately: bool,
-        detach_finalizers: bool,
+        delete_options: DeleteResourcesOptions,
+        footer_tx: NotificationSink,
     ) -> Self {
         Self {
             resources,
             namespace,
             discovery,
             client,
-            propagation_policy,
-            terminate_immediately,
-            detach_finalizers,
+            options: delete_options,
+            footer_tx,
         }
     }
 
@@ -59,18 +64,24 @@ impl DeleteResourcesCommand {
             let info = info.clone();
             let client = client.clone();
             let mut delete_params = delete_params.clone();
-            let detach_finalizers = self.detach_finalizers;
+            let detach_finalizers = self.options.detach_finalizers;
+            let footer_tx = self.footer_tx.clone();
 
             set.spawn(async move {
                 if detach_finalizers {
                     let patch = json!({ "metadata": { "finalizers": null } });
 
                     if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
-                        tracing::error!("Cannot detach finalizers from {} ({}): {}", name, info, err);
+                        let msg = format!("Cannot detach finalizers from {name} ({info}): {err}");
+                        tracing::error!(msg);
+                        footer_tx.show_error(msg, 0);
+
                         return;
                     }
 
-                    tracing::info!("Detached finalizers from {} ({})", name, info);
+                    let msg = format!("Detached finalizers from {name} ({info})");
+                    tracing::info!(msg);
+                    footer_tx.show_info(msg, 0);
                 }
 
                 if !uid.is_empty() {
@@ -81,16 +92,22 @@ impl DeleteResourcesCommand {
                 }
 
                 if let Err(err) = client.delete(&name, &delete_params).await {
-                    tracing::error!("Cannot delete resource {} ({}): {}", name, info, err);
+                    let msg = format!("Cannot delete resource {name} ({info}): {err}");
+                    tracing::error!(msg);
+                    footer_tx.show_error(msg, 0);
                 } else {
-                    tracing::info!("Deleted resource {} ({})", name, info);
+                    let msg = format!("Deleted resource {name} ({info})");
+                    tracing::info!(msg);
+                    footer_tx.show_info(msg, 0);
                 }
             });
         }
 
         while let Some(res) = set.join_next().await {
             if let Err(err) = res {
-                tracing::error!("Delete task failed to complete: {}", err);
+                let msg = format!("Delete task failed to complete: {err}");
+                tracing::error!(msg);
+                self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
             }
         }
 
@@ -107,7 +124,7 @@ impl DeleteResourcesCommand {
         let info;
         if discovery.1.scope == Scope::Cluster {
             namespace = None;
-            info = discovery.0.plural.clone();
+            info = format!("kind: {}", discovery.0.plural);
         } else {
             namespace = self.namespace.as_option();
             info = format!("kind: {}, ns: {}", discovery.0.plural, namespace.unwrap_or("n/a"));
@@ -121,10 +138,10 @@ impl DeleteResourcesCommand {
             namespace.is_none(),
         );
 
-        let delete_params = if self.terminate_immediately {
+        let delete_params = if self.options.terminate_immediately {
             DeleteParams {
                 grace_period_seconds: Some(0),
-                propagation_policy: self.propagation_policy.into(),
+                propagation_policy: self.options.propagation_policy.into(),
                 ..Default::default()
             }
         } else {

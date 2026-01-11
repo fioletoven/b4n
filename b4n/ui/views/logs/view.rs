@@ -136,12 +136,12 @@ impl LogsView {
                     .is_ok()
             {
                 if self.logs.has_selection() {
-                    self.footer.show_info(" Selection copied to clipboard…", 3_000);
+                    self.footer.show_info("Selection copied to clipboard", 3_000);
                 } else {
-                    self.footer.show_info(" Container logs copied to clipboard…", 3_000);
+                    self.footer.show_info("Container logs copied to clipboard", 3_000);
                 }
             } else {
-                self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
+                self.footer.show_error("Unable to access clipboard functionality", 5_000);
             }
         }
     }

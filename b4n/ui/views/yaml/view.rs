@@ -109,14 +109,14 @@ impl YamlView {
             && clipboard.set_text(text).is_ok()
         {
             if self.yaml.has_selection() {
-                self.footer.show_info(" Selection copied to clipboard…", 3_000);
+                self.footer.show_info("Selection copied to clipboard", 3_000);
             } else if is_current_line {
-                self.footer.show_info(" Line copied to clipboard…", 3_000);
+                self.footer.show_info("Line copied to clipboard", 3_000);
             } else {
-                self.footer.show_info(" YAML content copied to clipboard…", 3_000);
+                self.footer.show_info("YAML content copied to clipboard", 3_000);
             }
         } else {
-            self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
+            self.footer.show_error("Unable to access clipboard functionality", 5_000);
         }
     }
 
@@ -493,11 +493,11 @@ impl View for YamlView {
             },
             CommandResult::SetNewResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' created successfully…"), 3_000);
+                self.footer.show_info(format!("'{name}' created successfully"), 3_000);
             },
             CommandResult::SetResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 3_000);
+                self.footer.show_info(format!("'{name}' YAML saved successfully"), 3_000);
             },
             _ => (),
         }
