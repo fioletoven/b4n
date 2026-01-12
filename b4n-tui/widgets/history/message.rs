@@ -1,4 +1,4 @@
-use b4n_common::{Notification, add_padding, truncate};
+use b4n_common::{Notification, NotificationKind, add_padding, truncate};
 use b4n_config::themes::{TextColors, Theme};
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::borrow::Cow;
@@ -21,7 +21,7 @@ impl MessageItem {
             group: "notification",
             message: notification.text.clone(),
             time,
-            is_error: notification.is_error,
+            is_error: notification.kind == NotificationKind::Error,
         }
     }
 

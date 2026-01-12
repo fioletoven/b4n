@@ -8,6 +8,7 @@ palette:
   fg_light: DarkGray
   bg_light: Gray
   white: White
+  black: Black
   red: Red
   green: Green
   blue: Blue
@@ -48,7 +49,7 @@ colors:
     disconnected: white:light_red
     previous: text:no_bg
   footer:
-    text: fg_dark:bg_dark
+    text: fg_dark:black:bg_dark
     trail: blue:yellow:bg_dark
     info: light_green:bg_dark
     error: light_red:bg_dark

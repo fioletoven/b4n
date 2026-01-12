@@ -1,4 +1,4 @@
-use b4n_common::{Icon, IconAction, IconKind, Notification, NotificationSink};
+use b4n_common::{Icon, IconAction, IconKind, Notification, NotificationKind, NotificationSink};
 use b4n_config::themes::{Theme, ThemeColors};
 use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
 use ratatui_core::style::Style;
@@ -21,6 +21,7 @@ pub struct Footer {
     trail: Vec<String>,
     trail_rx: UnboundedReceiver<Vec<String>>,
     show_trail: bool,
+    hint: Option<String>,
     message: Option<Notification>,
     messages_rx: UnboundedReceiver<Notification>,
     message_received_time: Instant,
@@ -44,6 +45,7 @@ impl Default for Footer {
             trail: Vec::new(),
             trail_rx,
             show_trail: true,
+            hint: None,
             message: None,
             messages_rx,
             message_received_time: Instant::now(),
@@ -91,6 +93,7 @@ impl Footer {
     /// Shows history pane.
     pub fn show_message_history(&mut self) {
         if self.history_pane.is_none() {
+            self.hint = None;
             self.history_pane = Some(BottomPane::new(self.get_history_messages().into()));
         }
     }
@@ -105,17 +108,17 @@ impl Footer {
     /// Draws [`Footer`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;
-        self.draw_footer(frame, area, theme);
-
         self.update_current_message();
-        if !self.is_message_history_visible()
-            && self.has_message_to_show()
-            && let Some(message) = &self.message
-        {
+
+        let draw_message = !self.is_message_history_visible() && self.has_message_to_show();
+        self.draw_footer(frame, area, theme, !draw_message);
+
+        if draw_message && let Some(message) = &self.message {
+            let is_error = message.kind == NotificationKind::Error;
             let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
                 .flex(Flex::Center)
                 .areas(area.inner(Margin::new(2, 0)));
-            frame.render_widget(Footer::get_message(&message.text, message.is_error, &theme.colors), area);
+            frame.render_widget(Footer::get_message(&message.text, is_error, &theme.colors), area);
         }
     }
 
@@ -126,7 +129,7 @@ impl Footer {
         }
     }
 
-    fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+    fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, draw_hint: bool) {
         self.update_current_icons();
         self.update_current_trail();
 
@@ -136,14 +139,20 @@ impl Footer {
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Fill(1),
-                Constraint::Length(1),
+                Constraint::Length(if draw_hint { self.get_hint_length() } else { 0 }),
                 Constraint::Length(u16::try_from(icons_len).unwrap_or_default()),
                 Constraint::Length(2),
             ])
             .split(area);
 
+        if draw_hint && let Some(hint) = &self.hint {
+            let style = Style::new().fg(colors.footer.text.dim).bg(colors.footer.text.bg);
+            frame.render_widget(Paragraph::new(Line::styled(hint, style)), layout[1]);
+        } else {
+            frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
+        }
+
         frame.render_widget(Paragraph::new(self.get_left_text(layout[0].width, colors)), layout[0]);
-        frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
         frame.render_widget(Paragraph::new(icons), layout[2]);
         frame.render_widget(
             Paragraph::new(Line::from(vec![
@@ -152,6 +161,14 @@ impl Footer {
             ])),
             layout[3],
         );
+    }
+
+    fn get_hint_length(&self) -> u16 {
+        self.hint
+            .as_deref()
+            .map(|h| h.chars().count())
+            .and_then(|l| u16::try_from(l).ok())
+            .unwrap_or_default()
     }
 
     /// Returns formatted message to show.
@@ -228,6 +245,11 @@ impl Footer {
     fn update_current_message(&mut self) {
         let mut message = None;
         while let Ok(current) = self.messages_rx.try_recv() {
+            if current.kind == NotificationKind::Hint {
+                self.hint = if current.text.is_empty() { None } else { Some(current.text) };
+                continue;
+            }
+
             if self.message_history.len() >= MESSAGE_HISTORY_SIZE {
                 self.message_history.pop_back();
             }

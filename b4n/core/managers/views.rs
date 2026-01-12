@@ -49,6 +49,7 @@ impl ViewsManager {
             ResponseEvent::ChangeKind,
             40,
         );
+        set_command_palette_hint(footer.transmitter(), &app_data);
 
         Self {
             app_data,
@@ -488,4 +489,9 @@ impl ViewsManager {
         );
         self.view = Some(Box::new(view));
     }
+}
+
+fn set_command_palette_hint(footer_tx: &NotificationSink, app_data: &SharedAppData) {
+    let command_palette_key = app_data.get_key_name(KeyCommand::CommandPaletteOpen).to_ascii_uppercase();
+    footer_tx.show_hint(format!(" Press {command_palette_key} to open command palette  "));
 }

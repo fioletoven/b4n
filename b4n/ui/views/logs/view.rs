@@ -100,6 +100,7 @@ impl LogsView {
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
+        self.footer.hide_hint();
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
