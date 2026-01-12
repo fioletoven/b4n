@@ -52,7 +52,7 @@ pub struct FooterColors {
 impl Default for FooterColors {
     fn default() -> Self {
         Self {
-            text: TextColors::bg(Color::Gray, Color::DarkGray),
+            text: TextColors::dim(Color::Gray, Color::Black, Color::DarkGray),
             trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             error: TextColors::bg(Color::LightRed, Color::DarkGray),

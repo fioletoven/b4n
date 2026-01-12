@@ -92,6 +92,7 @@ impl ForwardsView {
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
+        self.footer_tx.hide_hint();
     }
 
     /// Shows menu for right mouse button.
@@ -128,7 +129,7 @@ impl ForwardsView {
         self.list.table.table.list.deselect_all();
 
         self.footer_tx
-            .show_info(" Selected port forwarding rules have been stopped…", 3_000);
+            .show_info("Selected port forwarding rules have been stopped", 3_000);
     }
 
     /// Creates new stop dialog.

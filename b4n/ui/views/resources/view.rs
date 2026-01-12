@@ -156,7 +156,7 @@ impl ResourcesView {
                 ActionsListBuilder::from_resource_ports(list).build(self.app_data.borrow().config.key_bindings.as_ref());
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
                 .with_header(format!(
-                    " Add port forward for {} container:",
+                    " Add port forward for '{}' container:",
                     resource.container.as_deref().unwrap_or_default()
                 ))
                 .with_prompt("container port")
@@ -453,6 +453,7 @@ impl ResourcesView {
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
+        self.footer_tx.hide_hint();
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {

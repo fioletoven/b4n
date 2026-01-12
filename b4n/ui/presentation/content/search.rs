@@ -50,9 +50,9 @@ impl MatchPosition {
 /// Returns an appropriate search message based on the search direction.
 pub fn get_search_wrapped_message(forward: bool) -> &'static str {
     if forward {
-        "Reached end of search results."
+        "Reached end of search results"
     } else {
-        "Reached start of search results."
+        "Reached start of search results"
     }
 }
 

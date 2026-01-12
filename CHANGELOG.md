@@ -1,5 +1,16 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- show key bindings in command palette
+- show hint how to open command palette
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.3.7 - 2025-12-31
 
 ### Features

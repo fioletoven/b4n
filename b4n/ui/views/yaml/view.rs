@@ -109,14 +109,14 @@ impl YamlView {
             && clipboard.set_text(text).is_ok()
         {
             if self.yaml.has_selection() {
-                self.footer.show_info(" Selection copied to clipboard…", 3_000);
+                self.footer.show_info("Selection copied to clipboard", 3_000);
             } else if is_current_line {
-                self.footer.show_info(" Line copied to clipboard…", 3_000);
+                self.footer.show_info("Line copied to clipboard", 3_000);
             } else {
-                self.footer.show_info(" YAML content copied to clipboard…", 3_000);
+                self.footer.show_info("YAML content copied to clipboard", 3_000);
             }
         } else {
-            self.footer.show_error(" Unable to access clipboard functionality…", 5_000);
+            self.footer.show_error("Unable to access clipboard functionality", 5_000);
         }
     }
 
@@ -172,6 +172,7 @@ impl YamlView {
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
+        self.footer.hide_hint();
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
@@ -493,11 +494,11 @@ impl View for YamlView {
             },
             CommandResult::SetNewResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' created successfully…"), 3_000);
+                self.footer.show_info(format!("'{name}' created successfully"), 3_000);
             },
             CommandResult::SetResourceYaml(Ok(name)) => {
                 self.update_view_state();
-                self.footer.show_info(format!(" '{name}' YAML saved successfully…"), 3_000);
+                self.footer.show_info(format!("'{name}' YAML saved successfully"), 3_000);
             },
             _ => (),
         }

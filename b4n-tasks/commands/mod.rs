@@ -3,7 +3,7 @@ use b4n_kube::Port;
 use kube::config::NamedContext;
 use std::path::PathBuf;
 
-pub use self::delete_resources::DeleteResourcesCommand;
+pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions};
 pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
 pub use self::list_contexts::ListKubeContextsCommand;

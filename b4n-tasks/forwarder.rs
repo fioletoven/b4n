@@ -94,7 +94,7 @@ impl PortForwarder {
 
         self.footer_tx.show_info(
             format!(
-                "Port forward for {}:  {} -> {}",
+                "Port forward for '{}': {} -> {}",
                 resource.name.as_deref().unwrap_or_default(),
                 address,
                 port
@@ -236,7 +236,7 @@ impl PortForwardTask {
                     }
                 },
                 Err(error) => {
-                    let msg = format!("Port forward for {_pod_name}: cannot bind to {_bind_address}");
+                    let msg = format!("Port forward for '{_pod_name}': cannot bind to {_bind_address}");
                     warn!("{msg}: {error}");
                     _footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                 },

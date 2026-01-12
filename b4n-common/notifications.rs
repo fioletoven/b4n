@@ -54,22 +54,26 @@ impl Icon {
     }
 }
 
+/// Type of the notification.
+#[derive(Clone, PartialEq)]
+pub enum NotificationKind {
+    Info,
+    Error,
+    Hint,
+}
+
 /// Message notification to show.
 #[derive(Clone)]
 pub struct Notification {
     pub text: String,
-    pub is_error: bool,
+    pub kind: NotificationKind,
     pub duration: u16,
 }
 
 impl Notification {
     /// Creates new [`Notification`] instance.
-    fn new(text: String, is_error: bool, duration: u16) -> Self {
-        Self {
-            text,
-            is_error,
-            duration,
-        }
+    fn new(text: String, kind: NotificationKind, duration: u16) -> Self {
+        Self { text, kind, duration }
     }
 }
 
@@ -97,12 +101,28 @@ impl NotificationSink {
 
     /// Displays an informational message for the specified duration (in milliseconds).
     pub fn show_info(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages.send(Notification::new(text.into(), false, duration));
+        let _ = self
+            .messages
+            .send(Notification::new(text.into(), NotificationKind::Info, duration));
     }
 
     /// Displays an error message for the specified duration (in milliseconds).
     pub fn show_error(&self, text: impl Into<String>, duration: u16) {
-        let _ = self.messages.send(Notification::new(text.into(), true, duration));
+        let _ = self
+            .messages
+            .send(Notification::new(text.into(), NotificationKind::Error, duration));
+    }
+
+    /// Starts displaying a hint message in the footer (if there is a space for it).
+    pub fn show_hint(&self, text: impl Into<String>) {
+        let _ = self.messages.send(Notification::new(text.into(), NotificationKind::Hint, 0));
+    }
+
+    /// Stops displaying a hint message if any is displayed.
+    pub fn hide_hint(&self) {
+        let _ = self
+            .messages
+            .send(Notification::new(String::new(), NotificationKind::Hint, 0));
     }
 
     /// Adds, updates, or removes an icon in the sink by its `id`.

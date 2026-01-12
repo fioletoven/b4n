@@ -3,8 +3,8 @@ use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{Namespace, Port, PropagationPolicy, ResourceRef};
 use b4n_tasks::commands::{
-    CommandResult, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError, ResourceYamlResult,
-    SetNewResourceYamlError, SetResourceYamlError,
+    CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
+    ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
@@ -49,6 +49,7 @@ impl ViewsManager {
             ResponseEvent::ChangeKind,
             40,
         );
+        set_command_palette_hint(footer.transmitter(), &app_data);
 
         Self {
             app_data,
@@ -351,20 +352,24 @@ impl ViewsManager {
         }
 
         for (namespace, resources) in grouped {
+            let options = DeleteResourcesOptions {
+                propagation_policy,
+                terminate_immediately,
+                detach_finalizers,
+            };
             self.worker.borrow_mut().delete_resources(
                 resources.iter().map(|r| (r.name.clone(), r.uid.clone())).collect(),
                 namespace.into(),
                 &self.resources.get_kind(),
-                propagation_policy,
-                terminate_immediately,
-                detach_finalizers,
+                options,
+                self.footer.get_transmitter(),
             );
         }
 
         self.resources.deselect_all();
         self.footer
             .transmitter()
-            .show_info(" Selected resources marked for deletion…", 3_000);
+            .show_info("Selected resources marked for deletion", 3_000);
     }
 
     /// Displays a list of available contexts to choose from.
@@ -484,4 +489,9 @@ impl ViewsManager {
         );
         self.view = Some(Box::new(view));
     }
+}
+
+fn set_command_palette_hint(footer_tx: &NotificationSink, app_data: &SharedAppData) {
+    let command_palette_key = app_data.get_key_name(KeyCommand::CommandPaletteOpen).to_ascii_uppercase();
+    footer_tx.show_hint(format!(" Press {command_palette_key} to open command palette  "));
 }
