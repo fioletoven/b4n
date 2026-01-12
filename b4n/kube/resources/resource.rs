@@ -6,7 +6,7 @@ use b4n_kube::{Kind, Namespace, PV};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::Value;
 use kube::ResourceExt;
 use kube::api::{DynamicObject, ObjectMeta};
@@ -32,7 +32,7 @@ pub struct ResourceItem {
     pub name: String,
     pub namespace: Option<String>,
     pub age: Option<String>,
-    pub creation_timestamp: Option<DateTime<Utc>>,
+    pub creation_timestamp: Option<Timestamp>,
     pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
     pub involved_object: Option<InvolvedObject>,
@@ -135,13 +135,13 @@ impl ResourceItem {
 
 fn get_age_string(metadata: &ObjectMeta) -> Option<String> {
     if metadata.resource_version.is_some() {
-        metadata.creation_timestamp.as_ref().map(|t| t.0.timestamp().to_string())
+        metadata.creation_timestamp.as_ref().map(|t| t.0.as_millisecond().to_string())
     } else {
         None
     }
 }
 
-fn get_age_time(metadata: &ObjectMeta) -> Option<DateTime<Utc>> {
+fn get_age_time(metadata: &ObjectMeta) -> Option<Timestamp> {
     if metadata.resource_version.is_some() {
         metadata.creation_timestamp.as_ref().map(|t| t.0)
     } else {
@@ -198,7 +198,7 @@ impl Row for ResourceItem {
         &self.name
     }
 
-    fn creation_timestamp(&self) -> Option<&DateTime<Utc>> {
+    fn creation_timestamp(&self) -> Option<&Timestamp> {
         self.creation_timestamp.as_ref()
     }
 

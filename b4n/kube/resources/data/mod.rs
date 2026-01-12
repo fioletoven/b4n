@@ -3,7 +3,7 @@ use b4n_kube::crds::CrdColumns;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
 use b4n_tui::table::Header;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::{Value, from_value};
 use kube::api::DynamicObject;
 use std::borrow::Cow;
@@ -121,7 +121,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
 pub struct ResourceValue {
     text: Option<String>,
     sort_text: Option<String>,
-    time: Option<DateTime<Utc>>,
+    time: Option<Timestamp>,
     is_time: bool,
 }
 
@@ -157,7 +157,7 @@ impl ResourceValue {
     /// Creates new [`ResourceValue`] instance as a time value.
     pub fn time(value: Value) -> Self {
         let time = from_value::<Time>(value).ok().map(|t| t.0);
-        let sort = time.as_ref().map(|t| t.timestamp().to_string());
+        let sort = time.as_ref().map(|t| t.as_millisecond().to_string());
         Self {
             time,
             sort_text: sort,
@@ -230,11 +230,11 @@ impl From<bool> for ResourceValue {
     }
 }
 
-impl From<Option<&DateTime<Utc>>> for ResourceValue {
-    fn from(value: Option<&DateTime<Utc>>) -> Self {
+impl From<Option<&Timestamp>> for ResourceValue {
+    fn from(value: Option<&Timestamp>) -> Self {
         Self {
             text: value.map(b4n_kube::utils::format_datetime),
-            sort_text: value.map(|v| v.timestamp_millis().to_string()),
+            sort_text: value.map(|v| v.as_millisecond().to_string()),
             ..Default::default()
         }
     }

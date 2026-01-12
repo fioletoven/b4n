@@ -1,4 +1,4 @@
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use std::{borrow::Cow, marker::PhantomData};
 
 use crate::{FilterContext, Filterable};
@@ -15,7 +15,7 @@ pub trait Row {
     fn name(&self) -> &str;
 
     /// Returns creation timestamp of the item.
-    fn creation_timestamp(&self) -> Option<&DateTime<Utc>> {
+    fn creation_timestamp(&self) -> Option<&Timestamp> {
         None
     }
 

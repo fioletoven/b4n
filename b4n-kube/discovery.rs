@@ -67,7 +67,7 @@ impl BgDiscovery {
                 if let Some(discovery) = maybe_discovery.take() {
                     tokio::select! {
                         () = _cancellation_token.cancelled() => (),
-                        result = discovery.run() => match result {
+                        result = discovery.run_aggregated() => match result {
                             Ok(new_discovery) => {
                                 _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
                                 _has_error.store(false, Ordering::Relaxed);

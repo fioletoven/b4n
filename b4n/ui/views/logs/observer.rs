@@ -2,7 +2,7 @@ use b4n_kube::PodRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use kube::{Api, api::LogParams};
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -20,13 +20,13 @@ pub enum LogsObserverError {
 }
 
 pub struct LogLine {
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub message: String,
     pub is_error: bool,
 }
 
 pub struct LogsChunk {
-    pub end: DateTime<Utc>,
+    pub end: Timestamp,
     pub lines: Vec<LogLine>,
 }
 
@@ -126,7 +126,7 @@ struct ObserverContext<'a> {
     cancellation_token: &'a CancellationToken,
 }
 
-async fn observe(since_time: Option<DateTime<Utc>>, context: &ObserverContext<'_>) -> (bool, Option<DateTime<Utc>>) {
+async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (bool, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
         previous: context.previous,
@@ -199,7 +199,7 @@ fn process_line(line: &str) -> Option<LogsChunk> {
 }
 
 fn process_error(error: String) -> LogsChunk {
-    let dt = Utc::now();
+    let dt = Timestamp::now();
 
     LogsChunk {
         end: dt,

@@ -359,7 +359,7 @@ impl BgObserver {
                         },
                         Err(error) => {
                             results = None;
-                            let is_access_error = matches!(&error, kube::Error::Api(response) if response.code == 403);
+                            let is_access_error = matches!(&error, kube::Error::Api(response) if response.is_forbidden());
                             is_ready.store(false, Ordering::Relaxed);
                             has_error.store(true, Ordering::Relaxed);
                             has_access.store(!is_access_error, Ordering::Relaxed);
@@ -537,7 +537,7 @@ fn is_access_error(error: &watcher::Error) -> bool {
         Error::InitialListFailed(kube::Error::Api(response))
         | Error::WatchStartFailed(kube::Error::Api(response))
         | Error::WatchError(response)
-        | Error::WatchFailed(kube::Error::Api(response)) => response.code == 403,
+        | Error::WatchFailed(kube::Error::Api(response)) => response.is_forbidden(),
         _ => false,
     }
 }

@@ -32,8 +32,8 @@ delegate = { version = "0.13" }
 futures = { version = "0.3" }
 http = { version = "1" }
 jsonpath-rust = { version = "1" }
-k8s-openapi = { version = "0.26", features = ["latest"] }
-kube = { version = "2.0", features = ["client", "derive", "runtime", "ws"] }
+k8s-openapi = { version = "0.27", features = ["latest"] }
+kube = { version = "3.0", features = ["client", "derive", "runtime", "ws"] }
 notify = { version = "8.0" }
 pin-project = { version = "1.1" }
 ratatui = { version = "0.30", features = ["serde"] }
