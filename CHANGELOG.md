@@ -7,6 +7,10 @@
 - show key bindings in command palette
 - show hint how to open command palette
 
+### Bug fixes
+
+- fix scope change in resources view
+
 ### Compatibility
 
 - theme YAML files must be recreated or updated to match the current schema
