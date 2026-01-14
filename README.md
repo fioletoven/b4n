@@ -47,32 +47,32 @@ The following features are planned for future development:
 
 ## Default Key Bindings
 
-| Action                                   | Command         | Comments                                                    |
-|:-----------------------------------------|:----------------|:------------------------------------------------------------|
-| Attach to the container's shell          | `s`             | Works only in containers view                               |
-| Copy YAML / logs to the clipboard        | `c`             | Works only in YAML and logs views                           |
-| Create new resource                      | `n`             |                                                             |
-| Decode highlighted secret                | `x`             |                                                             |
-| Delete selected resources                | `CTRL` + `d`    | Displays a confirmation dialog                              |
-| Enable / disable mouse support           | `CTRL` + `n`    | Not available inside a shell session                        |
-| Forward container's port                 | `f`             | Works only in containers view                               |
-| Go back to namespaces; clear filter      | `ESC`           | Also clears input in the filter widget                      |
-| Navigate to the involved object          | `i`             | Works only for `events` kind                                |
-| Open / switch to the edit mode           | `i`             | Press `Esc` to exit                                         |
-| Quit the application                     | `CTRL` + `c`    |                                                             |
-| Reverse selection                        | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
-| Select resource                          | ` `             | (`SPACE`)                                                   |
-| Show / hide log timestamps               | `t`             | Works only in logs view                                     |
-| Show / hide port forwards                | `CTRL` + `f`    | Displays all active port forwarding rules                   |
-| Show command palette                     | `:`, `>`        | For example, entering `:q`↲ quits the application           |
-| Show events for the highlighted resource | `e`             |                                                             |
-| Show filter / search input               | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
-| Show footer messages history pane        | `h`             | Also works left mouse button click on the footer            |
-| Show logs for the highlighted container  | `l`             | Press `p` to display previous logs for the container        |
-| Show namespaces selector                 | `←`             | To select `all` quickly press `←` again                     |
-| Show resources selector                  | `→`             | To select the first item quickly press `→` again            |
-| Show YAML for the highlighted resource   | `y`             |                                                             |
-| Sort column                              | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
+| Action                                    | Command         | Comments                                                    |
+|:------------------------------------------|:----------------|:------------------------------------------------------------|
+| Attach to the container's shell           | `s`             | Works only in containers view                               |
+| Copy YAML / logs / resources to clipboard | `c`             | Works only in YAML, logs and resources views                |
+| Create new resource                       | `n`             |                                                             |
+| Decode highlighted secret                 | `x`             |                                                             |
+| Delete selected resources                 | `CTRL` + `d`    | Displays a confirmation dialog                              |
+| Enable / disable mouse support            | `CTRL` + `n`    | Not available inside a shell session                        |
+| Forward container's port                  | `f`             | Works only in containers view                               |
+| Go back to namespaces; clear filter       | `ESC`           | Also clears input in the filter widget                      |
+| Navigate to the involved object           | `i`             | Works only for `events` kind                                |
+| Open / switch to the edit mode            | `i`             | Press `Esc` to exit                                         |
+| Quit the application                      | `CTRL` + `c`    |                                                             |
+| Reverse selection                         | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
+| Select resource                           | ` `             | (`SPACE`)                                                   |
+| Show / hide log timestamps                | `t`             | Works only in logs view                                     |
+| Show / hide port forwards                 | `CTRL` + `f`    | Displays all active port forwarding rules                   |
+| Show command palette                      | `:`, `>`        | For example, entering `:q`↲ quits the application           |
+| Show events for the highlighted resource  | `e`             |                                                             |
+| Show filter / search input                | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show footer messages history pane         | `h`             | Also works left mouse button click on the footer            |
+| Show logs for the highlighted container   | `l`             | Press `p` to display previous logs for the container        |
+| Show namespaces selector                  | `←`             | To select `all` quickly press `←` again                     |
+| Show resources selector                   | `→`             | To select the first item quickly press `→` again            |
+| Show YAML for the highlighted resource    | `y`             |                                                             |
+| Sort column                               | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
 
 ## Configuration Files
 

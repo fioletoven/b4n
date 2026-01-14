@@ -329,7 +329,7 @@ impl App {
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.views_manager.remember_current_resource();
         self.views_manager.clear_page_view();
-        self.views_manager.set_page_view(&Scope::Cluster);
+        self.views_manager.set_page_view(&Scope::Cluster, pod_namespace.is_all());
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
 
@@ -355,10 +355,11 @@ impl App {
                 self.views_manager.remember_current_resource();
             }
 
+            let is_all_namespaces = namespace.is_all();
             let resource = ResourceRef::filtered(kind, namespace, scope.filter);
             self.views_manager.handle_kind_change(to_select);
             self.views_manager.clear_page_view();
-            self.views_manager.set_page_view(&scope.list);
+            self.views_manager.set_page_view(&scope.list, is_all_namespaces);
             self.views_manager.force_header_scope(Some(scope.header));
             self.worker.borrow_mut().restart(resource)?;
         }
@@ -403,9 +404,13 @@ impl App {
     /// Performs all necessary actions needed when resources view changes.\
     /// **Note** that this means the resource list will change soon.
     fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: &Scope) {
+        let is_all_namespaces = namespace
+            .as_deref()
+            .map_or_else(|| self.data.borrow().current.get_namespace(), Namespace::from)
+            .is_all();
         self.views_manager.clear_page_view();
         self.update_history_data(kind, namespace);
-        self.views_manager.set_page_view(scope);
+        self.views_manager.set_page_view(scope, is_all_namespaces);
     }
 
     /// Changes application theme.

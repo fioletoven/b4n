@@ -318,11 +318,11 @@ impl ViewsManager {
     }
 
     /// Sets page view from resource scope.
-    pub fn set_page_view(&mut self, scope: &Scope) {
-        if *scope == Scope::Cluster {
-            self.resources.set_view(ViewType::Compact);
-        } else if self.app_data.borrow().current.is_all_namespace() {
+    pub fn set_page_view(&mut self, scope: &Scope, is_all_namespaces: bool) {
+        if *scope == Scope::Namespaced && is_all_namespaces {
             self.resources.set_view(ViewType::Full);
+        } else {
+            self.resources.set_view(ViewType::Compact);
         }
     }
 

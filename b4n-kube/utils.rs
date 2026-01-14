@@ -1,5 +1,5 @@
 use base64::{DecodeError, Engine, engine};
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::{Map, Value};
 use kube::ResourceExt;
 use kube::api::{ApiResource, DynamicObject};
@@ -59,25 +59,24 @@ pub fn get_object_uid(object: &DynamicObject) -> String {
 }
 
 /// Formats datetime to a human-readable string.
-pub fn format_datetime(time: &DateTime<Utc>) -> String {
-    let duration = Utc::now().signed_duration_since(time);
-    let days = duration.num_days();
-    let hours = duration.num_hours() - (days * 24);
+pub fn format_datetime(time: &Timestamp) -> String {
+    let now = Timestamp::now();
+    let duration = now.duration_since(*time);
+
+    let total_secs = duration.as_secs();
+    let days = total_secs / 86_400;
+    let hours = (total_secs % 86_400) / 3_600;
+    let minutes = (total_secs % 3_600) / 60;
+    let secs = total_secs % 60;
 
     if days > 0 {
         format!("{days}d{hours:0>2}h")
+    } else if hours > 0 {
+        format!("{hours}h{minutes:0>2}m")
+    } else if minutes > 0 {
+        format!("{minutes}m{secs:0>2}s")
     } else {
-        let minutes = duration.num_minutes() - (days * 1_440) - (hours * 60);
-        if hours > 0 {
-            format!("{hours}h{minutes:0>2}m")
-        } else {
-            let secs = duration.num_seconds() - (days * 86_400) - (hours * 3_600) - (minutes * 60);
-            if minutes > 0 {
-                format!("{minutes}m{secs:0>2}s")
-            } else {
-                format!("{secs}s")
-            }
-        }
+        format!("{secs}s")
     }
 }
 

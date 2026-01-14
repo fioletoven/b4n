@@ -1,3 +1,4 @@
+use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS,
@@ -115,6 +116,24 @@ impl ResourcesTable {
     /// Remembers if header scope should be reset to default for next background observer result.
     pub fn clear_header_scope(&mut self, clear_on_next: bool) {
         self.next_refresh.clear_header_scope = clear_on_next;
+    }
+
+    /// Copies all / selected items to clipboard.
+    pub fn copy_to_clipboard(&mut self, selected: bool, footer: &NotificationSink) {
+        let text = self.list.table.get_items_as_text(self.list.view, selected);
+        if !text.is_empty() {
+            if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
+                && clipboard.set_text(text.join("\n")).is_ok()
+            {
+                if selected {
+                    footer.show_info("Selected resources copied to clipboard", 3_000);
+                } else {
+                    footer.show_info("All resources copied to clipboard", 3_000);
+                }
+            } else {
+                footer.show_error("Unable to access clipboard functionality", 5_000);
+            }
+        }
     }
 
     delegate! {

@@ -247,6 +247,12 @@ impl ResourcesView {
             return result;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.table
+                .copy_to_clipboard(self.table.list.table.is_anything_selected(), &self.footer_tx);
+            return ResponseEvent::Handled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
             return ResponseEvent::Handled;
@@ -300,6 +306,7 @@ impl ResourcesView {
         } else if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
+                "copy" => self.process_event(&TuiEvent::Command(KeyCommand::ContentCopy)),
                 "palette" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
@@ -345,11 +352,12 @@ impl ResourcesView {
             return;
         }
 
+        let is_selected = self.table.list.table.is_anything_selected();
         let is_highlighted = self.table.list.table.is_anything_highlighted();
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
-        let is_deletable = self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable;
+        let is_deletable = is_selected && self.table.list.table.data.is_deletable;
 
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
@@ -365,6 +373,12 @@ impl ResourcesView {
                 Some(KeyCommand::NavigateBack),
             );
         }
+
+        let selected = if is_selected { "selected" } else { "all" };
+        builder.add_action(
+            ActionItem::action("copy", "copy").with_description(&format!("copies {selected} resources to clipboard")),
+            Some(KeyCommand::ContentCopy),
+        );
 
         if !is_containers && !is_events {
             if is_highlighted {
@@ -461,19 +475,24 @@ impl ResourcesView {
             return;
         }
 
+        let is_selected = self.table.list.table.is_anything_selected();
         let highlighted_name = self.table.list.table.get_highlighted_item_name();
         let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
         let is_containers = self.table.kind_plural() == CONTAINERS;
         let is_pods = self.table.kind_plural() == PODS;
         let is_events = self.table.kind_plural() == EVENTS;
-        let mut builder = ActionsListBuilder::default().with_menu_action(ActionItem::command_palette());
+
+        let copy = if is_selected { "selected" } else { "all" };
+        let mut builder = ActionsListBuilder::default()
+            .with_menu_action(ActionItem::command_palette())
+            .with_menu_action(ActionItem::menu(9, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            let action = ActionItem::menu(9, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+            let action = ActionItem::menu(10, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
             builder.add_menu_action(action);
         }
 

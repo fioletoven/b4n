@@ -1,11 +1,16 @@
 # Change Log
 
-## WIP
+## 0.3.8 - 2026-01-14
 
 ### Features
 
-- show key bindings in command palette
-- show hint how to open command palette
+- add copy command to the resources view
+- show keyboard shortcuts in the command palette
+- add hint explaining how to open the command palette
+
+### Bug fixes
+
+- fix incorrect scope change when switching in the resources view
 
 ### Compatibility
 

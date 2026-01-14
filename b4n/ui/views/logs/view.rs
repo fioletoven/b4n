@@ -89,7 +89,7 @@ impl LogsView {
                 Some(KeyCommand::LogsTimestamps),
             )
             .with_action(
-                ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"),
+                ActionItem::action("copy", "copy").with_description("copies logs to clipboard"),
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
@@ -404,7 +404,7 @@ impl LogsContent {
             vec![
                 (
                     (&self.colors.timestamp).into(),
-                    line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string(),
+                    line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string(),
                 ),
                 (log_colors.into(), line.message.clone()),
             ]
@@ -455,7 +455,7 @@ impl Content for LogsContent {
             let line = &self.lines[i];
             if i == start_line || i == end_line {
                 let text = if self.show_timestamps {
-                    format!("{}{}", line.datetime.format(TIMESTAMP_TEXT_FORMAT), line.message)
+                    format!("{}{}", line.datetime.strftime(TIMESTAMP_TEXT_FORMAT), line.message)
                 } else {
                     line.message.clone()
                 };
@@ -476,7 +476,7 @@ impl Content for LogsContent {
                 }
             } else {
                 if self.show_timestamps {
-                    result.push_str(&line.datetime.format(TIMESTAMP_TEXT_FORMAT).to_string());
+                    result.push_str(&line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string());
                 }
 
                 result.push_str(&line.message);

@@ -20,11 +20,9 @@ impl CrdColumns {
     pub fn from(uid: &str, kind: &str, version: &Value) -> Self {
         let name = version["name"].as_str().unwrap_or_default();
         let columns = version["additionalPrinterColumns"].as_array().map(|c| {
-            c.iter()
-                .filter(|c| !is_default(c))
-                .map(CrdColumn::from)
-                .filter(|c| c.priority == 0)
-                .collect::<Vec<_>>()
+            let mut cols = c.iter().filter(|c| !is_default(c)).map(CrdColumn::from).collect::<Vec<_>>();
+            cols.sort_by_key(|col| col.priority);
+            cols
         });
 
         let has_metadata_pointer = columns

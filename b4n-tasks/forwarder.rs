@@ -2,7 +2,7 @@ use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{PODS, ResourceRef};
 use k8s_openapi::api::core::v1::Pod;
-use k8s_openapi::chrono::{DateTime, Utc};
+use k8s_openapi::jiff::Timestamp;
 use kube::Api;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -159,7 +159,7 @@ pub struct PortForwardTask {
     pub resource: ResourceRef,
     pub bind_address: String,
     pub port: u16,
-    pub start_time: Option<DateTime<Utc>>,
+    pub start_time: Option<Timestamp>,
     pub statistics: TaskStatistics,
     runtime: Handle,
     task: Option<JoinHandle<()>>,
@@ -248,7 +248,7 @@ impl PortForwardTask {
         self.task = Some(task);
         self.cancellation_token = Some(cancellation_token);
         self.resource = resource;
-        self.start_time = Some(Utc::now());
+        self.start_time = Some(Timestamp::now());
     }
 
     /// Cancels [`PortForwardTask`] task.

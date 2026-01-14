@@ -96,7 +96,7 @@ impl NewKubernetesClientCommand {
                 }
             },
             Err(error) => {
-                if !matches!(error, kube::Error::Api(response) if response.code == 403) {
+                if !matches!(error, kube::Error::Api(response) if response.is_forbidden()) {
                     return Some(CommandResult::KubernetesClient(Err(
                         KubernetesClientError::NamespaceFetchFailure,
                     )));
