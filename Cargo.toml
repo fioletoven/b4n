@@ -59,7 +59,7 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
 ] }
 tui-input = { version = "0.15" }
-tui-term = { git = "https://github.com/a-kenji/tui-term.git", rev = "b81c54e6" }
+tui-term = { version = "0.3" }
 uuid = { version = "1", features = ["v4"] }
 
 [[bin]]

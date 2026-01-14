@@ -406,8 +406,7 @@ impl App {
     fn process_resources_change(&mut self, kind: Option<String>, namespace: Option<String>, scope: &Scope) {
         let is_all_namespaces = namespace
             .as_deref()
-            .map(Namespace::from)
-            .unwrap_or_else(|| self.data.borrow().current.get_namespace())
+            .map_or_else(|| self.data.borrow().current.get_namespace(), Namespace::from)
             .is_all();
         self.views_manager.clear_page_view();
         self.update_history_data(kind, namespace);

@@ -117,7 +117,7 @@ impl KeyBindings {
             .collect::<Vec<_>>();
         keys.sort();
 
-        if !keys.is_empty() { Some(keys.swap_remove(0)) } else { None }
+        if keys.is_empty() { None } else { Some(keys.swap_remove(0)) }
     }
 }
 
@@ -127,7 +127,7 @@ impl Serialize for KeyBindings {
             .inverted()
             .into_iter()
             .map(|(command, combinations)| {
-                let mut combinations = combinations.iter().map(|c| c.to_string()).collect::<Vec<_>>();
+                let mut combinations = combinations.iter().map(ToString::to_string).collect::<Vec<_>>();
                 combinations.sort();
                 (command.to_string(), combinations.join(", "))
             })

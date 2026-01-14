@@ -145,7 +145,7 @@ impl YamlView {
             .with_back()
             .with_quit()
             .with_action(
-                ActionItem::action("copy", "copy").with_description("copies YAML to the clipboard"),
+                ActionItem::action("copy", "copy").with_description("copies YAML to clipboard"),
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(

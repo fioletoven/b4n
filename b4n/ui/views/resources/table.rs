@@ -118,7 +118,7 @@ impl ResourcesTable {
         self.next_refresh.clear_header_scope = clear_on_next;
     }
 
-    /// Copies all / selected resources to the clipboard.
+    /// Copies all / selected items to clipboard.
     pub fn copy_to_clipboard(&mut self, selected: bool, footer: &NotificationSink) {
         let text = self.list.table.get_items_as_text(self.list.view, selected);
         if !text.is_empty() {
@@ -126,9 +126,9 @@ impl ResourcesTable {
                 && clipboard.set_text(text.join("\n")).is_ok()
             {
                 if selected {
-                    footer.show_info("Selected resource lines copied to clipboard", 3_000);
+                    footer.show_info("Selected resources copied to clipboard", 3_000);
                 } else {
-                    footer.show_info("Resource lines copied to clipboard", 3_000);
+                    footer.show_info("All resources copied to clipboard", 3_000);
                 }
             } else {
                 footer.show_error("Unable to access clipboard functionality", 5_000);

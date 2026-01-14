@@ -89,7 +89,7 @@ impl LogsView {
                 Some(KeyCommand::LogsTimestamps),
             )
             .with_action(
-                ActionItem::action("copy", "copy").with_description("copies logs to the clipboard"),
+                ActionItem::action("copy", "copy").with_description("copies logs to clipboard"),
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(

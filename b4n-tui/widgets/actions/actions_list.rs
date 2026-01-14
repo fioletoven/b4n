@@ -274,7 +274,7 @@ impl ActionsListBuilder {
             if let Some(command) = command
                 && let Some(keys) = commands.get(command)
             {
-                let mut keys = keys.iter().map(|k| k.to_string()).collect::<Vec<_>>();
+                let mut keys = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
                 keys.sort();
 
                 if !keys.is_empty() {
