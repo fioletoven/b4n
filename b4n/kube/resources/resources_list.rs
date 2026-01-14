@@ -83,6 +83,53 @@ impl ResourcesList {
         }
     }
 
+    pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {
+        let width = self.get_best_width(view);
+        let header = self.table.header.get_text(view, width).to_string();
+        let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
+        let name_width = name_width + name_extra_width;
+
+        let items = if let Some(items) = &self.table.list.items {
+            items.iter().filter(|i| !selected || i.is_selected).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+
+        if items.is_empty() {
+            return Vec::new();
+        }
+
+        let mut result = Vec::with_capacity(items.len() + 1);
+        result.push(header);
+        for item in items {
+            result.push(item.get_text(view, &self.table.header, width, namespace_width, name_width, 0));
+        }
+
+        result
+    }
+
+    fn get_best_width(&self, view: ViewType) -> usize {
+        let group_width = if view == ViewType::Full {
+            self.table.header.get_data_length(0).max(9) + 2
+        } else {
+            0
+        };
+        let name_width = self.table.header.get_data_length(1).max(4) + 2;
+        let extra_width = self
+            .table
+            .header
+            .get_extra_columns()
+            .map(|c| c.iter().map(|c| c.len() + 2).sum::<usize>())
+            .unwrap_or_default();
+        let age_width = self
+            .table
+            .header
+            .get_data_length(self.table.header.get_columns_count() - 1)
+            .max(7);
+
+        group_width + name_width + extra_width + age_width
+    }
+
     fn update_kind(&mut self, init: InitData) {
         self.data = init;
         self.table.update_header(ResourceItem::header(
