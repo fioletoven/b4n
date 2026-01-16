@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix roles display in the nodes view
+
 ## 0.3.8 - 2026-01-14
 
 ### Features

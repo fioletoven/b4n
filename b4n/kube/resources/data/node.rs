@@ -118,7 +118,7 @@ fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {
     labels.map(|labels| {
         labels
             .iter()
-            .filter(|(l, v)| l.starts_with("node-role.kubernetes.io/") && *v == "true")
+            .filter(|(l, v)| l.starts_with("node-role.kubernetes.io/") && (v.is_empty() || *v == "true"))
             .map(|(l, _)| &l[24..])
             .collect::<Vec<_>>()
             .join(",")
