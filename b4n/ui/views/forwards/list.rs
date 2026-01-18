@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_list::{BasicFilterContext, FilterableList, Item};
+use b4n_list::{BasicFilterContext, Item};
 use b4n_tui::table::{Column, Header, ItemExt, NAMESPACE, TabularList, ViewType};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
@@ -27,7 +27,7 @@ impl PortForwardsList {
         let highlighted_uid = self.table.list.get_highlighted_item_uid().map(String::from);
         let selected_uids: Vec<_> = self.table.list.get_selected_uids().iter().map(|&u| u.to_owned()).collect();
 
-        self.table.list.items = Some(FilterableList::from(items.into_iter().map(Item::new).collect()));
+        self.table.list.items = Some(items.into_iter().map(Item::new).collect::<Vec<_>>().into());
         self.table.sort(sort_by, is_descending);
 
         self.table.list.select_uids(selected_uids.as_slice());
@@ -93,7 +93,7 @@ impl Table for PortForwardsList {
         if let Some(list) = self.table.list.get_page() {
             let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
 
-            let mut result = Vec::with_capacity(self.table.list.page_height.into());
+            let mut result = Vec::with_capacity(self.table.list.page_height().into());
             for item in list {
                 result.push((
                     item.get_text(

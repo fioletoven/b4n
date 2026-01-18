@@ -13,7 +13,6 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::KubernetesClient;
@@ -367,11 +366,10 @@ impl BgObserver {
                                 break;
                             }
 
-                            let msg = format!("Cannot list resource {}: {:?}", init_data.kind_plural, error);
-                            warn!("{}", msg);
-                            if let Some(footer_tx) = &footer_tx {
-                                footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-                            }
+                            log_error_message(
+                                format!("Cannot list resource {}: {:?}", init_data.kind_plural, error),
+                                footer_tx.as_ref(),
+                            );
                         },
                     }
 
@@ -470,7 +468,7 @@ impl EventsProcessor {
                     },
                     Some(Event::InitDone) => {
                         self.is_ready.store(true, Ordering::Relaxed);
-                        self.context_tx.send(Box::new(ObserverResult::InitDone)).unwrap();
+                        let _ = self.context_tx.send(Box::new(ObserverResult::InitDone));
                     },
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_result(o, false),
                     Some(Event::Delete(o)) => self.send_result(o, true),
@@ -491,11 +489,10 @@ impl EventsProcessor {
                     return ProcessorResult::Stop;
                 }
 
-                let msg = format!("Watch {}: {}", self.init_data.kind_plural, error);
-                warn!("{}", msg);
-                if let Some(footer_tx) = &self.footer_tx {
-                    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-                }
+                log_error_message(
+                    format!("Watch {}: {}", self.init_data.kind_plural, error),
+                    self.footer_tx.as_ref(),
+                );
 
                 match error {
                     Error::WatchStartFailed(_) | Error::WatchFailed(_) => {
@@ -504,7 +501,7 @@ impl EventsProcessor {
                             .last_watch_error
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
-                            warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
+                            tracing::warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
                             self.has_error.store(true, Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
 
@@ -539,5 +536,12 @@ fn is_access_error(error: &watcher::Error) -> bool {
         | Error::WatchError(response)
         | Error::WatchFailed(kube::Error::Api(response)) => response.is_forbidden(),
         _ => false,
+    }
+}
+
+fn log_error_message(msg: String, sink: Option<&NotificationSink>) {
+    tracing::warn!("{}", msg);
+    if let Some(sink) = sink {
+        sink.show_error(msg, DEFAULT_ERROR_DURATION);
     }
 }

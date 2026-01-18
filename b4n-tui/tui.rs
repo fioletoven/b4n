@@ -246,7 +246,7 @@ impl Tui {
 
 impl Drop for Tui {
     fn drop(&mut self) {
-        self.exit_terminal().unwrap();
+        let _ = self.exit_terminal();
     }
 }
 

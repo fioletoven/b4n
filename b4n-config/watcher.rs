@@ -56,10 +56,12 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
 
     /// Runs a background task to observe configuration changes.
     pub fn start(&mut self) -> Result<()> {
-        let (mut _tx, mut _rx) = mpsc::channel(10);
+        let (tx, mut rx) = mpsc::channel(10);
         let mut watcher = RecommendedWatcher::new(
             move |result| {
-                _tx.blocking_send(result).expect("Failed to send configuration change event");
+                if let Err(error) = tx.blocking_send(result) {
+                    tracing::warn!("Failed to send configuration change event: {}", error);
+                }
             },
             notify::Config::default(),
         )?;
@@ -80,7 +82,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                 sleep(Duration::from_millis(500)).await;
 
                 let mut configuration_modified = false;
-                while let Ok(Ok(res)) = _rx.try_recv()
+                while let Ok(Ok(res)) = rx.try_recv()
                     && let EventKind::Modify(_) = res.kind
                 {
                     configuration_modified = true;
@@ -90,7 +92,11 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                     || _force_reload.swap(false, Ordering::Relaxed)
                 {
                     match T::load(&_path).await {
-                        Ok(config) => _config_tx.send(config).unwrap(),
+                        Ok(config) => {
+                            if let Err(error) = _config_tx.send(config) {
+                                tracing::warn!("Cannot send config file: {}", error);
+                            }
+                        },
                         Err(error) => tracing::warn!("Cannot re-load config file: {}", error),
                     }
                 }

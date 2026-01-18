@@ -95,8 +95,9 @@ pub fn pop_recent_group(vec: &mut Vec<Undo>, threshold: Duration) -> Vec<Undo> {
         group.push(last);
 
         while let Some(peek) = vec.last() {
-            if reference_time.duration_since(peek.when) <= threshold {
-                let action = vec.pop().unwrap();
+            if reference_time.duration_since(peek.when) <= threshold
+                && let Some(action) = vec.pop()
+            {
                 reference_time = action.when;
                 group.push(action);
             } else {

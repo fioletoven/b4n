@@ -102,7 +102,7 @@ impl Table for KindsList {
 
     fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
         self.list.get_page().map(|list| {
-            let mut result = Vec::with_capacity(self.list.page_height.into());
+            let mut result = Vec::with_capacity(self.list.page_height().into());
             for item in list {
                 if item.is_active {
                     result.push((item.data.get_name_end(width), true));
@@ -142,5 +142,5 @@ fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
 }
 
 fn create_new_list(new_list: Vec<KindItem>) -> KindFilterableList {
-    FilterableList::from(new_list.into_iter().map(Item::new).collect())
+    new_list.into_iter().map(Item::new).collect::<Vec<_>>().into()
 }

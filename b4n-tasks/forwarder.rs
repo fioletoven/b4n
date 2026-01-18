@@ -210,7 +210,7 @@ impl PortForwardTask {
         let _statistics = self.statistics.clone();
 
         let task = self.runtime.spawn(async move {
-            _events_tx.send(PortForwardEvent::TaskStarted).unwrap();
+            let _ = _events_tx.send(PortForwardEvent::TaskStarted);
             match TcpListener::bind(address).await {
                 Ok(listener) => {
                     while !_cancellation_token.is_cancelled() {
@@ -242,7 +242,7 @@ impl PortForwardTask {
                 },
             }
 
-            _events_tx.send(PortForwardEvent::TaskStopped).unwrap();
+            let _ = _events_tx.send(PortForwardEvent::TaskStopped);
         });
 
         self.task = Some(task);
@@ -290,7 +290,7 @@ fn accept_error(
     footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 
     connection_errors.fetch_add(1, Ordering::Relaxed);
-    events_tx.send(PortForwardEvent::ConnectionError).unwrap();
+    let _ = events_tx.send(PortForwardEvent::ConnectionError);
 }
 
 async fn accept_connection(
@@ -304,7 +304,7 @@ async fn accept_connection(
 ) {
     statistics.overall_connections.fetch_add(1, Ordering::Relaxed);
     statistics.active_connections.fetch_add(1, Ordering::Relaxed);
-    events_tx.send(PortForwardEvent::ConnectionAccepted).unwrap();
+    let _ = events_tx.send(PortForwardEvent::ConnectionAccepted);
 
     if let Err(error) = forward_connection(&api, &pod_name, port, client_conn, cancellation_token.clone()).await {
         warn!("failed to forward connection: {}", error);
@@ -319,7 +319,7 @@ async fn accept_connection(
     }
 
     statistics.active_connections.fetch_sub(1, Ordering::Relaxed);
-    events_tx.send(PortForwardEvent::ConnectionClosed).unwrap();
+    let _ = events_tx.send(PortForwardEvent::ConnectionClosed);
 }
 
 async fn forward_connection(

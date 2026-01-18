@@ -79,7 +79,7 @@ impl Table for MessagesList {
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
     fn get_paged_items(&self, theme: &Theme, _view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
         if let Some(list) = self.list.get_page() {
-            let mut result = Vec::with_capacity(self.list.page_height.into());
+            let mut result = Vec::with_capacity(self.list.page_height().into());
             for item in list {
                 result.push((item.data.get_text(width), item.data.get_color(theme, item.is_active)));
             }
