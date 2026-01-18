@@ -1,4 +1,5 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
+use kube::runtime::{utils::Backoff, watcher::DefaultBackoff};
 use kube::{Discovery, api::ApiResource, discovery::ApiCapabilities};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -59,7 +60,7 @@ impl BgDiscovery {
         let _client = client.get_client();
 
         let task = self.runtime.spawn(async move {
-            let mut backoff = b4n_common::ResettableBackoff::default();
+            let mut backoff = DefaultBackoff::default();
             let mut next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
 
             let mut maybe_discovery = Some(Discovery::new(_client.clone()));
@@ -82,7 +83,7 @@ impl BgDiscovery {
                                     backoff.reset();
                                 }
                                 maybe_discovery = Some(Discovery::new(_client.clone()));
-                                next_interval = backoff.next_backoff().unwrap_or(Duration::from_millis(DISCOVERY_INTERVAL));
+                                next_interval = backoff.next().unwrap_or(Duration::from_millis(DISCOVERY_INTERVAL));
                             }
                         },
                     }

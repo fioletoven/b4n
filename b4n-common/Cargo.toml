@@ -10,7 +10,6 @@ path = "./lib.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-backon = { workspace = true }
 sha1 = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }

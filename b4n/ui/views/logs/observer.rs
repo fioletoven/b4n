@@ -3,7 +3,7 @@ use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::jiff::Timestamp;
-use kube::{Api, api::LogParams};
+use kube::{Api, api::LogParams, runtime::watcher::DefaultBackoff};
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -67,7 +67,7 @@ impl LogsObserver {
                 cancellation_token: &_cancellation_token,
             };
 
-            let mut backoff = b4n_common::ResettableBackoff::default();
+            let mut backoff = DefaultBackoff::default();
             let mut since_time = None;
             let mut should_continue;
             while !_cancellation_token.is_cancelled() {
@@ -78,7 +78,7 @@ impl LogsObserver {
 
                 tokio::select! {
                     () = _cancellation_token.cancelled() => (),
-                    () = sleep(backoff.next_backoff().unwrap_or(Duration::from_millis(800))) => (),
+                    () = sleep(backoff.next().unwrap_or(Duration::from_millis(800))) => (),
                 }
             }
         });

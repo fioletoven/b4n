@@ -24,7 +24,6 @@ b4n-tasks = { path = "b4n-tasks" }
 b4n-tui = { path = "b4n-tui" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
-backon = { version = "1.6" }
 base64 = { version = "0.22" }
 clap = { version = "4.5", features = ["derive", "env"] }
 crossterm = { version = "0.29", features = ["event-stream"] }
