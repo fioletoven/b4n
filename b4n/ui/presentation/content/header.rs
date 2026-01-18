@@ -84,7 +84,7 @@ impl ContentHeader {
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Fill(1),
-                Constraint::Length(coordinates.chars().count() as u16 + 2),
+                Constraint::Length(u16::try_from(coordinates.chars().count() + 2).unwrap_or_default()),
             ])
             .split(area);
 

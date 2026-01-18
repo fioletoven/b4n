@@ -216,18 +216,17 @@ fn split_unit(input: &str) -> Result<(u64, &str), MetricsError> {
         return Err(MetricsError::ParseError);
     }
 
-    let Ok(value) = value.parse::<u64>() else {
-        return Err(MetricsError::ParseError);
-    };
-
+    let value = value.parse::<u64>().map_err(|_| MetricsError::ParseError)?;
     Ok((value, unit.trim()))
 }
 
 fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], units: &[&str; 6]) -> std::fmt::Result {
-    if value > *base.last().unwrap_or(&0) {
-        for (i, b) in base.iter().enumerate() {
-            if value.is_multiple_of(*b) {
-                return f.write_fmt(format_args!("{}{}", value / b, units[i]));
+    if let Some(&min_base) = base.last()
+        && value > min_base
+    {
+        for (i, &b) in base.iter().enumerate() {
+            if value.is_multiple_of(b) {
+                return write!(f, "{}{}", value / b, units[i]);
             }
         }
     }
@@ -236,10 +235,13 @@ fn fmt_memory(f: &mut std::fmt::Formatter<'_>, value: u64, base: &[u64; 6], unit
 }
 
 fn get_memory_rounded(value: u64, base: &[u64; 6], units: &[&str; 6]) -> String {
-    if value > *base.last().unwrap_or(&0) {
-        for (i, b) in base.iter().enumerate() {
-            if value > *b {
-                return format!("{}{}", (value as f64 / *b as f64).round(), units[i]);
+    if let Some(&min_base) = base.last()
+        && value > min_base
+    {
+        for (i, &b) in base.iter().enumerate() {
+            if value > b {
+                #[allow(clippy::cast_precision_loss)]
+                return format!("{}{}", (value as f64 / b as f64).round(), units[i]);
             }
         }
     }

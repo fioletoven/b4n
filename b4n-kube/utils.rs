@@ -21,12 +21,11 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
 
 /// Encodes `data` property in the provided resource.
 pub fn encode_secret_data(resource: &mut DynamicObject) {
-    if resource.data.get("data").is_some_and(Value::is_object) {
+    if let Some(Value::Object(data)) = resource.data.get_mut("data") {
         let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let encoded = engine.encode(data.as_bytes());
-                *data = encoded;
+        for (_key, value) in data.iter_mut() {
+            if let Value::String(s) = value {
+                *s = engine.encode(s.as_bytes());
             }
         }
     }
@@ -34,12 +33,12 @@ pub fn encode_secret_data(resource: &mut DynamicObject) {
 
 /// Decodes `data` property in the provided resource.
 pub fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
-    if resource.data.get("data").is_some_and(Value::is_object) {
+    if let Some(Value::Object(data)) = resource.data.get_mut("data") {
         let engine = engine::general_purpose::STANDARD;
-        for mut data in resource.data["data"].as_object_mut().unwrap().iter_mut() {
-            if let Value::String(data) = &mut data.1 {
-                let decoded_bytes = engine.decode(&data)?;
-                *data = String::from_utf8_lossy(&decoded_bytes).to_string();
+        for (_key, value) in data.iter_mut() {
+            if let Value::String(s) = value {
+                let decoded_bytes = engine.decode(&s)?;
+                *s = String::from_utf8_lossy(&decoded_bytes).to_string();
             }
         }
     }

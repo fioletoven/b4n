@@ -126,6 +126,13 @@ struct ObserverContext<'a> {
     cancellation_token: &'a CancellationToken,
 }
 
+impl ObserverContext<'_> {
+    /// Sends [`LogsChunk`] to the channel.
+    fn send_logs_chunk(&self, chunk: LogsChunk) {
+        let _ = self.channel.send(Box::new(chunk));
+    }
+}
+
 async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (bool, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
@@ -144,7 +151,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            context.channel.send(Box::new(process_error(err.to_string()))).unwrap();
+            context.send_logs_chunk(process_error(err.to_string()));
             return (true, None);
         },
     };
@@ -159,7 +166,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                     Ok(Some(line)) => {
                         if let Some(line) = process_line(&line) {
                             last_message_time = Some(line.end);
-                            context.channel.send(Box::new(line)).unwrap();
+                            context.send_logs_chunk(line);
                         }
                     },
                     Ok(None) => {
@@ -169,11 +176,11 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                             context.pod.namespace.as_str(),
                             context.pod.name,
                             context.pod.container.as_deref().unwrap_or_default());
-                        context.channel.send(Box::new(process_error(msg))).unwrap();
+                        context.send_logs_chunk(process_error(msg));
                         break;
                     },
                     Err(err) => {
-                        context.channel.send(Box::new(process_error(err.to_string()))).unwrap();
+                        context.send_logs_chunk(process_error(err.to_string()));
                         break;
                     },
                 }

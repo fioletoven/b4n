@@ -360,13 +360,13 @@ impl<T: Content> ContentViewer<T> {
     /// Returns currently visible lines.
     pub fn get_page_lines(&mut self) -> Vec<Line<'_>> {
         let start = self.page_start.y.clamp(0, self.max_vstart());
-        self.content
-            .as_mut()
-            .unwrap()
-            .page(start, self.page_area.height.into())
-            .iter()
-            .map(|line| line.as_line(self.page_start.x))
-            .collect::<Vec<_>>()
+        self.content.as_mut().map_or(Vec::new(), |content| {
+            content
+                .page(start, self.page_area.height.into())
+                .iter()
+                .map(|line| line.as_line(self.page_start.x))
+                .collect()
+        })
     }
 
     /// Gets footer icon text for the current search state.
@@ -497,15 +497,10 @@ impl<T: Content> ContentViewer<T> {
         self.update_page_start();
 
         frame.render_widget(Paragraph::new(self.get_page_lines()), area);
-        frame.render_widget(
-            ContentSelectWidget::new(
-                &self.select,
-                self.content.as_ref().unwrap(),
-                &self.page_start,
-                self.select_color,
-            ),
-            area,
-        );
+        if let Some(content) = &self.content {
+            let widget = ContentSelectWidget::new(&self.select, content, &self.page_start, self.select_color);
+            frame.render_widget(widget, area);
+        }
 
         if self.search.matches.is_some() {
             let widget = SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset);

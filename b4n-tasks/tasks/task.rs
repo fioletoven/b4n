@@ -46,8 +46,10 @@ impl BgTask {
             tokio::select! {
                 () = _cancellation_token.cancelled() => (),
                 result = run_command(_command) => {
-                    if let Some(result) = result {
-                        results_tx.send(Box::new(TaskResult { id: _task_id, result })).unwrap();
+                    if let Some(result) = result
+                        && let Err(error) = results_tx.send(Box::new(TaskResult { id: _task_id, result }))
+                    {
+                        tracing::warn!("Cannot send task result: {}", error);
                     }
                 },
             }

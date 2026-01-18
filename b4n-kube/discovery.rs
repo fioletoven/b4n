@@ -70,15 +70,15 @@ impl BgDiscovery {
                         () = _cancellation_token.cancelled() => (),
                         result = discovery.run_aggregated() => match result {
                             Ok(new_discovery) => {
-                                _context_tx.send(convert_to_vector(&new_discovery)).unwrap();
+                                if let Err(error) = _context_tx.send(convert_to_vector(&new_discovery)) {
+                                    log_error_message(format!("Cannot send discovery result: {error}"), &_footer_tx);
+                                }
                                 _has_error.store(false, Ordering::Relaxed);
                                 maybe_discovery = Some(new_discovery);
                                 next_interval = Duration::from_millis(DISCOVERY_INTERVAL);
                             }
                             Err(error) => {
-                                let msg = format!("Discovery error: {error}");
-                                tracing::warn!("{}", msg);
-                                _footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+                                log_error_message(format!("Discovery error: {error}"), &_footer_tx);
                                 if !_has_error.swap(true, Ordering::Relaxed) {
                                     backoff.reset();
                                 }
@@ -142,4 +142,9 @@ pub fn convert_to_vector(discovery: &Discovery) -> DiscoveryList {
         .groups()
         .flat_map(|group| group.versions().flat_map(|version| group.versioned_resources(version)))
         .collect()
+}
+
+pub fn log_error_message(msg: String, sink: &NotificationSink) {
+    tracing::warn!("{}", msg);
+    sink.show_error(msg, DEFAULT_ERROR_DURATION);
 }
