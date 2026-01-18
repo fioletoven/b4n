@@ -33,22 +33,12 @@ pub struct ViewsManager {
 
 impl ViewsManager {
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, resources: ResourcesView, footer: Footer) -> Self {
-        let ns_selector = SideSelect::new(
-            "NAMESPACE",
-            Rc::clone(&app_data),
-            ResourcesList::default(),
-            Position::Left,
-            ResponseEvent::ChangeNamespace,
-            30,
-        );
-        let res_selector = SideSelect::new(
-            "RESOURCE",
-            Rc::clone(&app_data),
-            KindsList::default(),
-            Position::Right,
-            ResponseEvent::ChangeKind,
-            40,
-        );
+        let ns_selector = SideSelect::new(Rc::clone(&app_data), ResourcesList::default(), Position::Left, 30)
+            .with_name("NAMESPACE")
+            .with_result(ResponseEvent::ChangeNamespace);
+        let res_selector = SideSelect::new(Rc::clone(&app_data), KindsList::default(), Position::Right, 40)
+            .with_name("RESOURCE")
+            .with_result(ResponseEvent::ChangeKind);
         set_command_palette_hint(footer.transmitter(), &app_data);
 
         Self {
@@ -73,9 +63,8 @@ impl ViewsManager {
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
 
-        // Wait for the CRD list to become ready before polling anything else.
-        // This ensures that the header for the current resource (if it's a CR)
-        // is shown only after all columns are known.
+        // Wait for the CRD list to become ready before polling anything else. This ensures that the header for
+        // the current resource (if it is a CR) is shown only after all columns are known.
         if !worker.is_crds_list_ready() {
             return;
         }

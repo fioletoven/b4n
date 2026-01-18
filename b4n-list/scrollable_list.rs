@@ -10,9 +10,9 @@ mod scrollable_list_tests;
 /// Scrollable UI list.
 pub struct ScrollableList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub items: Option<FilterableList<Item<T, Fc>, Fc>>,
-    pub highlighted: Option<usize>,
-    pub page_start: usize,
-    pub page_height: u16,
+    highlighted: Option<usize>,
+    page_start: usize,
+    page_height: u16,
     filter: FilterData<Fc>,
 }
 
@@ -28,23 +28,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for ScrollableList<T, F
     }
 }
 
-impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
-    /// Creates new [`ScrollableList`] with initial fixed items.
-    pub fn fixed(items: Vec<T>) -> Self {
-        let list = items.into_iter().map(Item::fixed).collect::<Vec<_>>();
-
-        ScrollableList {
-            items: Some(FilterableList::from(list)),
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> From<Vec<T>> for ScrollableList<T, Fc> {
+    fn from(value: Vec<T>) -> Self {
+        Self {
+            items: Some(value.into_iter().map(Item::new).collect::<Vec<_>>().into()),
             ..Default::default()
         }
     }
+}
 
-    /// Creates new [`ScrollableList`] with initial items.
-    pub fn from(items: Vec<T>) -> Self {
-        let list = items.into_iter().map(Item::new).collect::<Vec<_>>();
-
-        ScrollableList {
-            items: Some(FilterableList::from(list)),
+impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
+    /// Creates new [`ScrollableList`] with initial fixed items.
+    pub fn fixed(items: Vec<T>) -> Self {
+        Self {
+            items: Some(items.into_iter().map(Item::fixed).collect::<Vec<_>>().into()),
             ..Default::default()
         }
     }
@@ -56,7 +53,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             items.push(Item::new(value));
             self.apply_filter();
         } else {
-            self.items = Some(FilterableList::from(vec![Item::new(value)]));
+            self.items = Some(vec![Item::new(value)].into());
         }
     }
 
@@ -179,6 +176,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Returns current page height.
+    pub fn page_height(&self) -> u16 {
+        self.page_height
+    }
+
     /// Updates page start for the current page size and highlighted resource item.
     pub fn update_page(&mut self, new_height: u16) {
         self.page_height = new_height;
@@ -258,16 +260,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
         if let Some(items) = &self.items {
             let mut result: HashMap<&str, Vec<&str>> = HashMap::new();
-            for item in items {
-                if !item.is_selected {
-                    continue;
-                }
-
-                if result.contains_key(item.data.group()) {
-                    result.get_mut(item.data.group()).unwrap().push(item.data.name());
-                } else {
-                    result.insert(item.data.group(), vec![item.data.name()]);
-                }
+            for item in items.iter().filter(|i| i.is_selected) {
+                result.entry(item.data.group()).or_default().push(item.data.name());
             }
 
             result
@@ -473,8 +467,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
                 self.highlighted = Some(0);
             } else {
                 let highlighted = self.highlighted.unwrap_or(0);
-                let new_highlighted = std::cmp::max(highlighted as isize + rows_to_move as isize, 0) as usize;
-                let new_highlighted = std::cmp::min(new_highlighted, items.len() - 1);
+                let new_highlighted = (isize::try_from(highlighted).unwrap_or_default() + rows_to_move as isize).max(0) as usize;
+                let new_highlighted = new_highlighted.min(items.len() - 1);
 
                 items[highlighted].is_active = false;
                 items[new_highlighted].is_active = true;

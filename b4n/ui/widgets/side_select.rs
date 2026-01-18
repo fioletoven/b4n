@@ -25,7 +25,7 @@ pub struct SideSelect<T: Table> {
     app_data: SharedAppData,
     header: String,
     position: Position,
-    result: fn(String) -> ResponseEvent,
+    result: Option<fn(String) -> ResponseEvent>,
     width: u16,
     is_key_pressed: bool,
     showup_time: Instant,
@@ -33,28 +33,32 @@ pub struct SideSelect<T: Table> {
 
 impl<T: Table> SideSelect<T> {
     /// Creates new [`SideSelect`] instance.
-    pub fn new(
-        name: &str,
-        app_data: SharedAppData,
-        list: T,
-        position: Position,
-        result: fn(String) -> ResponseEvent,
-        width: u16,
-    ) -> Self {
-        let header = format!(" SELECT {name}: ");
+    pub fn new(app_data: SharedAppData, list: T, position: Position, width: u16) -> Self {
         let select = Select::new(list, app_data.borrow().theme.colors.side_select.clone(), true, false);
 
         SideSelect {
             is_visible: false,
             select,
             app_data,
-            header,
+            header: " SELECT ".to_owned(),
             position,
-            result,
+            result: None,
             width: std::cmp::max(width, 5),
             is_key_pressed: false,
             showup_time: Instant::now(),
         }
+    }
+
+    /// Sets new name for the side select.
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.header = format!(" SELECT {name}: ");
+        self
+    }
+
+    /// Sets function that is called to obtain [`ResponseEvent`].
+    pub fn with_result(mut self, result: fn(String) -> ResponseEvent) -> Self {
+        self.result = Some(result);
+        self
     }
 
     /// Marks [`SideSelect`] as visible, after that it can be drawn on the terminal frame.
@@ -187,8 +191,10 @@ impl<T: Table> Responsive for SideSelect<T> {
 
         if navigate_into || self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             self.is_visible = false;
-            if let Some(selected_name) = self.select.items.get_highlighted_item_name() {
-                return (self.result)(selected_name.to_owned());
+            if let Some(result_fn) = self.result
+                && let Some(selected_name) = self.select.items.get_highlighted_item_name()
+            {
+                return result_fn(selected_name.to_owned());
             }
 
             return ResponseEvent::Handled;

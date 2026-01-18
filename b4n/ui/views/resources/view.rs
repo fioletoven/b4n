@@ -349,6 +349,7 @@ impl ResourcesView {
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
                 .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
+            self.footer_tx.hide_hint();
             return;
         }
 

@@ -16,7 +16,7 @@ impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
     pub fn from(filter_history: &[String], key_name: Option<&str>) -> Self {
         let description = key_name.map(|d| format!("{d} to insert"));
-        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.as_str().into()).collect());
+        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.as_str().into()).collect::<Vec<_>>());
         list.sort(1, false);
         Self { list, description }
     }

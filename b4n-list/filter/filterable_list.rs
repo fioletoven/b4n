@@ -19,16 +19,17 @@ pub struct FilterableList<T: Filterable<Fc>, Fc: FilterContext> {
     _marker: PhantomData<Fc>,
 }
 
-impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
-    /// Creates new [`FilterableList<T, Fc>`] instance from the [`Vec`] object.
-    pub fn from(items: Vec<T>) -> Self {
+impl<T: Filterable<Fc>, Fc: FilterContext> From<Vec<T>> for FilterableList<T, Fc> {
+    fn from(value: Vec<T>) -> Self {
         Self {
-            items,
+            items: value,
             filtered: None,
             _marker: PhantomData,
         }
     }
+}
 
+impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     /// Clears the [`FilterableList<T, Fc>`], removing all values.
     #[inline]
     pub fn clear(&mut self) {

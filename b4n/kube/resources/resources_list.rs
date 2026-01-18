@@ -232,7 +232,7 @@ impl Table for ResourcesList {
         if let Some(list) = self.table.list.get_page() {
             let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
 
-            let mut result = Vec::with_capacity(self.table.list.page_height.into());
+            let mut result = Vec::with_capacity(self.table.list.page_height().into());
             for item in list {
                 result.push((
                     item.get_text(
