@@ -279,8 +279,9 @@ impl YamlView {
         }
 
         if (response == ResponseEvent::Cancelled || response == ResponseEvent::ExitApplication) && self.yaml.is_modified() {
+            let is_quit = response == ResponseEvent::ExitApplication;
             self.last_mouse_click = event.position();
-            return self.process_view_close_event(response, true);
+            return self.process_view_close_event(response, is_quit);
         }
 
         response
