@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix roles display in the nodes view
+- do not close the app on clicking `back` in the mouse menu for modified YAML content
 
 ## 0.3.8 - 2026-01-14
 
