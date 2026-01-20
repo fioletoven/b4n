@@ -2,10 +2,14 @@
 
 ## WIP
 
+### Features
+
+- add animated spinner for wait indication
+
 ### Bug fixes
 
 - fix roles display in the nodes view
-- do not close the app on clicking `back` in the mouse menu for modified YAML content
+- prevent exit on `back` click in menu if YAML is modified
 
 ## 0.3.8 - 2026-01-14
 

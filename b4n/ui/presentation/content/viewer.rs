@@ -1,11 +1,11 @@
 use b4n_config::keys::KeyCombination;
 use b4n_kube::{Kind, Namespace};
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center};
+use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, widgets::Spinner};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::Color;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 
@@ -33,6 +33,7 @@ pub struct ContentViewer<T: Content> {
     page_area: Rect,
 
     creation_time: Instant,
+    spinner: Spinner,
 }
 
 impl<T: Content> ContentViewer<T> {
@@ -54,6 +55,7 @@ impl<T: Content> ContentViewer<T> {
             page_start: ContentPosition::default(),
             page_area: area,
             creation_time: Instant::now(),
+            spinner: Spinner::default(),
         }
     }
 
@@ -515,7 +517,9 @@ impl<T: Content> ContentViewer<T> {
     fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.page_area = area;
         let colors = &self.app_data.borrow().theme.colors;
-        let line = Line::styled(" waiting for data…", &colors.text);
+        let line = Line::default()
+            .spans([Span::raw(self.spinner.tick().to_string()), " waiting for data…".into()])
+            .style(&colors.text);
         let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
         frame.render_widget(line, area);
     }
