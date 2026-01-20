@@ -61,10 +61,12 @@ impl<T: Table> ListViewer<T> {
 
         self.table.update_page(self.area.height);
         if self.has_error() {
-            let colors = &self.app_data.borrow().theme.colors;
-            let line = Line::styled(" cannot fetch or update requested resources…", &colors.text);
-            let area = center(self.area, Constraint::Length(line.width() as u16), Constraint::Length(4));
-            frame.render_widget(line, area);
+            if !self.app_data.borrow().current.version.is_empty() {
+                let colors = &self.app_data.borrow().theme.colors;
+                let line = Line::styled(" cannot fetch or update requested resources…", &colors.text);
+                let area = center(self.area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+                frame.render_widget(line, area);
+            }
         } else if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
             frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }

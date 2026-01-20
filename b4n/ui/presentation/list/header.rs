@@ -1,10 +1,13 @@
+use b4n_config::themes::TextColors;
+use b4n_tui::widgets::Spinner;
 use kube::discovery::Scope;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::SharedAppData;
-use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs, get_version_text};
+use crate::core::{AppData, SharedAppData};
+use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
 pub struct ListHeader {
@@ -15,6 +18,7 @@ pub struct ListHeader {
     fixed_namespace: Option<String>,
     is_filtered: bool,
     hide_previous: bool,
+    spinner: Spinner,
 }
 
 impl ListHeader {
@@ -29,6 +33,7 @@ impl ListHeader {
             fixed_namespace: None,
             is_filtered: false,
             hide_previous: false,
+            spinner: Spinner::default(),
         }
     }
 
@@ -88,7 +93,7 @@ impl ListHeader {
 
     /// Draws [`ListHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let path = self.get_path(self.fixed_scope.as_ref());
+        let text_style = Style::from(&self.app_data.borrow().theme.colors.text);
         let version = self.get_version();
 
         let layout = Layout::default()
@@ -96,9 +101,10 @@ impl ListHeader {
             .constraints(vec![Constraint::Fill(1), Constraint::Length(version.width() as u16)])
             .split(area);
 
-        let text = &self.app_data.borrow().theme.colors.text;
-        frame.render_widget(Paragraph::new(path).style(text), layout[0]);
-        frame.render_widget(Paragraph::new(version).style(text), layout[1]);
+        frame.render_widget(Paragraph::new(version).style(text_style), layout[1]);
+
+        let path = self.get_path(self.fixed_scope.as_ref());
+        frame.render_widget(Paragraph::new(path).style(text_style), layout[0]);
     }
 
     /// Returns formatted resource path as breadcrumbs:\
@@ -138,9 +144,29 @@ impl ListHeader {
 
     /// Returns formatted k8s version info as breadcrumbs:\
     /// \< `k8s version` \<
-    fn get_version(&self) -> Line<'_> {
+    fn get_version(&mut self) -> Line<'_> {
         let data = &self.app_data.borrow();
-        let (text, colors) = get_version_text(data);
+        let (text, colors) = get_version_text(data, &mut self.spinner);
         get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
+}
+
+/// Returns kubernetes version text together with its colors.
+fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner) -> (String, &'a TextColors) {
+    let colors;
+    let text;
+
+    if data.is_connected {
+        colors = &data.theme.colors.header.info;
+        text = format!(" {} ", &data.current.version);
+    } else {
+        colors = &data.theme.colors.header.disconnected;
+        if data.current.version.is_empty() {
+            text = format!(" {} connecting… ", spinner.tick());
+        } else {
+            text = format!(" {} {} ", spinner.tick(), &data.current.version);
+        }
+    }
+
+    (text, colors)
 }

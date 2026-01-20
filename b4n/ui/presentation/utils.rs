@@ -94,29 +94,6 @@ pub fn get_right_breadcrumbs<'a>(text: String, colors: &TextColors, bg: Color) -
     .right_aligned()
 }
 
-/// Returns kubernetes version text together with its colors.
-pub fn get_version_text(data: &AppData) -> (String, &TextColors) {
-    let colors;
-    let text;
-
-    if data.is_connected {
-        colors = &data.theme.colors.header.info;
-        text = format!(" {} ", &data.current.version);
-    } else {
-        colors = &data.theme.colors.header.disconnected;
-        text = format!(
-            "  {} ",
-            if data.current.version.is_empty() {
-                "connecting…"
-            } else {
-                &data.current.version
-            }
-        );
-    }
-
-    (text, colors)
-}
-
 fn get_context_color(app_data: &AppData) -> TextColors {
     app_data
         .config
