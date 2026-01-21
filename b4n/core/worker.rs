@@ -310,6 +310,11 @@ impl BgWorker {
         commands
     }
 
+    /// Returns `true` if the resources observer is connected to the Kubernetes API.
+    pub fn is_connected(&self) -> bool {
+        self.resources.is_connected()
+    }
+
     /// Returns `true` if there are connection problems.
     pub fn has_errors(&self) -> bool {
         self.discovery.has_error() || self.statistics.has_connection_error() || self.namespaces.has_connection_error()

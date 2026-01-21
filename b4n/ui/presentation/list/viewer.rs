@@ -1,15 +1,14 @@
+use b4n_common::DelayedTrueTracker;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
+use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType, utils::center};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Style};
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Widget};
-use std::time::Instant;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-
-const ERROR_DISPLAY_DELAY_MS: u128 = 600;
 
 /// List viewer.
 pub struct ListViewer<T: Table> {
@@ -17,7 +16,9 @@ pub struct ListViewer<T: Table> {
     pub view: ViewType,
     pub area: Rect,
     app_data: SharedAppData,
-    has_error: Option<Instant>,
+    has_error: DelayedTrueTracker,
+    is_disconnected: DelayedTrueTracker,
+    spinner: Spinner,
 }
 
 impl<T: Table> ListViewer<T> {
@@ -28,7 +29,9 @@ impl<T: Table> ListViewer<T> {
             view,
             area: Rect::default(),
             app_data,
-            has_error: None,
+            has_error: DelayedTrueTracker::default(),
+            is_disconnected: DelayedTrueTracker::default(),
+            spinner: Spinner::default(),
         }
     }
 
@@ -39,12 +42,12 @@ impl<T: Table> ListViewer<T> {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
-
-        let theme = &self.app_data.borrow().theme;
-        frame.render_widget(Block::new().style(&theme.colors.text), area);
         self.area = layout[1].inner(Margin::new(1, 0));
 
         {
+            let theme = &self.app_data.borrow().theme;
+            frame.render_widget(Block::new().style(&theme.colors.text), area);
+
             self.table.refresh_header(self.view, usize::from(self.area.width));
             let sort_symbols = self.table.get_sort_symbols();
             let offset = self.table.refresh_offset();
@@ -60,30 +63,37 @@ impl<T: Table> ListViewer<T> {
         }
 
         self.table.update_page(self.area.height);
-        if self.has_error() {
-            if !self.app_data.borrow().current.version.is_empty() {
-                let colors = &self.app_data.borrow().theme.colors;
-                let line = Line::styled(" cannot fetch or update requested resources…", &colors.text);
-                let area = center(self.area, Constraint::Length(line.width() as u16), Constraint::Length(4));
-                frame.render_widget(line, area);
+
+        self.is_disconnected.update(!self.app_data.borrow().is_connected);
+        if !self.app_data.borrow().is_connected {
+            if self.is_disconnected.value() {
+                self.render_error(frame, " connecting to the Kubernetes cluster…", true);
             }
-        } else if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
-            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
+        } else if self.has_error.value() {
+            self.render_error(frame, " cannot fetch or update requested resources…", false);
+        } else {
+            let theme = &self.app_data.borrow().theme;
+            if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
+                frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
+            }
         }
     }
 
     /// Updates error state for the resources list.
     pub fn update_error_state(&mut self, has_error: bool) {
-        if has_error && self.has_error.is_none() {
-            self.has_error = Some(Instant::now());
-        } else if !has_error && self.has_error.is_some() {
-            self.has_error = None;
-        }
+        self.has_error.update(has_error);
     }
 
-    fn has_error(&self) -> bool {
-        self.has_error
-            .is_some_and(|t| t.elapsed().as_millis() > ERROR_DISPLAY_DELAY_MS)
+    fn render_error(&mut self, frame: &mut ratatui::Frame<'_>, error: &str, has_spinner: bool) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let spans = if has_spinner {
+            vec![Span::raw(self.spinner.tick().to_string()), error.into()]
+        } else {
+            vec![error.into()]
+        };
+        let line = Line::default().spans(spans).style(&colors.text);
+        let area = center(self.area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+        frame.render_widget(line, area);
     }
 }
 
@@ -100,7 +110,7 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 
 impl<T: Table> Responsive for ListViewer<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.has_error() {
+        if self.has_error.value() {
             return ResponseEvent::NotHandled;
         }
 

@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 /// Tracks state change.
 pub struct StateChangeTracker<T: PartialEq> {
     last_state: Option<T>,
@@ -26,13 +28,50 @@ impl<T: PartialEq> StateChangeTracker<T> {
             None
         }
     }
+}
 
-    /// Sets new state and returns `true` if it changed to the `check` value.
-    pub fn changed_to(&mut self, new_state: T, check: &T) -> bool {
-        if self.changed(new_state).is_some() {
-            self.last_state.as_ref().is_some_and(|last_state| *last_state == *check)
-        } else {
-            false
+/// Tracks state change with the given delay.
+pub struct DelayedTrueTracker {
+    last_true_time: Option<Instant>,
+    delay: Duration,
+    current_value: bool,
+}
+
+impl Default for DelayedTrueTracker {
+    fn default() -> Self {
+        Self {
+            last_true_time: None,
+            delay: Duration::from_millis(500),
+            current_value: false,
         }
+    }
+}
+
+impl DelayedTrueTracker {
+    /// Creates new [`DelayedTrueTracker`] instance.
+    pub fn new(delay: Duration) -> Self {
+        Self {
+            last_true_time: None,
+            delay,
+            current_value: false,
+        }
+    }
+
+    /// Returns current [`DelayedTrueTracker`] value.
+    pub fn value(&self) -> bool {
+        match self.last_true_time {
+            Some(t) => self.current_value && t.elapsed() >= self.delay,
+            None => false,
+        }
+    }
+
+    /// Updates [`DelayedTrueTracker`] value to the specified one.
+    pub fn update(&mut self, value: bool) -> bool {
+        if value && !self.current_value {
+            self.last_true_time = Some(Instant::now());
+        }
+
+        self.current_value = value;
+        self.value()
     }
 }

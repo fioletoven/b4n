@@ -130,6 +130,7 @@ pub struct BgObserver {
     context_rx: ObserverResultReceiver,
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
+    is_connected: Arc<AtomicBool>,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
     has_access: Arc<AtomicBool>,
@@ -150,9 +151,10 @@ impl BgObserver {
             context_rx,
             footer_tx,
             stop_on_access_error: false,
+            is_connected: Arc::new(AtomicBool::new(false)),
             is_ready: Arc::new(AtomicBool::new(false)),
-            has_error: Arc::new(AtomicBool::new(true)),
-            has_access: Arc::new(AtomicBool::new(false)),
+            has_error: Arc::new(AtomicBool::new(false)),
+            has_access: Arc::new(AtomicBool::new(true)),
         }
     }
 
@@ -173,6 +175,7 @@ impl BgObserver {
 
         self.resource = resource;
         self.scope = cap.scope.clone();
+        self.is_connected.store(false, Ordering::Relaxed);
         self.is_ready.store(false, Ordering::Relaxed);
         self.has_error.store(false, Ordering::Relaxed);
         self.has_access.store(true, Ordering::Relaxed);
@@ -220,8 +223,10 @@ impl BgObserver {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
             self.resource = ResourceRef::default();
-            self.has_error.store(true, Ordering::Relaxed);
-            self.has_access.store(false, Ordering::Relaxed);
+            self.is_connected.store(false, Ordering::Relaxed);
+            self.is_ready.store(false, Ordering::Relaxed);
+            self.has_error.store(false, Ordering::Relaxed);
+            self.has_access.store(true, Ordering::Relaxed);
         }
     }
 
@@ -257,6 +262,11 @@ impl BgObserver {
         self.resource.filter.is_some()
     }
 
+    /// Returns `true` if the observer is connected to the Kubernetes API.
+    pub fn is_connected(&self) -> bool {
+        self.is_connected.load(Ordering::Relaxed)
+    }
+
     /// Returns `true` if the observer has received the initial list of resources.
     pub fn is_ready(&self) -> bool {
         self.is_ready.load(Ordering::Relaxed)
@@ -289,6 +299,7 @@ impl BgObserver {
                 context_tx: self.context_tx.clone(),
                 footer_tx: self.footer_tx.clone(),
                 stop_on_access_error: self.stop_on_access_error,
+                is_connected: Arc::clone(&self.is_connected),
                 is_ready: Arc::clone(&self.is_ready),
                 has_error: Arc::clone(&self.has_error),
                 has_access: Arc::clone(&self.has_access),
@@ -328,6 +339,7 @@ impl BgObserver {
 
     fn list(&mut self, client: Api<DynamicObject>, init_data: InitData, cancellation_token: CancellationToken) -> JoinHandle<()> {
         self.runtime.spawn({
+            let is_connected = Arc::clone(&self.is_connected);
             let is_ready = Arc::clone(&self.is_ready);
             let has_error = Arc::clone(&self.has_error);
             let has_access = Arc::clone(&self.has_access);
@@ -352,6 +364,7 @@ impl BgObserver {
                     match resources {
                         Ok(objects) => {
                             results = Some(emit_results(objects, results, &init_data, &context_tx));
+                            is_connected.store(true, Ordering::Relaxed);
                             is_ready.store(true, Ordering::Relaxed);
                             has_error.store(false, Ordering::Relaxed);
                             has_access.store(true, Ordering::Relaxed);
@@ -359,6 +372,7 @@ impl BgObserver {
                         Err(error) => {
                             results = None;
                             let is_access_error = matches!(&error, kube::Error::Api(response) if response.is_forbidden());
+                            is_connected.store(matches!(&error, kube::Error::Api(_)), Ordering::Relaxed);
                             is_ready.store(false, Ordering::Relaxed);
                             has_error.store(true, Ordering::Relaxed);
                             has_access.store(!is_access_error, Ordering::Relaxed);
@@ -447,6 +461,7 @@ struct EventsProcessor {
     context_tx: ObserverResultSender,
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
+    is_connected: Arc<AtomicBool>,
     is_ready: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
     has_access: Arc<AtomicBool>,
@@ -478,11 +493,12 @@ impl EventsProcessor {
                 self.has_access.store(true, Ordering::Relaxed);
                 if reset_error {
                     self.last_watch_error = None;
+                    self.is_connected.store(true, Ordering::Relaxed);
                     self.has_error.store(false, Ordering::Relaxed);
                 }
             },
             Err(error) => {
-                let is_access_error = is_access_error(&error);
+                let is_access_error = is_api_error(&error, true);
                 self.has_access.store(!is_access_error, Ordering::Relaxed);
                 if self.stop_on_access_error && is_access_error {
                     self.has_error.store(true, Ordering::Relaxed);
@@ -494,6 +510,7 @@ impl EventsProcessor {
                     self.footer_tx.as_ref(),
                 );
 
+                self.is_connected.store(is_api_error(&error, false), Ordering::Relaxed);
                 match error {
                     Error::WatchStartFailed(_) | Error::WatchFailed(_) => {
                         // WatchStartFailed and WatchFailed do not trigger Init, so we do not set error immediately.
@@ -529,12 +546,12 @@ impl EventsProcessor {
     }
 }
 
-fn is_access_error(error: &watcher::Error) -> bool {
+fn is_api_error(error: &watcher::Error, check_forbidden: bool) -> bool {
     match error {
         Error::InitialListFailed(kube::Error::Api(response))
         | Error::WatchStartFailed(kube::Error::Api(response))
         | Error::WatchError(response)
-        | Error::WatchFailed(kube::Error::Api(response)) => response.is_forbidden(),
+        | Error::WatchFailed(kube::Error::Api(response)) => !check_forbidden || response.is_forbidden(),
         _ => false,
     }
 }

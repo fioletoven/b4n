@@ -483,7 +483,7 @@ impl<T: Content> ContentViewer<T> {
 
         if self.content.is_some() {
             self.draw_content(frame, layout[1], highlight_offset);
-        } else if self.creation_time.elapsed().as_millis() > 150 {
+        } else if self.creation_time.elapsed().as_millis() > 200 {
             self.draw_empty(frame, area);
         }
     }

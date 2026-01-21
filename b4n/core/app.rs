@@ -239,7 +239,7 @@ impl App {
 
     /// Processes connection events.
     fn process_connection_events(&mut self) {
-        self.data.borrow_mut().is_connected = !self.worker.borrow().has_errors();
+        self.data.borrow_mut().is_connected = self.worker.borrow().is_connected();
         self.client_manager.process_request_overdue();
         if let Some(is_connected) = self.client_manager.get_connection_state_if_changed() {
             self.views_manager.process_connection_event(*is_connected);

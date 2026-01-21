@@ -38,7 +38,7 @@ impl BgDiscovery {
             context_tx,
             context_rx,
             footer_tx,
-            has_error: Arc::new(AtomicBool::new(true)),
+            has_error: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -108,7 +108,7 @@ impl BgDiscovery {
     pub fn cancel(&mut self) {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
-            self.has_error.store(true, Ordering::Relaxed);
+            self.has_error.store(false, Ordering::Relaxed);
         }
     }
 

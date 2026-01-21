@@ -86,8 +86,7 @@ impl ViewsManager {
         }
 
         self.resources.update_statistics();
-        self.resources
-            .update_error_state(worker.has_errors() || worker.resources.has_error());
+        self.resources.update_error_state(worker.resources.has_error());
     }
 
     /// Draws visible views on the provided frame area.
