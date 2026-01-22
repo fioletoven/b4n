@@ -16,6 +16,7 @@ pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
 pub mod deployment;
+pub mod endpoint_slice;
 pub mod endpoints;
 pub mod event;
 pub mod ingress;
@@ -56,6 +57,7 @@ pub fn get_resource_data(
         "DaemonSet" => daemon_set::data(object),
         "Deployment" => deployment::data(object),
         "Endpoints" => endpoints::data(object),
+        "EndpointSlice" => endpoint_slice::data(object),
         "Event" => event::data(object, is_filtered),
         "Ingress" => ingress::data(object),
         "Job" => job::data(object),
@@ -92,6 +94,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "DaemonSet" => daemon_set::header(),
         "Deployment" => deployment::header(),
         "Endpoints" => endpoints::header(),
+        "EndpointSlice" => endpoint_slice::header(),
         "Event" => event::header(is_filtered),
         "Ingress" => ingress::header(),
         "Job" => job::header(),
