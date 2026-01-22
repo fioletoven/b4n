@@ -501,6 +501,7 @@ impl EventsProcessor {
                 let is_access_error = is_api_error(&error, true);
                 self.has_access.store(!is_access_error, Ordering::Relaxed);
                 if self.stop_on_access_error && is_access_error {
+                    self.is_connected.store(false, Ordering::Relaxed);
                     self.has_error.store(true, Ordering::Relaxed);
                     return ProcessorResult::Stop;
                 }
@@ -510,7 +511,6 @@ impl EventsProcessor {
                     self.footer_tx.as_ref(),
                 );
 
-                self.is_connected.store(is_api_error(&error, false), Ordering::Relaxed);
                 match error {
                     Error::WatchStartFailed(_) | Error::WatchFailed(_) => {
                         // WatchStartFailed and WatchFailed do not trigger Init, so we do not set error immediately.
@@ -519,6 +519,7 @@ impl EventsProcessor {
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
                             tracing::warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
+                            self.is_connected.store(is_api_error(&error, false), Ordering::Relaxed);
                             self.has_error.store(true, Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
 
@@ -527,7 +528,10 @@ impl EventsProcessor {
 
                         self.last_watch_error = Some(Instant::now());
                     },
-                    _ => self.has_error.store(true, Ordering::Relaxed),
+                    _ => {
+                        self.is_connected.store(is_api_error(&error, false), Ordering::Relaxed);
+                        self.has_error.store(true, Ordering::Relaxed);
+                    },
                 }
             },
         }
