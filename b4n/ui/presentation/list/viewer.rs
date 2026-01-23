@@ -67,7 +67,7 @@ impl<T: Table> ListViewer<T> {
         self.is_disconnected.update(!self.app_data.borrow().is_connected);
         if !self.app_data.borrow().is_connected {
             if self.is_disconnected.value() {
-                self.render_error(frame, " connecting to the Kubernetes cluster…", true);
+                self.render_error(frame, " waiting for the Kubernetes API…", true);
             }
         } else if self.has_error.value() {
             self.render_error(frame, " cannot fetch or update requested resources…", false);

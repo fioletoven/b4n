@@ -119,6 +119,7 @@ impl ResourcesView {
 
     /// Updates error state for the resources table.
     pub fn update_error_state(&mut self, has_error: bool) {
+        self.table.header.update_error_state(has_error);
         self.table.list.update_error_state(has_error);
     }
 
@@ -612,11 +613,11 @@ impl ResourcesView {
         if let Some(previous) = data.previous.pop() {
             self.table.set_next_refresh(NextRefreshActions::from_previous(&previous));
             let to_select = previous.highlighted().map(String::from);
-            if previous.resource.filter.is_some() {
+            if let Some(filter) = previous.resource.filter {
                 let scope = ScopeData {
                     list: previous.list,
                     header: previous.header,
-                    filter: previous.resource.filter.unwrap(),
+                    filter,
                 };
                 return ResponseEvent::ViewScopedPrev(previous.resource.kind.into(), previous.namespace.into(), to_select, scope);
             }
