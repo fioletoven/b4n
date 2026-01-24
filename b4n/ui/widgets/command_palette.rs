@@ -98,7 +98,7 @@ impl CommandPalette {
     }
 
     /// Sets this command palette to behave as mouse menu.
-    pub fn as_mouse_menu(mut self) -> Self {
+    pub fn to_mouse_menu(mut self) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.disable_filter(true);
         self.steps[index]

@@ -1,3 +1,4 @@
+use b4n_common::DelayedTrueTracker;
 use b4n_config::themes::TextColors;
 use b4n_tui::widgets::Spinner;
 use kube::discovery::Scope;
@@ -16,6 +17,7 @@ pub struct ListHeader {
     fixed_scope: Option<Scope>,
     fixed_kind: Option<&'static str>,
     fixed_namespace: Option<String>,
+    has_error: DelayedTrueTracker,
     is_filtered: bool,
     hide_previous: bool,
     spinner: Spinner,
@@ -31,6 +33,7 @@ impl ListHeader {
             fixed_scope: None,
             fixed_kind: None,
             fixed_namespace: None,
+            has_error: DelayedTrueTracker::default(),
             is_filtered: false,
             hide_previous: false,
             spinner: Spinner::default(),
@@ -91,6 +94,11 @@ impl ListHeader {
         self.is_filtered = is_filtered;
     }
 
+    /// Updates error state for the header.
+    pub fn update_error_state(&mut self, has_error: bool) {
+        self.has_error.update(has_error);
+    }
+
     /// Draws [`ListHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         let text_style = Style::from(&self.app_data.borrow().theme.colors.text);
@@ -146,17 +154,25 @@ impl ListHeader {
     /// \< `k8s version` \<
     fn get_version(&mut self) -> Line<'_> {
         let data = &self.app_data.borrow();
-        let (text, colors) = get_version_text(data, &mut self.spinner);
+        let is_ok = if data.current.version.is_empty() {
+            false
+        } else if self.has_error.value() {
+            data.is_connected
+        } else {
+            true
+        };
+
+        let (text, colors) = get_version_text(data, &mut self.spinner, is_ok);
         get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
 }
 
 /// Returns kubernetes version text together with its colors.
-fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner) -> (String, &'a TextColors) {
+fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, is_ok: bool) -> (String, &'a TextColors) {
     let colors;
     let text;
 
-    if data.is_connected {
+    if is_ok {
         colors = &data.theme.colors.header.info;
         text = format!(" {} ", &data.current.version);
     } else {

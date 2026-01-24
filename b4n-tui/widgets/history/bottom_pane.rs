@@ -37,6 +37,11 @@ impl BottomPane {
         self.history.items.update(messages);
     }
 
+    /// Returns currently highlighted message in the [`BottomPane`].
+    pub fn get_highlighted_item(&self) -> Option<&MessageItem> {
+        self.history.items.get_highlighted_item()
+    }
+
     /// Draws [`BottomPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         let hint_lines = if let Some(text) = self.history.items.get_highlighted_item_name() {

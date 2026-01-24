@@ -368,12 +368,16 @@ fn evaluate<T: AsRef<str>>(expression: &Expression, statements: &[T]) -> bool {
         if current.expression.is_pointless() {
             let new_expr = CurrentExpression::new(current.expression.lhs.as_ref().unwrap());
             maybe_current = Some(new_expr);
-        } else if current.expression.lhs.is_some() && current.lhs.is_none() {
-            let new_expr = CurrentExpression::new(current.expression.lhs.as_ref().unwrap());
+        } else if let Some(lhs_expr) = current.expression.lhs.as_ref()
+            && current.lhs.is_none()
+        {
+            let new_expr = CurrentExpression::new(lhs_expr);
             stack.push(current);
             maybe_current = Some(new_expr);
-        } else if current.expression.rhs.is_some() && current.rhs.is_none() {
-            let new_expr = CurrentExpression::new(current.expression.rhs.as_ref().unwrap());
+        } else if let Some(rhs_expr) = current.expression.rhs.as_ref()
+            && current.rhs.is_none()
+        {
+            let new_expr = CurrentExpression::new(rhs_expr);
             stack.push(current);
             maybe_current = Some(new_expr);
         } else if current.lhs.is_some() && (current.rhs.is_some() || current.expression.has_only_lhs()) {

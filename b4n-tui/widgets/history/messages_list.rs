@@ -21,12 +21,21 @@ impl From<Vec<MessageItem>> for MessagesList {
 }
 
 impl MessagesList {
+    /// Updates current list with the new one.
     pub fn update(&mut self, new_list: Vec<MessageItem>) {
         let uid = self.list.get_highlighted_item_uid().map(String::from);
         self.list = ScrollableList::from(new_list);
         if let Some(uid) = uid {
             self.list.highlight_item_by_uid(&uid);
         }
+    }
+
+    /// Returns currently highlighted message.
+    pub fn get_highlighted_item(&self) -> Option<&MessageItem> {
+        self.list
+            .items
+            .as_ref()
+            .and_then(|l| l.iter().find(|i| i.is_active).map(|i| &i.data))
     }
 }
 

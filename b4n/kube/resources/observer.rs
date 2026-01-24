@@ -58,6 +58,7 @@ impl ResourceObserver {
             pub fn get_resource_kind(&self) -> &Kind;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
+            pub fn is_connected(&self) -> bool;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
             pub fn has_access(&self) -> bool;

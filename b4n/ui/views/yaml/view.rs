@@ -203,7 +203,7 @@ impl YamlView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).as_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
