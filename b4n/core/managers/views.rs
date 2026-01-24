@@ -132,6 +132,10 @@ impl ViewsManager {
                 return ResponseEvent::Handled;
             }
 
+            if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+                self.copy_footer_message();
+            }
+
             return self.footer.process_event(event);
         }
 
@@ -476,6 +480,20 @@ impl ViewsManager {
             self.footer.get_transmitter(),
         );
         self.view = Some(Box::new(view));
+    }
+
+    fn copy_footer_message(&self) {
+        if let Some(message) = self.footer.get_highlighted_history_message() {
+            if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
+                && clipboard.set_text(message).is_ok()
+            {
+                self.footer.transmitter().show_info("Message copied to clipboard", 3_000);
+            } else {
+                self.footer
+                    .transmitter()
+                    .show_error("Unable to access clipboard functionality", 5_000);
+            }
+        }
     }
 }
 

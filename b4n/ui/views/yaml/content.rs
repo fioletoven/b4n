@@ -13,7 +13,7 @@ use crate::ui::presentation::{
 use crate::ui::views::yaml::undo::{Undo, UndoMode, pop_recent_group};
 
 /// Number of lines before and after the modified section to include in the re-highlighting process.
-const HIGHLIGHT_CONTEXT_LINES_NO: usize = 200;
+const HIGHLIGHT_CONTEXT_LINES_NO: usize = 800;
 
 /// Styled YAML content.
 pub struct YamlContent {

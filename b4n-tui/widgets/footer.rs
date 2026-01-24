@@ -105,6 +105,13 @@ impl Footer {
         }
     }
 
+    /// Returns currently highlighted message in the history pane.
+    pub fn get_highlighted_history_message(&self) -> Option<&str> {
+        self.history_pane
+            .as_ref()
+            .and_then(|h| h.get_highlighted_item().map(|i| i.message.as_str()))
+    }
+
     /// Draws [`Footer`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;
