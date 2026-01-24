@@ -65,7 +65,7 @@ fn get_endpoints(endpoints: Option<&Vec<Value>>) -> Option<String> {
     }
 
     let mut sorted = addresses.into_iter().collect::<Vec<_>>();
-    sorted.sort();
+    sorted.sort_unstable();
 
     Some(sorted.join(","))
 }
