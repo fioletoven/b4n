@@ -1,64 +1,104 @@
-use serde::de::{self};
+use serde::de::{self, Unexpected, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::str::FromStr;
 
-use super::{KeyCombination, KeyCommand};
+use crate::define_key_commands;
+use crate::keys::KeyCombination;
 
 #[cfg(test)]
 #[path = "./binding.tests.rs"]
 mod binding_tests;
 
+/// Possible errors from [`KeyCommand`] parsing.
+#[derive(thiserror::Error, Debug)]
+pub enum KeyCommandError {
+    /// Unknown key binding command.
+    #[error("unknown key binding command")]
+    UnknownCommand,
+}
+
+define_key_commands! {
+    bindings = KeyBindings;
+
+    /// Defines what part of the UI the command targets.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum KeyCommand {
+        ApplicationExit => "app.exit" @ "Ctrl+C",
+        CommandPaletteOpen => "command-palette.open" @ ":", ">", "Shift+:", "Shift+>",
+        CommandPaletteReset => "command-palette.close" @ "Esc",
+        ContentCopy => "content.copy" @ "C",
+        EventsShow => "events.show" @ "E",
+        FilterOpen => "filter.open" @ "/", "Shift+/",
+        FilterReset => "filter.reset" @ "Esc",
+        HistoryOpen => "history.open" @ "H",
+        InvolvedObjectShow => "involved-object.show" @ "I",
+        LogsOpen => "logs.open" @ "L",
+        LogsTimestamps => "logs.timestamps" @ "T",
+        MatchNext => "match.next" @ "N",
+        MatchPrevious => "match.previous" @ "P",
+        MouseSupportToggle => "mouse-support.toggle" @ "Ctrl+N",
+        NavigateBack => "navigate.back" @ "Esc",
+        NavigateComplete => "navigate.complete" @ "Tab",
+        NavigateDelete => "navigate.delete" @ "Ctrl+D",
+        NavigateInto => "navigate.into" @ "Enter",
+        NavigateInvertSelection => "navigate.invert-selection" @ "Ctrl+Space",
+        NavigateSelect => "navigate.select" @ "Space",
+        NavigateSelectAll => "navigate.select-all" @ "Ctrl+A",
+        PortForwardsCreate => "port-forwards.create" @ "F",
+        PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
+        PreviousLogsOpen => "previous-logs.open" @ "P",
+        SearchOpen => "search.open" @ "/", "Shift+/",
+        SearchReset => "search.reset" @ "Esc",
+        SelectorLeft => "selector.left" @ "Left",
+        SelectorRight => "selector.right" @ "Right",
+        ShellEscape => "shell.escape" @ "Esc",
+        ShellOpen => "shell.open" @ "S",
+        YamlCreate => "yaml.create" @ "N",
+        YamlDecode => "yaml.decode" @ "X",
+        YamlEdit => "yaml.edit" @ "I",
+        YamlOpen => "yaml.open" @ "Y",
+    }
+}
+
+impl Serialize for KeyCommand {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for KeyCommand {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct KeyCommandVisitor;
+
+        impl Visitor<'_> for KeyCommandVisitor {
+            type Value = KeyCommand;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing key command")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<KeyCommand, E>
+            where
+                E: de::Error,
+            {
+                match KeyCommand::from_str(value) {
+                    Ok(command) => Ok(command),
+                    Err(_) => Err(de::Error::invalid_value(Unexpected::Str(value), &self)),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(KeyCommandVisitor)
+    }
+}
+
 /// Key bindings for the UI.
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeyBindings {
     bindings: HashMap<KeyCombination, HashSet<KeyCommand>>,
-}
-
-impl Default for KeyBindings {
-    fn default() -> Self {
-        Self::empty()
-            .with("Ctrl+C", KeyCommand::ApplicationExit)
-            .with("Enter", KeyCommand::NavigateInto)
-            .with("Esc", KeyCommand::NavigateBack)
-            .with("Space", KeyCommand::NavigateSelect)
-            .with("Ctrl+Space", KeyCommand::NavigateInvertSelection)
-            .with("Ctrl+A", KeyCommand::NavigateSelectAll)
-            .with("Tab", KeyCommand::NavigateComplete)
-            .with("Ctrl+D", KeyCommand::NavigateDelete)
-            .with("Ctrl+N", KeyCommand::MouseSupportToggle)
-            .with("C", KeyCommand::ContentCopy)
-            .with("E", KeyCommand::EventsShow)
-            .with("I", KeyCommand::InvolvedObjectShow)
-            .with("Left", KeyCommand::SelectorLeft)
-            .with("Right", KeyCommand::SelectorRight)
-            .with("Shift+:", KeyCommand::CommandPaletteOpen)
-            .with(":", KeyCommand::CommandPaletteOpen)
-            .with("Shift+>", KeyCommand::CommandPaletteOpen)
-            .with(">", KeyCommand::CommandPaletteOpen)
-            .with("Esc", KeyCommand::CommandPaletteReset)
-            .with("Shift+/", KeyCommand::FilterOpen)
-            .with("/", KeyCommand::FilterOpen)
-            .with("Esc", KeyCommand::FilterReset)
-            .with("Shift+/", KeyCommand::SearchOpen)
-            .with("/", KeyCommand::SearchOpen)
-            .with("Esc", KeyCommand::SearchReset)
-            .with("N", KeyCommand::MatchNext)
-            .with("P", KeyCommand::MatchPrevious)
-            .with("Y", KeyCommand::YamlOpen)
-            .with("X", KeyCommand::YamlDecode)
-            .with("I", KeyCommand::YamlEdit)
-            .with("N", KeyCommand::YamlCreate)
-            .with("L", KeyCommand::LogsOpen)
-            .with("T", KeyCommand::LogsTimestamps)
-            .with("P", KeyCommand::PreviousLogsOpen)
-            .with("S", KeyCommand::ShellOpen)
-            .with("Esc", KeyCommand::ShellEscape)
-            .with("Ctrl+F", KeyCommand::PortForwardsOpen)
-            .with("F", KeyCommand::PortForwardsCreate)
-            .with("H", KeyCommand::HistoryOpen)
-    }
 }
 
 impl KeyBindings {
