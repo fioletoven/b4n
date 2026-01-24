@@ -3,7 +3,7 @@ use std::iter::once;
 use super::*;
 
 #[test]
-fn serialize_test() {
+fn serialize_bindings_test() {
     let bindings = KeyBindings::default();
     let serialized = serde_yaml::to_string(&bindings).unwrap();
     let deserialized: KeyBindings = serde_yaml::from_str(&serialized).unwrap();
@@ -12,7 +12,7 @@ fn serialize_test() {
 }
 
 #[test]
-fn merge_test() {
+fn merge_bindings_test() {
     let bindings = KeyBindings::default();
     assert_eq!(
         bindings.bindings[&"Ctrl+C".into()],
@@ -48,4 +48,27 @@ fn has_binding_test() {
     assert!(other.has_binding(&"Ctrl+A".into(), KeyCommand::NavigateDelete));
     assert!(!other.has_binding(&"Ctrl+A".into(), KeyCommand::FilterReset));
     assert!(!other.has_binding(&"Ctrl+B".into(), KeyCommand::NavigateDelete));
+}
+
+#[test]
+fn command_from_str_test() {
+    assert!(KeyCommand::from_str("").is_err());
+    assert!(KeyCommand::from_str("unknown").is_err());
+
+    assert_eq!(KeyCommand::ApplicationExit, KeyCommand::from_str("app.exit").unwrap());
+    assert_eq!(KeyCommand::FilterOpen, KeyCommand::from_str("filter.open").unwrap());
+}
+
+#[test]
+fn serialize_command_test() {
+    let key = serde_yaml::to_string(&KeyCommand::ApplicationExit).unwrap();
+    assert_eq!("app.exit", key.trim());
+}
+
+#[test]
+fn deserialize_command_test() {
+    assert_eq!(
+        KeyCommand::CommandPaletteOpen,
+        serde_yaml::from_str("command-palette.open").unwrap()
+    );
 }

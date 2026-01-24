@@ -5,6 +5,7 @@
 ### Features
 
 - add animated spinner for wait indication
+- allow copying footer history pane messages
 
 ### Bug fixes
 

@@ -81,6 +81,14 @@ impl LogsObserver {
                     () = sleep(backoff.next().unwrap_or(Duration::from_millis(800))) => (),
                 }
             }
+
+            let msg = format!(
+                "Logs stream closed {}/{} ({})",
+                context.pod.namespace.as_str(),
+                context.pod.name,
+                context.pod.container.as_deref().unwrap_or_default()
+            );
+            context.send_logs_chunk(process_error(msg));
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -171,12 +179,6 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                     },
                     Ok(None) => {
                         should_continue = false;
-                        let msg = format!(
-                            "Logs stream closed {}/{} ({})",
-                            context.pod.namespace.as_str(),
-                            context.pod.name,
-                            context.pod.container.as_deref().unwrap_or_default());
-                        context.send_logs_chunk(process_error(msg));
                         break;
                     },
                     Err(err) => {
