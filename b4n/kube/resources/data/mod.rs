@@ -30,6 +30,7 @@ pub mod persistent_volume;
 pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_metrics;
+pub mod priority_class;
 pub mod replica_set;
 pub mod role_binding;
 pub mod secret;
@@ -71,6 +72,7 @@ pub fn get_resource_data(
         "PersistentVolumeClaim" => persistent_volume_claim::data(object),
         "Pod" => pod::data(object, stats),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::data(object),
+        "PriorityClass" => priority_class::data(object),
         "ReplicaSet" => replica_set::data(object),
         "RoleBinding" => role_binding::data(object),
         "Secret" => secret::data(object),
@@ -109,6 +111,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         "PersistentVolumeClaim" => persistent_volume_claim::header(),
         "Pod" => pod::header(has_metrics),
         "PodMetrics" if group == "metrics.k8s.io" => pod_metrics::header(),
+        "PriorityClass" => priority_class::header(),
         "ReplicaSet" => replica_set::header(),
         "RoleBinding" => role_binding::header(),
         "Secret" => secret::header(),
