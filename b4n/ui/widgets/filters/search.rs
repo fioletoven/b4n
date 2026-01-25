@@ -134,15 +134,19 @@ impl Search {
     fn remember_pattern(&mut self) {
         let pattern = self.patterns.value();
         if self.patterns.items.add(pattern.into(), HISTORY_SIZE) {
-            let context = self.app_data.borrow().current.context.clone();
-            self.app_data
-                .borrow_mut()
-                .history
-                .update_search_history(&context, self.patterns.items.to_vec());
+            self.remember_all_patterns();
+        }
+    }
 
-            if let Some(worker) = &self.worker {
-                worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
-            }
+    fn remember_all_patterns(&mut self) {
+        let context = self.app_data.borrow().current.context.clone();
+        self.app_data
+            .borrow_mut()
+            .history
+            .update_search_history(&context, self.patterns.items.to_vec());
+
+        if let Some(worker) = &self.worker {
+            worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
         }
     }
 
@@ -161,6 +165,14 @@ impl Responsive for Search {
 
         if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.patterns.value().is_empty() {
             self.patterns.reset();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
+            if self.patterns.items.remove_highlighted() {
+                self.remember_all_patterns();
+            }
+
             return ResponseEvent::Handled;
         }
 

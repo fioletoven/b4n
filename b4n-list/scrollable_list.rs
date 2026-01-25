@@ -97,7 +97,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
         if self.items.is_some() {
             self.apply_filter();
-            self.highlighted = self.recover_highlighted_item_index();
+            self.recover_highlighted_item_index();
         } else {
             self.highlighted = None;
         }
@@ -122,7 +122,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             list.filter_reset();
         }
 
-        self.highlighted = self.recover_highlighted_item_index();
+        self.recover_highlighted_item_index();
         if let Some(list) = &mut self.items {
             list.full_iter_mut().for_each(|i| i.is_active = false);
             if let Some(highlighted) = self.highlighted {
@@ -349,13 +349,21 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
-    /// Gets the highlighted item index from the `is_active` property.
-    pub fn recover_highlighted_item_index(&self) -> Option<usize> {
+    /// Recovers and returns the highlighted item index from the `is_active` property.
+    pub fn recover_highlighted_item_index(&mut self) -> Option<usize> {
         if let Some(items) = &self.items {
-            items.iter().position(|i| i.is_active)
+            self.highlighted = items.iter().position(|i| i.is_active);
+            self.highlighted
         } else {
+            self.highlighted = None;
             None
         }
+    }
+
+    /// Recovers remembered filter from the filter context.
+    pub fn recover_filter(&mut self) {
+        self.apply_filter();
+        self.recover_highlighted_item_index();
     }
 
     /// Highlights element on list by its name.
@@ -467,10 +475,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
                 self.highlighted = Some(0);
             } else {
                 let highlighted = self.highlighted.unwrap_or(0);
-                let new_highlighted = (isize::try_from(highlighted).unwrap_or_default() + rows_to_move as isize).max(0) as usize;
-                let new_highlighted = new_highlighted.min(items.len() - 1);
+                if highlighted < items.len() {
+                    items[highlighted].is_active = false;
+                }
 
-                items[highlighted].is_active = false;
+                let new_highlighted = (isize::try_from(highlighted).unwrap_or_default() + rows_to_move as isize).max(0) as usize;
+                let new_highlighted = new_highlighted.min(items.len().saturating_sub(1));
                 items[new_highlighted].is_active = true;
                 self.highlighted = Some(new_highlighted);
             }
