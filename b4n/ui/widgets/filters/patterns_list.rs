@@ -40,6 +40,25 @@ impl PatternsList {
         }
     }
 
+    /// Returns `true` if the highlighted pattern from the list was removed.\
+    /// Preserves filter and highlights next element from the list.
+    pub fn remove_highlighted(&mut self) -> bool {
+        if let Some(idx) = self.remove_highlighted_item() {
+            self.list.recover_filter();
+            let new_highlight = idx.min(self.list.len().saturating_sub(1));
+            if let Some(list) = &mut self.list.items
+                && let Some(item) = list.iter_mut().nth(new_highlight)
+            {
+                item.is_active = true;
+            }
+
+            self.list.recover_highlighted_item_index();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Returns [`PatternsList`] as a vector of strings that can be saved in the app history data.
     pub fn to_vec(&self) -> Vec<String> {
         if let Some(list) = &self.list.items {
@@ -68,6 +87,18 @@ impl PatternsList {
             if let Some(index) = index {
                 list.full_remove(index);
             }
+        }
+    }
+
+    fn remove_highlighted_item(&mut self) -> Option<usize> {
+        if let Some(list) = &mut self.list.items
+            && let Some(idx) = list.iter().position(|i| i.is_active)
+        {
+            list.remove(idx);
+            list.full_iter_mut().for_each(|i| i.is_active = false);
+            Some(idx)
+        } else {
+            None
         }
     }
 }

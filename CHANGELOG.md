@@ -5,7 +5,8 @@
 ### Features
 
 - add animated spinner for wait indication
-- allow copying footer history pane messages
+- allow copying messages from footer history pane
+- add delete functionality for search and filter items
 
 ### Bug fixes
 
