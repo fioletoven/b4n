@@ -7,6 +7,8 @@
 - add animated spinner for wait indication
 - allow copying messages from footer history pane
 - add delete functionality for search and filter items
+- add columns for EndpointSlice, RoleBinding and PriorityClass kinds
+- add `copy name` to the mouse menu in the resources view
 
 ### Bug fixes
 
