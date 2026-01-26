@@ -121,19 +121,13 @@ impl ResourcesTable {
     /// Copies all / selected items to clipboard.
     pub fn copy_to_clipboard(&mut self, selected: bool, footer: &NotificationSink) {
         let text = self.list.table.get_items_as_text(self.list.view, selected);
-        if !text.is_empty() {
-            if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard.set_text(text.join("\n")).is_ok()
-            {
-                if selected {
-                    footer.show_info("Selected resources copied to clipboard", 3_000);
-                } else {
-                    footer.show_info("All resources copied to clipboard", 3_000);
-                }
+        self.app_data.copy_to_clipboard(text.join("\n"), footer, || {
+            if selected {
+                "Selected resources copied to clipboard"
             } else {
-                footer.show_error("Unable to access clipboard functionality", 5_000);
+                "All resources copied to clipboard"
             }
-        }
+        });
     }
 
     delegate! {

@@ -12,7 +12,6 @@ use ratatui_widgets::clear::Clear;
 use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
-use crate::table::Table;
 use crate::widgets::history::MessageItem;
 use crate::widgets::{List, history::MessagesList};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -44,9 +43,9 @@ impl BottomPane {
 
     /// Draws [`BottomPane`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
-        let hint_lines = if let Some(text) = self.history.items.get_highlighted_item_name() {
+        let hint_lines = if let Some(text) = self.history.items.list.get_highlighted_item() {
             let width = area.width.saturating_sub(4);
-            let text = textwrap::wrap(text, Options::new(width.into()).initial_indent(" "));
+            let text = textwrap::wrap(&text.data.raw_message, Options::new(width.into()).initial_indent(" "));
             text.into_iter().map(|i| Line::from(i.into_owned())).collect::<Vec<Line>>()
         } else {
             Vec::default()

@@ -105,19 +105,16 @@ impl YamlView {
             self.copied_line = None;
             self.yaml.content().map(|c| c.to_plain_text(range)).unwrap_or_default()
         };
-        if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-            && clipboard.set_text(text).is_ok()
-        {
+
+        self.app_data.copy_to_clipboard(text, &self.footer, || {
             if self.yaml.has_selection() {
-                self.footer.show_info("Selection copied to clipboard", 3_000);
+                "Selection copied to clipboard"
             } else if is_current_line {
-                self.footer.show_info("Line copied to clipboard", 3_000);
+                "Line copied to clipboard"
             } else {
-                self.footer.show_info("YAML content copied to clipboard", 3_000);
+                "YAML content copied to clipboard"
             }
-        } else {
-            self.footer.show_error("Unable to access clipboard functionality", 5_000);
-        }
+        });
     }
 
     fn insert_from_clipboard(&mut self) {

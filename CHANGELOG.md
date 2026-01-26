@@ -1,17 +1,20 @@
 # Change Log
 
-## WIP
+## 0.3.9 - 2026-01-26
 
 ### Features
 
 - add animated spinner for wait indication
 - allow copying messages from footer history pane
 - add delete functionality for search and filter items
+- add columns for EndpointSlice, RoleBinding and PriorityClass kinds
+- add `copy name` to the mouse menu in the resources view
 
 ### Bug fixes
 
 - fix roles display in the nodes view
 - prevent exit on `back` click in menu if YAML is modified
+- fix new line characters display in the footer
 
 ## 0.3.8 - 2026-01-14
 

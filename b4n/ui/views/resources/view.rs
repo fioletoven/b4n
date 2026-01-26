@@ -308,6 +308,10 @@ impl ResourcesView {
             return match action {
                 "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
                 "copy" => self.process_event(&TuiEvent::Command(KeyCommand::ContentCopy)),
+                "copy_name" => {
+                    self.copy_name_to_clipboard();
+                    ResponseEvent::Handled
+                },
                 "palette" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
@@ -487,14 +491,14 @@ impl ResourcesView {
         let copy = if is_selected { "selected" } else { "all" };
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::command_palette())
-            .with_menu_action(ActionItem::menu(9, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            .with_menu_action(ActionItem::menu(10, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            let action = ActionItem::menu(10, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+            let action = ActionItem::menu(11, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
             builder.add_menu_action(action);
         }
 
@@ -512,7 +516,10 @@ impl ResourcesView {
         }
 
         if is_highlighted {
-            builder.add_menu_action(ActionItem::menu(1, " YAML", "show_yaml"));
+            builder = builder
+                .with_menu_action(ActionItem::menu(1, " YAML", "show_yaml"))
+                .with_menu_action(ActionItem::menu(9, "󰆏 copy ␝name␝", "copy_name"));
+
             if is_containers || is_pods {
                 builder = builder
                     .with_menu_action(ActionItem::menu(2, " logs", "show_logs"))
@@ -667,6 +674,13 @@ impl ResourcesView {
             .table
             .get_highlighted_resource()
             .is_some_and(|res| res.involved_object.is_some())
+    }
+
+    fn copy_name_to_clipboard(&mut self) {
+        if let Some(res) = self.table.list.table.get_highlighted_resource() {
+            self.app_data
+                .copy_to_clipboard(&res.name, &self.footer_tx, || "Resource name copied to clipboard");
+        }
     }
 }
 
