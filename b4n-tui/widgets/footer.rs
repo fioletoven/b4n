@@ -105,11 +105,12 @@ impl Footer {
         }
     }
 
-    /// Returns currently highlighted message in the history pane.
+    /// Returns currently highlighted message in the history pane.\
+    /// It returns raw message, together with new line characters.
     pub fn get_highlighted_history_message(&self) -> Option<&str> {
         self.history_pane
             .as_ref()
-            .and_then(|h| h.get_highlighted_item().map(|i| i.message.as_str()))
+            .and_then(|h| h.get_highlighted_item().map(|i| i.raw_message.as_str()))
     }
 
     /// Draws [`Footer`] on the provided frame area.

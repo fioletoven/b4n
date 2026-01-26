@@ -9,6 +9,7 @@ pub struct MessageItem {
     pub uid: String,
     pub group: &'static str,
     pub message: String,
+    pub raw_message: String,
     time: Instant,
     is_error: bool,
 }
@@ -20,6 +21,7 @@ impl MessageItem {
             uid: format!("_{id}_"),
             group: "notification",
             message: notification.text.clone(),
+            raw_message: notification.text.replace('󰌑', "\n"),
             time,
             is_error: notification.kind == NotificationKind::Error,
         }

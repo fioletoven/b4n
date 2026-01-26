@@ -1,4 +1,8 @@
+use std::borrow::Cow;
+
 use tokio::sync::mpsc::UnboundedSender;
+
+use crate::sanitize_and_split;
 
 pub const DEFAULT_MESSAGE_DURATION: u16 = 5_000;
 pub const DEFAULT_ERROR_DURATION: u16 = 10_000;
@@ -72,7 +76,8 @@ pub struct Notification {
 
 impl Notification {
     /// Creates new [`Notification`] instance.
-    fn new(text: String, kind: NotificationKind, duration: u16) -> Self {
+    fn new(text: &str, kind: NotificationKind, duration: u16) -> Self {
+        let text = sanitize_and_split(text).join("󰌑");
         Self { text, kind, duration }
     }
 }
@@ -100,29 +105,31 @@ impl NotificationSink {
     }
 
     /// Displays an informational message for the specified duration (in milliseconds).
-    pub fn show_info(&self, text: impl Into<String>, duration: u16) {
+    pub fn show_info<'a>(&self, text: impl Into<Cow<'a, str>>, duration: u16) {
         let _ = self
             .messages
-            .send(Notification::new(text.into(), NotificationKind::Info, duration));
+            .send(Notification::new(&text.into(), NotificationKind::Info, duration));
     }
 
     /// Displays an error message for the specified duration (in milliseconds).
-    pub fn show_error(&self, text: impl Into<String>, duration: u16) {
+    pub fn show_error<'a>(&self, text: impl Into<Cow<'a, str>>, duration: u16) {
         let _ = self
             .messages
-            .send(Notification::new(text.into(), NotificationKind::Error, duration));
+            .send(Notification::new(&text.into(), NotificationKind::Error, duration));
     }
 
     /// Starts displaying a hint message in the footer (if there is a space for it).
     pub fn show_hint(&self, text: impl Into<String>) {
-        let _ = self.messages.send(Notification::new(text.into(), NotificationKind::Hint, 0));
+        let _ = self.messages.send(Notification {
+            text: text.into(),
+            kind: NotificationKind::Hint,
+            duration: 0,
+        });
     }
 
     /// Stops displaying a hint message if any is displayed.
     pub fn hide_hint(&self) {
-        let _ = self
-            .messages
-            .send(Notification::new(String::new(), NotificationKind::Hint, 0));
+        let _ = self.messages.send(Notification::new("", NotificationKind::Hint, 0));
     }
 
     /// Adds, updates, or removes an icon in the sink by its `id`.

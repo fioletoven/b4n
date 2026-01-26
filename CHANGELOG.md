@@ -12,6 +12,7 @@
 
 - fix roles display in the nodes view
 - prevent exit on `back` click in menu if YAML is modified
+- fix new line characters display in the footer
 
 ## 0.3.8 - 2026-01-14
 
