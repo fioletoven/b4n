@@ -1,9 +1,11 @@
 use arboard::Clipboard;
+use b4n_common::NotificationSink;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
 use b4n_tui::TuiEvent;
 use kube::discovery::Scope;
+use std::borrow::Cow;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use crate::kube::kinds::KindItem;
@@ -199,6 +201,15 @@ pub trait SharedAppDataExt {
 
     /// Returns the first [`KeyCombination`] name associated with the specified [`KeyCommand`] from the [`KeyBindings`].
     fn get_key_name(&self, command: KeyCommand) -> String;
+
+    /// Copies provided text to clipboard and executes `on_success_message` function.\
+    /// `on_success_message` should return text that will be shown in the footer on success.
+    fn copy_to_clipboard<'a>(
+        &mut self,
+        text: impl Into<Cow<'a, str>>,
+        sink: &NotificationSink,
+        on_success_message: impl FnOnce() -> &'static str,
+    );
 }
 
 impl SharedAppDataExt for SharedAppData {
@@ -233,5 +244,23 @@ impl SharedAppDataExt for SharedAppData {
 
     fn get_key_name(&self, command: KeyCommand) -> String {
         self.borrow().key_bindings.get_key_name(command).unwrap_or_default()
+    }
+
+    fn copy_to_clipboard<'a>(
+        &mut self,
+        text: impl Into<Cow<'a, str>>,
+        sink: &NotificationSink,
+        on_success_message: impl FnOnce() -> &'static str,
+    ) {
+        let text = text.into();
+        if !text.is_empty() {
+            if let Some(clipboard) = &mut self.borrow_mut().clipboard
+                && clipboard.set_text(text).is_ok()
+            {
+                sink.show_info(on_success_message(), 3_000);
+            } else {
+                sink.show_error("Unable to access clipboard functionality", 5_000);
+            }
+        }
     }
 }

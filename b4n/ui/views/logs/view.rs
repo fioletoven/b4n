@@ -128,22 +128,17 @@ impl LogsView {
         }
     }
 
-    fn copy_logs_to_clipboard(&self) {
+    fn copy_logs_to_clipboard(&mut self) {
         if self.logs.content().is_some() {
             let range = self.logs.get_selection();
-            if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard
-                    .set_text(self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default())
-                    .is_ok()
-            {
+            let text = self.logs.content().map(|c| c.to_plain_text(range)).unwrap_or_default();
+            self.app_data.copy_to_clipboard(text, &self.footer, || {
                 if self.logs.has_selection() {
-                    self.footer.show_info("Selection copied to clipboard", 3_000);
+                    "Selection copied to clipboard"
                 } else {
-                    self.footer.show_info("Container logs copied to clipboard", 3_000);
+                    "Container logs copied to clipboard"
                 }
-            } else {
-                self.footer.show_error("Unable to access clipboard functionality", 5_000);
-            }
+            });
         }
     }
 
