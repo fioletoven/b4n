@@ -499,5 +499,5 @@ impl ViewsManager {
 
 fn set_command_palette_hint(footer_tx: &NotificationSink, app_data: &SharedAppData) {
     let command_palette_key = app_data.get_key_name(KeyCommand::CommandPaletteOpen).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press {command_palette_key} to open command palette  "));
+    footer_tx.show_hint(format!(" Press {command_palette_key} to open command palette"));
 }

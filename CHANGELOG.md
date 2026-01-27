@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- add hint for close edit mode / save content
+
 ## 0.3.9 - 2026-01-26
 
 ### Features

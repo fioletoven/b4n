@@ -22,6 +22,7 @@ pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    is_hint_visible: bool,
     is_new: bool,
     is_edit: bool,
     is_secret: bool,
@@ -68,6 +69,7 @@ impl YamlView {
             yaml,
             app_data,
             worker,
+            is_hint_visible: false,
             is_new,
             is_edit: false,
             is_secret,
@@ -238,6 +240,115 @@ impl YamlView {
         if let Some(message) = self.yaml.get_footer_message(forward) {
             self.footer.show_info(message, DEFAULT_MESSAGE_DURATION);
         }
+    }
+
+    fn process_event_internal(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
+                return result;
+            }
+        }
+
+        if self.search.is_visible {
+            let result = self.search.process_event(event);
+            if self.yaml.search(self.search.value(), false) {
+                self.yaml.scroll_to_current_match(None);
+                self.update_search_count();
+            }
+
+            return result;
+        }
+
+        if self.modal.is_visible {
+            return self.process_modal_event(event);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.enable_edit_mode() {
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+            if self.is_new {
+                return self.process_view_close_event(ResponseEvent::Cancelled, false);
+            } else if self.is_edit && !self.yaml.is_modified() {
+                return ResponseEvent::Cancelled;
+            } else if self.yaml.disable_edit_mode() {
+                self.hide_edit_hint();
+                return ResponseEvent::Handled;
+            }
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
+            return ResponseEvent::Handled;
+        }
+
+        if self.yaml.is_in_edit_mode() {
+            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
+                self.insert_from_clipboard();
+                self.yaml.scroll_to_cursor();
+                return ResponseEvent::Handled;
+            }
+
+            let is_ctrl_c = event.is_key(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+            if is_ctrl_c || event.is_key(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL)) {
+                self.copy_to_clipboard(true);
+                if is_ctrl_c {
+                    return ResponseEvent::Handled;
+                }
+            }
+        }
+
+        let response = self.yaml.process_event(event);
+        if response != ResponseEvent::NotHandled {
+            return response;
+        }
+
+        if self.yaml.is_in_edit_mode() {
+            return ResponseEvent::NotHandled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
+            self.search.show();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
+            self.clear_search();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+            return self.process_view_close_event(ResponseEvent::Cancelled, false);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.yaml.header.kind.as_str() == SECRETS {
+            self.toggle_yaml_decode();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.copy_to_clipboard(false);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
+            self.navigate_match(true);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
+            self.navigate_match(false);
+        }
+
+        ResponseEvent::NotHandled
     }
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -429,6 +540,7 @@ impl YamlView {
 
         if self.yaml.enable_edit_mode(self.is_new) {
             self.clear_search();
+            self.show_edit_hint();
             return true;
         }
 
@@ -462,7 +574,9 @@ impl YamlView {
         ));
         if self.is_new || self.state == ViewState::WaitingForEdit {
             self.state = ViewState::Idle;
-            self.yaml.enable_edit_mode(self.is_new);
+            if self.yaml.enable_edit_mode(self.is_new) {
+                self.show_edit_hint();
+            }
         }
     }
 
@@ -473,6 +587,26 @@ impl YamlView {
             self.state = ViewState::Quitting;
         } else {
             self.state = ViewState::Idle;
+        }
+    }
+
+    fn show_edit_hint(&mut self) {
+        self.is_hint_visible = true;
+        let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
+        if self.is_new {
+            self.footer
+                .show_hint(format!(" Press {key} to open save dialog (if modified)"));
+        } else {
+            self.footer.show_hint(format!(
+                " Press {key} to close edit mode, then {key} for save dialog (if modified)"
+            ));
+        }
+    }
+
+    fn hide_edit_hint(&mut self) {
+        if self.is_hint_visible {
+            self.is_hint_visible = true;
+            self.footer.hide_hint();
         }
     }
 }
@@ -517,111 +651,13 @@ impl View for YamlView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
-                return result;
-            }
+        let result = self.process_event_internal(event);
+
+        if result == ResponseEvent::Cancelled || result == ResponseEvent::ExitApplication {
+            self.hide_edit_hint();
         }
 
-        if self.search.is_visible {
-            let result = self.search.process_event(event);
-            if self.yaml.search(self.search.value(), false) {
-                self.yaml.scroll_to_current_match(None);
-                self.update_search_count();
-            }
-
-            return result;
-        }
-
-        if self.modal.is_visible {
-            return self.process_modal_event(event);
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.enable_edit_mode() {
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            if self.is_new {
-                return self.process_view_close_event(ResponseEvent::Cancelled, false);
-            } else if self.is_edit && !self.yaml.is_modified() {
-                return ResponseEvent::Cancelled;
-            } else if self.yaml.disable_edit_mode() {
-                return ResponseEvent::Handled;
-            }
-        }
-
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-        {
-            self.show_mouse_menu(mouse.column, mouse.row);
-            return ResponseEvent::Handled;
-        }
-
-        if self.yaml.is_in_edit_mode() {
-            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
-                self.insert_from_clipboard();
-                self.yaml.scroll_to_cursor();
-                return ResponseEvent::Handled;
-            }
-
-            let is_ctrl_c = event.is_key(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-            if is_ctrl_c || event.is_key(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL)) {
-                self.copy_to_clipboard(true);
-                if is_ctrl_c {
-                    return ResponseEvent::Handled;
-                }
-            }
-        }
-
-        let response = self.yaml.process_event(event);
-        if response != ResponseEvent::NotHandled {
-            return response;
-        }
-
-        if self.yaml.is_in_edit_mode() {
-            return ResponseEvent::NotHandled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
-            self.search.show();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
-            self.clear_search();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            return self.process_view_close_event(ResponseEvent::Cancelled, false);
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.yaml.header.kind.as_str() == SECRETS {
-            self.toggle_yaml_decode();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
-            self.copy_to_clipboard(false);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
-            self.navigate_match(true);
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.yaml.matches_count().is_some() {
-            self.navigate_match(false);
-        }
-
-        ResponseEvent::NotHandled
+        result
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
