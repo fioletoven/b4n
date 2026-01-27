@@ -120,8 +120,10 @@ impl NotificationSink {
 
     /// Starts displaying a hint message in the footer (if there is a space for it).
     pub fn show_hint(&self, text: impl Into<String>) {
+        let mut text = text.into();
+        text.push_str("  ");
         let _ = self.messages.send(Notification {
-            text: text.into(),
+            text,
             kind: NotificationKind::Hint,
             duration: 0,
         });
