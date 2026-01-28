@@ -98,7 +98,8 @@ impl BgWorker {
         let discovery = get_resource(self.discovery_list.as_ref(), &Kind::from(CRDS));
         self.crds.start(&client, discovery)?;
 
-        self.statistics.start(&client, self.discovery_list.as_ref());
+        self.statistics
+            .start(&client, self.discovery_list.as_ref(), self.resources.get_resource_namespace());
 
         self.client = Some(client);
 

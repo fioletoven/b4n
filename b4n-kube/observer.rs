@@ -19,7 +19,7 @@ use crate::client::KubernetesClient;
 use crate::crds::CrdColumns;
 use crate::stream_backoff::StreamBackoff;
 use crate::utils::get_object_uid;
-use crate::{CONTAINERS, Kind, ResourceRef};
+use crate::{CONTAINERS, Kind, Namespace, ResourceRef};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -247,9 +247,14 @@ impl BgObserver {
         while self.context_rx.try_recv().is_ok() {}
     }
 
-    /// Returns currently observed resource kind.
+    /// Returns currently observed resource's kind.
     pub fn get_resource_kind(&self) -> &Kind {
         &self.resource.kind
+    }
+
+    /// Returns currently observed resource's namespace.
+    pub fn get_resource_namespace(&self) -> &Namespace {
+        &self.resource.namespace
     }
 
     /// Returns `true` if the observed resource is a container.

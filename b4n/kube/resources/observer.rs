@@ -56,6 +56,7 @@ impl ResourceObserver {
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
             pub fn get_resource_kind(&self) -> &Kind;
+            pub fn get_resource_namespace(&self) -> &Namespace;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
             pub fn is_connected(&self) -> bool;

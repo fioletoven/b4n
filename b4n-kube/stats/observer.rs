@@ -8,7 +8,7 @@ use tokio::runtime::Handle;
 use crate::client::KubernetesClient;
 use crate::stats::Metrics;
 use crate::utils::get_resource;
-use crate::{BgObserver, DiscoveryList, Kind, NODES, ObserverResult, PODS};
+use crate::{BgObserver, DiscoveryList, Kind, NODES, Namespace, ObserverResult, PODS};
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 
@@ -189,7 +189,7 @@ impl BgStatistics {
 
     /// Starts new [`BgStatistics`] task.\
     /// **Note** that it stops the old tasks if any is running.
-    pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>) {
+    pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>, _namespace: &Namespace) {
         self.stop();
         self.has_metrics = false;
 
@@ -200,19 +200,21 @@ impl BgStatistics {
                 .show_error("Cannot run statistics task", DEFAULT_ERROR_DURATION);
         }
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new("pods", "metrics.k8s.io", "")) {
-            self.has_metrics = self
-                .pods_metrics
-                .start(client, (&discovery.0).into(), Some(discovery), true)
-                .is_ok();
-        }
-
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .nodes_metrics
                 .start(client, (&discovery.0).into(), Some(discovery), true)
                 .is_ok();
         }
+
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "metrics.k8s.io", "")) {
+            self.has_metrics = self
+                .pods_metrics
+                .start(client, (&discovery.0).into(), Some(discovery), true)
+                .is_ok();
+        }
+
+        self.replace_stats(HashMap::new());
     }
 
     /// Cancels [`BgStatistics`] task.
@@ -237,6 +239,7 @@ impl BgStatistics {
         if self.pods.is_ready() {
             while let Some(result) = self.pods.try_next() {
                 match *result {
+                    ObserverResult::Init(_) => self.reset_data(),
                     ObserverResult::Apply(result) => self.add_pod_data(&result),
                     ObserverResult::Delete(result) => self.del_pod_data(&result),
                     _ => (),
@@ -305,12 +308,21 @@ impl BgStatistics {
             }
         }
 
+        self.replace_stats(new_stats);
+    }
+
+    fn replace_stats(&mut self, new_stats: HashMap<String, NodeStats>) {
         let generation = self.stats.borrow().generation.wrapping_add(1);
         self.stats.replace(Statistics {
             generation,
             has_metrics: self.has_metrics,
             data: new_stats,
         });
+    }
+
+    fn reset_data(&mut self) {
+        self.pod_data = HashMap::new();
+        self.node_data = HashMap::new();
     }
 
     fn add_pod_data(&mut self, resource: &DynamicObject) {
