@@ -37,22 +37,6 @@ impl ResourceObserver {
 
     delegate! {
         to self.observer {
-            pub fn start(
-                &mut self,
-                client: &KubernetesClient,
-                resource: ResourceRef,
-                discovery: Option<(ApiResource, ApiCapabilities)>,
-                stop_on_access_error: bool,
-            ) -> Result<Scope, BgObserverError>;
-
-            pub fn restart(
-                &mut self,
-                client: &KubernetesClient,
-                new_resource: ResourceRef,
-                discovery: Option<(ApiResource, ApiCapabilities)>,
-                stop_on_access_error: bool,
-            ) -> Result<Scope, BgObserverError>;
-
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
             pub fn observed_kind(&self) -> &Kind;
@@ -65,6 +49,31 @@ impl ResourceObserver {
             pub fn has_access(&self) -> bool;
             pub fn has_connection_error(&self) -> bool;
         }
+    }
+
+    /// Starts new [`ResourceObserver`] task.\
+    /// **Note** that it stops the old task if it is running.
+    pub fn start(
+        &mut self,
+        client: &KubernetesClient,
+        resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        self.observer
+            .start(client.get_client(), resource, discovery, None, stop_on_access_error)
+    }
+
+    /// Restarts [`ResourceObserver`] task if `new_resource` is different from the current one.
+    pub fn restart(
+        &mut self,
+        client: &KubernetesClient,
+        new_resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        self.observer
+            .restart(client.get_client(), new_resource, discovery, None, stop_on_access_error)
     }
 
     /// Restarts [`ResourceObserver`] task if `new_kind` is different from the current one.\

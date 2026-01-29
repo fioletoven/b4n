@@ -1,9 +1,9 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use futures::{StreamExt, TryStreamExt};
-use kube::Api;
 use kube::api::{ApiResource, DynamicObject, ListParams, ObjectList};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use kube::runtime::watcher::{self, DefaultBackoff, Error, Event, watcher};
+use kube::{Api, Client};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,7 +15,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::client::KubernetesClient;
+use crate::client::get_dynamic_api;
 use crate::crds::CrdColumns;
 use crate::stream_backoff::StreamBackoff;
 use crate::utils::get_object_uid;
@@ -162,9 +162,10 @@ impl BgObserver {
     /// **Note** that it stops the old task if it is running.
     pub fn start(
         &mut self,
-        client: &KubernetesClient,
+        client: Client,
         resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        fallback_namespace: Option<Namespace>,
         stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         self.stop();
@@ -181,19 +182,19 @@ impl BgObserver {
         self.has_access.store(true, Ordering::Relaxed);
 
         let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
-        let api_client = client.get_api(
-            &ar,
-            &cap,
-            self.resource.namespace.as_option(),
-            self.resource.namespace.is_all(),
-        );
-
         self.kind_singular = Some(init_data.kind.clone());
 
+        let api_client = ResourceClient {
+            client,
+            ar,
+            cap: cap.clone(),
+            ns: self.resource.namespace.clone(),
+        };
+
         let task = if cap.supports_operation(verbs::WATCH) {
-            self.watch(api_client, init_data.clone(), cancellation_token.clone())
+            self.watch(api_client, init_data, fallback_namespace, cancellation_token.clone())
         } else if cap.supports_operation(verbs::LIST) {
-            self.list(api_client, init_data.clone(), cancellation_token.clone())
+            self.list(api_client, init_data, fallback_namespace, cancellation_token.clone())
         } else {
             return Err(BgObserverError::UnsupportedOperation);
         };
@@ -207,13 +208,14 @@ impl BgObserver {
     /// Restarts [`BgObserver`] task if `new_resource` is different from the current one.
     pub fn restart(
         &mut self,
-        client: &KubernetesClient,
+        client: Client,
         new_resource: ResourceRef,
         discovery: Option<(ApiResource, ApiCapabilities)>,
+        fallback_namespace: Option<Namespace>,
         stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
         if self.resource != new_resource {
-            self.start(client, new_resource, discovery, stop_on_access_error)?;
+            self.start(client, new_resource, discovery, fallback_namespace, stop_on_access_error)?;
         }
 
         Ok(self.scope.clone())
@@ -305,8 +307,9 @@ impl BgObserver {
 
     fn watch(
         &mut self,
-        client: Api<DynamicObject>,
+        mut client: ResourceClient,
         init_data: InitData,
+        mut fallback_namespace: Option<Namespace>,
         cancellation_token: CancellationToken,
     ) -> JoinHandle<()> {
         self.runtime.spawn({
@@ -314,13 +317,14 @@ impl BgObserver {
                 init_data,
                 context_tx: self.context_tx.clone(),
                 footer_tx: self.footer_tx.clone(),
-                stop_on_access_error: self.stop_on_access_error,
+                stop_on_access_error: self.stop_on_access_error || fallback_namespace.is_some(),
                 is_connected: Arc::clone(&self.is_connected),
                 is_ready: Arc::clone(&self.is_ready),
                 has_error: Arc::clone(&self.has_error),
                 has_access: Arc::clone(&self.has_access),
                 last_watch_error: None,
             };
+            let stop_on_access_error = self.stop_on_access_error;
             let fields = build_fields_filter(&self.resource);
             let labels = build_labels_filter(&self.resource);
 
@@ -334,7 +338,7 @@ impl BgObserver {
                         config = config.labels(filter);
                     }
 
-                    let mut watch = StreamBackoff::new(watcher(client.clone(), config), DefaultBackoff::default()).boxed();
+                    let mut watch = StreamBackoff::new(watcher(client.get_api(), config), DefaultBackoff::default()).boxed();
 
                     while !cancellation_token.is_cancelled() {
                         tokio::select! {
@@ -343,7 +347,15 @@ impl BgObserver {
                                 match processor.process_event(result) {
                                     ProcessorResult::Continue => (),
                                     ProcessorResult::Restart => break, // we need to restart watcher, so go up one while loop
-                                    ProcessorResult::Stop => return,
+                                    ProcessorResult::Stop => {
+                                        if let Some(ns) = fallback_namespace.take() {
+                                            processor.stop_on_access_error = stop_on_access_error;
+                                            client.ns = ns;
+                                            break;
+                                        } else {
+                                            return;
+                                        }
+                                    },
                                 }
                             },
                         }
@@ -353,7 +365,13 @@ impl BgObserver {
         })
     }
 
-    fn list(&mut self, client: Api<DynamicObject>, init_data: InitData, cancellation_token: CancellationToken) -> JoinHandle<()> {
+    fn list(
+        &mut self,
+        mut client: ResourceClient,
+        init_data: InitData,
+        mut fallback_namespace: Option<Namespace>,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<()> {
         self.runtime.spawn({
             let is_connected = Arc::clone(&self.is_connected);
             let is_ready = Arc::clone(&self.is_ready);
@@ -376,7 +394,7 @@ impl BgObserver {
                 }
 
                 while !cancellation_token.is_cancelled() {
-                    let resources = client.list(&params).await;
+                    let resources = client.get_api().list(&params).await;
                     match resources {
                         Ok(objects) => {
                             results = Some(emit_results(objects, results, &init_data, &context_tx));
@@ -392,8 +410,13 @@ impl BgObserver {
                             is_ready.store(false, Ordering::Relaxed);
                             has_error.store(true, Ordering::Relaxed);
                             has_access.store(!is_access_error, Ordering::Relaxed);
-                            if stop_on_access_error && is_access_error {
-                                break;
+                            if is_access_error {
+                                if let Some(ns) = fallback_namespace.take() {
+                                    client.ns = ns;
+                                    continue;
+                                } else if stop_on_access_error {
+                                    break;
+                                }
                             }
 
                             log_error_message(
@@ -580,5 +603,24 @@ fn log_error_message(msg: String, sink: Option<&NotificationSink>) {
     tracing::warn!("{}", msg);
     if let Some(sink) = sink {
         sink.show_error(msg, DEFAULT_ERROR_DURATION);
+    }
+}
+
+struct ResourceClient {
+    client: Client,
+    ar: ApiResource,
+    cap: ApiCapabilities,
+    ns: Namespace,
+}
+
+impl ResourceClient {
+    fn get_api(&self) -> Api<DynamicObject> {
+        get_dynamic_api(
+            &self.ar,
+            &self.cap,
+            self.client.clone(),
+            self.ns.as_option(),
+            self.ns.is_all(),
+        )
     }
 }

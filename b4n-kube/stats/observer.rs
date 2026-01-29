@@ -189,28 +189,33 @@ impl BgStatistics {
 
     /// Starts new [`BgStatistics`] task.\
     /// **Note** that it stops the old tasks if any is running.
-    pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>, _namespace: &Namespace) {
+    pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>, namespace: &Namespace) {
         self.stop();
         self.has_metrics = false;
 
-        if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", ""))
-            && self.pods.start(client, (&discovery.0).into(), Some(discovery), true).is_err()
-        {
-            self.footer_tx
-                .show_error("Cannot run statistics task", DEFAULT_ERROR_DURATION);
+        if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", "")) {
+            let fallback = if namespace.is_all() { None } else { Some(namespace.clone()) };
+            let result = self
+                .pods
+                .start(client.get_client(), (&discovery.0).into(), Some(discovery), fallback, true);
+            if result.is_err() {
+                self.footer_tx
+                    .show_error("Cannot run statistics task", DEFAULT_ERROR_DURATION);
+            }
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io", "")) {
             self.has_metrics = self
                 .nodes_metrics
-                .start(client, (&discovery.0).into(), Some(discovery), true)
+                .start(client.get_client(), (&discovery.0).into(), Some(discovery), None, true)
                 .is_ok();
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "metrics.k8s.io", "")) {
+            let fallback = if namespace.is_all() { None } else { Some(namespace.clone()) };
             self.has_metrics = self
                 .pods_metrics
-                .start(client, (&discovery.0).into(), Some(discovery), true)
+                .start(client.get_client(), (&discovery.0).into(), Some(discovery), fallback, true)
                 .is_ok();
         }
 
