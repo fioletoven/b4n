@@ -121,8 +121,8 @@ type ObserverResultReceiver = UnboundedReceiver<Box<ObserverResult<DynamicObject
 /// Background k8s resource observer.
 pub struct BgObserver {
     pub resource: ResourceRef,
-    pub init: Option<InitData>,
-    pub scope: Scope,
+    kind_singular: Option<String>,
+    scope: Scope,
     runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
@@ -142,7 +142,7 @@ impl BgObserver {
         let (context_tx, context_rx) = mpsc::unbounded_channel();
         Self {
             resource: ResourceRef::default(),
-            init: None,
+            kind_singular: None,
             scope: Scope::Cluster,
             runtime,
             task: None,
@@ -188,6 +188,8 @@ impl BgObserver {
             self.resource.namespace.is_all(),
         );
 
+        self.kind_singular = Some(init_data.kind.clone());
+
         let task = if cap.supports_operation(verbs::WATCH) {
             self.watch(api_client, init_data.clone(), cancellation_token.clone())
         } else if cap.supports_operation(verbs::LIST) {
@@ -198,7 +200,6 @@ impl BgObserver {
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
-        self.init = Some(init_data);
 
         Ok(self.scope.clone())
     }
@@ -248,13 +249,23 @@ impl BgObserver {
     }
 
     /// Returns currently observed resource's kind.
-    pub fn get_resource_kind(&self) -> &Kind {
+    pub fn observed_kind(&self) -> &Kind {
         &self.resource.kind
     }
 
+    /// Returns singular PascalCase name of the currently observed resource.
+    pub fn observed_singular_kind(&self) -> Option<&str> {
+        self.kind_singular.as_deref()
+    }
+
     /// Returns currently observed resource's namespace.
-    pub fn get_resource_namespace(&self) -> &Namespace {
+    pub fn observed_namespace(&self) -> &Namespace {
         &self.resource.namespace
+    }
+
+    /// Returns currently observed resource's scope.
+    pub fn observed_resource_scope(&self) -> &Scope {
+        &self.scope
     }
 
     /// Returns `true` if the observed resource is a container.
@@ -264,7 +275,7 @@ impl BgObserver {
 
     /// Returns `true` if the observed resource is filtered.
     pub fn is_filtered(&self) -> bool {
-        self.resource.filter.is_some()
+        self.resource.is_filtered()
     }
 
     /// Returns `true` if the observer is connected to the Kubernetes API.

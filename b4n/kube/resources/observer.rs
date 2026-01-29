@@ -55,8 +55,8 @@ impl ResourceObserver {
 
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
-            pub fn get_resource_kind(&self) -> &Kind;
-            pub fn get_resource_namespace(&self) -> &Namespace;
+            pub fn observed_kind(&self) -> &Kind;
+            pub fn observed_namespace(&self) -> &Namespace;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
             pub fn is_connected(&self) -> bool;
@@ -90,7 +90,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Restarts [`ResourceObserver`] task if `new_namespace` is different than the current one.
@@ -109,7 +109,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Restarts [`ResourceObserver`] task to watch pod containers.
@@ -126,7 +126,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Tries to get next [`ObserverResult`].
@@ -185,7 +185,7 @@ impl ResourceObserver {
     }
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
-        let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
+        let kind = self.observer.observed_singular_kind().unwrap_or_default();
         let result = ObserverResult::new(
             ResourceItem::from(
                 kind,
@@ -193,7 +193,7 @@ impl ResourceObserver {
                 self.crd.as_ref(),
                 &self.statistics.borrow(),
                 object,
-                self.observer.init.as_ref().is_some_and(|i| i.resource.is_filtered()),
+                self.observer.is_filtered(),
             ),
             is_delete,
         );

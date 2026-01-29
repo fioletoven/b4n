@@ -36,7 +36,7 @@ impl CrdObserver {
         to self.observer {
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
-            pub fn get_resource_kind(&self) -> &Kind;
+            pub fn observed_kind(&self) -> &Kind;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
             pub fn has_access(&self) -> bool;
