@@ -1,0 +1,289 @@
+use b4n_common::NotificationSink;
+use kube::Client;
+use kube::api::{ApiResource, DynamicObject};
+use kube::discovery::{ApiCapabilities, Scope, verbs};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::{self};
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
+
+use crate::watcher::client::ResourceClient;
+use crate::watcher::list::{self, ListInput};
+use crate::watcher::result::{ObserverResultReceiver, ObserverResultSender};
+use crate::watcher::watch::{self, WatchInput};
+use crate::{InitData, Kind, Namespace, ObserverResult, ResourceRef};
+
+/// Possible errors from [`BgObserver`].
+#[derive(thiserror::Error, Debug)]
+pub enum BgObserverError {
+    /// Resource was not found in k8s cluster
+    #[error("kubernetes resource not found")]
+    ResourceNotFound,
+
+    /// Resource cannot be watched or listed
+    #[error("resource cannot be watched or listed")]
+    UnsupportedOperation,
+}
+
+/// Background k8s resource observer.
+pub struct BgObserver {
+    pub resource: ResourceRef,
+    kind_singular: Option<String>,
+    scope: Scope,
+    runtime: Handle,
+    task: Option<JoinHandle<()>>,
+    cancellation_token: Option<CancellationToken>,
+    context_tx: ObserverResultSender,
+    context_rx: ObserverResultReceiver,
+    footer_tx: Option<NotificationSink>,
+    stop_on_access_error: bool,
+    is_connected: Arc<AtomicBool>,
+    is_ready: Arc<AtomicBool>,
+    has_error: Arc<AtomicBool>,
+    has_access: Arc<AtomicBool>,
+}
+
+impl BgObserver {
+    /// Creates new [`BgObserver`] instance.
+    pub fn new(runtime: Handle, footer_tx: Option<NotificationSink>) -> Self {
+        let (context_tx, context_rx) = mpsc::unbounded_channel();
+        Self {
+            resource: ResourceRef::default(),
+            kind_singular: None,
+            scope: Scope::Cluster,
+            runtime,
+            task: None,
+            cancellation_token: None,
+            context_tx,
+            context_rx,
+            footer_tx,
+            stop_on_access_error: false,
+            is_connected: Arc::new(AtomicBool::new(false)),
+            is_ready: Arc::new(AtomicBool::new(false)),
+            has_error: Arc::new(AtomicBool::new(false)),
+            has_access: Arc::new(AtomicBool::new(true)),
+        }
+    }
+
+    /// Starts new [`BgObserver`] task.\
+    /// **Note** that it stops the old task if it is running.
+    pub fn start(
+        &mut self,
+        client: Client,
+        resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        fallback_namespace: Option<Namespace>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        self.stop();
+        self.stop_on_access_error = stop_on_access_error;
+
+        let cancellation_token = CancellationToken::new();
+        let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
+
+        self.resource = resource;
+        self.scope = cap.scope.clone();
+        self.is_connected.store(false, Ordering::Relaxed);
+        self.is_ready.store(false, Ordering::Relaxed);
+        self.has_error.store(false, Ordering::Relaxed);
+        self.has_access.store(true, Ordering::Relaxed);
+
+        let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
+        self.kind_singular = Some(init_data.kind.clone());
+
+        let api_client = ResourceClient::new(client, ar, cap.clone(), self.resource.namespace.clone());
+        let task = if cap.supports_operation(verbs::WATCH) {
+            self.watch(api_client, init_data, fallback_namespace, cancellation_token.clone())
+        } else if cap.supports_operation(verbs::LIST) {
+            self.list(api_client, init_data, fallback_namespace, cancellation_token.clone())
+        } else {
+            return Err(BgObserverError::UnsupportedOperation);
+        };
+
+        self.cancellation_token = Some(cancellation_token);
+        self.task = Some(task);
+
+        Ok(self.scope.clone())
+    }
+
+    /// Restarts [`BgObserver`] task if `new_resource` is different from the current one.
+    pub fn restart(
+        &mut self,
+        client: Client,
+        new_resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        fallback_namespace: Option<Namespace>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        if self.resource != new_resource {
+            self.start(client, new_resource, discovery, fallback_namespace, stop_on_access_error)?;
+        }
+
+        Ok(self.scope.clone())
+    }
+
+    /// Cancels [`BgObserver`] task.
+    pub fn cancel(&mut self) {
+        if let Some(cancellation_token) = self.cancellation_token.take() {
+            cancellation_token.cancel();
+            self.resource = ResourceRef::default();
+            self.is_connected.store(false, Ordering::Relaxed);
+            self.is_ready.store(false, Ordering::Relaxed);
+            self.has_error.store(false, Ordering::Relaxed);
+            self.has_access.store(true, Ordering::Relaxed);
+        }
+    }
+
+    /// Cancels [`BgObserver`] task and waits until it is finished.
+    pub fn stop(&mut self) {
+        self.cancel();
+        b4n_common::tasks::wait_for_task(self.task.take(), "background observer");
+        self.drain();
+    }
+
+    /// Tries to get next [`ObserverResult`].
+    pub fn try_next(&mut self) -> Option<Box<ObserverResult<DynamicObject>>> {
+        self.context_rx.try_recv().ok()
+    }
+
+    /// Drains waiting [`ObserverResult`]s.
+    pub fn drain(&mut self) {
+        while self.context_rx.try_recv().is_ok() {}
+    }
+
+    /// Returns currently observed resource's kind.
+    pub fn observed_kind(&self) -> &Kind {
+        &self.resource.kind
+    }
+
+    /// Returns singular PascalCase name of the currently observed resource.
+    pub fn observed_singular_kind(&self) -> Option<&str> {
+        self.kind_singular.as_deref()
+    }
+
+    /// Returns currently observed resource's namespace.
+    pub fn observed_namespace(&self) -> &Namespace {
+        &self.resource.namespace
+    }
+
+    /// Returns currently observed resource's scope.
+    pub fn observed_resource_scope(&self) -> &Scope {
+        &self.scope
+    }
+
+    /// Returns `true` if the observed resource is a container.
+    pub fn is_container(&self) -> bool {
+        self.resource.is_container()
+    }
+
+    /// Returns `true` if the observed resource is filtered.
+    pub fn is_filtered(&self) -> bool {
+        self.resource.is_filtered()
+    }
+
+    /// Returns `true` if the observer is connected to the Kubernetes API.
+    pub fn is_connected(&self) -> bool {
+        self.is_connected.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if the observer has received the initial list of resources.
+    pub fn is_ready(&self) -> bool {
+        self.is_ready.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if the observer is not running or is in an error state.
+    pub fn has_error(&self) -> bool {
+        self.has_error.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if user has access to the observed resource.
+    pub fn has_access(&self) -> bool {
+        self.has_access.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if the observer is not running or is in a connection error state (access error is not counted).
+    pub fn has_connection_error(&self) -> bool {
+        self.has_error.load(Ordering::Relaxed) && self.has_access.load(Ordering::Relaxed)
+    }
+
+    fn watch(
+        &mut self,
+        client: ResourceClient,
+        init_data: InitData,
+        fallback_namespace: Option<Namespace>,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<()> {
+        self.runtime.spawn({
+            watch::watch(
+                client,
+                WatchInput {
+                    init_data,
+                    context_tx: self.context_tx.clone(),
+                    footer_tx: self.footer_tx.clone(),
+                    is_connected: Arc::clone(&self.is_connected),
+                    is_ready: Arc::clone(&self.is_ready),
+                    has_error: Arc::clone(&self.has_error),
+                    has_access: Arc::clone(&self.has_access),
+                },
+                build_fields_filter(&self.resource),
+                build_labels_filter(&self.resource),
+                fallback_namespace,
+                self.stop_on_access_error,
+                cancellation_token,
+            )
+        })
+    }
+
+    fn list(
+        &mut self,
+        client: ResourceClient,
+        init_data: InitData,
+        fallback_namespace: Option<Namespace>,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<()> {
+        self.runtime.spawn({
+            list::list(
+                client,
+                ListInput {
+                    init_data,
+                    context_tx: self.context_tx.clone(),
+                    footer_tx: self.footer_tx.clone(),
+                    is_connected: Arc::clone(&self.is_connected),
+                    is_ready: Arc::clone(&self.is_ready),
+                    has_error: Arc::clone(&self.has_error),
+                    has_access: Arc::clone(&self.has_access),
+                },
+                build_fields_filter(&self.resource),
+                build_labels_filter(&self.resource),
+                fallback_namespace,
+                self.stop_on_access_error,
+                cancellation_token,
+            )
+        })
+    }
+}
+
+fn build_fields_filter(rt: &ResourceRef) -> Option<String> {
+    match (&rt.name, &rt.filter) {
+        (Some(name), Some(filter)) => match &filter.fields {
+            Some(data) => Some(format!("metadata.name={name},{data}")),
+            None => Some(format!("metadata.name={name}")),
+        },
+        (Some(name), None) => Some(format!("metadata.name={name}")),
+        (None, Some(filter)) => filter.fields.clone(),
+
+        _ => None,
+    }
+}
+
+fn build_labels_filter(rt: &ResourceRef) -> Option<String> {
+    rt.filter.as_ref()?.labels.clone()
+}
+
+impl Drop for BgObserver {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
