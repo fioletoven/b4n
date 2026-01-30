@@ -3,7 +3,7 @@ use kube::Client;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self};
 use tokio::task::JoinHandle;
@@ -13,7 +13,7 @@ use crate::watcher::client::ResourceClient;
 use crate::watcher::list::{self, ListInput};
 use crate::watcher::result::{ObserverResultReceiver, ObserverResultSender};
 use crate::watcher::watch::{self, WatchInput};
-use crate::{InitData, Kind, Namespace, ObserverResult, ResourceRef};
+use crate::{BgObserverState, InitData, Kind, Namespace, ObserverResult, ResourceRef};
 
 /// Possible errors from [`BgObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -25,6 +25,10 @@ pub enum BgObserverError {
     /// Resource cannot be watched or listed
     #[error("resource cannot be watched or listed")]
     UnsupportedOperation,
+
+    /// Observer is already started
+    #[error("observer is already started")]
+    AlreadyStarted,
 }
 
 /// Background k8s resource observer.
@@ -39,8 +43,7 @@ pub struct BgObserver {
     context_rx: ObserverResultReceiver,
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
-    is_connected: Arc<AtomicBool>,
-    is_ready: Arc<AtomicBool>,
+    state: Arc<AtomicU8>,
     has_error: Arc<AtomicBool>,
     has_access: Arc<AtomicBool>,
 }
@@ -60,15 +63,13 @@ impl BgObserver {
             context_rx,
             footer_tx,
             stop_on_access_error: false,
-            is_connected: Arc::new(AtomicBool::new(false)),
-            is_ready: Arc::new(AtomicBool::new(false)),
+            state: Arc::new(AtomicU8::new(BgObserverState::Idle.into())),
             has_error: Arc::new(AtomicBool::new(false)),
             has_access: Arc::new(AtomicBool::new(true)),
         }
     }
 
-    /// Starts new [`BgObserver`] task.\
-    /// **Note** that it stops the old task if it is running.
+    /// Starts new [`BgObserver`] task.
     pub fn start(
         &mut self,
         client: Client,
@@ -77,38 +78,21 @@ impl BgObserver {
         fallback_namespace: Option<Namespace>,
         stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
-        self.stop();
-        self.stop_on_access_error = stop_on_access_error;
+        if self.cancellation_token.is_some() {
+            return Err(BgObserverError::AlreadyStarted);
+        }
 
-        let cancellation_token = CancellationToken::new();
-        let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
+        self.state.store(BgObserverState::Connecting.into(), Ordering::Relaxed);
+        let result = self.start_internal(client, resource, discovery, fallback_namespace, stop_on_access_error);
+        if result.is_err() {
+            self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
+        }
 
-        self.resource = resource;
-        self.scope = cap.scope.clone();
-        self.is_connected.store(false, Ordering::Relaxed);
-        self.is_ready.store(false, Ordering::Relaxed);
-        self.has_error.store(false, Ordering::Relaxed);
-        self.has_access.store(true, Ordering::Relaxed);
-
-        let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
-        self.kind_singular = Some(init_data.kind.clone());
-
-        let api_client = ResourceClient::new(client, ar, cap.clone(), self.resource.namespace.clone());
-        let task = if cap.supports_operation(verbs::WATCH) {
-            self.watch(api_client, init_data, fallback_namespace, cancellation_token.clone())
-        } else if cap.supports_operation(verbs::LIST) {
-            self.list(api_client, init_data, fallback_namespace, cancellation_token.clone())
-        } else {
-            return Err(BgObserverError::UnsupportedOperation);
-        };
-
-        self.cancellation_token = Some(cancellation_token);
-        self.task = Some(task);
-
-        Ok(self.scope.clone())
+        result
     }
 
-    /// Restarts [`BgObserver`] task if `new_resource` is different from the current one.
+    /// Restarts [`BgObserver`] task if `new_resource` is different from the current one.\
+    /// **Note** that it stops the old task if it is running.
     pub fn restart(
         &mut self,
         client: Client,
@@ -117,30 +101,30 @@ impl BgObserver {
         fallback_namespace: Option<Namespace>,
         stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource != new_resource {
-            self.start(client, new_resource, discovery, fallback_namespace, stop_on_access_error)?;
+        if self.resource == new_resource {
+            return Ok(self.scope.clone());
         }
 
-        Ok(self.scope.clone())
+        self.stop_internal();
+        self.state.store(BgObserverState::Reconnecting.into(), Ordering::Relaxed);
+        let result = self.start_internal(client, new_resource, discovery, fallback_namespace, stop_on_access_error);
+        if result.is_err() {
+            self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
+        }
+
+        result
     }
 
     /// Cancels [`BgObserver`] task.
     pub fn cancel(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
-            self.resource = ResourceRef::default();
-            self.is_connected.store(false, Ordering::Relaxed);
-            self.is_ready.store(false, Ordering::Relaxed);
-            self.has_error.store(false, Ordering::Relaxed);
-            self.has_access.store(true, Ordering::Relaxed);
-        }
+        self.cancel_internal();
+        self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
     }
 
     /// Cancels [`BgObserver`] task and waits until it is finished.
     pub fn stop(&mut self) {
-        self.cancel();
-        b4n_common::tasks::wait_for_task(self.task.take(), "background observer");
-        self.drain();
+        self.stop_internal();
+        self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
     }
 
     /// Tries to get next [`ObserverResult`].
@@ -185,12 +169,13 @@ impl BgObserver {
 
     /// Returns `true` if the observer is connected to the Kubernetes API.
     pub fn is_connected(&self) -> bool {
-        self.is_connected.load(Ordering::Relaxed)
+        let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
+        state == BgObserverState::Connected || state == BgObserverState::Ready
     }
 
     /// Returns `true` if the observer has received the initial list of resources.
     pub fn is_ready(&self) -> bool {
-        self.is_ready.load(Ordering::Relaxed)
+        BgObserverState::from(self.state.load(Ordering::Relaxed)) == BgObserverState::Ready
     }
 
     /// Returns `true` if the observer is not running or is in an error state.
@@ -208,6 +193,56 @@ impl BgObserver {
         self.has_error.load(Ordering::Relaxed) && self.has_access.load(Ordering::Relaxed)
     }
 
+    fn start_internal(
+        &mut self,
+        client: Client,
+        resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        fallback_namespace: Option<Namespace>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        let cancellation_token = CancellationToken::new();
+        let (ar, cap) = discovery.ok_or(BgObserverError::ResourceNotFound)?;
+
+        self.resource = resource;
+        self.scope = cap.scope.clone();
+        self.stop_on_access_error = stop_on_access_error;
+        self.has_error.store(false, Ordering::Relaxed);
+        self.has_access.store(true, Ordering::Relaxed);
+
+        let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
+        self.kind_singular = Some(init_data.kind.clone());
+
+        let api_client = ResourceClient::new(client, ar, cap.clone(), self.resource.namespace.clone());
+        let task = if cap.supports_operation(verbs::WATCH) {
+            self.watch(api_client, init_data, fallback_namespace, cancellation_token.clone())
+        } else if cap.supports_operation(verbs::LIST) {
+            self.list(api_client, init_data, fallback_namespace, cancellation_token.clone())
+        } else {
+            return Err(BgObserverError::UnsupportedOperation);
+        };
+
+        self.cancellation_token = Some(cancellation_token);
+        self.task = Some(task);
+
+        Ok(self.scope.clone())
+    }
+
+    fn cancel_internal(&mut self) {
+        if let Some(cancellation_token) = self.cancellation_token.take() {
+            cancellation_token.cancel();
+            self.resource = ResourceRef::default();
+            self.has_error.store(false, Ordering::Relaxed);
+            self.has_access.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn stop_internal(&mut self) {
+        self.cancel_internal();
+        b4n_common::tasks::wait_for_task(self.task.take(), "background observer");
+        self.drain();
+    }
+
     fn watch(
         &mut self,
         client: ResourceClient,
@@ -222,8 +257,7 @@ impl BgObserver {
                     init_data,
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
-                    is_connected: Arc::clone(&self.is_connected),
-                    is_ready: Arc::clone(&self.is_ready),
+                    state: Arc::clone(&self.state),
                     has_error: Arc::clone(&self.has_error),
                     has_access: Arc::clone(&self.has_access),
                 },
@@ -250,8 +284,7 @@ impl BgObserver {
                     init_data,
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
-                    is_connected: Arc::clone(&self.is_connected),
-                    is_ready: Arc::clone(&self.is_ready),
+                    state: Arc::clone(&self.state),
                     has_error: Arc::clone(&self.has_error),
                     has_access: Arc::clone(&self.has_access),
                 },
@@ -262,6 +295,12 @@ impl BgObserver {
                 cancellation_token,
             )
         })
+    }
+}
+
+impl Drop for BgObserver {
+    fn drop(&mut self) {
+        self.cancel();
     }
 }
 
@@ -280,10 +319,4 @@ fn build_fields_filter(rt: &ResourceRef) -> Option<String> {
 
 fn build_labels_filter(rt: &ResourceRef) -> Option<String> {
     rt.filter.as_ref()?.labels.clone()
-}
-
-impl Drop for BgObserver {
-    fn drop(&mut self) {
-        self.cancel();
-    }
 }

@@ -4,7 +4,7 @@ pub use self::core::{
 };
 pub use self::core::{Kind, Namespace, PodRef, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter};
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
-pub use self::watcher::{BgObserver, BgObserverError, InitData, ObserverResult};
+pub use self::watcher::{BgObserver, BgObserverError, BgObserverState, InitData, ObserverResult};
 pub use kube::discovery::Scope;
 
 pub mod client;

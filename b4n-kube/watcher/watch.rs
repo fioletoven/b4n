@@ -3,12 +3,12 @@ use futures::{StreamExt, TryStreamExt};
 use kube::api::DynamicObject;
 use kube::runtime::watcher::{self, DefaultBackoff, Error, Event, watcher};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 use crate::watcher::{client::ResourceClient, result::ObserverResultSender, stream_backoff::StreamBackoff, utils};
-use crate::{InitData, Namespace, ObserverResult};
+use crate::{BgObserverState, InitData, Namespace, ObserverResult};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -16,8 +16,7 @@ pub struct WatchInput {
     pub init_data: InitData,
     pub context_tx: ObserverResultSender,
     pub footer_tx: Option<NotificationSink>,
-    pub is_connected: Arc<AtomicBool>,
-    pub is_ready: Arc<AtomicBool>,
+    pub state: Arc<AtomicU8>,
     pub has_error: Arc<AtomicBool>,
     pub has_access: Arc<AtomicBool>,
 }
@@ -36,8 +35,7 @@ pub async fn watch(
         context_tx: input.context_tx,
         footer_tx: input.footer_tx,
         stop_on_access_error: stop_on_access_error || fallback_namespace.is_some(),
-        is_connected: input.is_connected,
-        is_ready: input.is_ready,
+        state: input.state,
         has_error: input.has_error,
         has_access: input.has_access,
         last_watch_error: None,
@@ -90,8 +88,7 @@ struct EventsProcessor {
     context_tx: ObserverResultSender,
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
-    is_connected: Arc<AtomicBool>,
-    is_ready: Arc<AtomicBool>,
+    state: Arc<AtomicU8>,
     has_error: Arc<AtomicBool>,
     has_access: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
@@ -107,11 +104,11 @@ impl EventsProcessor {
                 match event {
                     Some(Event::Init) => {
                         reset_error = false; // Init is also emitted after a forced restart of the watcher
-                        self.is_ready.store(false, Ordering::Relaxed);
+                        self.state.store(BgObserverState::Connected.into(), Ordering::Relaxed);
                         self.send_init_result();
                     },
                     Some(Event::InitDone) => {
-                        self.is_ready.store(true, Ordering::Relaxed);
+                        self.state.store(BgObserverState::Ready.into(), Ordering::Relaxed);
                         let _ = self.context_tx.send(Box::new(ObserverResult::InitDone));
                     },
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_result(o, false),
@@ -122,15 +119,20 @@ impl EventsProcessor {
                 self.has_access.store(true, Ordering::Relaxed);
                 if reset_error {
                     self.last_watch_error = None;
-                    self.is_connected.store(true, Ordering::Relaxed);
                     self.has_error.store(false, Ordering::Relaxed);
                 }
             },
             Err(error) => {
                 let is_access_error = utils::is_api_error(&error, true);
+                let is_connected = utils::is_api_error(&error, false); // we can connect to API, but can't use it
+
+                let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
+                if is_connected && (state != BgObserverState::Ready) {
+                    self.state.store(BgObserverState::Connected.into(), Ordering::Relaxed);
+                }
+
                 self.has_access.store(!is_access_error, Ordering::Relaxed);
                 if self.stop_on_access_error && is_access_error {
-                    self.is_connected.store(false, Ordering::Relaxed);
                     self.has_error.store(true, Ordering::Relaxed);
                     return ProcessorResult::Stop;
                 }
@@ -148,7 +150,6 @@ impl EventsProcessor {
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
                             tracing::warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
-                            self.is_connected.store(utils::is_api_error(&error, false), Ordering::Relaxed);
                             self.has_error.store(true, Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
 
@@ -158,7 +159,6 @@ impl EventsProcessor {
                         self.last_watch_error = Some(Instant::now());
                     },
                     _ => {
-                        self.is_connected.store(utils::is_api_error(&error, false), Ordering::Relaxed);
                         self.has_error.store(true, Ordering::Relaxed);
                     },
                 }
