@@ -374,6 +374,12 @@ impl ViewsManager {
         self.resources.show_themes_list(list);
     }
 
+    /// Displays a list of known namespaces to choose from.
+    pub fn show_namespaces_list(&mut self) {
+        let namespaces = self.ns_selector.select.items.get_as_actions();
+        self.resources.show_namespaces_list(namespaces);
+    }
+
     /// Shows logs for the specified container.
     pub fn show_logs(&mut self, resource: ResourceRef, previous: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {

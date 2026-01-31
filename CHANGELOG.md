@@ -5,6 +5,14 @@
 ### Features
 
 - add hint for close edit mode / save content
+- add hint for resources filter
+- add key binding to open mouse menu
+- allow to change namespace by typing it
+
+## Bug fixes
+
+- fix pods statistics for restricted users
+- fix connection status indication
 
 ## 0.3.9 - 2026-01-26
 

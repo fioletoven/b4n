@@ -61,6 +61,9 @@ pub trait Table: crate::Responsive {
     /// Gets highlighted element `uid`.
     fn get_highlighted_item_uid(&self) -> Option<&str>;
 
+    /// Gets highlighted element line no for the current page.
+    fn get_highlighted_item_line_no(&self) -> Option<u16>;
+
     /// Highlights element on list by its name.
     fn highlight_item_by_name(&mut self, name: &str) -> bool;
 

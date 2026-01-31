@@ -202,6 +202,7 @@ impl App {
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
+            ResponseEvent::ListNamespaces => self.views_manager.show_namespaces_list(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
             ResponseEvent::ChangeContext(context, namespace) => self.request_kubernetes_client(context, namespace.as_deref()),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),

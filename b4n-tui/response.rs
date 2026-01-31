@@ -63,6 +63,7 @@ pub enum ResponseEvent {
     ViewScoped(String, Option<String>, Option<String>, ScopeData),
     ViewScopedPrev(String, Option<String>, Option<String>, ScopeData),
     ViewNamespaces,
+    ListNamespaces,
 
     ListKubeContexts,
     ListThemes,

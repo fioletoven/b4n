@@ -288,7 +288,9 @@ impl Responsive for CommandPalette {
             }
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || (self.is_mouse_menu && self.app_data.has_binding(event, KeyCommand::MouseMenuOpen))
+        {
             self.is_visible = false;
             return ResponseEvent::Handled;
         }

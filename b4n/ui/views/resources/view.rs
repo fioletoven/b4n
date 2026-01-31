@@ -150,6 +150,15 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
+    /// Displays a list of known namespaces to choose from.
+    pub fn show_namespaces_list(&mut self, list: Vec<ActionItem>) {
+        let actions_list = ActionsListBuilder::new(list).build(None);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
+            .with_prompt("namespace")
+            .with_response(|mut v| ResponseEvent::ChangeNamespace(v.pop().unwrap_or_default()));
+        self.command_palette.show();
+    }
+
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
@@ -287,6 +296,20 @@ impl ResourcesView {
             return ResponseEvent::Handled;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
+            && let Some(line_no) = self.table.list.table.get_highlighted_item_line_no()
+            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+        {
+            let view = self.table.list.table.table.header.get_cached_view();
+            let width = self.table.list.table.table.header.get_cached_width().unwrap_or_default();
+            let (namespace_width, _, _) = self.table.list.table.table.header.get_widths(view, width);
+            self.show_mouse_menu(
+                u16::try_from(namespace_width + name.chars().count() + 6).unwrap_or_default(),
+                line_no.saturating_add(self.table.list.area.y),
+            );
+            return ResponseEvent::Handled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::YamlCreate) {
             self.show_create_resource_palette();
             return ResponseEvent::Handled;
@@ -378,6 +401,10 @@ impl ResourcesView {
                 ActionItem::action("back", "back").with_description("returns to the previous view"),
                 Some(KeyCommand::NavigateBack),
             );
+        }
+
+        if self.table.scope() == &Scope::Namespaced {
+            builder = builder.with_namespace();
         }
 
         let selected = if is_selected { "selected" } else { "all" };
