@@ -9,6 +9,11 @@ fn from_str_test() {
 
     assert_eq!(102_400, MemoryMetrics::from_str("100KiB").unwrap().value);
     assert_eq!(17_825_792, MemoryMetrics::from_str("17Mi").unwrap().value);
+
+    assert_eq!(555_000_000_000, CpuMetrics::from_str("555").unwrap().value);
+
+    assert_eq!(100_000_000, CpuMetrics::from_str("100m").unwrap().value);
+    assert_eq!(100, CpuMetrics::from_str("100n").unwrap().value);
 }
 
 #[test]
@@ -41,4 +46,9 @@ fn display_test() {
     let a = MemoryMetrics::from_str("15").unwrap();
     let b = MemoryMetrics::from_str("5Mi").unwrap();
     assert_eq!("5242895B", format!("{}", a + b));
+
+    let a = CpuMetrics::from_str("366455n").unwrap();
+    let b = CpuMetrics::from_str("15m").unwrap();
+    assert_eq!("15366455n", format!("{}", a + b));
+    assert_eq!("15m", format!("{}", (a + b).millicores()));
 }

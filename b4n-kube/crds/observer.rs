@@ -29,14 +29,14 @@ impl CrdObserver {
         discovery: Option<(ApiResource, ApiCapabilities)>,
     ) -> Result<Scope, BgObserverError> {
         let resource = ResourceRef::new(Kind::from(CRDS), Namespace::all());
-        self.observer.start(client, resource, discovery, true)
+        self.observer.start(client.get_client(), resource, discovery, None, true)
     }
 
     delegate! {
         to self.observer {
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
-            pub fn get_resource_kind(&self) -> &Kind;
+            pub fn observed_kind(&self) -> &Kind;
             pub fn is_ready(&self) -> bool;
             pub fn has_error(&self) -> bool;
             pub fn has_access(&self) -> bool;

@@ -1,4 +1,5 @@
 use b4n_kube::{Kind, Namespace};
+use b4n_tui::widgets::Spinner;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
@@ -20,6 +21,7 @@ pub struct ContentHeader {
     show_coordinates: bool,
     position_x: usize,
     position_y: usize,
+    spinner: Spinner,
 }
 
 impl ContentHeader {
@@ -38,6 +40,7 @@ impl ContentHeader {
             show_coordinates,
             position_x: 0,
             position_y: 0,
+            spinner: Spinner::default(),
         }
     }
 
@@ -77,7 +80,13 @@ impl ContentHeader {
         let coordinates = if self.app_data.borrow().is_connected {
             format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
         } else {
-            format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
+            format!(
+                " {} {}Ln {}, Col {} ",
+                self.spinner.tick(),
+                self.edit_mode,
+                self.position_y,
+                self.position_x
+            )
         };
 
         let layout = Layout::default()

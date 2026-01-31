@@ -17,7 +17,7 @@ pub struct ListHeader {
     fixed_scope: Option<Scope>,
     fixed_kind: Option<&'static str>,
     fixed_namespace: Option<String>,
-    has_error: DelayedTrueTracker,
+    has_api_error: DelayedTrueTracker,
     is_filtered: bool,
     hide_previous: bool,
     spinner: Spinner,
@@ -33,7 +33,7 @@ impl ListHeader {
             fixed_scope: None,
             fixed_kind: None,
             fixed_namespace: None,
-            has_error: DelayedTrueTracker::default(),
+            has_api_error: DelayedTrueTracker::default(),
             is_filtered: false,
             hide_previous: false,
             spinner: Spinner::default(),
@@ -95,8 +95,8 @@ impl ListHeader {
     }
 
     /// Updates error state for the header.
-    pub fn update_error_state(&mut self, has_error: bool) {
-        self.has_error.update(has_error);
+    pub fn update_error_state(&mut self, has_api_error: bool) {
+        self.has_api_error.update(has_api_error);
     }
 
     /// Draws [`ListHeader`] on the provided frame area.
@@ -154,27 +154,26 @@ impl ListHeader {
     /// \< `k8s version` \<
     fn get_version(&mut self) -> Line<'_> {
         let data = &self.app_data.borrow();
-        let is_ok = if data.current.version.is_empty() {
-            false
-        } else if self.has_error.value() {
-            data.is_connected
-        } else {
-            true
-        };
+        let is_ok = !data.current.version.is_empty() && data.is_connected;
+        let has_api_error = self.has_api_error.value();
 
-        let (text, colors) = get_version_text(data, &mut self.spinner, is_ok);
+        let (text, colors) = get_version_text(data, &mut self.spinner, is_ok, has_api_error);
         get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
 }
 
 /// Returns kubernetes version text together with its colors.
-fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, is_ok: bool) -> (String, &'a TextColors) {
+fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, is_ok: bool, has_api_error: bool) -> (String, &'a TextColors) {
     let colors;
     let text;
 
     if is_ok {
         colors = &data.theme.colors.header.info;
-        text = format!(" {} ", &data.current.version);
+        if has_api_error {
+            text = format!("  {} ", &data.current.version);
+        } else {
+            text = format!(" {} ", &data.current.version);
+        }
     } else {
         colors = &data.theme.colors.header.disconnected;
         if data.current.version.is_empty() {

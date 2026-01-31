@@ -98,7 +98,8 @@ impl BgWorker {
         let discovery = get_resource(self.discovery_list.as_ref(), &Kind::from(CRDS));
         self.crds.start(&client, discovery)?;
 
-        self.statistics.start(&client, self.discovery_list.as_ref());
+        self.statistics
+            .start(&client, self.discovery_list.as_ref(), self.resources.observed_namespace());
 
         self.client = Some(client);
 
@@ -130,7 +131,7 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
-            let discovery = get_resource(self.discovery_list.as_ref(), self.resources.get_resource_kind())
+            let discovery = get_resource(self.discovery_list.as_ref(), self.resources.observed_kind())
                 .or_else(|| get_resource(self.discovery_list.as_ref(), &PODS.into()));
             Ok(self
                 .resources
@@ -313,11 +314,6 @@ impl BgWorker {
     /// Returns `true` if the resources observer is connected to the Kubernetes API.
     pub fn is_connected(&self) -> bool {
         self.resources.is_connected()
-    }
-
-    /// Returns `true` if there are connection problems.
-    pub fn has_errors(&self) -> bool {
-        self.discovery.has_error() || self.statistics.has_connection_error() || self.namespaces.has_connection_error()
     }
 
     /// Saves the provided app configuration to a file.

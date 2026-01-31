@@ -58,7 +58,7 @@ The following features are planned for future development:
 | Forward container's port                  | `f`             | Works only in containers view                               |
 | Go back to namespaces; clear filter       | `ESC`           | Also clears input in the filter widget                      |
 | Navigate to the involved object           | `i`             | Works only for `events` kind                                |
-| Open / switch to the edit mode            | `i`             | Press `Esc` to exit                                         |
+| Open / switch to the edit mode            | `i`             | Press `Esc` to exit, then `Esc` for save dialog             |
 | Quit the application                      | `CTRL` + `c`    |                                                             |
 | Reverse selection                         | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Select resource                           | ` `             | (`SPACE`)                                                   |
@@ -138,7 +138,8 @@ If `config.yaml` does not exist, the application will create it automatically wi
 ### history.yaml
 
 This file stores history for filters, search patterns, and the last selected resource for each Kubernetes context.
-To remove history entries (either for a specific context or entirely), you can manually edit this file or even delete it.
+To remove history entries (either for a specific context or entirely), you can manually edit this file or even delete it.  
+History entries can also be deleted from the UI, just highlight one and press `Ctrl+D` to delete it.
 
 ## License
 

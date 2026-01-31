@@ -27,11 +27,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 3] = [
-        Some(cpu.to_string()).into(),
-        Some(memory.to_string()).into(),
-        object.data["window"].as_str().into(),
-    ];
+    let values: [ResourceValue; 3] = [Some(cpu).into(), Some(memory).into(), object.data["window"].as_str().into()];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

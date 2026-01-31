@@ -37,33 +37,45 @@ impl ResourceObserver {
 
     delegate! {
         to self.observer {
-            pub fn start(
-                &mut self,
-                client: &KubernetesClient,
-                resource: ResourceRef,
-                discovery: Option<(ApiResource, ApiCapabilities)>,
-                stop_on_access_error: bool,
-            ) -> Result<Scope, BgObserverError>;
-
-            pub fn restart(
-                &mut self,
-                client: &KubernetesClient,
-                new_resource: ResourceRef,
-                discovery: Option<(ApiResource, ApiCapabilities)>,
-                stop_on_access_error: bool,
-            ) -> Result<Scope, BgObserverError>;
-
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
-            pub fn get_resource_kind(&self) -> &Kind;
+            pub fn observed_kind(&self) -> &Kind;
+            pub fn observed_namespace(&self) -> &Namespace;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
+            pub fn is_connecting(&self) -> bool;
             pub fn is_connected(&self) -> bool;
             pub fn is_ready(&self) -> bool;
-            pub fn has_error(&self) -> bool;
+            pub fn is_waiting(&self) -> bool;
             pub fn has_access(&self) -> bool;
-            pub fn has_connection_error(&self) -> bool;
+            pub fn has_error(&self) -> bool;
+            pub fn has_api_error(&self) -> bool;
         }
+    }
+
+    /// Starts new [`ResourceObserver`] task.\
+    /// **Note** that it stops the old task if it is running.
+    pub fn start(
+        &mut self,
+        client: &KubernetesClient,
+        resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        self.observer
+            .start(client.get_client(), resource, discovery, None, stop_on_access_error)
+    }
+
+    /// Restarts [`ResourceObserver`] task if `new_resource` is different from the current one.
+    pub fn restart(
+        &mut self,
+        client: &KubernetesClient,
+        new_resource: ResourceRef,
+        discovery: Option<(ApiResource, ApiCapabilities)>,
+        stop_on_access_error: bool,
+    ) -> Result<Scope, BgObserverError> {
+        self.observer
+            .restart(client.get_client(), new_resource, discovery, None, stop_on_access_error)
     }
 
     /// Restarts [`ResourceObserver`] task if `new_kind` is different from the current one.\
@@ -89,7 +101,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Restarts [`ResourceObserver`] task if `new_namespace` is different than the current one.
@@ -108,7 +120,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Restarts [`ResourceObserver`] task to watch pod containers.
@@ -125,7 +137,7 @@ impl ResourceObserver {
             self.restart(client, resource, discovery, stop_on_access_error)?;
         }
 
-        Ok(self.observer.scope.clone())
+        Ok(self.observer.observed_resource_scope().clone())
     }
 
     /// Tries to get next [`ObserverResult`].
@@ -184,7 +196,7 @@ impl ResourceObserver {
     }
 
     fn queue_resource(&mut self, object: DynamicObject, is_delete: bool) {
-        let kind = self.observer.init.as_ref().map_or("", |i| i.kind.as_str());
+        let kind = self.observer.observed_singular_kind().unwrap_or_default();
         let result = ObserverResult::new(
             ResourceItem::from(
                 kind,
@@ -192,7 +204,7 @@ impl ResourceObserver {
                 self.crd.as_ref(),
                 &self.statistics.borrow(),
                 object,
-                self.observer.init.as_ref().is_some_and(|i| i.resource.is_filtered()),
+                self.observer.is_filtered(),
             ),
             is_delete,
         );
