@@ -182,7 +182,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_theme().with_namespace().with_quit();
+        let builder = self.with_context().with_theme().with_quit();
         if is_deletable { builder.with_delete() } else { builder }
     }
 

@@ -403,6 +403,10 @@ impl ResourcesView {
             );
         }
 
+        if self.table.scope() == &Scope::Namespaced {
+            builder = builder.with_namespace();
+        }
+
         let selected = if is_selected { "selected" } else { "all" };
         builder.add_action(
             ActionItem::action("copy", "copy").with_description(&format!("copies {selected} resources to clipboard")),
