@@ -43,11 +43,13 @@ impl ResourceObserver {
             pub fn observed_namespace(&self) -> &Namespace;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
+            pub fn is_connecting(&self) -> bool;
             pub fn is_connected(&self) -> bool;
             pub fn is_ready(&self) -> bool;
-            pub fn has_error(&self) -> bool;
+            pub fn is_waiting(&self) -> bool;
             pub fn has_access(&self) -> bool;
-            pub fn has_connection_error(&self) -> bool;
+            pub fn has_error(&self) -> bool;
+            pub fn has_api_error(&self) -> bool;
         }
     }
 

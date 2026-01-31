@@ -8,6 +8,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use crate::utils::get_object_uid;
+use crate::watcher::state::BgObserverHealth;
 use crate::watcher::{client::ResourceClient, result::ObserverResultSender, utils};
 use crate::{BgObserverState, InitData, Namespace, ObserverResult};
 
@@ -16,7 +17,7 @@ pub struct ListInput {
     pub context_tx: ObserverResultSender,
     pub footer_tx: Option<NotificationSink>,
     pub state: Arc<AtomicU8>,
-    pub has_error: Arc<AtomicBool>,
+    pub health: Arc<AtomicU8>,
     pub has_access: Arc<AtomicBool>,
 }
 
@@ -43,21 +44,25 @@ pub async fn list(
         match resources {
             Ok(objects) => {
                 results = Some(emit_results(objects, results, &input.init_data, &input.context_tx));
+
                 input.state.store(BgObserverState::Ready.into(), Ordering::Relaxed);
-                input.has_error.store(false, Ordering::Relaxed);
+                input.health.store(BgObserverHealth::Good.into(), Ordering::Relaxed);
                 input.has_access.store(true, Ordering::Relaxed);
             },
             Err(error) => {
                 results = None;
+
+                let is_api_error = matches!(&error, kube::Error::Api(_)); // we can connect to API, but can't use it
                 let is_access_error = matches!(&error, kube::Error::Api(response) if response.is_forbidden());
-                let is_connected = matches!(&error, kube::Error::Api(_)); // we can connect to API, but can't use it
 
                 let state: BgObserverState = input.state.load(Ordering::Relaxed).into();
-                if is_connected && (state != BgObserverState::Ready) {
+                if is_api_error && (state != BgObserverState::Ready) {
                     input.state.store(BgObserverState::Connected.into(), Ordering::Relaxed);
                 }
 
-                input.has_error.store(true, Ordering::Relaxed);
+                input
+                    .health
+                    .store(BgObserverHealth::error(is_api_error).into(), Ordering::Relaxed);
                 input.has_access.store(!is_access_error, Ordering::Relaxed);
                 if is_access_error {
                     if let Some(ns) = fallback_namespace.take() {

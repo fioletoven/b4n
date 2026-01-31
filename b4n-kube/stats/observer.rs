@@ -274,14 +274,14 @@ impl BgStatistics {
         self.stats.clone()
     }
 
+    /// Returns `true` if pods statistics observer has connection to the Kubernetes API.
+    pub fn is_connected(&self) -> bool {
+        self.pods.is_connected()
+    }
+
     /// Returns `true` if pods statistics observer has an error.
     pub fn has_error(&self) -> bool {
         self.pods.has_error()
-    }
-
-    /// Returns `true` if pods statistics observer has a connection error.
-    pub fn has_connection_error(&self) -> bool {
-        self.pods.has_connection_error()
     }
 
     fn recalculate_statistics(&mut self) {

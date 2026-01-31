@@ -117,10 +117,10 @@ impl ResourcesView {
         self.generation = stats.generation;
     }
 
-    /// Updates error state for the resources table.
-    pub fn update_error_state(&mut self, has_error: bool) {
-        self.table.header.update_error_state(has_error);
-        self.table.list.update_error_state(has_error);
+    /// Updates API error state for the resources table.
+    pub fn update_error_state(&mut self, has_api_error: bool) {
+        self.table.header.update_error_state(has_api_error);
+        self.table.list.update_error_state(has_api_error);
     }
 
     /// Shows delete resources dialog if anything is selected.

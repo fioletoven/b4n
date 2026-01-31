@@ -12,6 +12,7 @@ use tokio_util::sync::CancellationToken;
 use crate::watcher::client::ResourceClient;
 use crate::watcher::list::{self, ListInput};
 use crate::watcher::result::{ObserverResultReceiver, ObserverResultSender};
+use crate::watcher::state::BgObserverHealth;
 use crate::watcher::watch::{self, WatchInput};
 use crate::{BgObserverState, InitData, Kind, Namespace, ObserverResult, ResourceRef};
 
@@ -44,8 +45,9 @@ pub struct BgObserver {
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
     state: Arc<AtomicU8>,
-    has_error: Arc<AtomicBool>,
+    health: Arc<AtomicU8>,
     has_access: Arc<AtomicBool>,
+    had_connection_error: Arc<AtomicBool>,
 }
 
 impl BgObserver {
@@ -64,8 +66,9 @@ impl BgObserver {
             footer_tx,
             stop_on_access_error: false,
             state: Arc::new(AtomicU8::new(BgObserverState::Idle.into())),
-            has_error: Arc::new(AtomicBool::new(false)),
+            health: Arc::new(AtomicU8::new(BgObserverHealth::Good.into())),
             has_access: Arc::new(AtomicBool::new(true)),
+            had_connection_error: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -83,6 +86,9 @@ impl BgObserver {
         }
 
         self.state.store(BgObserverState::Connecting.into(), Ordering::Relaxed);
+        self.health.store(BgObserverHealth::Good.into(), Ordering::Relaxed);
+        self.had_connection_error.store(false, Ordering::Relaxed);
+
         let result = self.start_internal(client, resource, discovery, fallback_namespace, stop_on_access_error);
         if result.is_err() {
             self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
@@ -105,8 +111,17 @@ impl BgObserver {
             return Ok(self.scope.clone());
         }
 
+        let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
+        let health: BgObserverHealth = self.health.load(Ordering::Relaxed).into();
+        let had_connection_error = health == BgObserverHealth::ConnectionError
+            || (state == BgObserverState::Reconnecting && self.had_connection_error.load(Ordering::Relaxed));
+
         self.stop_internal();
+
         self.state.store(BgObserverState::Reconnecting.into(), Ordering::Relaxed);
+        self.health.store(BgObserverHealth::Good.into(), Ordering::Relaxed);
+        self.had_connection_error.store(had_connection_error, Ordering::Relaxed);
+
         let result = self.start_internal(client, new_resource, discovery, fallback_namespace, stop_on_access_error);
         if result.is_err() {
             self.state.store(BgObserverState::Idle.into(), Ordering::Relaxed);
@@ -167,20 +182,41 @@ impl BgObserver {
         self.resource.is_filtered()
     }
 
-    /// Returns `true` if the observer is connected to the Kubernetes API.
-    pub fn is_connected(&self) -> bool {
+    /// Returns `true` if observer is in the connecting state.
+    pub fn is_connecting(&self) -> bool {
+        let health: BgObserverHealth = self.health.load(Ordering::Relaxed).into();
         let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
-        state == BgObserverState::Connected || state == BgObserverState::Ready
+        state == BgObserverState::Connecting && health != BgObserverHealth::ConnectionError
     }
 
-    /// Returns `true` if the observer has received the initial list of resources.
+    /// Returns `true` if observer is connected to the Kubernetes API or was connected and now is reconnecting.\
+    /// **Note** that reconnecting almost always means observed kind switching.
+    pub fn is_connected(&self) -> bool {
+        let health: BgObserverHealth = self.health.load(Ordering::Relaxed).into();
+        if health == BgObserverHealth::ConnectionError {
+            return false;
+        }
+
+        let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
+        state == BgObserverState::Connected
+            || state == BgObserverState::Ready
+            || (state == BgObserverState::Reconnecting && !self.had_connection_error.load(Ordering::Relaxed))
+    }
+
+    /// Returns `true` if observer has received the initial list of resources.
     pub fn is_ready(&self) -> bool {
         BgObserverState::from(self.state.load(Ordering::Relaxed)) == BgObserverState::Ready
     }
 
-    /// Returns `true` if the observer is not running or is in an error state.
-    pub fn has_error(&self) -> bool {
-        self.has_error.load(Ordering::Relaxed)
+    /// Returns `true` if observer is waiting for the Kubernetes API response.
+    pub fn is_waiting(&self) -> bool {
+        let health: BgObserverHealth = self.health.load(Ordering::Relaxed).into();
+        if health != BgObserverHealth::Good {
+            return false;
+        }
+
+        let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
+        state == BgObserverState::Connecting || state == BgObserverState::Reconnecting || state == BgObserverState::Connected
     }
 
     /// Returns `true` if user has access to the observed resource.
@@ -188,9 +224,16 @@ impl BgObserver {
         self.has_access.load(Ordering::Relaxed)
     }
 
-    /// Returns `true` if the observer is not running or is in a connection error state (access error is not counted).
-    pub fn has_connection_error(&self) -> bool {
-        self.has_error.load(Ordering::Relaxed) && self.has_access.load(Ordering::Relaxed)
+    /// Returns `true` if observer is in an error state.
+    pub fn has_error(&self) -> bool {
+        BgObserverHealth::from(self.health.load(Ordering::Relaxed)) != BgObserverHealth::Good
+            || (BgObserverState::from(self.state.load(Ordering::Relaxed)) == BgObserverState::Reconnecting
+                && self.had_connection_error.load(Ordering::Relaxed))
+    }
+
+    /// Returns `true` if observer is connected, but cannot use the Kubernetes API, e.g. it returns an error.
+    pub fn has_api_error(&self) -> bool {
+        BgObserverHealth::from(self.health.load(Ordering::Relaxed)) == BgObserverHealth::ApiError
     }
 
     fn start_internal(
@@ -207,7 +250,6 @@ impl BgObserver {
         self.resource = resource;
         self.scope = cap.scope.clone();
         self.stop_on_access_error = stop_on_access_error;
-        self.has_error.store(false, Ordering::Relaxed);
         self.has_access.store(true, Ordering::Relaxed);
 
         let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
@@ -232,7 +274,6 @@ impl BgObserver {
         if let Some(cancellation_token) = self.cancellation_token.take() {
             cancellation_token.cancel();
             self.resource = ResourceRef::default();
-            self.has_error.store(false, Ordering::Relaxed);
             self.has_access.store(true, Ordering::Relaxed);
         }
     }
@@ -258,7 +299,7 @@ impl BgObserver {
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
                     state: Arc::clone(&self.state),
-                    has_error: Arc::clone(&self.has_error),
+                    health: Arc::clone(&self.health),
                     has_access: Arc::clone(&self.has_access),
                 },
                 build_fields_filter(&self.resource),
@@ -285,7 +326,7 @@ impl BgObserver {
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
                     state: Arc::clone(&self.state),
-                    has_error: Arc::clone(&self.has_error),
+                    health: Arc::clone(&self.health),
                     has_access: Arc::clone(&self.has_access),
                 },
                 build_fields_filter(&self.resource),

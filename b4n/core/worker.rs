@@ -316,11 +316,6 @@ impl BgWorker {
         self.resources.is_connected()
     }
 
-    /// Returns `true` if there are connection problems.
-    pub fn has_errors(&self) -> bool {
-        self.discovery.has_error() || self.statistics.has_connection_error() || self.namespaces.has_connection_error()
-    }
-
     /// Saves the provided app configuration to a file.
     pub fn save_config(&mut self, config: Config) {
         self.executor

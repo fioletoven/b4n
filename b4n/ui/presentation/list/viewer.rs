@@ -16,7 +16,7 @@ pub struct ListViewer<T: Table> {
     pub view: ViewType,
     pub area: Rect,
     app_data: SharedAppData,
-    has_error: DelayedTrueTracker,
+    has_api_error: DelayedTrueTracker,
     is_disconnected: DelayedTrueTracker,
     spinner: Spinner,
 }
@@ -29,7 +29,7 @@ impl<T: Table> ListViewer<T> {
             view,
             area: Rect::default(),
             app_data,
-            has_error: DelayedTrueTracker::default(),
+            has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
             spinner: Spinner::default(),
         }
@@ -69,7 +69,7 @@ impl<T: Table> ListViewer<T> {
             if self.is_disconnected.value() {
                 self.render_error(frame, " waiting for the Kubernetes API…", true);
             }
-        } else if self.has_error.value() {
+        } else if self.has_api_error.value() {
             self.render_error(frame, " cannot fetch or update requested resources…", false);
         } else {
             let theme = &self.app_data.borrow().theme;
@@ -80,8 +80,8 @@ impl<T: Table> ListViewer<T> {
     }
 
     /// Updates error state for the resources list.
-    pub fn update_error_state(&mut self, has_error: bool) {
-        self.has_error.update(has_error);
+    pub fn update_error_state(&mut self, has_api_error: bool) {
+        self.has_api_error.update(has_api_error);
     }
 
     fn render_error(&mut self, frame: &mut ratatui::Frame<'_>, error: &str, has_spinner: bool) {
@@ -110,7 +110,7 @@ fn get_items(items: &Vec<(String, TextColors)>) -> Vec<Line<'_>> {
 
 impl<T: Table> Responsive for ListViewer<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.has_error.value() {
+        if self.has_api_error.value() {
             return ResponseEvent::NotHandled;
         }
 

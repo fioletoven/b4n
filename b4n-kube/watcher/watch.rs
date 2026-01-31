@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 
+use crate::watcher::state::BgObserverHealth;
 use crate::watcher::{client::ResourceClient, result::ObserverResultSender, stream_backoff::StreamBackoff, utils};
 use crate::{BgObserverState, InitData, Namespace, ObserverResult};
 
@@ -17,7 +18,7 @@ pub struct WatchInput {
     pub context_tx: ObserverResultSender,
     pub footer_tx: Option<NotificationSink>,
     pub state: Arc<AtomicU8>,
-    pub has_error: Arc<AtomicBool>,
+    pub health: Arc<AtomicU8>,
     pub has_access: Arc<AtomicBool>,
 }
 
@@ -36,7 +37,7 @@ pub async fn watch(
         footer_tx: input.footer_tx,
         stop_on_access_error: stop_on_access_error || fallback_namespace.is_some(),
         state: input.state,
-        has_error: input.has_error,
+        health: input.health,
         has_access: input.has_access,
         last_watch_error: None,
     };
@@ -89,7 +90,7 @@ struct EventsProcessor {
     footer_tx: Option<NotificationSink>,
     stop_on_access_error: bool,
     state: Arc<AtomicU8>,
-    has_error: Arc<AtomicBool>,
+    health: Arc<AtomicU8>,
     has_access: Arc<AtomicBool>,
     last_watch_error: Option<Instant>,
 }
@@ -119,21 +120,21 @@ impl EventsProcessor {
                 self.has_access.store(true, Ordering::Relaxed);
                 if reset_error {
                     self.last_watch_error = None;
-                    self.has_error.store(false, Ordering::Relaxed);
+                    self.health.store(BgObserverHealth::Good.into(), Ordering::Relaxed);
                 }
             },
             Err(error) => {
+                let is_api_error = utils::is_api_error(&error, false); // we can connect to API, but can't use it
                 let is_access_error = utils::is_api_error(&error, true);
-                let is_connected = utils::is_api_error(&error, false); // we can connect to API, but can't use it
 
                 let state: BgObserverState = self.state.load(Ordering::Relaxed).into();
-                if is_connected && (state != BgObserverState::Ready) {
+                if is_api_error && (state != BgObserverState::Ready) {
                     self.state.store(BgObserverState::Connected.into(), Ordering::Relaxed);
                 }
 
                 self.has_access.store(!is_access_error, Ordering::Relaxed);
                 if self.stop_on_access_error && is_access_error {
-                    self.has_error.store(true, Ordering::Relaxed);
+                    self.health.store(BgObserverHealth::ApiError.into(), Ordering::Relaxed);
                     return ProcessorResult::Stop;
                 }
 
@@ -150,7 +151,8 @@ impl EventsProcessor {
                             .is_some_and(|t| t.elapsed().as_secs() <= WATCH_ERROR_TIMEOUT_SECS)
                         {
                             tracing::warn!("Forcefully restarting watcher for {}", self.init_data.kind_plural);
-                            self.has_error.store(true, Ordering::Relaxed);
+                            self.health
+                                .store(BgObserverHealth::error(is_api_error).into(), Ordering::Relaxed);
                             self.last_watch_error = Some(Instant::now());
 
                             return ProcessorResult::Restart;
@@ -159,7 +161,8 @@ impl EventsProcessor {
                         self.last_watch_error = Some(Instant::now());
                     },
                     _ => {
-                        self.has_error.store(true, Ordering::Relaxed);
+                        self.health
+                            .store(BgObserverHealth::error(is_api_error).into(), Ordering::Relaxed);
                     },
                 }
             },
