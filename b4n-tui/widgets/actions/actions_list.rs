@@ -104,7 +104,7 @@ impl ActionsListBuilder {
     pub fn from_paths(themes: Vec<PathBuf>) -> Self {
         let commands = vec![None; themes.len()];
         Self {
-            actions: themes.into_iter().map(ActionItem::from_path).collect(),
+            actions: themes.into_iter().map(ActionItem::from).collect(),
             commands,
         }
     }
@@ -115,7 +115,7 @@ impl ActionsListBuilder {
             actions: ports
                 .iter()
                 .filter(|p| p.protocol == PortProtocol::TCP)
-                .map(ActionItem::from_port)
+                .map(ActionItem::from)
                 .collect(),
             commands: vec![None; ports.len()],
         }
@@ -182,7 +182,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_theme().with_quit();
+        let builder = self.with_context().with_theme().with_namespace().with_quit();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
@@ -215,7 +215,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("context")
                 .with_description("changes the current kube context")
-                .with_aliases(&["ctx"])
+                .with_aliases(&["ctx", "change"])
                 .with_response(ResponseEvent::ListKubeContexts),
         );
         self.commands.push(None);
@@ -227,7 +227,20 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("theme")
                 .with_description("selects the theme used by the application")
+                .with_aliases(&["change"])
                 .with_response(ResponseEvent::ListThemes),
+        );
+        self.commands.push(None);
+        self
+    }
+
+    /// Adds `namespace` action.
+    pub fn with_namespace(mut self) -> Self {
+        self.actions.push(
+            ActionItem::new("namespace")
+                .with_description("changes the current namespace")
+                .with_aliases(&["change"])
+                .with_response(ResponseEvent::ListNamespaces),
         );
         self.commands.push(None);
         self

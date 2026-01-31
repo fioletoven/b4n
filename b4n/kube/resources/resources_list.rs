@@ -3,6 +3,7 @@ use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{FilterableList, Item, Row};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
+use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
@@ -83,6 +84,8 @@ impl ResourcesList {
         }
     }
 
+    /// Returns resources as a list of formatted strings.\
+    /// **Note** that this is the same format as for drawing on the terminal.
     pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {
         let width = self.get_best_width(view);
         let header = self.table.header.get_text(view, width).to_string();
@@ -106,6 +109,13 @@ impl ResourcesList {
         }
 
         result
+    }
+
+    /// Returns resources as a list of action items.
+    pub fn get_as_actions(&self) -> Vec<ActionItem> {
+        self.table.list.items.as_ref().map_or(Vec::new(), |items| {
+            items.full_iter().map(|i| ActionItem::from(&i.data)).collect()
+        })
     }
 
     fn get_best_width(&self, view: ViewType) -> usize {
@@ -268,5 +278,11 @@ impl Table for ResourcesList {
 
     fn refresh_offset(&mut self) -> usize {
         self.table.get_offset()
+    }
+}
+
+impl From<&ResourceItem> for ActionItem {
+    fn from(value: &ResourceItem) -> Self {
+        ActionItem::raw(value.uid.clone(), "resource".to_owned(), value.name.clone(), None)
     }
 }

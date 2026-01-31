@@ -75,30 +75,6 @@ impl ActionItem {
             .with_no_icon()
     }
 
-    /// Creates new [`ActionItem`] instance from [`PathBuf`].
-    pub fn from_path(path: PathBuf) -> Self {
-        let name = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        Self {
-            uid: path.as_os_str().to_string_lossy().to_string(),
-            group: "path".to_owned(),
-            name: name.clone(),
-            response: ResponseEvent::ChangeTheme(name),
-            ..Default::default()
-        }
-    }
-
-    /// Creates new [`ActionItem`] instance from [`Port`].
-    pub fn from_port(port: &Port) -> Self {
-        Self {
-            uid: format!("_{}:{}:{}_", port.port, port.name, port.protocol),
-            group: "resource port".to_owned(),
-            name: port.port.to_string(),
-            description: Some(format!("{} ({})", port.name, port.protocol)),
-            aliases: Some(vec![port.name.clone()]),
-            ..Default::default()
-        }
-    }
-
     /// Hides icon for this action instance.
     pub fn with_no_icon(mut self) -> Self {
         self.icon = None;
@@ -172,6 +148,32 @@ impl ActionItem {
             text.push_str("  ␝❬␝");
             text.push_str(key);
             text.push_str("␝❭␝");
+        }
+    }
+}
+
+impl From<PathBuf> for ActionItem {
+    fn from(value: PathBuf) -> Self {
+        let name = value.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        Self {
+            uid: value.as_os_str().to_string_lossy().to_string(),
+            group: "path".to_owned(),
+            name: name.clone(),
+            response: ResponseEvent::ChangeTheme(name),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&Port> for ActionItem {
+    fn from(value: &Port) -> Self {
+        Self {
+            uid: format!("_{}:{}:{}_", value.port, value.name, value.protocol),
+            group: "resource port".to_owned(),
+            name: value.port.to_string(),
+            description: Some(format!("{} ({})", value.name, value.protocol)),
+            aliases: Some(vec![value.name.clone()]),
+            ..Default::default()
         }
     }
 }

@@ -150,6 +150,15 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
+    /// Displays a list of known namespaces to choose from.
+    pub fn show_namespaces_list(&mut self, list: Vec<ActionItem>) {
+        let actions_list = ActionsListBuilder::new(list).build(None);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
+            .with_prompt("namespace")
+            .with_response(|mut v| ResponseEvent::ChangeNamespace(v.pop().unwrap_or_default()));
+        self.command_palette.show();
+    }
+
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
