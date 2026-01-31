@@ -337,6 +337,19 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
     }
 
+    /// Returns line number for the highlighted item for the current page.
+    pub fn get_highlighted_item_line_no(&self) -> Option<u16> {
+        if let Some(items) = &self.items
+            && let Some(highlighted) = self.highlighted
+            && highlighted < items.len()
+            && highlighted >= self.page_start
+        {
+            u16::try_from(highlighted - self.page_start).ok()
+        } else {
+            None
+        }
+    }
+
     /// Returns `true` if anything is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
         if let Some(items) = &self.items

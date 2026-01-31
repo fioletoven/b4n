@@ -5,6 +5,12 @@
 ### Features
 
 - add hint for close edit mode / save content
+- add hint for resources filter
+- add key binding to open mouse menu
+
+## Bug fixes
+
+- fix pods statistics for restricted users
 
 ## 0.3.9 - 2026-01-26
 
