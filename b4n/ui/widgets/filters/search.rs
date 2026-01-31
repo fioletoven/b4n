@@ -1,11 +1,10 @@
 use b4n_config::keys::KeyCommand;
-use b4n_tui::utils::{center_horizontal, get_proportional_width};
+use b4n_tui::utils::{self, center_horizontal, get_proportional_width};
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Position, Rect};
-use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Clear, Paragraph};
+use ratatui::widgets::Paragraph;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::PatternsList;
@@ -100,21 +99,14 @@ impl Search {
         }
 
         let colors = &self.app_data.borrow().theme.colors.search;
-        Self::clear_area(frame, area, colors.normal.bg);
+        utils::clear_area(frame, area, colors.normal.bg);
         if area.top() > 0 {
             let area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-            Self::clear_area(frame, area, colors.header.unwrap_or_default().bg);
+            utils::clear_area(frame, area, colors.header.unwrap_or_default().bg);
             self.draw_header(frame, area);
         }
 
         self.patterns.draw(frame, area.inner(Margin::new(1, 0)));
-    }
-
-    fn clear_area(frame: &mut ratatui::Frame<'_>, area: Rect, color: Color) {
-        let block = Block::new().style(Style::default().bg(color));
-
-        frame.render_widget(Clear, area);
-        frame.render_widget(block, area);
     }
 
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {

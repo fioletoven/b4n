@@ -3,6 +3,10 @@ use crossterm::ExecutableCommand;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
 use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Rect};
+use ratatui_core::style::{Color, Style};
+use ratatui_core::terminal::Frame;
+use ratatui_widgets::block::Block;
+use ratatui_widgets::clear::Clear;
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
 
@@ -32,6 +36,14 @@ pub fn center_horizontal(area: Rect, width: u16, max_height: u16) -> Rect {
     } else {
         layout[1]
     }
+}
+
+/// Clears provided area with the specified color.
+pub fn clear_area(frame: &mut Frame<'_>, area: Rect, color: Color) {
+    let block = Block::new().style(Style::default().bg(color));
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
 }
 
 /// Recalculates width for a bigger terminal screen (`> 140`).
