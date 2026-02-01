@@ -40,7 +40,7 @@ impl ResourceObserver {
             pub fn cancel(&mut self);
             pub fn stop(&mut self);
             pub fn observed_kind(&self) -> &Kind;
-            pub fn observed_namespace(&self) -> &Namespace;
+            pub fn initial_namespace(&self) -> &Namespace;
             pub fn is_container(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
             pub fn is_connecting(&self) -> bool;

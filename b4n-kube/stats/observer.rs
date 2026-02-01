@@ -8,7 +8,7 @@ use tokio::runtime::Handle;
 use crate::client::KubernetesClient;
 use crate::stats::Metrics;
 use crate::utils::get_resource;
-use crate::{BgObserver, DiscoveryList, Kind, NODES, Namespace, ObserverResult, PODS};
+use crate::{BgObserver, DiscoveryList, Kind, NODES, Namespace, ObserverResult, PODS, ResourceRef};
 
 pub type SharedStatistics = Rc<RefCell<Statistics>>;
 
@@ -194,10 +194,13 @@ impl BgStatistics {
         self.has_metrics = false;
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", "")) {
-            let fallback = if namespace.is_all() { None } else { Some(namespace.clone()) };
-            let result = self
-                .pods
-                .start(client.get_client(), (&discovery.0).into(), Some(discovery), fallback, true);
+            let result = self.pods.start(
+                client.get_client(),
+                (&discovery.0).into(),
+                Some(discovery),
+                Some(namespace.clone()),
+                true,
+            );
             if result.is_err() {
                 self.footer_tx
                     .show_error("Cannot run statistics task", DEFAULT_ERROR_DURATION);
@@ -212,14 +215,33 @@ impl BgStatistics {
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "metrics.k8s.io", "")) {
-            let fallback = if namespace.is_all() { None } else { Some(namespace.clone()) };
             self.has_metrics = self
                 .pods_metrics
-                .start(client.get_client(), (&discovery.0).into(), Some(discovery), fallback, true)
+                .start(
+                    client.get_client(),
+                    (&discovery.0).into(),
+                    Some(discovery),
+                    Some(namespace.clone()),
+                    true,
+                )
                 .is_ok();
         }
 
         self.replace_stats(HashMap::new());
+    }
+
+    /// Changes namespace for statistics observers if needed.
+    pub fn change_namespace(
+        &mut self,
+        client: &KubernetesClient,
+        discovery_list: Option<&DiscoveryList>,
+        new_namespace: &Namespace,
+    ) {
+        let kind = Kind::new(PODS, "", "");
+        self.has_metrics = try_change_namespace(&mut self.pods, client, discovery_list, new_namespace, &kind);
+
+        let kind = Kind::new(PODS, "metrics.k8s.io", "");
+        self.has_metrics = try_change_namespace(&mut self.pods_metrics, client, discovery_list, new_namespace, &kind);
     }
 
     /// Cancels [`BgStatistics`] task.
@@ -414,4 +436,37 @@ fn update_pod(pod: &mut PodData, resource: &DynamicObject) {
             pod.containers.insert(name.to_owned(), None);
         }
     }
+}
+
+/// Tries to change namespace in specified observer.\
+/// **Note** that it restarts observer with new namespace if necessary.
+fn try_change_namespace(
+    observer: &mut BgObserver,
+    client: &KubernetesClient,
+    discovery_list: Option<&DiscoveryList>,
+    new_namespace: &Namespace,
+    kind: &Kind,
+) -> bool {
+    // If observer is observing ALL namespaces and the fallback namespace is not used
+    // we have access to all namespaces, so just in case, we can change the fallback
+    // namespace to the new one.
+
+    if observer.initial_namespace() == new_namespace
+        || (observer.initial_namespace().is_all() && observer.try_change_fallback_namespace(new_namespace))
+    {
+        return observer.has_access();
+    }
+
+    // If we cannot change the fallback namespace that means user is restricted only to
+    // specific namespaces. In this case we need to restart observer with the new namespace.
+
+    if let Some(discovery) = get_resource(discovery_list, kind) {
+        let mut resource: ResourceRef = (&discovery.0).into();
+        resource.namespace = new_namespace.clone();
+        return observer
+            .restart(client.get_client(), resource, Some(discovery), None, true)
+            .is_ok();
+    }
+
+    observer.has_access()
 }

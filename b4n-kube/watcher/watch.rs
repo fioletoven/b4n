@@ -2,14 +2,15 @@ use b4n_common::NotificationSink;
 use futures::{StreamExt, TryStreamExt};
 use kube::api::DynamicObject;
 use kube::runtime::watcher::{self, DefaultBackoff, Error, Event, watcher};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 
+use crate::watcher::client::FallbackNamespace;
 use crate::watcher::state::BgObserverHealth;
 use crate::watcher::{client::ResourceClient, result::ObserverResultSender, stream_backoff::StreamBackoff, utils};
-use crate::{BgObserverState, InitData, Namespace, ObserverResult};
+use crate::{BgObserverState, InitData, ObserverResult};
 
 const WATCH_ERROR_TIMEOUT_SECS: u64 = 120;
 
@@ -17,6 +18,7 @@ pub struct WatchInput {
     pub init_data: InitData,
     pub context_tx: ObserverResultSender,
     pub footer_tx: Option<NotificationSink>,
+    pub fallback: Option<Arc<Mutex<FallbackNamespace>>>,
     pub state: Arc<AtomicU8>,
     pub health: Arc<AtomicU8>,
     pub has_access: Arc<AtomicBool>,
@@ -27,7 +29,6 @@ pub async fn watch(
     input: WatchInput,
     fields: Option<String>,
     labels: Option<String>,
-    mut fallback_namespace: Option<Namespace>,
     stop_on_access_error: bool,
     cancellation_token: CancellationToken,
 ) {
@@ -35,7 +36,7 @@ pub async fn watch(
         init_data: input.init_data,
         context_tx: input.context_tx,
         footer_tx: input.footer_tx,
-        stop_on_access_error: stop_on_access_error || fallback_namespace.is_some(),
+        stop_on_access_error: stop_on_access_error || input.fallback.is_some(),
         state: input.state,
         health: input.health,
         has_access: input.has_access,
@@ -61,9 +62,13 @@ pub async fn watch(
                         ProcessorResult::Continue => (),
                         ProcessorResult::Restart => break, // we need to restart watcher, so go up one while loop
                         ProcessorResult::Stop => {
-                            if let Some(ns) = fallback_namespace.take() {
+                            if let Some(fallback) = input.fallback.as_ref()
+                                && let Ok(mut fallback) = fallback.lock()
+                                && !fallback.is_used
+                            {
+                                fallback.is_used = true;
                                 processor.stop_on_access_error = stop_on_access_error;
-                                client.set_namespace(ns);
+                                client.set_namespace(fallback.namespace.clone());
                                 break;
                             } else {
                                 return;

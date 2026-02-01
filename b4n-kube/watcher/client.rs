@@ -40,3 +40,9 @@ impl ResourceClient {
         )
     }
 }
+
+/// Holds fallback namespace together with the indication if it was already used.
+pub struct FallbackNamespace {
+    pub is_used: bool,
+    pub namespace: Namespace,
+}
