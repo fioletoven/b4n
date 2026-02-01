@@ -70,9 +70,9 @@ pub async fn watch(
                                 processor.stop_on_access_error = stop_on_access_error;
                                 client.set_namespace(fallback.namespace.clone());
                                 break;
-                            } else {
-                                return;
                             }
+
+                            return;
                         },
                     }
                 },

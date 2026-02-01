@@ -470,6 +470,7 @@ impl ViewsManager {
                 self.footer.get_transmitter(),
             );
             self.view = Some(Box::new(view));
+            self.footer().hide_hint();
         }
     }
 

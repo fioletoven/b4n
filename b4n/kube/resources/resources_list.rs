@@ -118,6 +118,12 @@ impl ResourcesList {
         })
     }
 
+    /// Sorts items in the list again, using the same settings as last sort.
+    pub fn resort(&mut self) {
+        let (sort_by, is_descending) = self.table.header.sort_info();
+        self.sort(sort_by, is_descending);
+    }
+
     fn get_best_width(&self, view: ViewType) -> usize {
         let group_width = if view == ViewType::Full {
             self.table.header.get_data_length(0).max(9) + 2

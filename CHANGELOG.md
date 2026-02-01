@@ -13,6 +13,7 @@
 
 - fix pods statistics for restricted users
 - fix connection status indication
+- fix memory and cpu columns sorting
 
 ## 0.3.9 - 2026-01-26
 

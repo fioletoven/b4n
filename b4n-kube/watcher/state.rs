@@ -18,7 +18,6 @@ impl BgObserverState {
 impl From<u8> for BgObserverState {
     fn from(value: u8) -> Self {
         match value {
-            0 => BgObserverState::Idle,
             1 => BgObserverState::Connecting,
             2 => BgObserverState::Reconnecting,
             3 => BgObserverState::Connected,
@@ -62,7 +61,6 @@ impl BgObserverHealth {
 impl From<u8> for BgObserverHealth {
     fn from(value: u8) -> Self {
         match value {
-            0 => BgObserverHealth::Good,
             1 => BgObserverHealth::ConnectionError,
             2 => BgObserverHealth::ApiError,
             _ => BgObserverHealth::Good,
