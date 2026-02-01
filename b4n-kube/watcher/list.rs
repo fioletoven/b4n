@@ -1,21 +1,23 @@
 use b4n_common::NotificationSink;
 use kube::api::{DynamicObject, ListParams, ObjectList};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use crate::utils::get_object_uid;
+use crate::watcher::client::FallbackNamespace;
 use crate::watcher::state::BgObserverHealth;
 use crate::watcher::{client::ResourceClient, result::ObserverResultSender, utils};
-use crate::{BgObserverState, InitData, Namespace, ObserverResult};
+use crate::{BgObserverState, InitData, ObserverResult};
 
 pub struct ListInput {
     pub init_data: InitData,
     pub context_tx: ObserverResultSender,
     pub footer_tx: Option<NotificationSink>,
+    pub fallback: Option<Arc<Mutex<FallbackNamespace>>>,
     pub state: Arc<AtomicU8>,
     pub health: Arc<AtomicU8>,
     pub has_access: Arc<AtomicBool>,
@@ -26,7 +28,6 @@ pub async fn list(
     input: ListInput,
     fields: Option<String>,
     labels: Option<String>,
-    mut fallback_namespace: Option<Namespace>,
     stop_on_access_error: bool,
     cancellation_token: CancellationToken,
 ) {
@@ -65,8 +66,12 @@ pub async fn list(
                     .store(BgObserverHealth::error(is_api_error).into(), Ordering::Relaxed);
                 input.has_access.store(!is_access_error, Ordering::Relaxed);
                 if is_access_error {
-                    if let Some(ns) = fallback_namespace.take() {
-                        client.set_namespace(ns);
+                    if let Some(fallback) = input.fallback.as_ref()
+                        && let Ok(mut fallback) = fallback.lock()
+                        && !fallback.is_used
+                    {
+                        fallback.is_used = true;
+                        client.set_namespace(fallback.namespace.clone());
                         continue;
                     } else if stop_on_access_error {
                         break;

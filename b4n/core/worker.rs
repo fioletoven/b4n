@@ -99,7 +99,7 @@ impl BgWorker {
         self.crds.start(&client, discovery)?;
 
         self.statistics
-            .start(&client, self.discovery_list.as_ref(), self.resources.observed_namespace());
+            .start(&client, self.discovery_list.as_ref(), self.resources.initial_namespace());
 
         self.client = Some(client);
 
@@ -109,6 +109,8 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource and namespace.
     pub fn restart(&mut self, resource: ResourceRef) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
+            self.statistics
+                .change_namespace(client, self.discovery_list.as_ref(), &resource.namespace);
             let discovery = get_resource(self.discovery_list.as_ref(), &resource.kind);
             Ok(self.resources.restart(client, resource, discovery, false)?)
         } else {
@@ -119,6 +121,8 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed resource kind.
     pub fn restart_new_kind(&mut self, kind: Kind, last_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
+            self.statistics
+                .change_namespace(client, self.discovery_list.as_ref(), &last_namespace);
             let discovery = get_resource(self.discovery_list.as_ref(), &kind);
             Ok(self
                 .resources
@@ -131,6 +135,8 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to change observed namespace.
     pub fn restart_new_namespace(&mut self, resource_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
+            self.statistics
+                .change_namespace(client, self.discovery_list.as_ref(), &resource_namespace);
             let discovery = get_resource(self.discovery_list.as_ref(), self.resources.observed_kind())
                 .or_else(|| get_resource(self.discovery_list.as_ref(), &PODS.into()));
             Ok(self
@@ -144,6 +150,8 @@ impl BgWorker {
     /// Restarts (if needed) the resources observer to show pod containers.
     pub fn restart_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<Scope, BgWorkerError> {
         if let Some(client) = &self.client {
+            self.statistics
+                .change_namespace(client, self.discovery_list.as_ref(), &pod_namespace);
             let discovery = get_resource(self.discovery_list.as_ref(), &PODS.into());
             Ok(self
                 .resources

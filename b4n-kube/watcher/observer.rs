@@ -2,18 +2,18 @@ use b4n_common::NotificationSink;
 use kube::Client;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::{Arc, Mutex};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::watcher::client::ResourceClient;
-use crate::watcher::list::{self, ListInput};
+use crate::watcher::client::{FallbackNamespace, ResourceClient};
+use crate::watcher::list::{ListInput, list};
 use crate::watcher::result::{ObserverResultReceiver, ObserverResultSender};
 use crate::watcher::state::BgObserverHealth;
-use crate::watcher::watch::{self, WatchInput};
+use crate::watcher::watch::{WatchInput, watch};
 use crate::{BgObserverState, InitData, Kind, Namespace, ObserverResult, ResourceRef};
 
 /// Possible errors from [`BgObserver`].
@@ -43,6 +43,7 @@ pub struct BgObserver {
     context_tx: ObserverResultSender,
     context_rx: ObserverResultReceiver,
     footer_tx: Option<NotificationSink>,
+    fallback: Option<Arc<Mutex<FallbackNamespace>>>,
     stop_on_access_error: bool,
     state: Arc<AtomicU8>,
     health: Arc<AtomicU8>,
@@ -64,6 +65,7 @@ impl BgObserver {
             context_tx,
             context_rx,
             footer_tx,
+            fallback: None,
             stop_on_access_error: false,
             state: Arc::new(AtomicU8::new(BgObserverState::Idle.into())),
             health: Arc::new(AtomicU8::new(BgObserverHealth::Good.into())),
@@ -162,14 +164,36 @@ impl BgObserver {
         self.kind_singular.as_deref()
     }
 
-    /// Returns currently observed resource's namespace.
-    pub fn observed_namespace(&self) -> &Namespace {
+    /// Returns initial resource's namespace.\
+    /// **Note** that it can chage if the fallback namespace kicks in.
+    pub fn initial_namespace(&self) -> &Namespace {
         &self.resource.namespace
     }
 
     /// Returns currently observed resource's scope.
     pub fn observed_resource_scope(&self) -> &Scope {
         &self.scope
+    }
+
+    /// Tries to change fallback namespace. It success only if the namespace is not already in use
+    /// and fallback was set during the observer startup.
+    pub fn try_change_fallback_namespace(&mut self, new_namespace: &Namespace) -> bool {
+        if let Some(fallback) = self.fallback.as_ref()
+            && let Ok(mut fallback) = fallback.lock()
+        {
+            if fallback.namespace == *new_namespace {
+                return true;
+            }
+
+            if !fallback.is_used {
+                fallback.namespace = new_namespace.clone();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 
     /// Returns `true` if the observed resource is a container.
@@ -251,15 +275,21 @@ impl BgObserver {
         self.scope = cap.scope.clone();
         self.stop_on_access_error = stop_on_access_error;
         self.has_access.store(true, Ordering::Relaxed);
+        if let Some(namespace) = fallback_namespace {
+            self.fallback = Some(Arc::new(Mutex::new(FallbackNamespace {
+                is_used: false,
+                namespace,
+            })));
+        }
 
         let init_data = InitData::new(&self.resource, &ar, &cap, None, false);
         self.kind_singular = Some(init_data.kind.clone());
 
         let api_client = ResourceClient::new(client, ar, cap.clone(), self.resource.namespace.clone());
         let task = if cap.supports_operation(verbs::WATCH) {
-            self.watch(api_client, init_data, fallback_namespace, cancellation_token.clone())
+            self.spawn_watch_task(api_client, init_data, cancellation_token.clone())
         } else if cap.supports_operation(verbs::LIST) {
-            self.list(api_client, init_data, fallback_namespace, cancellation_token.clone())
+            self.spawn_list_task(api_client, init_data, cancellation_token.clone())
         } else {
             return Err(BgObserverError::UnsupportedOperation);
         };
@@ -284,54 +314,52 @@ impl BgObserver {
         self.drain();
     }
 
-    fn watch(
+    fn spawn_watch_task(
         &mut self,
         client: ResourceClient,
         init_data: InitData,
-        fallback_namespace: Option<Namespace>,
         cancellation_token: CancellationToken,
     ) -> JoinHandle<()> {
         self.runtime.spawn({
-            watch::watch(
+            watch(
                 client,
                 WatchInput {
                     init_data,
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
+                    fallback: self.fallback.clone(),
                     state: Arc::clone(&self.state),
                     health: Arc::clone(&self.health),
                     has_access: Arc::clone(&self.has_access),
                 },
                 build_fields_filter(&self.resource),
                 build_labels_filter(&self.resource),
-                fallback_namespace,
                 self.stop_on_access_error,
                 cancellation_token,
             )
         })
     }
 
-    fn list(
+    fn spawn_list_task(
         &mut self,
         client: ResourceClient,
         init_data: InitData,
-        fallback_namespace: Option<Namespace>,
         cancellation_token: CancellationToken,
     ) -> JoinHandle<()> {
         self.runtime.spawn({
-            list::list(
+            list(
                 client,
                 ListInput {
                     init_data,
                     context_tx: self.context_tx.clone(),
                     footer_tx: self.footer_tx.clone(),
+                    fallback: self.fallback.clone(),
                     state: Arc::clone(&self.state),
                     health: Arc::clone(&self.health),
                     has_access: Arc::clone(&self.has_access),
                 },
                 build_fields_filter(&self.resource),
                 build_labels_filter(&self.resource),
-                fallback_namespace,
                 self.stop_on_access_error,
                 cancellation_token,
             )
