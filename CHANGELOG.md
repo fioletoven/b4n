@@ -4,16 +4,16 @@
 
 ### Features
 
-- add hint for close edit mode / save content
+- add hint for closing edit mode / saving content
 - add hint for resources filter
-- add key binding to open mouse menu
-- allow to change namespace by typing it
+- add key binding to open context menu
+- allow changing namespace by typing it
 
-## Bug fixes
+### Bug fixes
 
 - fix pods statistics for restricted users
 - fix connection status indication
-- fix sorting for memory and cpu columns
+- fix sorting for memory and CPU columns
 
 ## 0.3.9 - 2026-01-26
 
