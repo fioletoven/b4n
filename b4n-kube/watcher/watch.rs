@@ -101,8 +101,7 @@ struct EventsProcessor {
 }
 
 impl EventsProcessor {
-    /// Process event received from the kubernetes resource watcher.\
-    /// Returns `true` if all was OK or `false` if the watcher needs to be restarted.
+    /// Process event received from the kubernetes resource watcher.
     fn process_event(&mut self, result: Result<Option<Event<DynamicObject>>, Error>) -> ProcessorResult {
         match result {
             Ok(event) => {
@@ -119,7 +118,7 @@ impl EventsProcessor {
                     },
                     Some(Event::InitApply(o) | Event::Apply(o)) => self.send_result(o, false),
                     Some(Event::Delete(o)) => self.send_result(o, true),
-                    _ => (),
+                    None => (),
                 }
 
                 self.has_access.store(true, Ordering::Relaxed);
