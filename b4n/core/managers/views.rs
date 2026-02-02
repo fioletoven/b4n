@@ -65,7 +65,7 @@ impl ViewsManager {
 
         // Wait for the CRD list to become ready before polling anything else. This ensures that the header for
         // the current resource (if it is a CR) is shown only after all columns are known.
-        if !worker.is_crds_list_ready() {
+        if !worker.check_if_crds_list_is_ready() {
             return;
         }
 
@@ -470,6 +470,7 @@ impl ViewsManager {
                 self.footer.get_transmitter(),
             );
             self.view = Some(Box::new(view));
+            self.footer().hide_hint();
         }
     }
 

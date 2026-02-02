@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.4.0 - 2026-02-02
 
 ### Features
 
@@ -13,6 +13,7 @@
 
 - fix pods statistics for restricted users
 - fix connection status indication
+- fix sorting for memory and cpu columns
 
 ## 0.3.9 - 2026-01-26
 

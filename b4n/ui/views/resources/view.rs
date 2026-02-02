@@ -107,11 +107,13 @@ impl ResourcesView {
         if self.table.kind_plural() == PODS {
             if let Some(items) = &mut self.table.list.table.table.list.items {
                 pod::update_statistics(items.full_iter_mut(), stats);
+                self.table.list.table.resort();
             }
         } else if self.table.kind_plural() == NODES
             && let Some(items) = &mut self.table.list.table.table.list.items
         {
             node::update_statistics(items.full_iter_mut(), stats);
+            self.table.list.table.resort();
         }
 
         self.generation = stats.generation;
@@ -194,7 +196,6 @@ impl ResourcesView {
     /// Processes disconnection state.
     pub fn process_disconnection(&mut self) {
         self.command_palette.hide();
-        self.update_error_state(true);
     }
 
     /// Returns `true` if namespaces selector can be displayed.
@@ -298,15 +299,10 @@ impl ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
             && let Some(line_no) = self.table.list.table.get_highlighted_item_line_no()
-            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+            && let Some(item_name) = self.table.list.table.get_highlighted_item_name()
         {
-            let view = self.table.list.table.table.header.get_cached_view();
-            let width = self.table.list.table.table.header.get_cached_width().unwrap_or_default();
-            let (namespace_width, _, _) = self.table.list.table.table.header.get_widths(view, width);
-            self.show_mouse_menu(
-                u16::try_from(namespace_width + name.chars().count() + 6).unwrap_or_default(),
-                line_no.saturating_add(self.table.list.area.y),
-            );
+            let pos = self.get_mouse_menu_position(line_no, item_name);
+            self.show_mouse_menu(pos.x, pos.y);
             return ResponseEvent::Handled;
         }
 
@@ -708,6 +704,17 @@ impl ResourcesView {
             self.app_data
                 .copy_to_clipboard(&res.name, &self.footer_tx, || "Resource name copied to clipboard");
         }
+    }
+
+    fn get_mouse_menu_position(&self, line_no: u16, resource_name: &str) -> Position {
+        let view = self.table.list.table.table.header.get_cached_view();
+        let width = self.table.list.table.table.header.get_cached_width().unwrap_or_default();
+        let (namespace_width, name_width, extra_space) = self.table.list.table.table.header.get_widths(view, width);
+        let name_width = (name_width + extra_space).min(resource_name.chars().count());
+        let x = u16::try_from(namespace_width + name_width + 6).unwrap_or_default();
+        let y = line_no.saturating_add(self.table.list.area.y);
+
+        Position::new(x, y)
     }
 }
 

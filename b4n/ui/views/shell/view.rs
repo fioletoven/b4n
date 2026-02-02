@@ -137,7 +137,7 @@ impl ShellView {
         }
 
         if let Ok(mut parser) = self.parser.write() {
-            parser.set_scrollback(self.scrollback_rows);
+            parser.screen_mut().set_scrollback(self.scrollback_rows);
             self.scrollback_rows = parser.screen().scrollback();
         }
 
@@ -147,7 +147,7 @@ impl ShellView {
     fn reset_scrollback(&mut self) {
         self.scrollback_rows = 0;
         if let Ok(mut parser) = self.parser.write() {
-            parser.set_scrollback(0);
+            parser.screen_mut().set_scrollback(0);
         }
     }
 }
@@ -251,7 +251,7 @@ impl View for ShellView {
         if (self.size.width != layout[1].width || self.size.height != layout[1].height)
             && let Ok(mut parser) = self.parser.write()
         {
-            parser.set_size(layout[1].height, layout[1].width);
+            parser.screen_mut().set_size(layout[1].height, layout[1].width);
             self.bridge.set_terminal_size(layout[1].width, layout[1].height);
             self.size = TerminalSize {
                 width: layout[1].width,

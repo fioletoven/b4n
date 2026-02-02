@@ -49,6 +49,7 @@ pub struct BgWorker {
     discovery: BgDiscovery,
     discovery_list: Option<DiscoveryList>,
     client: Option<KubernetesClient>,
+    is_crds_list_ready: bool,
 }
 
 impl BgWorker {
@@ -74,6 +75,7 @@ impl BgWorker {
             discovery: BgDiscovery::new(runtime, footer_tx),
             discovery_list: None,
             client: None,
+            is_crds_list_ready: false,
         }
     }
 
@@ -84,6 +86,8 @@ impl BgWorker {
         initial_discovery_list: DiscoveryList,
         resource: ResourceRef,
     ) -> Result<Scope, BgWorkerError> {
+        self.is_crds_list_ready = false;
+
         self.discovery_list = Some(initial_discovery_list);
         self.discovery.start(&client);
 
@@ -276,9 +280,12 @@ impl BgWorker {
         self.highlighter = BgHighlighter::new(syntax_data);
     }
 
-    /// Returns `true` if CRDs list is ready.
-    pub fn is_crds_list_ready(&self) -> bool {
-        self.crds.is_ready() || !self.crds.has_access()
+    /// Checks and returns `true` if the CRDs list is ready or access is forbidden.\
+    /// **Note** that once this returns `true`, subsequent calls will short-circuit and
+    /// return `true` without rechecking.
+    pub fn check_if_crds_list_is_ready(&mut self) -> bool {
+        self.is_crds_list_ready = self.is_crds_list_ready || self.crds.is_ready() || !self.crds.has_access();
+        self.is_crds_list_ready
     }
 
     /// Updates CRDs list.
@@ -321,7 +328,7 @@ impl BgWorker {
 
     /// Returns `true` if the resources observer is connected to the Kubernetes API.
     pub fn is_connected(&self) -> bool {
-        self.resources.is_connected()
+        self.is_crds_list_ready && self.resources.is_connected()
     }
 
     /// Saves the provided app configuration to a file.

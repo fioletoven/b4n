@@ -269,7 +269,7 @@ impl BgStatistics {
                     ObserverResult::Init(_) => self.reset_data(),
                     ObserverResult::Apply(result) => self.add_pod_data(&result),
                     ObserverResult::Delete(result) => self.del_pod_data(&result),
-                    _ => (),
+                    ObserverResult::InitDone => (),
                 }
             }
 

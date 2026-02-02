@@ -159,13 +159,13 @@ impl BgObserver {
         &self.resource.kind
     }
 
-    /// Returns singular PascalCase name of the currently observed resource.
+    /// Returns singular `PascalCase` name of the currently observed resource.
     pub fn observed_singular_kind(&self) -> Option<&str> {
         self.kind_singular.as_deref()
     }
 
     /// Returns initial resource's namespace.\
-    /// **Note** that it can chage if the fallback namespace kicks in.
+    /// **Note** that namespace can be outdated if the fallback namespace is used.
     pub fn initial_namespace(&self) -> &Namespace {
         &self.resource.namespace
     }
@@ -185,11 +185,11 @@ impl BgObserver {
                 return true;
             }
 
-            if !fallback.is_used {
+            if fallback.is_used {
+                false
+            } else {
                 fallback.namespace = new_namespace.clone();
                 true
-            } else {
-                false
             }
         } else {
             false

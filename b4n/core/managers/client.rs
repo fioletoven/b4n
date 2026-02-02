@@ -45,7 +45,7 @@ impl KubernetesClientManager {
             worker,
             request: None,
             footer_tx,
-            connection_state: StateChangeTracker::new(None),
+            connection_state: StateChangeTracker::new(Some(false)),
             allow_insecure,
         }
     }
