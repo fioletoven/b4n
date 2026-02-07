@@ -136,7 +136,7 @@ impl YamlView {
     }
 
     fn can_encode_decode(&self) -> bool {
-        self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected && !self.yaml.is_modified()
+        self.yaml.header.kind.as_str() == SECRETS && self.app_data.borrow().is_connected() && !self.yaml.is_modified()
     }
 
     fn show_command_palette(&mut self) {
@@ -207,7 +207,7 @@ impl YamlView {
     }
 
     fn toggle_yaml_decode(&mut self) {
-        if !self.app_data.borrow().is_connected || self.yaml.is_modified() {
+        if !self.app_data.borrow().is_connected() || self.yaml.is_modified() {
             return;
         }
 

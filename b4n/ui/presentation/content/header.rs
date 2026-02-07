@@ -5,6 +5,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
+use crate::core::ConnectionState;
 use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
@@ -77,7 +78,7 @@ impl ContentHeader {
 
     /// Draws [`ContentHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let coordinates = if self.app_data.borrow().is_connected {
+        let coordinates = if self.app_data.borrow().state == ConnectionState::Ready {
             format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
         } else {
             format!(
@@ -151,7 +152,7 @@ impl ContentHeader {
     /// Returns formatted text as right breadcrumbs:\
     /// \< `text` \<
     fn get_right_text(&self, text: String) -> Line<'_> {
-        let colors = if self.app_data.borrow().is_connected {
+        let colors = if self.app_data.borrow().is_connected() {
             &self.app_data.borrow().theme.colors.header.text
         } else {
             &self.app_data.borrow().theme.colors.header.disconnected

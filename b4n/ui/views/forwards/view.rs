@@ -97,7 +97,7 @@ impl ForwardsView {
 
     /// Shows menu for right mouse button.
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
-        if !self.app_data.borrow().is_connected {
+        if !self.app_data.borrow().is_connected() {
             return;
         }
 

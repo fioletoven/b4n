@@ -1,3 +1,5 @@
+use crate::is_builtin_api_group;
+
 use super::{CONTAINERS, NAMESPACES};
 
 #[cfg(test)]
@@ -111,6 +113,11 @@ impl Kind {
         } else {
             CORE_VERSION
         }
+    }
+
+    /// Returns `true` if this kind has a well known API group.
+    pub fn is_builtin(&self) -> bool {
+        is_builtin_api_group(self.group())
     }
 }
 

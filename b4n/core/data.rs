@@ -118,6 +118,15 @@ impl PreviousData {
     }
 }
 
+/// App connection state.
+#[derive(Default, Clone, Copy, PartialEq)]
+pub enum ConnectionState {
+    #[default]
+    Connecting,
+    Initializing,
+    Ready,
+}
+
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
@@ -135,7 +144,7 @@ pub struct AppData {
     /// Current application theme.
     pub theme: Theme,
 
-    /// Information about currently selected kubernetes resource.
+    /// Information about currently selected Kubernetes resource.
     pub current: ResourcesInfo,
     pub previous: Vec<PreviousData>,
 
@@ -145,8 +154,8 @@ pub struct AppData {
     /// Holds clipboard object.
     pub clipboard: Option<Clipboard>,
 
-    /// Indicates if application is connected to the kubernetes api.
-    pub is_connected: bool,
+    /// Indicates if application is connected to the Kubernetes API.
+    pub state: ConnectionState,
 }
 
 impl AppData {
@@ -164,7 +173,7 @@ impl AppData {
             previous: Vec::new(),
             kinds: None,
             clipboard: Clipboard::new().ok(),
-            is_connected: false,
+            state: ConnectionState::Connecting,
         }
     }
 
@@ -184,6 +193,11 @@ impl AppData {
     /// **Note** that this means it should be reset if we are e.g. changing the namespace.
     pub fn is_constrained(&self) -> bool {
         !self.previous.is_empty() && (self.current.resource.is_container() || self.current.resource.is_filtered())
+    }
+
+    /// Returns `true` if state indicates that app is connected.
+    pub fn is_connected(&self) -> bool {
+        self.state != ConnectionState::Connecting
     }
 }
 

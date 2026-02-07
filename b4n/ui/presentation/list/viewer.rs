@@ -64,8 +64,8 @@ impl<T: Table> ListViewer<T> {
 
         self.table.update_page(self.area.height);
 
-        self.is_disconnected.update(!self.app_data.borrow().is_connected);
-        if !self.app_data.borrow().is_connected {
+        self.is_disconnected.update(!self.app_data.borrow().is_connected());
+        if !self.app_data.borrow().is_connected() {
             if self.is_disconnected.value() {
                 self.render_error(frame, " waiting for the Kubernetes API…", true);
             }
