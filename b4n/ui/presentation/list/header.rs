@@ -7,7 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::{AppData, SharedAppData};
+use crate::core::{AppData, ConnectionState, SharedAppData};
 use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
@@ -154,34 +154,31 @@ impl ListHeader {
     /// \< `k8s version` \<
     fn get_version(&mut self) -> Line<'_> {
         let data = &self.app_data.borrow();
-        let is_ok = !data.current.version.is_empty() && data.is_connected;
         let has_api_error = self.has_api_error.value();
 
-        let (text, colors) = get_version_text(data, &mut self.spinner, is_ok, has_api_error);
+        let (text, colors) = get_version_text(data, &mut self.spinner, has_api_error);
         get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
     }
 }
 
 /// Returns kubernetes version text together with its colors.
-fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, is_ok: bool, has_api_error: bool) -> (String, &'a TextColors) {
-    let colors;
-    let text;
-
-    if is_ok {
-        colors = &data.theme.colors.header.info;
-        if has_api_error {
-            text = format!("  {} ", &data.current.version);
-        } else {
-            text = format!(" {} ", &data.current.version);
-        }
+fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, has_api_error: bool) -> (String, &'a TextColors) {
+    let colors = if !data.current.version.is_empty() && data.is_connected() {
+        &data.theme.colors.header.info
     } else {
-        colors = &data.theme.colors.header.disconnected;
-        if data.current.version.is_empty() {
-            text = format!(" {} connecting… ", spinner.tick());
+        &data.theme.colors.header.disconnected
+    };
+    let text = if !data.current.version.is_empty() && data.state == ConnectionState::Ready {
+        if has_api_error {
+            format!("  {} ", &data.current.version)
         } else {
-            text = format!(" {} {} ", spinner.tick(), &data.current.version);
+            format!(" {} ", &data.current.version)
         }
-    }
+    } else if data.current.version.is_empty() {
+        format!(" {} connecting… ", spinner.tick())
+    } else {
+        format!(" {} {} ", spinner.tick(), &data.current.version)
+    };
 
     (text, colors)
 }

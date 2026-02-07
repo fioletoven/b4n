@@ -17,6 +17,7 @@ use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
+use crate::core::ConnectionState;
 use crate::kube::kinds::{KindItem, KindsList};
 use crate::kube::resources::ResourceObserver;
 use crate::ui::views::PortForwardItem;
@@ -283,7 +284,7 @@ impl BgWorker {
     /// Checks and returns `true` if the CRDs list is ready or access is forbidden.\
     /// **Note** that once this returns `true`, subsequent calls will short-circuit and
     /// return `true` without rechecking.
-    pub fn check_if_crds_list_is_ready(&mut self) -> bool {
+    pub fn ensure_crds_list_is_ready(&mut self) -> bool {
         self.is_crds_list_ready = self.is_crds_list_ready || self.crds.is_ready() || !self.crds.has_access();
         self.is_crds_list_ready
     }
@@ -326,9 +327,17 @@ impl BgWorker {
         commands
     }
 
-    /// Returns `true` if the resources observer is connected to the Kubernetes API.
-    pub fn is_connected(&self) -> bool {
-        self.is_crds_list_ready && self.resources.is_connected()
+    /// Returns connection state.
+    pub fn get_connection_state(&self) -> ConnectionState {
+        if self.resources.is_connected() {
+            if self.is_crds_list_ready {
+                ConnectionState::Ready
+            } else {
+                ConnectionState::Initializing
+            }
+        } else {
+            ConnectionState::Connecting
+        }
     }
 
     /// Saves the provided app configuration to a file.

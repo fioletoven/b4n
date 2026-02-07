@@ -1,6 +1,7 @@
 use b4n_kube::client::{ClientOptions, KubernetesClient};
 use b4n_kube::utils::get_resource;
 use b4n_kube::{DiscoveryList, Kind, NAMESPACES, Namespace, PODS, convert_to_vector};
+use kube::discovery::verbs;
 use kube::{Discovery, api::ListParams};
 use thiserror;
 
@@ -72,15 +73,22 @@ impl NewKubernetesClientCommand {
             Ok(client) => client,
             Err(err) => return Some(CommandResult::KubernetesClient(Err(err.into()))),
         };
+
         let Ok(discovery) = Discovery::new(client.get_client()).run().await else {
             return Some(CommandResult::KubernetesClient(Err(KubernetesClientError::DiscoveryFailure)));
         };
         let discovery = convert_to_vector(&discovery);
-        let kind = if get_resource(Some(&discovery), &self.kind).is_some() {
-            self.kind
+
+        let kind = if let Some((ar, cap)) = get_resource(Some(&discovery), &self.kind) {
+            if cap.supports_operation(verbs::WATCH) || cap.supports_operation(verbs::LIST) {
+                Kind::new(&ar.plural, &ar.group, &ar.version)
+            } else {
+                PODS.into()
+            }
         } else {
             PODS.into()
         };
+
         let Some(namespaces) = get_resource(Some(&discovery), &NAMESPACES.into()) else {
             return Some(CommandResult::KubernetesClient(Err(
                 KubernetesClientError::NamespaceFetchFailure,

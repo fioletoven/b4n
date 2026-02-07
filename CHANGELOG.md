@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- do not wait on CRDs for OOB resources
+
 ## 0.4.0 - 2026-02-02
 
 ### Features

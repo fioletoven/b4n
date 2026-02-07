@@ -240,7 +240,7 @@ impl App {
 
     /// Processes connection events.
     fn process_connection_events(&mut self) {
-        self.data.borrow_mut().is_connected = self.worker.borrow().is_connected();
+        self.data.borrow_mut().state = self.worker.borrow().get_connection_state();
         self.client_manager.process_request_overdue();
         if let Some(is_connected) = self.client_manager.get_connection_state_if_changed() {
             self.views_manager.process_connection_event(*is_connected);
@@ -441,7 +441,7 @@ impl App {
     /// Requests new kubernetes client with configured kind and namespace.
     fn request_kubernetes_client(&mut self, context: String, namespace: Option<&str>) {
         // if we are disconnected allow to reload the same context in case it changed
-        if self.data.borrow().current.context == context && self.data.borrow().is_connected {
+        if self.data.borrow().current.context == context && self.data.borrow().is_connected() {
             return;
         }
 

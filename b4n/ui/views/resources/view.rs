@@ -241,7 +241,7 @@ impl ResourcesView {
             }
         }
 
-        if !self.app_data.borrow().is_connected {
+        if !self.app_data.borrow().is_connected() {
             if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
                 || event.is_in(MouseEventKind::RightClick, self.table.list.area)
             {
@@ -366,7 +366,7 @@ impl ResourcesView {
     }
 
     fn show_command_palette(&mut self) {
-        if !self.app_data.borrow().is_connected {
+        if !self.app_data.borrow().is_connected() {
             let actions = ActionsListBuilder::default()
                 .with_resources_actions(false)
                 .build(self.app_data.borrow().config.key_bindings.as_ref());
@@ -474,9 +474,7 @@ impl ResourcesView {
 
             if self.table.kind_plural() == SECRETS {
                 builder.add_action(
-                    ActionItem::action("decode", "decode_yaml")
-                        .with_description("shows decoded YAML of the highlighted secret")
-                        .with_aliases(&["decode", "x"]),
+                    ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML of the highlighted secret"),
                     Some(KeyCommand::YamlDecode),
                 );
             }
@@ -500,7 +498,7 @@ impl ResourcesView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
-        if !self.app_data.borrow().is_connected {
+        if !self.app_data.borrow().is_connected() {
             return;
         }
 
@@ -568,7 +566,7 @@ impl ResourcesView {
         if self.kind_plural() == CONTAINERS
             || self.kind_plural() == EVENTS
             || !self.table.list.table.data.is_creatable
-            || !self.app_data.borrow().is_connected
+            || !self.app_data.borrow().is_connected()
         {
             return;
         }

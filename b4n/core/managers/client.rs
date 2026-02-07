@@ -135,7 +135,7 @@ impl KubernetesClientManager {
     /// Returns `Some(is_connected)` if connection state changed.
     pub fn get_connection_state_if_changed(&mut self) -> Option<&bool> {
         self.connection_state
-            .changed(self.app_data.borrow().is_connected && !self.is_requested())
+            .changed(self.app_data.borrow().is_connected() && !self.is_requested())
     }
 
     /// Sends command to create new Kubernetes client to the background executor.

@@ -2,7 +2,9 @@ pub use self::core::{
     ALL_NAMESPACES, CONTAINERS, CORE_VERSION, CRDS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, NAMESPACES, NODES, PODS, PV, PVC,
     REPLICA_SETS, SECRETS, SERVICES, STATEFUL_SETS,
 };
-pub use self::core::{Kind, Namespace, PodRef, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter};
+pub use self::core::{
+    Kind, Namespace, PodRef, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter, is_builtin_api_group,
+};
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
 pub use self::watcher::{BgObserver, BgObserverError, BgObserverState, InitData, ObserverResult};
 pub use kube::discovery::Scope;

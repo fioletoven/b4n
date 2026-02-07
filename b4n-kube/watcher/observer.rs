@@ -196,6 +196,11 @@ impl BgObserver {
         }
     }
 
+    /// Returns `true` if observer is running.
+    pub fn is_running(&self) -> bool {
+        self.task.is_some()
+    }
+
     /// Returns `true` if the observed resource is a container.
     pub fn is_container(&self) -> bool {
         self.resource.is_container()

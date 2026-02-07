@@ -62,10 +62,15 @@ impl ViewsManager {
     /// Updates all lists with observed resources.
     pub fn update_lists(&mut self) {
         let mut worker = self.worker.borrow_mut();
+        if !worker.resources.is_running() {
+            return;
+        }
 
-        // Wait for the CRD list to become ready before polling anything else. This ensures that the header for
-        // the current resource (if it is a CR) is shown only after all columns are known.
-        if !worker.check_if_crds_list_is_ready() {
+        // If this is not a built-in Kubernetes API group, wait for the CRD list to become ready
+        // before polling anything else. This ensures that the header for the current resource
+        // (if it is a custom resource) is shown only after all columns are known.
+        let is_crds_list_ready = worker.ensure_crds_list_is_ready();
+        if !worker.resources.observed_kind().is_builtin() && !is_crds_list_ready {
             return;
         }
 
@@ -184,7 +189,7 @@ impl ViewsManager {
             return ResponseEvent::NotHandled;
         };
 
-        if self.app_data.borrow().is_connected {
+        if self.app_data.borrow().is_connected() {
             if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
                 && self.worker.borrow().namespaces.has_access()
@@ -214,7 +219,7 @@ impl ViewsManager {
     }
 
     fn process_resources_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.borrow().is_connected {
+        if self.app_data.borrow().is_connected() {
             if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
                 && self.worker.borrow().namespaces.has_access()
