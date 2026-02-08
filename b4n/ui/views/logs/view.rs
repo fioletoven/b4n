@@ -32,7 +32,7 @@ pub enum LogsViewError {
 pub struct LogsView {
     logs: ContentViewer<LogsContent>,
     app_data: SharedAppData,
-    observer: LogsObserver,
+    observers: Vec<LogsObserver>,
     last_mouse_click: Option<Position>,
     command_palette: CommandPalette,
     search: Search,
@@ -47,7 +47,7 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         client: &KubernetesClient,
-        mut containers: Vec<PodRef>,
+        containers: Vec<PodRef>,
         previous: bool,
         footer: NotificationSink,
         workspace: Rect,
@@ -69,15 +69,20 @@ impl LogsView {
             container,
         );
 
-        let pod = containers.swap_remove(0);
-        let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-        observer.start(client, pod, app_data.borrow().config.logs.lines, previous, false);
+        let include_containers = containers.len() > 1;
+        let mut observers = Vec::with_capacity(containers.len());
+        for pod in containers {
+            let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
+            observer.start(client, pod, app_data.borrow().config.logs.lines, previous, include_containers);
+            observers.push(observer);
+        }
+
         let search = Search::new(Rc::clone(&app_data), Some(worker), 65);
 
         Ok(Self {
             logs,
             app_data,
-            observer,
+            observers,
             last_mouse_click: None,
             command_palette: CommandPalette::default(),
             search,
@@ -203,25 +208,29 @@ impl LogsView {
 
 impl View for LogsView {
     fn process_tick(&mut self) -> ResponseEvent {
-        if !self.observer.is_empty() {
-            if !self.logs.has_content() {
-                let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
-                content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
-                self.logs.set_content(content);
-            }
+        let mut needs_update = false;
+        for observer in &mut self.observers {
+            if !observer.is_empty() {
+                needs_update = true;
+                if !self.logs.has_content() {
+                    let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
+                    content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
+                    self.logs.set_content(content);
+                }
 
-            let content = self.logs.content_mut().unwrap();
-            while let Some(chunk) = self.observer.try_next() {
-                content.add_logs_chunk(*chunk);
-            }
+                let content = self.logs.content_mut().unwrap();
+                while let Some(chunk) = observer.try_next() {
+                    content.add_logs_chunk(*chunk);
+                }
 
-            if self.bound_to_bottom {
-                self.logs.scroll_to_end();
+                if self.bound_to_bottom {
+                    self.logs.scroll_to_end();
+                }
             }
+        }
 
-            if self.logs.search(self.search.value(), true) {
-                self.update_search_count();
-            }
+        if needs_update && self.logs.search(self.search.value(), true) {
+            self.update_search_count();
         }
 
         ResponseEvent::Handled
@@ -325,6 +334,8 @@ impl View for LogsView {
 
 impl Drop for LogsView {
     fn drop(&mut self) {
-        self.observer.stop();
+        for observer in &mut self.observers {
+            observer.stop();
+        }
     }
 }

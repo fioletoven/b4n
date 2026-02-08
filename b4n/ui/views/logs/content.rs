@@ -130,17 +130,22 @@ impl LogsContent {
             &self.colors.string
         };
 
+        let mut result = Vec::new();
         if self.show_timestamps {
-            vec![
-                (
-                    (&self.colors.timestamp).into(),
-                    line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string(),
-                ),
-                (log_colors.into(), line.message.clone()),
-            ]
-        } else {
-            vec![(log_colors.into(), line.message.clone())]
+            result.push((
+                (&self.colors.timestamp).into(),
+                line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string(),
+            ));
         }
+
+        if let Some(container) = line.container.as_deref() {
+            result.push((log_colors.into(), container.to_owned()));
+            result.push((log_colors.into(), ": ".to_owned()));
+        }
+
+        result.push((log_colors.into(), line.message.clone()));
+
+        result
     }
 }
 
