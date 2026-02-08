@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{Namespace, Port, PropagationPolicy, ResourceRef};
+use b4n_kube::{Namespace, PodRef, Port, PropagationPolicy, ResourceRef};
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
@@ -385,21 +385,41 @@ impl ViewsManager {
         self.resources.show_namespaces_list(namespaces);
     }
 
-    /// Shows logs for the specified container.
-    pub fn show_logs(&mut self, resource: ResourceRef, previous: bool) {
-        if let Some(client) = self.worker.borrow().kubernetes_client() {
-            let view = LogsView::new(
-                Rc::clone(&self.app_data),
-                Rc::clone(&self.worker),
-                client,
-                resource,
-                previous,
-                self.footer.get_transmitter(),
-                self.workspace,
-            );
-            if let Ok(view) = view {
-                self.view = Some(Box::new(view));
-            }
+    /// Shows logs for the specified container or multiple containers if `containers` are provided.
+    pub fn show_logs(&mut self, resource: ResourceRef, containers: Option<Vec<String>>, previous: bool) {
+        let worker = self.worker.borrow();
+        let Some(client) = worker.kubernetes_client() else {
+            return;
+        };
+
+        let pods = match containers {
+            Some(containers) if !containers.is_empty() => containers
+                .into_iter()
+                .map(|container| PodRef {
+                    name: resource.name.clone().unwrap_or_default(),
+                    namespace: resource.namespace.clone(),
+                    container: Some(container),
+                })
+                .collect(),
+            _ => vec![PodRef {
+                name: resource.name.clone().unwrap_or_default(),
+                namespace: resource.namespace.clone(),
+                container: resource.container.clone(),
+            }],
+        };
+
+        let view = LogsView::new(
+            Rc::clone(&self.app_data),
+            Rc::clone(&self.worker),
+            client,
+            pods,
+            previous,
+            self.footer.get_transmitter(),
+            self.workspace,
+        );
+
+        if let Ok(view) = view {
+            self.view = Some(Box::new(view));
         }
     }
 

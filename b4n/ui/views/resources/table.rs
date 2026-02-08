@@ -332,23 +332,30 @@ impl ResourcesTable {
                 }
 
                 if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
-                    return self.process_view_logs(resource, false);
+                    return self.process_view_logs(resource, true, false);
                 }
 
                 if self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen) {
-                    return self.process_view_logs(resource, true);
+                    return self.process_view_logs(resource, true, true);
                 }
 
                 if self.app_data.has_binding(event, KeyCommand::ShellOpen) {
                     return self.process_open_shell(resource);
                 }
-            } else if self.kind_plural() == PODS
-                && (self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
-                    || self.app_data.has_binding(event, KeyCommand::LogsOpen)
-                    || self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen)
-                    || self.app_data.has_binding(event, KeyCommand::ShellOpen))
-            {
-                return self.process_enter_key(resource);
+            } else if self.kind_plural() == PODS {
+                if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
+                    || self.app_data.has_binding(event, KeyCommand::ShellOpen)
+                {
+                    return self.process_enter_key(resource);
+                }
+
+                if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
+                    return self.process_view_logs(resource, false, false);
+                }
+
+                if self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen) {
+                    return self.process_view_logs(resource, false, true);
+                }
             }
         }
 
@@ -384,7 +391,7 @@ impl ResourcesTable {
             SERVICES | REPLICA_SETS | STATEFUL_SETS | DAEMON_SETS => self.process_view_selector(resource, PODS),
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
-            CONTAINERS => self.process_view_logs(resource, false),
+            CONTAINERS => self.process_view_logs(resource, true, false),
             _ => self.process_view_yaml(resource, false, false),
         }
     }
@@ -394,12 +401,19 @@ impl ResourcesTable {
             .map_or(ResponseEvent::NotHandled, ResponseEvent::ListResourcePorts)
     }
 
-    fn process_view_logs(&self, resource: &ResourceItem, previous: bool) -> ResponseEvent {
-        let resource = self.resource_ref_from(resource, true);
-        if previous {
-            resource.map_or(ResponseEvent::NotHandled, ResponseEvent::ViewPreviousLogs)
+    fn process_view_logs(&self, resource: &ResourceItem, is_one_container: bool, is_previous: bool) -> ResponseEvent {
+        let containers = (!is_one_container)
+            .then(|| resource.data.as_ref().map(|d| d.tags.to_vec()))
+            .flatten();
+
+        let Some(resource) = self.resource_ref_from(resource, is_one_container) else {
+            return ResponseEvent::NotHandled;
+        };
+
+        if is_previous {
+            ResponseEvent::ViewPreviousLogs(resource, containers)
         } else {
-            resource.map_or(ResponseEvent::NotHandled, ResponseEvent::ViewLogs)
+            ResponseEvent::ViewLogs(resource, containers)
         }
     }
 

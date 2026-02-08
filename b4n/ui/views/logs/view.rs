@@ -22,6 +22,18 @@ const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
 const TIMESTAMP_TEXT_LENGTH: usize = 24;
 
+/// Possible errors from [`LogsObserver`].
+#[derive(thiserror::Error, Debug)]
+pub enum LogsViewError {
+    /// No containers to observe provided.
+    #[error("no containers provided")]
+    NoContainersToObserve,
+
+    /// Kubernetes client error.
+    #[error("kubernetes client error")]
+    ObserverError(#[from] LogsObserverError),
+}
+
 /// Logs view.
 pub struct LogsView {
     logs: ContentViewer<LogsContent>,
@@ -41,30 +53,34 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         client: &KubernetesClient,
-        resource: ResourceRef,
+        mut containers: Vec<PodRef>,
         previous: bool,
         footer: NotificationSink,
         workspace: Rect,
-    ) -> Result<Self, LogsObserverError> {
-        let pod = PodRef {
-            name: resource.name.clone().unwrap_or_default(),
-            namespace: resource.namespace.clone(),
-            container: resource.container.clone(),
-        };
+    ) -> Result<Self, LogsViewError> {
+        if containers.is_empty() {
+            return Err(LogsViewError::NoContainersToObserve);
+        }
+
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
         let area = ContentViewer::<LogsContent>::get_content_area(workspace);
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
-            resource.namespace,
+            containers[0].namespace.clone(),
             PODS.into(),
-            resource.name,
-            resource.container,
+            Some(containers[0].name.clone()),
+            if containers.len() == 1 {
+                containers[0].container.clone()
+            } else {
+                None
+            },
         );
 
+        let pod = containers.swap_remove(0);
         let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-        observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
+        observer.start(client, pod, app_data.borrow().config.logs.lines, previous, false);
         let search = Search::new(Rc::clone(&app_data), Some(worker), 65);
 
         Ok(Self {
