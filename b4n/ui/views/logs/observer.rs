@@ -23,6 +23,7 @@ pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
     pub message: String,
+    pub lowercase: String,
     pub is_error: bool,
 }
 
@@ -213,13 +214,16 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
 fn process_line(container: Option<&str>, line: &str) -> Option<LogsChunk> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
+    let msg = split.next()?.replace('\t', "    ");
+    let lower = msg.to_ascii_lowercase();
 
     Some(LogsChunk {
         end: dt,
         lines: vec![LogLine {
             datetime: dt,
             container: container.map(String::from),
-            message: split.next()?.replace('\t', "    "),
+            message: msg,
+            lowercase: lower,
             is_error: false,
         }],
     })
@@ -234,6 +238,7 @@ fn process_error(container: Option<&str>, error: String) -> LogsChunk {
             datetime: dt,
             container: container.map(String::from),
             message: error,
+            lowercase: String::new(),
             is_error: true,
         }],
     }

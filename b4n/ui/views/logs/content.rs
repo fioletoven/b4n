@@ -14,7 +14,6 @@ pub struct LogsContent {
     show_timestamps: bool,
     colors: LogsSyntaxColors,
     lines: Vec<LogLine>,
-    lowercase: Vec<String>,
     page: Vec<StyledLine>,
     max_size: usize,
     start: usize,
@@ -28,7 +27,6 @@ impl LogsContent {
             show_timestamps: true,
             colors,
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
-            lowercase: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
             max_size: 0,
             start: 0,
@@ -58,23 +56,71 @@ impl LogsContent {
         self.show_timestamps
     }
 
+    /// Add a chunk of log lines, maintaining sorted order.\
+    /// **Note** that it assumes lines within a chunk are already sorted by timestamp.
     pub fn add_logs_chunk(&mut self, chunk: LogsChunk) {
-        self.count = 0; // force re-render current logs page
-
-        for line in chunk.lines {
-            let width = if self.show_timestamps {
-                line.message.chars().count() + TIMESTAMP_TEXT_LENGTH
-            } else {
-                line.message.chars().count()
-            };
-
-            if self.max_size < width {
-                self.max_size = width;
-            }
-
-            self.lowercase.push(line.message.to_ascii_lowercase());
-            self.lines.push(line);
+        if chunk.lines.is_empty() {
+            return;
         }
+
+        self.update_max_size(&chunk);
+
+        if self.lines.is_empty() {
+            self.lines = chunk.lines;
+            return;
+        }
+
+        if log_line_sort_key(&chunk.lines[0]) >= log_line_sort_key(self.lines.last().unwrap()) {
+            self.lines.extend(chunk.lines);
+            return;
+        }
+
+        let merged = self.merge_sorted(chunk.lines);
+        self.lines = merged;
+    }
+
+    /// Merge a batch of new lines into the sorted `self.lines`.
+    fn merge_sorted(&mut self, incoming: Vec<LogLine>) -> Vec<LogLine> {
+        let mut merged = Vec::with_capacity(self.lines.len() + incoming.len());
+
+        let mut existing_iter = self.lines.drain(..).peekable();
+        let mut incoming_iter = incoming.into_iter().peekable();
+
+        loop {
+            match (existing_iter.peek(), incoming_iter.peek()) {
+                (Some(a), Some(b)) => {
+                    if log_line_sort_key(a) <= log_line_sort_key(b) {
+                        merged.push(existing_iter.next().unwrap());
+                    } else {
+                        merged.push(incoming_iter.next().unwrap());
+                    }
+                },
+                (Some(_), None) => {
+                    merged.extend(existing_iter);
+                    break;
+                },
+                (None, Some(_)) => {
+                    merged.extend(incoming_iter);
+                    break;
+                },
+                (None, None) => break,
+            }
+        }
+
+        merged
+    }
+
+    fn update_max_size(&mut self, chunk: &LogsChunk) {
+        let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
+        let max_size = chunk
+            .lines
+            .iter()
+            .map(|line| line.message.chars().count() + timestamp_extra)
+            .max()
+            .unwrap_or(0);
+
+        self.count = 0; // force re-render current logs page
+        self.max_size = self.max_size.max(max_size);
     }
 
     fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
@@ -173,7 +219,7 @@ impl Content for LogsContent {
 
     fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
-        for (y, line) in self.lowercase.iter().enumerate() {
+        for (y, line) in self.lines.iter().map(|l| &l.lowercase).enumerate() {
             if let Some(x) = line.find(&pattern) {
                 return Some(MatchPosition::new(x, y, pattern.len()));
             }
@@ -185,7 +231,7 @@ impl Content for LogsContent {
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
-        for (y, line) in self.lowercase.iter().enumerate() {
+        for (y, line) in self.lines.iter().map(|l| &l.lowercase).enumerate() {
             for (x, _) in line.match_indices(&pattern) {
                 matches.push(MatchPosition::new(x, y, pattern.len()));
             }
@@ -220,4 +266,9 @@ impl Content for LogsContent {
             None
         }
     }
+}
+
+/// Get deterministic ordering for lines with identical timestamps.
+fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
+    (line.datetime, &line.container)
 }
