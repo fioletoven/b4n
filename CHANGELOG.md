@@ -2,9 +2,18 @@
 
 ## WIP
 
+### Features
+
+- view combined logs for all containers in a pod
+
 ### Bug fixes
 
 - do not wait on CRDs for OOB resources
+- fix double click select behaviour
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.0 - 2026-02-02
 

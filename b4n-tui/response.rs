@@ -74,8 +74,8 @@ pub enum ResponseEvent {
 
     NewYaml(ResourceRef, bool),
     ViewYaml(ResourceRef, bool, bool),
-    ViewLogs(ResourceRef),
-    ViewPreviousLogs(ResourceRef),
+    ViewLogs(ResourceRef, Option<Vec<String>>),
+    ViewPreviousLogs(ResourceRef, Option<Vec<String>>),
 
     OpenShell(ResourceRef),
     ShowPortForwards,

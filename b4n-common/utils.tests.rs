@@ -9,6 +9,9 @@ fn word_bounds_test() {
     assert_eq!((0, 4), word_bounds(msg, 2).unwrap());
     assert_eq!((6, 10), word_bounds(msg, 8).unwrap());
 
+    let msg = " Hello world";
+    assert_eq!((1, 5), word_bounds(msg, 3).unwrap());
+
     let msg = "  Hello! wor_ld, example?";
     assert_eq!(None, word_bounds(msg, 0));
     assert_eq!(None, word_bounds(msg, 7));

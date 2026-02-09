@@ -11,6 +11,8 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::ui::views::logs::line::{LogLine, LogsChunk};
+
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
 pub enum LogsObserverError {
@@ -19,17 +21,7 @@ pub enum LogsObserverError {
     KubeClientError(#[from] kube::Error),
 }
 
-pub struct LogLine {
-    pub datetime: Timestamp,
-    pub message: String,
-    pub is_error: bool,
-}
-
-pub struct LogsChunk {
-    pub end: Timestamp,
-    pub lines: Vec<LogLine>,
-}
-
+/// Kubernetes pod logs observer.
 pub struct LogsObserver {
     runtime: Handle,
     task: Option<JoinHandle<()>>,
@@ -50,7 +42,14 @@ impl LogsObserver {
         }
     }
 
-    pub fn start(&mut self, client: &KubernetesClient, pod: PodRef, tail_lines: Option<i64>, previous: bool) {
+    pub fn start(
+        &mut self,
+        client: &KubernetesClient,
+        pod: PodRef,
+        tail_lines: Option<i64>,
+        previous: bool,
+        include_container: bool,
+    ) {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _client = client.get_client();
@@ -62,6 +61,7 @@ impl LogsObserver {
                 pod: &pod,
                 tail_lines,
                 previous,
+                include_container,
                 api: &api,
                 channel: &_context_tx,
                 cancellation_token: &_cancellation_token,
@@ -88,7 +88,8 @@ impl LogsObserver {
                 context.pod.name,
                 context.pod.container.as_deref().unwrap_or_default()
             );
-            context.send_logs_chunk(process_error(msg));
+            let container = if include_container { pod.container.as_deref() } else { None };
+            context.send_logs_chunk(process_error(container, msg));
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -129,6 +130,7 @@ struct ObserverContext<'a> {
     pod: &'a PodRef,
     tail_lines: Option<i64>,
     previous: bool,
+    include_container: bool,
     api: &'a Api<Pod>,
     channel: &'a UnboundedSender<Box<LogsChunk>>,
     cancellation_token: &'a CancellationToken,
@@ -150,6 +152,12 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
         ..LogParams::default()
     };
 
+    let container = if context.include_container {
+        context.pod.container.as_deref()
+    } else {
+        None
+    };
+
     if let Some(since_time) = since_time {
         params.since_time = Some(since_time);
     } else {
@@ -159,7 +167,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            context.send_logs_chunk(process_error(err.to_string()));
+            context.send_logs_chunk(process_error(container, err.to_string()));
             return (true, None);
         },
     };
@@ -172,7 +180,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
             line = lines.try_next() => {
                 match line {
                     Ok(Some(line)) => {
-                        if let Some(line) = process_line(&line) {
+                        if let Some(line) = process_line(container, &line) {
                             last_message_time = Some(line.end);
                             context.send_logs_chunk(line);
                         }
@@ -182,7 +190,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                         break;
                     },
                     Err(err) => {
-                        context.send_logs_chunk(process_error(err.to_string()));
+                        context.send_logs_chunk(process_error(container, err.to_string()));
                         break;
                     },
                 }
@@ -193,29 +201,22 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     (should_continue, last_message_time)
 }
 
-fn process_line(line: &str) -> Option<LogsChunk> {
+fn process_line(container: Option<&str>, line: &str) -> Option<LogsChunk> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
+    let msg = split.next()?.replace('\t', "    ");
 
     Some(LogsChunk {
         end: dt,
-        lines: vec![LogLine {
-            datetime: dt,
-            message: split.next()?.replace('\t', "    "),
-            is_error: false,
-        }],
+        lines: vec![LogLine::new(dt, container, msg)],
     })
 }
 
-fn process_error(error: String) -> LogsChunk {
+fn process_error(container: Option<&str>, error: String) -> LogsChunk {
     let dt = Timestamp::now();
 
     LogsChunk {
         end: dt,
-        lines: vec![LogLine {
-            datetime: dt,
-            message: error,
-            is_error: true,
-        }],
+        lines: vec![LogLine::error(dt, container, error)],
     }
 }

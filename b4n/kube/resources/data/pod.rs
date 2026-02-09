@@ -63,7 +63,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        tags: get_single_container(&spec["containers"]),
+        tags: get_containers(&spec["containers"]),
     }
 }
 
@@ -145,17 +145,21 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     None
 }
 
-fn get_single_container(containers: &Value) -> Box<[String]> {
-    if let Some(name) = get_single_container_name(containers) {
-        Box::new([name])
+fn get_containers(containers: &Value) -> Box<[String]> {
+    if let Some(names) = get_containers_names(containers) {
+        names.into_boxed_slice()
     } else {
         Box::default()
     }
 }
 
-fn get_single_container_name(containers: &Value) -> Option<String> {
-    match containers.as_array()?.as_slice() {
-        [one] => one.as_object()?.get("name")?.as_str().map(String::from),
-        _ => None,
-    }
+fn get_containers_names(containers: &Value) -> Option<Vec<String>> {
+    Some(
+        containers
+            .as_array()?
+            .iter()
+            .flat_map(|i| i["name"].as_str())
+            .map(String::from)
+            .collect(),
+    )
 }

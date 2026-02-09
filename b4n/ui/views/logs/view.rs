@@ -1,32 +1,38 @@
-use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, slice_from, slice_to, substring};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{PODS, PodRef, ResourceRef};
+use b4n_kube::{PODS, PodRef};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
-use ratatui::style::Style;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentPosition, ContentViewer, MatchPosition, Selection, StyledLine};
+use crate::ui::presentation::{Content, ContentViewer};
 use crate::ui::views::View;
+use crate::ui::views::logs::content::{LogsContent, TIMESTAMP_TEXT_LENGTH};
+use crate::ui::views::logs::{LogsObserver, LogsObserverError};
 use crate::ui::widgets::{CommandPalette, Search};
 
-use super::{LogLine, LogsObserver, LogsObserverError};
+/// Possible errors from [`LogsObserver`].
+#[derive(thiserror::Error, Debug)]
+pub enum LogsViewError {
+    /// No containers to observe provided.
+    #[error("no containers provided")]
+    NoContainersToObserve,
 
-const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
-const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
-const TIMESTAMP_TEXT_LENGTH: usize = 24;
+    /// Kubernetes client error.
+    #[error("kubernetes client error")]
+    ObserverError(#[from] LogsObserverError),
+}
 
 /// Logs view.
 pub struct LogsView {
     logs: ContentViewer<LogsContent>,
     app_data: SharedAppData,
-    observer: LogsObserver,
+    observers: Vec<LogsObserver>,
     last_mouse_click: Option<Position>,
     command_palette: CommandPalette,
     search: Search,
@@ -41,36 +47,42 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         client: &KubernetesClient,
-        resource: ResourceRef,
+        containers: Vec<PodRef>,
         previous: bool,
         footer: NotificationSink,
         workspace: Rect,
-    ) -> Result<Self, LogsObserverError> {
-        let pod = PodRef {
-            name: resource.name.clone().unwrap_or_default(),
-            namespace: resource.namespace.clone(),
-            container: resource.container.clone(),
-        };
+    ) -> Result<Self, LogsViewError> {
+        if containers.is_empty() {
+            return Err(LogsViewError::NoContainersToObserve);
+        }
+
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
         let area = ContentViewer::<LogsContent>::get_content_area(workspace);
+        let container = (containers.len() == 1).then(|| containers[0].container.clone()).flatten();
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
             '',
-            resource.namespace,
+            containers[0].namespace.clone(),
             PODS.into(),
-            resource.name,
-            resource.container,
+            Some(containers[0].name.clone()),
+            container,
         );
 
-        let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-        observer.start(client, pod, app_data.borrow().config.logs.lines, previous);
+        let include_containers = containers.len() > 1;
+        let mut observers = Vec::with_capacity(containers.len());
+        for pod in containers {
+            let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
+            observer.start(client, pod, app_data.borrow().config.logs.lines, previous, include_containers);
+            observers.push(observer);
+        }
+
         let search = Search::new(Rc::clone(&app_data), Some(worker), 65);
 
         Ok(Self {
             logs,
             app_data,
-            observer,
+            observers,
             last_mouse_click: None,
             command_palette: CommandPalette::default(),
             search,
@@ -118,12 +130,6 @@ impl LogsView {
         self.logs.clear_selection();
         if let Some(content) = self.logs.content_mut() {
             content.toggle_timestamps();
-            if content.show_timestamps {
-                content.max_size = content.max_size.saturating_add(TIMESTAMP_TEXT_LENGTH);
-            } else {
-                content.max_size = content.max_size.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-            }
-
             self.logs.reset_horizontal_scroll();
         }
     }
@@ -170,7 +176,7 @@ impl LogsView {
     }
 
     fn get_offset(&self) -> Option<Position> {
-        if self.logs.content().is_some_and(|c| c.show_timestamps) {
+        if self.logs.content().is_some_and(|c| c.show_timestamps()) {
             Some(Position::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
         } else {
             None
@@ -202,46 +208,29 @@ impl LogsView {
 
 impl View for LogsView {
     fn process_tick(&mut self) -> ResponseEvent {
-        if !self.observer.is_empty() {
-            if !self.logs.has_content() {
-                let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
-                content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
-                self.logs.set_content(content);
-            }
+        let mut needs_update = false;
+        for observer in &mut self.observers {
+            if !observer.is_empty() {
+                needs_update = true;
+                if !self.logs.has_content() {
+                    let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
+                    content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
+                    self.logs.set_content(content);
+                }
 
-            let content = self.logs.content_mut().unwrap();
-            let mut max_width = 0;
+                let content = self.logs.content_mut().unwrap();
+                while let Some(chunk) = observer.try_next() {
+                    content.add_logs_chunk(*chunk);
+                }
 
-            content.count = 0; // force re-render current logs page
-            while let Some(chunk) = self.observer.try_next() {
-                for line in chunk.lines {
-                    let width = if content.show_timestamps {
-                        line.message.chars().count() + TIMESTAMP_TEXT_LENGTH
-                    } else {
-                        line.message.chars().count()
-                    };
-                    if max_width < width {
-                        max_width = width;
-                    }
-
-                    content.lowercase.push(line.message.to_ascii_lowercase());
-                    content.lines.push(line);
+                if self.bound_to_bottom {
+                    self.logs.scroll_to_end();
                 }
             }
+        }
 
-            if let Some(content) = self.logs.content_mut()
-                && content.max_size < max_width
-            {
-                content.max_size = max_width;
-            }
-
-            if self.bound_to_bottom {
-                self.logs.scroll_to_end();
-            }
-
-            if self.logs.search(self.search.value(), true) {
-                self.update_search_count();
-            }
+        if needs_update && self.logs.search(self.search.value(), true) {
+            self.update_search_count();
         }
 
         ResponseEvent::Handled
@@ -345,190 +334,8 @@ impl View for LogsView {
 
 impl Drop for LogsView {
     fn drop(&mut self) {
-        self.observer.stop();
-    }
-}
-
-/// Logs content for [`LogsView`].
-struct LogsContent {
-    show_timestamps: bool,
-    colors: LogsSyntaxColors,
-    lines: Vec<LogLine>,
-    lowercase: Vec<String>,
-    page: Vec<StyledLine>,
-    max_size: usize,
-    start: usize,
-    count: usize,
-}
-
-impl LogsContent {
-    /// Returns new [`LogsContent`] instance.
-    fn new(colors: LogsSyntaxColors) -> Self {
-        Self {
-            show_timestamps: true,
-            colors,
-            lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
-            lowercase: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
-            page: Vec::default(),
-            max_size: 0,
-            start: 0,
-            count: 0,
-        }
-    }
-
-    fn set_timestamps(&mut self, enabled: bool) {
-        if self.show_timestamps != enabled {
-            self.show_timestamps = enabled;
-            self.count = 0;
-        }
-    }
-
-    fn toggle_timestamps(&mut self) {
-        self.show_timestamps = !self.show_timestamps;
-        self.count = 0;
-    }
-
-    fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
-        let log_colors = if line.is_error {
-            &self.colors.error
-        } else {
-            &self.colors.string
-        };
-
-        if self.show_timestamps {
-            vec![
-                (
-                    (&self.colors.timestamp).into(),
-                    line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string(),
-                ),
-                (log_colors.into(), line.message.clone()),
-            ]
-        } else {
-            vec![(log_colors.into(), line.message.clone())]
-        }
-    }
-}
-
-impl Content for LogsContent {
-    fn page(&mut self, start: usize, count: usize) -> &[StyledLine] {
-        if start >= self.lines.len() {
-            return &[];
-        }
-
-        let end = start + count;
-        let end = if end >= self.lines.len() { self.lines.len() } else { end };
-        if self.start != start || self.count != count {
-            self.start = start;
-            self.count = count;
-            self.page = Vec::with_capacity(end - start);
-
-            for line in &self.lines[start..end] {
-                self.page.push(self.style_log_line(line));
-            }
-        }
-
-        &self.page
-    }
-
-    fn len(&self) -> usize {
-        self.lines.len()
-    }
-
-    fn hash(&self) -> u64 {
-        0
-    }
-
-    fn to_plain_text(&self, range: Option<Selection>) -> String {
-        let range = range.map(|r| r.sorted());
-        let (start, end) = range.map_or_else(|| (0, self.lines.len()), |(s, e)| (s.y, e.y));
-        let start_line = start.min(self.lines.len().saturating_sub(1));
-        let end_line = end.min(self.lines.len().saturating_sub(1));
-        let (start, end) = range.map_or_else(|| (0, self.line_size(end_line).saturating_sub(1)), |(s, e)| (s.x, e.x));
-
-        let mut result = String::new();
-        for i in start_line..=end_line {
-            let line = &self.lines[i];
-            if i == start_line || i == end_line {
-                let text = if self.show_timestamps {
-                    format!("{}{}", line.datetime.strftime(TIMESTAMP_TEXT_FORMAT), line.message)
-                } else {
-                    line.message.clone()
-                };
-
-                if i == start_line && i == end_line {
-                    result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
-                    if text.chars().count() < end + 1 {
-                        result.push('\n');
-                    }
-                } else if i == start_line {
-                    result.push_str(slice_from(&text, start));
-                    result.push('\n');
-                } else if i == end_line {
-                    result.push_str(slice_to(&text, end + 1));
-                    if text.chars().count() < end + 1 {
-                        result.push('\n');
-                    }
-                }
-            } else {
-                if self.show_timestamps {
-                    result.push_str(&line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string());
-                }
-
-                result.push_str(&line.message);
-                result.push('\n');
-            }
-        }
-
-        result
-    }
-
-    fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
-        let pattern = pattern.to_ascii_lowercase();
-        for (y, line) in self.lowercase.iter().enumerate() {
-            if let Some(x) = line.find(&pattern) {
-                return Some(MatchPosition::new(x, y, pattern.len()));
-            }
-        }
-
-        None
-    }
-
-    fn search(&self, pattern: &str) -> Vec<MatchPosition> {
-        let pattern = pattern.to_ascii_lowercase();
-        let mut matches = Vec::new();
-        for (y, line) in self.lowercase.iter().enumerate() {
-            for (x, _) in line.match_indices(&pattern) {
-                matches.push(MatchPosition::new(x, y, pattern.len()));
-            }
-        }
-
-        matches
-    }
-
-    fn max_size(&self) -> usize {
-        self.max_size
-    }
-
-    fn line_size(&self, line_no: usize) -> usize {
-        let size = self.lines.get(line_no).map(|l| l.message.chars().count()).unwrap_or_default();
-        if self.show_timestamps {
-            size + TIMESTAMP_TEXT_LENGTH
-        } else {
-            size
-        }
-    }
-
-    fn word_bounds(&self, position: ContentPosition) -> Option<(usize, usize)> {
-        if let Some(line) = self.lines.get(position.y) {
-            if self.show_timestamps {
-                let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-                let bounds = b4n_common::word_bounds(&line.message, idx);
-                bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
-            } else {
-                b4n_common::word_bounds(&line.message, position.x)
-            }
-        } else {
-            None
+        for observer in &mut self.observers {
+            observer.stop();
         }
     }
 }
