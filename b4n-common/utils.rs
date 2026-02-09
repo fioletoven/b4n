@@ -78,17 +78,14 @@ pub fn word_bounds(s: &str, idx: usize) -> Option<(usize, usize)> {
         end = i;
 
         if i < idx && !is_word {
-            start = i;
+            start = i + 1;
         } else if i >= idx && !is_word {
             end = i.saturating_sub(1);
             break;
         }
     }
 
-    if start > 0 {
-        start = std::cmp::min(start + 1, end);
-    }
-
+    start = start.min(end);
     if start == end || end < idx { None } else { Some((start, end)) }
 }
 
