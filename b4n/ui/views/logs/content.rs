@@ -1,9 +1,10 @@
 use b4n_common::{slice_from, slice_to, substring};
 use b4n_config::themes::LogsSyntaxColors;
 use ratatui::style::Style;
+use std::fmt::Write;
 
 use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyledLine};
-use crate::ui::views::logs::{LogLine, LogsChunk};
+use crate::ui::views::logs::line::{LogLine, LogsChunk};
 
 pub const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 pub const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
@@ -34,6 +35,7 @@ impl LogsContent {
         }
     }
 
+    /// Sets if showing timestamps is enabled.
     pub fn set_timestamps(&mut self, enabled: bool) {
         if self.show_timestamps != enabled {
             self.show_timestamps = enabled;
@@ -41,6 +43,7 @@ impl LogsContent {
         }
     }
 
+    /// Toggles showing timestamps.
     pub fn toggle_timestamps(&mut self) {
         self.show_timestamps = !self.show_timestamps;
         self.count = 0;
@@ -52,6 +55,7 @@ impl LogsContent {
         }
     }
 
+    /// Returns `true` if showing timestamps is enabled.
     pub fn show_timestamps(&self) -> bool {
         self.show_timestamps
     }
@@ -115,7 +119,7 @@ impl LogsContent {
         let max_size = chunk
             .lines
             .iter()
-            .map(|line| line.message.chars().count() + timestamp_extra)
+            .map(|line| line.width() + timestamp_extra)
             .max()
             .unwrap_or(0);
 
@@ -180,38 +184,40 @@ impl Content for LogsContent {
 
     fn to_plain_text(&self, range: Option<Selection>) -> String {
         let range = range.map(|r| r.sorted());
-        let (start, end) = range.map_or_else(|| (0, self.lines.len()), |(s, e)| (s.y, e.y));
-        let start_line = start.min(self.lines.len().saturating_sub(1));
-        let end_line = end.min(self.lines.len().saturating_sub(1));
-        let (start, end) = range.map_or_else(|| (0, self.line_size(end_line).saturating_sub(1)), |(s, e)| (s.x, e.x));
+        let (start_y, end_y) = range.map_or_else(|| (0, self.lines.len()), |(s, e)| (s.y, e.y));
+        let start_line = start_y.min(self.lines.len().saturating_sub(1));
+        let end_line = end_y.min(self.lines.len().saturating_sub(1));
+        let (start_x, end_x) = range.map_or_else(|| (0, self.line_size(end_line).saturating_sub(1)), |(s, e)| (s.x, e.x));
 
         let mut result = String::new();
         for i in start_line..=end_line {
             let line = &self.lines[i];
             if i == start_line || i == end_line {
-                let text = if self.show_timestamps {
-                    format!("{}{}", line.datetime.strftime(TIMESTAMP_TEXT_FORMAT), line.message)
-                } else {
-                    line.message.clone()
-                };
+                let dt = self.show_timestamps.then(|| line.datetime.strftime(TIMESTAMP_TEXT_FORMAT));
+                let text = line.get_text(dt, TIMESTAMP_TEXT_LENGTH);
 
                 if i == start_line && i == end_line {
-                    result.push_str(substring(&text, start, (end + 1).saturating_sub(start)));
-                    if text.chars().count() < end + 1 {
+                    result.push_str(substring(&text, start_x, (end_x + 1).saturating_sub(start_x)));
+                    if text.chars().count() < end_x + 1 {
                         result.push('\n');
                     }
                 } else if i == start_line {
-                    result.push_str(slice_from(&text, start));
+                    result.push_str(slice_from(&text, start_x));
                     result.push('\n');
                 } else if i == end_line {
-                    result.push_str(slice_to(&text, end + 1));
-                    if text.chars().count() < end + 1 {
+                    result.push_str(slice_to(&text, end_x + 1));
+                    if text.chars().count() < end_x + 1 {
                         result.push('\n');
                     }
                 }
             } else {
                 if self.show_timestamps {
-                    result.push_str(&line.datetime.strftime(TIMESTAMP_TEXT_FORMAT).to_string());
+                    write!(result, "{}", line.datetime.strftime(TIMESTAMP_TEXT_FORMAT)).unwrap();
+                }
+
+                if let Some(container) = &line.container {
+                    result.push_str(container);
+                    result.push_str(": ");
                 }
 
                 result.push_str(&line.message);
@@ -224,9 +230,9 @@ impl Content for LogsContent {
 
     fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
-        for (y, line) in self.lines.iter().map(|l| &l.lowercase).enumerate() {
-            if let Some(x) = line.find(&pattern) {
-                return Some(MatchPosition::new(x, y, pattern.len()));
+        for (y, line) in self.lines.iter().enumerate() {
+            if let Some(x) = line.lowercase.find(&pattern) {
+                return Some(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
 
@@ -236,9 +242,9 @@ impl Content for LogsContent {
     fn search(&self, pattern: &str) -> Vec<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
-        for (y, line) in self.lines.iter().map(|l| &l.lowercase).enumerate() {
-            for (x, _) in line.match_indices(&pattern) {
-                matches.push(MatchPosition::new(x, y, pattern.len()));
+        for (y, line) in self.lines.iter().enumerate() {
+            for (x, _) in line.lowercase.match_indices(&pattern) {
+                matches.push(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
 
@@ -250,7 +256,7 @@ impl Content for LogsContent {
     }
 
     fn line_size(&self, line_no: usize) -> usize {
-        let size = self.lines.get(line_no).map(|l| l.message.chars().count()).unwrap_or_default();
+        let size = self.lines.get(line_no).map(LogLine::width).unwrap_or_default();
         if self.show_timestamps {
             size + TIMESTAMP_TEXT_LENGTH
         } else {
@@ -260,12 +266,13 @@ impl Content for LogsContent {
 
     fn word_bounds(&self, position: ContentPosition) -> Option<(usize, usize)> {
         if let Some(line) = self.lines.get(position.y) {
+            let position = line.map_position(position);
             if self.show_timestamps {
                 let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-                let bounds = b4n_common::word_bounds(&line.message, idx);
+                let bounds = line.map_bounds(b4n_common::word_bounds(&line.message, idx));
                 bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
             } else {
-                b4n_common::word_bounds(&line.message, position.x)
+                line.map_bounds(b4n_common::word_bounds(&line.message, position.x))
             }
         } else {
             None

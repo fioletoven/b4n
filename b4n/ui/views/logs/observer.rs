@@ -11,6 +11,8 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::ui::views::logs::line::{LogLine, LogsChunk};
+
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
 pub enum LogsObserverError {
@@ -19,19 +21,7 @@ pub enum LogsObserverError {
     KubeClientError(#[from] kube::Error),
 }
 
-pub struct LogLine {
-    pub datetime: Timestamp,
-    pub container: Option<String>,
-    pub message: String,
-    pub lowercase: String,
-    pub is_error: bool,
-}
-
-pub struct LogsChunk {
-    pub end: Timestamp,
-    pub lines: Vec<LogLine>,
-}
-
+/// Kubernetes pod logs observer.
 pub struct LogsObserver {
     runtime: Handle,
     task: Option<JoinHandle<()>>,
@@ -215,17 +205,10 @@ fn process_line(container: Option<&str>, line: &str) -> Option<LogsChunk> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
     let msg = split.next()?.replace('\t', "    ");
-    let lower = msg.to_ascii_lowercase();
 
     Some(LogsChunk {
         end: dt,
-        lines: vec![LogLine {
-            datetime: dt,
-            container: container.map(String::from),
-            message: msg,
-            lowercase: lower,
-            is_error: false,
-        }],
+        lines: vec![LogLine::new(dt, container, msg)],
     })
 }
 
@@ -234,12 +217,6 @@ fn process_error(container: Option<&str>, error: String) -> LogsChunk {
 
     LogsChunk {
         end: dt,
-        lines: vec![LogLine {
-            datetime: dt,
-            container: container.map(String::from),
-            message: error,
-            lowercase: String::new(),
-            is_error: true,
-        }],
+        lines: vec![LogLine::error(dt, container, error)],
     }
 }
