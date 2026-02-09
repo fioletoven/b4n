@@ -179,6 +179,7 @@ pub struct LogsSyntaxColors {
     pub timestamp: TextColors,
     pub search: Color,
     pub select: Color,
+    pub containers: Vec<TextColors>,
 }
 
 /// All colors in theme.
@@ -278,6 +279,12 @@ impl Default for Theme {
                         timestamp: TextColors::new(Color::Magenta),
                         search: Color::Rgb(135, 114, 72),
                         select: Color::DarkGray,
+                        containers: vec![
+                            TextColors::new(Color::Green),
+                            TextColors::new(Color::Blue),
+                            TextColors::new(Color::Cyan),
+                            TextColors::new(Color::Yellow),
+                        ],
                     },
                 },
             },

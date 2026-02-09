@@ -1,6 +1,7 @@
 use b4n_common::{slice_from, slice_to, substring};
 use b4n_config::themes::LogsSyntaxColors;
 use ratatui::style::Style;
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyledLine};
@@ -14,6 +15,7 @@ pub const TIMESTAMP_TEXT_LENGTH: usize = 24;
 pub struct LogsContent {
     show_timestamps: bool,
     colors: LogsSyntaxColors,
+    container_colors: HashMap<String, usize>,
     lines: Vec<LogLine>,
     page: Vec<StyledLine>,
     max_size: usize,
@@ -27,6 +29,7 @@ impl LogsContent {
         Self {
             show_timestamps: true,
             colors,
+            container_colors: HashMap::new(),
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
             max_size: 0,
@@ -143,7 +146,9 @@ impl LogsContent {
         }
 
         if let Some(container) = line.container.as_deref() {
-            result.push((log_colors.into(), container.to_owned()));
+            let idx = self.container_colors.get(container).copied().unwrap_or(0) % self.colors.containers.len().max(1);
+            let container_colors = self.colors.containers.get(idx).unwrap_or(log_colors);
+            result.push((container_colors.into(), container.to_owned()));
             result.push((log_colors.into(), ": ".to_owned()));
         }
 
@@ -167,6 +172,7 @@ impl Content for LogsContent {
             self.page = Vec::with_capacity(end - start);
 
             for line in &self.lines[start..end] {
+                ensure_container_has_color(&mut self.container_colors, line.container.as_deref());
                 self.page.push(self.style_log_line(line));
             }
         }
@@ -283,4 +289,13 @@ impl Content for LogsContent {
 /// Get deterministic ordering for lines with identical timestamps.
 fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
     (line.datetime, &line.container)
+}
+
+fn ensure_container_has_color(container_colors: &mut HashMap<String, usize>, container: Option<&str>) {
+    if let Some(container) = container
+        && !container_colors.contains_key(container)
+    {
+        let idx = container_colors.len();
+        container_colors.insert(container.to_owned(), idx);
+    }
 }

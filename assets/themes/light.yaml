@@ -12,6 +12,7 @@ palette:
   green: Green
   blue: Blue
   yellow: Yellow
+  cyan: Cyan
   magenta: Magenta
   light_red: LightRed
   light_green: LightGreen
@@ -114,3 +115,8 @@ colors:
       timestamp: magenta:no_bg
       search: select_yellow
       select: select_light
+      containers:
+      - green
+      - blue
+      - cyan
+      - yellow
