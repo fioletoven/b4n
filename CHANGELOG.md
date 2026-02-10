@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.4.1 - 2026-02-10
 
 ### Features
 
@@ -9,7 +9,7 @@
 ### Bug fixes
 
 - do not wait on CRDs for OOB resources
-- fix double click select behaviour
+- fix double click behaviour for word select
 
 ### Compatibility
 
