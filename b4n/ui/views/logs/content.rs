@@ -149,7 +149,7 @@ impl LogsContent {
             let idx = self.container_colors.get(container).copied().unwrap_or(0) % self.colors.containers.len().max(1);
             let container_colors = self.colors.containers.get(idx).unwrap_or(log_colors);
             result.push((container_colors.into(), container.to_owned()));
-            result.push((log_colors.into(), ": ".to_owned()));
+            result.push(((&self.colors.string).into(), ": ".to_owned()));
         }
 
         result.push((log_colors.into(), line.message.clone()));

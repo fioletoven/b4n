@@ -176,7 +176,7 @@ impl LogsView {
     }
 
     fn get_offset(&self) -> Option<Position> {
-        if self.logs.content().is_some_and(|c| c.show_timestamps()) {
+        if self.logs.content().is_some_and(LogsContent::show_timestamps) {
             Some(Position::new(TIMESTAMP_TEXT_LENGTH as u16, 0))
         } else {
             None

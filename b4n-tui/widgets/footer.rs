@@ -10,10 +10,12 @@ use std::collections::VecDeque;
 use std::{rc::Rc, time::Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
+use crate::utils::{get_styled_line, get_styled_spans};
 use crate::widgets::history::{BottomPane, MessageItem};
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
-const FOOTER_APP_VERSION: &str = concat!(" b4n v", env!("CARGO_PKG_VERSION"), " ");
+const FOOTER_APP_VERSION: &str = concat!(" b4n ␝v␝", env!("CARGO_PKG_VERSION"), " ");
+const FOOTER_APP_VERSION_LEN: usize = FOOTER_APP_VERSION.len() - 4;
 const MESSAGE_HISTORY_SIZE: usize = 20;
 
 /// Footer widget.
@@ -154,8 +156,8 @@ impl Footer {
             .split(area);
 
         if draw_hint && let Some(hint) = &self.hint {
-            let style = Style::new().fg(colors.footer.text.dim).bg(colors.footer.text.bg);
-            frame.render_widget(Paragraph::new(Line::styled(hint, style)), layout[1]);
+            let line = get_styled_line(hint, colors.footer.hint);
+            frame.render_widget(Paragraph::new(line), layout[1]);
         } else {
             frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
         }
@@ -174,7 +176,7 @@ impl Footer {
     fn get_hint_length(&self) -> u16 {
         self.hint
             .as_deref()
-            .map(|h| h.chars().count())
+            .map(|h| h.chars().filter(|ch| *ch != '␝').count())
             .and_then(|l| u16::try_from(l).ok())
             .unwrap_or_default()
     }
@@ -295,11 +297,11 @@ impl Footer {
         let width = usize::from(width);
         let mut rendered = 0;
         let mut spans = Vec::with_capacity(10);
-        let mut total = FOOTER_APP_VERSION.len();
+        let mut total = FOOTER_APP_VERSION_LEN;
 
         spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
         spans.push(Span::styled(" ", &colors.footer.text));
-        spans.push(Span::styled(FOOTER_APP_VERSION, &colors.footer.text));
+        spans.extend(get_styled_spans(FOOTER_APP_VERSION, colors.footer.text));
 
         if self.show_trail && !self.trail.is_empty() {
             spans.push(Span::styled("  ", &colors.footer.text));

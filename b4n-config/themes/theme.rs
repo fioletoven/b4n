@@ -46,6 +46,7 @@ pub struct FooterColors {
     pub trail: TextColors,
     pub info: TextColors,
     pub error: TextColors,
+    pub details: TextColors,
     pub hint: TextColors,
 }
 
@@ -56,7 +57,8 @@ impl Default for FooterColors {
             trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             error: TextColors::bg(Color::LightRed, Color::DarkGray),
-            hint: TextColors::bg(Color::DarkGray, Color::Gray),
+            details: TextColors::bg(Color::DarkGray, Color::Gray),
+            hint: TextColors::dim(Color::Black, Color::Yellow, Color::DarkGray),
         }
     }
 }

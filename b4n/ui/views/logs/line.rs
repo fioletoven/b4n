@@ -3,6 +3,7 @@ use std::fmt::{Display, Write};
 
 use crate::ui::presentation::ContentPosition;
 
+/// Represents one log line.
 pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
@@ -73,7 +74,7 @@ impl LogLine {
     pub fn get_text(&self, prefix: Option<impl Display>, prefix_len: usize) -> String {
         let mut result = String::with_capacity(self.width() + if prefix.is_some() { prefix_len } else { 0 });
         if let Some(prefix) = prefix {
-            write!(result, "{}", prefix).unwrap();
+            write!(result, "{prefix}").unwrap();
         }
 
         if let Some(container) = &self.container {

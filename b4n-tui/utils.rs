@@ -1,10 +1,12 @@
 use anyhow::Result;
+use b4n_config::themes::TextColors;
 use crossterm::ExecutableCommand;
 use crossterm::cursor::SetCursorStyle;
 use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
 use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui_core::style::{Color, Style};
 use ratatui_core::terminal::Frame;
+use ratatui_core::text::{Line, Span};
 use ratatui_widgets::block::Block;
 use ratatui_widgets::clear::Clear;
 use std::io::stdout;
@@ -56,6 +58,22 @@ pub fn get_proportional_width(area_width: u16, width: u16, use_proportion: bool)
     }
 
     area_width.min(width).saturating_sub(2)
+}
+
+/// Gets [`Line`] from string slice colored using specified [`TextColors`].
+pub fn get_styled_line(line: &str, color: TextColors) -> Line<'_> {
+    Line::from(get_styled_spans(line, color))
+}
+
+/// Gets [`Span`]s from string slice colored using specified [`TextColors`].
+pub fn get_styled_spans(line: &str, color: TextColors) -> Vec<Span<'_>> {
+    line.split('␝')
+        .enumerate()
+        .map(|(idx, element)| {
+            let fg = if idx % 2 == 0 { color.fg } else { color.dim };
+            Span::styled(element, Style::default().fg(fg).bg(color.bg))
+        })
+        .collect::<Vec<_>>()
 }
 
 /// Sets panic hook that additionally leaves alternate screen mode on panic.

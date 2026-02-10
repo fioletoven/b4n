@@ -595,10 +595,10 @@ impl YamlView {
         let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
         if self.is_new {
             self.footer
-                .show_hint(format!(" Press {key} to open save dialog (if modified)"));
+                .show_hint(format!(" Press ␝{key}␝ to open save dialog (if modified)"));
         } else {
             self.footer.show_hint(format!(
-                " Press {key} to close edit mode, then {key} for save dialog (if modified)"
+                " Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)"
             ));
         }
     }

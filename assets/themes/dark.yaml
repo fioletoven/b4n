@@ -50,11 +50,12 @@ colors:
     disconnected: white:light_red
     previous: text:no_bg
   footer:
-    text: fg_dark:black:bg_dark
+    text: fg_dark:#A4A6B8:bg_dark
     trail: blue:yellow:bg_dark
     info: light_green:bg_dark
     error: light_red:bg_dark
-    hint: fg_light:bg_light
+    details: fg_light:bg_light
+    hint: black:yellow:bg_dark
   filter: *filter
   search: *filter
   command_palette: *filter
