@@ -3,6 +3,7 @@ use std::fmt::{Display, Write};
 
 use crate::ui::presentation::ContentPosition;
 
+/// Represents one log line.
 pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
