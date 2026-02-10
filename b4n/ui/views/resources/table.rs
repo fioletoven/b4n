@@ -14,6 +14,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
+use crate::kube::resources::pod::has_one_container;
 use crate::kube::resources::{ResourceItem, ResourcesList};
 use crate::ui::presentation::{ListHeader, ListViewer};
 
@@ -324,37 +325,28 @@ impl ResourcesTable {
                 return self.process_view_yaml(resource, true, true);
             }
 
-            let is_container_name_known =
-                is_container || (self.kind_plural() == PODS && resource.data.as_ref().is_some_and(|d| d.tags.len() == 1));
-            if is_container_name_known {
-                if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
-                    return self.process_view_ports(resource);
-                }
-
+            if is_container || self.kind_plural() == PODS {
+                let is_multiple = !is_container && resource.data.as_ref().is_some_and(|d| d.tags.len() > 1);
                 if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
-                    return self.process_view_logs(resource, true, false);
+                    return self.process_view_logs(resource, !is_multiple, false);
                 }
 
                 if self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen) {
-                    return self.process_view_logs(resource, true, true);
+                    return self.process_view_logs(resource, !is_multiple, true);
                 }
 
-                if self.app_data.has_binding(event, KeyCommand::ShellOpen) {
-                    return self.process_open_shell(resource);
-                }
-            } else if self.kind_plural() == PODS {
-                if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
+                if is_container || has_one_container(resource.data.as_ref()) {
+                    if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
+                        return self.process_view_ports(resource);
+                    }
+
+                    if self.app_data.has_binding(event, KeyCommand::ShellOpen) {
+                        return self.process_open_shell(resource);
+                    }
+                } else if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
                     || self.app_data.has_binding(event, KeyCommand::ShellOpen)
                 {
                     return self.process_enter_key(resource);
-                }
-
-                if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
-                    return self.process_view_logs(resource, false, false);
-                }
-
-                if self.app_data.has_binding(event, KeyCommand::PreviousLogsOpen) {
-                    return self.process_view_logs(resource, false, true);
                 }
             }
         }
@@ -437,8 +429,8 @@ impl ResourcesTable {
                 ));
             }
         } else if self.kind_plural() == PODS && prefer_container {
-            if let Some(data) = resource.data.as_ref()
-                && data.tags.len() == 1
+            if has_one_container(resource.data.as_ref())
+                && let Some(data) = resource.data.as_ref()
             {
                 return Some(ResourceRef::container(
                     resource.name.clone(),

@@ -63,7 +63,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        tags: get_containers(&spec["containers"]),
+        tags: get_containers(&spec["containers"], &spec["initContainers"]),
     }
 }
 
@@ -117,6 +117,15 @@ pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterCon
     }
 }
 
+/// Returns `true` if this pod has one container.
+pub fn has_one_container(data: Option<&ResourceData>) -> bool {
+    if let Some(data) = data {
+        data.extra_values.len() > 1 && data.extra_values[1].raw_text().is_some_and(|t| t.ends_with("/1"))
+    } else {
+        false
+    }
+}
+
 fn get_restarts(containers: &[Value]) -> i64 {
     containers
         .iter()
@@ -145,8 +154,12 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     None
 }
 
-fn get_containers(containers: &Value) -> Box<[String]> {
-    if let Some(names) = get_containers_names(containers) {
+fn get_containers(containers: &Value, init_containers: &Value) -> Box<[String]> {
+    if let Some(mut names) = get_containers_names(containers) {
+        if let Some(mut init) = get_containers_names(init_containers) {
+            names.append(&mut init);
+        }
+
         names.into_boxed_slice()
     } else {
         Box::default()
