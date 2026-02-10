@@ -171,7 +171,7 @@ fn get_containers_names(containers: &Value) -> Option<Vec<String>> {
         containers
             .as_array()?
             .iter()
-            .flat_map(|i| i["name"].as_str())
+            .filter_map(|i| i["name"].as_str())
             .map(String::from)
             .collect(),
     )

@@ -34,7 +34,7 @@ The following features are currently supported:
 - View a list of Kubernetes resources.
 - Create, read, update and delete Kubernetes resources.
 - View events for the highlighted resource.
-- View logs for the highlighted container.
+- View logs for the highlighted pod or container.
 - Open a shell session in the highlighted container.
 - Enable port forwarding for the highlighted container.
 
@@ -42,7 +42,6 @@ The following features are currently supported:
 
 The following features are planned for future development:
 
-- View combined logs for all containers in a pod.
 - Describe Kubernetes resources.
 
 ## Default Key Bindings
@@ -59,6 +58,7 @@ The following features are planned for future development:
 | Go back to namespaces; clear filter       | `ESC`           | Also clears input in the filter widget                      |
 | Navigate to the involved object           | `i`             | Works only for `events` kind                                |
 | Open / switch to the edit mode            | `i`             | Press `Esc` to exit, then `Esc` for save dialog             |
+| Open right mouse button menu              | `m`             | Navigate using `↑` or `↓`                                   |
 | Quit the application                      | `CTRL` + `c`    |                                                             |
 | Reverse selection                         | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Select resource                           | ` `             | (`SPACE`)                                                   |
@@ -68,7 +68,7 @@ The following features are planned for future development:
 | Show events for the highlighted resource  | `e`             |                                                             |
 | Show filter / search input                | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
 | Show footer messages history pane         | `h`             | Also works left mouse button click on the footer            |
-| Show logs for the highlighted container   | `l`             | Press `p` to display previous logs for the container        |
+| Show logs for the pod or container        | `l`             | Press `p` to display previous logs                          |
 | Show namespaces selector                  | `←`             | To select `all` quickly press `←` again                     |
 | Show resources selector                   | `→`             | To select the first item quickly press `→` again            |
 | Show YAML for the highlighted resource    | `y`             |                                                             |

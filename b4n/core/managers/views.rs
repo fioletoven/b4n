@@ -386,7 +386,7 @@ impl ViewsManager {
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.
-    pub fn show_logs(&mut self, resource: ResourceRef, containers: Option<Vec<String>>, previous: bool) {
+    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<String>>, previous: bool) {
         let worker = self.worker.borrow();
         let Some(client) = worker.kubernetes_client() else {
             return;

@@ -61,12 +61,12 @@ pub fn get_proportional_width(area_width: u16, width: u16, use_proportion: bool)
 }
 
 /// Gets [`Line`] from string slice colored using specified [`TextColors`].
-pub fn get_styled_line<'a>(line: &'a str, color: TextColors) -> Line<'a> {
+pub fn get_styled_line(line: &str, color: TextColors) -> Line<'_> {
     Line::from(get_styled_spans(line, color))
 }
 
 /// Gets [`Span`]s from string slice colored using specified [`TextColors`].
-pub fn get_styled_spans<'a>(line: &'a str, color: TextColors) -> Vec<Span<'a>> {
+pub fn get_styled_spans(line: &str, color: TextColors) -> Vec<Span<'_>> {
     line.split('␝')
         .enumerate()
         .map(|(idx, element)| {
