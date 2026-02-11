@@ -514,6 +514,13 @@ impl ViewsManager {
         self.view = Some(Box::new(view));
     }
 
+    /// Updates footer message history pane hint with current key binding.
+    pub fn set_message_history_hint(&mut self) {
+        let copy_key = self.app_data.get_key_name(KeyCommand::ContentCopy).to_ascii_uppercase();
+        let hint = format!(" Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
+        self.footer.set_message_history_hint(hint);
+    }
+
     fn copy_footer_message(&self) {
         if let Some(message) = self.footer.get_highlighted_history_message() {
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
