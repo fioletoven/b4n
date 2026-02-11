@@ -72,7 +72,7 @@ pub fn header(has_metrics: bool) -> Header {
     let mut columns = vec![
         Column::fixed("RESTARTS", 3, true),
         Column::fixed("READY", 7, false),
-        Column::bound("STATUS", 10, 20, false),
+        Column::bound("STATUS", 10, 20, false), // position of this column is used in `is_running` function
     ];
 
     let mut symbols = vec![' ', 'N', 'R', 'E', 'S'];
@@ -117,13 +117,24 @@ pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterCon
     }
 }
 
-/// Returns `true` if this pod has one container.
-pub fn has_one_container(data: Option<&ResourceData>) -> bool {
-    if let Some(data) = data {
-        data.extra_values.len() > 1 && data.extra_values[1].raw_text().is_some_and(|t| t.ends_with("/1"))
-    } else {
-        false
-    }
+/// Returns `true` if this pod has only one container.\
+/// **Note** that init containers are not counted.
+pub fn has_single_container(data: Option<&ResourceData>) -> bool {
+    data.is_some_and(|d| !d.tags.is_empty() && d.tags[1..].iter().all(|t| t.starts_with("i:")))
+}
+
+/// Returns single container name if pod has only one container.\
+/// **Note** that init containers are not counted.
+pub fn get_single_container(data: Option<&ResourceData>) -> Option<&str> {
+    data.filter(|d| !d.tags.is_empty() && d.tags[1..].iter().all(|t| t.starts_with("i:")))
+        .map(|d| d.tags[0].as_str())
+}
+
+/// Returns `true` if pod is in Running state.
+pub fn is_running(data: Option<&ResourceData>) -> bool {
+    data.and_then(|data| data.extra_values.get(2))
+        .and_then(|status| status.raw_text())
+        .is_some_and(|text| text == "Running")
 }
 
 fn get_restarts(containers: &[Value]) -> i64 {
@@ -155,8 +166,8 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
 }
 
 fn get_containers(containers: &Value, init_containers: &Value) -> Box<[String]> {
-    if let Some(mut names) = get_containers_names(containers) {
-        if let Some(mut init) = get_containers_names(init_containers) {
+    if let Some(mut names) = get_containers_names(containers, false) {
+        if let Some(mut init) = get_containers_names(init_containers, true) {
             names.append(&mut init);
         }
 
@@ -166,13 +177,12 @@ fn get_containers(containers: &Value, init_containers: &Value) -> Box<[String]> 
     }
 }
 
-fn get_containers_names(containers: &Value) -> Option<Vec<String>> {
-    Some(
-        containers
-            .as_array()?
-            .iter()
+fn get_containers_names(containers: &Value, init: bool) -> Option<Vec<String>> {
+    let prefix = if init { "i:" } else { "" };
+    containers.as_array().map(|arr| {
+        arr.iter()
             .filter_map(|i| i["name"].as_str())
-            .map(String::from)
-            .collect(),
-    )
+            .map(|name| format!("{prefix}{name}"))
+            .collect()
+    })
 }

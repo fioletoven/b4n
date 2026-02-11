@@ -216,8 +216,12 @@ impl App {
             ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
             ResponseEvent::ViewYaml(resource, decode, edit) => self.request_yaml(resource, decode, edit),
-            ResponseEvent::ViewLogs(resource, containers) => self.views_manager.show_logs(&resource, containers, false),
-            ResponseEvent::ViewPreviousLogs(resource, containers) => self.views_manager.show_logs(&resource, containers, true),
+            ResponseEvent::ViewLogs(resource, containers, is_running) => {
+                self.views_manager.show_logs(&resource, containers, is_running, false)
+            },
+            ResponseEvent::ViewPreviousLogs(resource, containers) => {
+                self.views_manager.show_logs(&resource, containers, false, true)
+            },
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),

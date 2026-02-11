@@ -14,7 +14,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
-use crate::kube::resources::pod::has_one_container;
+use crate::kube::resources::pod::{get_single_container, has_single_container, is_running};
 use crate::kube::resources::{ResourceItem, ResourcesList};
 use crate::ui::presentation::{ListHeader, ListViewer};
 
@@ -335,7 +335,7 @@ impl ResourcesTable {
                     return self.process_view_logs(resource, !is_multiple, true);
                 }
 
-                if is_container || has_one_container(resource.data.as_ref()) {
+                if is_container || has_single_container(resource.data.as_ref()) {
                     if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate) {
                         return self.process_view_ports(resource);
                     }
@@ -394,6 +394,7 @@ impl ResourcesTable {
     }
 
     fn process_view_logs(&self, resource: &ResourceItem, is_one_container: bool, is_previous: bool) -> ResponseEvent {
+        let is_running = is_running(resource.data.as_ref());
         let containers = (!is_one_container)
             .then(|| resource.data.as_ref().map(|d| d.tags.to_vec()))
             .flatten();
@@ -405,7 +406,7 @@ impl ResourcesTable {
         if is_previous {
             ResponseEvent::ViewPreviousLogs(resource, containers)
         } else {
-            ResponseEvent::ViewLogs(resource, containers)
+            ResponseEvent::ViewLogs(resource, containers, is_running)
         }
     }
 
@@ -429,13 +430,11 @@ impl ResourcesTable {
                 ));
             }
         } else if self.kind_plural() == PODS && prefer_container {
-            if has_one_container(resource.data.as_ref())
-                && let Some(data) = resource.data.as_ref()
-            {
+            if let Some(container) = get_single_container(resource.data.as_ref()) {
                 return Some(ResourceRef::container(
                     resource.name.clone(),
                     resource.namespace.clone().into(),
-                    data.tags[0].clone(),
+                    container.to_owned(),
                 ));
             }
         } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {

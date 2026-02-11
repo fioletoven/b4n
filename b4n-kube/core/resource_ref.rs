@@ -8,6 +8,29 @@ pub struct PodRef {
     pub name: String,
     pub namespace: Namespace,
     pub container: Option<String>,
+    pub is_init: bool,
+}
+
+impl PodRef {
+    /// Creates new [`PodRef`] instance.\
+    /// **Note** that it checks if container name starts with `i:` and removes this prefix.
+    pub fn new(name: String, namespace: Namespace, mut container: Option<String>) -> Self {
+        let is_init = container.as_mut().is_some_and(|c| {
+            if c.starts_with("i:") {
+                c.drain(..2);
+                true
+            } else {
+                false
+            }
+        });
+
+        Self {
+            name,
+            namespace,
+            container,
+            is_init,
+        }
+    }
 }
 
 /// Points to the specific kubernetes resource.\

@@ -386,7 +386,7 @@ impl ViewsManager {
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.
-    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<String>>, previous: bool) {
+    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<String>>, _is_running: bool, previous: bool) {
         let worker = self.worker.borrow();
         let Some(client) = worker.kubernetes_client() else {
             return;
@@ -395,17 +395,19 @@ impl ViewsManager {
         let pods = match containers {
             Some(containers) if !containers.is_empty() => containers
                 .into_iter()
-                .map(|container| PodRef {
-                    name: resource.name.clone().unwrap_or_default(),
-                    namespace: resource.namespace.clone(),
-                    container: Some(container),
+                .map(|container| {
+                    PodRef::new(
+                        resource.name.clone().unwrap_or_default(),
+                        resource.namespace.clone(),
+                        Some(container),
+                    )
                 })
                 .collect(),
-            _ => vec![PodRef {
-                name: resource.name.clone().unwrap_or_default(),
-                namespace: resource.namespace.clone(),
-                container: resource.container.clone(),
-            }],
+            _ => vec![PodRef::new(
+                resource.name.clone().unwrap_or_default(),
+                resource.namespace.clone(),
+                resource.container.clone(),
+            )],
         };
 
         let view = LogsView::new(

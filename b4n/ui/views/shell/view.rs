@@ -51,11 +51,7 @@ impl ShellView {
         pod_container: Option<String>,
         footer_tx: NotificationSink,
     ) -> Self {
-        let pod = PodRef {
-            name: pod_name.clone(),
-            namespace: pod_namespace.clone(),
-            container: pod_container.clone(),
-        };
+        let pod = PodRef::new(pod_name.clone(), pod_namespace.clone(), pod_container.clone());
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), Some(pod_name), pod_container);
