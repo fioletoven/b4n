@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{Namespace, PodRef, Port, PropagationPolicy, ResourceRef};
+use b4n_kube::{ContainerRef, Namespace, Port, PropagationPolicy, ResourceRef, ResourceTag};
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
@@ -386,7 +386,7 @@ impl ViewsManager {
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.
-    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<String>>, previous: bool) {
+    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<ResourceTag>>, previous: bool) {
         let worker = self.worker.borrow();
         let Some(client) = worker.kubernetes_client() else {
             return;
@@ -395,17 +395,19 @@ impl ViewsManager {
         let pods = match containers {
             Some(containers) if !containers.is_empty() => containers
                 .into_iter()
-                .map(|container| PodRef {
-                    name: resource.name.clone().unwrap_or_default(),
-                    namespace: resource.namespace.clone(),
-                    container: Some(container),
+                .map(|container| {
+                    ContainerRef::new(
+                        resource.name.clone().unwrap_or_default(),
+                        resource.namespace.clone(),
+                        Some(container),
+                    )
                 })
                 .collect(),
-            _ => vec![PodRef {
-                name: resource.name.clone().unwrap_or_default(),
-                namespace: resource.namespace.clone(),
-                container: resource.container.clone(),
-            }],
+            _ => vec![ContainerRef::simple(
+                resource.name.clone().unwrap_or_default(),
+                resource.namespace.clone(),
+                resource.container.clone(),
+            )],
         };
 
         let view = LogsView::new(
@@ -512,6 +514,13 @@ impl ViewsManager {
             self.footer.get_transmitter(),
         );
         self.view = Some(Box::new(view));
+    }
+
+    /// Updates footer message history pane hint with current key binding.
+    pub fn set_message_history_hint(&mut self) {
+        let copy_key = self.app_data.get_key_name(KeyCommand::ContentCopy).to_ascii_uppercase();
+        let hint = format!(" Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
+        self.footer.set_message_history_hint(hint);
     }
 
     fn copy_footer_message(&self) {

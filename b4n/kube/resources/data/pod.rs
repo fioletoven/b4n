@@ -1,6 +1,8 @@
+use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, NAMESPACE};
+use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{rc::Rc, slice::IterMut};
@@ -63,7 +65,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        tags: get_containers(&spec["containers"], &spec["initContainers"]),
+        tags: get_container_tags(object),
     }
 }
 
@@ -72,7 +74,7 @@ pub fn header(has_metrics: bool) -> Header {
     let mut columns = vec![
         Column::fixed("RESTARTS", 3, true),
         Column::fixed("READY", 7, false),
-        Column::bound("STATUS", 10, 20, false),
+        Column::bound("STATUS", 10, 20, false), // position of this column is used in `is_running` function
     ];
 
     let mut symbols = vec![' ', 'N', 'R', 'E', 'S'];
@@ -117,13 +119,30 @@ pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterCon
     }
 }
 
-/// Returns `true` if this pod has one container.
-pub fn has_one_container(data: Option<&ResourceData>) -> bool {
-    if let Some(data) = data {
-        data.extra_values.len() > 1 && data.extra_values[1].raw_text().is_some_and(|t| t.ends_with("/1"))
-    } else {
-        false
-    }
+/// Returns `true` if this pod has only one container.\
+/// **Note** that init containers are not counted.
+pub fn has_single_container(data: Option<&ResourceData>) -> bool {
+    data.is_some_and(|d| {
+        d.tags
+            .iter()
+            .filter(|t| matches!(t, ResourceTag::Container(_, false, _)))
+            .count()
+            == 1
+    })
+}
+
+/// Returns single container name if pod has only one container.\
+/// **Note** that init containers are not counted.
+pub fn get_single_container(data: Option<&ResourceData>) -> Option<&str> {
+    data.and_then(|d| {
+        let mut non_init = d.tags.iter().filter_map(|t| match t {
+            ResourceTag::Container(name, false, _) => Some(name.as_str()),
+            _ => None,
+        });
+
+        let name = non_init.next()?;
+        if non_init.next().is_none() { Some(name) } else { None }
+    })
 }
 
 fn get_restarts(containers: &[Value]) -> i64 {
@@ -154,9 +173,12 @@ fn get_first_waiting_reason(containers: &[Value]) -> Option<String> {
     None
 }
 
-fn get_containers(containers: &Value, init_containers: &Value) -> Box<[String]> {
-    if let Some(mut names) = get_containers_names(containers) {
-        if let Some(mut init) = get_containers_names(init_containers) {
+fn get_container_tags(object: &DynamicObject) -> Box<[ResourceTag]> {
+    let status = &object.data["status"];
+    let spec = &object.data["spec"];
+
+    if let Some(mut names) = get_container_tag(&spec["containers"], &status["containerStatuses"], false) {
+        if let Some(mut init) = get_container_tag(&spec["initContainers"], &status["initContainerStatuses"], true) {
             names.append(&mut init);
         }
 
@@ -166,13 +188,21 @@ fn get_containers(containers: &Value, init_containers: &Value) -> Box<[String]> 
     }
 }
 
-fn get_containers_names(containers: &Value) -> Option<Vec<String>> {
-    Some(
-        containers
-            .as_array()?
-            .iter()
+fn get_container_tag(containers: &Value, statuses: &Value, init: bool) -> Option<Vec<ResourceTag>> {
+    containers.as_array().map(|arr| {
+        arr.iter()
             .filter_map(|i| i["name"].as_str())
-            .map(String::from)
-            .collect(),
-    )
+            .map(|name| {
+                let finished_at = get_finished_at(statuses, name);
+                ResourceTag::Container(name.to_owned(), init, finished_at)
+            })
+            .collect()
+    })
+}
+
+fn get_finished_at(statuses: &Value, name: &str) -> Option<Timestamp> {
+    let container_status = statuses.as_array()?.iter().find(|s| s["name"].as_str() == Some(name))?;
+    container_status["state"]["terminated"]["finishedAt"]
+        .as_str()
+        .and_then(|t| t.parse().ok())
 }

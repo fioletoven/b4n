@@ -2,6 +2,7 @@
 palette:
   text: DarkGray
   text_light: Gray
+  text_dark: Black
   no_bg: Reset
   fg_dark: Gray
   bg_dark: DarkGray
@@ -83,24 +84,24 @@ colors:
   line:
     ready:
       normal: light_blue:no_bg
-      normal_hl: text:light_blue
+      normal_hl: text_dark:light_blue
       selected: light_green:no_bg
-      selected_hl: text:light_green
+      selected_hl: text_dark:light_green
     in_progress:
       normal: red:no_bg
-      normal_hl: text:light_red
+      normal_hl: text_dark:light_red
       selected: light_green:no_bg
-      selected_hl: text:light_green
+      selected_hl: text_dark:light_green
     terminating:
       normal: magenta:no_bg
-      normal_hl: text:light_magenta
+      normal_hl: text_dark:light_magenta
       selected: light_green:no_bg
-      selected_hl: text:light_green
+      selected_hl: text_dark:light_green
     completed:
       normal: text_light:no_bg
       normal_hl: text_light:bg_dark
       selected: light_green:no_bg
-      selected_hl: text:light_green
+      selected_hl: text_dark:light_green
   syntax:
     yaml:
       normal: text:no_bg

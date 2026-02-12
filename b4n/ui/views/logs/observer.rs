@@ -1,4 +1,4 @@
-use b4n_kube::PodRef;
+use b4n_kube::ContainerRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
@@ -45,7 +45,7 @@ impl LogsObserver {
     pub fn start(
         &mut self,
         client: &KubernetesClient,
-        pod: PodRef,
+        pod: ContainerRef,
         tail_lines: Option<i64>,
         previous: bool,
         include_container: bool,
@@ -89,7 +89,7 @@ impl LogsObserver {
                 context.pod.container.as_deref().unwrap_or_default()
             );
             let container = if include_container { pod.container.as_deref() } else { None };
-            context.send_logs_chunk(process_error(container, msg));
+            context.send_logs_chunk(process_error(container, msg, pod.finished_at));
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -127,7 +127,7 @@ impl LogsObserver {
 }
 
 struct ObserverContext<'a> {
-    pod: &'a PodRef,
+    pod: &'a ContainerRef,
     tail_lines: Option<i64>,
     previous: bool,
     include_container: bool,
@@ -167,7 +167,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            context.send_logs_chunk(process_error(container, err.to_string()));
+            context.send_logs_chunk(process_error(container, err.to_string(), None));
             return (true, None);
         },
     };
@@ -190,7 +190,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                         break;
                     },
                     Err(err) => {
-                        context.send_logs_chunk(process_error(container, err.to_string()));
+                        context.send_logs_chunk(process_error(container, err.to_string(), None));
                         break;
                     },
                 }
@@ -212,8 +212,8 @@ fn process_line(container: Option<&str>, line: &str) -> Option<LogsChunk> {
     })
 }
 
-fn process_error(container: Option<&str>, error: String) -> LogsChunk {
-    let dt = Timestamp::now();
+fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) -> LogsChunk {
+    let dt = dt.unwrap_or_else(Timestamp::now);
 
     LogsChunk {
         end: dt,

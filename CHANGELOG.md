@@ -1,5 +1,12 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix port forward columns do not resize on new data
+- report init containers stream close with finishedAt date
+
 ## 0.4.1 - 2026-02-10
 
 ### Features

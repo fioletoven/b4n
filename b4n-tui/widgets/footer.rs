@@ -14,8 +14,10 @@ use crate::utils::{get_styled_line, get_styled_spans};
 use crate::widgets::history::{BottomPane, MessageItem};
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
-const FOOTER_APP_VERSION: &str = concat!(" b4n ␝v␝", env!("CARGO_PKG_VERSION"), " ");
+const FOOTER_APP_VERSION: &str = concat!(" b4n ␝v", env!("CARGO_PKG_VERSION"), "␝ ");
 const FOOTER_APP_VERSION_LEN: usize = FOOTER_APP_VERSION.len() - 4;
+const FOOTER_APP_HISTORY: &str = " messages ␝history␝ ";
+const FOOTER_APP_HISTORY_LEN: usize = FOOTER_APP_HISTORY.len() - 4;
 const MESSAGE_HISTORY_SIZE: usize = 20;
 
 /// Footer widget.
@@ -33,6 +35,7 @@ pub struct Footer {
     icons_rx: UnboundedReceiver<IconAction>,
     notifications_tx: NotificationSink,
     history_pane: Option<BottomPane>,
+    history_hint: Option<String>,
     area: Rect,
 }
 
@@ -57,6 +60,7 @@ impl Default for Footer {
             icons_rx,
             notifications_tx,
             history_pane: None,
+            history_hint: None,
             area: Rect::default(),
         }
     }
@@ -95,7 +99,6 @@ impl Footer {
     /// Shows history pane.
     pub fn show_message_history(&mut self) {
         if self.history_pane.is_none() {
-            self.hint = None;
             self.history_pane = Some(BottomPane::new(self.get_history_messages().into()));
         }
     }
@@ -115,15 +118,23 @@ impl Footer {
             .and_then(|h| h.get_highlighted_item().map(|i| i.raw_message.as_str()))
     }
 
+    /// Sets hint that is displayed when history pane is open.
+    pub fn set_message_history_hint(&mut self, hint: impl Into<String>) {
+        self.history_hint = Some(hint.into());
+    }
+
     /// Draws [`Footer`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;
         self.update_current_message();
 
-        let draw_message = !self.is_message_history_visible() && self.has_message_to_show();
-        self.draw_footer(frame, area, theme, !draw_message);
+        let has_message = self.has_message_to_show();
+        self.draw_footer(frame, area, theme, !self.is_message_history_visible() && !has_message);
 
-        if draw_message && let Some(message) = &self.message {
+        if has_message
+            && !self.is_message_history_visible()
+            && let Some(message) = &self.message
+        {
             let is_error = message.kind == NotificationKind::Error;
             let [area] = Layout::horizontal([Constraint::Length(message.text.chars().count() as u16)])
                 .flex(Flex::Center)
@@ -148,14 +159,19 @@ impl Footer {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Length(if draw_hint { self.get_hint_length() } else { 0 }),
+                Constraint::Min(1),
+                Constraint::Length(self.get_hint_length(draw_hint)),
                 Constraint::Length(u16::try_from(icons_len).unwrap_or_default()),
                 Constraint::Length(2),
             ])
             .split(area);
 
-        if draw_hint && let Some(hint) = &self.hint {
+        if self.is_message_history_visible()
+            && let Some(hint) = &self.history_hint
+        {
+            let line = get_styled_line(hint, colors.footer.hint);
+            frame.render_widget(Paragraph::new(line), layout[1]);
+        } else if draw_hint && let Some(hint) = &self.hint {
             let line = get_styled_line(hint, colors.footer.hint);
             frame.render_widget(Paragraph::new(line), layout[1]);
         } else {
@@ -173,11 +189,19 @@ impl Footer {
         );
     }
 
-    fn get_hint_length(&self) -> u16 {
-        self.hint
-            .as_deref()
-            .map(|h| h.chars().filter(|ch| *ch != '␝').count())
-            .and_then(|l| u16::try_from(l).ok())
+    /// Returns length of a hint or a history pane hint, depending on curren history pane visibility.
+    fn get_hint_length(&self, draw_hint: bool) -> u16 {
+        let hint = match (draw_hint, self.is_message_history_visible()) {
+            (true, false) => self.hint.as_deref(),
+            (_, true) => self.history_hint.as_deref(),
+            _ => None,
+        };
+
+        hint.unwrap_or_default()
+            .chars()
+            .filter(|&ch| ch != '␝')
+            .count()
+            .try_into()
             .unwrap_or_default()
     }
 
@@ -297,13 +321,19 @@ impl Footer {
         let width = usize::from(width);
         let mut rendered = 0;
         let mut spans = Vec::with_capacity(10);
-        let mut total = FOOTER_APP_VERSION_LEN;
 
         spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
         spans.push(Span::styled(" ", &colors.footer.text));
-        spans.extend(get_styled_spans(FOOTER_APP_VERSION, colors.footer.text));
 
-        if self.show_trail && !self.trail.is_empty() {
+        let mut total = if self.is_message_history_visible() {
+            spans.extend(get_styled_spans(FOOTER_APP_HISTORY, colors.footer.text));
+            FOOTER_APP_HISTORY_LEN
+        } else {
+            spans.extend(get_styled_spans(FOOTER_APP_VERSION, colors.footer.text));
+            FOOTER_APP_VERSION_LEN
+        };
+
+        if self.show_trail && !self.trail.is_empty() && !self.is_message_history_visible() {
             spans.push(Span::styled("  ", &colors.footer.text));
             total += 2;
 

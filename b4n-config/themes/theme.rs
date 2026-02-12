@@ -53,7 +53,7 @@ pub struct FooterColors {
 impl Default for FooterColors {
     fn default() -> Self {
         Self {
-            text: TextColors::dim(Color::Gray, Color::Black, Color::DarkGray),
+            text: TextColors::dim(Color::Gray, Color::Rgb(164, 164, 184), Color::DarkGray),
             trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             error: TextColors::bg(Color::LightRed, Color::DarkGray),
@@ -241,27 +241,27 @@ impl Default for Theme {
                 line: ResourceColors {
                     ready: LineColors {
                         normal: TextColors::new(Color::LightBlue),
-                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightBlue),
+                        normal_hl: TextColors::bg(Color::Black, Color::LightBlue),
                         selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
                     },
                     in_progress: LineColors {
                         normal: TextColors::new(Color::Red),
-                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightRed),
+                        normal_hl: TextColors::bg(Color::Black, Color::LightRed),
                         selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
                     },
                     terminating: LineColors {
                         normal: TextColors::new(Color::Magenta),
-                        normal_hl: TextColors::bg(Color::DarkGray, Color::LightMagenta),
+                        normal_hl: TextColors::bg(Color::Black, Color::LightMagenta),
                         selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
                     },
                     completed: LineColors {
                         normal: TextColors::new(Color::Gray),
-                        normal_hl: TextColors::bg(Color::Gray, Color::DarkGray),
+                        normal_hl: TextColors::bg(Color::Gray, Color::Black),
                         selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::DarkGray, Color::LightGreen),
+                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
                     },
                 },
                 syntax: SyntaxColors {

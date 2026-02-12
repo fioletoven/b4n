@@ -1,4 +1,4 @@
-use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, Scope};
+use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
 
 use crate::TuiEvent;
 
@@ -74,8 +74,8 @@ pub enum ResponseEvent {
 
     NewYaml(ResourceRef, bool),
     ViewYaml(ResourceRef, bool, bool),
-    ViewLogs(ResourceRef, Option<Vec<String>>),
-    ViewPreviousLogs(ResourceRef, Option<Vec<String>>),
+    ViewLogs(ResourceRef, Option<Vec<ResourceTag>>),
+    ViewPreviousLogs(ResourceRef, Option<Vec<ResourceTag>>),
 
     OpenShell(ResourceRef),
     ShowPortForwards,

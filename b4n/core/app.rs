@@ -63,7 +63,8 @@ impl App {
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter());
         let client_manager =
             KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
-        let views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
+        let mut views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
+        views_manager.set_message_history_hint();
 
         Ok(Self {
             data,
@@ -117,9 +118,14 @@ impl App {
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         if let Some(config) = self.config_watcher.try_next() {
             self.theme_watcher.change_file(config.theme_path())?;
-            let mut data = self.data.borrow_mut();
-            data.key_bindings = KeyBindings::default_with(config.key_bindings.clone());
-            data.config = config;
+
+            {
+                let mut data = self.data.borrow_mut();
+                data.key_bindings = KeyBindings::default_with(config.key_bindings.clone());
+                data.config = config;
+            }
+
+            self.views_manager.set_message_history_hint();
         }
 
         if let Some(history) = self.history_watcher.try_next() {

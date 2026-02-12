@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{Namespace, PODS, PodRef};
+use b4n_kube::{ContainerRef, Namespace, PODS};
 use b4n_tui::widgets::{Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -32,7 +32,7 @@ pub struct ShellView {
     parser: Arc<RwLock<vt100::Parser>>,
     size: TerminalSize,
     client: Client,
-    pod: PodRef,
+    pod: ContainerRef,
     modal: Dialog,
     scrollback_rows: usize,
     esc_count: u8,
@@ -51,11 +51,7 @@ impl ShellView {
         pod_container: Option<String>,
         footer_tx: NotificationSink,
     ) -> Self {
-        let pod = PodRef {
-            name: pod_name.clone(),
-            namespace: pod_namespace.clone(),
-            container: pod_container.clone(),
-        };
+        let pod = ContainerRef::simple(pod_name.clone(), pod_namespace.clone(), pod_container.clone());
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), Some(pod_name), pod_container);
