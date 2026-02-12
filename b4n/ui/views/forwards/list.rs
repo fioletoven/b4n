@@ -29,6 +29,7 @@ impl PortForwardsList {
 
         self.table.list.items = Some(items.into_iter().map(Item::new).collect::<Vec<_>>().into());
         self.table.sort(sort_by, is_descending);
+        self.table.update_data_lengths();
 
         self.table.list.select_uids(selected_uids.as_slice());
         if let Some(uid) = highlighted_uid {

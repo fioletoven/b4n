@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix port forward columns do not resize on new data
+
 ## 0.4.1 - 2026-02-10
 
 ### Features
