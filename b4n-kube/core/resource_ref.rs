@@ -1,34 +1,48 @@
+use k8s_openapi::jiff::Timestamp;
 use kube::api::ApiResource;
 
 use super::{Kind, Namespace, PODS};
 
-/// Reference to the pod/container in a k8s cluster.
+/// Reference to the pods container in a k8s cluster.
 #[derive(Clone)]
-pub struct PodRef {
+pub struct ContainerRef {
     pub name: String,
     pub namespace: Namespace,
     pub container: Option<String>,
     pub is_init: bool,
+    pub finished_at: Option<Timestamp>,
 }
 
-impl PodRef {
-    /// Creates new [`PodRef`] instance.\
+impl ContainerRef {
+    /// Creates new [`ContainerRef`] instance.\
     /// **Note** that it checks if container name starts with `i:` and removes this prefix.
-    pub fn new(name: String, namespace: Namespace, mut container: Option<String>) -> Self {
-        let is_init = container.as_mut().is_some_and(|c| {
-            if c.starts_with("i:") {
-                c.drain(..2);
-                true
-            } else {
-                false
-            }
-        });
+    pub fn new(name: String, namespace: Namespace, container: Option<ResourceTag>) -> Self {
+        match container {
+            Some(ResourceTag::Container(container, is_init, finished_at)) => Self {
+                name,
+                namespace,
+                container: Some(container),
+                is_init,
+                finished_at,
+            },
+            _ => Self {
+                name,
+                namespace,
+                container: None,
+                is_init: false,
+                finished_at: None,
+            },
+        }
+    }
 
+    /// Creates new simple [`ContainerRef`] instance.
+    pub fn simple(name: String, namespace: Namespace, container: Option<String>) -> Self {
         Self {
             name,
             namespace,
             container,
-            is_init,
+            is_init: false,
+            finished_at: None,
         }
     }
 }
@@ -174,4 +188,13 @@ impl ResourceRefFilter {
             labels: Some(labels),
         }
     }
+}
+
+/// Possible resource tags.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResourceTag {
+    MatchLabels(String),
+    Container(String, bool, Option<Timestamp>),
+    CpuStatistics(String),
+    MemoryStatistics(String),
 }

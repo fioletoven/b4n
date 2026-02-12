@@ -1,3 +1,4 @@
+use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, NAMESPACE};
@@ -41,8 +42,8 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     }
 
     let tags = Box::new([
-        status["allocatable"]["cpu"].as_str().map(String::from).unwrap_or_default(),
-        status["allocatable"]["memory"].as_str().map(String::from).unwrap_or_default(),
+        ResourceTag::CpuStatistics(status["allocatable"]["cpu"].as_str().map(String::from).unwrap_or_default()),
+        ResourceTag::MemoryStatistics(status["allocatable"]["memory"].as_str().map(String::from).unwrap_or_default()),
     ]);
 
     ResourceData {
@@ -125,7 +126,12 @@ fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {
     })
 }
 
-fn get_as_option(value: &str) -> Option<&str> {
+fn get_as_option(value: &ResourceTag) -> Option<&str> {
+    let value = match value {
+        ResourceTag::CpuStatistics(cpu) => cpu,
+        ResourceTag::MemoryStatistics(memory) => memory,
+        _ => "",
+    };
     if value.is_empty() { None } else { Some(value) }
 }
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{Namespace, PodRef, Port, PropagationPolicy, ResourceRef};
+use b4n_kube::{ContainerRef, Namespace, Port, PropagationPolicy, ResourceRef, ResourceTag};
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
@@ -386,7 +386,7 @@ impl ViewsManager {
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.
-    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<String>>, _is_running: bool, previous: bool) {
+    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<ResourceTag>>, previous: bool) {
         let worker = self.worker.borrow();
         let Some(client) = worker.kubernetes_client() else {
             return;
@@ -396,14 +396,14 @@ impl ViewsManager {
             Some(containers) if !containers.is_empty() => containers
                 .into_iter()
                 .map(|container| {
-                    PodRef::new(
+                    ContainerRef::new(
                         resource.name.clone().unwrap_or_default(),
                         resource.namespace.clone(),
                         Some(container),
                     )
                 })
                 .collect(),
-            _ => vec![PodRef::new(
+            _ => vec![ContainerRef::simple(
                 resource.name.clone().unwrap_or_default(),
                 resource.namespace.clone(),
                 resource.container.clone(),

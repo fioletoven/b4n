@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{PODS, PodRef};
+use b4n_kube::{PODS, ContainerRef};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
@@ -47,7 +47,7 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         client: &KubernetesClient,
-        containers: Vec<PodRef>,
+        containers: Vec<ContainerRef>,
         previous: bool,
         footer: NotificationSink,
         workspace: Rect,

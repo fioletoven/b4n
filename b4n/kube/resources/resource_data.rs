@@ -1,4 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use k8s_openapi::jiff::Timestamp;
@@ -175,7 +176,7 @@ pub struct ResourceData {
     pub is_ready: bool,
     pub is_terminating: bool,
     pub extra_values: Box<[ResourceValue]>,
-    pub tags: Box<[String]>,
+    pub tags: Box<[ResourceTag]>,
 }
 
 impl ResourceData {
@@ -190,7 +191,7 @@ impl ResourceData {
     }
 
     /// Adds tags to the [`ResourceData`] object.
-    pub fn with_tags(mut self, tags: Box<[String]>) -> Self {
+    pub fn with_tags(mut self, tags: Box<[ResourceTag]>) -> Self {
         self.tags = tags;
         self
     }

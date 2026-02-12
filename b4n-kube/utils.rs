@@ -5,7 +5,7 @@ use kube::ResourceExt;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::ApiCapabilities;
 
-use crate::{DiscoveryList, Kind};
+use crate::{DiscoveryList, Kind, ResourceTag};
 
 /// Serializes kubernetes resource to YAML.
 pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_yaml::Error> {
@@ -88,16 +88,15 @@ pub fn labels_to_string(labels: &Map<String, Value>) -> String {
         .join(",")
 }
 
-/// Returns match labels selector from the dynamic object as a boxed array.
-pub fn get_match_labels(object: &DynamicObject) -> Box<[String]> {
+/// Returns match labels selector from the dynamic object as a boxed [`ResourceTag`] array.
+pub fn get_match_labels(object: &DynamicObject) -> Box<[ResourceTag]> {
     let selector = object.data["spec"]["selector"]["matchLabels"]
         .as_object()
         .map(labels_to_string);
-
     if let Some(selector) = selector {
-        Box::new([selector])
+        Box::new([ResourceTag::MatchLabels(selector)])
     } else {
-        Box::default()
+        Box::new([])
     }
 }
 

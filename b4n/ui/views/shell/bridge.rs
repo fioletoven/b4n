@@ -1,4 +1,4 @@
-use b4n_kube::PodRef;
+use b4n_kube::ContainerRef;
 use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{AttachParams, TerminalSize};
@@ -46,7 +46,7 @@ impl ShellBridge {
 
     /// Starts new shell process.\
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, client: Client, pod: PodRef, shell: impl Into<String>) {
+    pub fn start(&mut self, client: Client, pod: ContainerRef, shell: impl Into<String>) {
         self.stop();
 
         let cancellation_token = CancellationToken::new();

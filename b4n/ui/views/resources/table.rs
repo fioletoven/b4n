@@ -2,7 +2,7 @@ use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS,
-    REPLICA_SETS, ResourceRef, ResourceRefFilter, SECRETS, SERVICES, STATEFUL_SETS,
+    REPLICA_SETS, ResourceRef, ResourceRefFilter, ResourceTag, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
@@ -14,7 +14,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt};
-use crate::kube::resources::pod::{get_single_container, has_single_container, is_running};
+use crate::kube::resources::pod::{get_single_container, has_single_container};
 use crate::kube::resources::{ResourceItem, ResourcesList};
 use crate::ui::presentation::{ListHeader, ListViewer};
 
@@ -394,7 +394,6 @@ impl ResourcesTable {
     }
 
     fn process_view_logs(&self, resource: &ResourceItem, is_one_container: bool, is_previous: bool) -> ResponseEvent {
-        let is_running = is_running(resource.data.as_ref());
         let containers = (!is_one_container)
             .then(|| resource.data.as_ref().map(|d| d.tags.to_vec()))
             .flatten();
@@ -406,7 +405,7 @@ impl ResourcesTable {
         if is_previous {
             ResponseEvent::ViewPreviousLogs(resource, containers)
         } else {
-            ResponseEvent::ViewLogs(resource, containers, is_running)
+            ResponseEvent::ViewLogs(resource, containers)
         }
     }
 
@@ -472,11 +471,14 @@ impl ResourcesTable {
     }
 
     fn process_view_selector(&self, resource: &ResourceItem, target: &str) -> ResponseEvent {
-        if let Some(data) = &resource.data
-            && !data.tags.is_empty()
-            && !data.tags[0].is_empty()
-        {
-            let filter = ResourceRefFilter::labels(resource.name.clone(), data.tags[0].clone());
+        let labels = resource.data.as_ref().and_then(|d| {
+            d.tags.iter().find_map(|t| match t {
+                ResourceTag::MatchLabels(s) if !s.is_empty() => Some(s),
+                _ => None,
+            })
+        });
+        if let Some(labels) = labels {
+            let filter = ResourceRefFilter::labels(resource.name.clone(), labels.clone());
             ResponseEvent::ViewScoped(
                 target.to_owned(),
                 resource.namespace.clone(),

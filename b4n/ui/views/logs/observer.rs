@@ -1,4 +1,4 @@
-use b4n_kube::PodRef;
+use b4n_kube::ContainerRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
@@ -45,7 +45,7 @@ impl LogsObserver {
     pub fn start(
         &mut self,
         client: &KubernetesClient,
-        pod: PodRef,
+        pod: ContainerRef,
         tail_lines: Option<i64>,
         previous: bool,
         include_container: bool,
@@ -127,7 +127,7 @@ impl LogsObserver {
 }
 
 struct ObserverContext<'a> {
-    pod: &'a PodRef,
+    pod: &'a ContainerRef,
     tail_lines: Option<i64>,
     previous: bool,
     include_container: bool,

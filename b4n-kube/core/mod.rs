@@ -17,7 +17,7 @@ pub use self::kind::{CORE_VERSION, Kind};
 pub use self::namespace::{ALL_NAMESPACES, NAMESPACES, Namespace};
 pub use self::ports::{Port, PortProtocol};
 pub use self::propagation_policy::PropagationPolicy;
-pub use self::resource_ref::{PodRef, ResourceRef, ResourceRefFilter};
+pub use self::resource_ref::{ContainerRef, ResourceRef, ResourceRefFilter, ResourceTag};
 
 mod kind;
 mod namespace;
