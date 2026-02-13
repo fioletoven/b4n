@@ -153,7 +153,7 @@ impl LogsContent {
         }
 
         let style: Style = log_colors.into();
-        result.extend(line.message.iter().map(|(s, t)| (s.patch(style), t.clone())));
+        result.extend(line.message.iter().map(|(s, t)| (style.patch(*s), t.clone())));
 
         result
     }

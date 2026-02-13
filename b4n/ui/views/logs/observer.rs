@@ -2,7 +2,7 @@ use b4n_kube::ContainerRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use k8s_openapi::jiff::Timestamp;
+use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use kube::{Api, api::LogParams, runtime::watcher::DefaultBackoff};
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -88,8 +88,9 @@ impl LogsObserver {
                 context.pod.name,
                 context.pod.container.as_deref().unwrap_or_default()
             );
+            let msg_time = pod.finished_at.and_then(|t| t.checked_add(SignedDuration::from_secs(1)).ok());
             let container = if include_container { pod.container.as_deref() } else { None };
-            context.send_logs_chunk(process_error(container, msg, pod.finished_at));
+            context.send_logs_chunk(process_error(container, msg, msg_time));
         });
 
         self.cancellation_token = Some(cancellation_token);
