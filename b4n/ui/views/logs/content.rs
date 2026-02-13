@@ -152,7 +152,8 @@ impl LogsContent {
             result.push(((&self.colors.string).into(), ": ".to_owned()));
         }
 
-        result.push((log_colors.into(), line.message.clone()));
+        let style: Style = log_colors.into();
+        result.extend(line.message.iter().map(|(s, t)| (style.patch(*s), t.clone())));
 
         result
     }
@@ -226,7 +227,10 @@ impl Content for LogsContent {
                     result.push_str(": ");
                 }
 
-                result.push_str(&line.message);
+                for (_, text) in &line.message {
+                    result.push_str(text);
+                }
+
                 result.push('\n');
             }
         }
@@ -275,10 +279,10 @@ impl Content for LogsContent {
             let position = line.map_position(position);
             if self.show_timestamps {
                 let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-                let bounds = line.map_bounds(b4n_common::word_bounds(&line.message, idx));
+                let bounds = line.map_bounds(b4n_common::word_bounds(&line.lowercase, idx));
                 bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
             } else {
-                line.map_bounds(b4n_common::word_bounds(&line.message, position.x))
+                line.map_bounds(b4n_common::word_bounds(&line.lowercase, position.x))
             }
         } else {
             None

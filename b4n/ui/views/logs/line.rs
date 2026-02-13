@@ -1,13 +1,15 @@
+use ansi_to_tui::IntoText;
 use k8s_openapi::jiff::Timestamp;
+use ratatui::style::Style;
 use std::fmt::{Display, Write};
 
-use crate::ui::presentation::ContentPosition;
+use crate::ui::presentation::{ContentPosition, StyledLine};
 
 /// Represents one log line.
 pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
-    pub message: String,
+    pub message: StyledLine,
     pub lowercase: String,
     pub is_error: bool,
     container_len: usize,
@@ -17,12 +19,26 @@ pub struct LogLine {
 impl LogLine {
     /// Creates new [`LogLine`] instance.
     pub fn new(datetime: Timestamp, container: Option<&str>, message: String) -> Self {
-        let lowercase = message.to_ascii_lowercase();
+        let mut lowercase = String::with_capacity(message.len());
+        let message = match message.into_text() {
+            Ok(text) => text
+                .lines
+                .iter()
+                .flat_map(|line| line.spans.iter())
+                .map(|span| (span.style, span.content.to_string()))
+                .collect(),
+            Err(_) => vec![(Style::default(), message)],
+        };
+
+        for (_, text) in &message {
+            lowercase.push_str(&text.to_ascii_lowercase());
+        }
+
         Self {
             datetime,
             container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
             container: container.map(String::from),
-            message_len: message.chars().count(),
+            message_len: lowercase.chars().count(),
             message,
             lowercase,
             is_error: false,
@@ -36,7 +52,7 @@ impl LogLine {
             container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
             container: container.map(String::from),
             message_len: error.chars().count(),
-            message: error,
+            message: vec![(Style::default(), error)],
             lowercase: String::new(),
             is_error: true,
         }
@@ -82,7 +98,10 @@ impl LogLine {
             result.push_str(": ");
         }
 
-        result.push_str(&self.message);
+        for (_, text) in &self.message {
+            result.push_str(text);
+        }
+
         result
     }
 }
