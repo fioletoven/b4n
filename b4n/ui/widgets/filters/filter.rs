@@ -157,7 +157,7 @@ impl Responsive for Filter {
         }
 
         if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.patterns.value().is_empty() {
-            self.reset();
+            self.patterns.reset();
             return ResponseEvent::Handled;
         }
 
