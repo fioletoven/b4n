@@ -27,6 +27,7 @@ pub struct SideSelect<T: Table> {
     position: Position,
     result: Option<fn(String) -> ResponseEvent>,
     width: u16,
+    item_to_highlight: &'static str,
     is_key_pressed: bool,
     showup_time: Instant,
 }
@@ -44,6 +45,7 @@ impl<T: Table> SideSelect<T> {
             position,
             result: None,
             width: std::cmp::max(width, 5),
+            item_to_highlight: "",
             is_key_pressed: false,
             showup_time: Instant::now(),
         }
@@ -58,6 +60,12 @@ impl<T: Table> SideSelect<T> {
     /// Sets function that is called to obtain [`ResponseEvent`].
     pub fn with_result(mut self, result: fn(String) -> ResponseEvent) -> Self {
         self.result = Some(result);
+        self
+    }
+
+    /// Sets name of the item to highlight on double key press.
+    pub fn with_quick_highlight(mut self, name: &'static str) -> Self {
+        self.item_to_highlight = name;
         self
     }
 
@@ -174,7 +182,12 @@ impl<T: Table> Responsive for SideSelect<T> {
             if self.is_key_pressed || self.showup_time.elapsed().as_millis() > 500 {
                 self.is_visible = false;
             } else {
-                self.select.items.highlight_first_item();
+                if self.item_to_highlight.is_empty() {
+                    self.select.items.highlight_first_item();
+                } else {
+                    self.select.items.highlight_item_by_name(self.item_to_highlight);
+                }
+
                 self.is_key_pressed = true;
             }
 
