@@ -51,7 +51,7 @@ impl App {
     /// Creates new [`App`] instance.
     pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
         let is_mouse_enabled = config.mouse;
-        let theme_path = config.theme_path();
+        let theme_path = config.theme_path().0;
         let syntax_data = SyntaxData::new(&theme);
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::default();
@@ -114,10 +114,25 @@ impl App {
         Ok(())
     }
 
+    /// Shows error in the app footer with optional icon.
+    pub fn show_theme_error(&self, error: String) {
+        self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);
+        self.views_manager
+            .footer()
+            .set_icon("000_notheme", Some(''), IconKind::Error);
+    }
+
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
-        if let Some(config) = self.config_watcher.try_next() {
-            self.theme_watcher.change_file(config.theme_path())?;
+        if let Some(Ok(config)) = self.config_watcher.try_next() {
+            if let (theme_path, false) = config.theme_path() {
+                self.theme_watcher.change_file(theme_path)?;
+            } else {
+                self.show_theme_error(format!(
+                    "Error loading '{}' theme: configuration file not found",
+                    config.theme
+                ));
+            }
 
             {
                 let mut data = self.data.borrow_mut();
@@ -128,13 +143,21 @@ impl App {
             self.views_manager.set_message_history_hint();
         }
 
-        if let Some(history) = self.history_watcher.try_next() {
+        if let Some(Ok(history)) = self.history_watcher.try_next() {
             self.data.borrow_mut().history = history;
         }
 
-        if let Some(theme) = self.theme_watcher.try_next() {
-            self.worker.borrow_mut().update_syntax_data(SyntaxData::new(&theme));
-            self.data.borrow_mut().theme = theme;
+        match self.theme_watcher.try_next() {
+            Some(Ok(theme)) => {
+                self.worker.borrow_mut().update_syntax_data(SyntaxData::new(&theme));
+                self.data.borrow_mut().theme = theme;
+                self.views_manager.footer().set_icon("000_notheme", None, IconKind::Error);
+            },
+            Some(Err(error)) => {
+                let theme = &self.data.borrow().config.theme;
+                self.show_theme_error(format!("Error loading '{theme}' theme: {error}"));
+            },
+            _ => (),
         }
 
         self.process_commands_results();
@@ -151,11 +174,10 @@ impl App {
                         return Ok(ExecutionFlow::Stop);
                     }
                 },
-                Err(error) => {
-                    self.views_manager
-                        .footer()
-                        .show_error(error.to_string(), DEFAULT_ERROR_DURATION);
-                },
+                Err(error) => self
+                    .views_manager
+                    .footer()
+                    .show_error(error.to_string(), DEFAULT_ERROR_DURATION),
             }
         }
 
@@ -423,12 +445,21 @@ impl App {
     /// Changes application theme.
     fn process_theme_change(&mut self, theme: String) {
         if self.data.borrow().config.theme != theme {
-            let msg = format!("Theme changed to '{theme}'");
-            self.data.borrow_mut().config.theme = theme;
-            let _ = self.theme_watcher.change_file(self.data.borrow().config.theme_path());
-            self.config_watcher.skip_next();
-            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
-            self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+            let old_theme = std::mem::replace(&mut self.data.borrow_mut().config.theme, theme);
+            if let (theme_path, false) = self.data.borrow().config.theme_path() {
+                let _ = self.theme_watcher.change_file(theme_path);
+                self.config_watcher.skip_next();
+                self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+                let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
+                self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+            } else {
+                let msg = format!(
+                    "Error loading '{}' theme: configuration file not found",
+                    self.data.borrow().config.theme
+                );
+                self.show_theme_error(msg);
+                self.data.borrow_mut().config.theme = old_theme;
+            }
         }
     }
 
@@ -496,7 +527,7 @@ impl App {
 
     fn update_mouse_icon(&self) {
         let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
-        self.views_manager.footer().set_icon("000_mouse", icon, IconKind::Default);
+        self.views_manager.footer().set_icon("001_mouse", icon, IconKind::Default);
     }
 }
 

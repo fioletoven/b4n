@@ -31,8 +31,8 @@ pub struct ConfigWatcher<T: Persistable<T> + Send + 'static> {
     runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    config_tx: UnboundedSender<T>,
-    config_rx: UnboundedReceiver<T>,
+    config_tx: UnboundedSender<Result<T, ConfigError>>,
+    config_rx: UnboundedReceiver<Result<T, ConfigError>>,
     force_reload: Arc<AtomicBool>,
     skip_next: Arc<AtomicBool>,
 }
@@ -88,17 +88,11 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
                     configuration_modified = true;
                 }
 
-                if (configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
-                    || _force_reload.swap(false, Ordering::Relaxed)
+                if ((configuration_modified && !_skip_next.swap(false, Ordering::Relaxed))
+                    || _force_reload.swap(false, Ordering::Relaxed))
+                    && let Err(error) = _config_tx.send(T::load(&_path).await)
                 {
-                    match T::load(&_path).await {
-                        Ok(config) => {
-                            if let Err(error) = _config_tx.send(config) {
-                                tracing::warn!("Cannot send config file: {}", error);
-                            }
-                        },
-                        Err(error) => tracing::warn!("Cannot re-load config file: {}", error),
-                    }
+                    tracing::warn!("Cannot send config load result: {}", error);
                 }
             }
         });
@@ -139,7 +133,7 @@ impl<T: Persistable<T> + Send + 'static> ConfigWatcher<T> {
     }
 
     /// Tries to get a new configuration if it has been reloaded due to a file modification.
-    pub fn try_next(&mut self) -> Option<T> {
+    pub fn try_next(&mut self) -> Option<Result<T, ConfigError>> {
         self.config_rx.try_recv().ok()
     }
 

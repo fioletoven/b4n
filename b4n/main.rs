@@ -1,5 +1,5 @@
 use anyhow::Result;
-use b4n_config::{Config, History};
+use b4n_config::{Config, ConfigError, History};
 use b4n_kube::PODS;
 use b4n_kube::client::get_context;
 use clap::Parser;
@@ -55,11 +55,19 @@ fn run_application(args: &cli::Args) -> Result<()> {
     let namespace = history.get_namespace(&context.name).or(context.namespace.as_deref());
     let namespace = args.namespace(namespace).map(String::from).into();
 
-    let config = rt.block_on(Config::load_or_create())?;
-    let theme = rt.block_on(config.load_or_create_theme())?;
-    let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
+    let (config, _) = rt.block_on(Config::load_or_create());
+    let (theme, theme_error) = rt.block_on(config.load_or_create_theme());
+    let theme_name = config.theme.clone();
 
+    let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
     app.start(context.name, kind, namespace)?;
+
+    if let Some(error) = theme_error
+        && !(theme_name == "default" && matches!(error, ConfigError::IoError(_)))
+    {
+        app.show_theme_error(format!("Error loading theme: {error}"));
+    }
+
     application_loop(&mut app)?;
     app.stop()?;
 
