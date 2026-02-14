@@ -110,18 +110,19 @@ impl SetResourceYamlCommand {
     }
 
     async fn save_yaml(self, api: Api<DynamicObject>, encode: bool, update_status: bool) -> Result<String, SetResourceYamlError> {
-        let mut resource =
-            serde_yaml::from_str::<DynamicObject>(&self.yaml).map_err(|e| SetResourceYamlError::SerializationError {
+        let mut resource = serde_yaml::from_str::<k8s_openapi::serde_json::Value>(&self.yaml).map_err(|e| {
+            SetResourceYamlError::SerializationError {
                 resource: self.name.clone(),
                 source: e,
-            })?;
+            }
+        })?;
 
         if encode {
-            encode_secret_data(&mut resource);
+            encode_secret_data(resource.get_mut("data"));
         }
 
         let mut status_part = None;
-        if let Some(status_val) = resource.data.as_object_mut().and_then(|s| s.remove("status")) {
+        if let Some(status_val) = resource.as_object_mut().and_then(|s| s.remove("status")) {
             status_part = Some(k8s_openapi::serde_json::json!({ "status": status_val }));
         }
 

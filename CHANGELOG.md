@@ -7,6 +7,7 @@
 - fix port forward columns do not resize on new data
 - report init containers stream close with finishedAt date
 - fix colors display in logs
+- allow null for labels in YAML patch
 
 ## 0.4.1 - 2026-02-10
 

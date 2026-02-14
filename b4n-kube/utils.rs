@@ -20,8 +20,8 @@ pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_
 }
 
 /// Encodes `data` property in the provided resource.
-pub fn encode_secret_data(resource: &mut DynamicObject) {
-    if let Some(Value::Object(data)) = resource.data.get_mut("data") {
+pub fn encode_secret_data(data: Option<&mut Value>) {
+    if let Some(Value::Object(data)) = data {
         let engine = engine::general_purpose::STANDARD;
         for (_key, value) in data.iter_mut() {
             if let Value::String(s) = value {
@@ -32,8 +32,8 @@ pub fn encode_secret_data(resource: &mut DynamicObject) {
 }
 
 /// Decodes `data` property in the provided resource.
-pub fn decode_secret_data(resource: &mut DynamicObject) -> Result<(), DecodeError> {
-    if let Some(Value::Object(data)) = resource.data.get_mut("data") {
+pub fn decode_secret_data(data: Option<&mut Value>) -> Result<(), DecodeError> {
+    if let Some(Value::Object(data)) = data {
         let engine = engine::general_purpose::STANDARD;
         for (_key, value) in data.iter_mut() {
             if let Value::String(s) = value {
