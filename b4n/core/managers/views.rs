@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ContainerRef, Namespace, Port, PropagationPolicy, ResourceRef, ResourceTag};
+use b4n_kube::{ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceTag};
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
@@ -35,10 +35,12 @@ impl ViewsManager {
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, resources: ResourcesView, footer: Footer) -> Self {
         let ns_selector = SideSelect::new(Rc::clone(&app_data), ResourcesList::default(), Position::Left, 30)
             .with_name("NAMESPACE")
-            .with_result(ResponseEvent::ChangeNamespace);
+            .with_result(ResponseEvent::ChangeNamespace)
+            .with_quick_highlight(ALL_NAMESPACES);
         let res_selector = SideSelect::new(Rc::clone(&app_data), KindsList::default(), Position::Right, 40)
             .with_name("RESOURCE")
-            .with_result(ResponseEvent::ChangeKind);
+            .with_result(ResponseEvent::ChangeKind)
+            .with_quick_highlight(PODS);
         set_command_palette_hint(footer.transmitter(), &app_data);
 
         Self {

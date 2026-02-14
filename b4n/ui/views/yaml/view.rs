@@ -271,11 +271,18 @@ impl YamlView {
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             if self.is_new {
                 return self.process_view_close_event(ResponseEvent::Cancelled, false);
-            } else if self.is_edit && !self.yaml.is_modified() {
-                return ResponseEvent::Cancelled;
-            } else if self.yaml.disable_edit_mode() {
-                self.hide_edit_hint();
-                return ResponseEvent::Handled;
+            } else {
+                let is_modified = self.yaml.is_modified();
+                if self.is_edit && !is_modified {
+                    return ResponseEvent::Cancelled;
+                } else if self.yaml.disable_edit_mode() {
+                    if is_modified {
+                        self.show_edit_hint(true);
+                    } else {
+                        self.hide_edit_hint();
+                    }
+                    return ResponseEvent::Handled;
+                }
             }
         }
 
@@ -396,16 +403,21 @@ impl YamlView {
     }
 
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        let force = self.modal.checkbox(0).is_some_and(|i| i.is_checked);
-        let patch_status = self.modal.checkbox(1).is_some_and(|i| i.is_checked);
-        let disable_encoding = self.modal.checkbox(2).is_some_and(|i| i.is_checked);
         let response = self.modal.process_event(event);
-        if response.is_action("apply") {
-            return self.save_yaml(true, force, disable_encoding, patch_status);
-        } else if response.is_action("patch") {
-            return self.save_yaml(false, false, disable_encoding, patch_status);
-        } else if response.is_action("create") {
+        let force = self.modal.checkbox(0).is_some_and(|i| i.is_checked);
+        let ignore_version = self.modal.checkbox(1).is_some_and(|i| i.is_checked);
+        let patch_status = self.modal.checkbox(2).is_some_and(|i| i.is_checked);
+        let disable_encoding = self.modal.checkbox(3).is_some_and(|i| i.is_checked);
+
+        if response.is_action("create") {
             return self.create_resource(disable_encoding, patch_status);
+        } else if response.is_action("apply") || response.is_action("patch") {
+            return self.save_yaml(SetResourceYamlOptions {
+                action: SetResourceYamlAction::from(response.is_action("apply"), force),
+                encode: self.is_secret && !disable_encoding,
+                patch_status,
+                ignore_version,
+            });
         }
 
         response
@@ -443,11 +455,11 @@ impl YamlView {
                 && let Some(origin) = self.origin_kind.as_deref()
                 && kind.as_deref().is_some_and(|k| k == origin)
             {
-                inputs.push(CheckBox::new(1, "Create along with status", false, &colors.checkbox));
+                inputs.push(CheckBox::new(2, "Create along with status", false, &colors.checkbox));
             }
 
             if kind.as_deref().is_some_and(|k| k == "Secret") {
-                inputs.push(CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox));
+                inputs.push(CheckBox::new(3, "Do not encode data fields", false, &colors.checkbox));
             }
         }
 
@@ -467,12 +479,15 @@ impl YamlView {
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
-        let mut inputs = vec![CheckBox::new(0, "Force ownership (apply only)", false, &colors.checkbox)];
+        let mut inputs = vec![
+            CheckBox::new(0, "Force ownership (apply only)", false, &colors.checkbox),
+            CheckBox::new(1, "Ignore resource version", false, &colors.checkbox),
+        ];
         if self.can_patch_status {
-            inputs.push(CheckBox::new(1, "Update along with status", false, &colors.checkbox));
+            inputs.push(CheckBox::new(2, "Update along with status", false, &colors.checkbox));
         }
         if self.is_secret {
-            inputs.push(CheckBox::new(2, "Do not encode data fields", false, &colors.checkbox));
+            inputs.push(CheckBox::new(3, "Do not encode data fields", false, &colors.checkbox));
         }
 
         Dialog::new(
@@ -505,26 +520,14 @@ impl YamlView {
         }
     }
 
-    fn save_yaml(&mut self, is_apply: bool, is_forced: bool, disable_encoding: bool, patch_status: bool) -> ResponseEvent {
+    fn save_yaml(&mut self, options: SetResourceYamlOptions) -> ResponseEvent {
         if let Some(yaml) = self.yaml.content() {
             let name = self.yaml.header.name.as_deref().map(String::from).unwrap_or_default();
             let namespace = self.yaml.header.namespace.clone();
             let kind = &self.yaml.header.kind;
             let yaml = yaml.plain.join("\n");
-            let encode = self.is_secret && !disable_encoding;
-            let action = match (is_apply, is_forced) {
-                (true, true) => SetResourceYamlAction::ForceApply,
-                (true, false) => SetResourceYamlAction::Apply,
-                _ => SetResourceYamlAction::Patch,
-            };
-            let options = SetResourceYamlOptions {
-                action,
-                encode,
-                patch_status,
-            };
 
             self.command_id = self.worker.borrow_mut().set_yaml(name, namespace, kind, yaml, options);
-
             ResponseEvent::Handled
         } else {
             ResponseEvent::Cancelled
@@ -540,7 +543,7 @@ impl YamlView {
 
         if self.yaml.enable_edit_mode(self.is_new) {
             self.clear_search();
-            self.show_edit_hint();
+            self.show_edit_hint(false);
             return true;
         }
 
@@ -575,7 +578,7 @@ impl YamlView {
         if self.is_new || self.state == ViewState::WaitingForEdit {
             self.state = ViewState::Idle;
             if self.yaml.enable_edit_mode(self.is_new) {
-                self.show_edit_hint();
+                self.show_edit_hint(false);
             }
         }
     }
@@ -590,22 +593,24 @@ impl YamlView {
         }
     }
 
-    fn show_edit_hint(&mut self) {
+    fn show_edit_hint(&mut self, is_modified: bool) {
         self.is_hint_visible = true;
         let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
         if self.is_new {
             self.footer
                 .show_hint(format!(" Press ␝{key}␝ to open save dialog (if modified)"));
         } else {
-            self.footer.show_hint(format!(
-                " Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)"
-            ));
+            self.footer.show_hint(if is_modified {
+                format!(" Press ␝{key}␝ for save dialog")
+            } else {
+                format!(" Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
+            });
         }
     }
 
     fn hide_edit_hint(&mut self) {
         if self.is_hint_visible {
-            self.is_hint_visible = true;
+            self.is_hint_visible = false;
             self.footer.hide_hint();
         }
     }
@@ -638,8 +643,10 @@ impl View for YamlView {
 
     fn process_tick(&mut self) -> ResponseEvent {
         if self.state == ViewState::Quitting {
+            self.hide_edit_hint();
             return ResponseEvent::ExitApplication;
         } else if self.state == ViewState::Closing {
+            self.hide_edit_hint();
             return ResponseEvent::Cancelled;
         }
 
