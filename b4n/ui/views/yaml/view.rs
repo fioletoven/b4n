@@ -610,7 +610,7 @@ impl YamlView {
 
     fn hide_edit_hint(&mut self) {
         if self.is_hint_visible {
-            self.is_hint_visible = true;
+            self.is_hint_visible = false;
             self.footer.hide_hint();
         }
     }
@@ -643,8 +643,10 @@ impl View for YamlView {
 
     fn process_tick(&mut self) -> ResponseEvent {
         if self.state == ViewState::Quitting {
+            self.hide_edit_hint();
             return ResponseEvent::ExitApplication;
         } else if self.state == ViewState::Closing {
+            self.hide_edit_hint();
             return ResponseEvent::Cancelled;
         }
 
