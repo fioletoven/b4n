@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add ignore resource version in save dialog for conflicted resources
+
 ### Bug fixes
 
 - fix port forward columns do not resize on new data
