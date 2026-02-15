@@ -148,7 +148,7 @@ impl PortForwarder {
     }
 
     /// Stops all tasks for pods that are not on the statistics list.
-    pub fn stop_stale_pod_tasks(&mut self, statistics: SharedStatistics) {
+    pub fn stop_stale_pod_tasks(&mut self, statistics: &SharedStatistics) {
         let statistics = statistics.borrow();
         for task in &mut self.tasks {
             if !statistics.exists(

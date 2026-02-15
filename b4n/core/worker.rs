@@ -471,7 +471,7 @@ impl BgWorker {
     /// Stops all port forwarding tasks for pods that no longer exist.
     pub fn stop_stale_port_forwards(&mut self) {
         if !self.statistics.has_error() {
-            self.forwarder.stop_stale_pod_tasks(self.statistics.share());
+            self.forwarder.stop_stale_pod_tasks(self.statistics.stats());
         }
     }
 }

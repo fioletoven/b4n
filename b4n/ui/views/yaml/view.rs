@@ -271,18 +271,18 @@ impl YamlView {
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             if self.is_new {
                 return self.process_view_close_event(ResponseEvent::Cancelled, false);
-            } else {
-                let is_modified = self.yaml.is_modified();
-                if self.is_edit && !is_modified {
-                    return ResponseEvent::Cancelled;
-                } else if self.yaml.disable_edit_mode() {
-                    if is_modified {
-                        self.show_edit_hint(true);
-                    } else {
-                        self.hide_edit_hint();
-                    }
-                    return ResponseEvent::Handled;
+            }
+
+            let is_modified = self.yaml.is_modified();
+            if self.is_edit && !is_modified {
+                return ResponseEvent::Cancelled;
+            } else if self.yaml.disable_edit_mode() {
+                if is_modified {
+                    self.show_edit_hint(true);
+                } else {
+                    self.hide_edit_hint();
                 }
+                return ResponseEvent::Handled;
             }
         }
 

@@ -305,6 +305,11 @@ impl BgStatistics {
         }
     }
 
+    /// Returns [`SharedStatistics`] object.
+    pub fn stats(&self) -> &SharedStatistics {
+        &self.stats
+    }
+
     /// Returns cloned [`SharedStatistics`] object.
     pub fn share(&self) -> SharedStatistics {
         self.stats.clone()
