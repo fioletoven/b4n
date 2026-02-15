@@ -1,11 +1,12 @@
 # Change Log
 
-## WIP
+## 0.4.2 - 2026-02-15
 
 ### Features
 
 - add ignore resource version in save dialog for conflicted resources
 - show theme loading / deserializing errors in the UI
+- allow to cleanup stale port-forwarding rules
 
 ### Bug fixes
 

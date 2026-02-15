@@ -454,17 +454,24 @@ impl BgWorker {
         self.highlighter.get_sender()
     }
 
-    /// Starts port forwarding for the specified resource, port and address.
+    /// Starts port forwarding task for the specified resource, port and address.
     pub fn start_port_forward(&mut self, resource: ResourceRef, port: u16, address: SocketAddr) {
         if let Some(client) = &self.client {
             let _ = self.forwarder.start(client, resource, port, address);
         }
     }
 
-    /// Stops all specified port forwards.
+    /// Stops all specified port forwarding tasks.
     pub fn stop_port_forwards(&mut self, uids: &[&str]) {
         for uid in uids {
             self.forwarder.stop(uid);
+        }
+    }
+
+    /// Stops all port forwarding tasks for pods that no longer exist.
+    pub fn stop_stale_port_forwards(&mut self) {
+        if !self.statistics.has_error() {
+            self.forwarder.stop_stale_pod_tasks(self.statistics.stats());
         }
     }
 }

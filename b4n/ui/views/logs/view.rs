@@ -109,7 +109,7 @@ impl LogsView {
                 ActionItem::action("search", "search").with_description("searches logs using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
-        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();

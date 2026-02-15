@@ -50,6 +50,7 @@ define_key_commands! {
         NavigateSelectAll => "navigate.select-all" @ "Ctrl+A",
         PortForwardsCreate => "port-forwards.create" @ "F",
         PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
+        PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PreviousLogsOpen => "previous-logs.open" @ "P",
         SearchOpen => "search.open" @ "/", "Shift+/",
         SearchReset => "search.reset" @ "Esc",

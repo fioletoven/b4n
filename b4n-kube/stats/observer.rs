@@ -132,6 +132,20 @@ impl Statistics {
             .get(node_name)
             .and_then(|n| n.pods.iter().find(|p| p.name == pod_name && p.namespace == pod_namespace))
     }
+
+    /// Returns `true` if the specified pod (and optionally container) exists.
+    pub fn exists(&self, pod_name: &str, pod_namespace: &str, container_name: Option<&str>) -> bool {
+        self.data.values().any(|n| {
+            n.pods.iter().any(|p| {
+                p.name == pod_name
+                    && p.namespace == pod_namespace
+                    && match container_name {
+                        Some(name) => p.containers.iter().any(|c| c.name == name),
+                        None => true,
+                    }
+            })
+        })
+    }
 }
 
 #[derive(Default, Debug)]
@@ -289,6 +303,11 @@ impl BgStatistics {
         if self.is_dirty {
             self.recalculate_statistics();
         }
+    }
+
+    /// Returns [`SharedStatistics`] object.
+    pub fn stats(&self) -> &SharedStatistics {
+        &self.stats
     }
 
     /// Returns cloned [`SharedStatistics`] object.

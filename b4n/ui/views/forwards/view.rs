@@ -80,15 +80,21 @@ impl ForwardsView {
             .with_back()
             .with_quit();
 
-        if self.list.table.is_anything_selected() {
+        if !self.list.table.is_empty() {
             builder.add_action(
-                ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"),
-                Some(KeyCommand::NavigateDelete),
+                ActionItem::action("stop stale", "cleanup").with_description("stops all stale port forwarding rules"),
+                Some(KeyCommand::PortForwardsCleanup),
             );
+            if self.list.table.is_anything_selected() {
+                builder.add_action(
+                    ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"),
+                    Some(KeyCommand::NavigateDelete),
+                );
+            }
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
-        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -105,8 +111,12 @@ impl ForwardsView {
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette());
 
-        if self.list.table.is_anything_selected() {
-            builder.add_menu_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
+        if !self.list.table.is_empty() {
+            if self.list.table.is_anything_selected() {
+                builder.add_menu_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
+            }
+
+            builder.add_menu_action(ActionItem::menu(2, " stop ␝stale␝", "cleanup"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
@@ -146,6 +156,44 @@ impl ForwardsView {
             colors.modal.text,
         )
         .with_highlighted_position(self.last_mouse_click.take())
+    }
+
+    /// Shows dialog to stop stale port forwarding rules.
+    fn ask_stop_stale_port_forwards(&mut self) {
+        if !self.list.table.is_empty() {
+            self.modal = self.new_cleanup_dialog();
+            self.modal.show();
+        }
+    }
+
+    /// Stops all stale port forwarding rules.
+    fn stop_stale_port_forwards(&mut self) {
+        self.worker.borrow_mut().stop_stale_port_forwards();
+        self.footer_tx
+            .show_info("All stale port forwarding rules have been stopped", 3_000);
+    }
+
+    /// Creates new cleanup stale pods dialog.
+    fn new_cleanup_dialog(&mut self) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "Are you sure you want to stop all port forwarding rules for pods that no longer exist? ".to_owned(),
+            vec![
+                Button::new("Stop", ResponseEvent::Action("cleanup"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
+        .with_highlighted_position(self.last_mouse_click.take())
+    }
+
+    fn get_mouse_menu_position(&self, line_no: u16, resource_name: &str) -> Position {
+        self.list
+            .table
+            .table
+            .get_mouse_menu_position(line_no, resource_name, self.list.area)
     }
 }
 
@@ -203,8 +251,11 @@ impl View for ForwardsView {
         }
 
         if self.modal.is_visible {
-            if self.modal.process_event(event).is_action("delete") {
+            let response = self.modal.process_event(event);
+            if response.is_action("delete") {
                 self.stop_selected_port_forwards();
+            } else if response.is_action("cleanup") {
+                self.stop_stale_port_forwards();
             }
 
             return ResponseEvent::Handled;
@@ -219,6 +270,11 @@ impl View for ForwardsView {
                 ResponseEvent::Action("stop_selected") => {
                     self.last_mouse_click = event.position();
                     self.ask_stop_port_forwards();
+                    return ResponseEvent::Handled;
+                },
+                ResponseEvent::Action("cleanup") => {
+                    self.last_mouse_click = event.position();
+                    self.ask_stop_stale_port_forwards();
                     return ResponseEvent::Handled;
                 },
                 ResponseEvent::Action("palette") => {
@@ -247,6 +303,15 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
+            && let Some(line_no) = self.list.table.get_highlighted_item_line_no()
+            && let Some(item_name) = self.list.table.get_highlighted_item_name()
+        {
+            let pos = self.get_mouse_menu_position(line_no, item_name);
+            self.show_mouse_menu(pos.x, pos.y);
+            return ResponseEvent::Handled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
             self.set_filter();
@@ -266,6 +331,11 @@ impl View for ForwardsView {
 
         if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
             self.filter.show();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::PortForwardsCleanup) {
+            self.ask_stop_stale_port_forwards();
             return ResponseEvent::Handled;
         }
 
