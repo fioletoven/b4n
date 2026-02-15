@@ -1,5 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_kube::client::KubernetesClient;
+use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{PODS, ResourceRef};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::jiff::Timestamp;
@@ -144,6 +145,22 @@ impl PortForwarder {
     /// Drains waiting [`PortForwardEvent`]s.
     pub fn drain(&mut self) {
         while self.events_rx.try_recv().is_ok() {}
+    }
+
+    /// Stops all tasks for pods that are not on the statistics list.
+    pub fn stop_stale_pod_tasks(&mut self, statistics: SharedStatistics) {
+        let statistics = statistics.borrow();
+        for task in &mut self.tasks {
+            if !statistics.exists(
+                task.resource.name.as_deref().unwrap_or_default(),
+                task.resource.namespace.as_str(),
+                task.resource.container.as_deref(),
+            ) {
+                task.cancel();
+            }
+        }
+
+        self.cleanup_tasks();
     }
 }
 

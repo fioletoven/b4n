@@ -136,7 +136,7 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
-        let actions_list = ActionsListBuilder::from_contexts(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions_list = ActionsListBuilder::from_contexts(list).build(None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("context")
             .with_highlighted(&self.app_data.borrow().current.context);
@@ -145,7 +145,7 @@ impl ResourcesView {
 
     /// Displays a list of available themes to choose from.
     pub fn show_themes_list(&mut self, list: Vec<PathBuf>) {
-        let actions_list = ActionsListBuilder::from_paths(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions_list = ActionsListBuilder::from_paths(list).build(None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("theme")
             .with_highlighted(&self.app_data.borrow().config.theme);
@@ -164,8 +164,7 @@ impl ResourcesView {
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            let actions_list =
-                ActionsListBuilder::from_resource_ports(list).build(self.app_data.borrow().config.key_bindings.as_ref());
+            let actions_list = ActionsListBuilder::from_resource_ports(list).build(None);
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
                 .with_header(format!(
                     " Add port forward for '{}' container:",
@@ -369,7 +368,7 @@ impl ResourcesView {
         if !self.app_data.borrow().is_connected() {
             let actions = ActionsListBuilder::default()
                 .with_resources_actions(false)
-                .build(self.app_data.borrow().config.key_bindings.as_ref());
+                .build(Some(&self.app_data.borrow().key_bindings));
             self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
                 .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
@@ -490,7 +489,7 @@ impl ResourcesView {
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
-        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -585,7 +584,7 @@ impl ResourcesView {
             );
         }
 
-        let actions = builder.build(self.app_data.borrow().config.key_bindings.as_ref());
+        let actions = builder.build(None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
             .with_prompt("create new resource")
             .with_first_highlighted()
