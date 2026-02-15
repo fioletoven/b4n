@@ -704,14 +704,11 @@ impl ResourcesView {
     }
 
     fn get_mouse_menu_position(&self, line_no: u16, resource_name: &str) -> Position {
-        let view = self.table.list.table.table.header.get_cached_view();
-        let width = self.table.list.table.table.header.get_cached_width().unwrap_or_default();
-        let (namespace_width, name_width, extra_space) = self.table.list.table.table.header.get_widths(view, width);
-        let name_width = (name_width + extra_space).min(resource_name.chars().count());
-        let x = u16::try_from(namespace_width + name_width + 6).unwrap_or_default();
-        let y = line_no.saturating_add(self.table.list.area.y);
-
-        Position::new(x, y)
+        self.table
+            .list
+            .table
+            .table
+            .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
     }
 }
 

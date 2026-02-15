@@ -188,6 +188,13 @@ impl ForwardsView {
         )
         .with_highlighted_position(self.last_mouse_click.take())
     }
+
+    fn get_mouse_menu_position(&self, line_no: u16, resource_name: &str) -> Position {
+        self.list
+            .table
+            .table
+            .get_mouse_menu_position(line_no, resource_name, self.list.area)
+    }
 }
 
 impl View for ForwardsView {
@@ -293,6 +300,15 @@ impl View for ForwardsView {
                 self.list.table.unhighlight_item();
             }
             self.show_mouse_menu(mouse.column, mouse.row);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
+            && let Some(line_no) = self.list.table.get_highlighted_item_line_no()
+            && let Some(item_name) = self.list.table.get_highlighted_item_name()
+        {
+            let pos = self.get_mouse_menu_position(line_no, item_name);
+            self.show_mouse_menu(pos.x, pos.y);
             return ResponseEvent::Handled;
         }
 

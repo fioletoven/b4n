@@ -1,6 +1,7 @@
 use b4n_config::keys::KeyCombination;
 use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui_core::layout::{Position, Rect};
 
 use crate::table::Header;
 use crate::{MouseEvent, MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -169,6 +170,18 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     /// Gets the current horizontal offset of the table.
     pub fn offset(&self) -> usize {
         self.offset
+    }
+
+    /// Returns best position for mouse menu for the specified line.
+    pub fn get_mouse_menu_position(&self, line_no: u16, resource_name: &str, area: Rect) -> Position {
+        let view = self.header.get_cached_view();
+        let width = self.header.get_cached_width().unwrap_or_default();
+        let (namespace_width, name_width, extra_space) = self.header.get_widths(view, width);
+        let name_width = (name_width + extra_space).min(resource_name.chars().count());
+        let x = u16::try_from(namespace_width + name_width + 6).unwrap_or_default();
+        let y = line_no.saturating_add(area.y);
+
+        Position::new(x, y)
     }
 
     /// Sorts the internal list.
