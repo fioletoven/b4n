@@ -70,7 +70,7 @@ The following features are planned for future development:
 | Show footer messages history pane         | `h`             | Also works left mouse button click on the footer            |
 | Show logs for the pod or container        | `l`             | Press `p` to display previous logs                          |
 | Show namespaces selector                  | `←`             | To select `all` quickly press `←` again                     |
-| Show resources selector                   | `→`             | To select the first item quickly press `→` again            |
+| Show resources selector                   | `→`             | To select `pods` quickly press `→` again                    |
 | Show YAML for the highlighted resource    | `y`             |                                                             |
 | Sort column                               | `ALT` + `[0-9]` | Also works `ALT` + `[underlined letter]`                    |
 
