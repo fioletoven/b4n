@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix strip resourceVersion behaviour
+
 ## 0.4.2 - 2026-02-15
 
 ### Features

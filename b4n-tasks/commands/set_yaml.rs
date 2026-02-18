@@ -140,8 +140,8 @@ impl SetResourceYamlCommand {
             encode_secret_data(resource.get_mut("data"));
         }
 
-        if ignore_version && let Some(rv) = resource["metadata"].get_mut("resourceVersion") {
-            *rv = k8s_openapi::serde_json::Value::Null;
+        if ignore_version && let Some(metadata) = resource["metadata"].as_object_mut() {
+            metadata.remove("resourceVersion");
         }
 
         let status_part = resource
