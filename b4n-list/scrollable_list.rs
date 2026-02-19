@@ -77,7 +77,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     }
 
     /// Sets value of the property `dirty` for all items in the list to `is_dirty`.
-    pub fn dirty(&mut self, is_dirty: bool) {
+    pub fn set_dirty(&mut self, is_dirty: bool) {
         if let Some(list) = &mut self.items {
             for item in list.full_iter_mut() {
                 item.is_dirty = is_dirty;
@@ -87,20 +87,19 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Sorts items in the list by column number.
     pub fn sort(&mut self, column_no: usize, is_descending: bool) {
-        if let Some(items) = &mut self.items {
-            if is_descending {
-                items.full_sort_by(|a, b| cmp(b, a, column_no));
-            } else {
-                items.full_sort_by(|a, b| cmp(a, b, column_no));
-            }
+        let Some(items) = &mut self.items else {
+            self.highlighted = None;
+            return;
+        };
+
+        if is_descending {
+            items.full_sort_by(|a, b| cmp(b, a, column_no));
+        } else {
+            items.full_sort_by(|a, b| cmp(a, b, column_no));
         }
 
-        if self.items.is_some() {
-            self.apply_filter();
-            self.recover_highlighted_item_index();
-        } else {
-            self.highlighted = None;
-        }
+        self.apply_filter();
+        self.recover_highlighted_item_index();
     }
 
     /// Returns `true` if list is filtered.
@@ -184,19 +183,26 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Updates page start for the current page size and highlighted resource item.
     pub fn update_page(&mut self, new_height: u16) {
         self.page_height = new_height;
-        let highlighted_item = self.highlighted.unwrap_or(0);
+        let height = usize::from(self.page_height);
+        let highlighted = self.highlighted.unwrap_or(0);
 
-        if self.page_start >= highlighted_item {
-            self.page_start = highlighted_item;
-        } else if self.page_start + usize::from(self.page_height) - 1 < highlighted_item {
-            self.page_start = highlighted_item - usize::from(self.page_height) + 1;
+        if height == 0 {
+            self.page_start = highlighted;
+            return;
+        }
+
+        if self.page_start > highlighted {
+            self.page_start = highlighted;
+        } else if highlighted >= self.page_start + height {
+            self.page_start = highlighted - height + 1;
         }
 
         if let Some(items) = &self.items {
-            if items.len() < usize::from(self.page_height) {
+            let len = items.len();
+            if len <= height {
                 self.page_start = 0;
-            } else if items.len() < self.page_start + usize::from(self.page_height) {
-                self.page_start = items.len() - usize::from(self.page_height);
+            } else if self.page_start + height > len {
+                self.page_start = len - height;
             }
         }
     }
@@ -258,34 +264,29 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns selected item names grouped in [`HashMap`].
     pub fn get_selected_items(&self) -> HashMap<&str, Vec<&str>> {
-        if let Some(items) = &self.items {
-            let mut result: HashMap<&str, Vec<&str>> = HashMap::new();
-            for item in items.iter().filter(|i| i.is_selected) {
-                result.entry(item.data.group()).or_default().push(item.data.name());
-            }
+        let Some(items) = &self.items else {
+            return HashMap::new();
+        };
 
-            result
-        } else {
-            HashMap::new()
+        let mut result: HashMap<&str, Vec<&str>> = HashMap::new();
+        for item in items.iter().filter(|i| i.is_selected) {
+            result.entry(item.data.group()).or_default().push(item.data.name());
         }
+
+        result
     }
 
     /// Returns selected item uids as [`Vec`].
     pub fn get_selected_uids(&self) -> Vec<&str> {
-        if let Some(items) = &self.items {
-            items.iter().filter(|i| i.is_selected).map(|i| i.data.uid()).collect()
-        } else {
-            Vec::default()
-        }
+        self.items
+            .as_ref()
+            .map(|items| items.iter().filter(|i| i.is_selected).map(|i| i.data.uid()).collect())
+            .unwrap_or_default()
     }
 
     /// Returns `true` if anything is selected.
     pub fn is_anything_selected(&self) -> bool {
-        if let Some(items) = &self.items {
-            return items.iter().any(|i| i.is_selected);
-        }
-
-        false
+        self.items.as_ref().is_some_and(|items| items.iter().any(|i| i.is_selected))
     }
 
     /// Returns the names of items on the current page along with their active status.
@@ -352,25 +353,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns `true` if anything is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
-        if let Some(items) = &self.items
-            && let Some(highlighted) = self.highlighted
-            && highlighted < items.len()
-        {
-            true
-        } else {
-            false
-        }
+        self.get_highlighted_item().is_some()
     }
 
     /// Recovers and returns the highlighted item index from the `is_active` property.
     pub fn recover_highlighted_item_index(&mut self) -> Option<usize> {
-        if let Some(items) = &self.items {
-            self.highlighted = items.iter().position(|i| i.is_active);
-            self.highlighted
-        } else {
-            self.highlighted = None;
-            None
-        }
+        self.highlighted = self.items.as_ref().and_then(|items| items.iter().position(|i| i.is_active));
+        self.highlighted
     }
 
     /// Recovers remembered filter from the filter context.
@@ -478,41 +467,44 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Adds `rows_to_move` to the currently highlighted item index.
     fn move_highlighted(&mut self, rows_to_move: i32) {
-        if let Some(items) = &mut self.items {
-            if items.is_empty() || rows_to_move == 0 {
-                return;
-            }
-
-            if self.highlighted.is_none() && rows_to_move == 1 {
-                items[0].is_active = true;
-                self.highlighted = Some(0);
-            } else {
-                let highlighted = self.highlighted.unwrap_or(0);
-                if highlighted < items.len() {
-                    items[highlighted].is_active = false;
-                }
-
-                let new_highlighted = (isize::try_from(highlighted).unwrap_or_default() + rows_to_move as isize).max(0) as usize;
-                let new_highlighted = new_highlighted.min(items.len().saturating_sub(1));
-                items[new_highlighted].is_active = true;
-                self.highlighted = Some(new_highlighted);
-            }
+        let Some(items) = &mut self.items else { return };
+        if items.is_empty() || rows_to_move == 0 {
+            return;
         }
+
+        if self.highlighted.is_none() && rows_to_move > 0 {
+            items[0].is_active = true;
+            self.highlighted = Some(0);
+            return;
+        }
+
+        let highlighted = self.highlighted.unwrap_or(0);
+        if highlighted < items.len() {
+            items[highlighted].is_active = false;
+        }
+
+        let last = items.len().saturating_sub(1);
+        let new_highlighted = if rows_to_move > 0 {
+            highlighted.saturating_add(rows_to_move as usize).min(last)
+        } else {
+            highlighted.saturating_sub(rows_to_move.unsigned_abs() as usize)
+        };
+
+        items[new_highlighted].is_active = true;
+        self.highlighted = Some(new_highlighted);
     }
 
     /// Re-applies remembered text filter to the list.
     fn apply_filter(&mut self) {
-        if let Some(list) = &mut self.items {
-            if self.filter.has_context() {
-                if let Some(context) = self.filter.context_mut() {
-                    context.restart();
-                    list.filter(context);
-                }
-            } else if let Some(filter) = self.filter.pattern() {
-                let mut context = T::get_context(filter, self.filter.settings());
-                list.filter(&mut context);
-                self.filter.set_context(Some(context));
-            }
+        let Some(list) = &mut self.items else { return };
+
+        if let Some(context) = self.filter.context_mut() {
+            context.restart();
+            list.filter(context);
+        } else if let Some(filter) = self.filter.pattern() {
+            let mut context = T::get_context(filter, self.filter.settings());
+            list.filter(&mut context);
+            self.filter.set_context(Some(context));
         }
     }
 }

@@ -19,7 +19,7 @@ impl KindsList {
     /// Updates [`KindsList`] with new data from [`Vec<KindItem>`].
     pub fn update(&mut self, kinds: Option<Vec<KindItem>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {
-            self.list.dirty(false);
+            self.list.set_dirty(false);
 
             if let Some(old_list) = &mut self.list.items {
                 update_old_list(old_list, new_list);
