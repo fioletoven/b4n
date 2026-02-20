@@ -149,13 +149,12 @@ impl<T: Table> Select<T> {
         let layout = get_layout(area, draw_filter);
         self.area = if draw_filter { layout[1] } else { layout[0] };
         self.items.update_page(self.area.height);
-        if let Some(list) = self.items.get_paged_names(usize::from(self.area.width)) {
-            let list = list
-                .into_iter()
-                .map(|(s, is_hl)| (s, if is_hl { self.colors.normal_hl } else { self.colors.normal }))
-                .collect::<Vec<_>>();
-            frame.render_widget(&mut ListWidget { list }, self.area);
-        }
+        let list = self.items.get_paged_names(usize::from(self.area.width));
+        let list = list
+            .into_iter()
+            .map(|(s, is_hl)| (s, if is_hl { self.colors.normal_hl } else { self.colors.normal }))
+            .collect::<Vec<_>>();
+        frame.render_widget(&mut ListWidget { list }, self.area);
 
         if draw_filter {
             self.filter.draw(frame, layout[0]);

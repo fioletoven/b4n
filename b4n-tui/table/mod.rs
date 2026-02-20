@@ -105,14 +105,14 @@ pub trait Table: crate::Responsive {
     fn update_page(&mut self, new_height: u16);
 
     /// Returns item names from the current page and indications if item is active.
-    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+    fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
-    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
+    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Vec<(String, TextColors)> {
         let _ = theme;
         let _ = view;
         let _ = width;
-        None
+        Vec::new()
     }
 
     /// Returns header text for the list.

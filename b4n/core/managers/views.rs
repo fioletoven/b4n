@@ -81,7 +81,7 @@ impl ViewsManager {
 
         if worker.update_discovery_list() {
             self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
-            self.app_data.borrow_mut().kinds = self.res_selector.select.items.to_vec();
+            self.app_data.borrow_mut().kinds = Some(self.res_selector.select.items.to_vec());
         }
 
         while let Some(update_result) = worker.namespaces.try_next() {

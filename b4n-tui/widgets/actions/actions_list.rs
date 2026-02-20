@@ -49,7 +49,7 @@ impl Table for ActionsList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+            fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
     }
 
@@ -131,8 +131,8 @@ impl ActionsListBuilder {
         let has_ids = self.actions.iter().any(|a| a.id.is_some());
         let mut list = ScrollableList::from(self.actions);
 
-        if has_ids && let Some(items) = &mut list.items {
-            items.full_sort_by(|a, b| a.data.id.cmp(&b.data.id));
+        if has_ids {
+            list.sort_by(|a, b| a.data.id.cmp(&b.data.id));
         } else {
             list.sort(1, false);
         }

@@ -73,9 +73,8 @@ impl<T: Table> ListViewer<T> {
             self.render_error(frame, " cannot fetch or update requested resources…", false);
         } else {
             let theme = &self.app_data.borrow().theme;
-            if let Some(list) = self.table.get_paged_items(theme, self.view, usize::from(self.area.width)) {
-                frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
-            }
+            let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }
     }
 

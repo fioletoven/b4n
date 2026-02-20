@@ -105,14 +105,10 @@ impl ResourcesView {
         }
 
         if self.table.kind_plural() == PODS {
-            if let Some(items) = &mut self.table.list.table.table.list.items {
-                pod::update_statistics(items.full_iter_mut(), stats);
-                self.table.list.table.resort();
-            }
-        } else if self.table.kind_plural() == NODES
-            && let Some(items) = &mut self.table.list.table.table.list.items
-        {
-            node::update_statistics(items.full_iter_mut(), stats);
+            pod::update_statistics(self.table.list.table.table.list.full_iter_mut(), stats);
+            self.table.list.table.resort();
+        } else if self.table.kind_plural() == NODES {
+            node::update_statistics(self.table.list.table.table.list.full_iter_mut(), stats);
             self.table.list.table.resort();
         }
 

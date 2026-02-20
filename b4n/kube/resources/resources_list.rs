@@ -1,7 +1,7 @@
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
 use b4n_kube::{InitData, ObserverResult};
-use b4n_list::{FilterableList, Item, Row};
+use b4n_list::{Item, Row};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
 use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
@@ -67,21 +67,21 @@ impl ResourcesList {
 
     /// Gets specific resource.
     pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem> {
-        self.table.list.items.as_ref().and_then(|items| {
-            items
-                .full_iter()
-                .find(|i| i.data.name == name && i.data.namespace.as_deref() == namespace.as_option())
-                .map(|i| &i.data)
-        })
+        self.table
+            .list
+            .full_iter()
+            .find(|i| i.data.name == name && i.data.namespace.as_deref() == namespace.as_option())
+            .map(|i| &i.data)
     }
 
     /// Gets selected resources.
     pub fn get_selected_resources(&self) -> Vec<&ResourceItem> {
-        if let Some(items) = &self.table.list.items {
-            items.iter().filter(|i| i.is_selected).map(|i| &i.data).collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        }
+        self.table
+            .list
+            .iter()
+            .filter(|i| i.is_selected)
+            .map(|i| &i.data)
+            .collect::<Vec<_>>()
     }
 
     /// Returns resources as a list of formatted strings.\
@@ -92,11 +92,12 @@ impl ResourcesList {
         let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
         let name_width = name_width + name_extra_width;
 
-        let items = if let Some(items) = &self.table.list.items {
-            items.iter().filter(|i| !selected || i.is_selected).collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
+        let items = self
+            .table
+            .list
+            .iter()
+            .filter(|i| !selected || i.is_selected)
+            .collect::<Vec<_>>();
 
         if items.is_empty() {
             return Vec::new();
@@ -113,9 +114,7 @@ impl ResourcesList {
 
     /// Returns resources as a list of action items.
     pub fn get_as_actions(&self) -> Vec<ActionItem> {
-        self.table.list.items.as_ref().map_or(Vec::new(), |items| {
-            items.full_iter().map(|i| ActionItem::from(&i.data)).collect()
-        })
+        self.table.list.full_iter().map(|i| ActionItem::from(&i.data)).collect()
     }
 
     /// Sorts items in the list again, using the same settings as last sort.
@@ -159,27 +158,24 @@ impl ResourcesList {
 
     /// Adds, updates or deletes `new_item` from the resources list.
     fn update_list(&mut self, new_item: ResourceItem, is_delete: bool) {
-        if let Some(items) = &mut self.table.list.items {
-            if is_delete {
-                if let Some(index) = items.full_iter().position(|i| i.data.uid() == new_item.uid()) {
-                    items.full_remove(index);
-                }
-            } else if let Some(old_item) = items.full_iter_mut().find(|i| i.data.uid() == new_item.uid()) {
-                old_item.data = new_item;
-                old_item.is_dirty = true;
-            } else {
-                items.push(Item::dirty(new_item));
+        if is_delete {
+            let index = self.table.list.full_iter().position(|i| i.data.uid() == new_item.uid());
+            if let Some(index) = index {
+                self.table.list.full_remove(index);
             }
-        } else if !is_delete {
-            self.table.list.items = Some(FilterableList::from(vec![Item::new(new_item)]));
+        } else if let Some(old_item) = self.table.list.full_iter_mut().find(|i| i.data.uid() == new_item.uid()) {
+            old_item.data = new_item;
+            old_item.is_dirty = true;
+        } else {
+            self.table.list.push(Item::dirty(new_item));
         }
 
         self.table.update_data_lengths();
     }
 
     fn add_all_namespaces_item(&mut self) {
-        if self.table.list.items.as_ref().is_none_or(|l| l.full_len() == 0) && self.data.kind_plural == NAMESPACES {
-            self.table.list.items = Some(FilterableList::from(vec![Item::fixed(ResourceItem::new(ALL_NAMESPACES))]));
+        if self.table.list.full_len() == 0 && self.data.kind_plural == NAMESPACES {
+            self.table.list.push(Item::fixed(ResourceItem::new(ALL_NAMESPACES)));
         }
     }
 }
@@ -214,7 +210,7 @@ impl Table for ResourcesList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+            fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
     }
 
@@ -245,29 +241,25 @@ impl Table for ResourcesList {
         self.table.header.get_sort_symbols()
     }
 
-    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
-        if let Some(list) = self.table.list.get_page() {
-            let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
+    fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Vec<(String, TextColors)> {
+        let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
 
-            let mut result = Vec::with_capacity(self.table.list.page_height().into());
-            for item in list {
-                result.push((
-                    item.get_text(
-                        view,
-                        &self.table.header,
-                        width,
-                        namespace_width,
-                        name_width + name_extra_width,
-                        self.table.offset(),
-                    ),
-                    item.data.get_colors(theme, item.is_active, item.is_selected),
-                ));
-            }
-
-            return Some(result);
+        let mut result = Vec::with_capacity(self.table.list.page_height().into());
+        for item in self.table.list.get_page() {
+            result.push((
+                item.get_text(
+                    view,
+                    &self.table.header,
+                    width,
+                    namespace_width,
+                    name_width + name_extra_width,
+                    self.table.offset(),
+                ),
+                item.data.get_colors(theme, item.is_active, item.is_selected),
+            ));
         }
 
-        None
+        result
     }
 
     fn get_header(&mut self, view: ViewType, width: usize) -> &str {

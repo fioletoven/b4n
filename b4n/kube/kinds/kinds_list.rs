@@ -1,11 +1,9 @@
-use b4n_list::{BasicFilterContext, FilterableList, Item, Row, ScrollableList};
+use b4n_list::{BasicFilterContext, Item, Row, ScrollableList};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use std::collections::HashMap;
 
 use super::KindItem;
-
-type KindFilterableList = FilterableList<Item<KindItem, BasicFilterContext>, BasicFilterContext>;
 
 /// Kubernetes kinds list.
 #[derive(Default)]
@@ -20,23 +18,24 @@ impl KindsList {
     pub fn update(&mut self, kinds: Option<Vec<KindItem>>, sort_by: usize, is_descending: bool) {
         if let Some(new_list) = kinds {
             self.list.set_dirty(false);
-
-            if let Some(old_list) = &mut self.list.items {
-                update_old_list(old_list, new_list);
-            } else {
-                self.list.items = Some(create_new_list(new_list));
+            for new_item in new_list {
+                let old_item = self.list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
+                if let Some(old_item) = old_item {
+                    old_item.data = new_item;
+                    old_item.is_dirty = true;
+                } else {
+                    self.list.push(Item::dirty(new_item));
+                }
             }
 
+            self.list.full_retain(|i| i.is_dirty || i.is_fixed);
             self.list.sort(sort_by, is_descending);
         }
     }
 
     /// Returns cloned [`KindItem`]s as a vector.
-    pub fn to_vec(&self) -> Option<Vec<KindItem>> {
-        self.list
-            .items
-            .as_ref()
-            .map(|list| list.full_iter().map(|i| i.data.clone()).collect())
+    pub fn to_vec(&self) -> Vec<KindItem> {
+        self.list.full_iter().map(|i| i.data.clone()).collect()
     }
 
     /// Goes through the list of [`KindItem`] and selects appropriate flags.\
@@ -101,19 +100,17 @@ impl Table for KindsList {
         // pass
     }
 
-    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
-        self.list.get_page().map(|list| {
-            let mut result = Vec::with_capacity(self.list.page_height().into());
-            for item in list {
-                if item.is_active {
-                    result.push((item.data.get_name_end(width), true));
-                } else {
-                    result.push((item.data.get_name(width), false));
-                }
+    fn get_paged_names(&self, width: usize) -> Vec<(String, bool)> {
+        let mut result = Vec::with_capacity(self.list.page_height().into());
+        for item in self.list.get_page() {
+            if item.is_active {
+                result.push((item.data.get_name_end(width), true));
+            } else {
+                result.push((item.data.get_name(width), false));
             }
+        }
 
-            result
-        })
+        result
     }
 
     fn get_header(&mut self, _view: ViewType, width: usize) -> &str {
@@ -126,22 +123,4 @@ impl Table for KindsList {
 
         &self.header
     }
-}
-
-fn update_old_list(old_list: &mut KindFilterableList, new_list: Vec<KindItem>) {
-    for new_item in new_list {
-        let old_item = old_list.full_iter_mut().find(|i| i.data.uid() == new_item.uid());
-        if let Some(old_item) = old_item {
-            old_item.data = new_item;
-            old_item.is_dirty = true;
-        } else {
-            old_list.push(Item::dirty(new_item));
-        }
-    }
-
-    old_list.full_retain(|i| i.is_dirty || i.is_fixed);
-}
-
-fn create_new_list(new_list: Vec<KindItem>) -> KindFilterableList {
-    new_list.into_iter().map(Item::new).collect::<Vec<_>>().into()
 }
