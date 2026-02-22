@@ -265,10 +265,8 @@ impl CommandPalette {
                 return (response)(self.build_response());
             }
 
-            if let Some(index) = self.select().items.list.get_highlighted_item_index()
-                && let Some(items) = &self.select().items.list.items
-            {
-                return items[index].data.response.clone();
+            if let Some(index) = self.select().items.list.get_highlighted_item_index() {
+                return self.select().items.list[index].data.response.clone();
             }
         }
 

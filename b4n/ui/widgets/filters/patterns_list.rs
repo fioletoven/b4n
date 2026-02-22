@@ -1,4 +1,4 @@
-use b4n_list::{BasicFilterContext, FilterableList, ScrollableList};
+use b4n_list::{BasicFilterContext, Item, ScrollableList};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
 use std::collections::HashMap;
@@ -25,15 +25,12 @@ impl PatternsList {
     /// Returns `true` if the pattern was added to the list.
     pub fn add(&mut self, pattern: PatternItem, max_list_size: usize) -> bool {
         if !pattern.value.is_empty() && !self.contains(&pattern) {
-            self.list.push(pattern);
-
-            let len = self.list.items.as_ref().map(FilterableList::full_len);
-            if len.unwrap_or_default() > max_list_size {
+            self.list.push(Item::new(pattern));
+            if self.list.full_len() > max_list_size {
                 self.remove_oldest();
             }
 
             self.list.sort(1, false);
-
             true
         } else {
             false
@@ -46,9 +43,7 @@ impl PatternsList {
         if let Some(idx) = self.remove_highlighted_item() {
             self.list.recover_filter();
             let new_highlight = idx.min(self.list.len().saturating_sub(1));
-            if let Some(list) = &mut self.list.items
-                && let Some(item) = list.iter_mut().nth(new_highlight)
-            {
+            if let Some(item) = self.list.iter_mut().nth(new_highlight) {
                 item.is_active = true;
             }
 
@@ -61,41 +56,32 @@ impl PatternsList {
 
     /// Returns [`PatternsList`] as a vector of strings that can be saved in the app history data.
     pub fn to_vec(&self) -> Vec<String> {
-        if let Some(list) = &self.list.items {
-            list.full_iter().map(|i| i.data.to_string()).collect()
-        } else {
-            Vec::new()
-        }
+        self.list.full_iter().map(|i| i.data.to_string()).collect()
     }
 
     /// Returns `true` if the [`PatternsList`] contains an element with the given value.
     fn contains(&self, pattern: &PatternItem) -> bool {
-        self.list
-            .items
-            .as_ref()
-            .is_some_and(|l| l.full_iter().any(|i| i.data.value == pattern.value))
+        self.list.full_iter().any(|i| i.data.value == pattern.value)
     }
 
     /// Removes the oldest element from a list.
     fn remove_oldest(&mut self) {
-        if let Some(list) = &mut self.list.items {
-            let index = list
-                .full_iter()
-                .enumerate()
-                .min_by_key(|(_, i)| i.data.creation_time)
-                .map(|(index, _)| index);
-            if let Some(index) = index {
-                list.full_remove(index);
-            }
+        let index = self
+            .list
+            .full_iter()
+            .enumerate()
+            .min_by_key(|(_, i)| i.data.creation_time)
+            .map(|(index, _)| index);
+        if let Some(index) = index {
+            self.list.full_remove(index);
         }
     }
 
     fn remove_highlighted_item(&mut self) -> Option<usize> {
-        if let Some(list) = &mut self.list.items
-            && let Some(idx) = list.iter().position(|i| i.is_active)
-        {
-            list.remove(idx);
-            list.full_iter_mut().for_each(|i| i.is_active = false);
+        let idx = self.list.iter().position(|i| i.is_active);
+        if let Some(idx) = idx {
+            self.list.remove(idx);
+            self.list.full_iter_mut().for_each(|i| i.is_active = false);
             Some(idx)
         } else {
             None
@@ -148,7 +134,7 @@ impl Table for PatternsList {
         // pass
     }
 
-    fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>> {
+    fn get_paged_names(&self, width: usize) -> Vec<(String, bool)> {
         if let Some(description) = &self.description {
             self.list.get_paged_names_with_description(width, description)
         } else {

@@ -61,12 +61,10 @@ impl<T: Table> List<T> {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         self.area = area;
         self.items.update_page(self.area.height);
-        if let Some(list) = self
+        let list = self
             .items
-            .get_paged_items(theme, ViewType::Full, usize::from(self.area.width))
-        {
-            frame.render_widget(&mut ListWidget { list }, self.area);
-        }
+            .get_paged_items(theme, ViewType::Full, usize::from(self.area.width));
+        frame.render_widget(&mut ListWidget { list }, self.area);
     }
 }
 

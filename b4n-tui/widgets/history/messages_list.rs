@@ -32,10 +32,7 @@ impl MessagesList {
 
     /// Returns currently highlighted message.
     pub fn get_highlighted_item(&self) -> Option<&MessageItem> {
-        self.list
-            .items
-            .as_ref()
-            .and_then(|l| l.iter().find(|i| i.is_active).map(|i| &i.data))
+        self.list.iter().find(|i| i.is_active).map(|i| &i.data)
     }
 }
 
@@ -72,7 +69,7 @@ impl Table for MessagesList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn update_page(&mut self, new_height: u16);
-            fn get_paged_names(&self, width: usize) -> Option<Vec<(String, bool)>>;
+            fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
     }
 
@@ -87,16 +84,12 @@ impl Table for MessagesList {
     }
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
-    fn get_paged_items(&self, theme: &Theme, _view: ViewType, width: usize) -> Option<Vec<(String, TextColors)>> {
-        if let Some(list) = self.list.get_page() {
-            let mut result = Vec::with_capacity(self.list.page_height().into());
-            for item in list {
-                result.push((item.data.get_text(width), item.data.get_color(theme, item.is_active)));
-            }
-
-            return Some(result);
+    fn get_paged_items(&self, theme: &Theme, _view: ViewType, width: usize) -> Vec<(String, TextColors)> {
+        let mut result = Vec::with_capacity(self.list.page_height().into());
+        for item in self.list.get_page() {
+            result.push((item.data.get_text(width), item.data.get_color(theme, item.is_active)));
         }
 
-        None
+        result
     }
 }

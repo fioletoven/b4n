@@ -5,7 +5,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
-use std::{rc::Rc, slice::IterMut};
+use std::rc::Rc;
 
 use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
 
@@ -101,7 +101,10 @@ pub fn header(has_metrics: bool) -> Header {
 }
 
 /// Updates statistics for specified [`ResourceItem`] list mutable iterator.
-pub fn update_statistics(items: IterMut<'_, Item<ResourceItem, ResourceFilterContext>>, statistics: &Statistics) {
+pub fn update_statistics<'a>(
+    items: impl Iterator<Item = &'a mut Item<ResourceItem, ResourceFilterContext>>,
+    statistics: &Statistics,
+) {
     if !statistics.has_metrics {
         return;
     }

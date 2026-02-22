@@ -42,9 +42,9 @@ impl Selector {
         let options_width = options
             .items
             .list
-            .items
-            .as_ref()
-            .and_then(|l| l.full_iter().map(|i| i.data.name.chars().count()).max())
+            .full_iter()
+            .map(|i| i.data.name.chars().count())
+            .max()
             .unwrap_or_default();
 
         Self {

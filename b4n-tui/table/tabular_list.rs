@@ -106,12 +106,8 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
     pub fn update_data_lengths(&mut self) {
         self.header.reset_data_lengths();
 
-        let Some(list) = &self.list.items else {
-            return;
-        };
-
         let columns_no = self.header.get_columns_count();
-        for item in list {
+        for item in &self.list {
             for column in 0..columns_no {
                 let column_width = std::cmp::max(
                     self.header.get_data_length(column),

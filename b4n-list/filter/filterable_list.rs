@@ -13,10 +13,20 @@ pub mod filterable_list_tests;
 /// It remembers the original list so the filter can be re-applied anytime with different conditions.\
 /// Also it can be more efficient for cases where filtering is CPU bound and the filtered iterator is
 /// frequently requested (e.g. drawing a fame on the terminal).
-pub struct FilterableList<T: Filterable<Fc>, Fc: FilterContext> {
+pub struct FilterableList<T, Fc> {
     items: Vec<T>,
     filtered: Option<Vec<usize>>,
     _marker: PhantomData<Fc>,
+}
+
+impl<T, Fc> Default for FilterableList<T, Fc> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            filtered: None,
+            _marker: PhantomData,
+        }
+    }
 }
 
 impl<T: Filterable<Fc>, Fc: FilterContext> From<Vec<T>> for FilterableList<T, Fc> {
@@ -40,14 +50,12 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
     /// Removes and returns the element at position `index` within the filtered out list.\
     /// **Note** that this clears the current filter.
     pub fn remove(&mut self, index: usize) -> T {
-        if let Some(list) = &self.filtered {
-            let index = list[index];
-            self.filter_reset();
-            self.items.remove(index)
-        } else {
-            self.filter_reset();
-            self.items.remove(index)
-        }
+        let actual_index = match &self.filtered {
+            Some(list) => list[index],
+            None => index,
+        };
+        self.filter_reset();
+        self.items.remove(actual_index)
     }
 
     /// Filters out the underneath list using `context` for that.\
@@ -100,12 +108,36 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
 
     /// Returns an iterator over the filtered collection.
     pub fn iter(&self) -> FilterableListIterator<'_, T, Fc> {
-        FilterableListIterator { list: self, index: 0 }
+        let inner = match self.filtered.as_deref() {
+            None => IterInner::All(self.items.iter()),
+            Some(indices) => IterInner::Filtered {
+                items: &self.items,
+                indices: indices.iter(),
+            },
+        };
+
+        FilterableListIterator {
+            inner,
+            _marker: PhantomData,
+        }
     }
 
     /// Returns an iterator, over the filtered collection, that allows modifying each value.
     pub fn iter_mut(&mut self) -> FilterableListIteratorMut<'_, T, Fc> {
-        FilterableListIteratorMut { list: self, index: 0 }
+        let inner = match self.filtered.as_deref() {
+            None => IterMutInner::All(self.items.iter_mut()),
+            Some(indices) => IterMutInner::Filtered {
+                ptr: self.items.as_mut_ptr(),
+                len: self.items.len(),
+                indices: indices.iter(),
+                _marker: PhantomData,
+            },
+        };
+
+        FilterableListIteratorMut {
+            inner,
+            _marker: PhantomData,
+        }
     }
 
     /// Returns the number of elements in the underneath collection, also referred to as its 'length'.
@@ -166,7 +198,7 @@ impl<T: Filterable<Fc>, Fc: FilterContext> Index<usize> for FilterableList<T, Fc
 
 impl<T: Filterable<Fc>, Fc: FilterContext> IndexMut<usize> for FilterableList<T, Fc> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        if let Some(list) = &mut self.filtered {
+        if let Some(list) = &self.filtered {
             &mut self.items[list[index]]
         } else {
             &mut self.items[index]
@@ -179,7 +211,7 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> IntoIterator for &'a FilterableLi
     type IntoIter = FilterableListIterator<'a, T, Fc>;
 
     fn into_iter(self) -> Self::IntoIter {
-        FilterableListIterator { list: self, index: 0 }
+        self.iter()
     }
 }
 
@@ -188,72 +220,91 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> IntoIterator for &'a mut Filterab
     type IntoIter = FilterableListIteratorMut<'a, T, Fc>;
 
     fn into_iter(self) -> Self::IntoIter {
-        FilterableListIteratorMut { list: self, index: 0 }
+        self.iter_mut()
     }
 }
 
 /// Iterator struct for the [`FilterableList<T, Fc>`]
-pub struct FilterableListIterator<'a, T: Filterable<Fc>, Fc: FilterContext> {
-    list: &'a FilterableList<T, Fc>,
-    index: usize,
+pub struct FilterableListIterator<'a, T, Fc> {
+    inner: IterInner<'a, T>,
+    _marker: PhantomData<Fc>,
+}
+
+enum IterInner<'a, T> {
+    All(std::slice::Iter<'a, T>),
+    Filtered {
+        items: &'a [T],
+        indices: std::slice::Iter<'a, usize>,
+    },
 }
 
 impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterator<'a, T, Fc> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<&'a T> {
-        if let Some(list) = &self.list.filtered {
-            if list.is_empty() || self.index >= list.len() || list[self.index] >= self.list.items.len() {
-                return None;
-            }
+        match &mut self.inner {
+            IterInner::All(iter) => iter.next(),
+            IterInner::Filtered { items, indices } => {
+                let &idx = indices.next()?;
+                Some(&items[idx])
+            },
+        }
+    }
 
-            let index = list[self.index];
-            self.index += 1;
-
-            Some(&self.list.items[index])
-        } else {
-            if self.list.items.is_empty() || self.index >= self.list.items.len() {
-                return None;
-            }
-
-            let index = self.index;
-            self.index += 1;
-
-            Some(&self.list.items[index])
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.inner {
+            IterInner::All(iter) => iter.size_hint(),
+            IterInner::Filtered { indices, .. } => indices.size_hint(),
         }
     }
 }
 
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIterator<'a, T, Fc> {}
+
 /// Mutable iterator struct for the [`FilterableList<T, Fc>`]
-pub struct FilterableListIteratorMut<'a, T: Filterable<Fc>, Fc: FilterContext> {
-    list: &'a mut FilterableList<T, Fc>,
-    index: usize,
+pub struct FilterableListIteratorMut<'a, T, Fc> {
+    inner: IterMutInner<'a, T>,
+    _marker: PhantomData<Fc>,
+}
+
+enum IterMutInner<'a, T> {
+    All(std::slice::IterMut<'a, T>),
+    Filtered {
+        ptr: *mut T,
+        len: usize,
+        indices: std::slice::Iter<'a, usize>,
+        _marker: PhantomData<&'a mut [T]>,
+    },
 }
 
 impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIteratorMut<'a, T, Fc> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<&'a mut T> {
-        if let Some(list) = &mut self.list.filtered {
-            if list.is_empty() || self.index >= list.len() || list[self.index] >= self.list.items.len() {
-                return None;
-            }
+        match &mut self.inner {
+            IterMutInner::All(iter) => iter.next(),
+            IterMutInner::Filtered { ptr, len, indices, .. } => {
+                let &idx = indices.next()?;
+                assert!(idx < *len, "filtered index out of bounds");
 
-            let item = &mut self.list.items[list[self.index]];
-            let item = unsafe { &mut *std::ptr::from_mut::<T>(item) }; // extends the lifetime
-            self.index += 1;
+                // SAFETY: Caller guarantees `filtered` contains no duplicate indices, \
+                // so each element is yielded at most once, therefore no aliasing &mut T.
+                Some(unsafe { &mut *ptr.add(idx) })
+            },
+        }
+    }
 
-            Some(item)
-        } else {
-            if self.list.items.is_empty() || self.index >= self.list.items.len() {
-                return None;
-            }
-
-            let item = &mut self.list.items[self.index];
-            let item = unsafe { &mut *std::ptr::from_mut::<T>(item) }; // extends the lifetime
-            self.index += 1;
-
-            Some(item)
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.inner {
+            IterMutInner::All(iter) => iter.size_hint(),
+            IterMutInner::Filtered { indices, .. } => indices.size_hint(),
         }
     }
 }
+
+impl<'a, T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIteratorMut<'a, T, Fc> {}
+
+// SAFETY: The filtered variant conceptually holds &'a mut [T],
+// which is Send when T: Send and Sync when T: Sync.
+unsafe impl<T: Send, Fc> Send for FilterableListIteratorMut<'_, T, Fc> {}
+unsafe impl<T: Sync, Fc> Sync for FilterableListIteratorMut<'_, T, Fc> {}
