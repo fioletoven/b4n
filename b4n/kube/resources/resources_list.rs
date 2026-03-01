@@ -1,7 +1,7 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, Scope};
 use b4n_kube::{InitData, ObserverResult};
-use b4n_list::{Item, Row};
+use b4n_list::{Item, Row, ScrollableList};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
 use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
@@ -15,6 +15,7 @@ use crate::kube::resources::{ResourceFilterContext, ResourceItem};
 pub struct ResourcesList {
     pub data: InitData,
     pub table: TabularList<ResourceItem, ResourceFilterContext>,
+    cache: HashMap<String, (InitData, ScrollableList<ResourceItem, ResourceFilterContext>)>,
 }
 
 impl ResourcesList {
@@ -47,6 +48,18 @@ impl ResourcesList {
                 self.sort(sort_by, is_descending);
                 false
             },
+        }
+    }
+
+    /// Tries to restore list from the cache.
+    pub fn restore_from_cache(&mut self, key: &str) {
+        if let Some((init, mut list)) = self.cache.remove(key) {
+            self.update_kind(init);
+            let (sort_by, is_descending) = self.table.header.sort_info();
+            list.full_iter_mut().for_each(|i| i.is_cached = true);
+            self.table.list = list;
+            self.table.update_data_lengths();
+            self.sort(sort_by, is_descending);
         }
     }
 
@@ -214,9 +227,26 @@ impl Table for ResourcesList {
         }
     }
 
+    /// Clears the list, moving to the cache all values.
     fn clear(&mut self) {
-        self.data = InitData::default();
-        self.table.list.clear();
+        let data = std::mem::take(&mut self.data);
+        let list = std::mem::take(&mut self.table.list);
+        if data.resource.kind.as_str().is_empty() {
+            return;
+        }
+
+        if data.scope == Scope::Namespaced {
+            let key = if data.resource.is_container()
+                && let Some(name) = &data.resource.name
+            {
+                format!("{}/pods/{}", data.resource.namespace.as_str(), name)
+            } else {
+                format!("{}/{}", data.resource.namespace.as_str(), data.resource.kind.as_str())
+            };
+            self.cache.insert(key, (data, list));
+        } else {
+            self.cache.insert(data.resource.kind.as_str().to_owned(), (data, list));
+        }
     }
 
     fn filter(&mut self, filter: Option<String>) {

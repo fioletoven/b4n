@@ -345,7 +345,9 @@ impl App {
                 self.update_history_data(None, Some(namespace.clone().into()));
                 self.views_manager.handle_namespace_change(namespace.clone());
                 if self.data.borrow().current.scope == Scope::Namespaced {
-                    self.views_manager.clear_page_view();
+                    self.views_manager.cache_page_data();
+                    self.views_manager
+                        .restore_page_data(None, Some(namespace.as_str()), &Scope::Namespaced, false);
                     self.worker.borrow_mut().restart_new_namespace(namespace)?;
                 }
             }
@@ -357,7 +359,9 @@ impl App {
     /// Changes observed resources to `containers` for a specified `pod`.
     fn view_containers(&mut self, pod_name: String, pod_namespace: Namespace) -> Result<(), BgWorkerError> {
         self.views_manager.remember_current_resource();
-        self.views_manager.clear_page_view();
+        self.views_manager.cache_page_data();
+        self.views_manager
+            .restore_page_data(Some(&pod_name), Some(pod_namespace.as_str()), &Scope::Namespaced, true);
         self.views_manager.set_page_view(&Scope::Cluster, pod_namespace.is_all());
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
@@ -385,11 +389,14 @@ impl App {
             }
 
             let is_all_namespaces = namespace.is_all();
-            let resource = ResourceRef::filtered(kind, namespace, scope.filter);
             self.views_manager.handle_kind_change(to_select);
-            self.views_manager.clear_page_view();
+            self.views_manager.cache_page_data();
+            self.views_manager
+                .restore_page_data(Some(kind.as_str()), Some(namespace.as_str()), &scope.list, false);
             self.views_manager.set_page_view(&scope.list, is_all_namespaces);
             self.views_manager.force_header_scope(Some(scope.header));
+
+            let resource = ResourceRef::filtered(kind, namespace, scope.filter);
             self.worker.borrow_mut().restart(resource)?;
         }
 
@@ -437,7 +444,9 @@ impl App {
             .as_deref()
             .map_or_else(|| self.data.borrow().current.get_namespace(), Namespace::from)
             .is_all();
-        self.views_manager.clear_page_view();
+        self.views_manager.cache_page_data();
+        self.views_manager
+            .restore_page_data(kind.as_deref(), namespace.as_deref(), scope, false);
         self.update_history_data(kind, namespace);
         self.views_manager.set_page_view(scope, is_all_namespaces);
     }

@@ -81,8 +81,8 @@ impl ResourcesTable {
         }
     }
 
-    /// Resets all table data.
-    pub fn reset(&mut self) {
+    /// Moves all table data to the cache.
+    pub fn move_to_cache(&mut self) {
         self.list.table.clear();
         self.header.set_count(0);
         self.header.show_filtered_icon(false);

@@ -14,7 +14,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::kinds::ActionsListBuilderKindExt;
-use crate::kube::resources::{ResourceItem, node, pod};
+use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
 use crate::ui::widgets::{CommandPalette, Filter, StepBuilder};
 
@@ -70,9 +70,17 @@ impl ResourcesView {
         }
     }
 
-    /// Clears data in the list.
-    pub fn clear_list_data(&mut self) {
-        self.table.reset();
+    /// Resets the list.
+    pub fn reset(&mut self) {
+        self.table.list.table = ResourcesList::default();
+        self.table.header.set_count(0);
+        self.table.header.show_filtered_icon(false);
+        self.filter.reset();
+    }
+
+    /// Caches and clears data in the list.
+    pub fn cache_list_data(&mut self) {
+        self.table.move_to_cache();
         self.filter.reset();
     }
 
@@ -394,7 +402,7 @@ impl ResourcesView {
             );
         }
 
-        if self.table.scope() == &Scope::Namespaced {
+        if self.table.scope() == &Scope::Namespaced && !is_containers {
             builder = builder.with_namespace();
         }
 
