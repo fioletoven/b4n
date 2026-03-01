@@ -173,15 +173,17 @@ impl ResourcesList {
     }
 
     fn update_kind(&mut self, init: InitData, is_from_cache: bool) {
+        let are_equal = self.data.resource == init.resource;
         self.data = init;
-        let header = ResourceItem::header(
-            &self.data.kind,
-            &self.data.group,
-            self.data.crd.as_ref(),
-            self.data.has_metrics,
-            self.data.resource.is_filtered(),
-        );
-        self.table.update_header(header, is_from_cache);
+        if !is_from_cache || !are_equal {
+            self.table.update_header(ResourceItem::header(
+                &self.data.kind,
+                &self.data.group,
+                self.data.crd.as_ref(),
+                self.data.has_metrics,
+                self.data.resource.is_filtered(),
+            ));
+        }
     }
 
     /// Adds, updates or deletes `new_item` from the resources list.

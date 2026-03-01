@@ -2,9 +2,18 @@
 
 ## WIP
 
+### Features
+
+- cache for resources view
+
 ### Bug fixes
 
-- fix strip resourceVersion behaviour
+- fix ignore resource version
+- do not allow namespaces change in containers view
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.2 - 2026-02-15
 
