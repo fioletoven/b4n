@@ -96,10 +96,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
 
     /// Sets new header for the table.\
     /// **Note** that it also clears the list items.
-    pub fn update_header(&mut self, new_header: Header) {
+    pub fn update_header(&mut self, new_header: Header, is_from_cache: bool) {
         self.header = new_header;
-        self.list.clear();
-        self.offset = 0;
+        if !is_from_cache {
+            self.list.clear();
+            self.offset = 0;
+        }
     }
 
     /// Updates max widths for all columns basing on current data in the list.

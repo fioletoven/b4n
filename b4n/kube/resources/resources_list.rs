@@ -16,6 +16,7 @@ pub struct ResourcesList {
     pub data: InitData,
     pub table: TabularList<ResourceItem, ResourceFilterContext>,
     cache: HashMap<String, (InitData, ScrollableList<ResourceItem, ResourceFilterContext>)>,
+    from_cache: bool,
 }
 
 impl ResourcesList {
@@ -25,15 +26,33 @@ impl ResourcesList {
         self
     }
 
+    /// Tries to restore list from the cache.
+    pub fn restore_from_cache(&mut self, key: &str) -> bool {
+        if let Some((init, mut list)) = self.cache.remove(key) {
+            self.update_kind(init, false);
+            let (sort_by, is_descending) = self.table.header.sort_info();
+            list.full_iter_mut().for_each(|i| i.is_cache = true);
+            self.from_cache = true;
+            self.table.list = list;
+            self.table.update_data_lengths();
+            self.sort(sort_by, is_descending);
+
+            return true;
+        }
+
+        false
+    }
+
     /// Updates [`ResourcesList`] with new data from [`ObserverResult`] and sorts the new list if needed.\
     /// Returns `true` if the kind was changed during the update.
     pub fn update(&mut self, result: ObserverResult<ResourceItem>) -> bool {
         let (sort_by, is_descending) = self.table.header.sort_info();
         match result {
             ObserverResult::Init(init) => {
-                self.update_kind(*init);
+                self.update_kind(*init, self.from_cache);
                 let (sort_by, is_descending) = self.table.header.sort_info();
                 self.sort(sort_by, is_descending);
+                self.from_cache = false;
                 true
             },
             ObserverResult::InitDone => false,
@@ -48,18 +67,6 @@ impl ResourcesList {
                 self.sort(sort_by, is_descending);
                 false
             },
-        }
-    }
-
-    /// Tries to restore list from the cache.
-    pub fn restore_from_cache(&mut self, key: &str) {
-        if let Some((init, mut list)) = self.cache.remove(key) {
-            self.update_kind(init);
-            let (sort_by, is_descending) = self.table.header.sort_info();
-            list.full_iter_mut().for_each(|i| i.is_cached = true);
-            self.table.list = list;
-            self.table.update_data_lengths();
-            self.sort(sort_by, is_descending);
         }
     }
 
@@ -158,15 +165,16 @@ impl ResourcesList {
         group_width + name_width + extra_width + age_width
     }
 
-    fn update_kind(&mut self, init: InitData) {
+    fn update_kind(&mut self, init: InitData, is_from_cache: bool) {
         self.data = init;
-        self.table.update_header(ResourceItem::header(
+        let header = ResourceItem::header(
             &self.data.kind,
             &self.data.group,
             self.data.crd.as_ref(),
             self.data.has_metrics,
             self.data.resource.is_filtered(),
-        ));
+        );
+        self.table.update_header(header, is_from_cache);
     }
 
     /// Adds, updates or deletes `new_item` from the resources list.
@@ -179,6 +187,7 @@ impl ResourcesList {
         } else if let Some(old_item) = self.table.list.full_iter_mut().find(|i| i.data.uid() == new_item.uid()) {
             old_item.data = new_item;
             old_item.is_dirty = true;
+            old_item.is_cache = false;
         } else {
             self.table.list.push(Item::dirty(new_item));
         }
@@ -229,6 +238,8 @@ impl Table for ResourcesList {
 
     /// Clears the list, moving to the cache all values.
     fn clear(&mut self) {
+        self.from_cache = false;
+
         let data = std::mem::take(&mut self.data);
         let list = std::mem::take(&mut self.table.list);
         if data.resource.kind.as_str().is_empty() {

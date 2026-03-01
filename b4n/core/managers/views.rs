@@ -318,25 +318,19 @@ impl ViewsManager {
 
     /// Tries to restore list from the cache.
     pub fn restore_page_data(&mut self, kind: Option<&str>, namespace: Option<&str>, scope: &Scope, is_container: bool) {
-        let data = &self.app_data.borrow().current;
-        let key = if *scope == Scope::Namespaced {
-            if is_container {
-                format!(
-                    "{}/pods/{}",
-                    namespace.unwrap_or_else(|| data.namespace.as_str()),
-                    kind.unwrap_or_else(|| data.resource.kind.as_str())
-                )
-            } else {
-                format!(
-                    "{}/{}",
-                    namespace.unwrap_or_else(|| data.namespace.as_str()),
-                    kind.unwrap_or_else(|| data.resource.kind.as_str())
-                )
+        let key = {
+            let data = &self.app_data.borrow().current;
+            let kind = kind.unwrap_or_else(|| data.resource.kind.as_str());
+            let ns = namespace.unwrap_or_else(|| data.namespace.as_str());
+
+            match (scope, is_container) {
+                (Scope::Namespaced, true) => format!("{ns}/pods/{kind}"),
+                (Scope::Namespaced, false) => format!("{ns}/{kind}"),
+                _ => kind.to_owned(),
             }
-        } else {
-            kind.unwrap_or_else(|| data.resource.kind.as_str()).to_owned()
         };
-        self.resources.table.list.table.restore_from_cache(&key);
+
+        self.resources.restore_list_data(&key);
     }
 
     /// Sets page view from resource scope.

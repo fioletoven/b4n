@@ -60,7 +60,7 @@ pub struct Item<T: Row + Filterable<Fc>, Fc: FilterContext> {
     pub is_selected: bool,
     pub is_dirty: bool,
     pub is_fixed: bool,
-    pub is_cached: bool,
+    pub is_cache: bool,
     _marker: PhantomData<Fc>,
 }
 
@@ -73,7 +73,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Item<T, Fc> {
             is_selected: false,
             is_dirty: false,
             is_fixed: false,
-            is_cached: false,
+            is_cache: false,
             _marker: PhantomData,
         }
     }

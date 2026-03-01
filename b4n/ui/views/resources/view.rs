@@ -84,6 +84,13 @@ impl ResourcesView {
         self.filter.reset();
     }
 
+    /// Restores data in the list from cache.
+    pub fn restore_list_data(&mut self, key: &str) {
+        if self.table.restore_from_cache(key) {
+            self.update_breadcrumb_trail();
+        }
+    }
+
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         let is_init = matches!(result, ObserverResult::Init(_));
