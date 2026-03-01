@@ -31,7 +31,11 @@ impl ResourcesList {
         if let Some((init, mut list)) = self.cache.remove(key) {
             self.update_kind(init, false);
             let (sort_by, is_descending) = self.table.header.sort_info();
-            list.full_iter_mut().for_each(|i| i.is_cache = true);
+            for item in list.full_iter_mut() {
+                item.data.is_cached = !item.is_fixed;
+                item.is_selected = false;
+            }
+
             self.from_cache = true;
             self.table.list = list;
             self.table.update_data_lengths();
@@ -55,7 +59,10 @@ impl ResourcesList {
                 self.from_cache = false;
                 true
             },
-            ObserverResult::InitDone => false,
+            ObserverResult::InitDone => {
+                self.table.list.full_retain(|i| !i.data.is_cached);
+                false
+            },
             ObserverResult::Apply(resource) => {
                 self.add_all_namespaces_item();
                 self.update_list(resource, false);
@@ -187,7 +194,6 @@ impl ResourcesList {
         } else if let Some(old_item) = self.table.list.full_iter_mut().find(|i| i.data.uid() == new_item.uid()) {
             old_item.data = new_item;
             old_item.is_dirty = true;
-            old_item.is_cache = false;
         } else {
             self.table.list.push(Item::dirty(new_item));
         }

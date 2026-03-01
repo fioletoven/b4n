@@ -208,7 +208,6 @@ impl ResourcesTable {
 
         if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);
-            self.list.table.deselect_all();
         }
     }
 

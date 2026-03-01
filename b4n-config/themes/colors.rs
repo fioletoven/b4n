@@ -111,15 +111,21 @@ impl<'de> Deserialize<'de> for TextColors {
 pub struct LineColors {
     pub normal: TextColors,
     pub normal_hl: TextColors,
-    pub selected: TextColors,
-    pub selected_hl: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected_hl: Option<TextColors>,
 }
 
 impl LineColors {
     /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected).
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
-            if is_active { self.selected_hl } else { self.selected }
+            if is_active {
+                self.selected_hl.unwrap_or(self.normal_hl)
+            } else {
+                self.selected.unwrap_or(self.normal)
+            }
         } else if is_active {
             self.normal_hl
         } else {

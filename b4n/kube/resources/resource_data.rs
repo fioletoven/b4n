@@ -1,4 +1,4 @@
-use b4n_config::themes::{TextColors, Theme};
+use b4n_config::themes::{ResourceColors, TextColors};
 use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
@@ -197,15 +197,15 @@ impl ResourceData {
     }
 
     /// Returns [`TextColors`] for the current resource state.
-    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
+    pub fn get_colors(&self, colors: &ResourceColors, is_active: bool, is_selected: bool) -> TextColors {
         if self.is_completed {
-            theme.colors.line.completed.get_specific(is_active, is_selected)
+            colors.completed.get_specific(is_active, is_selected)
         } else if self.is_terminating {
-            theme.colors.line.terminating.get_specific(is_active, is_selected)
+            colors.terminating.get_specific(is_active, is_selected)
         } else if self.is_ready {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
+            colors.ready.get_specific(is_active, is_selected)
         } else {
-            theme.colors.line.in_progress.get_specific(is_active, is_selected)
+            colors.in_progress.get_specific(is_active, is_selected)
         }
     }
 }
