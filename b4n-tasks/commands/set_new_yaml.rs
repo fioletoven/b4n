@@ -68,8 +68,10 @@ impl SetNewResourceYamlCommand {
 
     async fn create_resource(self, client: Client) -> Result<String, SetNewResourceYamlError> {
         let mut resource = serde_yaml::from_str::<DynamicObject>(&self.yaml)?;
-        if self.options.encode {
-            encode_secret_data(resource.data.get_mut("data"));
+        if self.options.encode
+            && let Some(data) = resource.data.get_mut("data")
+        {
+            encode_secret_data(data);
         }
 
         let api_version = resource

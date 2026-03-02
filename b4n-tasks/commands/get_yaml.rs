@@ -155,8 +155,10 @@ impl GetResourceYamlCommand {
     ) -> Result<ResourceYamlResult, ResourceYamlError> {
         let can_patch_status = can_patch_status(cap);
 
-        if self.decode {
-            decode_secret_data(resource.data.get_mut("data")).map_err(|_| ResourceYamlError::SecretDecodeError)?;
+        if self.decode
+            && let Some(data) = resource.data.get_mut("data")
+        {
+            decode_secret_data(data).map_err(|_| ResourceYamlError::SecretDecodeError)?;
         }
 
         if self.sanitize {

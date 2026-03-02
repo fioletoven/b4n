@@ -259,7 +259,7 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterat
     }
 }
 
-impl<'a, T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIterator<'a, T, Fc> {}
+impl<T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIterator<'_, T, Fc> {}
 
 /// Mutable iterator struct for the [`FilterableList<T, Fc>`]
 pub struct FilterableListIteratorMut<'a, T, Fc> {
@@ -302,7 +302,7 @@ impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterat
     }
 }
 
-impl<'a, T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIteratorMut<'a, T, Fc> {}
+impl<T: Filterable<Fc>, Fc: FilterContext> ExactSizeIterator for FilterableListIteratorMut<'_, T, Fc> {}
 
 // SAFETY: The filtered variant conceptually holds &'a mut [T],
 // which is Send when T: Send and Sync when T: Sync.
