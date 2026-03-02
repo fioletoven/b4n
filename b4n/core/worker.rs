@@ -330,7 +330,7 @@ impl BgWorker {
     /// Returns connection state.
     pub fn get_connection_state(&self) -> ConnectionState {
         if self.resources.is_connected() {
-            if self.is_crds_list_ready {
+            if self.is_crds_list_ready && self.resources.is_ready() {
                 ConnectionState::Ready
             } else {
                 ConnectionState::Initializing

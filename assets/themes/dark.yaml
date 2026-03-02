@@ -102,6 +102,19 @@ colors:
       normal_hl: text_light:bg_dark
       selected: light_green:no_bg
       selected_hl: text_dark:light_green
+  line_cached:
+    ready:
+      normal: text:no_bg
+      normal_hl: text:light_blue
+    in_progress:
+      normal: text:no_bg
+      normal_hl: text:light_red
+    terminating:
+      normal: text:no_bg
+      normal_hl: text:light_magenta
+    completed:
+      normal: text:no_bg
+      normal_hl: text_dark:bg_dark
   syntax:
     yaml:
       normal: text:no_bg

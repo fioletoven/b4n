@@ -36,6 +36,7 @@ pub struct ResourceItem {
     pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
     pub involved_object: Option<InvolvedObject>,
+    pub is_cached: bool,
 }
 
 impl ResourceItem {
@@ -72,6 +73,7 @@ impl ResourceItem {
             filter_metadata: filter,
             data,
             involved_object,
+            ..Default::default()
         }
     }
 
@@ -110,7 +112,7 @@ impl ResourceItem {
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
-            involved_object: None,
+            ..Default::default()
         }
     }
 
@@ -122,7 +124,13 @@ impl ResourceItem {
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         if let Some(data) = &self.data {
-            data.get_colors(theme, is_active, is_selected)
+            if self.is_cached {
+                data.get_colors(&theme.colors.line_cached, is_active, is_selected)
+            } else {
+                data.get_colors(&theme.colors.line, is_active, is_selected)
+            }
+        } else if self.is_cached {
+            theme.colors.line_cached.ready.get_specific(is_active, is_selected)
         } else {
             theme.colors.line.ready.get_specific(is_active, is_selected)
         }

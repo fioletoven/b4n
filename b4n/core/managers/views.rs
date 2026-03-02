@@ -255,7 +255,7 @@ impl ViewsManager {
 
             view_result
         } else {
-            ResponseEvent::Handled
+            self.resources.process_tick()
         }
     }
 
@@ -304,16 +304,33 @@ impl ViewsManager {
 
     /// Resets all data for views.
     pub fn reset(&mut self) {
-        self.resources.clear_list_data();
+        self.resources.reset();
         self.ns_selector.select.items.clear();
         self.ns_selector.hide();
         self.res_selector.select.items.clear();
         self.res_selector.hide();
     }
 
-    /// Clears resources list.
-    pub fn clear_page_view(&mut self) {
-        self.resources.clear_list_data();
+    /// Caches and clears the resources list.
+    pub fn cache_page_data(&mut self) {
+        self.resources.cache_list_data();
+    }
+
+    /// Tries to restore list from the cache.
+    pub fn restore_page_data(&mut self, kind: Option<&str>, namespace: Option<&str>, scope: &Scope, is_container: bool) {
+        let key = {
+            let data = &self.app_data.borrow().current;
+            let kind = kind.unwrap_or_else(|| data.resource.kind.as_str());
+            let ns = namespace.unwrap_or_else(|| data.namespace.as_str());
+
+            match (scope, is_container) {
+                (Scope::Namespaced, true) => format!("{ns}/pods/{kind}"),
+                (Scope::Namespaced, false) => format!("{ns}/{kind}"),
+                _ => kind.to_owned(),
+            }
+        };
+
+        self.resources.restore_list_data(&key);
     }
 
     /// Sets page view from resource scope.

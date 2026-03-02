@@ -182,14 +182,14 @@ fn index_access_filtered() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "index out of bounds: the len is 1 but the index is 1")]
 fn index_out_of_bounds_unfiltered() {
     let list = FilterableList::from(vec![TestItem::new("a")]);
     let _ = &list[1];
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
 fn index_out_of_bounds_filtered() {
     let mut list = FilterableList::from(["abc", "bcd", "cde"].iter().map(TestItem::new).collect::<Vec<_>>());
 

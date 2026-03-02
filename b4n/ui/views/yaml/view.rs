@@ -480,8 +480,8 @@ impl YamlView {
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
         let mut inputs = vec![
-            CheckBox::new(0, "Force ownership (server-side apply only)", false, &colors.checkbox),
-            CheckBox::new(1, "Strip resourceVersion (avoid conflict errors)", false, &colors.checkbox),
+            CheckBox::new(0, "Force ownership (apply only)", false, &colors.checkbox),
+            CheckBox::new(1, "Ignore resource version", false, &colors.checkbox),
         ];
         if self.can_patch_status {
             inputs.push(CheckBox::new(2, "Include status subresource", false, &colors.checkbox));

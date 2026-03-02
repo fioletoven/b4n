@@ -140,6 +140,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         F: FnMut(&Item<T, Fc>) -> bool,
     {
         self.items.full_retain(f);
+        self.recover_highlighted_item_index();
     }
 
     /// Removes and returns the element at position `index` within the underneath collection.\

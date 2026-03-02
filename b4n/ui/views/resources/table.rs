@@ -81,11 +81,24 @@ impl ResourcesTable {
         }
     }
 
-    /// Resets all table data.
-    pub fn reset(&mut self) {
+    /// Moves all table data to the cache.
+    pub fn move_to_cache(&mut self) {
         self.list.table.clear();
         self.header.set_count(0);
         self.header.show_filtered_icon(false);
+    }
+
+    /// Restores all table data from the cache.
+    pub fn restore_from_cache(&mut self, key: &str) -> bool {
+        if self.list.table.restore_from_cache(key) {
+            self.process_init_result();
+            self.process_initdone_result();
+            self.update_app_data_current();
+
+            return true;
+        }
+
+        false
     }
 
     /// Sets initial kubernetes resources data for [`ResourcesTable`].
@@ -195,7 +208,6 @@ impl ResourcesTable {
 
         if namespace.is_all() || !self.app_data.borrow().current.is_namespace_equal(&namespace) {
             self.app_data.borrow_mut().current.set_namespace(namespace);
-            self.list.table.deselect_all();
         }
     }
 
@@ -224,41 +236,15 @@ impl ResourcesTable {
         let is_init_done = matches!(result, ObserverResult::InitDone);
 
         if self.list.table.update(result) {
-            let current = &mut self.app_data.borrow_mut().current;
-            current.update_from(&self.list.table.data);
+            self.update_app_data_current();
         }
 
         if is_init {
-            if let Some(filter) = self.next_refresh.apply_filter.take() {
-                self.set_filter(&filter);
-            } else {
-                self.set_filter("");
-            }
-
-            if let Some((column_no, is_descending)) = self.next_refresh.sort_info.take() {
-                self.list.table.table.header.set_sort_info(column_no, is_descending);
-            }
-
-            if self.next_refresh.clear_header_scope {
-                self.header.set_scope(None);
-                self.next_refresh.clear_header_scope = false;
-            }
-
-            if let Some(offset) = self.next_refresh.apply_offset {
-                self.init_offset(offset);
-            }
+            self.process_init_result();
         }
 
         if is_init_done {
-            if let Some(name) = self.next_refresh.highlight_item.take() {
-                self.list.table.highlight_item_by_name(&name);
-            } else {
-                self.list.table.highlight_first_item();
-            }
-
-            if let Some(offset) = self.next_refresh.apply_offset.take() {
-                self.init_offset(offset);
-            }
+            self.process_initdone_result();
         }
 
         self.header.set_count(self.list.table.len());
@@ -282,6 +268,55 @@ impl ResourcesTable {
         }
 
         response
+    }
+
+    /// Draws [`ResourcesTable`] on the provided frame and area.
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+            .split(area);
+
+        self.header.draw(frame, layout[0]);
+        self.list.draw(frame, layout[1]);
+    }
+
+    fn process_init_result(&mut self) {
+        if let Some(filter) = self.next_refresh.apply_filter.take() {
+            self.set_filter(&filter);
+        } else {
+            self.set_filter("");
+        }
+
+        if let Some((column_no, is_descending)) = self.next_refresh.sort_info.take() {
+            self.list.table.table.header.set_sort_info(column_no, is_descending);
+        }
+
+        if self.next_refresh.clear_header_scope {
+            self.header.set_scope(None);
+            self.next_refresh.clear_header_scope = false;
+        }
+
+        if let Some(offset) = self.next_refresh.apply_offset {
+            self.init_offset(offset);
+        }
+    }
+
+    fn process_initdone_result(&mut self) {
+        if let Some(name) = self.next_refresh.highlight_item.take() {
+            self.list.table.highlight_item_by_name(&name);
+        } else if !self.list.table.is_anything_highlighted() {
+            self.list.table.highlight_first_item();
+        }
+
+        if let Some(offset) = self.next_refresh.apply_offset.take() {
+            self.init_offset(offset);
+        }
+    }
+
+    fn update_app_data_current(&mut self) {
+        let current = &mut self.app_data.borrow_mut().current;
+        current.update_from(&self.list.table.data);
     }
 
     fn process_highlighted_resource_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -352,17 +387,6 @@ impl ResourcesTable {
         }
 
         ResponseEvent::NotHandled
-    }
-
-    /// Draws [`ResourcesTable`] on the provided frame and area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-            .split(area);
-
-        self.header.draw(frame, layout[0]);
-        self.list.draw(frame, layout[1]);
     }
 
     fn process_esc_key(&self) -> ResponseEvent {

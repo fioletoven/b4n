@@ -74,12 +74,62 @@ pub struct FilterColors {
 }
 
 /// Represents kubernetes resource colors.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ResourceColors {
     pub ready: LineColors,
     pub in_progress: LineColors,
     pub terminating: LineColors,
     pub completed: LineColors,
+}
+
+impl Default for ResourceColors {
+    fn default() -> Self {
+        Self {
+            ready: LineColors {
+                normal: TextColors::new(Color::LightBlue),
+                normal_hl: TextColors::bg(Color::Black, Color::LightBlue),
+                selected: Some(TextColors::new(Color::LightGreen)),
+                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+            },
+            in_progress: LineColors {
+                normal: TextColors::new(Color::Red),
+                normal_hl: TextColors::bg(Color::Black, Color::LightRed),
+                selected: Some(TextColors::new(Color::LightGreen)),
+                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+            },
+            terminating: LineColors {
+                normal: TextColors::new(Color::Magenta),
+                normal_hl: TextColors::bg(Color::Black, Color::LightMagenta),
+                selected: Some(TextColors::new(Color::LightGreen)),
+                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+            },
+            completed: LineColors {
+                normal: TextColors::new(Color::Gray),
+                normal_hl: TextColors::bg(Color::Gray, Color::Black),
+                selected: Some(TextColors::new(Color::LightGreen)),
+                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+            },
+        }
+    }
+}
+
+impl ResourceColors {
+    pub fn cached() -> Self {
+        let mut colors = ResourceColors::default();
+        colors.ready.normal = TextColors::new(Color::Gray);
+        colors.ready.selected = None;
+        colors.ready.selected_hl = None;
+        colors.in_progress.normal = TextColors::new(Color::Gray);
+        colors.in_progress.selected = None;
+        colors.in_progress.selected_hl = None;
+        colors.terminating.normal = TextColors::new(Color::Gray);
+        colors.terminating.selected = None;
+        colors.terminating.selected_hl = None;
+        colors.completed.normal = TextColors::new(Color::Gray);
+        colors.completed.selected = None;
+        colors.completed.selected_hl = None;
+        colors
+    }
 }
 
 /// Represents colors for UI control.
@@ -198,6 +248,7 @@ pub struct ThemeColors {
     pub mouse_menu: SelectColors,
     pub modal: ModalColors,
     pub line: ResourceColors,
+    pub line_cached: ResourceColors,
     pub syntax: SyntaxColors,
 }
 
@@ -238,32 +289,8 @@ impl Default for Theme {
                 },
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors::default(),
-                line: ResourceColors {
-                    ready: LineColors {
-                        normal: TextColors::new(Color::LightBlue),
-                        normal_hl: TextColors::bg(Color::Black, Color::LightBlue),
-                        selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
-                    },
-                    in_progress: LineColors {
-                        normal: TextColors::new(Color::Red),
-                        normal_hl: TextColors::bg(Color::Black, Color::LightRed),
-                        selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
-                    },
-                    terminating: LineColors {
-                        normal: TextColors::new(Color::Magenta),
-                        normal_hl: TextColors::bg(Color::Black, Color::LightMagenta),
-                        selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
-                    },
-                    completed: LineColors {
-                        normal: TextColors::new(Color::Gray),
-                        normal_hl: TextColors::bg(Color::Gray, Color::Black),
-                        selected: TextColors::new(Color::LightGreen),
-                        selected_hl: TextColors::bg(Color::Black, Color::LightGreen),
-                    },
-                },
+                line: ResourceColors::default(),
+                line_cached: ResourceColors::cached(),
                 syntax: SyntaxColors {
                     yaml: YamlSyntaxColors {
                         normal: TextColors::new(Color::DarkGray),

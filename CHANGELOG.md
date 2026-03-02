@@ -1,10 +1,19 @@
 # Change Log
 
-## WIP
+## 0.4.3 - 2026-03-02
+
+### Features
+
+- add cache to the resources view
 
 ### Bug fixes
 
-- fix strip resourceVersion behaviour
+- fix ignore resource version
+- do not allow namespace change in the containers view
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.2 - 2026-02-15
 

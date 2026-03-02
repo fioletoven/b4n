@@ -136,8 +136,8 @@ impl SetResourceYamlCommand {
             }
         })?;
 
-        if encode {
-            encode_secret_data(resource.get_mut("data"));
+        if encode && let Some(data) = resource.get_mut("data") {
+            encode_secret_data(data);
         }
 
         if ignore_version && let Some(metadata) = resource["metadata"].as_object_mut() {
