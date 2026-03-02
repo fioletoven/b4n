@@ -116,12 +116,16 @@ impl Default for ResourceColors {
 impl ResourceColors {
     pub fn cached() -> Self {
         let mut colors = ResourceColors::default();
+        colors.ready.normal = TextColors::new(Color::Gray);
         colors.ready.selected = None;
         colors.ready.selected_hl = None;
+        colors.in_progress.normal = TextColors::new(Color::Gray);
         colors.in_progress.selected = None;
         colors.in_progress.selected_hl = None;
+        colors.terminating.normal = TextColors::new(Color::Gray);
         colors.terminating.selected = None;
         colors.terminating.selected_hl = None;
+        colors.completed.normal = TextColors::new(Color::Gray);
         colors.completed.selected = None;
         colors.completed.selected_hl = None;
         colors

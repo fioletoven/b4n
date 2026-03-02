@@ -30,7 +30,6 @@ impl ResourcesList {
     pub fn restore_from_cache(&mut self, key: &str) -> bool {
         if let Some((init, mut list)) = self.cache.remove(key) {
             self.update_kind(init, false);
-            let (sort_by, is_descending) = self.table.header.sort_info();
             for item in list.full_iter_mut() {
                 item.data.is_cached = !item.is_fixed;
                 item.is_selected = false;
@@ -39,7 +38,6 @@ impl ResourcesList {
             self.from_cache = true;
             self.table.list = list;
             self.table.update_data_lengths();
-            self.sort(sort_by, is_descending);
 
             return true;
         }
