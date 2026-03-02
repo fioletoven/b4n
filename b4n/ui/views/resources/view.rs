@@ -15,6 +15,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::kinds::ActionsListBuilderKindExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
+use crate::ui::views::View;
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
 use crate::ui::widgets::{CommandPalette, Filter, StepBuilder};
 
@@ -203,11 +204,6 @@ impl ResourcesView {
         }
     }
 
-    /// Processes disconnection state.
-    pub fn process_disconnection(&mut self) {
-        self.command_palette.hide();
-    }
-
     /// Returns `true` if namespaces selector can be displayed.
     pub fn is_namespaces_selector_allowed(&self) -> bool {
         self.table.scope() == &Scope::Namespaced
@@ -219,114 +215,6 @@ impl ResourcesView {
     /// Returns `true` if resources selector can be displayed.
     pub fn is_resources_selector_allowed(&self) -> bool {
         !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
-    }
-
-    /// Draws [`ResourcesView`] on the provided frame and area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.table.draw(frame, area);
-
-        self.modal.draw(frame, frame.area());
-        self.command_palette.draw(frame, frame.area());
-        self.filter.draw(frame, frame.area());
-    }
-
-    /// Process TUI event.
-    pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.modal.is_visible {
-            if self.modal.process_event(event).is_action("delete") {
-                return ResponseEvent::DeleteResources(
-                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
-                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
-                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
-                );
-            }
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
-                return result;
-            }
-        }
-
-        if !self.app_data.borrow().is_connected() {
-            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
-            {
-                self.show_command_palette();
-                return ResponseEvent::Handled;
-            }
-
-            return ResponseEvent::NotHandled;
-        }
-
-        if self.filter.is_visible {
-            let result = self.filter.process_event(event);
-            self.table.set_filter(self.filter.value());
-            return result;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
-            self.table
-                .copy_to_clipboard(self.table.list.table.is_anything_selected(), &self.footer_tx);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
-            self.ask_delete_resources();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
-            self.filter.reset();
-            self.table.set_filter("");
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
-            self.filter.show();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-            && self.table.list.area.contains(Position::new(mouse.column, mouse.row))
-        {
-            let line_no = mouse.row.saturating_sub(self.table.list.area.y);
-            if !self.table.list.table.highlight_item_by_line(line_no) {
-                self.table.list.table.unhighlight_item();
-            }
-            self.show_mouse_menu(mouse.column, mouse.row);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
-            && let Some(line_no) = self.table.list.table.get_highlighted_item_line_no()
-            && let Some(item_name) = self.table.list.table.get_highlighted_item_name()
-        {
-            let pos = self.get_mouse_menu_position(line_no, item_name);
-            self.show_mouse_menu(pos.x, pos.y);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::YamlCreate) {
-            self.show_create_resource_palette();
-            return ResponseEvent::Handled;
-        }
-
-        let result = self.table.process_event(event);
-        if result == ResponseEvent::ViewPreviousResource {
-            return self.handle_previous_resource_change();
-        }
-
-        result
     }
 
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -720,6 +608,123 @@ impl ResourcesView {
             .table
             .table
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
+    }
+}
+
+impl View for ResourcesView {
+    fn process_tick(&mut self) -> ResponseEvent {
+        self.table.list.table.remove_expired_cache_entries();
+        ResponseEvent::Handled
+    }
+
+    fn process_disconnection(&mut self) {
+        self.command_palette.hide();
+    }
+
+    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.modal.is_visible {
+            if self.modal.process_event(event).is_action("delete") {
+                return ResponseEvent::DeleteResources(
+                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
+                );
+            }
+
+            return ResponseEvent::Handled;
+        }
+
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
+        }
+
+        if !self.app_data.borrow().is_connected() {
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+            {
+                self.show_command_palette();
+                return ResponseEvent::Handled;
+            }
+
+            return ResponseEvent::NotHandled;
+        }
+
+        if self.filter.is_visible {
+            let result = self.filter.process_event(event);
+            self.table.set_filter(self.filter.value());
+            return result;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.table
+                .copy_to_clipboard(self.table.list.table.is_anything_selected(), &self.footer_tx);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
+            self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+            self.filter.reset();
+            self.table.set_filter("");
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::FilterOpen) {
+            self.filter.show();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+            && self.table.list.area.contains(Position::new(mouse.column, mouse.row))
+        {
+            let line_no = mouse.row.saturating_sub(self.table.list.area.y);
+            if !self.table.list.table.highlight_item_by_line(line_no) {
+                self.table.list.table.unhighlight_item();
+            }
+            self.show_mouse_menu(mouse.column, mouse.row);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MouseMenuOpen)
+            && let Some(line_no) = self.table.list.table.get_highlighted_item_line_no()
+            && let Some(item_name) = self.table.list.table.get_highlighted_item_name()
+        {
+            let pos = self.get_mouse_menu_position(line_no, item_name);
+            self.show_mouse_menu(pos.x, pos.y);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlCreate) {
+            self.show_create_resource_palette();
+            return ResponseEvent::Handled;
+        }
+
+        let result = self.table.process_event(event);
+        if result == ResponseEvent::ViewPreviousResource {
+            return self.handle_previous_resource_change();
+        }
+
+        result
+    }
+
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.table.draw(frame, area);
+
+        self.modal.draw(frame, frame.area());
+        self.command_palette.draw(frame, frame.area());
+        self.filter.draw(frame, frame.area());
     }
 }
 

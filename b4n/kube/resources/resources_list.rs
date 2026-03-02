@@ -6,17 +6,21 @@ use b4n_tui::table::{ItemExt, TabularList, ViewType};
 use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
+use std::time::{Duration, Instant};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::kube::resources::{ResourceFilterContext, ResourceItem};
+
+static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
 
 /// Kubernetes resources list.
 #[derive(Default)]
 pub struct ResourcesList {
     pub data: InitData,
     pub table: TabularList<ResourceItem, ResourceFilterContext>,
-    cache: HashMap<String, (InitData, ScrollableList<ResourceItem, ResourceFilterContext>)>,
-    from_cache: bool,
+    cache: HashMap<String, CacheEntry>,
+    is_from_cache: bool,
+    last_cache_cleanup: Option<Instant>,
 }
 
 impl ResourcesList {
@@ -28,15 +32,17 @@ impl ResourcesList {
 
     /// Tries to restore list from the cache.
     pub fn restore_from_cache(&mut self, key: &str) -> bool {
-        if let Some((init, mut list)) = self.cache.remove(key) {
-            self.update_kind(init, false);
-            for item in list.full_iter_mut() {
+        if let Some(mut entry) = self.cache.remove(key)
+            && !entry.is_expired()
+        {
+            self.update_kind(entry.init, false);
+            for item in entry.list.full_iter_mut() {
                 item.data.is_cached = !item.is_fixed;
                 item.is_selected = false;
             }
 
-            self.from_cache = true;
-            self.table.list = list;
+            self.is_from_cache = true;
+            self.table.list = entry.list;
             self.table.update_data_lengths();
 
             return true;
@@ -51,10 +57,10 @@ impl ResourcesList {
         let (sort_by, is_descending) = self.table.header.sort_info();
         match result {
             ObserverResult::Init(init) => {
-                self.update_kind(*init, self.from_cache);
+                self.update_kind(*init, self.is_from_cache);
                 let (sort_by, is_descending) = self.table.header.sort_info();
                 self.sort(sort_by, is_descending);
-                self.from_cache = false;
+                self.is_from_cache = false;
                 true
             },
             ObserverResult::InitDone => {
@@ -72,6 +78,14 @@ impl ResourcesList {
                 self.sort(sort_by, is_descending);
                 false
             },
+        }
+    }
+
+    /// Removes all expired entries from the cache, freeing their associated memory.
+    pub fn remove_expired_cache_entries(&mut self) {
+        if self.last_cache_cleanup.is_none_or(|f| f.elapsed() >= Duration::from_secs(1)) {
+            self.last_cache_cleanup = Some(Instant::now());
+            self.cache.retain(|_, v| !v.is_expired());
         }
     }
 
@@ -244,7 +258,7 @@ impl Table for ResourcesList {
 
     /// Clears the list, moving to the cache all values.
     fn clear(&mut self) {
-        self.from_cache = false;
+        self.is_from_cache = false;
 
         let data = std::mem::take(&mut self.data);
         let list = std::mem::take(&mut self.table.list);
@@ -260,9 +274,10 @@ impl Table for ResourcesList {
             } else {
                 format!("{}/{}", data.resource.namespace.as_str(), data.resource.kind.as_str())
             };
-            self.cache.insert(key, (data, list));
+            self.cache.insert(key, CacheEntry::new(data, list));
         } else {
-            self.cache.insert(data.resource.kind.as_str().to_owned(), (data, list));
+            self.cache
+                .insert(data.resource.kind.as_str().to_owned(), CacheEntry::new(data, list));
         }
     }
 
@@ -329,5 +344,25 @@ impl Table for ResourcesList {
 impl From<&ResourceItem> for ActionItem {
     fn from(value: &ResourceItem) -> Self {
         ActionItem::raw(value.uid.clone(), "resource".to_owned(), value.name.clone(), None)
+    }
+}
+
+struct CacheEntry {
+    time: Instant,
+    init: InitData,
+    list: ScrollableList<ResourceItem, ResourceFilterContext>,
+}
+
+impl CacheEntry {
+    fn new(init: InitData, list: ScrollableList<ResourceItem, ResourceFilterContext>) -> Self {
+        Self {
+            time: Instant::now(),
+            init,
+            list,
+        }
+    }
+
+    fn is_expired(&self) -> bool {
+        self.time.elapsed() > CACHE_EXPIRED_DURATION
     }
 }

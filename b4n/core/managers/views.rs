@@ -255,7 +255,7 @@ impl ViewsManager {
 
             view_result
         } else {
-            ResponseEvent::Handled
+            self.resources.process_tick()
         }
     }
 
