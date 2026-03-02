@@ -1,15 +1,15 @@
 # Change Log
 
-## WIP
+## 0.4.3 - 2026-03-02
 
 ### Features
 
-- cache for resources view
+- add cache to the resources view
 
 ### Bug fixes
 
 - fix ignore resource version
-- do not allow namespaces change in containers view
+- do not allow namespace change in the containers view
 
 ### Compatibility
 
