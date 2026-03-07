@@ -104,7 +104,7 @@ fn operations_on_empty_list() {
     list.select_highlighted_item();
     list.unhighlight_item();
     list.sort(0, false);
-    list.filter(Some("test".into()));
+    list.set_filter(Some("test".into()));
     list.process_key_event(KeyCode::Down);
     list.process_scroll_up();
     list.process_scroll_down();
@@ -136,7 +136,7 @@ fn single_item_list() {
 #[test]
 fn filter_reduces_len() {
     let mut list = make_list(&["abc", "bcd", "cde", "def"]);
-    list.filter(Some("cd".into()));
+    list.set_filter(Some("cd".into()));
     assert_eq!(2, list.len());
     assert!(list.is_filtered());
 }
@@ -144,17 +144,17 @@ fn filter_reduces_len() {
 #[test]
 fn filter_returns_false_if_same_pattern() {
     let mut list = make_list(&["abc", "bcd"]);
-    assert!(list.filter(Some("bc".into())));
-    assert!(!list.filter(Some("bc".into())));
+    assert!(list.set_filter(Some("bc".into())));
+    assert!(!list.set_filter(Some("bc".into())));
 }
 
 #[test]
 fn filter_none_clears_filter() {
     let mut list = make_list(&["abc", "bcd", "cde"]);
-    list.filter(Some("bc".into()));
+    list.set_filter(Some("bc".into()));
     assert_eq!(2, list.len());
 
-    list.filter(None);
+    list.set_filter(None);
     assert_eq!(3, list.len());
     assert!(!list.is_filtered());
 }
@@ -162,7 +162,7 @@ fn filter_none_clears_filter() {
 #[test]
 fn filter_no_matches() {
     let mut list = make_list(&["abc", "bcd"]);
-    list.filter(Some("xyz".into()));
+    list.set_filter(Some("xyz".into()));
     assert_eq!(0, list.len());
     assert!(list.is_empty());
 }
@@ -173,23 +173,23 @@ fn filter_deselects_all() {
     list.select_all();
     assert!(list.is_anything_selected());
 
-    list.filter(Some("bc".into()));
+    list.set_filter(Some("bc".into()));
     assert!(!list.is_anything_selected());
 }
 
 #[test]
 fn get_filter_returns_current() {
     let mut list = make_list(&["a"]);
-    assert_eq!(None, list.get_filter());
+    assert_eq!(None, list.filter());
 
-    list.filter(Some("test".into()));
-    assert_eq!(Some("test"), list.get_filter());
+    list.set_filter(Some("test".into()));
+    assert_eq!(Some("test"), list.filter());
 }
 
 #[test]
 fn push_respects_active_filter() {
     let mut list = make_list(&["abc", "bcd", "cde"]);
-    list.filter(Some("bc".into()));
+    list.set_filter(Some("bc".into()));
     assert_eq!(2, list.len());
 
     list.push(Item::new(TestRow::new("xbc")));

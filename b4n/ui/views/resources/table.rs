@@ -221,11 +221,11 @@ impl ResourcesTable {
         self.header.show_filtered_icon(!value.is_empty());
         if value.is_empty() {
             if self.list.table.is_filtered() {
-                self.list.table.filter(None);
+                self.list.table.set_filter(None);
                 self.header.set_count(self.list.table.len());
             }
-        } else if !self.list.table.is_filtered() || self.list.table.get_filter().is_some_and(|f| f != value) {
-            self.list.table.filter(Some(value.to_owned()));
+        } else if !self.list.table.is_filtered() || self.list.table.filter().is_some_and(|f| f != value) {
+            self.list.table.set_filter(Some(value.to_owned()));
             self.header.set_count(self.list.table.len());
         }
     }

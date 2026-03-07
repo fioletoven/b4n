@@ -233,7 +233,7 @@ impl Table for ResourcesList {
         to self.table.list {
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
-            fn get_filter(&self) -> Option<&str>;
+            fn filter(&self) -> Option<&str>;
             fn is_anything_highlighted(&self) -> bool;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
@@ -262,6 +262,8 @@ impl Table for ResourcesList {
 
         let data = std::mem::take(&mut self.data);
         let list = std::mem::take(&mut self.table.list);
+        self.table.list.set_filter_settings(list.filter_settings());
+
         if data.resource.kind.as_str().is_empty() {
             return;
         }
@@ -281,8 +283,8 @@ impl Table for ResourcesList {
         }
     }
 
-    fn filter(&mut self, filter: Option<String>) {
-        if self.table.list.filter(filter) {
+    fn set_filter(&mut self, filter: Option<String>) {
+        if self.table.list.set_filter(filter) {
             self.table.update_data_lengths();
         }
     }
