@@ -41,19 +41,19 @@ impl<T: Table> List<T> {
 
     /// Highlights first item.
     pub fn highlight_first(&mut self) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_first_item();
     }
 
     /// Highlights an item by name.
     pub fn highlight(&mut self, name: &str) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_item_by_name(name);
     }
 
     /// Highlights an item by uid.
     pub fn highlight_by_uid(&mut self, uid: &str) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_item_by_uid(uid);
     }
 

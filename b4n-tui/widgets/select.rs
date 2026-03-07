@@ -94,7 +94,7 @@ impl<T: Table> Select<T> {
 
     /// Return `true` if filter line is visible.
     pub fn is_filter_visible(&self) -> bool {
-        !self.filter_disabled && !self.filter_auto_hide || self.items.get_filter().is_some()
+        !self.filter_disabled && !self.filter_auto_hide || self.items.filter().is_some()
     }
 
     delegate! {
@@ -122,24 +122,24 @@ impl<T: Table> Select<T> {
     /// Resets the filter.
     pub fn reset(&mut self) {
         self.filter.reset();
-        self.items.filter(None);
+        self.items.set_filter(None);
     }
 
     /// Highlights first item.
     pub fn highlight_first(&mut self) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_first_item();
     }
 
     /// Highlights an item by name.
     pub fn highlight(&mut self, name: &str) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_item_by_name(name);
     }
 
     /// Highlights an item by uid.
     pub fn highlight_by_uid(&mut self, uid: &str) {
-        self.items.filter(None);
+        self.items.set_filter(None);
         self.items.highlight_item_by_uid(uid);
     }
 
@@ -164,8 +164,8 @@ impl<T: Table> Select<T> {
     /// Updates filter applied on items.
     pub fn update_items_filter(&mut self) {
         if self.filter.value().is_empty() {
-            self.items.filter(None);
-        } else if let Some(filter) = self.items.get_filter() {
+            self.items.set_filter(None);
+        } else if let Some(filter) = self.items.filter() {
             if self.filter.value() != filter {
                 self.filter_and_highlight();
             }
@@ -175,7 +175,7 @@ impl<T: Table> Select<T> {
     }
 
     fn filter_and_highlight(&mut self) {
-        self.items.filter(Some(self.filter.value().to_owned()));
+        self.items.set_filter(Some(self.filter.value().to_owned()));
         self.items.highlight_item_by_name_start(self.filter.value());
         if self.items.get_highlighted_item_index().is_none() {
             self.items.highlight_first_item();

@@ -28,11 +28,11 @@ pub trait Table: crate::Responsive {
     /// Returns `true` if the list is filtered.
     fn is_filtered(&self) -> bool;
 
-    /// Filters list.
-    fn filter(&mut self, filter: Option<String>);
-
     /// Returns filter value.
-    fn get_filter(&self) -> Option<&str>;
+    fn filter(&self) -> Option<&str>;
+
+    /// Filters list.
+    fn set_filter(&mut self, filter: Option<String>);
 
     /// Returns column number located at the specified character position.
     fn get_column_at_position(&self, position: usize) -> Option<usize>;

@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix filter settings in the resources view
+
 ## 0.4.3 - 2026-03-02
 
 ### Features

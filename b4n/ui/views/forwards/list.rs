@@ -52,8 +52,8 @@ impl Table for PortForwardsList {
             fn clear(&mut self);
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
-            fn filter(&mut self, filter: Option<String>);
-            fn get_filter(&self) -> Option<&str>;
+            fn set_filter(&mut self, filter: Option<String>);
+            fn filter(&self) -> Option<&str>;
             fn is_anything_highlighted(&self) -> bool;
             fn get_highlighted_item_index(&self) -> Option<usize>;
             fn get_highlighted_item_name(&self) -> Option<&str>;
