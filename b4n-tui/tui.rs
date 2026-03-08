@@ -57,11 +57,14 @@ pub enum MouseEventKind {
     None,
     LeftClick,
     LeftDoubleClick,
+    LeftTripleClick,
     LeftDrag,
     RightClick,
     RightDoubleClick,
+    RightTripleClick,
     MiddleClick,
     MiddleDoubleClick,
+    MiddleTripleClick,
     Moved,
     ScrollDown,
     ScrollUp,
@@ -212,10 +215,7 @@ impl Tui {
         let _cancellation_token = self.events_ct.clone();
         let _event_tx = self.event_tx.clone();
         let task = runtime.spawn(async move {
-            let mut click = DblClickState {
-                button: MouseButton::Left,
-                time: None,
-            };
+            let mut click = DblClickState::default();
             let mut reader = crossterm::event::EventStream::new();
             loop {
                 let crossterm_event = reader.next().fuse();
@@ -254,6 +254,27 @@ impl Drop for Tui {
 struct DblClickState {
     button: MouseButton,
     time: Option<Instant>,
+    count: u8,
+}
+
+impl Default for DblClickState {
+    fn default() -> Self {
+        Self {
+            button: MouseButton::Left,
+            time: None,
+            count: 0,
+        }
+    }
+}
+
+impl DblClickState {
+    fn new(time: Instant, button: MouseButton, count: u8) -> Self {
+        Self {
+            button,
+            time: Some(time),
+            count,
+        }
+    }
 }
 
 fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, prev_click: DblClickState) -> DblClickState {
@@ -268,26 +289,37 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
 
             match mouse_event.kind {
                 crossterm::event::MouseEventKind::Down(button) => {
-                    let is_double_click = prev_click
-                        .time
-                        .filter(|&t| now.duration_since(t) <= DOUBLE_CLICK_DURATION)
-                        .is_some()
-                        && prev_click.button == button;
+                    let click_no = if prev_click.button == button
+                        && prev_click
+                            .time
+                            .is_some_and(|t| now.duration_since(t) <= DOUBLE_CLICK_DURATION)
+                    {
+                        prev_click.count.wrapping_add(1)
+                    } else {
+                        1
+                    };
 
                     let mut event: MouseEvent = mouse_event.into();
-
-                    if is_double_click {
-                        event.kind = match button {
-                            MouseButton::Left => MouseEventKind::LeftDoubleClick,
-                            MouseButton::Right => MouseEventKind::RightDoubleClick,
-                            MouseButton::Middle => MouseEventKind::MiddleDoubleClick,
-                        };
-                        let _ = sender.send(TuiEvent::Mouse(event));
-                        DblClickState { time: None, button }
-                    } else {
-                        let _ = sender.send(TuiEvent::Mouse(event));
-                        DblClickState { time: Some(now), button }
+                    match click_no {
+                        2 => {
+                            event.kind = match button {
+                                MouseButton::Left => MouseEventKind::LeftDoubleClick,
+                                MouseButton::Right => MouseEventKind::RightDoubleClick,
+                                MouseButton::Middle => MouseEventKind::MiddleDoubleClick,
+                            };
+                        },
+                        3 => {
+                            event.kind = match button {
+                                MouseButton::Left => MouseEventKind::LeftTripleClick,
+                                MouseButton::Right => MouseEventKind::RightTripleClick,
+                                MouseButton::Middle => MouseEventKind::MiddleTripleClick,
+                            };
+                        },
+                        _ => (),
                     }
+
+                    let _ = sender.send(TuiEvent::Mouse(event));
+                    DblClickState::new(now, button, click_no)
                 },
 
                 crossterm::event::MouseEventKind::Drag(MouseButton::Left)
@@ -297,7 +329,7 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
                 | crossterm::event::MouseEventKind::ScrollLeft
                 | crossterm::event::MouseEventKind::ScrollRight => {
                     let _ = sender.send(TuiEvent::Mouse(mouse_event.into()));
-                    prev_click
+                    DblClickState::default()
                 },
 
                 _ => prev_click,

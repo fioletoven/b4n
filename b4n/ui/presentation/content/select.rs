@@ -43,6 +43,7 @@ pub struct SelectContext {
     pub start: Option<ContentPosition>,
     pub end: Option<ContentPosition>,
     init: Option<ContentPosition>,
+    had_double_click: bool,
 }
 
 impl SelectContext {
@@ -147,31 +148,53 @@ impl SelectContext {
         page_start: &mut ContentPosition,
         area: Rect,
     ) {
-        if mouse.kind == MouseEventKind::LeftDoubleClick {
-            if area.contains((mouse.column, mouse.row).into())
-                && let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
-                && let Some((start, end)) = content.word_bounds(pos)
-            {
-                self.init = Some(ContentPosition { x: start, y: pos.y });
-                self.start = self.init;
-                self.end = Some(ContentPosition { x: end, y: pos.y });
-            }
-        } else if mouse.kind == MouseEventKind::LeftClick {
-            self.init = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
-            self.start = self.init;
-            self.end = None;
-        } else if mouse.kind == MouseEventKind::LeftDrag {
-            scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
-            self.end = get_position_in_content(area, content, *page_start, self.init, mouse.column, mouse.row);
-            if let Some(init) = self.init
-                && let Some(end) = self.end
-            {
-                if is_sorted(init, end) {
+        match mouse.kind {
+            MouseEventKind::LeftDoubleClick => {
+                if area.contains((mouse.column, mouse.row).into())
+                    && let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
+                    && let Some((start, end)) = content.word_bounds(pos)
+                {
+                    self.init = Some(ContentPosition::new(start, pos.y));
                     self.start = self.init;
-                } else {
-                    self.start = Some(decrement_cursor_x(init, content));
+                    self.end = Some(ContentPosition::new(end, pos.y));
                 }
-            }
+                self.had_double_click = true;
+            },
+            MouseEventKind::LeftTripleClick => {
+                if self.had_double_click
+                    && area.contains((mouse.column, mouse.row).into())
+                    && let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
+                {
+                    let line_end = content.line_size(pos.y).saturating_sub(1);
+                    if line_end > 0 {
+                        self.init = Some(ContentPosition::new(0, pos.y));
+                        self.start = self.init;
+                        self.end = Some(ContentPosition::new(line_end, pos.y));
+                    }
+                }
+                self.had_double_click = false;
+            },
+            MouseEventKind::LeftClick => {
+                self.init = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row);
+                self.start = self.init;
+                self.end = None;
+                self.had_double_click = false;
+            },
+            MouseEventKind::LeftDrag => {
+                scroll_page_if_needed(area, page_start, content, mouse.column, mouse.row);
+                self.end = get_position_in_content(area, content, *page_start, self.init, mouse.column, mouse.row);
+                if let Some(init) = self.init
+                    && let Some(end) = self.end
+                {
+                    if is_sorted(init, end) {
+                        self.start = self.init;
+                    } else {
+                        self.start = Some(decrement_cursor_x(init, content));
+                    }
+                }
+                self.had_double_click = false;
+            },
+            _ => self.had_double_click = false,
         }
     }
 }
