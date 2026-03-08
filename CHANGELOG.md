@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- select whole line by mouse triple click
+
 ### Bug fixes
 
 - fix filter settings in the resources view
