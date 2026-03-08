@@ -49,3 +49,12 @@ fn slice_test() {
     assert_eq!("Hello world", slice_to(msg, 11));
     assert_eq!("Hello world", slice_to(msg, 20));
 }
+
+#[test]
+fn sanitize_and_split_test() {
+    assert_eq!(vec!["", ""], sanitize_and_split("\n"));
+    assert_eq!(vec!["", "test"], sanitize_and_split("\ntest"));
+    assert_eq!(vec!["test", ""], sanitize_and_split("test\n"));
+    assert_eq!(vec!["test1", "test2"], sanitize_and_split("test1\ntest2"));
+    assert_eq!(vec!["test1", "test2"], sanitize_and_split("test1\r\ntest2"));
+}

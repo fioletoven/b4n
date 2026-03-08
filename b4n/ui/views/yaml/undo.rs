@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crate::ui::presentation::{ContentPosition, Selection};
 
 /// Represents the type of change stored in an undo/redo entry.
+#[derive(Debug)]
 pub enum UndoMode {
     Insert,
     Remove,
@@ -12,6 +13,7 @@ pub enum UndoMode {
 }
 
 /// Stores a single undo/redo action.
+#[derive(Debug)]
 pub struct Undo {
     pub pos: ContentPosition,
     pub end: Option<ContentPosition>,

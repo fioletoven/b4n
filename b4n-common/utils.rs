@@ -149,9 +149,11 @@ pub fn sanitize_and_split(input: &str) -> Vec<String> {
         }
     }
 
-    if found_cr || !current.is_empty() {
-        lines.push(current);
+    if found_cr {
+        lines.push(std::mem::take(&mut current));
     }
+
+    lines.push(current);
 
     lines
 }

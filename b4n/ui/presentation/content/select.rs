@@ -6,7 +6,7 @@ use ratatui::{layout::Rect, style::Color, widgets::Widget};
 use crate::ui::presentation::{Content, content::search::ContentPosition};
 
 /// Represents a text selection defined by a `start` and `end` position in the content.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Selection {
     pub start: ContentPosition,
     pub end: ContentPosition,

@@ -12,6 +12,10 @@ use crate::ui::presentation::{
 };
 use crate::ui::views::yaml::undo::{Undo, UndoMode, pop_recent_group};
 
+#[cfg(test)]
+#[path = "./content.tests.rs"]
+mod content_tests;
+
 /// Number of lines before and after the modified section to include in the re-highlighting process.
 const HIGHLIGHT_CONTEXT_LINES_NO: usize = 800;
 

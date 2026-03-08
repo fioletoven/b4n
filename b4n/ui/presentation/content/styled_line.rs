@@ -12,6 +12,7 @@ pub type StyledLine = Vec<(Style, String)>;
 mod styled_line_tests;
 
 /// Defines style handling rules when pushing a character or string slice to the end of a [`StyledLine`].
+#[derive(Default)]
 pub struct StyleFallback {
     /// If the last segment has this style, a new segment will be started instead of appending.
     pub excluded: Style,
