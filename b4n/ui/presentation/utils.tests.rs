@@ -55,6 +55,30 @@ fn remove_text_one_line_test() {
 }
 
 #[test]
+fn remove_text_line_start_test() {
+    let yaml = r"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-";
+
+    let mut lines = yaml.split('\n').map(String::from).collect::<Vec<_>>();
+    let removed = lines.remove_text(&Selection {
+        start: ContentPosition::new(9, 1),
+        end: ContentPosition::new(9, 2),
+    });
+
+    assert_eq!(
+        r"apiVersion: v1
+kind: Pod  creationTimestamp: 2025-08-27T19:31:08Z
+  generateName: coredns-6799fbcd5-",
+        lines.join("\n")
+    );
+
+    assert_eq!("\nmetadata:\n", removed.join("\n"));
+}
+
+#[test]
 fn remove_text_line_end_test() {
     let mut text = vec!["first line".to_owned(), "second line".to_owned()];
 
