@@ -208,9 +208,14 @@ fn remove_line(lines: &mut Vec<String>, line_no: usize, start: usize, end: usize
 }
 
 fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, start: usize, end: usize) -> Vec<String> {
-    let is_eol = lines[end_line].chars().count() <= end;
+    let is_start_eol = lines[start_line].chars().count() <= start;
+    let is_end_eol = lines[end_line].chars().count() <= end;
     let mut removed = Vec::new();
     let mut remove_start = false;
+
+    if is_start_eol {
+        removed.push(String::new());
+    }
 
     if let Some(start) = char_to_index(&lines[start_line], start) {
         removed.push(lines[start_line].drain(start..).collect());
@@ -223,7 +228,7 @@ fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, sta
         lines[end_line].drain(..).collect()
     };
 
-    if is_eol {
+    if is_end_eol {
         lines.join_lines(end_line);
     }
 
@@ -240,7 +245,7 @@ fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, sta
     }
 
     removed.push(last);
-    if is_eol {
+    if is_end_eol {
         removed.push(String::new());
     }
 
