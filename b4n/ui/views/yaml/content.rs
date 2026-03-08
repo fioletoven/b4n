@@ -102,7 +102,7 @@ impl YamlContent {
     fn split_lines(&mut self, x: usize, y: usize) {
         let split_plain = self.plain[y][x..].to_string();
         let split_lowercase = self.lowercase[y][x..].to_string();
-        let split_styled = self.styled[y].get_second(x);
+        let split_styled = self.styled[y].split_off_from(x);
 
         let insert_at = y + 1;
         if insert_at < self.plain.len() {
