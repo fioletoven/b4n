@@ -178,6 +178,7 @@ pub struct BgStatistics {
     node_data: HashMap<String, Option<Metrics>>,
     footer_tx: NotificationSink,
     is_dirty: bool,
+    are_metrics_found: bool,
     has_metrics: bool,
 }
 
@@ -197,6 +198,7 @@ impl BgStatistics {
             node_data: HashMap::new(),
             footer_tx,
             is_dirty: false,
+            are_metrics_found: false,
             has_metrics: false,
         }
     }
@@ -222,22 +224,17 @@ impl BgStatistics {
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(NODES, "metrics.k8s.io", "")) {
-            self.has_metrics = self
+            let _ = self
                 .nodes_metrics
-                .start(client.get_client(), (&discovery.0).into(), Some(discovery), None, true)
-                .is_ok();
+                .start(client.get_client(), (&discovery.0).into(), Some(discovery), None, true);
         }
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "metrics.k8s.io", "")) {
+            let fallback = Some(namespace.clone());
+            self.are_metrics_found = true;
             self.has_metrics = self
                 .pods_metrics
-                .start(
-                    client.get_client(),
-                    (&discovery.0).into(),
-                    Some(discovery),
-                    Some(namespace.clone()),
-                    true,
-                )
+                .start(client.get_client(), (&discovery.0).into(), Some(discovery), fallback, true)
                 .is_ok();
         }
 
@@ -252,10 +249,11 @@ impl BgStatistics {
         new_namespace: &Namespace,
     ) {
         let kind = Kind::new(PODS, "", "");
-        self.has_metrics = try_change_namespace(&mut self.pods, client, discovery_list, new_namespace, &kind);
+        try_change_namespace(&mut self.pods, client, discovery_list, new_namespace, &kind);
 
         let kind = Kind::new(PODS, "metrics.k8s.io", "");
-        self.has_metrics = try_change_namespace(&mut self.pods_metrics, client, discovery_list, new_namespace, &kind);
+        let has_access = try_change_namespace(&mut self.pods_metrics, client, discovery_list, new_namespace, &kind);
+        self.has_metrics = has_access && self.are_metrics_found;
     }
 
     /// Cancels [`BgStatistics`] task.

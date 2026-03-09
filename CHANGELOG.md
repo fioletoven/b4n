@@ -11,6 +11,7 @@
 - fix filter settings in the resources view
 - fix undo bug when cutting text from the line end
 - allow pasting clipboard text even if it contains only a new line
+- do not show metrics columns when there is no metrics server
 
 ## 0.4.3 - 2026-03-02
 
