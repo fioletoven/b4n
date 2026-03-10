@@ -37,6 +37,7 @@ pub struct ShellView {
     scrollback_rows: usize,
     esc_count: u8,
     esc_time: Instant,
+    clipboard_text: Option<String>,
     footer_tx: NotificationSink,
 }
 
@@ -79,12 +80,55 @@ impl ShellView {
             scrollback_rows: 0,
             esc_count: 0,
             esc_time: Instant::now(),
+            clipboard_text: None,
             footer_tx,
         }
     }
 
+    /// Inserts clipboard text to the current shell session.\
+    /// **Note** that it displays a confirmation dialog instead if the clipboard text contains multiple lines.
+    fn insert_from_clipboard(&mut self) -> ResponseEvent {
+        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
+        if let Some(text) = text {
+            if text.contains('\n') {
+                self.clipboard_text = Some(text.replace("\r\n", "\n"));
+                self.ask_insert_from_clipboard();
+            } else {
+                self.bridge.send(text.into_bytes());
+            }
+        }
+
+        ResponseEvent::Handled
+    }
+
+    /// Displays a confirmation dialog to paste multiline clipboard text.
+    fn ask_insert_from_clipboard(&mut self) {
+        if self.bridge.is_running() && self.clipboard_text.is_some() {
+            self.modal = self.new_insert_clipboard_text_dialog();
+            self.modal.show();
+        }
+    }
+
+    /// Creates new insert multiline clipboard text dialog.
+    fn new_insert_clipboard_text_dialog(&mut self) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            "You are about to paste text that contains multiple lines. If you paste this text \
+             into your shell, it may result in the unexpected execution of commands.\n\
+             Do you wish to continue?"
+                .to_owned(),
+            vec![
+                Button::new("Paste Anyway", ResponseEvent::Action("paste"), &colors.modal.btn_accent),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            65,
+            colors.modal.text,
+        )
+    }
+
     /// Displays a confirmation dialog to forcibly close the shell view.
-    pub fn ask_close_shell_forcibly(&mut self) {
+    fn ask_close_shell_forcibly(&mut self) {
         if self.bridge.is_running() {
             self.modal = self.new_close_dialog();
             self.modal.show();
@@ -176,7 +220,12 @@ impl View for ShellView {
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.modal.is_visible {
-            return self.modal.process_event(event);
+            return self.modal.process_event(event).when_action_then("paste", || {
+                if let Some(text) = self.clipboard_text.take() {
+                    self.bridge.send(text.into_bytes());
+                }
+                ResponseEvent::Handled
+            });
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
@@ -188,6 +237,7 @@ impl View for ShellView {
             return match mouse.kind {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
                 MouseEventKind::ScrollDown => self.set_scrollback(1, false),
+                MouseEventKind::RightClick => self.insert_from_clipboard(),
                 _ => ResponseEvent::NotHandled,
             };
         }
