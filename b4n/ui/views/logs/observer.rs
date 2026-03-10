@@ -169,11 +169,11 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
         Ok(stream) => stream.lines(),
         Err(err) => {
             context.send_logs_chunk(process_error(container, err.to_string(), None));
-            return (true, None);
+            return (true, since_time);
         },
     };
 
-    let mut last_message_time = None;
+    let mut last_message_time = since_time;
     let mut should_continue = true;
     while !context.cancellation_token.is_cancelled() {
         tokio::select! {
