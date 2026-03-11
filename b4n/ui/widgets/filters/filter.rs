@@ -170,15 +170,15 @@ impl Responsive for Filter {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.patterns.area)
-            || event.is_out(MouseEventKind::RightClick, self.patterns.area)
+            || event.is_out(MouseEventKind::LeftClick, self.patterns.area())
+            || event.is_out(MouseEventKind::RightClick, self.patterns.area())
         {
             self.is_visible = false;
             self.patterns.set_value(self.current.clone());
             return ResponseEvent::Cancelled;
         }
 
-        if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.area) {
+        if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.items_area()) {
             self.patterns.items.highlight_item_by_line(line);
             self.complete_with_selected_item();
             self.is_visible = false;
