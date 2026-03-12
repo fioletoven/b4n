@@ -1,3 +1,4 @@
+use b4n_common::INVISIBLE_CHARACTERS;
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui_core::buffer::Buffer;
@@ -8,7 +9,7 @@ use ratatui_core::widgets::Widget;
 use ratatui_widgets::block::Block;
 use tui_input::backend::crossterm::EventHandler;
 
-use crate::{ResponseEvent, Responsive, TuiEvent};
+use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]
@@ -24,12 +25,14 @@ pub struct Input {
     input: tui_input::Input,
     colors: TextColors,
     prompt: Option<(String, TextColors)>,
+    prompt_width: Option<u16>,
     error: Option<TextColors>,
     error_index: Option<usize>,
     error_mode: ErrorHighlightMode,
     accent_chars: Option<String>,
     show_cursor: bool,
     cursor_colors: TextColors,
+    area: Option<Rect>,
 }
 
 impl Input {
@@ -50,7 +53,9 @@ impl Input {
 
     /// Adds a prompt to the [`Input`] instance.
     pub fn with_prompt(mut self, prompt: impl Into<String>, colors: TextColors) -> Self {
-        self.prompt = Some((prompt.into(), colors));
+        let prompt = prompt.into();
+        self.prompt_width = Some(u16::try_from(prompt.chars().count()).unwrap_or_default());
+        self.prompt = Some((prompt, colors));
         self
     }
 
@@ -69,6 +74,9 @@ impl Input {
     /// Sets the prompt and its colors.
     pub fn set_prompt<S: Into<String>>(&mut self, prompt: Option<(S, TextColors)>) {
         self.prompt = prompt.map(|p| (p.0.into(), p.1));
+        if let Some((prompt, _)) = &self.prompt {
+            self.prompt_width = Some(u16::try_from(prompt.chars().count()).unwrap_or_default());
+        }
     }
 
     /// Sets prompt colors.\
@@ -154,6 +162,28 @@ impl Input {
         self.error_index = None;
     }
 
+    /// Inserts specified value at cursor position.\
+    /// **Note** that it satnitize input before insertion.
+    pub fn insert_value(&mut self, value: &str) {
+        for ch in value.chars() {
+            match ch {
+                '\r' | '\n' => (),
+                '\t' => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                },
+                '\u{00A0}' => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                },
+                c if c.is_control() => (),
+                c if INVISIBLE_CHARACTERS.contains(&c) => (),
+                other => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(other));
+                },
+            }
+        }
+    }
+
     /// Resets the input value.
     pub fn reset(&mut self) {
         self.input.reset();
@@ -162,6 +192,7 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        self.area = Some(area);
         frame.render_widget(Block::new().style(&self.colors), area);
         frame.render_widget(&mut *self, area);
     }
@@ -241,7 +272,24 @@ impl Responsive for Input {
 
                 ResponseEvent::Handled
             },
-            TuiEvent::Mouse(_) | TuiEvent::Command(_) => ResponseEvent::NotHandled,
+            TuiEvent::Mouse(mouse) => {
+                if let Some(area) = self.area
+                    && self.is_cursor_visible()
+                    && event.is_in(MouseEventKind::LeftClick, area)
+                {
+                    let prompt = self.prompt_width.unwrap_or_default();
+                    let width = area.width.saturating_sub(prompt);
+                    let scroll = self.input.visual_scroll(usize::from(width.saturating_sub(1)));
+                    let x = mouse.column.saturating_sub(area.x).saturating_sub(prompt);
+
+                    self.input.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
+
+                    return ResponseEvent::Handled;
+                }
+
+                ResponseEvent::NotHandled
+            },
+            TuiEvent::Command(_) => ResponseEvent::NotHandled,
         }
     }
 }

@@ -4,6 +4,15 @@ use sha1::{Digest, Sha1};
 #[path = "./utils.tests.rs"]
 mod utils_tests;
 
+pub const INVISIBLE_CHARACTERS: [char; 6] = [
+    '\u{200B}', // zero-width space
+    '\u{200C}', // zero-width non-joiner
+    '\u{200D}', // zero-width joiner
+    '\u{200E}', // LTR mark
+    '\u{200F}', // RTL mark
+    '\u{FEFF}', // BOM
+];
+
 /// Truncates a string slice to the new length.
 pub fn truncate(s: &str, max_chars: usize) -> &str {
     match s.char_indices().nth(max_chars) {
@@ -116,15 +125,6 @@ pub fn calculate_hash(t: &str, len: usize) -> String {
 
 /// Removes some of the invisible/control characters in a specified text and splits it into separate lines.
 pub fn sanitize_and_split(input: &str) -> Vec<String> {
-    const INVISIBLE: [char; 6] = [
-        '\u{200B}', // zero-width space
-        '\u{200C}', // zero-width non-joiner
-        '\u{200D}', // zero-width joiner
-        '\u{200E}', // LTR mark
-        '\u{200F}', // RTL mark
-        '\u{FEFF}', // BOM
-    ];
-
     let mut lines = Vec::new();
     let mut current = String::new();
     let mut found_cr = false;
@@ -144,7 +144,7 @@ pub fn sanitize_and_split(input: &str) -> Vec<String> {
             '\t' => current.push_str("  "),
             '\u{00A0}' => current.push(' '), // convert NBSP to a normal space
             c if c.is_control() => {},
-            c if INVISIBLE.contains(&c) => {},
+            c if INVISIBLE_CHARACTERS.contains(&c) => {},
             other => current.push(other),
         }
     }

@@ -15,9 +15,11 @@ const MAX_ITEMS_ON_SCREEN: u16 = 25;
 #[derive(Default)]
 pub struct Select<T: Table> {
     pub items: T,
-    pub area: Rect,
+    items_area: Rect,
+    area: Rect,
     colors: SelectColors,
     filter: Input,
+    filter_area: Rect,
     filter_auto_hide: bool,
     filter_disabled: bool,
 }
@@ -36,9 +38,11 @@ impl<T: Table> Select<T> {
 
         Select {
             items: list,
+            items_area: Rect::default(),
             area: Rect::default(),
             colors,
             filter,
+            filter_area: Rect::default(),
             filter_auto_hide,
             filter_disabled: false,
         }
@@ -81,6 +85,21 @@ impl<T: Table> Select<T> {
         &self.colors
     }
 
+    /// Gets select's area.
+    pub fn area(&self) -> Rect {
+        self.area
+    }
+
+    /// Gets area for select's items.
+    pub fn items_area(&self) -> Rect {
+        self.items_area
+    }
+
+    /// Gets area for select's filter.
+    pub fn filter_area(&self) -> Rect {
+        self.filter_area
+    }
+
     /// Returns height needed to display items on screen.\
     /// **Note** that it counts filter line if needed.
     pub fn get_screen_height(&self) -> u16 {
@@ -111,6 +130,12 @@ impl<T: Table> Select<T> {
     /// Sets the filter value.
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.filter.set_value(value);
+        self.update_items_filter();
+    }
+
+    /// Inserts specified value to the filter.
+    pub fn insert_value(&mut self, value: &str) {
+        self.filter.insert_value(value);
         self.update_items_filter();
     }
 
@@ -147,14 +172,23 @@ impl<T: Table> Select<T> {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
-        self.area = if draw_filter { layout[1] } else { layout[0] };
-        self.items.update_page(self.area.height);
-        let list = self.items.get_paged_names(usize::from(self.area.width));
+
+        self.area = area;
+        if draw_filter {
+            self.filter_area = layout[0];
+            self.items_area = layout[1];
+        } else {
+            self.filter_area = Rect::default();
+            self.items_area = layout[0];
+        }
+
+        self.items.update_page(self.items_area.height);
+        let list = self.items.get_paged_names(usize::from(self.items_area.width));
         let list = list
             .into_iter()
             .map(|(s, is_hl)| (s, if is_hl { self.colors.normal_hl } else { self.colors.normal }))
             .collect::<Vec<_>>();
-        frame.render_widget(&mut ListWidget { list }, self.area);
+        frame.render_widget(&mut ListWidget { list }, self.items_area);
 
         if draw_filter {
             self.filter.draw(frame, layout[0]);
@@ -206,9 +240,13 @@ impl<T: Table> Responsive for Select<T> {
                 }
             },
             TuiEvent::Mouse(mouse) => {
-                if mouse.kind == MouseEventKind::Moved && self.area.contains(Position::new(mouse.column, mouse.row)) {
-                    let line = mouse.row.saturating_sub(self.area.y);
+                if mouse.kind == MouseEventKind::Moved && self.items_area.contains(Position::new(mouse.column, mouse.row)) {
+                    let line = mouse.row.saturating_sub(self.items_area.y);
                     self.items.highlight_item_by_line(line);
+                }
+
+                if !self.filter_disabled {
+                    self.filter.process_event(event);
                 }
 
                 self.items.process_event(event);
