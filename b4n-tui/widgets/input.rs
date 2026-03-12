@@ -1,3 +1,4 @@
+use b4n_common::INVISIBLE_CHARACTERS;
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui_core::buffer::Buffer;
@@ -159,6 +160,28 @@ impl Input {
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.input = tui_input::Input::new(value.into());
         self.error_index = None;
+    }
+
+    /// Inserts specified value at cursor position.\
+    /// **Note** that it satnitize input before insertion.
+    pub fn insert_value(&mut self, value: &str) {
+        for ch in value.chars() {
+            match ch {
+                '\r' | '\n' => (),
+                '\t' => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                },
+                '\u{00A0}' => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                },
+                c if c.is_control() => (),
+                c if INVISIBLE_CHARACTERS.contains(&c) => (),
+                other => {
+                    self.input.handle(tui_input::InputRequest::InsertChar(other));
+                },
+            }
+        }
     }
 
     /// Resets the input value.

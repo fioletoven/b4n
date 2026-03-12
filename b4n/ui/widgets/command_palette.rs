@@ -272,6 +272,16 @@ impl CommandPalette {
 
         ResponseEvent::Handled
     }
+
+    fn insert_from_clipboard(&mut self) -> ResponseEvent {
+        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
+        if let Some(text) = text {
+            self.select_mut().insert_value(&text);
+            self.steps[self.index].validate();
+        }
+
+        ResponseEvent::Handled
+    }
 }
 
 impl Responsive for CommandPalette {
@@ -312,6 +322,10 @@ impl Responsive for CommandPalette {
         if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select().items_area()) {
             self.select_mut().items.highlight_item_by_line(line);
             return self.process_enter_key();
+        }
+
+        if event.is_in(MouseEventKind::RightClick, self.select().filter_area()) {
+            return self.insert_from_clipboard();
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {

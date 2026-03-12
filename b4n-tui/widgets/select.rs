@@ -19,6 +19,7 @@ pub struct Select<T: Table> {
     area: Rect,
     colors: SelectColors,
     filter: Input,
+    filter_area: Rect,
     filter_auto_hide: bool,
     filter_disabled: bool,
 }
@@ -41,6 +42,7 @@ impl<T: Table> Select<T> {
             area: Rect::default(),
             colors,
             filter,
+            filter_area: Rect::default(),
             filter_auto_hide,
             filter_disabled: false,
         }
@@ -93,6 +95,11 @@ impl<T: Table> Select<T> {
         self.items_area
     }
 
+    /// Gets area for select's filter.
+    pub fn filter_area(&self) -> Rect {
+        self.filter_area
+    }
+
     /// Returns height needed to display items on screen.\
     /// **Note** that it counts filter line if needed.
     pub fn get_screen_height(&self) -> u16 {
@@ -123,6 +130,12 @@ impl<T: Table> Select<T> {
     /// Sets the filter value.
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.filter.set_value(value);
+        self.update_items_filter();
+    }
+
+    /// Inserts specified value to the filter.
+    pub fn insert_value(&mut self, value: &str) {
+        self.filter.insert_value(value);
         self.update_items_filter();
     }
 
@@ -159,8 +172,16 @@ impl<T: Table> Select<T> {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
+
         self.area = area;
-        self.items_area = if draw_filter { layout[1] } else { layout[0] };
+        if draw_filter {
+            self.filter_area = layout[0];
+            self.items_area = layout[1];
+        } else {
+            self.filter_area = Rect::default();
+            self.items_area = layout[0];
+        }
+
         self.items.update_page(self.items_area.height);
         let list = self.items.get_paged_names(usize::from(self.items_area.width));
         let list = list

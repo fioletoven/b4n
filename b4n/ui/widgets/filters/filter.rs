@@ -148,6 +148,16 @@ impl Filter {
             self.patterns.set_value(pattern);
         }
     }
+
+    fn insert_from_clipboard(&mut self) -> ResponseEvent {
+        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
+        if let Some(text) = text {
+            self.patterns.insert_value(&text);
+            self.validate();
+        }
+
+        ResponseEvent::Handled
+    }
 }
 
 impl Responsive for Filter {
@@ -185,6 +195,10 @@ impl Responsive for Filter {
             self.remember_pattern();
 
             return ResponseEvent::Handled;
+        }
+
+        if event.is_in(MouseEventKind::RightClick, self.patterns.filter_area()) {
+            return self.insert_from_clipboard();
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
