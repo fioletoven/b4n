@@ -115,7 +115,7 @@ impl ViewsManager {
 
     /// Draws namespace / resource selector located on the left / right of the views.
     fn draw_selectors(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if self.ns_selector.is_visible || self.res_selector.is_visible {
+        if self.ns_selector.needs_draw() || self.res_selector.needs_draw() {
             let bottom = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
@@ -146,7 +146,7 @@ impl ViewsManager {
             return self.footer.process_event(event);
         }
 
-        if self.ns_selector.is_visible {
+        if self.ns_selector.is_visible() {
             let result = self.ns_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_namespaces_selector_event(&result);
@@ -157,7 +157,7 @@ impl ViewsManager {
             }
         }
 
-        if self.res_selector.is_visible {
+        if self.res_selector.is_visible() {
             let result = self.res_selector.process_event(event);
             if let Some(view) = &mut self.view {
                 view.handle_resources_selector_event(&result);
@@ -222,7 +222,21 @@ impl ViewsManager {
 
     fn process_resources_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.app_data.borrow().is_connected() {
+            if matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::Moved) {
+                self.ns_selector.hover(
+                    event.is_in(MouseEventKind::Moved, self.areas[0])
+                        && self.worker.borrow().namespaces.has_access()
+                        && self.resources.is_namespaces_selector_allowed(),
+                );
+                self.res_selector
+                    .hover(event.is_in(MouseEventKind::Moved, self.areas[1]) && self.resources.is_resources_selector_allowed());
+            } else {
+                self.ns_selector.hover(false);
+                self.res_selector.hover(false);
+            }
+
             if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
+                || event.is_in(MouseEventKind::LeftClick, self.areas[0])
                 || event.is_in(MouseEventKind::RightClick, self.areas[0]))
                 && self.worker.borrow().namespaces.has_access()
                 && self.resources.is_namespaces_selector_allowed()
@@ -233,6 +247,7 @@ impl ViewsManager {
             }
 
             if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
+                || event.is_in(MouseEventKind::LeftClick, self.areas[1])
                 || event.is_in(MouseEventKind::RightClick, self.areas[1]))
                 && self.resources.is_resources_selector_allowed()
             {
