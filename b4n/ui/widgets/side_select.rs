@@ -108,7 +108,7 @@ impl<T: Table> SideSelect<T> {
         self.is_visible
     }
 
-    /// Sets if [`SideSelect`] should be in hovered state.\
+    /// Sets [`SideSelect`] hover state.\
     /// **Note** that it works only if side select is not currently visible.
     pub fn hover(&mut self, should_hovering: bool) {
         if !self.is_visible {
