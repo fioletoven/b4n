@@ -163,7 +163,7 @@ impl Input {
     }
 
     /// Inserts specified value at cursor position.\
-    /// **Note** that it satnitize input before insertion.
+    /// **Note** that it sanitize input before insertion.
     pub fn insert_value(&mut self, value: &str) {
         for ch in value.chars() {
             match ch {
