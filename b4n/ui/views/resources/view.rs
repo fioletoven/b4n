@@ -204,19 +204,6 @@ impl ResourcesView {
         }
     }
 
-    /// Returns `true` if namespaces selector can be displayed.
-    pub fn is_namespaces_selector_allowed(&self) -> bool {
-        self.table.scope() == &Scope::Namespaced
-            && !self.table.has_containers()
-            && !self.table.list.table.is_scoped()
-            && self.is_resources_selector_allowed()
-    }
-
-    /// Returns `true` if resources selector can be displayed.
-    pub fn is_resources_selector_allowed(&self) -> bool {
-        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
-    }
-
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::AskDeleteResources {
@@ -612,6 +599,17 @@ impl ResourcesView {
 }
 
 impl View for ResourcesView {
+    fn is_namespaces_selector_allowed(&self) -> bool {
+        self.table.scope() == &Scope::Namespaced
+            && !self.table.has_containers()
+            && !self.table.list.table.is_scoped()
+            && self.is_resources_selector_allowed()
+    }
+
+    fn is_resources_selector_allowed(&self) -> bool {
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
+    }
+
     fn process_tick(&mut self) -> ResponseEvent {
         self.table.list.table.remove_expired_cache_entries();
         ResponseEvent::Handled

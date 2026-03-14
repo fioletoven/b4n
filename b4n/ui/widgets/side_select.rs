@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -56,9 +56,9 @@ impl<T: Table> SideSelect<T> {
     }
 
     /// Sets new name for the side select.
-    pub fn with_name(mut self, name: &str) -> Self {
+    pub fn with_name(mut self, name: &str, hover: &str) -> Self {
         self.header = format!(" SELECT {name}: ");
-        self.header_hover = add_new_lines(self.header.as_str(), name.chars().count());
+        self.header_hover = add_new_lines(hover);
         self
     }
 
@@ -164,17 +164,31 @@ impl<T: Table> SideSelect<T> {
         frame.render_widget(Clear, area);
         frame.render_widget(block, area);
 
-        let colors = &self.app_data.borrow().theme.colors;
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Fill(1),
+                Constraint::Length(u16::try_from(self.header_hover.len() / 2).unwrap_or_default() + 1),
+                Constraint::Fill(1),
+            ])
+            .split(inner_area);
+        let colors = &self.app_data.borrow().theme.colors.side_select;
         frame.render_widget(
-            Paragraph::new(self.header_hover.as_str()).fg(ratatui::style::Color::DarkGray),
-            inner_area,
+            Paragraph::new(self.header_hover.as_str())
+                .alignment(Alignment::Center)
+                .fg(colors.header.map(|h| h.fg).unwrap_or(colors.normal.fg)),
+            layout[1],
         );
     }
 
     fn get_positioned_block(&mut self, is_hover: bool) -> Block<'_> {
         let colors = &self.app_data.borrow().theme.colors;
         let backbround_color = if is_hover {
-            colors.side_select.header.map(|h| h.bg).unwrap_or(ratatui::style::Color::Gray)
+            colors
+                .side_select
+                .header
+                .map(|h| h.bg)
+                .unwrap_or(colors.side_select.normal.bg)
         } else {
             colors.side_select.normal.bg
         };
@@ -268,10 +282,10 @@ impl<T: Table> Responsive for SideSelect<T> {
     }
 }
 
-fn add_new_lines(text: &str, width: usize) -> String {
-    let mut result = String::with_capacity(13 + (2 * width));
+fn add_new_lines(text: &str) -> String {
+    let mut result = String::with_capacity(text.len() * 2);
 
-    for (idx, ch) in text.chars().skip(1).take(7 + width).enumerate() {
+    for (idx, ch) in text.chars().enumerate() {
         if idx != 0 {
             result.push('\n');
         }

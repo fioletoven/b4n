@@ -34,11 +34,11 @@ pub struct ViewsManager {
 impl ViewsManager {
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, resources: ResourcesView, footer: Footer) -> Self {
         let ns_selector = SideSelect::new(Rc::clone(&app_data), ResourcesList::default(), Position::Left, 30)
-            .with_name("NAMESPACE")
+            .with_name("NAMESPACE", "NAMESPACES")
             .with_result(ResponseEvent::ChangeNamespace)
             .with_quick_highlight(ALL_NAMESPACES);
         let res_selector = SideSelect::new(Rc::clone(&app_data), KindsList::default(), Position::Right, 40)
-            .with_name("RESOURCE")
+            .with_name("RESOURCE", "RESOURCES")
             .with_result(ResponseEvent::ChangeKind)
             .with_quick_highlight(PODS);
         set_command_palette_hint(footer.transmitter(), &app_data);
@@ -125,8 +125,10 @@ impl ViewsManager {
             self.res_selector.draw(frame, bottom[1]);
         }
 
-        self.areas[0] = Rect::new(area.x, area.y + 1, 4, area.height);
-        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), area.y + 1, 4, area.height);
+        let top = area.y + 2;
+        let height = area.height.saturating_sub(2);
+        self.areas[0] = Rect::new(area.x, top, 4, height);
+        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), top, 4, height);
     }
 
     /// Processes single TUI event.
@@ -187,29 +189,15 @@ impl ViewsManager {
     }
 
     fn process_view_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let resources = self.view.as_ref().map(|v| v.is_resources_selector_allowed());
+        let namespaces = self.view.as_ref().map(|v| v.is_namespaces_selector_allowed());
+        if self.process_selectors_event(event, resources.unwrap_or_default(), namespaces.unwrap_or_default()) {
+            return ResponseEvent::Handled;
+        }
+
         let Some(view) = &mut self.view else {
             return ResponseEvent::NotHandled;
         };
-
-        if self.app_data.borrow().is_connected() {
-            if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
-                || event.is_in(MouseEventKind::RightClick, self.areas[0]))
-                && self.worker.borrow().namespaces.has_access()
-                && view.is_namespaces_selector_allowed()
-            {
-                self.ns_selector.show_selected(view.displayed_namespace());
-                return ResponseEvent::Handled;
-            }
-
-            if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
-                && view.is_resources_selector_allowed()
-            {
-                self.res_selector
-                    .show_selected_uid(self.resources.table.get_kind_for_selector().as_str());
-                return ResponseEvent::Handled;
-            }
-        }
 
         let response = view.process_event(event);
         if response == ResponseEvent::Cancelled {
@@ -221,43 +209,62 @@ impl ViewsManager {
     }
 
     fn process_resources_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.borrow().is_connected() {
-            if matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::Moved) {
-                self.ns_selector.hover(
-                    event.is_in(MouseEventKind::Moved, self.areas[0])
-                        && self.worker.borrow().namespaces.has_access()
-                        && self.resources.is_namespaces_selector_allowed(),
-                );
-                self.res_selector
-                    .hover(event.is_in(MouseEventKind::Moved, self.areas[1]) && self.resources.is_resources_selector_allowed());
-            } else {
-                self.ns_selector.hover(false);
-                self.res_selector.hover(false);
-            }
-
-            if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
-                || event.is_in(MouseEventKind::LeftClick, self.areas[0])
-                || event.is_in(MouseEventKind::RightClick, self.areas[0]))
-                && self.worker.borrow().namespaces.has_access()
-                && self.resources.is_namespaces_selector_allowed()
-            {
-                self.ns_selector
-                    .show_selected(self.app_data.borrow().current.namespace.as_str());
-                return ResponseEvent::Handled;
-            }
-
-            if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-                || event.is_in(MouseEventKind::LeftClick, self.areas[1])
-                || event.is_in(MouseEventKind::RightClick, self.areas[1]))
-                && self.resources.is_resources_selector_allowed()
-            {
-                self.res_selector
-                    .show_selected_uid(self.resources.table.get_kind_for_selector().as_str());
-                return ResponseEvent::Handled;
-            }
+        let resources = self.resources.is_resources_selector_allowed();
+        let namespaces = self.resources.is_namespaces_selector_allowed();
+        if self.process_selectors_event(event, resources, namespaces) {
+            return ResponseEvent::Handled;
         }
 
         self.resources.process_event(event)
+    }
+
+    fn process_selectors_event(
+        &mut self,
+        event: &TuiEvent,
+        is_resources_selector_allowed: bool,
+        is_namespaces_selector_allowed: bool,
+    ) -> bool {
+        if (!is_resources_selector_allowed && !is_namespaces_selector_allowed) || !self.app_data.borrow().is_connected() {
+            self.ns_selector.hover(false);
+            self.res_selector.hover(false);
+            return false;
+        }
+
+        if matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::Moved) {
+            self.ns_selector.hover(
+                event.is_in(MouseEventKind::Moved, self.areas[0])
+                    && self.worker.borrow().namespaces.has_access()
+                    && is_namespaces_selector_allowed,
+            );
+            self.res_selector
+                .hover(event.is_in(MouseEventKind::Moved, self.areas[1]) && is_resources_selector_allowed);
+        } else {
+            self.ns_selector.hover(false);
+            self.res_selector.hover(false);
+        }
+
+        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
+            || event.is_in(MouseEventKind::LeftClick, self.areas[0])
+            || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+            && self.worker.borrow().namespaces.has_access()
+            && is_namespaces_selector_allowed
+        {
+            self.ns_selector
+                .show_selected(self.app_data.borrow().current.namespace.as_str());
+            return true;
+        }
+
+        if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
+            || event.is_in(MouseEventKind::LeftClick, self.areas[1])
+            || event.is_in(MouseEventKind::RightClick, self.areas[1]))
+            && is_resources_selector_allowed
+        {
+            self.res_selector
+                .show_selected_uid(self.resources.table.get_kind_for_selector().as_str());
+            return true;
+        }
+
+        false
     }
 
     /// Allows all views to do some computations on every app tick.
