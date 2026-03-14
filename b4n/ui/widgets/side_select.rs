@@ -169,6 +169,7 @@ impl<T: Table> SideSelect<T> {
             .constraints(vec![
                 Constraint::Fill(1),
                 Constraint::Length(u16::try_from(self.header_hover.len() / 2).unwrap_or_default() + 1),
+                Constraint::Max(1),
                 Constraint::Fill(1),
             ])
             .split(inner_area);
