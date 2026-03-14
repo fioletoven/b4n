@@ -207,6 +207,7 @@ impl BgStatistics {
     /// **Note** that it stops the old tasks if any is running.
     pub fn start(&mut self, client: &KubernetesClient, discovery_list: Option<&DiscoveryList>, namespace: &Namespace) {
         self.stop();
+        self.are_metrics_found = false;
         self.has_metrics = false;
 
         if let Some(discovery) = get_resource(discovery_list, &Kind::new(PODS, "", "")) {

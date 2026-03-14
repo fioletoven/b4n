@@ -6,6 +6,7 @@
 
 - select whole line by mouse triple click
 - allow pasting clipboard text in the shell view and in text inputs
+- add hover indicator for side selects
 
 ### Bug fixes
 

@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -20,10 +20,12 @@ pub enum Position {
 /// Side select widget for TUI.\
 /// It can be displayed on the left or right side of the specified area.
 pub struct SideSelect<T: Table> {
-    pub is_visible: bool,
     pub select: Select<T>,
+    is_visible: bool,
+    is_hovering: bool,
     app_data: SharedAppData,
     header: String,
+    header_hover: String,
     position: Position,
     result: Option<fn(String) -> ResponseEvent>,
     width: u16,
@@ -38,10 +40,12 @@ impl<T: Table> SideSelect<T> {
         let select = Select::new(list, app_data.borrow().theme.colors.side_select.clone(), true, false);
 
         SideSelect {
-            is_visible: false,
             select,
+            is_visible: false,
+            is_hovering: false,
             app_data,
             header: " SELECT ".to_owned(),
+            header_hover: String::new(),
             position,
             result: None,
             width: std::cmp::max(width, 5),
@@ -52,8 +56,9 @@ impl<T: Table> SideSelect<T> {
     }
 
     /// Sets new name for the side select.
-    pub fn with_name(mut self, name: &str) -> Self {
+    pub fn with_name(mut self, name: &str, hover: &str) -> Self {
         self.header = format!(" SELECT {name}: ");
+        self.header_hover = add_new_lines(hover);
         self
     }
 
@@ -72,6 +77,7 @@ impl<T: Table> SideSelect<T> {
     /// Marks [`SideSelect`] as visible, after that it can be drawn on the terminal frame.
     pub fn show(&mut self) {
         self.is_key_pressed = false;
+        self.is_hovering = false;
         self.is_visible = true;
         self.select.reset();
         self.select
@@ -93,17 +99,45 @@ impl<T: Table> SideSelect<T> {
 
     /// Marks [`SideSelect`] as hidden.
     pub fn hide(&mut self) {
+        self.is_hovering = false;
         self.is_visible = false;
+    }
+
+    /// Returns if [`SideSelect`] is visible.
+    pub fn is_visible(&self) -> bool {
+        self.is_visible
+    }
+
+    /// Sets [`SideSelect`] hover state.\
+    /// **Note** that it works only if side select is not currently visible.
+    pub fn hover(&mut self, should_hovering: bool) {
+        if !self.is_visible {
+            self.is_hovering = should_hovering;
+        }
+    }
+
+    /// Returns `true` if [`SideSelect`] should be drawn.
+    pub fn needs_draw(&self) -> bool {
+        self.is_hovering || self.is_visible
+    }
+
+    /// Returns width of the [`SideSelect`].
+    pub fn width(&self) -> u16 {
+        self.width
     }
 
     /// Draws [`SideSelect`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        if !self.is_visible {
-            return;
+        if self.is_visible {
+            self.draw_visible(frame, area);
+        } else if self.is_hovering {
+            self.draw_hovering(frame, area);
         }
+    }
 
-        let area = self.get_positioned_area(area);
-        let block = self.get_positioned_block();
+    fn draw_visible(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        let area = self.get_positioned_area(area, self.width);
+        let block = self.get_positioned_block(false);
         let inner_area = block.inner(area);
 
         frame.render_widget(Clear, area);
@@ -115,28 +149,58 @@ impl<T: Table> SideSelect<T> {
             .split(inner_area);
         let colors = &self.app_data.borrow().theme.colors;
         frame.render_widget(
-            Paragraph::new(self.header.clone()).fg(colors.side_select.normal.fg),
+            Paragraph::new(self.header.as_str()).fg(colors.side_select.normal.fg),
             layout[0],
         );
 
         self.select.draw(frame, layout[1].inner(Margin::new(1, 0)));
     }
 
-    /// Returns width of the [`SideSelect`].
-    pub fn width(&self) -> u16 {
-        self.width
+    pub fn draw_hovering(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        let area = self.get_positioned_area(Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1)), 4);
+        let block = self.get_positioned_block(true);
+        let inner_area = block.inner(area);
+
+        frame.render_widget(Clear, area);
+        frame.render_widget(block, area);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Fill(1),
+                Constraint::Length(u16::try_from(self.header_hover.len() / 2).unwrap_or_default() + 1),
+                Constraint::Fill(1),
+            ])
+            .split(inner_area);
+        let colors = &self.app_data.borrow().theme.colors.side_select;
+        frame.render_widget(
+            Paragraph::new(self.header_hover.as_str())
+                .alignment(Alignment::Center)
+                .fg(colors.header.map(|h| h.fg).unwrap_or(colors.normal.fg)),
+            layout[1],
+        );
     }
 
-    fn get_positioned_block(&mut self) -> Block<'_> {
+    fn get_positioned_block(&mut self, is_hover: bool) -> Block<'_> {
         let colors = &self.app_data.borrow().theme.colors;
+        let backbround_color = if is_hover {
+            colors
+                .side_select
+                .header
+                .map(|h| h.bg)
+                .unwrap_or(colors.side_select.normal.bg)
+        } else {
+            colors.side_select.normal.bg
+        };
+
         let block = Block::new()
             .border_set(border::Set {
                 vertical_left: "",
                 vertical_right: "",
                 ..border::EMPTY
             })
-            .border_style(Style::default().fg(colors.side_select.normal.bg).bg(colors.text.bg))
-            .style(Style::default().bg(colors.side_select.normal.bg));
+            .border_style(Style::default().fg(backbround_color).bg(colors.text.bg))
+            .style(Style::default().bg(backbround_color));
 
         if self.position == Position::Left {
             block.borders(Borders::LEFT)
@@ -145,16 +209,16 @@ impl<T: Table> SideSelect<T> {
         }
     }
 
-    fn get_positioned_area(&self, area: Rect) -> Rect {
+    fn get_positioned_area(&self, area: Rect, width: u16) -> Rect {
         let layout = Layout::default().direction(Direction::Horizontal);
 
         if self.position == Position::Left {
             layout
-                .constraints([Constraint::Length(self.width), Constraint::Fill(1)])
+                .constraints([Constraint::Length(width), Constraint::Fill(1)])
                 .split(area)[0]
         } else {
             layout
-                .constraints([Constraint::Fill(1), Constraint::Length(self.width)])
+                .constraints([Constraint::Fill(1), Constraint::Length(width)])
                 .split(area)[1]
         }
     }
@@ -216,4 +280,18 @@ impl<T: Table> Responsive for SideSelect<T> {
         self.select.process_event(event);
         ResponseEvent::Handled
     }
+}
+
+fn add_new_lines(text: &str) -> String {
+    let mut result = String::with_capacity(text.len() * 2);
+
+    for (idx, ch) in text.chars().enumerate() {
+        if idx != 0 {
+            result.push('\n');
+        }
+
+        result.push(ch);
+    }
+
+    result
 }
