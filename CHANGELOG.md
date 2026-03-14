@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.4.4 - 2026-03-14
 
 ### Features
 
@@ -14,6 +14,7 @@
 - fix undo bug when cutting text from the line end
 - allow pasting clipboard text even if it contains only a new line
 - do not show metrics columns when there is no metrics server
+- allow namespace duplication with create new resource
 
 ## 0.4.3 - 2026-03-02
 

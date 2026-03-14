@@ -462,7 +462,9 @@ impl ResourcesView {
                 ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"),
             );
 
-        if self.table.list.table.is_anything_highlighted() && self.kind_plural() != NAMESPACES {
+        if let Some(name) = self.table.list.table.get_highlighted_item_name()
+            && (self.kind_plural() != NAMESPACES || name != ALL_NAMESPACES)
+        {
             builder = builder.with_menu_action(
                 ActionItem::action("duplicate", "new_clone")
                     .with_description("use the spec of the highlighted resource")

@@ -20,10 +20,6 @@ impl TestRow {
 }
 
 impl Row for TestRow {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
     fn uid(&self) -> &str {
         &self.uid
     }
@@ -32,12 +28,8 @@ impl Row for TestRow {
         &self.group
     }
 
-    fn is_equal(&self, other: &str) -> bool {
-        self.name == other
-    }
-
-    fn starts_with(&self, text: &str) -> bool {
-        self.name.starts_with(text)
+    fn name(&self) -> &str {
+        &self.name
     }
 
     fn get_name(&self, _width: usize) -> String {
@@ -48,12 +40,20 @@ impl Row for TestRow {
         format!("{} ({})", self.name, desc)
     }
 
+    fn column_text(&self, _column: usize) -> std::borrow::Cow<'_, str> {
+        self.name.as_str().into()
+    }
+
     fn column_sort_text(&self, _column: usize) -> &str {
         &self.name
     }
 
-    fn column_text(&self, _column: usize) -> std::borrow::Cow<'_, str> {
-        self.name.as_str().into()
+    fn starts_with(&self, text: &str) -> bool {
+        self.name.starts_with(text)
+    }
+
+    fn is_equal(&self, other: &str) -> bool {
+        self.name == other
     }
 }
 
