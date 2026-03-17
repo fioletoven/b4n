@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix filter settings on context change
+
 ## 0.4.4 - 2026-03-14
 
 ### Features
