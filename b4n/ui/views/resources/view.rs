@@ -73,7 +73,7 @@ impl ResourcesView {
 
     /// Resets the list.
     pub fn reset(&mut self) {
-        self.table.list.table = ResourcesList::default();
+        self.table.list.table = ResourcesList::default().with_filter_settings(Some("e"));
         self.table.header.set_count(0);
         self.table.header.show_filtered_icon(false);
         self.filter.reset();
