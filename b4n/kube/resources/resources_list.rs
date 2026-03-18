@@ -35,7 +35,7 @@ impl ResourcesList {
         if let Some(mut entry) = self.cache.remove(key)
             && !entry.is_expired()
         {
-            self.update_kind(entry.init, false);
+            self.update_kind(entry.init, true);
             for item in entry.list.full_iter_mut() {
                 item.data.is_cached = !item.is_fixed;
                 item.is_selected = false;
