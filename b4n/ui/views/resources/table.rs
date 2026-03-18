@@ -91,7 +91,7 @@ impl ResourcesTable {
     /// Restores all table data from the cache.
     pub fn restore_from_cache(&mut self, key: &str) -> bool {
         if self.list.table.restore_from_cache(key) {
-            self.process_init_result();
+            self.process_init_result(false);
             self.process_initdone_result();
             self.update_app_data_current();
 
@@ -224,7 +224,7 @@ impl ResourcesTable {
                 self.list.table.set_filter(None);
                 self.header.set_count(self.list.table.len());
             }
-        } else if !self.list.table.is_filtered() || self.list.table.filter().is_some_and(|f| f != value) {
+        } else if self.list.table.filter().is_none_or(|f| f != value) {
             self.list.table.set_filter(Some(value.to_owned()));
             self.header.set_count(self.list.table.len());
         }
@@ -240,7 +240,7 @@ impl ResourcesTable {
         }
 
         if is_init {
-            self.process_init_result();
+            self.process_init_result(true);
         }
 
         if is_init_done {
@@ -281,11 +281,15 @@ impl ResourcesTable {
         self.list.draw(frame, layout[1]);
     }
 
-    fn process_init_result(&mut self) {
-        if let Some(filter) = self.next_refresh.apply_filter.take() {
+    fn process_init_result(&mut self, is_final: bool) {
+        if let Some(filter) = self.next_refresh.apply_filter.clone() {
             self.set_filter(&filter);
         } else {
             self.set_filter("");
+        }
+
+        if is_final {
+            self.next_refresh.apply_filter = None;
         }
 
         if let Some((column_no, is_descending)) = self.next_refresh.sort_info.take() {

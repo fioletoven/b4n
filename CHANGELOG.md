@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix filter settings on context change
+- remember filter for previous resource view
 
 ## 0.4.4 - 2026-03-14
 

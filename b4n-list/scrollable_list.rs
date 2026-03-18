@@ -133,28 +133,26 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     }
 
     /// Retains only the elements specified by the predicate in the underneath collection.\
-    /// **Note** that this clears the current filter.
-    #[inline]
     pub fn full_retain<F>(&mut self, f: F)
     where
         F: FnMut(&Item<T, Fc>) -> bool,
     {
         self.items.full_retain(f);
-        self.recover_highlighted_item_index();
+        self.recover_filter();
     }
 
     /// Removes and returns the element at position `index` within the underneath collection.\
-    /// **Note** that this clears the current filter.
-    #[inline]
     pub fn full_remove(&mut self, index: usize) -> Item<T, Fc> {
-        self.items.full_remove(index)
+        let result = self.items.full_remove(index);
+        self.recover_filter();
+        result
     }
 
     /// Removes and returns the element at position `index` within the filtered out list.\
-    /// **Note** that this clears the current filter.
-    #[inline]
     pub fn remove(&mut self, index: usize) -> Item<T, Fc> {
-        self.items.remove(index)
+        let result = self.items.remove(index);
+        self.recover_filter();
+        result
     }
 
     /// Clears the [`ScrollableList`], removing all values.
@@ -248,6 +246,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Sets filter settings for the list.
     pub fn set_filter_settings(&mut self, settings: Option<impl Into<String>>) {
         self.filter.set_settings(settings);
+        self.apply_filter();
     }
 
     /// Process [`KeyCode`] to move over the list.
