@@ -78,7 +78,28 @@ impl LogsContent {
         }
 
         if log_line_sort_key(&chunk.lines[0]) >= log_line_sort_key(self.lines.last().unwrap()) {
-            self.lines.extend(chunk.lines);
+            // fast path: first key in chunk >= every key in self.lines, so add all at the end
+
+            let tail_start = {
+                // get number of lines from the end that has the same timestamp
+                let first_key = log_line_sort_key(&chunk.lines[0]);
+                let reversed = self.lines.iter().rev();
+                self.lines.len() - reversed.take_while(|l| log_line_sort_key(l) >= first_key).count()
+            };
+
+            // count how many of them are duplicated with the tail
+            let mut tail: Vec<&LogLine> = self.lines[tail_start..].iter().collect();
+            let mut skip = 0;
+            for line in &chunk.lines {
+                if let Some(pos) = tail.iter().position(|existing| log_line_eq(existing, line)) {
+                    tail.swap_remove(pos);
+                    skip += 1;
+                } else {
+                    break;
+                }
+            }
+
+            self.lines.extend(chunk.lines.into_iter().skip(skip));
             return;
         }
 
@@ -96,7 +117,10 @@ impl LogsContent {
         loop {
             match (existing_iter.peek(), incoming_iter.peek()) {
                 (Some(a), Some(b)) => {
-                    if log_line_sort_key(a) <= log_line_sort_key(b) {
+                    if log_line_eq(a, b) {
+                        merged.push(existing_iter.next().unwrap());
+                        incoming_iter.next();
+                    } else if log_line_sort_key(a) <= log_line_sort_key(b) {
                         merged.push(existing_iter.next().unwrap());
                     } else {
                         merged.push(incoming_iter.next().unwrap());
@@ -293,6 +317,11 @@ impl Content for LogsContent {
 /// Get deterministic ordering for lines with identical timestamps.
 fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
     (line.datetime, &line.container)
+}
+
+/// Check if two log lines are equal (same timestamp, container, and message text).
+fn log_line_eq(a: &LogLine, b: &LogLine) -> bool {
+    a.datetime == b.datetime && a.container == b.container && a.is_error == b.is_error && a.lowercase == b.lowercase
 }
 
 fn ensure_container_has_color(container_colors: &mut HashMap<String, usize>, container: Option<&str>) {
