@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::ui::views::logs::line::{LogLine, LogsChunk};
+use crate::ui::views::logs::line::LogLine;
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -58,8 +58,8 @@ pub struct LogsObserver {
     runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<Box<LogsChunk>>,
-    context_rx: UnboundedReceiver<Box<LogsChunk>>,
+    context_tx: UnboundedSender<Box<LogLine>>,
+    context_rx: UnboundedReceiver<Box<LogLine>>,
 }
 
 impl LogsObserver {
@@ -127,7 +127,7 @@ impl LogsObserver {
                 None
             };
 
-            context.send_logs_chunk(process_error(container, msg, msg_time).into());
+            context.send_log_line(process_error(container, msg, msg_time));
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -148,8 +148,8 @@ impl LogsObserver {
         self.drain();
     }
 
-    /// Tries to get next [`LogsChunk`].
-    pub fn try_next(&mut self) -> Option<Box<LogsChunk>> {
+    /// Tries to get next [`LogLine`].
+    pub fn try_next(&mut self) -> Option<Box<LogLine>> {
         self.context_rx.try_recv().ok()
     }
 
@@ -158,7 +158,7 @@ impl LogsObserver {
         self.context_rx.is_empty()
     }
 
-    /// Drains waiting [`LogsChunk`]s.
+    /// Drains waiting [`LogLine`]s.
     pub fn drain(&mut self) {
         while self.context_rx.try_recv().is_ok() {}
     }
@@ -175,15 +175,15 @@ struct ObserverContext<'a> {
     previous: bool,
     include_container: bool,
     api: &'a Api<Pod>,
-    channel: &'a UnboundedSender<Box<LogsChunk>>,
+    channel: &'a UnboundedSender<Box<LogLine>>,
     cancellation_token: &'a CancellationToken,
     stop_on: Option<(Timestamp, String)>,
 }
 
 impl ObserverContext<'_> {
-    /// Sends [`LogsChunk`] to the channel.
-    fn send_logs_chunk(&self, chunk: LogsChunk) {
-        let _ = self.channel.send(Box::new(chunk));
+    /// Sends [`LogLine`] to the channel.
+    fn send_log_line(&self, line: LogLine) {
+        let _ = self.channel.send(Box::new(line));
     }
 }
 
@@ -218,7 +218,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            context.send_logs_chunk(process_error(container, err.to_string(), None).into());
+            context.send_log_line(process_error(container, err.to_string(), None));
             return (ObserveResult::Continue, since_time);
         },
     };
@@ -239,7 +239,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                                 break;
                             }
 
-                            context.send_logs_chunk(line.into());
+                            context.send_log_line(line);
                         }
                     },
                     Ok(None) => {
@@ -247,7 +247,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                         break;
                     },
                     Err(err) => {
-                        context.send_logs_chunk(process_error(container, err.to_string(), None).into());
+                        context.send_log_line(process_error(container, err.to_string(), None));
                         break;
                     },
                 }

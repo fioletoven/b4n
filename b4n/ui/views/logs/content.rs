@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyledLine};
-use crate::ui::views::logs::line::{LineKind, LogLine, LogsChunk};
+use crate::ui::views::logs::line::{LineKind, LogLine};
 
 pub const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 pub const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
@@ -79,95 +79,66 @@ impl LogsContent {
         self.lines.last().map(|l| l.datetime)
     }
 
-    /// Add a chunk of log lines, maintaining sorted order.\
-    /// **Note** that it assumes lines within a chunk are already sorted by timestamp.
-    pub fn add_logs_chunk(&mut self, chunk: LogsChunk) {
-        if chunk.lines.is_empty() {
-            return;
-        }
-
-        self.update_max_size(&chunk);
+    /// Add a single log line, maintaining sorted order and deduplicating.
+    pub fn add_log_line(&mut self, line: LogLine) {
+        self.update_max_size(&line);
 
         if self.lines.is_empty() {
-            self.lines = chunk.lines;
+            self.lines.push(line);
             return;
         }
 
-        if log_line_sort_key(&chunk.lines[0]) >= log_line_sort_key(self.lines.last().unwrap()) {
-            // fast path: first key in chunk >= every key in self.lines, so add all at the end
-
+        if sort_key(&line) >= sort_key(self.lines.last().unwrap()) {
             let tail_start = {
-                // get number of lines from the end that has the same timestamp
-                let first_key = log_line_sort_key(&chunk.lines[0]);
                 let reversed = self.lines.iter().rev();
-                self.lines.len() - reversed.take_while(|l| log_line_sort_key(l) >= first_key).count()
+                self.lines.len() - reversed.take_while(|l| sort_key(l) >= sort_key(&line)).count()
             };
 
-            // count how many of them are duplicated with the tail
-            let mut tail: Vec<&LogLine> = self.lines[tail_start..].iter().collect();
-            let mut skip = 0;
-            for line in &chunk.lines {
-                if let Some(pos) = tail.iter().position(|existing| log_line_eq(existing, line)) {
-                    tail.swap_remove(pos);
-                    skip += 1;
-                } else {
-                    break;
-                }
+            let is_duplicate = self.lines[tail_start..].iter().any(|existing| existing == &line);
+            if !is_duplicate {
+                self.lines.push(line);
             }
-
-            self.lines.extend(chunk.lines.into_iter().skip(skip));
             return;
         }
 
-        let merged = self.merge_sorted(chunk.lines);
-        self.lines = merged;
+        self.merge_sorted(line);
     }
 
-    /// Merge a batch of new lines into the sorted `self.lines`.
-    fn merge_sorted(&mut self, incoming: Vec<LogLine>) -> Vec<LogLine> {
-        let mut merged = Vec::with_capacity(self.lines.len() + incoming.len());
+    /// Insert a single new line into the sorted `self.lines`, deduplicating.
+    fn merge_sorted(&mut self, incoming: LogLine) {
+        let pos = self.lines.partition_point(|l| sort_key(l) <= sort_key(&incoming));
 
-        let mut existing_iter = self.lines.drain(..).peekable();
-        let mut incoming_iter = incoming.into_iter().peekable();
-
-        loop {
-            match (existing_iter.peek(), incoming_iter.peek()) {
-                (Some(a), Some(b)) => {
-                    if log_line_eq(a, b) {
-                        merged.push(existing_iter.next().unwrap());
-                        incoming_iter.next();
-                    } else if log_line_sort_key(a) <= log_line_sort_key(b) {
-                        merged.push(existing_iter.next().unwrap());
-                    } else {
-                        merged.push(incoming_iter.next().unwrap());
-                    }
-                },
-                (Some(_), None) => {
-                    merged.extend(existing_iter);
-                    break;
-                },
-                (None, Some(_)) => {
-                    merged.extend(incoming_iter);
-                    break;
-                },
-                (None, None) => break,
+        // Check for duplicates around the insertion point
+        // Look backwards from pos for lines with the same key
+        let start = {
+            let mut s = pos;
+            while s > 0 && sort_key(&self.lines[s - 1]) == sort_key(&incoming) {
+                s -= 1;
             }
-        }
+            s
+        };
 
-        merged
+        // Look forwards from pos for lines with the same key
+        let end = {
+            let mut e = pos;
+            while e < self.lines.len() && sort_key(&self.lines[e]) == sort_key(&incoming) {
+                e += 1;
+            }
+            e
+        };
+
+        let is_duplicate = self.lines[start..end].iter().any(|existing| existing == &incoming);
+        if !is_duplicate {
+            self.lines.insert(pos, incoming);
+        }
     }
 
-    fn update_max_size(&mut self, chunk: &LogsChunk) {
+    fn update_max_size(&mut self, line: &LogLine) {
         let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
-        let max_size = chunk
-            .lines
-            .iter()
-            .map(|line| line.width() + timestamp_extra)
-            .max()
-            .unwrap_or(0);
+        let size = line.width() + timestamp_extra;
 
         self.count = 0; // force re-render current logs page
-        self.max_size = self.max_size.max(max_size);
+        self.max_size = self.max_size.max(size);
     }
 
     fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
@@ -331,13 +302,9 @@ impl Content for LogsContent {
 }
 
 /// Get deterministic ordering for lines with identical timestamps.
-fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
+#[inline]
+fn sort_key(line: &LogLine) -> impl Ord + '_ {
     (line.datetime, &line.container)
-}
-
-/// Check if two log lines are equal (same timestamp, container, and message text).
-fn log_line_eq(a: &LogLine, b: &LogLine) -> bool {
-    a.datetime == b.datetime && a.container == b.container && a.kind == b.kind && a.lowercase == b.lowercase
 }
 
 fn ensure_container_has_color(container_colors: &mut HashMap<String, usize>, container: Option<&str>) {

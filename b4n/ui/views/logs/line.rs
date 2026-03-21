@@ -23,6 +23,15 @@ pub struct LogLine {
     message_len: usize,
 }
 
+impl PartialEq for LogLine {
+    fn eq(&self, other: &Self) -> bool {
+        self.datetime == other.datetime
+            && self.container == other.container
+            && self.kind == other.kind
+            && self.lowercase == other.lowercase
+    }
+}
+
 impl LogLine {
     /// Creates new [`LogLine`] instance.
     pub fn new(datetime: Timestamp, container: Option<&str>, message: String) -> Self {
@@ -123,15 +132,5 @@ impl LogLine {
         }
 
         result
-    }
-}
-
-pub struct LogsChunk {
-    pub lines: Vec<LogLine>,
-}
-
-impl From<LogLine> for LogsChunk {
-    fn from(value: LogLine) -> Self {
-        Self { lines: vec![value] }
     }
 }

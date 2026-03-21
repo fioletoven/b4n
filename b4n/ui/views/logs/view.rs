@@ -251,7 +251,8 @@ impl LogsView {
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
-            content.add_logs_chunk(LogLine::info(since_ts, None, format!("Fetch previous logs since {}", since_ts)).into());
+            let line = LogLine::info(since_ts, None, format!("Fetch previous logs since {}", since_ts));
+            content.add_log_line(line);
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
             let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous);
@@ -274,8 +275,8 @@ impl View for LogsView {
                 }
 
                 let content = self.logs.content_mut().unwrap();
-                while let Some(chunk) = observer.try_next() {
-                    content.add_logs_chunk(*chunk);
+                while let Some(line) = observer.try_next() {
+                    content.add_log_line(*line);
                 }
 
                 if self.bound_to_bottom {
@@ -289,8 +290,8 @@ impl View for LogsView {
             && !observer.is_empty()
         {
             needs_update = true;
-            while let Some(chunk) = observer.try_next() {
-                content.add_logs_chunk(*chunk);
+            while let Some(line) = observer.try_next() {
+                content.add_log_line(*line);
             }
         }
 
