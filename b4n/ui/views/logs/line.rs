@@ -5,13 +5,20 @@ use std::fmt::{Display, Write};
 
 use crate::ui::presentation::{ContentPosition, StyledLine};
 
+#[derive(PartialEq)]
+pub enum LineKind {
+    LogLine,
+    Info,
+    Error,
+}
+
 /// Represents one log line.
 pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
     pub message: StyledLine,
     pub lowercase: String,
-    pub is_error: bool,
+    pub kind: LineKind,
     container_len: usize,
     message_len: usize,
 }
@@ -41,7 +48,7 @@ impl LogLine {
             message_len: lowercase.chars().count(),
             message,
             lowercase,
-            is_error: false,
+            kind: LineKind::LogLine,
         }
     }
 
@@ -54,7 +61,20 @@ impl LogLine {
             message_len: error.chars().count(),
             message: vec![(Style::default(), error)],
             lowercase: String::new(),
-            is_error: true,
+            kind: LineKind::Error,
+        }
+    }
+
+    /// Returns new info [`LogLine`] instance.
+    pub fn info(datetime: Timestamp, container: Option<&str>, info: String) -> Self {
+        Self {
+            datetime,
+            container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
+            container: container.map(String::from),
+            message_len: info.chars().count(),
+            message: vec![(Style::default(), info)],
+            lowercase: String::new(),
+            kind: LineKind::Info,
         }
     }
 
@@ -107,6 +127,11 @@ impl LogLine {
 }
 
 pub struct LogsChunk {
-    pub end: Timestamp,
     pub lines: Vec<LogLine>,
+}
+
+impl From<LogLine> for LogsChunk {
+    fn from(value: LogLine) -> Self {
+        Self { lines: vec![value] }
+    }
 }

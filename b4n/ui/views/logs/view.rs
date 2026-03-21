@@ -5,6 +5,7 @@ use b4n_kube::{ContainerRef, PODS};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
+use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
 use std::rc::Rc;
@@ -13,8 +14,12 @@ use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::{Content, ContentViewer};
 use crate::ui::views::View;
 use crate::ui::views::logs::content::{LogsContent, TIMESTAMP_TEXT_LENGTH};
-use crate::ui::views::logs::{LogsObserver, LogsObserverError};
+use crate::ui::views::logs::line::LogLine;
+use crate::ui::views::logs::{LogsObserver, LogsObserverError, LogsObserverOptions};
 use crate::ui::widgets::{CommandPalette, Search};
+
+const DEFAULT_LOOKBACK_TIME: SignedDuration = SignedDuration::from_mins(15);
+const DEFAULT_LOOKBACK_LINES: i32 = 120;
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -32,12 +37,17 @@ pub enum LogsViewError {
 pub struct LogsView {
     logs: ContentViewer<LogsContent>,
     app_data: SharedAppData,
+    worker: SharedBgWorker,
     observers: Vec<LogsObserver>,
-    last_mouse_click: Option<Position>,
+    fetch_observer: Option<LogsObserver>,
     command_palette: CommandPalette,
     search: Search,
     footer: NotificationSink,
+    container: Option<ContainerRef>,
+    previous: bool,
+    requested_log_lines: Option<i64>,
     bound_to_bottom: bool,
+    last_mouse_click: Option<Position>,
     area: Rect,
 }
 
@@ -70,25 +80,33 @@ impl LogsView {
             container,
         );
 
+        let container = (containers.len() == 1).then(|| containers[0].clone());
+        let requested_log_lines = app_data.borrow().config.logs.lines;
         let include_containers = containers.len() > 1;
         let mut observers = Vec::with_capacity(containers.len());
         for pod in containers {
             let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-            observer.start(client, pod, app_data.borrow().config.logs.lines, previous, include_containers);
+            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous);
+            observer.start(client, pod, options);
             observers.push(observer);
         }
 
-        let search = Search::new(Rc::clone(&app_data), Some(worker), 65);
+        let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
 
         Ok(Self {
             logs,
             app_data,
+            worker,
             observers,
-            last_mouse_click: None,
+            fetch_observer: None,
             command_palette: CommandPalette::default(),
             search,
             footer,
+            previous,
+            container,
+            requested_log_lines,
             bound_to_bottom: true,
+            last_mouse_click: None,
             area: workspace,
         })
     }
@@ -205,6 +223,37 @@ impl LogsView {
 
         response
     }
+
+    fn fetch_previous_log_lines(&mut self) {
+        let Some(content) = self.logs.content_mut() else {
+            return;
+        };
+
+        if content.is_empty() {
+            return;
+        }
+
+        if let Some(requested) = self.requested_log_lines
+            && let Ok(requested) = usize::try_from(requested)
+            && content.len() < requested
+        {
+            return;
+        }
+
+        if let Some(last_dt) = content.get_last_timestamp()
+            && let Some(client) = self.worker.borrow().kubernetes_client()
+            && let Some((first_dt, log_line)) = content.get_first_line()
+            && let Some(container) = self.container.clone()
+        {
+            let since_ts = estimate_since_time(first_dt, last_dt, content.len());
+            content.add_logs_chunk(LogLine::info(since_ts, None, format!("Fetching previous logs since {}", since_ts)).into());
+
+            let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
+            let options = LogsObserverOptions::stop_on(since_ts, (first_dt, log_line), self.previous);
+            observer.start(client, container, options);
+            self.fetch_observer = Some(observer);
+        }
+    }
 }
 
 impl View for LogsView {
@@ -227,6 +276,16 @@ impl View for LogsView {
                 if self.bound_to_bottom {
                     self.logs.scroll_to_end();
                 }
+            }
+        }
+
+        if let Some(observer) = self.fetch_observer.as_mut()
+            && let Some(content) = self.logs.content_mut()
+            && !observer.is_empty()
+        {
+            needs_update = true;
+            while let Some(chunk) = observer.try_next() {
+                content.add_logs_chunk(*chunk);
             }
         }
 
@@ -306,6 +365,15 @@ impl View for LogsView {
             return ResponseEvent::Handled;
         }
 
+        if self.logs.is_at_beginning()
+            && self.observers.len() == 1
+            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
+                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
+        {
+            self.fetch_previous_log_lines();
+            return ResponseEvent::Handled;
+        }
+
         if let TuiEvent::Key(key) = event
             && (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
             && self.logs.is_at_end()
@@ -338,5 +406,17 @@ impl Drop for LogsView {
         for observer in &mut self.observers {
             observer.stop();
         }
+    }
+}
+
+fn estimate_since_time(first: Timestamp, last: Timestamp, lines_no: usize) -> Timestamp {
+    let num_lines = i32::try_from(lines_no).unwrap_or(i32::MAX);
+    if num_lines <= 5 {
+        first.checked_sub(DEFAULT_LOOKBACK_TIME).unwrap_or(first)
+    } else {
+        let total_span = first.duration_since(last).abs();
+        let avg_per_line = total_span / num_lines;
+        let lookback = avg_per_line * DEFAULT_LOOKBACK_LINES;
+        first.checked_sub(lookback).unwrap_or(first)
     }
 }

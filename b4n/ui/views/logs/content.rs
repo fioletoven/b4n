@@ -1,11 +1,12 @@
 use b4n_common::{slice_from, slice_to, substring};
 use b4n_config::themes::LogsSyntaxColors;
+use k8s_openapi::jiff::Timestamp;
 use ratatui::style::Style;
 use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyledLine};
-use crate::ui::views::logs::line::{LogLine, LogsChunk};
+use crate::ui::views::logs::line::{LineKind, LogLine, LogsChunk};
 
 pub const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 pub const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
@@ -61,6 +62,16 @@ impl LogsContent {
     /// Returns `true` if showing timestamps is enabled.
     pub fn show_timestamps(&self) -> bool {
         self.show_timestamps
+    }
+
+    /// Returns timestamp of the last log line in this content.
+    pub fn get_last_timestamp(&self) -> Option<Timestamp> {
+        self.lines.last().map(|l| l.datetime)
+    }
+
+    /// Returns first line as a tuple of time and line lowercase text.
+    pub fn get_first_line(&self) -> Option<(Timestamp, String)> {
+        self.lines.first().map(|l| (l.datetime, l.lowercase.clone()))
     }
 
     /// Add a chunk of log lines, maintaining sorted order.\
@@ -155,10 +166,10 @@ impl LogsContent {
     }
 
     fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
-        let log_colors = if line.is_error {
-            &self.colors.error
-        } else {
-            &self.colors.string
+        let log_colors = match line.kind {
+            LineKind::LogLine => &self.colors.string,
+            LineKind::Info => &self.colors.info,
+            LineKind::Error => &self.colors.error,
         };
 
         let mut result = Vec::new();
@@ -321,7 +332,7 @@ fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
 
 /// Check if two log lines are equal (same timestamp, container, and message text).
 fn log_line_eq(a: &LogLine, b: &LogLine) -> bool {
-    a.datetime == b.datetime && a.container == b.container && a.is_error == b.is_error && a.lowercase == b.lowercase
+    a.datetime == b.datetime && a.container == b.container && a.kind == b.kind && a.lowercase == b.lowercase
 }
 
 fn ensure_container_has_color(container_colors: &mut HashMap<String, usize>, container: Option<&str>) {

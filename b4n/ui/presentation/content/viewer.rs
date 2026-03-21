@@ -236,6 +236,11 @@ impl<T: Content> ContentViewer<T> {
         self.page_start.y == self.max_vstart()
     }
 
+    /// Returns `true` if view is showing content from the first line.
+    pub fn is_at_beginning(&self) -> bool {
+        self.page_start.y == 0
+    }
+
     /// Resets horizontal scroll to start position.
     pub fn reset_horizontal_scroll(&mut self) {
         self.page_start.x = 0;
