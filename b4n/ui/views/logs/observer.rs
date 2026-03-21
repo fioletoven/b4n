@@ -126,6 +126,7 @@ impl LogsObserver {
             } else {
                 None
             };
+
             context.send_logs_chunk(process_error(container, msg, msg_time).into());
         });
 
@@ -160,6 +161,11 @@ impl LogsObserver {
     /// Drains waiting [`LogsChunk`]s.
     pub fn drain(&mut self) {
         while self.context_rx.try_recv().is_ok() {}
+    }
+
+    /// Returns `true` if observer finished watching logs.
+    pub fn is_finished(&self) -> bool {
+        self.task.as_ref().is_some_and(|t| t.is_finished())
     }
 }
 

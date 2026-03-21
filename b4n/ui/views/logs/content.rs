@@ -64,14 +64,19 @@ impl LogsContent {
         self.show_timestamps
     }
 
+    /// Returns first line as a tuple of time and line lowercase text.
+    pub fn get_first_line(&self) -> Option<&LogLine> {
+        self.lines.iter().find(|&line| line.kind == LineKind::LogLine)
+    }
+
+    /// Returns timestamp of the first log line in this content.
+    pub fn get_first_timestamp(&self) -> Option<Timestamp> {
+        self.lines.first().map(|l| l.datetime)
+    }
+
     /// Returns timestamp of the last log line in this content.
     pub fn get_last_timestamp(&self) -> Option<Timestamp> {
         self.lines.last().map(|l| l.datetime)
-    }
-
-    /// Returns first line as a tuple of time and line lowercase text.
-    pub fn get_first_line(&self) -> Option<(Timestamp, String)> {
-        self.lines.first().map(|l| (l.datetime, l.lowercase.clone()))
     }
 
     /// Add a chunk of log lines, maintaining sorted order.\
@@ -168,7 +173,7 @@ impl LogsContent {
     fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
         let log_colors = match line.kind {
             LineKind::LogLine => &self.colors.string,
-            LineKind::Info => &self.colors.info,
+            LineKind::FetchInfo => &self.colors.info,
             LineKind::Error => &self.colors.error,
         };
 

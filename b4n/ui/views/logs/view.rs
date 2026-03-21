@@ -225,6 +225,10 @@ impl LogsView {
     }
 
     fn fetch_previous_log_lines(&mut self) {
+        if self.fetch_observer.as_ref().is_some_and(|o| !o.is_finished()) {
+            return;
+        }
+
         let Some(content) = self.logs.content_mut() else {
             return;
         };
@@ -240,16 +244,17 @@ impl LogsView {
             return;
         }
 
-        if let Some(last_dt) = content.get_last_timestamp()
+        if let Some(first_dt) = content.get_first_timestamp()
+            && let Some(last_dt) = content.get_last_timestamp()
             && let Some(client) = self.worker.borrow().kubernetes_client()
-            && let Some((first_dt, log_line)) = content.get_first_line()
+            && let Some(stop_on) = content.get_first_line().map(|l| (l.datetime, l.lowercase.clone()))
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
-            content.add_logs_chunk(LogLine::info(since_ts, None, format!("Fetching previous logs since {}", since_ts)).into());
+            content.add_logs_chunk(LogLine::info(since_ts, None, format!("Fetch previous logs since {}", since_ts)).into());
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
-            let options = LogsObserverOptions::stop_on(since_ts, (first_dt, log_line), self.previous);
+            let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous);
             observer.start(client, container, options);
             self.fetch_observer = Some(observer);
         }
@@ -287,6 +292,10 @@ impl View for LogsView {
             while let Some(chunk) = observer.try_next() {
                 content.add_logs_chunk(*chunk);
             }
+        }
+
+        if self.fetch_observer.as_ref().is_some_and(|o| o.is_finished()) {
+            self.fetch_observer = None;
         }
 
         if needs_update && self.logs.search(self.search.value(), true) {

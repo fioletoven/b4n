@@ -8,7 +8,7 @@ use crate::ui::presentation::{ContentPosition, StyledLine};
 #[derive(PartialEq)]
 pub enum LineKind {
     LogLine,
-    Info,
+    FetchInfo,
     Error,
 }
 
@@ -74,7 +74,7 @@ impl LogLine {
             message_len: info.chars().count(),
             message: vec![(Style::default(), info)],
             lowercase: String::new(),
-            kind: LineKind::Info,
+            kind: LineKind::FetchInfo,
         }
     }
 
