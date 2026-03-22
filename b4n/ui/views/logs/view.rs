@@ -299,6 +299,8 @@ impl View for LogsView {
             self.fetch_observer = None;
         }
 
+        self.logs.header.set_busy(self.fetch_observer.is_some());
+
         if needs_update && self.logs.search(self.search.value(), true) {
             self.update_search_count();
         }

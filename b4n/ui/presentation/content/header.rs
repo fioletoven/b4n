@@ -9,6 +9,7 @@ use crate::core::ConnectionState;
 use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
+#[derive(Default)]
 pub struct ContentHeader {
     pub title: &'static str,
     pub icon: char,
@@ -22,6 +23,7 @@ pub struct ContentHeader {
     show_coordinates: bool,
     position_x: usize,
     position_y: usize,
+    is_busy: bool,
     spinner: Spinner,
 }
 
@@ -29,19 +31,13 @@ impl ContentHeader {
     /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData, show_coordinates: bool) -> Self {
         Self {
-            title: "",
             icon: ' ',
             namespace: Namespace::all(),
-            kind: Kind::default(),
-            name: None,
-            descr: None,
             app_data,
             edit_icon: ' ',
-            edit_mode: "",
             show_coordinates,
-            position_x: 0,
-            position_y: 0,
             spinner: Spinner::default(),
+            ..Default::default()
         }
     }
 
@@ -76,9 +72,14 @@ impl ContentHeader {
         self.edit_mode = mode;
     }
 
+    /// Sets busy flag.
+    pub fn set_busy(&mut self, is_busy: bool) {
+        self.is_busy = is_busy;
+    }
+
     /// Draws [`ContentHeader`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
-        let coordinates = if self.app_data.borrow().state == ConnectionState::Ready {
+        let coordinates = if self.app_data.borrow().state == ConnectionState::Ready && !self.is_busy {
             format!("  {}Ln {}, Col {} ", self.edit_mode, self.position_y, self.position_x)
         } else {
             format!(
