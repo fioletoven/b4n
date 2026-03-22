@@ -12,6 +12,10 @@ pub const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 pub const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
 pub const TIMESTAMP_TEXT_LENGTH: usize = 24;
 
+#[cfg(test)]
+#[path = "./content.tests.rs"]
+mod content_tests;
+
 /// Logs content for [`LogsView`].
 pub struct LogsContent {
     show_timestamps: bool,
@@ -108,24 +112,15 @@ impl LogsContent {
     fn merge_sorted(&mut self, incoming: LogLine) {
         let pos = self.lines.partition_point(|l| sort_key(l) <= sort_key(&incoming));
 
-        // Check for duplicates around the insertion point
-        // Look backwards from pos for lines with the same key
-        let start = {
-            let mut s = pos;
-            while s > 0 && sort_key(&self.lines[s - 1]) == sort_key(&incoming) {
-                s -= 1;
-            }
-            s
-        };
+        let start = self.lines[..pos]
+            .iter()
+            .rposition(|l| sort_key(l) != sort_key(&incoming))
+            .map_or(0, |i| i + 1);
 
-        // Look forwards from pos for lines with the same key
-        let end = {
-            let mut e = pos;
-            while e < self.lines.len() && sort_key(&self.lines[e]) == sort_key(&incoming) {
-                e += 1;
-            }
-            e
-        };
+        let end = self.lines[pos..]
+            .iter()
+            .position(|l| sort_key(l) != sort_key(&incoming))
+            .map_or(self.lines.len(), |i| pos + i);
 
         let is_duplicate = self.lines[start..end].iter().any(|existing| existing == &incoming);
         if !is_duplicate {

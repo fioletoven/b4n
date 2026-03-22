@@ -251,7 +251,7 @@ impl LogsView {
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
-            let line = LogLine::info(since_ts, None, format!("Fetch previous logs since {}", since_ts));
+            let line = LogLine::info(since_ts, None, format!("Fetching earlier logs since {}", since_ts));
             content.add_log_line(line);
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
