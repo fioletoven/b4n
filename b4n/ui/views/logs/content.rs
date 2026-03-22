@@ -127,10 +127,10 @@ impl LogsContent {
         let is_duplicate = self.lines[start..end].iter().any(|existing| existing == &incoming);
         if !is_duplicate {
             self.lines.insert(pos, incoming);
-            Some(pos)
-        } else {
-            None
+            return Some(pos);
         }
+
+        None
     }
 
     fn update_max_size(&mut self, line: &LogLine) {

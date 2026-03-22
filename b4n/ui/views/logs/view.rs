@@ -251,7 +251,7 @@ impl LogsView {
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
-            let line = LogLine::info(since_ts, None, format!("Fetching earlier logs since {}", since_ts));
+            let line = LogLine::info(since_ts, None, format!("Fetching earlier logs since {since_ts}"));
             content.add_log_line(line);
             self.logs.set_page_start(1);
 
@@ -292,16 +292,17 @@ impl View for LogsView {
         {
             needs_update = true;
             while let Some(line) = observer.try_next() {
+                let current = self.logs.page_position().y;
                 let added_line = self.logs.content_mut().and_then(|c| c.add_log_line(*line));
                 if let Some(line) = added_line
-                    && self.logs.page_position().y == line
+                    && current >= line
                 {
-                    self.logs.set_page_start(line + 1);
+                    self.logs.set_page_start(current + 1);
                 }
             }
         }
 
-        if self.fetch_observer.as_ref().is_some_and(|o| o.is_finished()) {
+        if self.fetch_observer.as_ref().is_some_and(LogsObserver::is_finished) {
             self.fetch_observer = None;
         }
 

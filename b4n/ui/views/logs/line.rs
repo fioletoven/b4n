@@ -5,6 +5,7 @@ use std::fmt::{Display, Write};
 
 use crate::ui::presentation::{ContentPosition, StyledLine};
 
+/// Log line kind.
 #[derive(PartialEq)]
 pub enum LineKind {
     LogLine,

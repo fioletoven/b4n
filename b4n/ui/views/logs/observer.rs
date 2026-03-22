@@ -165,7 +165,7 @@ impl LogsObserver {
 
     /// Returns `true` if observer finished watching logs.
     pub fn is_finished(&self) -> bool {
-        self.task.as_ref().is_some_and(|t| t.is_finished())
+        self.task.as_ref().is_some_and(JoinHandle::is_finished)
     }
 }
 
