@@ -84,12 +84,13 @@ impl LogsContent {
     }
 
     /// Add a single log line, maintaining sorted order and deduplicating.
-    pub fn add_log_line(&mut self, line: LogLine) {
+    /// Returns position where this line was added.
+    pub fn add_log_line(&mut self, line: LogLine) -> Option<usize> {
         self.update_max_size(&line);
 
         if self.lines.is_empty() {
             self.lines.push(line);
-            return;
+            return Some(0);
         }
 
         if sort_key(&line) >= sort_key(self.lines.last().unwrap()) {
@@ -102,14 +103,15 @@ impl LogsContent {
             if !is_duplicate {
                 self.lines.push(line);
             }
-            return;
+
+            return Some(self.lines.len().saturating_sub(1));
         }
 
-        self.merge_sorted(line);
+        self.merge_sorted(line)
     }
 
     /// Insert a single new line into the sorted `self.lines`, deduplicating.
-    fn merge_sorted(&mut self, incoming: LogLine) {
+    fn merge_sorted(&mut self, incoming: LogLine) -> Option<usize> {
         let pos = self.lines.partition_point(|l| sort_key(l) <= sort_key(&incoming));
 
         let start = self.lines[..pos]
@@ -125,6 +127,9 @@ impl LogsContent {
         let is_duplicate = self.lines[start..end].iter().any(|existing| existing == &incoming);
         if !is_duplicate {
             self.lines.insert(pos, incoming);
+            Some(pos)
+        } else {
+            None
         }
     }
 

@@ -253,6 +253,7 @@ impl LogsView {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
             let line = LogLine::info(since_ts, None, format!("Fetching earlier logs since {}", since_ts));
             content.add_log_line(line);
+            self.logs.set_page_start(1);
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
             let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous);
@@ -286,12 +287,17 @@ impl View for LogsView {
         }
 
         if let Some(observer) = self.fetch_observer.as_mut()
-            && let Some(content) = self.logs.content_mut()
             && !observer.is_empty()
+            && self.logs.has_content()
         {
             needs_update = true;
             while let Some(line) = observer.try_next() {
-                content.add_log_line(*line);
+                let added_line = self.logs.content_mut().and_then(|c| c.add_log_line(*line));
+                if let Some(line) = added_line
+                    && self.logs.page_position().y == line
+                {
+                    self.logs.set_page_start(line + 1);
+                }
             }
         }
 
