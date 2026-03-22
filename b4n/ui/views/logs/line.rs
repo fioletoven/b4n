@@ -5,15 +5,32 @@ use std::fmt::{Display, Write};
 
 use crate::ui::presentation::{ContentPosition, StyledLine};
 
+/// Log line kind.
+#[derive(PartialEq)]
+pub enum LineKind {
+    LogLine,
+    FetchInfo,
+    Error,
+}
+
 /// Represents one log line.
 pub struct LogLine {
     pub datetime: Timestamp,
     pub container: Option<String>,
     pub message: StyledLine,
     pub lowercase: String,
-    pub is_error: bool,
+    pub kind: LineKind,
     container_len: usize,
     message_len: usize,
+}
+
+impl PartialEq for LogLine {
+    fn eq(&self, other: &Self) -> bool {
+        self.datetime == other.datetime
+            && self.container == other.container
+            && self.kind == other.kind
+            && self.lowercase == other.lowercase
+    }
 }
 
 impl LogLine {
@@ -41,7 +58,7 @@ impl LogLine {
             message_len: lowercase.chars().count(),
             message,
             lowercase,
-            is_error: false,
+            kind: LineKind::LogLine,
         }
     }
 
@@ -54,7 +71,20 @@ impl LogLine {
             message_len: error.chars().count(),
             message: vec![(Style::default(), error)],
             lowercase: String::new(),
-            is_error: true,
+            kind: LineKind::Error,
+        }
+    }
+
+    /// Returns new info [`LogLine`] instance.
+    pub fn info(datetime: Timestamp, container: Option<&str>, info: String) -> Self {
+        Self {
+            datetime,
+            container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
+            container: container.map(String::from),
+            message_len: info.chars().count(),
+            message: vec![(Style::default(), info)],
+            lowercase: String::new(),
+            kind: LineKind::FetchInfo,
         }
     }
 
@@ -104,9 +134,4 @@ impl LogLine {
 
         result
     }
-}
-
-pub struct LogsChunk {
-    pub end: Timestamp,
-    pub lines: Vec<LogLine>,
 }

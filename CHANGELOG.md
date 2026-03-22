@@ -2,10 +2,18 @@
 
 ## WIP
 
+### Features
+
+- fetch earlier logs by pressing `UP` key in logs view (one container view only)
+
 ### Bug fixes
 
 - fix filter settings on context change
 - remember filter for previous resource view
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.4 - 2026-03-14
 

@@ -1,15 +1,20 @@
 use b4n_common::{slice_from, slice_to, substring};
 use b4n_config::themes::LogsSyntaxColors;
+use k8s_openapi::jiff::Timestamp;
 use ratatui::style::Style;
 use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyledLine};
-use crate::ui::views::logs::line::{LogLine, LogsChunk};
+use crate::ui::views::logs::line::{LineKind, LogLine};
 
 pub const INITIAL_LOGS_VEC_SIZE: usize = 5_000;
 pub const TIMESTAMP_TEXT_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f ";
 pub const TIMESTAMP_TEXT_LENGTH: usize = 24;
+
+#[cfg(test)]
+#[path = "./content.tests.rs"]
+mod content_tests;
 
 /// Logs content for [`LogsView`].
 pub struct LogsContent {
@@ -63,78 +68,84 @@ impl LogsContent {
         self.show_timestamps
     }
 
-    /// Add a chunk of log lines, maintaining sorted order.\
-    /// **Note** that it assumes lines within a chunk are already sorted by timestamp.
-    pub fn add_logs_chunk(&mut self, chunk: LogsChunk) {
-        if chunk.lines.is_empty() {
-            return;
-        }
+    /// Returns first line as a tuple of time and line lowercase text.
+    pub fn get_first_line(&self) -> Option<&LogLine> {
+        self.lines.iter().find(|&line| line.kind == LineKind::LogLine)
+    }
 
-        self.update_max_size(&chunk);
+    /// Returns timestamp of the first log line in this content.
+    pub fn get_first_timestamp(&self) -> Option<Timestamp> {
+        self.lines.first().map(|l| l.datetime)
+    }
+
+    /// Returns timestamp of the last log line in this content.
+    pub fn get_last_timestamp(&self) -> Option<Timestamp> {
+        self.lines.last().map(|l| l.datetime)
+    }
+
+    /// Add a single log line, maintaining sorted order and deduplicating.
+    /// Returns position where this line was added.
+    pub fn add_log_line(&mut self, line: LogLine) -> Option<usize> {
+        self.update_max_size(&line);
 
         if self.lines.is_empty() {
-            self.lines = chunk.lines;
-            return;
+            self.lines.push(line);
+            return Some(0);
         }
 
-        if log_line_sort_key(&chunk.lines[0]) >= log_line_sort_key(self.lines.last().unwrap()) {
-            self.lines.extend(chunk.lines);
-            return;
-        }
+        if sort_key(&line) >= sort_key(self.lines.last().unwrap()) {
+            let tail_start = {
+                let reversed = self.lines.iter().rev();
+                self.lines.len() - reversed.take_while(|l| sort_key(l) >= sort_key(&line)).count()
+            };
 
-        let merged = self.merge_sorted(chunk.lines);
-        self.lines = merged;
-    }
-
-    /// Merge a batch of new lines into the sorted `self.lines`.
-    fn merge_sorted(&mut self, incoming: Vec<LogLine>) -> Vec<LogLine> {
-        let mut merged = Vec::with_capacity(self.lines.len() + incoming.len());
-
-        let mut existing_iter = self.lines.drain(..).peekable();
-        let mut incoming_iter = incoming.into_iter().peekable();
-
-        loop {
-            match (existing_iter.peek(), incoming_iter.peek()) {
-                (Some(a), Some(b)) => {
-                    if log_line_sort_key(a) <= log_line_sort_key(b) {
-                        merged.push(existing_iter.next().unwrap());
-                    } else {
-                        merged.push(incoming_iter.next().unwrap());
-                    }
-                },
-                (Some(_), None) => {
-                    merged.extend(existing_iter);
-                    break;
-                },
-                (None, Some(_)) => {
-                    merged.extend(incoming_iter);
-                    break;
-                },
-                (None, None) => break,
+            let is_duplicate = self.lines[tail_start..].iter().any(|existing| existing == &line);
+            if !is_duplicate {
+                self.lines.push(line);
             }
+
+            return Some(self.lines.len().saturating_sub(1));
         }
 
-        merged
+        self.merge_sorted(line)
     }
 
-    fn update_max_size(&mut self, chunk: &LogsChunk) {
-        let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
-        let max_size = chunk
-            .lines
+    /// Insert a single new line into the sorted `self.lines`, deduplicating.
+    fn merge_sorted(&mut self, incoming: LogLine) -> Option<usize> {
+        let pos = self.lines.partition_point(|l| sort_key(l) <= sort_key(&incoming));
+
+        let start = self.lines[..pos]
             .iter()
-            .map(|line| line.width() + timestamp_extra)
-            .max()
-            .unwrap_or(0);
+            .rposition(|l| sort_key(l) != sort_key(&incoming))
+            .map_or(0, |i| i + 1);
+
+        let end = self.lines[pos..]
+            .iter()
+            .position(|l| sort_key(l) != sort_key(&incoming))
+            .map_or(self.lines.len(), |i| pos + i);
+
+        let is_duplicate = self.lines[start..end].iter().any(|existing| existing == &incoming);
+        if !is_duplicate {
+            self.lines.insert(pos, incoming);
+            return Some(pos);
+        }
+
+        None
+    }
+
+    fn update_max_size(&mut self, line: &LogLine) {
+        let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
+        let size = line.width() + timestamp_extra;
 
         self.count = 0; // force re-render current logs page
-        self.max_size = self.max_size.max(max_size);
+        self.max_size = self.max_size.max(size);
     }
 
     fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
-        let log_colors = if line.is_error {
-            &self.colors.error
-        } else {
-            &self.colors.string
+        let log_colors = match line.kind {
+            LineKind::LogLine => &self.colors.string,
+            LineKind::FetchInfo => &self.colors.info,
+            LineKind::Error => &self.colors.error,
         };
 
         let mut result = Vec::new();
@@ -291,7 +302,8 @@ impl Content for LogsContent {
 }
 
 /// Get deterministic ordering for lines with identical timestamps.
-fn log_line_sort_key(line: &LogLine) -> impl Ord + '_ {
+#[inline]
+fn sort_key(line: &LogLine) -> impl Ord + '_ {
     (line.datetime, &line.container)
 }
 

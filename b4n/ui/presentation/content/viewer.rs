@@ -231,6 +231,21 @@ impl<T: Content> ContentViewer<T> {
         self.page_start.y = self.max_vstart();
     }
 
+    /// Returns current page position.
+    pub fn page_position(&self) -> ContentPosition {
+        self.page_start
+    }
+
+    /// Sets new page start for the content.
+    pub fn set_page_start(&mut self, line: usize) {
+        self.page_start.y = line.min(self.max_vstart());
+    }
+
+    /// Returns `true` if view is showing content from the first line.
+    pub fn is_at_beginning(&self) -> bool {
+        self.page_start.y == 0
+    }
+
     /// Returns `true` if view is showing the last part of the content.
     pub fn is_at_end(&self) -> bool {
         self.page_start.y == self.max_vstart()

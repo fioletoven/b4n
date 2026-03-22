@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::ui::views::logs::line::{LogLine, LogsChunk};
+use crate::ui::views::logs::line::LogLine;
 
 /// Possible errors from [`LogsObserver`].
 #[derive(thiserror::Error, Debug)]
@@ -21,13 +21,45 @@ pub enum LogsObserverError {
     KubeClientError(#[from] kube::Error),
 }
 
-/// Kubernetes pod logs observer.
+/// Options for [`LogsObserver`].
+#[derive(Default)]
+pub struct LogsObserverOptions {
+    previous: bool,
+    since_time: Option<Timestamp>,
+    tail_lines: Option<i64>,
+    include_container: bool,
+    stop_on: Option<(Timestamp, String)>,
+}
+
+impl LogsObserverOptions {
+    /// Creates new options for the endless logs observer.
+    pub fn new(tail_lines: Option<i64>, include_container: bool, previous: bool) -> Self {
+        Self {
+            previous,
+            tail_lines,
+            include_container,
+            ..Default::default()
+        }
+    }
+
+    /// Creates new options for the logs observer that will stop on a specified logs line.
+    pub fn stop_on(since_time: Timestamp, stop_on: (Timestamp, String), previous: bool) -> Self {
+        Self {
+            previous,
+            since_time: Some(since_time),
+            stop_on: Some(stop_on),
+            ..Default::default()
+        }
+    }
+}
+
+/// Kubernetes container logs observer.
 pub struct LogsObserver {
     runtime: Handle,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
-    context_tx: UnboundedSender<Box<LogsChunk>>,
-    context_rx: UnboundedReceiver<Box<LogsChunk>>,
+    context_tx: UnboundedSender<Box<LogLine>>,
+    context_rx: UnboundedReceiver<Box<LogLine>>,
 }
 
 impl LogsObserver {
@@ -42,37 +74,31 @@ impl LogsObserver {
         }
     }
 
-    pub fn start(
-        &mut self,
-        client: &KubernetesClient,
-        pod: ContainerRef,
-        tail_lines: Option<i64>,
-        previous: bool,
-        include_container: bool,
-    ) {
+    pub fn start(&mut self, client: &KubernetesClient, container: ContainerRef, options: LogsObserverOptions) {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _client = client.get_client();
         let _context_tx = self.context_tx.clone();
 
         let task = self.runtime.spawn(async move {
-            let api: Api<Pod> = Api::namespaced(_client, pod.namespace.as_str());
+            let api: Api<Pod> = Api::namespaced(_client, container.namespace.as_str());
             let context = ObserverContext {
-                pod: &pod,
-                tail_lines,
-                previous,
-                include_container,
+                pod: &container,
+                tail_lines: options.tail_lines,
+                previous: options.previous,
+                include_container: options.include_container,
                 api: &api,
                 channel: &_context_tx,
                 cancellation_token: &_cancellation_token,
+                stop_on: options.stop_on,
             };
 
             let mut backoff = DefaultBackoff::default();
-            let mut since_time = None;
-            let mut should_continue;
+            let mut since_time = options.since_time;
+            let mut should_continue = ObserveResult::Continue;
             while !_cancellation_token.is_cancelled() {
                 (should_continue, since_time) = observe(since_time, &context).await;
-                if _cancellation_token.is_cancelled() || !should_continue {
+                if _cancellation_token.is_cancelled() || should_continue != ObserveResult::Continue {
                     break;
                 }
 
@@ -82,15 +108,26 @@ impl LogsObserver {
                 }
             }
 
+            if should_continue == ObserveResult::StopOn {
+                return;
+            }
+
             let msg = format!(
                 "Logs stream closed {}/{} ({})",
                 context.pod.namespace.as_str(),
                 context.pod.name,
                 context.pod.container.as_deref().unwrap_or_default()
             );
-            let msg_time = pod.finished_at.and_then(|t| t.checked_add(SignedDuration::from_secs(1)).ok());
-            let container = if include_container { pod.container.as_deref() } else { None };
-            context.send_logs_chunk(process_error(container, msg, msg_time));
+            let msg_time = container
+                .finished_at
+                .and_then(|t| t.checked_add(SignedDuration::from_secs(1)).ok());
+            let container = if options.include_container {
+                container.container.as_deref()
+            } else {
+                None
+            };
+
+            context.send_log_line(process_error(container, msg, msg_time));
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -111,8 +148,8 @@ impl LogsObserver {
         self.drain();
     }
 
-    /// Tries to get next [`LogsChunk`].
-    pub fn try_next(&mut self) -> Option<Box<LogsChunk>> {
+    /// Tries to get next [`LogLine`].
+    pub fn try_next(&mut self) -> Option<Box<LogLine>> {
         self.context_rx.try_recv().ok()
     }
 
@@ -121,9 +158,14 @@ impl LogsObserver {
         self.context_rx.is_empty()
     }
 
-    /// Drains waiting [`LogsChunk`]s.
+    /// Drains waiting [`LogLine`]s.
     pub fn drain(&mut self) {
         while self.context_rx.try_recv().is_ok() {}
+    }
+
+    /// Returns `true` if observer finished watching logs.
+    pub fn is_finished(&self) -> bool {
+        self.task.as_ref().is_some_and(JoinHandle::is_finished)
     }
 }
 
@@ -133,18 +175,26 @@ struct ObserverContext<'a> {
     previous: bool,
     include_container: bool,
     api: &'a Api<Pod>,
-    channel: &'a UnboundedSender<Box<LogsChunk>>,
+    channel: &'a UnboundedSender<Box<LogLine>>,
     cancellation_token: &'a CancellationToken,
+    stop_on: Option<(Timestamp, String)>,
 }
 
 impl ObserverContext<'_> {
-    /// Sends [`LogsChunk`] to the channel.
-    fn send_logs_chunk(&self, chunk: LogsChunk) {
-        let _ = self.channel.send(Box::new(chunk));
+    /// Sends [`LogLine`] to the channel.
+    fn send_log_line(&self, line: LogLine) {
+        let _ = self.channel.send(Box::new(line));
     }
 }
 
-async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (bool, Option<Timestamp>) {
+#[derive(PartialEq)]
+enum ObserveResult {
+    Continue,
+    Stop,
+    StopOn,
+}
+
+async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (ObserveResult, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
         previous: context.previous,
@@ -168,13 +218,13 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
     let mut lines = match context.api.log_stream(&context.pod.name, &params).await {
         Ok(stream) => stream.lines(),
         Err(err) => {
-            context.send_logs_chunk(process_error(container, err.to_string(), None));
-            return (true, since_time);
+            context.send_log_line(process_error(container, err.to_string(), None));
+            return (ObserveResult::Continue, since_time);
         },
     };
 
     let mut last_message_time = since_time;
-    let mut should_continue = true;
+    let mut result = ObserveResult::Continue;
     while !context.cancellation_token.is_cancelled() {
         tokio::select! {
             () = context.cancellation_token.cancelled() => (),
@@ -182,16 +232,22 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                 match line {
                     Ok(Some(line)) => {
                         if let Some(line) = process_line(container, &line) {
-                            last_message_time = Some(line.end);
-                            context.send_logs_chunk(line);
+                            last_message_time = Some(line.datetime);
+
+                            if context.stop_on.as_ref().is_some_and(|s| should_stop_on(&line, s.0, &s.1)) {
+                                result = ObserveResult::StopOn;
+                                break;
+                            }
+
+                            context.send_log_line(line);
                         }
                     },
                     Ok(None) => {
-                        should_continue = false;
+                        result = ObserveResult::Stop;
                         break;
                     },
                     Err(err) => {
-                        context.send_logs_chunk(process_error(container, err.to_string(), None));
+                        context.send_log_line(process_error(container, err.to_string(), None));
                         break;
                     },
                 }
@@ -199,25 +255,22 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
         }
     }
 
-    (should_continue, last_message_time)
+    (result, last_message_time)
 }
 
-fn process_line(container: Option<&str>, line: &str) -> Option<LogsChunk> {
+fn process_line(container: Option<&str>, line: &str) -> Option<LogLine> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
     let msg = split.next()?.replace('\t', "    ");
 
-    Some(LogsChunk {
-        end: dt,
-        lines: vec![LogLine::new(dt, container, msg)],
-    })
+    Some(LogLine::new(dt, container, msg))
 }
 
-fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) -> LogsChunk {
+fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) -> LogLine {
     let dt = dt.unwrap_or_else(Timestamp::now);
+    LogLine::error(dt, container, error)
+}
 
-    LogsChunk {
-        end: dt,
-        lines: vec![LogLine::error(dt, container, error)],
-    }
+fn should_stop_on(current: &LogLine, dt: Timestamp, log: &str) -> bool {
+    current.datetime == dt && current.lowercase == log
 }
