@@ -322,7 +322,7 @@ impl Responsive for CommandPalette {
             return self.process_enter_key();
         }
 
-        if event.is_mouse(MouseEventKind::RightClick) {
+        if event.is_mouse(MouseEventKind::RightClick) && self.select().is_filter_visible() {
             return self.insert_from_clipboard();
         }
 
