@@ -303,9 +303,7 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if event.is_out(MouseEventKind::RightClick, self.select().area())
-            || event.is_out(MouseEventKind::LeftClick, self.select().area())
-        {
+        if event.is_out(MouseEventKind::LeftClick, self.select().area()) {
             self.is_visible = false;
             return if self.is_mouse_menu {
                 ResponseEvent::NotHandled
@@ -324,7 +322,7 @@ impl Responsive for CommandPalette {
             return self.process_enter_key();
         }
 
-        if event.is_in(MouseEventKind::RightClick, self.select().filter_area()) {
+        if event.is_mouse(MouseEventKind::RightClick) {
             return self.insert_from_clipboard();
         }
 
