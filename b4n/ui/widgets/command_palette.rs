@@ -303,7 +303,9 @@ impl Responsive for CommandPalette {
             return ResponseEvent::Handled;
         }
 
-        if event.is_out(MouseEventKind::LeftClick, self.select().area()) {
+        if event.is_out(MouseEventKind::LeftClick, self.select().area())
+            || (event.is_out(MouseEventKind::RightClick, self.select().area()) && self.is_mouse_menu)
+        {
             self.is_visible = false;
             return if self.is_mouse_menu {
                 ResponseEvent::NotHandled

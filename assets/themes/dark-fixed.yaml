@@ -21,18 +21,19 @@ palette:
   cyan: '#56B6C2'
   magenta: '#726EC2'
   purple: '#C678DD'
+  gray: '#758198'
 
-  select_yellow: '#806313'
+  select_yellow: '#745911'
   select_dark: '#03495C'
 
 # style anchors
 filter: &filter
-  cursor: Reset:#758198
+  cursor: Reset:gray
   normal: fg_dark:yellow:bg_black
   normal_hl: fg_dark:yellow:bg_dark
-  header: fg_light:bg_light
+  header: text_dark:#AEB1C0
   filter:
-    input: cyan:yellow:bg_black
+    input: '#A3B8E1:yellow:bg_black'
     prompt: blue:bg_black
     error: red:bg_black
 
@@ -51,11 +52,11 @@ colors:
     disconnected: white:red
     previous: text:no_bg
   footer:
-    text: fg_dark:#A4A6B8:bg_dark
+    text: fg_dark:#B6B9BD:bg_dark
     trail: blue:yellow:bg_dark
     info: green:bg_dark
     error: red:bg_dark
-    hint: '#A4A6B8:yellow:bg_dark'
+    hint: '#828A96:yellow:bg_dark'
     details:
       text: fg_dark:bg_black
       hint: fg_dark:bg_dark
@@ -78,7 +79,7 @@ colors:
       focused: text_dark:blue
     btn_delete:
       normal: fg_dark:bg_black
-      focused: text_dark:#d4666f
+      focused: text_dark:#D4666F
     btn_cancel:
       normal: fg_dark:bg_black
       focused: text_dark:green
@@ -106,7 +107,7 @@ colors:
       selected_hl: text_dark:green
     completed:
       normal: text_light:no_bg
-      normal_hl: text_light:#758198
+      normal_hl: text_dark:gray
       selected: green:no_bg
       selected_hl: text_dark:green
   line_cached:
