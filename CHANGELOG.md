@@ -5,11 +5,13 @@
 ### Features
 
 - fetch earlier logs by pressing `UP` key in logs view (one container view only)
+- add example themes with fixed colors
 
 ### Bug fixes
 
 - fix filter settings on context change
 - remember filter for previous resource view
+- fix rmb behaviour for mouse menu
 
 ### Compatibility
 

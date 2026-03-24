@@ -42,7 +42,6 @@ The following features are currently supported:
 
 The following features are planned for future development:
 
-- Fetch older logs while scrolling (for one container view).
 - Allow custom commands (simple plugin system to run external binaries).
 - Describe Kubernetes resources.
 
