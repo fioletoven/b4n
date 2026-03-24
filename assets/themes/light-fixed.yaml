@@ -1,0 +1,151 @@
+# colors palette
+palette:
+  text: '#4F525D'
+  text_light: '#D9D9D9'
+  text_dark: '#383A42'
+
+  fg_light: '#4F525D'
+  fg_dark: '#D9D9D9'
+
+  no_bg: Reset
+  bg_light: '#D9D9D9'
+  bg_dark: '#4F525D'
+
+  white: White
+  red: '#D95245'
+  green: '#4C994B'
+  blue: '#0181B8'
+  yellow: '#C18301'
+  cyan: '#0994B0'
+  magenta: '#726EC2'
+  purple: '#A1259F'
+  light_red: '#DB6A73'
+  light_green: '#89B06D'
+  light_blue: '#5CA6E3'
+  light_yellow: '#D9B774'
+  light_purple: '#BC72D4'
+  light_cyan: '#54B1BD'
+
+  select_yellow: '#D9C49B'
+  select_light: '#E9E9E9'
+  hint: '#A4A6B8'
+
+# style anchors
+filter: &filter
+  cursor: Reset:#747C8A
+  normal: fg_dark:yellow:bg_dark
+  normal_hl: fg_light:blue:bg_light
+  header: fg_light:bg_light
+  filter:
+    input: '#A3B8E1:light_yellow:bg_dark'
+    prompt: light_blue:bg_dark
+    error: light_red:bg_dark
+
+# theme itself
+colors:
+  text: text:no_bg
+  cursor: fg_dark:bg_dark
+  header:
+    text: fg_dark:light_yellow:bg_dark
+    context: white:#CA4E1F
+    namespace: text:#FDCA4F
+    resource: text:#5CA6E3
+    name: text:#E5E9F0
+    count: text:#AAD92E
+    info: white:#9971C3
+    disconnected: white:light_red
+    previous: text_light:no_bg
+  footer:
+    text: fg_dark:hint:bg_dark
+    trail: light_blue:yellow:bg_dark
+    info: light_green:bg_dark
+    error: light_red:bg_dark
+    hint: hint:yellow:bg_dark
+    details:
+      text: fg_dark:hint:bg_dark
+      hint: fg_light:bg_light
+      info: light_green:bg_dark
+      info_hl: text_dark:light_green
+      error: light_red:bg_dark
+      error_hl: text_dark:light_red
+  filter: *filter
+  search: *filter
+  command_palette: *filter
+  mouse_menu: *filter
+  modal:
+    text: fg_dark:bg_dark
+    selector: *filter
+    checkbox:
+      normal: fg_dark:bg_dark
+      focused: light_purple:bg_dark
+    btn_accent:
+      normal: white:bg_dark
+      focused: white:light_blue
+    btn_delete:
+      normal: white:bg_dark
+      focused: white:light_red
+    btn_cancel:
+      normal: white:bg_dark
+      focused: white:light_green
+  side_select:
+    normal: fg_dark:yellow:bg_dark
+    normal_hl: fg_light:blue:bg_light
+    header: fg_dark:#5F626F
+    filter:
+      input: light_blue:bg_dark
+  line:
+    ready:
+      normal: light_blue:no_bg
+      normal_hl: text_dark:light_blue
+      selected: light_green:no_bg
+      selected_hl: text_dark:light_green
+    in_progress:
+      normal: red:no_bg
+      normal_hl: text_dark:light_red
+      selected: light_green:no_bg
+      selected_hl: text_dark:light_green
+    terminating:
+      normal: purple:no_bg
+      normal_hl: text_dark:light_purple
+      selected: light_green:no_bg
+      selected_hl: text_dark:light_green
+    completed:
+      normal: text:no_bg
+      normal_hl: text_light:bg_dark
+      selected: light_green:no_bg
+      selected_hl: text_dark:light_green
+  line_cached:
+    ready:
+      normal: text_light:no_bg
+      normal_hl: text:light_blue
+    in_progress:
+      normal: text_light:no_bg
+      normal_hl: text:light_red
+    terminating:
+      normal: text_light:no_bg
+      normal_hl: text:light_purple
+    completed:
+      normal: text_light:no_bg
+      normal_hl: text_dark:bg_dark
+  syntax:
+    yaml:
+      normal: '#9CA2B8:no_bg'
+      property: green:no_bg
+      string: text:no_bg
+      numeric: blue:no_bg
+      language: light_blue:no_bg
+      timestamp: purple:no_bg
+      search: select_yellow
+      select: select_light
+    logs:
+      string: text:no_bg
+      info: text_light:no_bg
+      error: red:no_bg
+      timestamp: magenta:no_bg
+      search: select_yellow
+      select: select_light
+      containers:
+      - green
+      - blue
+      - cyan
+      - yellow
