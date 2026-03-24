@@ -1,26 +1,31 @@
 # colors palette
 palette:
-  text: DarkGray
-  text_light: Gray
-  text_dark: Black
+  text: '#4F525D'
+  text_light: '#D9D9D9'
+  text_dark: '#383A42'
+
+  fg_light: '#4F525D'
+  fg_dark: '#D9D9D9'
+
   no_bg: Reset
-  fg_dark: Gray
-  bg_dark: DarkGray
-  fg_light: DarkGray
-  bg_light: Gray
+  bg_light: '#D9D9D9'
+  bg_dark: '#4F525D'
+
   white: White
-  red: Red
-  green: Green
-  blue: Blue
-  yellow: Yellow
-  cyan: Cyan
-  magenta: Magenta
-  light_red: LightRed
-  light_green: LightGreen
-  light_blue: LightBlue
-  light_yellow: LightYellow
-  light_magenta: LightMagenta
-  light_cyan: LightCyan
+  red: '#D95245'
+  green: '#4C994B'
+  blue: '#0181B8'
+  yellow: '#C18301'
+  cyan: '#0994B0'
+  magenta: '#726EC2'
+  purple: '#A1259F'
+  light_red: '#DB6A73'
+  light_green: '#89B06D'
+  light_blue: '#5CA6E3'
+  light_yellow: '#D9B774'
+  light_purple: '#BC72D4'
+  light_cyan: '#54B1BD'
+
   select_yellow: '#D9C49B'
   select_light: '#E9E9E9'
   hint: '#A4A6B8'
@@ -32,7 +37,7 @@ filter: &filter
   normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light
   filter:
-    input: light_cyan:light_yellow:bg_dark
+    input: '#A3B8E1:light_yellow:bg_dark'
     prompt: light_blue:bg_dark
     error: light_red:bg_dark
 
@@ -42,7 +47,7 @@ colors:
   cursor: fg_dark:bg_dark
   header:
     text: fg_dark:light_yellow:bg_dark
-    context: white:#D80060
+    context: white:#CA4E1F
     namespace: text:#FDCA4F
     resource: text:#5CA6E3
     name: text:#E5E9F0
@@ -72,7 +77,7 @@ colors:
     selector: *filter
     checkbox:
       normal: fg_dark:bg_dark
-      focused: light_magenta:bg_dark
+      focused: light_purple:bg_dark
     btn_accent:
       normal: white:bg_dark
       focused: white:light_blue
@@ -85,6 +90,7 @@ colors:
   side_select:
     normal: fg_dark:yellow:bg_dark
     normal_hl: fg_light:blue:bg_light
+    header: fg_dark:#5F626F
     filter:
       input: light_blue:bg_dark
   line:
@@ -99,8 +105,8 @@ colors:
       selected: light_green:no_bg
       selected_hl: text_dark:light_green
     terminating:
-      normal: magenta:no_bg
-      normal_hl: text_dark:light_magenta
+      normal: purple:no_bg
+      normal_hl: text_dark:light_purple
       selected: light_green:no_bg
       selected_hl: text_dark:light_green
     completed:
@@ -117,18 +123,18 @@ colors:
       normal_hl: text:light_red
     terminating:
       normal: text_light:no_bg
-      normal_hl: text:light_magenta
+      normal_hl: text:light_purple
     completed:
       normal: text_light:no_bg
       normal_hl: text_dark:bg_dark
   syntax:
     yaml:
-      normal: text_light:no_bg
+      normal: '#9CA2B8:no_bg'
       property: green:no_bg
       string: text:no_bg
       numeric: blue:no_bg
       language: light_blue:no_bg
-      timestamp: magenta:no_bg
+      timestamp: purple:no_bg
       search: select_yellow
       select: select_light
     logs:

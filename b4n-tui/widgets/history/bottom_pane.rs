@@ -69,14 +69,14 @@ impl BottomPane {
         self.area = layout[1].union(layout[2]);
 
         if show_hint {
-            let block = get_block(theme.colors.footer.details.bg, theme.colors.text.bg);
+            let block = get_block(theme.colors.footer.details.hint.bg, theme.colors.text.bg);
             let inner_area = block.inner(layout[1]).inner(Margin::new(1, 0));
             frame.render_widget(Clear, layout[1]);
             frame.render_widget(block, layout[1]);
-            frame.render_widget(Paragraph::new(hint_lines).fg(theme.colors.footer.details.fg), inner_area);
+            frame.render_widget(Paragraph::new(hint_lines).fg(theme.colors.footer.details.hint.fg), inner_area);
         }
 
-        let block = get_block(theme.colors.footer.text.bg, theme.colors.text.bg);
+        let block = get_block(theme.colors.footer.details.text.bg, theme.colors.text.bg);
         let inner_area = block.inner(layout[2]).inner(Margin::new(1, 0));
 
         frame.render_widget(Clear, layout[2]);

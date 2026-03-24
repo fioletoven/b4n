@@ -55,8 +55,14 @@ colors:
     trail: blue:yellow:bg_dark
     info: light_green:bg_dark
     error: light_red:bg_dark
-    details: fg_light:bg_light
     hint: black:yellow:bg_dark
+    details:
+      text: fg_dark:#A4A6B8:bg_dark
+      hint: fg_light:bg_light
+      info: light_green:bg_dark
+      info_hl: text_dark:light_green
+      error: light_red:bg_dark
+      error_hl: text_dark:light_red
   filter: *filter
   search: *filter
   command_palette: *filter

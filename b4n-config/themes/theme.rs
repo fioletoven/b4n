@@ -46,8 +46,8 @@ pub struct FooterColors {
     pub trail: TextColors,
     pub info: TextColors,
     pub error: TextColors,
-    pub details: TextColors,
     pub hint: TextColors,
+    pub details: FooterDetailsColors,
 }
 
 impl Default for FooterColors {
@@ -57,8 +57,32 @@ impl Default for FooterColors {
             trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             error: TextColors::bg(Color::LightRed, Color::DarkGray),
-            details: TextColors::bg(Color::DarkGray, Color::Gray),
             hint: TextColors::dim(Color::Black, Color::Yellow, Color::DarkGray),
+            details: FooterDetailsColors::default(),
+        }
+    }
+}
+
+/// Represents footer details view colors.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FooterDetailsColors {
+    pub text: TextColors,
+    pub hint: TextColors,
+    pub info: TextColors,
+    pub info_hl: TextColors,
+    pub error: TextColors,
+    pub error_hl: TextColors,
+}
+
+impl Default for FooterDetailsColors {
+    fn default() -> Self {
+        Self {
+            text: TextColors::dim(Color::Gray, Color::Rgb(164, 164, 184), Color::DarkGray),
+            hint: TextColors::bg(Color::DarkGray, Color::Gray),
+            info: TextColors::bg(Color::LightGreen, Color::DarkGray),
+            info_hl: TextColors::bg(Color::Black, Color::LightGreen),
+            error: TextColors::bg(Color::LightRed, Color::DarkGray),
+            error_hl: TextColors::bg(Color::Black, Color::LightRed),
         }
     }
 }

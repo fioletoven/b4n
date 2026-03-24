@@ -181,7 +181,6 @@ impl Responsive for Filter {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack)
             || event.is_out(MouseEventKind::LeftClick, self.patterns.area())
-            || event.is_out(MouseEventKind::RightClick, self.patterns.area())
         {
             self.is_visible = false;
             self.patterns.set_value(self.current.clone());
@@ -197,7 +196,7 @@ impl Responsive for Filter {
             return ResponseEvent::Handled;
         }
 
-        if event.is_in(MouseEventKind::RightClick, self.patterns.filter_area()) {
+        if event.is_mouse(MouseEventKind::RightClick) {
             return self.insert_from_clipboard();
         }
 

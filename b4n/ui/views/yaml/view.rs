@@ -252,7 +252,7 @@ impl YamlView {
 
         if self.search.is_visible {
             let result = self.search.process_event(event);
-            if self.yaml.search(self.search.value(), false) {
+            if result != ResponseEvent::NotHandled && self.yaml.search(self.search.value(), false) {
                 self.yaml.scroll_to_current_match(None);
                 self.update_search_count();
             }

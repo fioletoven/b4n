@@ -243,9 +243,7 @@ impl ViewsManager {
             self.res_selector.hover(false);
         }
 
-        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft)
-            || event.is_in(MouseEventKind::LeftClick, self.areas[0])
-            || event.is_in(MouseEventKind::RightClick, self.areas[0]))
+        if (self.app_data.has_binding(event, KeyCommand::SelectorLeft) || event.is_in(MouseEventKind::LeftClick, self.areas[0]))
             && self.worker.borrow().namespaces.has_access()
             && is_namespaces_selector_allowed
         {
@@ -254,9 +252,7 @@ impl ViewsManager {
             return true;
         }
 
-        if (self.app_data.has_binding(event, KeyCommand::SelectorRight)
-            || event.is_in(MouseEventKind::LeftClick, self.areas[1])
-            || event.is_in(MouseEventKind::RightClick, self.areas[1]))
+        if (self.app_data.has_binding(event, KeyCommand::SelectorRight) || event.is_in(MouseEventKind::LeftClick, self.areas[1]))
             && is_resources_selector_allowed
         {
             self.res_selector
