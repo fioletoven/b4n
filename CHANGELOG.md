@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
+
 ## 0.4.5 - 2026-03-24
 
 ### Features

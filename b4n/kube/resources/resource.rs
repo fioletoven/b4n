@@ -1,4 +1,4 @@
-use b4n_common::expr::{Expression, ExpressionExt, parse};
+use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::stats::{Metrics, Statistics};
@@ -32,11 +32,11 @@ pub struct ResourceItem {
     pub name: String,
     pub namespace: Option<String>,
     pub age: Option<String>,
-    pub creation_timestamp: Option<Timestamp>,
-    pub filter_metadata: Vec<String>,
     pub data: Option<ResourceData>,
     pub involved_object: Option<InvolvedObject>,
     pub is_cached: bool,
+    creation_timestamp: Option<Timestamp>,
+    filter_metadata: SelectiveMap,
 }
 
 impl ResourceItem {
@@ -69,10 +69,10 @@ impl ResourceItem {
             name: object.name_any(),
             namespace: object.metadata.namespace,
             uid,
-            creation_timestamp,
-            filter_metadata: filter,
             data,
             involved_object,
+            creation_timestamp,
+            filter_metadata: filter,
             ..Default::default()
         }
     }
@@ -97,14 +97,13 @@ impl ResourceItem {
             container_name,
             if is_init_container { "I" } else { "M" }
         );
+        let filter = SelectiveMap::default().with("", vec![container_name.to_ascii_lowercase()]);
 
         Self {
             age: get_age_string(pod_metadata),
-            name: container_name.clone(),
+            name: container_name,
             namespace: pod_metadata.namespace.clone(),
             uid,
-            creation_timestamp: get_age_time(pod_metadata),
-            filter_metadata: vec![container_name],
             data: Some(container::data(
                 container,
                 status,
@@ -112,6 +111,8 @@ impl ResourceItem {
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
+            creation_timestamp: get_age_time(pod_metadata),
+            filter_metadata: filter,
             ..Default::default()
         }
     }
@@ -299,15 +300,20 @@ impl Filterable<ResourceFilterContext> for ResourceItem {
     }
 }
 
-fn get_filter_metadata(object: &DynamicObject) -> Vec<String> {
-    let mut result = vec![object.name_any().to_ascii_lowercase()];
+fn get_filter_metadata(object: &DynamicObject) -> SelectiveMap {
+    let mut result = SelectiveMap::default();
+    result.insert("n", vec![object.name_any()]);
+
+    if let Some(namespace) = object.namespace() {
+        result.insert_explicit("ns", vec![namespace]);
+    }
 
     if let Some(labels) = object.metadata.labels.as_ref() {
-        result.append(&mut flatten_metadata(labels));
+        result.insert("l", flatten_metadata(labels));
     }
 
     if let Some(annotations) = object.metadata.annotations.as_ref() {
-        result.append(&mut flatten_metadata(annotations));
+        result.insert("a", flatten_metadata(annotations));
     }
 
     result
@@ -316,6 +322,6 @@ fn get_filter_metadata(object: &DynamicObject) -> Vec<String> {
 fn flatten_metadata(items: &BTreeMap<String, String>) -> Vec<String> {
     items
         .iter()
-        .map(|(k, v)| [k.to_ascii_lowercase(), v.to_ascii_lowercase()].join(": "))
+        .map(|(k, v)| [k.to_ascii_lowercase(), v.to_ascii_lowercase()].join("="))
         .collect::<Vec<String>>()
 }
