@@ -3,25 +3,24 @@ use std::collections::{HashMap, HashSet};
 use crate::expr::EvaluationSource;
 
 /// A map of categorized string lists for selective expression evaluation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct SelectiveMap {
     map: HashMap<&'static str, Vec<String>>,
     explicit_only: HashSet<&'static str>,
 }
 
-impl Default for SelectiveMap {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SelectiveMap {
-    /// Creates a new empty [`SelectiveMap`].
-    pub fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-            explicit_only: HashSet::new(),
-        }
+    /// Inserts a key-value list. The key is searchable in unprefixed matches.
+    pub fn with(mut self, key: &'static str, values: Vec<String>) -> Self {
+        self.insert(key, values);
+        self
+    }
+
+    /// Inserts a key-value list and marks it as explicit-only.\
+    /// This key will **not** be searched during unprefixed matching.
+    pub fn with_explicit(mut self, key: &'static str, values: Vec<String>) -> Self {
+        self.insert_explicit(key, values);
+        self
     }
 
     /// Inserts a key-value list. The key is searchable in unprefixed matches.
