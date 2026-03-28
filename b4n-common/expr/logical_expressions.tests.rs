@@ -105,7 +105,7 @@ fn no_closing_bracket_test() {
 
 #[test]
 fn selective_map_basic_test() {
-    let mut data = SelectiveMap::new();
+    let mut data = SelectiveMap::default();
     data.insert("a", vec!["london".to_string(), "paris".to_string(), "tokyo".to_string()]);
     data.insert("b", vec!["sunny".to_string(), "cloudy".to_string()]);
     data.insert_explicit("c", vec!["john".to_string(), "jane".to_string(), "alice".to_string()]);
