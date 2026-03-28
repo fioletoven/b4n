@@ -102,3 +102,25 @@ fn no_opening_bracket_test() {
 fn no_closing_bracket_test() {
     parse("( a & b ) & c & ( ( d & e )").unwrap();
 }
+
+#[test]
+fn selective_map_basic_test() {
+    let mut data = SelectiveMap::new();
+    data.insert("a", vec!["london".to_string(), "paris".to_string(), "tokyo".to_string()]);
+    data.insert("b", vec!["sunny".to_string(), "cloudy".to_string()]);
+    data.insert_explicit("c", vec!["john".to_string(), "jane".to_string(), "alice".to_string()]);
+
+    // Simple match in implicit keys
+    assert!(data.evaluate(&parse("london").unwrap()));
+    assert!(data.evaluate(&parse("sunny").unwrap()));
+    assert!(!data.evaluate(&parse("berlin").unwrap()));
+    assert!(!data.evaluate(&parse("john").unwrap()));
+
+    // Prefixed match
+    assert!(data.evaluate(&parse("a:london").unwrap()));
+    assert!(!data.evaluate(&parse("a:sunny").unwrap()));
+    assert!(data.evaluate(&parse("b:sunny").unwrap()));
+    assert!(!data.evaluate(&parse("b:london").unwrap()));
+    assert!(data.evaluate(&parse("c:john").unwrap()));
+    assert!(!data.evaluate(&parse("c:tokyo").unwrap()));
+}

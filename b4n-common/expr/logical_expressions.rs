@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 use thiserror::Error;
 
+use crate::expr::selective_map::SelectiveMap;
+
 #[cfg(test)]
 #[path = "./logical_expressions.tests.rs"]
 mod logical_expressions_tests;
@@ -88,6 +90,11 @@ impl Expression {
         self.lhs.is_some() && self.rhs.is_none() && self.value.is_none()
     }
 
+    /// Returns the prefix part (before ':') of the value, and the value itself.
+    pub fn prefix_and_value(&self) -> Option<(&str, &str)> {
+        self.value.as_deref().map(|v| v.split_once(':').unwrap_or(("", v)))
+    }
+
     /// Pushes new [`Expression`] to the first empty hand side (left, then right).\
     /// **Note** that it returns `true` if there was a free space.
     pub fn push(&mut self, expression: Expression) -> bool {
@@ -126,16 +133,43 @@ pub trait ExpressionExt {
 }
 
 impl ExpressionExt for Vec<String> {
-    /// Evaluates provided [`Expression`] against vector of strings.
     fn evaluate(&self, expression: &Expression) -> bool {
         evaluate(expression, self)
     }
 }
 
 impl ExpressionExt for Vec<&String> {
-    /// Evaluates provided [`Expression`] against vector of string references.
     fn evaluate(&self, expression: &Expression) -> bool {
         evaluate(expression, self)
+    }
+}
+
+impl ExpressionExt for SelectiveMap {
+    fn evaluate(&self, expression: &Expression) -> bool {
+        evaluate(expression, self)
+    }
+}
+
+/// Trait abstracting over different data sources for expression evaluation.
+pub trait EvaluationSource {
+    /// Returns `true` if any item under the given `key` contains `value`.
+    fn contains_in_key(&self, key: &str, value: &str) -> bool;
+
+    /// Returns `true` if any item in the default search scope contains `value`.
+    /// - for flat lists, this searches everything.
+    /// - for [`SelectiveMap`], this skips explicit-only keys.
+    fn contains_in_any(&self, value: &str) -> bool;
+}
+
+impl<T: AsRef<str>> EvaluationSource for Vec<T> {
+    /// Prefix keys are ignored for flat lists.\
+    /// **Note** that it just returns the same as `contains_in_any`.
+    fn contains_in_key(&self, _key: &str, value: &str) -> bool {
+        self.iter().any(|s| s.as_ref().contains(value))
+    }
+
+    fn contains_in_any(&self, value: &str) -> bool {
+        self.iter().any(|s| s.as_ref().contains(value))
     }
 }
 
@@ -355,10 +389,10 @@ impl<'a> CurrentExpression<'a> {
     }
 }
 
-/// Evaluates expression for specified statements.
-fn evaluate<T: AsRef<str>>(expression: &Expression, statements: &[T]) -> bool {
+/// Evaluates expression against any [`EvaluationSource`].
+fn evaluate<S: EvaluationSource>(expression: &Expression, source: &S) -> bool {
     if expression.is_value() {
-        return evaluate_value(expression, statements);
+        return evaluate_value(expression, source);
     }
 
     let mut stack = Vec::new();
@@ -387,7 +421,7 @@ fn evaluate<T: AsRef<str>>(expression: &Expression, statements: &[T]) -> bool {
                 None => return current.value(),
             }
         } else if current.expression.is_value() {
-            let value = evaluate_value(current.expression, statements);
+            let value = evaluate_value(current.expression, source);
             maybe_current = stack.pop();
             match maybe_current.as_mut() {
                 Some(expr) => expr.push_value(value),
@@ -402,14 +436,17 @@ fn evaluate<T: AsRef<str>>(expression: &Expression, statements: &[T]) -> bool {
     false
 }
 
-fn evaluate_value<T: AsRef<str>>(expression: &Expression, statements: &[T]) -> bool {
-    if let Some(value) = expression.value.as_deref() {
-        if expression.is_negation {
-            statements.iter().all(|s| !s.as_ref().contains(value))
-        } else {
-            statements.iter().any(|s| s.as_ref().contains(value))
-        }
+/// Evaluates a single value expression against any [`EvaluationSource`].
+fn evaluate_value<S: EvaluationSource>(expression: &Expression, source: &S) -> bool {
+    let Some((prefix, value)) = expression.prefix_and_value() else {
+        return false;
+    };
+
+    let contains = if prefix.is_empty() {
+        source.contains_in_any(value)
     } else {
-        false
-    }
+        source.contains_in_key(prefix, value)
+    };
+
+    if expression.is_negation { !contains } else { contains }
 }
