@@ -68,12 +68,12 @@ impl PickerBehaviour for FilterBehaviour {
         PatternsList::from(app_data.borrow().history.filter_history(context), Some(&key_name))
     }
 
-    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool {
+    fn add_item(&self, app_data: &SharedAppData, item: &str) {
         let context = app_data.borrow().current.context.clone();
         app_data
             .borrow_mut()
             .history
-            .add_filter_history_item(&context, item.into(), FILTER_HISTORY_SIZE)
+            .put_filter_history_item(&context, item.into(), FILTER_HISTORY_SIZE);
     }
 
     fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {

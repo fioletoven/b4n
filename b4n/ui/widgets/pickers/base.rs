@@ -33,7 +33,7 @@ pub trait PickerBehaviour {
     fn load_items(&self, app_data: &SharedAppData) -> PatternsList;
 
     /// Adds an item to the configuration history.
-    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool;
+    fn add_item(&self, app_data: &SharedAppData, item: &str);
 
     /// Removes an item from the configuration history.
     fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool;
@@ -168,9 +168,8 @@ impl<B: PickerBehaviour> Picker<B> {
     fn remember_pattern(&mut self) {
         let pattern = self.patterns.value();
         self.current = pattern.to_owned();
-        if self.behaviour.add_item(&self.app_data, pattern) {
-            self.save_history_file();
-        }
+        self.behaviour.add_item(&self.app_data, pattern);
+        self.save_history_file();
     }
 
     fn save_history_file(&mut self) {
@@ -235,8 +234,8 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.items_area()) {
             self.patterns.items.highlight_item_by_line(line);
             self.complete_with_selected_item();
-            self.is_visible = false;
             self.remember_pattern();
+            self.is_visible = false;
 
             return ResponseEvent::Handled;
         }
@@ -255,8 +254,8 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
                 return ResponseEvent::Handled;
             }
 
-            self.is_visible = false;
             self.remember_pattern();
+            self.is_visible = false;
 
             return ResponseEvent::Handled;
         }

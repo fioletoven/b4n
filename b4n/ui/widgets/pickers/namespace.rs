@@ -67,12 +67,12 @@ impl PickerBehaviour for NamespaceBehaviour {
         items
     }
 
-    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool {
+    fn add_item(&self, app_data: &SharedAppData, item: &str) {
         let context = app_data.borrow().current.context.clone();
         app_data
             .borrow_mut()
             .history
-            .add_namespace_history_item(&context, item.into(), NAMESPACE_HISTORY_SIZE)
+            .put_namespace_history_item(&context, item.into(), NAMESPACE_HISTORY_SIZE);
     }
 
     fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {

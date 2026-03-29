@@ -155,101 +155,47 @@ impl History {
 
     /// Gets `filter_history` from the specified `context` of the current kube config.
     pub fn filter_history(&self, context: &str) -> &[HistoryItem] {
-        if let Some(config) = self.current_config()
-            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
-        {
-            &config.contexts[index].filter_history
-        } else {
-            &EMPTY_LIST
-        }
+        self.get_history(context, |c| &c.filter_history)
     }
 
-    /// Adds new item to `filter_history` in the specified `context` of the current kube config.
-    pub fn add_filter_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) -> bool {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            add_history_item(&mut context.filter_history, item, max_list_size)
-        } else {
-            false
-        }
+    /// Puts item to `filter_history` in the specified `context` of the current kube config.
+    pub fn put_filter_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) {
+        self.put_history_item_to(context, item, max_list_size, |c| &mut c.filter_history);
     }
 
     /// Removes an item from `filter_history` in the specified `context` of the current kube config.
     pub fn remove_filter_history_item(&mut self, context: &str, item: &str) -> Option<HistoryItem> {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            del_history_item(&mut context.filter_history, item)
-        } else {
-            None
-        }
+        self.remove_history_item_from(context, item, |c| &mut c.filter_history)
     }
 
     /// Gets `search_history` from the specified `context` of the current kube config.
     pub fn search_history(&self, context: &str) -> &[HistoryItem] {
-        if let Some(config) = self.current_config()
-            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
-        {
-            &config.contexts[index].search_history
-        } else {
-            &EMPTY_LIST
-        }
+        self.get_history(context, |c| &c.search_history)
     }
 
-    /// Adds new item to `search_history` in the specified `context` of the current kube config.
-    pub fn add_search_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) -> bool {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            add_history_item(&mut context.search_history, item, max_list_size)
-        } else {
-            false
-        }
+    /// Puts item to `search_history` in the specified `context` of the current kube config.
+    pub fn put_search_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) {
+        self.put_history_item_to(context, item, max_list_size, |c| &mut c.search_history);
     }
 
     /// Removes an item from `search_history` in the specified `context` of the current kube config.
     pub fn remove_search_history_item(&mut self, context: &str, item: &str) -> Option<HistoryItem> {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            del_history_item(&mut context.search_history, item)
-        } else {
-            None
-        }
+        self.remove_history_item_from(context, item, |c| &mut c.search_history)
     }
 
     /// Gets `namespace_history` from the specified `context` of the current kube config.
     pub fn namespace_history(&self, context: &str) -> &[HistoryItem] {
-        if let Some(config) = self.current_config()
-            && let Some(index) = config.contexts.iter().position(|c| c.name == context)
-        {
-            &config.contexts[index].namespace_history
-        } else {
-            &EMPTY_LIST
-        }
+        self.get_history(context, |c| &c.namespace_history)
     }
 
-    /// Adds new item to `namespace_history` in the specified `context` of the current kube config.
-    pub fn add_namespace_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) -> bool {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            add_history_item(&mut context.namespace_history, item, max_list_size)
-        } else {
-            false
-        }
+    /// Puts item to `namespace_history` in the specified `context` of the current kube config.
+    pub fn put_namespace_history_item(&mut self, context: &str, item: HistoryItem, max_list_size: usize) {
+        self.put_history_item_to(context, item, max_list_size, |c| &mut c.namespace_history);
     }
 
     /// Removes an item from `namespace_history` in the specified `context` of the current kube config.
     pub fn remove_namespace_history_item(&mut self, context: &str, item: &str) -> Option<HistoryItem> {
-        if let Some(config) = self.current_config_mut()
-            && let Some(context) = config.contexts.iter_mut().find(|c| c.name == context)
-        {
-            del_history_item(&mut context.namespace_history, item)
-        } else {
-            None
-        }
+        self.remove_history_item_from(context, item, |c| &mut c.namespace_history)
     }
 
     fn config_key(&self) -> &str {
@@ -276,6 +222,47 @@ impl History {
         };
 
         self.kube_configs.get_mut(current_key)
+    }
+
+    fn get_history<'a>(&'a self, context: &str, field: fn(&'a ContextInfo) -> &'a Vec<HistoryItem>) -> &'a [HistoryItem] {
+        if let Some(config) = self.current_config()
+            && let Some(ctx) = config.contexts.iter().find(|c| c.name == context)
+        {
+            field(ctx)
+        } else {
+            &EMPTY_LIST
+        }
+    }
+
+    fn put_history_item_to(
+        &mut self,
+        context: &str,
+        item: HistoryItem,
+        max_list_size: usize,
+        field: fn(&mut ContextInfo) -> &mut Vec<HistoryItem>,
+    ) {
+        if let Some(config) = self.current_config_mut()
+            && let Some(ctx) = config.contexts.iter_mut().find(|c| c.name == context)
+        {
+            add_history_item(field(ctx), item, max_list_size);
+        }
+    }
+
+    fn remove_history_item_from(
+        &mut self,
+        context: &str,
+        item: &str,
+        field: fn(&mut ContextInfo) -> &mut Vec<HistoryItem>,
+    ) -> Option<HistoryItem> {
+        if !item.is_empty()
+            && let Some(config) = self.current_config_mut()
+            && let Some(ctx) = config.contexts.iter_mut().find(|c| c.name == context)
+            && let Some(idx) = field(ctx).iter().position(|i| i.value == item)
+        {
+            Some(field(ctx).remove(idx))
+        } else {
+            None
+        }
     }
 }
 
@@ -372,8 +359,14 @@ impl From<&str> for HistoryItem {
     }
 }
 
-fn add_history_item(list: &mut Vec<HistoryItem>, item: HistoryItem, max_list_size: usize) -> bool {
-    if !item.value.is_empty() && list.iter().all(|i| i.value != item.value) {
+fn add_history_item(list: &mut Vec<HistoryItem>, item: HistoryItem, max_list_size: usize) {
+    if item.value.is_empty() {
+        return;
+    }
+
+    if let Some(idx) = list.iter().position(|i| i.value == item.value) {
+        list[idx] = item;
+    } else {
         list.push(item);
 
         if list.len() > max_list_size {
@@ -386,19 +379,5 @@ fn add_history_item(list: &mut Vec<HistoryItem>, item: HistoryItem, max_list_siz
                 list.remove(index);
             }
         }
-
-        true
-    } else {
-        false
-    }
-}
-
-fn del_history_item(list: &mut Vec<HistoryItem>, item: &str) -> Option<HistoryItem> {
-    if !item.is_empty()
-        && let Some(idx) = list.iter().position(|i| i.value == item)
-    {
-        Some(list.remove(idx))
-    } else {
-        None
     }
 }
