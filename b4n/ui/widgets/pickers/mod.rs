@@ -6,6 +6,7 @@ pub use self::search::*;
 
 mod base;
 mod filter;
+mod namespace;
 mod pattern;
 mod patterns_list;
 mod search;

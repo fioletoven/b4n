@@ -9,6 +9,8 @@ use ratatui::widgets::Paragraph;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternsList, Picker, PickerBehaviour};
 
+const SEARCH_HISTORY_SIZE: usize = 20;
+
 pub type Search = Picker<SearchBehaviour>;
 
 impl Search {
@@ -90,14 +92,26 @@ impl PickerBehaviour for SearchBehaviour {
     }
 
     fn load_items(&self, app_data: &SharedAppData) -> PatternsList {
-        let context = app_data.borrow().current.context.clone();
+        let context = &app_data.borrow().current.context;
         let key_name = app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        PatternsList::from(app_data.borrow_mut().history.get_search_history(&context), Some(&key_name))
+        PatternsList::from(app_data.borrow().history.search_history(context), Some(&key_name))
     }
 
-    fn save_items(&self, app_data: &SharedAppData, items: &PatternsList) {
+    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool {
         let context = app_data.borrow().current.context.clone();
-        app_data.borrow_mut().history.update_search_history(&context, items.to_vec());
+        app_data
+            .borrow_mut()
+            .history
+            .add_search_history_item(&context, item.into(), SEARCH_HISTORY_SIZE)
+    }
+
+    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {
+        let context = app_data.borrow().current.context.clone();
+        app_data
+            .borrow_mut()
+            .history
+            .remove_search_history_item(&context, item)
+            .is_some()
     }
 
     fn restores_on_cancel(&self) -> bool {

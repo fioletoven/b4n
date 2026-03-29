@@ -1,12 +1,27 @@
 use b4n_common::{add_padding, truncate};
+use b4n_config::HistoryItem;
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::borrow::Cow;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 /// Filter pattern item.
 pub struct PatternItem {
     pub value: String,
     pub creation_time: SystemTime,
+    pub description: Option<String>,
+    pub is_fixed: bool,
+}
+
+impl PatternItem {
+    /// Creates new fixed [`PatternItem`] instance.
+    pub fn fixed(value: String, description: Option<String>) -> Self {
+        Self {
+            value,
+            description,
+            is_fixed: true,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for PatternItem {
@@ -14,37 +29,18 @@ impl Default for PatternItem {
         Self {
             value: String::default(),
             creation_time: SystemTime::now(),
+            description: None,
+            is_fixed: false,
         }
     }
 }
 
-impl std::fmt::Display for PatternItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}::{}",
-            self.value,
-            self.creation_time
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0)
-        )
-    }
-}
-
-impl From<&str> for PatternItem {
-    fn from(value: &str) -> Self {
-        let elements = value.splitn(2, "::").collect::<Vec<_>>();
-        if elements.len() == 2 {
-            Self {
-                value: elements[0].to_string(),
-                creation_time: SystemTime::UNIX_EPOCH + Duration::from_secs(elements[1].parse::<u64>().unwrap_or(0)),
-            }
-        } else {
-            Self {
-                value: value.to_owned(),
-                creation_time: SystemTime::now(),
-            }
+impl From<&HistoryItem> for PatternItem {
+    fn from(value: &HistoryItem) -> Self {
+        PatternItem {
+            value: value.value.clone(),
+            creation_time: value.creation_time,
+            ..Default::default()
         }
     }
 }

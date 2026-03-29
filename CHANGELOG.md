@@ -6,6 +6,11 @@
 
 - add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
 
+### Compatibility
+
+- history YAML file schema has changed, the file will be replaced on the first app run
+- backup `history.yaml` file if needed
+
 ## 0.4.5 - 2026-03-24
 
 ### Features

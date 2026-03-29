@@ -173,6 +173,13 @@ impl<T: Filterable<Fc>, Fc: FilterContext> FilterableList<T, Fc> {
         self.items.remove(index)
     }
 
+    /// Replaces value at position `index`.\
+    /// **Note** that this clears the current filter.
+    pub fn full_replace(&mut self, index: usize, value: T) -> T {
+        self.filter_reset();
+        std::mem::replace(&mut self.items[index], value)
+    }
+
     /// Returns an iterator over the underneath collection.
     pub fn full_iter(&self) -> Iter<'_, T> {
         self.items.iter()

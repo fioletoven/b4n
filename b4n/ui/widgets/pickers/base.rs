@@ -10,8 +10,6 @@ use ratatui::style::Style;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::PatternsList;
 
-const HISTORY_SIZE: usize = 20;
-
 /// Defines the varying behaviour between different pickers.
 pub trait PickerBehaviour {
     /// Gets prompt shown in the input.
@@ -34,8 +32,11 @@ pub trait PickerBehaviour {
     /// Loads items when the picker is shown.
     fn load_items(&self, app_data: &SharedAppData) -> PatternsList;
 
-    /// Persists all items back to the history file.
-    fn save_items(&self, app_data: &SharedAppData, items: &PatternsList);
+    /// Adds an item to the configuration history.
+    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool;
+
+    /// Removes an item from the configuration history.
+    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool;
 
     /// Validates the current input value.\
     /// Returns `Some(index)` for error position, `None` if valid.
@@ -167,14 +168,12 @@ impl<B: PickerBehaviour> Picker<B> {
     fn remember_pattern(&mut self) {
         let pattern = self.patterns.value();
         self.current = pattern.to_owned();
-        if self.patterns.items.add(pattern.into(), HISTORY_SIZE) {
-            self.remember_all_patterns();
+        if self.behaviour.add_item(&self.app_data, pattern) {
+            self.save_history_file();
         }
     }
 
-    fn remember_all_patterns(&mut self) {
-        self.behaviour.save_items(&self.app_data, &self.patterns.items);
-
+    fn save_history_file(&mut self) {
         if let Some(worker) = &self.worker {
             worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
         }
@@ -213,8 +212,10 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
-            if self.patterns.items.remove_highlighted() {
-                self.remember_all_patterns();
+            if let Some(removed) = self.patterns.items.remove_highlighted()
+                && self.behaviour.remove_item(&self.app_data, &removed)
+            {
+                self.save_history_file();
             }
 
             return ResponseEvent::Handled;

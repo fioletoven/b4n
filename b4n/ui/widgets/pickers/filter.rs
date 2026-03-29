@@ -14,6 +14,8 @@ use crate::ui::widgets::{PatternsList, Picker};
 #[path = "./filter.tests.rs"]
 mod filter_tests;
 
+const FILTER_HISTORY_SIZE: usize = 20;
+
 pub type Filter = Picker<FilterBehaviour>;
 
 impl Filter {
@@ -61,14 +63,26 @@ impl PickerBehaviour for FilterBehaviour {
     }
 
     fn load_items(&self, app_data: &SharedAppData) -> PatternsList {
-        let context = app_data.borrow().current.context.clone();
+        let context = &app_data.borrow().current.context;
         let key_name = app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        PatternsList::from(app_data.borrow_mut().history.get_filter_history(&context), Some(&key_name))
+        PatternsList::from(app_data.borrow().history.filter_history(context), Some(&key_name))
     }
 
-    fn save_items(&self, app_data: &SharedAppData, items: &PatternsList) {
+    fn add_item(&self, app_data: &SharedAppData, item: &str) -> bool {
         let context = app_data.borrow().current.context.clone();
-        app_data.borrow_mut().history.update_filter_history(&context, items.to_vec());
+        app_data
+            .borrow_mut()
+            .history
+            .add_filter_history_item(&context, item.into(), FILTER_HISTORY_SIZE)
+    }
+
+    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {
+        let context = app_data.borrow().current.context.clone();
+        app_data
+            .borrow_mut()
+            .history
+            .remove_filter_history_item(&context, item)
+            .is_some()
     }
 
     fn validate(&self, value: &str) -> Option<usize> {
