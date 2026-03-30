@@ -17,7 +17,7 @@ use crate::kube::kinds::ActionsListBuilderKindExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
-use crate::ui::widgets::{CommandPalette, Filter, StepBuilder};
+use crate::ui::widgets::{CommandPalette, Filter, NamespaceSelector, StepBuilder};
 
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
@@ -29,6 +29,7 @@ pub struct ResourcesView {
     modal: Dialog,
     command_palette: CommandPalette,
     filter: Filter,
+    namespace_picker: NamespaceSelector,
     footer_tx: NotificationSink,
 }
 
@@ -38,7 +39,8 @@ impl ResourcesView {
         let stats = worker.borrow().statistics.share();
         let generation = stats.borrow().generation;
         let table = ResourcesTable::new(Rc::clone(&app_data));
-        let filter = Filter::new(Rc::clone(&app_data), Some(worker), 65);
+        let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
+        let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(worker), 65);
 
         Self {
             table,
@@ -49,6 +51,7 @@ impl ResourcesView {
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             filter,
+            namespace_picker,
             footer_tx,
         }
     }
@@ -77,12 +80,14 @@ impl ResourcesView {
         self.table.header.set_count(0);
         self.table.header.show_filtered_icon(false);
         self.filter.reset();
+        self.namespace_picker.reset();
     }
 
     /// Caches and clears data in the list.
     pub fn cache_list_data(&mut self) {
         self.table.move_to_cache();
         self.filter.reset();
+        self.namespace_picker.reset();
     }
 
     /// Restores data in the list from cache.
@@ -165,12 +170,11 @@ impl ResourcesView {
     }
 
     /// Displays a list of known namespaces to choose from.
-    pub fn show_namespaces_list(&mut self, list: Vec<ActionItem>) {
-        let actions_list = ActionsListBuilder::new(list).build(None);
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
-            .with_prompt("namespace")
-            .with_response(|mut v| ResponseEvent::ChangeNamespace(v.pop().unwrap_or_default()));
-        self.command_palette.show();
+    pub fn show_namespaces_list(&mut self, discovered: Vec<String>) {
+        self.namespace_picker.set_discovered(discovered);
+        self.namespace_picker.show();
+        self.namespace_picker
+            .highlight_item(self.app_data.borrow().current.namespace.as_str());
     }
 
     /// Displays a list of available forward ports for a container to choose from.
@@ -658,6 +662,10 @@ impl View for ResourcesView {
             return result;
         }
 
+        if self.namespace_picker.is_visible {
+            return self.namespace_picker.process_event(event);
+        }
+
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
             self.table
                 .copy_to_clipboard(self.table.list.table.is_anything_selected(), &self.footer_tx);
@@ -722,9 +730,11 @@ impl View for ResourcesView {
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.table.draw(frame, area);
 
-        self.modal.draw(frame, frame.area());
-        self.command_palette.draw(frame, frame.area());
-        self.filter.draw(frame, frame.area());
+        let area = frame.area();
+        self.modal.draw(frame, area);
+        self.command_palette.draw(frame, area);
+        self.filter.draw(frame, area);
+        self.namespace_picker.draw(frame, area);
     }
 }
 

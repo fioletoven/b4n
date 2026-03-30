@@ -1,3 +1,4 @@
+use b4n_config::HistoryItem;
 use b4n_list::{BasicFilterContext, Item, ScrollableList};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
@@ -14,33 +15,38 @@ pub struct PatternsList {
 
 impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
-    pub fn from(filter_history: &[String], key_name: Option<&str>) -> Self {
+    pub fn from(filter_history: &[HistoryItem], key_name: Option<&str>) -> Self {
         let description = key_name.map(|d| format!("{d} to insert"));
-        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.as_str().into()).collect::<Vec<_>>());
+        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.into()).collect::<Vec<_>>());
         list.sort(1, false);
         Self { list, description }
     }
 
-    /// Adds the pattern to the list if it does not already exist. Ensures the list does not exceed `max_list_size`.\
-    /// Returns `true` if the pattern was added to the list.
-    pub fn add(&mut self, pattern: PatternItem, max_list_size: usize) -> bool {
-        if !pattern.value.is_empty() && !self.contains(&pattern) {
-            self.list.push(Item::new(pattern));
-            if self.list.full_len() > max_list_size {
-                self.remove_oldest();
-            }
-
-            self.list.sort(1, false);
-            true
-        } else {
-            false
+    /// Adds pattern to the list or updates if it already exist.
+    pub fn add_or_update(&mut self, pattern: PatternItem) {
+        if pattern.value.is_empty() {
+            return;
         }
+
+        let position = self.list.full_iter().position(|i| i.data.value == pattern.value);
+        if let Some(idx) = position {
+            self.list.full_replace(idx, Item::new(pattern));
+        } else {
+            self.list.push(Item::new(pattern));
+        }
+
+        self.list.sort(1, false);
     }
 
-    /// Returns `true` if the highlighted pattern from the list was removed.\
+    /// Returns highlighted item.
+    pub fn get_highlighted(&self) -> Option<&PatternItem> {
+        self.list.get_highlighted_item().map(|i| &i.data)
+    }
+
+    /// Returns removed item if anything was highlighted.\
     /// Preserves filter and highlights next element from the list.
-    pub fn remove_highlighted(&mut self) -> bool {
-        if let Some(idx) = self.remove_highlighted_item() {
+    pub fn remove_highlighted(&mut self) -> Option<String> {
+        if let Some((idx, removed)) = self.remove_highlighted_item() {
             self.list.recover_filter();
             let new_highlight = idx.min(self.list.len().saturating_sub(1));
             if let Some(item) = self.list.iter_mut().nth(new_highlight) {
@@ -48,41 +54,18 @@ impl PatternsList {
             }
 
             self.list.recover_highlighted_item_index();
-            true
+            Some(removed)
         } else {
-            false
+            None
         }
     }
 
-    /// Returns [`PatternsList`] as a vector of strings that can be saved in the app history data.
-    pub fn to_vec(&self) -> Vec<String> {
-        self.list.full_iter().map(|i| i.data.to_string()).collect()
-    }
-
-    /// Returns `true` if the [`PatternsList`] contains an element with the given value.
-    fn contains(&self, pattern: &PatternItem) -> bool {
-        self.list.full_iter().any(|i| i.data.value == pattern.value)
-    }
-
-    /// Removes the oldest element from a list.
-    fn remove_oldest(&mut self) {
-        let index = self
-            .list
-            .full_iter()
-            .enumerate()
-            .min_by_key(|(_, i)| i.data.creation_time)
-            .map(|(index, _)| index);
-        if let Some(index) = index {
-            self.list.full_remove(index);
-        }
-    }
-
-    fn remove_highlighted_item(&mut self) -> Option<usize> {
+    fn remove_highlighted_item(&mut self) -> Option<(usize, String)> {
         let idx = self.list.iter().position(|i| i.is_active);
         if let Some(idx) = idx {
-            self.list.remove(idx);
+            let removed = self.list.remove(idx);
             self.list.full_iter_mut().for_each(|i| i.is_active = false);
-            Some(idx)
+            Some((idx, removed.data.value))
         } else {
             None
         }

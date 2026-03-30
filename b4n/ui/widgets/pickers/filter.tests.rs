@@ -1,4 +1,5 @@
 use b4n_config::keys::KeyCombination;
+use b4n_tui::{Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
 

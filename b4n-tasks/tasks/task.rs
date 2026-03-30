@@ -89,7 +89,7 @@ impl BgTask {
 }
 
 /// Wrapper for running [`ExecutorCommand`].
-async fn run_command(command: Command) -> Option<CommandResult> {
+pub async fn run_command(command: Command) -> Option<CommandResult> {
     match command {
         Command::ListKubeContexts(command) => command.execute().await,
         Command::ListThemes(command) => command.execute().await,

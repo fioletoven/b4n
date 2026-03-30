@@ -418,8 +418,7 @@ impl ViewsManager {
 
     /// Displays a list of known namespaces to choose from.
     pub fn show_namespaces_list(&mut self) {
-        let namespaces = self.ns_selector.select.items.get_as_actions();
-        self.resources.show_namespaces_list(namespaces);
+        self.resources.show_namespaces_list(self.ns_selector.select.items.get_names());
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.

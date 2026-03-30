@@ -1,7 +1,7 @@
 pub use self::command_palette::*;
-pub use self::filters::*;
+pub use self::pickers::*;
 pub use self::side_select::*;
 
 mod command_palette;
-mod filters;
+mod pickers;
 mod side_select;

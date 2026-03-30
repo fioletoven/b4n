@@ -148,6 +148,13 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         result
     }
 
+    /// Replaces value at position `index`.
+    pub fn full_replace(&mut self, index: usize, value: Item<T, Fc>) -> Item<T, Fc> {
+        let result = self.items.full_replace(index, value);
+        self.recover_filter();
+        result
+    }
+
     /// Removes and returns the element at position `index` within the filtered out list.\
     pub fn remove(&mut self, index: usize) -> Item<T, Fc> {
         let result = self.items.remove(index);

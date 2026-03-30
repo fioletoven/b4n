@@ -56,7 +56,7 @@ colors:
     trail: blue:yellow:bg_dark
     info: green:bg_dark
     error: red:bg_dark
-    hint: '#828A96:yellow:bg_dark'
+    hint: text_dark:yellow:bg_dark
     details:
       text: fg_dark:bg_black
       hint: fg_dark:bg_dark

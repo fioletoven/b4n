@@ -144,6 +144,11 @@ impl<T: Table> Select<T> {
         self.items.get_highlighted_item_name().is_some()
     }
 
+    /// Gets highlighted element name.
+    pub fn get_highlighted_item_name(&self) -> Option<&str> {
+        self.items.get_highlighted_item_name()
+    }
+
     /// Resets the filter.
     pub fn reset(&mut self) {
         self.filter.reset();
