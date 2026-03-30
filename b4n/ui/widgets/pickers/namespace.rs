@@ -10,45 +10,50 @@ const NAMESPACE_HISTORY_SIZE: usize = 20;
 pub type NamespaceSelector = Picker<NamespaceBehaviour>;
 
 impl NamespaceSelector {
+    /// Creates new [`NamespaceSelector`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        Picker::new_picker(app_data, worker, width, NamespaceBehaviour::new())
+        let behaviour = NamespaceBehaviour::new(&app_data);
+        Picker::new_picker(app_data, worker, width, behaviour)
     }
 
-    /// Update the list of discovered namespaces.
+    /// Updates the list of discovered namespaces.
     pub fn set_discovered(&mut self, namespaces: Vec<String>) {
         self.behaviour_mut().set_discovered(namespaces);
     }
 }
 
+#[derive(Default)]
 pub struct NamespaceBehaviour {
     discovered: Vec<String>,
+    colors: SelectColors,
 }
 
 impl NamespaceBehaviour {
-    pub fn new() -> Self {
-        Self { discovered: Vec::new() }
+    /// Creates new [`NamespaceBehaviour`] instance.
+    pub fn new(app_data: &SharedAppData) -> Self {
+        Self {
+            discovered: Vec::new(),
+            colors: app_data.borrow().theme.colors.command_palette.clone(),
+        }
     }
 
+    /// Updates the list of discovered namespaces.
     pub fn set_discovered(&mut self, namespaces: Vec<String>) {
         self.discovered = namespaces;
-    }
-
-    pub fn discovered(&self) -> &[String] {
-        &self.discovered
     }
 }
 
 impl PickerBehaviour for NamespaceBehaviour {
     fn prompt(&self) -> &str {
-        " "
+        "namespace "
     }
 
     fn colors(&self) -> &SelectColors {
-        todo!()
+        &self.colors
     }
 
     fn reset_key_command(&self) -> KeyCommand {
-        KeyCommand::FilterReset
+        KeyCommand::CommandPaletteReset
     }
 
     fn cancel_response(&self) -> ResponseEvent {
@@ -59,9 +64,12 @@ impl PickerBehaviour for NamespaceBehaviour {
         let key_name = app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         let context = &app_data.borrow().current.context;
         let mut items = PatternsList::from(app_data.borrow().history.namespace_history(context), Some(&key_name));
+        for item in items.list.full_iter_mut() {
+            item.data.icon = Some("");
+        }
 
         for ns in &self.discovered {
-            items.add_or_update(PatternItem::fixed(ns.clone(), Some("discovered".to_string())));
+            items.add_or_update(PatternItem::fixed(ns.clone()));
         }
 
         items
@@ -84,7 +92,27 @@ impl PickerBehaviour for NamespaceBehaviour {
             .is_some()
     }
 
+    fn can_remove(&self, item: Option<&PatternItem>) -> bool {
+        item.is_some_and(|i| !i.is_fixed)
+    }
+
     fn restores_on_cancel(&self) -> bool {
         true
+    }
+
+    fn has_header(&self) -> bool {
+        false
+    }
+
+    fn get_response(&self, pattern: &str, highlighted: Option<&str>) -> ResponseEvent {
+        if pattern.is_empty()
+            && let Some(highlighted) = highlighted
+        {
+            ResponseEvent::ChangeNamespace(highlighted.to_owned())
+        } else if !pattern.is_empty() {
+            ResponseEvent::ChangeNamespace(pattern.to_owned())
+        } else {
+            ResponseEvent::Handled
+        }
     }
 }

@@ -151,9 +151,9 @@ impl ResourcesList {
         result
     }
 
-    /// Returns resources as a list of action items.
-    pub fn get_as_actions(&self) -> Vec<ActionItem> {
-        self.table.list.full_iter().map(|i| ActionItem::from(&i.data)).collect()
+    /// Returns resources names as a list.
+    pub fn get_names(&self) -> Vec<String> {
+        self.table.list.full_iter().map(|i| i.data.name.clone()).collect()
     }
 
     /// Sorts items in the list again, using the same settings as last sort.

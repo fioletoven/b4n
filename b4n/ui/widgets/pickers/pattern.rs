@@ -1,4 +1,4 @@
-use b4n_common::{add_padding, truncate};
+use b4n_common::truncate;
 use b4n_config::HistoryItem;
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::borrow::Cow;
@@ -8,18 +8,34 @@ use std::time::SystemTime;
 pub struct PatternItem {
     pub value: String,
     pub creation_time: SystemTime,
-    pub description: Option<String>,
+    pub icon: Option<&'static str>,
     pub is_fixed: bool,
 }
 
 impl PatternItem {
     /// Creates new fixed [`PatternItem`] instance.
-    pub fn fixed(value: String, description: Option<String>) -> Self {
+    pub fn fixed(value: String) -> Self {
         Self {
             value,
-            description,
             is_fixed: true,
             ..Default::default()
+        }
+    }
+
+    fn get_text_width(&self, width: usize) -> usize {
+        self.icon
+            .as_ref()
+            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
+    }
+
+    fn get_value_width(&self) -> usize {
+        self.value.chars().filter(|c| *c != '␝').count()
+    }
+
+    fn add_icon(&self, text: &mut String) {
+        if let Some(icon) = &self.icon {
+            text.push(' ');
+            text.push_str(icon);
         }
     }
 }
@@ -29,7 +45,7 @@ impl Default for PatternItem {
         Self {
             value: String::default(),
             creation_time: SystemTime::now(),
-            description: None,
+            icon: None,
             is_fixed: false,
         }
     }
@@ -59,13 +75,39 @@ impl Row for PatternItem {
     }
 
     fn get_name(&self, width: usize) -> String {
-        add_padding(&self.value, width)
+        let text_width = self.get_text_width(width);
+        let value_width = self.get_value_width();
+        let padding_len = text_width.saturating_sub(value_width);
+
+        let mut text = String::with_capacity(text_width + 2);
+        text.push_str(truncate(&self.value, text_width));
+        text.extend(std::iter::repeat_n(' ', padding_len));
+        self.add_icon(&mut text);
+
+        text
     }
 
     fn get_name_with_description(&self, width: usize, description: &str) -> String {
-        let description = truncate(description, width.saturating_sub(1));
-        let width = width.saturating_sub(description.len().saturating_add(1));
-        format!("{1:<0$} ␝{2}␝", width, truncate(&self.value, width), description)
+        let text_width = self.get_text_width(width);
+        let value_width = self.get_value_width();
+        let padding_len = text_width.saturating_sub(value_width);
+        let description = truncate(description, padding_len.saturating_sub(1));
+
+        let mut text = String::with_capacity(text_width + 2);
+        text.push_str(truncate(&self.value, text_width));
+        if description.is_empty() {
+            text.extend(std::iter::repeat_n(' ', padding_len));
+        } else {
+            let padding_len = padding_len.saturating_sub(description.chars().count());
+            text.extend(std::iter::repeat_n(' ', padding_len));
+            text.push('␝');
+            text.push_str(description);
+            text.push('␝');
+        }
+
+        self.add_icon(&mut text);
+
+        text
     }
 
     fn column_text(&self, column: usize) -> Cow<'_, str> {

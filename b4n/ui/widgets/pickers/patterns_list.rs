@@ -38,6 +38,11 @@ impl PatternsList {
         self.list.sort(1, false);
     }
 
+    /// Returns highlighted item.
+    pub fn get_highlighted(&self) -> Option<&PatternItem> {
+        self.list.get_highlighted_item().map(|i| &i.data)
+    }
+
     /// Returns removed item if anything was highlighted.\
     /// Preserves filter and highlights next element from the list.
     pub fn remove_highlighted(&mut self) -> Option<String> {

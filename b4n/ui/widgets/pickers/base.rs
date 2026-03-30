@@ -8,7 +8,7 @@ use ratatui::layout::{Margin, Rect};
 use ratatui::style::Style;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::widgets::PatternsList;
+use crate::ui::widgets::{PatternItem, PatternsList};
 
 /// Defines the varying behaviour between different pickers.
 pub trait PickerBehaviour {
@@ -38,6 +38,11 @@ pub trait PickerBehaviour {
     /// Removes an item from the configuration history.
     fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool;
 
+    /// Gets value indicating whether highlighted item can be removed.
+    fn can_remove(&self, item: Option<&PatternItem>) -> bool {
+        item.is_some()
+    }
+
     /// Validates the current input value.\
     /// Returns `Some(index)` for error position, `None` if valid.
     fn validate(&self, _value: &str) -> Option<usize> {
@@ -58,8 +63,18 @@ pub trait PickerBehaviour {
     /// Called before drawing.
     fn on_draw(&mut self, _patterns: &mut Select<PatternsList>, _area: Rect) {}
 
+    /// Gets value indicating whether header should be visible.
+    fn has_header(&self) -> bool {
+        true
+    }
+
     /// Draws the header area.
     fn draw_header(&self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
+
+    /// Gets response that should be returned by the picker on accepting selected item.
+    fn get_response(&self, _pattern: &str, _highlighted: Option<&str>) -> ResponseEvent {
+        ResponseEvent::Handled
+    }
 }
 
 pub struct Picker<B: PickerBehaviour> {
@@ -144,7 +159,7 @@ impl<B: PickerBehaviour> Picker<B> {
 
         let colors = self.behaviour.colors();
         utils::clear_area(frame, area, colors.normal.bg);
-        if area.top() > 0 {
+        if area.top() > 0 && self.behaviour.has_header() {
             let header_area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
             let header_style = colors.header.unwrap_or_default();
             utils::clear_area(frame, header_area, header_style.bg);
@@ -211,7 +226,8 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
-            if let Some(removed) = self.patterns.items.remove_highlighted()
+            if self.behaviour.can_remove(self.patterns.items.get_highlighted())
+                && let Some(removed) = self.patterns.items.remove_highlighted()
                 && self.behaviour.remove_item(&self.app_data, &removed)
             {
                 self.save_history_file();
@@ -237,7 +253,9 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             self.remember_pattern();
             self.is_visible = false;
 
-            return ResponseEvent::Handled;
+            return self
+                .behaviour
+                .get_response(self.patterns.value(), self.patterns.get_highlighted_item_name());
         }
 
         if event.is_mouse(MouseEventKind::RightClick) {
@@ -257,7 +275,9 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             self.remember_pattern();
             self.is_visible = false;
 
-            return ResponseEvent::Handled;
+            return self
+                .behaviour
+                .get_response(self.patterns.value(), self.patterns.get_highlighted_item_name());
         }
 
         self.patterns.process_event(event);
