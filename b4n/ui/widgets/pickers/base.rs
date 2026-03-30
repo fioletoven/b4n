@@ -170,6 +170,11 @@ impl<B: PickerBehaviour> Picker<B> {
         self.patterns.draw(frame, area.inner(Margin::new(1, 0)));
     }
 
+    /// Highlights picker item by name.
+    pub fn highlight_item(&mut self, name: &str) {
+        self.patterns.items.list.highlight_item_by_name(name);
+    }
+
     fn run_validation(&mut self) {
         if self.last_validated == self.patterns.value() {
             return;

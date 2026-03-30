@@ -5,6 +5,11 @@
 ### Features
 
 - add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
+- remember manually entered namespaces
+
+### Bug fixes
+
+- run save configuration tasks sequentially
 
 ### Compatibility
 

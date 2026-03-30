@@ -173,6 +173,8 @@ impl ResourcesView {
     pub fn show_namespaces_list(&mut self, discovered: Vec<String>) {
         self.namespace_picker.set_discovered(discovered);
         self.namespace_picker.show();
+        self.namespace_picker
+            .highlight_item(self.app_data.borrow().current.namespace.as_str());
     }
 
     /// Displays a list of available forward ports for a container to choose from.

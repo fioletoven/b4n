@@ -40,6 +40,13 @@ pub enum Command {
     SetYaml(Box<SetResourceYamlCommand>),
 }
 
+impl Command {
+    /// Returns `true` if this command must be executed sequentially.
+    pub fn is_sequential(&self) -> bool {
+        matches!(self, Command::SaveConfig(_) | Command::SaveHistory(_))
+    }
+}
+
 /// List of all possible results from commands executed in the executor.
 pub enum CommandResult {
     ContextsList(Vec<NamedContext>),
