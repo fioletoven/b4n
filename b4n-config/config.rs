@@ -83,7 +83,7 @@ fn default_aliases() -> HashMap<String, String> {
         ("customresourcedefinitions", "crd"),
         ("daemonsets", "ds,dms"),
         ("namespace", "nn"),
-        ("namespaces", "ns,name"),
+        ("namespaces", "ns,na,nam"),
         ("networkpolicies", "np"),
         ("persistentvolumeclaims", "pvc"),
         ("persistentvolumes", "pv"),

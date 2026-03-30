@@ -1,9 +1,14 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
 use crate::tasks::run_command;
 use crate::{BgTask, TaskResult, commands::Command};
+
+type SequentialTask = (String, Command, CancellationToken);
 
 /// Background commands executor.
 pub struct BgExecutor {
@@ -12,7 +17,9 @@ pub struct BgExecutor {
     results_tx: UnboundedSender<Box<TaskResult>>,
     results_rx: UnboundedReceiver<Box<TaskResult>>,
     sequential_worker: Option<JoinHandle<()>>,
-    sequential_tx: UnboundedSender<(String, Command)>,
+    sequential_token: CancellationToken,
+    sequential_drain: Arc<AtomicBool>,
+    sequential_tx: UnboundedSender<SequentialTask>,
 }
 
 impl BgExecutor {
@@ -21,8 +28,12 @@ impl BgExecutor {
         let (results_tx, results_rx) = unbounded_channel();
         let (sequential_tx, sequential_rx) = unbounded_channel();
 
+        let sequential_token = CancellationToken::new();
+        let sequential_drain = Arc::new(AtomicBool::new(false));
+
         let worker_results_tx = results_tx.clone();
-        let sequential_worker = runtime.spawn(Self::sequential_worker(sequential_rx, worker_results_tx));
+        let worker_drain = sequential_drain.clone();
+        let sequential_worker = runtime.spawn(Self::sequential_worker(sequential_rx, worker_results_tx, worker_drain));
 
         Self {
             runtime,
@@ -30,14 +41,36 @@ impl BgExecutor {
             results_tx,
             results_rx,
             sequential_worker: Some(sequential_worker),
+            sequential_token,
+            sequential_drain,
             sequential_tx,
         }
     }
 
     /// Worker that processes commands one by one in order.
-    async fn sequential_worker(mut rx: UnboundedReceiver<(String, Command)>, results_tx: UnboundedSender<Box<TaskResult>>) {
-        while let Some((task_id, command)) = rx.recv().await {
-            let result = run_command(command).await;
+    async fn sequential_worker(
+        mut rx: UnboundedReceiver<SequentialTask>,
+        results_tx: UnboundedSender<Box<TaskResult>>,
+        drain: Arc<AtomicBool>,
+    ) {
+        while let Some((task_id, command, cancellation_token)) = rx.recv().await {
+            if drain.load(Ordering::Relaxed) {
+                while rx.try_recv().is_ok() {}
+                drain.store(false, Ordering::Relaxed);
+                continue;
+            }
+
+            let result = tokio::select! {
+                () = cancellation_token.cancelled() => {
+                    if drain.load(Ordering::Relaxed) {
+                        while rx.try_recv().is_ok() {}
+                        drain.store(false, Ordering::Relaxed);
+                    }
+                    continue;
+                },
+                result = run_command(command) => result,
+            };
+
             if let Some(result) = result
                 && let Err(error) = results_tx.send(Box::new(TaskResult { id: task_id, result }))
             {
@@ -88,6 +121,7 @@ impl BgExecutor {
         }
 
         self.tasks.clear();
+        self.cancel_sequential();
     }
 
     /// Cancels all currently running tasks and waits for them to finish.\
@@ -98,6 +132,7 @@ impl BgExecutor {
         }
 
         self.tasks.clear();
+        self.cancel_sequential();
     }
 
     /// Tries to get the next [`TaskResult`].
@@ -112,11 +147,19 @@ impl BgExecutor {
             .encode_lower(&mut uuid::Uuid::encode_buffer())
             .to_owned();
 
-        if let Err(error) = self.sequential_tx.send((id.clone(), command)) {
+        let token = self.sequential_token.clone();
+        if let Err(error) = self.sequential_tx.send((id.clone(), command, token)) {
             tracing::warn!("Cannot enqueue sequential command: {}", error);
         }
 
         id
+    }
+
+    /// Signals the sequential worker to cancel the current command and drain all pending ones.
+    fn cancel_sequential(&mut self) {
+        self.sequential_drain.store(true, Ordering::Release);
+        self.sequential_token.cancel();
+        self.sequential_token = CancellationToken::new();
     }
 }
 
