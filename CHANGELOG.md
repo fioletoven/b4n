@@ -5,7 +5,7 @@
 ### Features
 
 - add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
-- remember manually entered namespaces
+- validate and remember manually entered namespaces
 
 ### Bug fixes
 

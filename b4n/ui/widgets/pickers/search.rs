@@ -40,7 +40,6 @@ pub struct SearchBehaviour {
     hint: String,
     matches: Option<usize>,
     highlight_position: Option<Position>,
-    colors: SelectColors,
 }
 
 impl SearchBehaviour {
@@ -54,7 +53,6 @@ impl SearchBehaviour {
             hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
             matches: None,
             highlight_position: None,
-            colors: app_data.borrow().theme.colors.search.clone(),
         }
     }
 
@@ -79,8 +77,8 @@ impl PickerBehaviour for SearchBehaviour {
         " "
     }
 
-    fn colors(&self) -> &SelectColors {
-        &self.colors
+    fn colors(&self, app_data: &SharedAppData) -> SelectColors {
+        app_data.borrow().theme.colors.search.clone()
     }
 
     fn reset_key_command(&self) -> KeyCommand {

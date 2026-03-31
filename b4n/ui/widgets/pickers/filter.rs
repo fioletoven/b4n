@@ -21,22 +21,22 @@ pub type Filter = Picker<FilterBehaviour>;
 impl Filter {
     /// Creates new [`Filter`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        let behaviour = FilterBehaviour::new(&app_data);
-        Picker::new_picker(app_data, worker, width, behaviour)
+        Picker::new_picker(app_data, worker, width, FilterBehaviour::default())
     }
 }
 
 pub struct FilterBehaviour {
     hint: &'static str,
-    colors: SelectColors,
+    last_validated: String,
+    last_error: Option<usize>,
 }
 
-impl FilterBehaviour {
-    /// Creates new [`FilterBehaviour`] instance.
-    pub fn new(app_data: &SharedAppData) -> Self {
+impl Default for FilterBehaviour {
+    fn default() -> Self {
         Self {
             hint: " Use | for OR, & for AND, and parentheses to group terms.",
-            colors: app_data.borrow().theme.colors.filter.clone(),
+            last_validated: String::new(),
+            last_error: None,
         }
     }
 }
@@ -46,8 +46,8 @@ impl PickerBehaviour for FilterBehaviour {
         " "
     }
 
-    fn colors(&self) -> &SelectColors {
-        &self.colors
+    fn colors(&self, app_data: &SharedAppData) -> SelectColors {
+        app_data.borrow().theme.colors.filter.clone()
     }
 
     fn accent_characters(&self) -> Option<&str> {
@@ -85,14 +85,21 @@ impl PickerBehaviour for FilterBehaviour {
             .is_some()
     }
 
-    fn validate(&self, value: &str) -> Option<usize> {
-        match validate(value) {
+    fn validate(&mut self, value: &str) -> Option<usize> {
+        if self.last_validated == value {
+            return self.last_error;
+        }
+
+        self.last_validated = value.to_owned();
+        self.last_error = match validate(value) {
             Err(ParserError::ExpectedOperator(i))
             | Err(ParserError::UnexpectedOperator(i))
             | Err(ParserError::ExpectedClosingBracket(i))
             | Err(ParserError::UnexpectedClosingBracket(i)) => Some(i),
             _ => None,
-        }
+        };
+
+        self.last_error
     }
 
     fn restores_on_cancel(&self) -> bool {
