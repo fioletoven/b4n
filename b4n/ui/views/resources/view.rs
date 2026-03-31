@@ -613,7 +613,7 @@ impl View for ResourcesView {
     }
 
     fn is_resources_selector_allowed(&self) -> bool {
-        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible
+        !self.filter.is_visible && !self.modal.is_visible && !self.command_palette.is_visible && !self.namespace_picker.is_visible
     }
 
     fn process_tick(&mut self) -> ResponseEvent {
