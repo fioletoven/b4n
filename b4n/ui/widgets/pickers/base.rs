@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::utils::{self, center_horizontal, get_proportional_width};
-use b4n_tui::widgets::Select;
+use b4n_tui::widgets::{ErrorHighlightMode, Select};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
@@ -16,7 +16,7 @@ pub trait PickerBehaviour {
     fn prompt(&self) -> &str;
 
     /// Gets colors to use in the picker.
-    fn colors(&self) -> &SelectColors;
+    fn colors(&self, app_data: &SharedAppData) -> SelectColors;
 
     /// Gets optional accent characters for the input.
     fn accent_characters(&self) -> Option<&str> {
@@ -43,9 +43,14 @@ pub trait PickerBehaviour {
         item.is_some()
     }
 
+    /// Gets error highlight mode for the picker input.
+    fn error_mode(&self) -> ErrorHighlightMode {
+        ErrorHighlightMode::PromptAndIndex
+    }
+
     /// Validates the current input value.\
     /// Returns `Some(index)` for error position, `None` if valid.
-    fn validate(&self, _value: &str) -> Option<usize> {
+    fn validate(&mut self, _value: &str) -> Option<usize> {
         None
     }
 
@@ -83,7 +88,6 @@ pub struct Picker<B: PickerBehaviour> {
     worker: Option<SharedBgWorker>,
     patterns: Select<PatternsList>,
     current: String,
-    last_validated: String,
     width: u16,
     behaviour: B,
 }
@@ -91,12 +95,14 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
-        let colors = behaviour.colors().clone();
+        let colors = behaviour.colors(&app_data);
         let mut select = Select::new(PatternsList::default(), colors, false, true).with_prompt(behaviour.prompt());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
         }
+
+        select.set_error_mode(behaviour.error_mode());
 
         Self {
             is_visible: false,
@@ -104,7 +110,6 @@ impl<B: PickerBehaviour> Picker<B> {
             worker,
             patterns: select,
             current: String::new(),
-            last_validated: String::new(),
             width,
             behaviour,
         }
@@ -114,7 +119,7 @@ impl<B: PickerBehaviour> Picker<B> {
     pub fn show(&mut self) {
         self.patterns.items = self.behaviour.load_items(&self.app_data);
         self.patterns.update_items_filter();
-        self.patterns.set_colors(self.behaviour.colors().clone());
+        self.patterns.set_colors(self.behaviour.colors(&self.app_data));
         self.is_visible = true;
     }
 
@@ -157,7 +162,7 @@ impl<B: PickerBehaviour> Picker<B> {
 
         self.behaviour.on_draw(&mut self.patterns, area);
 
-        let colors = self.behaviour.colors();
+        let colors = self.patterns.colors();
         utils::clear_area(frame, area, colors.normal.bg);
         if area.top() > 0 && self.behaviour.has_header() {
             let header_area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
@@ -176,13 +181,8 @@ impl<B: PickerBehaviour> Picker<B> {
     }
 
     fn run_validation(&mut self) {
-        if self.last_validated == self.patterns.value() {
-            return;
-        }
-
         let error_pos = self.behaviour.validate(self.patterns.value());
         self.patterns.set_error(error_pos);
-        self.last_validated = self.patterns.value().to_owned();
     }
 
     fn remember_pattern(&mut self) {
@@ -200,11 +200,8 @@ impl<B: PickerBehaviour> Picker<B> {
 
     fn complete_with_selected_item(&mut self) {
         if let Some(pattern) = self.patterns.items.get_highlighted_item_name().map(String::from) {
-            if self.behaviour.validate(self.patterns.value()).is_none() {
-                self.last_validated.clone_from(&pattern);
-            }
-
             self.patterns.set_value(pattern);
+            self.run_validation();
         }
     }
 

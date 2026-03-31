@@ -1,6 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::ResponseEvent;
+use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
@@ -12,8 +13,7 @@ pub type NamespaceSelector = Picker<NamespaceBehaviour>;
 impl NamespaceSelector {
     /// Creates new [`NamespaceSelector`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        let behaviour = NamespaceBehaviour::new(&app_data);
-        Picker::new_picker(app_data, worker, width, behaviour)
+        Picker::new_picker(app_data, worker, width, NamespaceBehaviour::default())
     }
 
     /// Updates the list of discovered namespaces.
@@ -22,21 +22,21 @@ impl NamespaceSelector {
     }
 }
 
-#[derive(Default)]
 pub struct NamespaceBehaviour {
     discovered: Vec<String>,
-    colors: SelectColors,
+    validator: InputValidator,
+}
+
+impl Default for NamespaceBehaviour {
+    fn default() -> Self {
+        Self {
+            discovered: Vec::new(),
+            validator: InputValidator::new(ValidatorKind::Namespace),
+        }
+    }
 }
 
 impl NamespaceBehaviour {
-    /// Creates new [`NamespaceBehaviour`] instance.
-    pub fn new(app_data: &SharedAppData) -> Self {
-        Self {
-            discovered: Vec::new(),
-            colors: app_data.borrow().theme.colors.command_palette.clone(),
-        }
-    }
-
     /// Updates the list of discovered namespaces.
     pub fn set_discovered(&mut self, namespaces: Vec<String>) {
         self.discovered = namespaces;
@@ -48,8 +48,8 @@ impl PickerBehaviour for NamespaceBehaviour {
         "namespace "
     }
 
-    fn colors(&self) -> &SelectColors {
-        &self.colors
+    fn colors(&self, app_data: &SharedAppData) -> SelectColors {
+        app_data.borrow().theme.colors.command_palette.clone()
     }
 
     fn reset_key_command(&self) -> KeyCommand {
@@ -96,7 +96,19 @@ impl PickerBehaviour for NamespaceBehaviour {
         item.is_some_and(|i| !i.is_fixed)
     }
 
+    fn error_mode(&self) -> ErrorHighlightMode {
+        ErrorHighlightMode::Value
+    }
+
+    fn validate(&mut self, value: &str) -> Option<usize> {
+        self.validator.validate(value).err()
+    }
+
     fn restores_on_cancel(&self) -> bool {
+        true
+    }
+
+    fn blocks_on_error(&self) -> bool {
         true
     }
 
