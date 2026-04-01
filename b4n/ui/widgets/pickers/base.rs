@@ -65,6 +65,11 @@ pub trait PickerBehaviour {
         false
     }
 
+    /// Gets response that should be returned by the picker on accepting selected item.
+    fn navigate_into(&self, _pattern: &str, _highlighted: Option<&str>) -> ResponseEvent {
+        ResponseEvent::Handled
+    }
+
     /// Called before drawing.
     fn on_draw(&mut self, _patterns: &mut Select<PatternsList>, _area: Rect) {}
 
@@ -76,9 +81,14 @@ pub trait PickerBehaviour {
     /// Draws the header area.
     fn draw_header(&self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
 
-    /// Gets response that should be returned by the picker on accepting selected item.
-    fn get_response(&self, _pattern: &str, _highlighted: Option<&str>) -> ResponseEvent {
-        ResponseEvent::Handled
+    /// Additional events processing logic.
+    fn process_event(
+        &mut self,
+        _event: &TuiEvent,
+        _patterns: &mut Select<PatternsList>,
+        _app_data: &SharedAppData,
+    ) -> ResponseEvent {
+        ResponseEvent::NotHandled
     }
 }
 
@@ -257,7 +267,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             return self
                 .behaviour
-                .get_response(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
         }
 
         if event.is_mouse(MouseEventKind::RightClick) {
@@ -279,7 +289,12 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             return self
                 .behaviour
-                .get_response(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+        }
+
+        let result = self.behaviour.process_event(event, &mut self.patterns, &self.app_data);
+        if result != ResponseEvent::NotHandled {
+            return result;
         }
 
         self.patterns.process_event(event);

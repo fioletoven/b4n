@@ -148,6 +148,10 @@ pub struct AppData {
     pub current: ResourcesInfo,
     pub previous: Vec<PreviousData>,
 
+    /// Filter that should be applied to all resources.
+    pub pinned_filter: Option<String>,
+    pub is_pinned: bool,
+
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
 
@@ -165,15 +169,11 @@ impl AppData {
         Self {
             config,
             key_bindings,
-            disabled_commands: HashSet::default(),
-            disabled_keys: HashSet::default(),
             history,
             theme,
-            current: ResourcesInfo::default(),
-            previous: Vec::new(),
-            kinds: None,
             clipboard: Clipboard::new().ok(),
             state: ConnectionState::Connecting,
+            ..Default::default()
         }
     }
 

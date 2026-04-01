@@ -112,11 +112,7 @@ impl PickerBehaviour for NamespaceBehaviour {
         true
     }
 
-    fn has_header(&self) -> bool {
-        false
-    }
-
-    fn get_response(&self, pattern: &str, highlighted: Option<&str>) -> ResponseEvent {
+    fn navigate_into(&self, pattern: &str, highlighted: Option<&str>) -> ResponseEvent {
         if pattern.is_empty()
             && let Some(highlighted) = highlighted
         {
@@ -126,5 +122,9 @@ impl PickerBehaviour for NamespaceBehaviour {
         } else {
             ResponseEvent::Handled
         }
+    }
+
+    fn has_header(&self) -> bool {
+        false
     }
 }

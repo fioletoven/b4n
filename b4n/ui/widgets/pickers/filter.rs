@@ -1,7 +1,8 @@
 use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
-use b4n_tui::ResponseEvent;
+use b4n_tui::widgets::Select;
+use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
@@ -21,7 +22,8 @@ pub type Filter = Picker<FilterBehaviour>;
 impl Filter {
     /// Creates new [`Filter`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        Picker::new_picker(app_data, worker, width, FilterBehaviour::default())
+        let behaviour = FilterBehaviour::new(&app_data);
+        Picker::new_picker(app_data, worker, width, behaviour)
     }
 }
 
@@ -29,21 +31,23 @@ pub struct FilterBehaviour {
     hint: &'static str,
     last_validated: String,
     last_error: Option<usize>,
+    is_pinned: bool,
 }
 
-impl Default for FilterBehaviour {
-    fn default() -> Self {
+impl FilterBehaviour {
+    pub fn new(app_data: &SharedAppData) -> Self {
         Self {
             hint: " Use | for OR, & for AND, and parentheses to group terms.",
             last_validated: String::new(),
             last_error: None,
+            is_pinned: app_data.borrow().is_pinned,
         }
     }
 }
 
 impl PickerBehaviour for FilterBehaviour {
     fn prompt(&self) -> &str {
-        " "
+        if self.is_pinned { "󰐃 " } else { " " }
     }
 
     fn colors(&self, app_data: &SharedAppData) -> SelectColors {
@@ -112,5 +116,22 @@ impl PickerBehaviour for FilterBehaviour {
 
     fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         frame.render_widget(Paragraph::new(self.hint).style(style), area);
+    }
+
+    fn process_event(
+        &mut self,
+        event: &TuiEvent,
+        patterns: &mut Select<PatternsList>,
+        app_data: &SharedAppData,
+    ) -> ResponseEvent {
+        if app_data.has_binding(event, KeyCommand::FilterPin) {
+            self.is_pinned = !app_data.borrow().is_pinned;
+            app_data.borrow_mut().is_pinned = self.is_pinned;
+            patterns.set_prompt(self.prompt());
+
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
     }
 }

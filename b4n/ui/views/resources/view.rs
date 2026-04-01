@@ -102,8 +102,12 @@ impl ResourcesView {
         let is_init = matches!(result, ObserverResult::Init(_));
 
         if is_init {
-            // apply_filter must be checked before updating the table list, it is cleared there
-            if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
+            if self.app_data.borrow().is_pinned
+                && let Some(filter) = &self.app_data.borrow().pinned_filter
+            {
+                self.filter.set_value(filter.to_owned());
+            } else if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
+                // apply_filter must be checked before updating the table list, it is cleared there
                 self.filter.set_value(filter.to_owned());
             } else {
                 self.filter.reset();
@@ -659,6 +663,10 @@ impl View for ResourcesView {
         if self.filter.is_visible {
             let result = self.filter.process_event(event);
             self.table.set_filter(self.filter.value());
+            if self.app_data.borrow().is_pinned {
+                self.app_data.borrow_mut().pinned_filter = self.table.filter().map(String::from);
+            }
+
             return result;
         }
 
@@ -677,7 +685,19 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterPin) && !self.filter.value().is_empty() {
+            if self.app_data.borrow().is_pinned {
+                self.app_data.borrow_mut().is_pinned = false;
+            } else {
+                self.app_data.borrow_mut().is_pinned = true;
+                self.app_data.borrow_mut().pinned_filter = Some(self.filter.value().to_owned());
+            }
+        }
+
+        if !self.app_data.borrow().is_pinned
+            && self.app_data.has_binding(event, KeyCommand::FilterReset)
+            && !self.filter.value().is_empty()
+        {
             self.filter.reset();
             self.table.set_filter("");
             return ResponseEvent::Handled;

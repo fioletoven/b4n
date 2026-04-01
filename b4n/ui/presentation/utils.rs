@@ -68,7 +68,7 @@ pub fn get_left_breadcrumbs<'a>(
     }
 
     let count_icon = if is_filtered {
-        ""
+        if app_data.is_pinned { "󰐃" } else { "" }
     } else if data.resource.is_container() {
         ""
     } else {
