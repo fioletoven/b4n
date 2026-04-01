@@ -5,6 +5,7 @@
 ### Features
 
 - add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
+- pin active filter across resources with `Ctrl+P`
 - validate and remember manually entered namespaces
 
 ### Bug fixes

@@ -102,10 +102,12 @@ impl ResourcesView {
         let is_init = matches!(result, ObserverResult::Init(_));
 
         if is_init {
-            if self.app_data.borrow().is_pinned
-                && let Some(filter) = &self.app_data.borrow().pinned_filter
-            {
-                self.filter.set_value(filter.to_owned());
+            if self.app_data.borrow().is_pinned {
+                if let Some(filter) = &self.app_data.borrow().pinned_filter {
+                    self.filter.set_value(filter.to_owned());
+                } else {
+                    self.filter.reset();
+                }
             } else if let Some(filter) = self.table.next_refresh().apply_filter.as_deref() {
                 // apply_filter must be checked before updating the table list, it is cleared there
                 self.filter.set_value(filter.to_owned());

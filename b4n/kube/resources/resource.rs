@@ -37,14 +37,16 @@ pub struct ResourceItem {
     pub is_cached: bool,
     creation_timestamp: Option<Timestamp>,
     filter_metadata: SelectiveMap,
+    ignore_filters: bool,
 }
 
 impl ResourceItem {
     /// Creates light [`ResourceItem`] version just with name.
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: &str, ignore_filters: bool) -> Self {
         Self {
             uid: format!("_{name}_"),
             name: name.to_owned(),
+            ignore_filters,
             ..Default::default()
         }
     }
@@ -59,7 +61,7 @@ impl ResourceItem {
         is_filtered: bool,
     ) -> Self {
         let data = Some(get_resource_data(kind, group, crd, stats, &object, is_filtered));
-        let filter = get_filter_metadata(&object);
+        let filter = get_filter_metadata(kind, group, &object.metadata);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
         let involved_object = get_involved_object(kind, &object);
@@ -97,7 +99,8 @@ impl ResourceItem {
             container_name,
             if is_init_container { "I" } else { "M" }
         );
-        let filter = SelectiveMap::default().with("", vec![container_name.to_ascii_lowercase()]);
+        let mut filter = get_filter_metadata("Container", "", pod_metadata);
+        filter.insert("n", vec![container_name.to_ascii_lowercase()]);
 
         Self {
             age: get_age_string(pod_metadata),
@@ -293,29 +296,39 @@ impl Filterable<ResourceFilterContext> for ResourceItem {
     /// **Note** that currently it has only a switch for normal/extended filtering.
     fn is_matching(&self, context: &mut ResourceFilterContext) -> bool {
         if let Some(expression) = &context.extended {
-            self.filter_metadata.evaluate(expression)
+            self.ignore_filters || self.filter_metadata.evaluate(expression)
         } else {
             self.name.contains(&context.pattern)
         }
     }
 }
 
-fn get_filter_metadata(object: &DynamicObject) -> SelectiveMap {
-    let mut result = SelectiveMap::default();
-    result.insert("n", vec![object.name_any()]);
+fn get_filter_metadata(kind: &str, group: &str, metadata: &ObjectMeta) -> SelectiveMap {
+    let name = metadata
+        .name
+        .clone()
+        .or_else(|| metadata.generate_name.clone())
+        .unwrap_or_default();
 
-    if let Some(namespace) = object.namespace() {
+    let mut result = SelectiveMap::default();
+
+    if let Some(namespace) = metadata.namespace.clone() {
         result.insert_explicit("ns", vec![namespace]);
+    } else if kind == "Namespace" && group.is_empty() {
+        result.insert_explicit("ns", vec![name.clone()]);
+    } else {
+        result.set_optional("ns");
     }
 
-    if let Some(labels) = object.metadata.labels.as_ref() {
+    if let Some(labels) = metadata.labels.as_ref() {
         result.insert("l", flatten_metadata(labels));
     }
 
-    if let Some(annotations) = object.metadata.annotations.as_ref() {
+    if let Some(annotations) = metadata.annotations.as_ref() {
         result.insert("a", flatten_metadata(annotations));
     }
 
+    result.insert("n", vec![name]);
     result
 }
 

@@ -287,10 +287,12 @@ impl ResourcesTable {
     }
 
     fn process_init_result(&mut self, is_final: bool) {
-        if self.app_data.borrow().is_pinned
-            && let Some(filter) = self.app_data.borrow().pinned_filter.as_deref()
-        {
-            Self::set_filter_internal(&mut self.header, &mut self.list, filter);
+        if self.app_data.borrow().is_pinned {
+            if let Some(filter) = self.app_data.borrow().pinned_filter.as_deref() {
+                Self::set_filter_internal(&mut self.header, &mut self.list, filter);
+            } else {
+                Self::set_filter_internal(&mut self.header, &mut self.list, "");
+            }
         } else if let Some(filter) = self.next_refresh.apply_filter.as_deref() {
             Self::set_filter_internal(&mut self.header, &mut self.list, filter);
         } else {

@@ -217,7 +217,7 @@ impl ResourcesList {
 
     fn add_all_namespaces_item(&mut self) {
         if self.table.list.full_len() == 0 && self.data.kind_plural == NAMESPACES {
-            self.table.list.push(Item::fixed(ResourceItem::new(ALL_NAMESPACES)));
+            self.table.list.push(Item::fixed(ResourceItem::new(ALL_NAMESPACES, true)));
         }
     }
 }
