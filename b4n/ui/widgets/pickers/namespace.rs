@@ -2,6 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::ResponseEvent;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
+use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
@@ -13,7 +14,8 @@ pub type NamespaceSelector = Picker<NamespaceBehaviour>;
 impl NamespaceSelector {
     /// Creates new [`NamespaceSelector`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        Picker::new_picker(app_data, worker, width, NamespaceBehaviour::default())
+        let behaviour = NamespaceBehaviour::new(Rc::clone(&app_data));
+        Picker::new_picker(app_data, worker, width, behaviour)
     }
 
     /// Updates the list of discovered namespaces.
@@ -23,20 +25,20 @@ impl NamespaceSelector {
 }
 
 pub struct NamespaceBehaviour {
+    app_data: SharedAppData,
     discovered: Vec<String>,
     validator: InputValidator,
 }
 
-impl Default for NamespaceBehaviour {
-    fn default() -> Self {
+impl NamespaceBehaviour {
+    pub fn new(app_data: SharedAppData) -> Self {
         Self {
+            app_data,
             discovered: Vec::new(),
             validator: InputValidator::new(ValidatorKind::Namespace),
         }
     }
-}
 
-impl NamespaceBehaviour {
     /// Updates the list of discovered namespaces.
     pub fn set_discovered(&mut self, namespaces: Vec<String>) {
         self.discovered = namespaces;
@@ -48,8 +50,8 @@ impl PickerBehaviour for NamespaceBehaviour {
         "namespace "
     }
 
-    fn colors(&self, app_data: &SharedAppData) -> SelectColors {
-        app_data.borrow().theme.colors.command_palette.clone()
+    fn colors(&self) -> SelectColors {
+        self.app_data.borrow().theme.colors.command_palette.clone()
     }
 
     fn reset_key_command(&self) -> KeyCommand {
@@ -60,10 +62,10 @@ impl PickerBehaviour for NamespaceBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&self, app_data: &SharedAppData) -> PatternsList {
-        let key_name = app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        let context = &app_data.borrow().current.context;
-        let mut items = PatternsList::from(app_data.borrow().history.namespace_history(context), Some(&key_name));
+    fn load_items(&self) -> PatternsList {
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
+        let context = &self.app_data.borrow().current.context;
+        let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
         for item in items.list.full_iter_mut() {
             item.data.icon = Some("");
         }
@@ -75,17 +77,17 @@ impl PickerBehaviour for NamespaceBehaviour {
         items
     }
 
-    fn add_item(&self, app_data: &SharedAppData, item: &str) {
-        let context = app_data.borrow().current.context.clone();
-        app_data
+    fn add_item(&self, item: &str) {
+        let context = self.app_data.borrow().current.context.clone();
+        self.app_data
             .borrow_mut()
             .history
             .put_namespace_history_item(&context, item.into(), NAMESPACE_HISTORY_SIZE);
     }
 
-    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {
-        let context = app_data.borrow().current.context.clone();
-        app_data
+    fn remove_item(&self, item: &str) -> bool {
+        let context = self.app_data.borrow().current.context.clone();
+        self.app_data
             .borrow_mut()
             .history
             .remove_namespace_history_item(&context, item)

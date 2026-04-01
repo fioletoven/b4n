@@ -16,7 +16,7 @@ pub trait PickerBehaviour {
     fn prompt(&self) -> &str;
 
     /// Gets colors to use in the picker.
-    fn colors(&self, app_data: &SharedAppData) -> SelectColors;
+    fn colors(&self) -> SelectColors;
 
     /// Gets optional accent characters for the input.
     fn accent_characters(&self) -> Option<&str> {
@@ -30,13 +30,13 @@ pub trait PickerBehaviour {
     fn cancel_response(&self) -> ResponseEvent;
 
     /// Loads items when the picker is shown.
-    fn load_items(&self, app_data: &SharedAppData) -> PatternsList;
+    fn load_items(&self) -> PatternsList;
 
     /// Adds an item to the configuration history.
-    fn add_item(&self, app_data: &SharedAppData, item: &str);
+    fn add_item(&self, item: &str);
 
     /// Removes an item from the configuration history.
-    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool;
+    fn remove_item(&self, item: &str) -> bool;
 
     /// Gets value indicating whether highlighted item can be removed.
     fn can_remove(&self, item: Option<&PatternItem>) -> bool {
@@ -105,8 +105,7 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
-        let colors = behaviour.colors(&app_data);
-        let mut select = Select::new(PatternsList::default(), colors, false, true).with_prompt(behaviour.prompt());
+        let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true).with_prompt(behaviour.prompt());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -127,9 +126,10 @@ impl<B: PickerBehaviour> Picker<B> {
 
     /// Marks the picker as visible and loads items.
     pub fn show(&mut self) {
-        self.patterns.items = self.behaviour.load_items(&self.app_data);
+        self.patterns.items = self.behaviour.load_items();
         self.patterns.update_items_filter();
-        self.patterns.set_colors(self.behaviour.colors(&self.app_data));
+        self.patterns.set_colors(self.behaviour.colors());
+        self.patterns.set_prompt(self.behaviour.prompt());
         self.is_visible = true;
     }
 
@@ -198,7 +198,7 @@ impl<B: PickerBehaviour> Picker<B> {
     fn remember_pattern(&mut self) {
         let pattern = self.patterns.value();
         self.current = pattern.to_owned();
-        self.behaviour.add_item(&self.app_data, pattern);
+        self.behaviour.add_item(pattern);
         self.save_history_file();
     }
 
@@ -240,7 +240,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             if self.behaviour.can_remove(self.patterns.items.get_highlighted())
                 && let Some(removed) = self.patterns.items.remove_highlighted()
-                && self.behaviour.remove_item(&self.app_data, &removed)
+                && self.behaviour.remove_item(&removed)
             {
                 self.save_history_file();
             }

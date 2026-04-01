@@ -5,6 +5,7 @@ use b4n_tui::{ResponseEvent, table::Table};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
+use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternsList, Picker, PickerBehaviour};
@@ -16,7 +17,7 @@ pub type Search = Picker<SearchBehaviour>;
 impl Search {
     /// Creates new [`Search`] instance.
     pub fn new(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16) -> Self {
-        let behaviour = SearchBehaviour::new(&app_data);
+        let behaviour = SearchBehaviour::new(Rc::clone(&app_data));
         Picker::new_picker(app_data, worker, width, behaviour)
     }
 
@@ -37,6 +38,7 @@ impl Search {
 }
 
 pub struct SearchBehaviour {
+    app_data: SharedAppData,
     hint: String,
     matches: Option<usize>,
     highlight_position: Option<Position>,
@@ -44,12 +46,13 @@ pub struct SearchBehaviour {
 
 impl SearchBehaviour {
     /// Creates new [`SearchBehaviour`] instance.
-    pub fn new(app_data: &SharedAppData) -> Self {
+    pub fn new(app_data: SharedAppData) -> Self {
         let enter = app_data.get_key_name(KeyCommand::NavigateInto).to_ascii_uppercase();
         let next = app_data.get_key_name(KeyCommand::MatchNext).to_ascii_uppercase();
         let prev = app_data.get_key_name(KeyCommand::MatchPrevious).to_ascii_uppercase();
 
         Self {
+            app_data,
             hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
             matches: None,
             highlight_position: None,
@@ -77,8 +80,8 @@ impl PickerBehaviour for SearchBehaviour {
         " "
     }
 
-    fn colors(&self, app_data: &SharedAppData) -> SelectColors {
-        app_data.borrow().theme.colors.search.clone()
+    fn colors(&self) -> SelectColors {
+        self.app_data.borrow().theme.colors.search.clone()
     }
 
     fn reset_key_command(&self) -> KeyCommand {
@@ -89,23 +92,23 @@ impl PickerBehaviour for SearchBehaviour {
         ResponseEvent::Handled
     }
 
-    fn load_items(&self, app_data: &SharedAppData) -> PatternsList {
-        let context = &app_data.borrow().current.context;
-        let key_name = app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        PatternsList::from(app_data.borrow().history.search_history(context), Some(&key_name))
+    fn load_items(&self) -> PatternsList {
+        let context = &self.app_data.borrow().current.context;
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
+        PatternsList::from(self.app_data.borrow().history.search_history(context), Some(&key_name))
     }
 
-    fn add_item(&self, app_data: &SharedAppData, item: &str) {
-        let context = app_data.borrow().current.context.clone();
-        app_data
+    fn add_item(&self, item: &str) {
+        let context = self.app_data.borrow().current.context.clone();
+        self.app_data
             .borrow_mut()
             .history
             .put_search_history_item(&context, item.into(), SEARCH_HISTORY_SIZE);
     }
 
-    fn remove_item(&self, app_data: &SharedAppData, item: &str) -> bool {
-        let context = app_data.borrow().current.context.clone();
-        app_data
+    fn remove_item(&self, item: &str) -> bool {
+        let context = self.app_data.borrow().current.context.clone();
+        self.app_data
             .borrow_mut()
             .history
             .remove_search_history_item(&context, item)
