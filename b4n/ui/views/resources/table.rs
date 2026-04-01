@@ -151,6 +151,7 @@ impl ResourcesTable {
             pub fn get_resource(&self, name: &str, namespace: &Namespace) -> Option<&ResourceItem>;
             pub fn has_containers(&self) -> bool;
             pub fn is_filtered(&self) -> bool;
+            pub fn filter(&self) -> Option<&str>;
         }
     }
 
@@ -218,16 +219,7 @@ impl ResourcesTable {
 
     /// Sets filter on the resources list.
     pub fn set_filter(&mut self, value: &str) {
-        self.header.show_filtered_icon(!value.is_empty());
-        if value.is_empty() {
-            if self.list.table.is_filtered() {
-                self.list.table.set_filter(None);
-                self.header.set_count(self.list.table.len());
-            }
-        } else if self.list.table.filter().is_none_or(|f| f != value) {
-            self.list.table.set_filter(Some(value.to_owned()));
-            self.header.set_count(self.list.table.len());
-        }
+        Self::set_filter_internal(&mut self.header, &mut self.list, value);
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
@@ -281,11 +273,30 @@ impl ResourcesTable {
         self.list.draw(frame, layout[1]);
     }
 
+    fn set_filter_internal(header: &mut ListHeader, list: &mut ListViewer<ResourcesList>, value: &str) {
+        header.show_filtered_icon(!value.is_empty());
+        if value.is_empty() {
+            if list.table.is_filtered() {
+                list.table.set_filter(None);
+                header.set_count(list.table.len());
+            }
+        } else if list.table.filter().is_none_or(|f| f != value) {
+            list.table.set_filter(Some(value.to_owned()));
+            header.set_count(list.table.len());
+        }
+    }
+
     fn process_init_result(&mut self, is_final: bool) {
-        if let Some(filter) = self.next_refresh.apply_filter.clone() {
-            self.set_filter(&filter);
+        if self.app_data.borrow().is_pinned {
+            if let Some(filter) = self.app_data.borrow().pinned_filter.as_deref() {
+                Self::set_filter_internal(&mut self.header, &mut self.list, filter);
+            } else {
+                Self::set_filter_internal(&mut self.header, &mut self.list, "");
+            }
+        } else if let Some(filter) = self.next_refresh.apply_filter.as_deref() {
+            Self::set_filter_internal(&mut self.header, &mut self.list, filter);
         } else {
-            self.set_filter("");
+            Self::set_filter_internal(&mut self.header, &mut self.list, "");
         }
 
         if is_final {

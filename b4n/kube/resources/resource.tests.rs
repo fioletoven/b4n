@@ -15,7 +15,7 @@ use super::*;
 #[case("really long nam", "really long name", 15)]
 fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let item = Item::new(ResourceItem::new(resource));
+    let item = Item::new(ResourceItem::new(resource, false));
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
@@ -40,7 +40,7 @@ fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] te
 #[case("test         n/a", "test", 16)]
 fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let item = Item::new(ResourceItem::new(resource));
+    let item = Item::new(ResourceItem::new(resource, false));
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
 
@@ -68,7 +68,7 @@ fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case]
 #[case("n/a         test             n/a", "test", 32)]
 fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] terminal_width: usize) {
     let header = Header::default();
-    let item = Item::new(ResourceItem::new(resource));
+    let item = Item::new(ResourceItem::new(resource, false));
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
@@ -105,7 +105,7 @@ fn get_text_pod_test() {
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
-    let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5"));
+    let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5", false));
     item.data.namespace = Some("kube-system".to_owned());
     item.data.data = Some(ResourceData {
         extra_values: vec![
@@ -162,7 +162,7 @@ fn align_column_to_right_test() {
 
     let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
 
-    let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5"));
+    let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5", false));
     item.data.namespace = Some("kube-system".to_owned());
     item.data.data = Some(ResourceData {
         extra_values: vec![Some("555555".to_owned()).into(), Some("10.42.1.201".to_owned()).into()].into_boxed_slice(),

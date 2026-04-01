@@ -32,6 +32,7 @@ define_key_commands! {
         ContentCopy => "content.copy" @ "C",
         EventsShow => "events.show" @ "E",
         FilterOpen => "filter.open" @ "/", "Shift+/",
+        FilterPin => "filter.pin" @ "Ctrl+P",
         FilterReset => "filter.reset" @ "Esc",
         HistoryOpen => "history.open" @ "H",
         InvolvedObjectShow => "involved-object.show" @ "I",
