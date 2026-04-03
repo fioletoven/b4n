@@ -123,6 +123,8 @@ colors:
     completed:
       normal: text:no_bg
       normal_hl: text_dark:bg_dark
+  shell:
+    select: select_dark
   syntax:
     yaml:
       normal: text:no_bg

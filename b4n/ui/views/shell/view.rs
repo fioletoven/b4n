@@ -15,6 +15,7 @@ use tokio::runtime::Handle;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::presentation::ScreenSelection;
 use crate::ui::{presentation::ContentHeader, views::View};
 
 use super::bridge::ShellBridge;
@@ -35,6 +36,8 @@ pub struct ShellView {
     pod: ContainerRef,
     modal: Dialog,
     scrollback_rows: usize,
+    selection: ScreenSelection,
+    area: Rect,
     esc_count: u8,
     esc_time: Instant,
     clipboard_text: Option<String>,
@@ -57,6 +60,7 @@ impl ShellView {
         header.set_title(" shell");
         header.set_data(pod_namespace, PODS.into(), Some(pod_name), pod_container);
 
+        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let parser = Arc::new(RwLock::new(vt100::Parser::new(
             DEFAULT_SIZE.height,
             DEFAULT_SIZE.width,
@@ -78,6 +82,8 @@ impl ShellView {
             pod,
             modal: Dialog::default(),
             scrollback_rows: 0,
+            selection,
+            area: Rect::default(),
             esc_count: 0,
             esc_time: Instant::now(),
             clipboard_text: None,
@@ -233,6 +239,10 @@ impl View for ShellView {
             return ResponseEvent::Handled;
         }
 
+        if let Ok(parser) = self.parser.read() {
+            self.selection.process_event(event, parser.screen(), self.area);
+        }
+
         if let TuiEvent::Mouse(mouse) = event {
             return match mouse.kind {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
@@ -287,6 +297,7 @@ impl View for ShellView {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
+        self.area = layout[1];
 
         self.header.draw(frame, layout[0]);
 
@@ -311,6 +322,7 @@ impl View for ShellView {
             frame.render_widget(pseudo_term, layout[1]);
         }
 
+        frame.render_widget(&self.selection, layout[1]);
         self.modal.draw(frame, frame.area());
     }
 }
