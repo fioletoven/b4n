@@ -12,6 +12,7 @@
 ### Bug fixes
 
 - run save configuration tasks sequentially
+- fix pasting clipboard text containing non-ASCII characters
 
 ### Compatibility
 

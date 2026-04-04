@@ -120,6 +120,19 @@ into the yaml_ationTimestamp: 2025-08-27T19:31:08Z
 }
 
 #[test]
+fn insert_unicode_test() {
+    let mut actual = vec!["metadata:".to_owned()];
+
+    let pos = actual.insert_text(ContentPosition::new(3, 0), vec!["ąęśćńółź".to_owned()]);
+    assert_eq!("metąęśćńółźadata:", actual.join("\n"));
+    assert_eq!(ContentPosition::new(11, 0), pos);
+
+    let pos = actual.insert_text(ContentPosition::new(11, 0), vec!["ąęśćńółź".to_owned()]);
+    assert_eq!("metąęśćńółźąęśćńółźadata:", actual.join("\n"));
+    assert_eq!(ContentPosition::new(19, 0), pos);
+}
+
+#[test]
 fn insert_text_line_end_test() {
     let yaml = r"apiVersion: v1
 kind: Pod
