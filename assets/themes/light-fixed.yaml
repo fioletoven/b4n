@@ -127,6 +127,8 @@ colors:
     completed:
       normal: text_light:no_bg
       normal_hl: text_dark:bg_dark
+  shell:
+    select: select_light
   syntax:
     yaml:
       normal: '#9CA2B8:no_bg'

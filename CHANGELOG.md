@@ -4,9 +4,10 @@
 
 ### Features
 
-- add prefixes for resources view filtering (ns: namespace, n: name, a: annotations, l: labels)
+- add prefixes for resources view filtering (`ns:` namespace, `n:` name, `a:` annotations, `l:` labels)
 - pin active filter across resources with `Ctrl+P`
 - validate and remember manually entered namespaces
+- allow selecting and copying text in shell view when mouse support is enabled
 
 ### Bug fixes
 
@@ -14,8 +15,9 @@
 
 ### Compatibility
 
-- history YAML file schema has changed, the file will be replaced on the first app run
-- backup `history.yaml` file if needed
+- history YAML file schema has changed; the file will be replaced on the first app run
+- back up `history.yaml` file if needed
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.5 - 2026-03-24
 

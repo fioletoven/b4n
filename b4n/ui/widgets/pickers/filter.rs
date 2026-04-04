@@ -94,12 +94,14 @@ impl PickerBehaviour for FilterBehaviour {
             return self.last_error;
         }
 
-        self.last_validated = value.to_owned();
+        value.clone_into(&mut self.last_validated);
         self.last_error = match validate(value) {
-            Err(ParserError::ExpectedOperator(i))
-            | Err(ParserError::UnexpectedOperator(i))
-            | Err(ParserError::ExpectedClosingBracket(i))
-            | Err(ParserError::UnexpectedClosingBracket(i)) => Some(i),
+            Err(
+                ParserError::ExpectedOperator(i)
+                | ParserError::UnexpectedOperator(i)
+                | ParserError::ExpectedClosingBracket(i)
+                | ParserError::UnexpectedClosingBracket(i),
+            ) => Some(i),
             _ => None,
         };
 

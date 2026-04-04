@@ -1,6 +1,7 @@
+use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
-use b4n_list::{BasicFilterContext, Filterable, Row};
+use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tasks::PortForwardTask;
 use k8s_openapi::jiff::Timestamp;
 use std::{borrow::Cow, sync::atomic::Ordering};
@@ -21,6 +22,7 @@ pub struct PortForwardItem {
     active_sort: String,
     errors: String,
     errors_sort: String,
+    filter_metadata: SelectiveMap,
 }
 
 impl PortForwardItem {
@@ -29,6 +31,7 @@ impl PortForwardItem {
         let overall = task.statistics.overall_connections.load(Ordering::Relaxed);
         let active = task.statistics.active_connections.load(Ordering::Relaxed);
         let errors = task.statistics.connection_errors.load(Ordering::Relaxed);
+        let filter_metadata = get_filter_metadata(task);
 
         Self {
             uid: task.uuid.clone(),
@@ -45,6 +48,7 @@ impl PortForwardItem {
             active_sort: format!("{active:0>6}"),
             errors: errors.to_string(),
             errors_sort: format!("{errors:0>6}"),
+            filter_metadata,
         }
     }
 
@@ -104,12 +108,39 @@ impl Row for PortForwardItem {
     }
 }
 
-impl Filterable<BasicFilterContext> for PortForwardItem {
-    fn get_context(pattern: &str, _: Option<&str>) -> BasicFilterContext {
-        pattern.to_owned().into()
+/// Filtering context for [`PortForwardItem`].
+pub struct PortForwardFilterContext {
+    pattern: Option<Expression>,
+}
+
+impl FilterContext for PortForwardFilterContext {
+    fn restart(&mut self) {
+        // Empty implementation.
+    }
+}
+
+impl Filterable<PortForwardFilterContext> for PortForwardItem {
+    fn get_context(pattern: &str, _settings: Option<&str>) -> PortForwardFilterContext {
+        PortForwardFilterContext {
+            pattern: parse(pattern).ok(),
+        }
     }
 
-    fn is_matching(&self, context: &mut BasicFilterContext) -> bool {
-        self.name.contains(&context.pattern)
+    fn is_matching(&self, context: &mut PortForwardFilterContext) -> bool {
+        if let Some(expression) = &context.pattern {
+            self.filter_metadata.evaluate(expression)
+        } else {
+            false
+        }
     }
+}
+
+fn get_filter_metadata(task: &PortForwardTask) -> SelectiveMap {
+    let mut result = SelectiveMap::default()
+        .with("n", vec![task.resource.name.as_deref().unwrap_or_default().to_owned()])
+        .with_explicit("ns", vec![task.resource.namespace.as_str().to_owned()]);
+
+    result.set_optional("l");
+    result.set_optional("a");
+    result
 }

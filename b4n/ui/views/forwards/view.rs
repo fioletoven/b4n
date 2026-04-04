@@ -60,7 +60,13 @@ impl ForwardsView {
     }
 
     /// Sets filter on the port forwards list.
-    pub fn set_filter(&mut self) {
+    pub fn set_filter(&mut self, value: String) {
+        self.filter.set_value(value);
+        self.update_filter();
+    }
+
+    /// Updates filter on the port forwards list.
+    pub fn update_filter(&mut self) {
         let value = self.filter.value();
         self.header.show_filtered_icon(!value.is_empty());
         if value.is_empty() {
@@ -246,7 +252,7 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.filter.is_visible {
             self.filter.process_event(event);
-            self.set_filter();
+            self.update_filter();
             return ResponseEvent::Handled;
         }
 
@@ -314,7 +320,7 @@ impl View for ForwardsView {
 
         if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
             self.filter.reset();
-            self.set_filter();
+            self.update_filter();
             return ResponseEvent::Handled;
         }
 

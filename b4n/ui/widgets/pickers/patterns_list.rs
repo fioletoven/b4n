@@ -17,12 +17,12 @@ impl PatternsList {
     /// Creates new [`PatternsList`] instance from the filter history list.
     pub fn from(filter_history: &[HistoryItem], key_name: Option<&str>) -> Self {
         let description = key_name.map(|d| format!("{d} to insert"));
-        let mut list = ScrollableList::from(filter_history.iter().map(|p| p.into()).collect::<Vec<_>>());
+        let mut list = ScrollableList::from(filter_history.iter().map(Into::into).collect::<Vec<_>>());
         list.sort(1, false);
         Self { list, description }
     }
 
-    /// Adds pattern to the list or updates if it already exist.
+    /// Adds pattern to the list or updates if it already exists.
     pub fn add_or_update(&mut self, pattern: PatternItem) {
         if pattern.value.is_empty() {
             return;

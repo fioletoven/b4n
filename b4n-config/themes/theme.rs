@@ -227,6 +227,12 @@ impl Default for SelectColors {
     }
 }
 
+/// Represents colors for shell.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct ShellColors {
+    pub select: Color,
+}
+
 /// Represents colors for syntax highlighting.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
@@ -274,6 +280,7 @@ pub struct ThemeColors {
     pub modal: ModalColors,
     pub line: ResourceColors,
     pub line_cached: ResourceColors,
+    pub shell: ShellColors,
     pub syntax: SyntaxColors,
 }
 
@@ -316,6 +323,7 @@ impl Default for Theme {
                 modal: ModalColors::default(),
                 line: ResourceColors::default(),
                 line_cached: ResourceColors::cached(),
+                shell: ShellColors { select: Color::DarkGray },
                 syntax: SyntaxColors {
                     yaml: YamlSyntaxColors {
                         normal: TextColors::new(Color::DarkGray),
