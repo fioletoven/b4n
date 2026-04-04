@@ -302,8 +302,8 @@ pub struct HistoryItem {
     pub creation_time: SystemTime,
 }
 
-impl std::fmt::Display for HistoryItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for HistoryItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}::{}",
@@ -326,7 +326,7 @@ impl<'de> Deserialize<'de> for HistoryItem {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct HistoryItemVisitor;
 
-        impl<'de> Visitor<'de> for HistoryItemVisitor {
+        impl Visitor<'_> for HistoryItemVisitor {
             type Value = HistoryItem;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

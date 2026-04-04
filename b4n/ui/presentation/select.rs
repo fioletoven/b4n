@@ -141,6 +141,5 @@ fn is_word_char(screen: &Screen, x: u16, y: u16) -> bool {
     screen
         .cell(y, x)
         .and_then(|cell| cell.contents().chars().next())
-        .map(|ch| !ch.is_whitespace())
-        .unwrap_or(false)
+        .is_some_and(|ch| !ch.is_whitespace())
 }

@@ -238,10 +238,10 @@ pub struct FilterableListIterator<'a, T, Fc> {
 }
 
 enum IterInner<'a, T> {
-    All(std::slice::Iter<'a, T>),
+    All(Iter<'a, T>),
     Filtered {
         items: &'a [T],
-        indices: std::slice::Iter<'a, usize>,
+        indices: Iter<'a, usize>,
     },
 }
 
@@ -275,11 +275,11 @@ pub struct FilterableListIteratorMut<'a, T, Fc> {
 }
 
 enum IterMutInner<'a, T> {
-    All(std::slice::IterMut<'a, T>),
+    All(IterMut<'a, T>),
     Filtered {
         ptr: *mut T,
         len: usize,
-        indices: std::slice::Iter<'a, usize>,
+        indices: Iter<'a, usize>,
         _marker: PhantomData<&'a mut [T]>,
     },
 }
