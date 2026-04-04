@@ -234,6 +234,7 @@ impl ResourcesView {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
                 },
+                "pin_filter" => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
                 "create" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
@@ -285,6 +286,10 @@ impl ResourcesView {
             .with_action(
                 ActionItem::action("filter", "filter").with_description("shows resources filter input"),
                 Some(KeyCommand::FilterOpen),
+            )
+            .with_action(
+                ActionItem::action("pin filter", "pin_filter").with_description("toggles pin for resources filter"),
+                Some(KeyCommand::FilterPin),
             );
 
         if self.table.kind_plural() != NAMESPACES {
@@ -687,13 +692,16 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::FilterPin) && !self.filter.value().is_empty() {
-            if self.app_data.borrow().is_pinned {
-                self.app_data.borrow_mut().is_pinned = false;
-            } else {
-                self.app_data.borrow_mut().is_pinned = true;
-                self.app_data.borrow_mut().pinned_filter = Some(self.filter.value().to_owned());
+        if self.app_data.has_binding(event, KeyCommand::FilterPin) {
+            if !self.filter.value().is_empty() {
+                if self.app_data.borrow().is_pinned {
+                    self.app_data.borrow_mut().is_pinned = false;
+                } else {
+                    self.app_data.borrow_mut().is_pinned = true;
+                    self.app_data.borrow_mut().pinned_filter = self.filter.to_option();
+                }
             }
+            return ResponseEvent::Handled;
         }
 
         if !self.app_data.borrow().is_pinned

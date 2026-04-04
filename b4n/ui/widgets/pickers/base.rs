@@ -133,6 +133,12 @@ impl<B: PickerBehaviour> Picker<B> {
         self.is_visible = true;
     }
 
+    /// Copies `self` value into a new `Option`.
+    pub fn to_option(&self) -> Option<String> {
+        let value = self.patterns.value();
+        if value.is_empty() { None } else { Some(value.to_owned()) }
+    }
+
     /// Returns the current input value.
     pub fn value(&self) -> &str {
         self.patterns.value()

@@ -1,15 +1,16 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_list::{BasicFilterContext, Item};
+use b4n_list::Item;
 use b4n_tui::table::{Column, Header, ItemExt, NAMESPACE, TabularList, ViewType};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
 use delegate::delegate;
 use std::{collections::HashMap, rc::Rc};
 
-use super::PortForwardItem;
+use crate::ui::views::PortForwardItem;
+use crate::ui::views::forwards::PortForwardFilterContext;
 
 /// Port forward tasks list.
 pub struct PortForwardsList {
-    pub table: TabularList<PortForwardItem, BasicFilterContext>,
+    pub table: TabularList<PortForwardItem, PortForwardFilterContext>,
 }
 
 impl Default for PortForwardsList {

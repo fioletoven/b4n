@@ -544,11 +544,18 @@ impl ViewsManager {
 
     /// Shows port forwards view.
     pub fn show_port_forwards(&mut self) {
-        let view = ForwardsView::new(
+        let mut view = ForwardsView::new(
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             self.footer.get_transmitter(),
         );
+
+        if self.app_data.borrow().is_pinned
+            && let Some(filter) = self.app_data.borrow().pinned_filter.clone()
+        {
+            view.set_filter(filter);
+        }
+
         self.view = Some(Box::new(view));
     }
 
