@@ -117,6 +117,7 @@ impl ShellView {
         if let ResponseEvent::Action(action) = response {
             return match action {
                 "paste" => self.insert_from_clipboard(),
+                "copy" => self.copy_to_clipboard(),
                 "detach" => self.ask_close_shell_forcibly(),
                 _ => response,
             };
@@ -139,6 +140,23 @@ impl ShellView {
             }
         }
 
+        ResponseEvent::Handled
+    }
+
+    fn copy_to_clipboard(&mut self) -> ResponseEvent {
+        if let Ok(parser) = self.parser.read() {
+            if let Some((start, end)) = self.selection.sorted() {
+                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+            } else {
+                let text = parser.screen().contents();
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+            }
+        }
+
+        self.selection.reset();
         ResponseEvent::Handled
     }
 

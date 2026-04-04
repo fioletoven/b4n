@@ -1,9 +1,7 @@
 use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
-use ratatui::{
-    layout::{Position, Rect},
-    style::Color,
-    widgets::Widget,
-};
+use ratatui::layout::{Position, Rect};
+use ratatui::style::Color;
+use ratatui::widgets::Widget;
 use tui_term::vt100::Screen;
 
 /// Holds simple selection data for the TUI screen.
