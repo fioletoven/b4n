@@ -2,7 +2,7 @@ use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, Namespace, PODS};
-use b4n_tui::widgets::{Button, Dialog};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
@@ -16,6 +16,7 @@ use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
+use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
 use super::bridge::ShellBridge;
@@ -34,8 +35,9 @@ pub struct ShellView {
     size: TerminalSize,
     client: Client,
     pod: ContainerRef,
-    modal: Dialog,
     scrollback_rows: usize,
+    modal: Dialog,
+    command_palette: CommandPalette,
     selection: ScreenSelection,
     area: Rect,
     esc_count: u8,
@@ -80,8 +82,9 @@ impl ShellView {
             size: DEFAULT_SIZE,
             client: client.get_client(),
             pod,
-            modal: Dialog::default(),
             scrollback_rows: 0,
+            modal: Dialog::default(),
+            command_palette: CommandPalette::default(),
             selection,
             area: Rect::default(),
             esc_count: 0,
@@ -89,6 +92,37 @@ impl ShellView {
             clipboard_text: None,
             footer_tx,
         }
+    }
+
+    fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
+        if !self.app_data.borrow().is_connected() {
+            return ResponseEvent::Handled;
+        }
+
+        let is_selected = self.selection.sorted().is_some();
+        let copy = if is_selected { "selected" } else { "all" };
+        let builder = ActionsListBuilder::default()
+            .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
+            .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
+            .with_menu_action(ActionItem::menu(100, " detach shell", "detach"));
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
+
+        ResponseEvent::Handled
+    }
+
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let response = self.command_palette.process_event(event);
+        if let ResponseEvent::Action(action) = response {
+            return match action {
+                "paste" => self.insert_from_clipboard(),
+                "detach" => self.ask_close_shell_forcibly(),
+                _ => response,
+            };
+        }
+
+        response
     }
 
     /// Inserts clipboard text to the current shell session.\
@@ -100,6 +134,7 @@ impl ShellView {
                 self.clipboard_text = Some(text.replace("\r\n", "\n"));
                 self.ask_insert_from_clipboard();
             } else {
+                self.selection.reset();
                 self.bridge.send(text.into_bytes());
             }
         }
@@ -134,11 +169,13 @@ impl ShellView {
     }
 
     /// Displays a confirmation dialog to forcibly close the shell view.
-    fn ask_close_shell_forcibly(&mut self) {
+    fn ask_close_shell_forcibly(&mut self) -> ResponseEvent {
         if self.bridge.is_running() {
             self.modal = self.new_close_dialog();
             self.modal.show();
         }
+
+        ResponseEvent::Handled
     }
 
     /// Creates new close dialog.
@@ -225,9 +262,17 @@ impl View for ShellView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
+        }
+
         if self.modal.is_visible {
             return self.modal.process_event(event).when_action_then("paste", || {
                 if let Some(text) = self.clipboard_text.take() {
+                    self.selection.reset();
                     self.bridge.send(text.into_bytes());
                 }
                 ResponseEvent::Handled
@@ -235,8 +280,7 @@ impl View for ShellView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
-            self.ask_close_shell_forcibly();
-            return ResponseEvent::Handled;
+            return self.ask_close_shell_forcibly();
         }
 
         if let Ok(parser) = self.parser.read() {
@@ -247,7 +291,7 @@ impl View for ShellView {
             return match mouse.kind {
                 MouseEventKind::ScrollUp => self.set_scrollback(1, true),
                 MouseEventKind::ScrollDown => self.set_scrollback(1, false),
-                MouseEventKind::RightClick => self.insert_from_clipboard(),
+                MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
                 _ => ResponseEvent::NotHandled,
             };
         }
@@ -323,6 +367,7 @@ impl View for ShellView {
         }
 
         frame.render_widget(&self.selection, layout[1]);
+        self.command_palette.draw(frame, frame.area());
         self.modal.draw(frame, frame.area());
     }
 }

@@ -22,6 +22,13 @@ impl ScreenSelection {
         self
     }
 
+    /// Resets selection.
+    pub fn reset(&mut self) {
+        self.start = None;
+        self.end = None;
+        self.sorted = None;
+    }
+
     /// Returns sorted start and end for the current selection.
     pub fn sorted(&self) -> Option<(Position, Position)> {
         self.sorted
