@@ -252,7 +252,11 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.filter.is_visible {
             self.filter.process_event(event);
-            self.update_filter();
+            if self.filter.is_valid() {
+                self.update_filter();
+                self.filter.update_pinned_filter();
+            }
+
             return ResponseEvent::Handled;
         }
 
@@ -318,7 +322,11 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterPin) {
+            return self.filter.toggle_pin();
+        }
+
+        if self.filter.is_reset_filter_event(event) {
             self.filter.reset();
             self.update_filter();
             return ResponseEvent::Handled;

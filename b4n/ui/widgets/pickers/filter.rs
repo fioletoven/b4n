@@ -27,6 +27,39 @@ impl Filter {
         let behaviour = FilterBehaviour::new(Rc::clone(&app_data));
         Picker::new_picker(app_data, worker, width, behaviour)
     }
+
+    /// Toggles filter pin in shared app data.
+    pub fn toggle_pin(&mut self) -> ResponseEvent {
+        if !self.value().is_empty() {
+            if self.behaviour().app_data.borrow().is_pinned {
+                self.behaviour_mut().app_data.borrow_mut().is_pinned = false;
+            } else {
+                self.behaviour_mut().app_data.borrow_mut().is_pinned = true;
+                self.behaviour_mut().app_data.borrow_mut().pinned_filter = self.to_option();
+            }
+        }
+
+        ResponseEvent::Handled
+    }
+
+    /// If current filter is pinned, updates it.
+    pub fn update_pinned_filter(&mut self) {
+        if self.behaviour().app_data.borrow().is_pinned {
+            self.behaviour_mut().app_data.borrow_mut().pinned_filter = self.to_option();
+        }
+    }
+
+    /// Returns `true` if current filter value is valid.
+    pub fn is_valid(&self) -> bool {
+        self.behaviour().last_error.is_none()
+    }
+
+    /// Returns `true` if this is a `FilterReset` event and filter can be reset.
+    pub fn is_reset_filter_event(&self, event: &TuiEvent) -> bool {
+        !self.behaviour().app_data.borrow().is_pinned
+            && self.behaviour().app_data.has_binding(event, KeyCommand::FilterReset)
+            && !self.value().is_empty()
+    }
 }
 
 pub struct FilterBehaviour {

@@ -202,6 +202,7 @@ impl ViewsManager {
         let response = view.process_event(event);
         if response == ResponseEvent::Cancelled {
             self.view = None;
+            self.resources.process_external_view_close();
             return ResponseEvent::Handled;
         }
 
