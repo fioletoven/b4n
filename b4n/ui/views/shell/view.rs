@@ -74,6 +74,9 @@ impl ShellView {
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
 
+        let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+        footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to detach shell"));
+
         Self {
             app_data,
             header,
@@ -395,6 +398,7 @@ impl Drop for ShellView {
         self.bridge.stop();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
+        self.footer_tx.hide_hint();
     }
 }
 
