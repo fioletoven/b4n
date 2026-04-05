@@ -154,6 +154,22 @@ impl ActionsListBuilder {
         self
     }
 
+    /// Adds filter action.
+    pub fn with_filter_action(self, action: &'static str) -> Self {
+        self.with_action(
+            ActionItem::action("filter", action).with_description("shows resources filter input"),
+            Some(KeyCommand::FilterOpen),
+        )
+    }
+
+    /// Adds pin filter action.
+    pub fn with_pin_filter_action(self, action: &'static str) -> Self {
+        self.with_action(
+            ActionItem::action("pin filter", action).with_description("toggles pin for resources filter"),
+            Some(KeyCommand::FilterPin),
+        )
+    }
+
     /// Adds custom action.
     pub fn with_action(mut self, action: ActionItem, command: Option<KeyCommand>) -> Self {
         self.actions.push(action);

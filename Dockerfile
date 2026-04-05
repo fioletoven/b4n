@@ -7,7 +7,7 @@ WORKDIR /b4n
 COPY . .
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
-FROM alpine:3.22 AS runner
+FROM alpine:3.23 AS runner
 
 RUN apk add --no-cache ca-certificates \
     && addgroup -S b4ngroup && adduser -S b4nuser -G b4ngroup

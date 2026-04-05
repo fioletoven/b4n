@@ -390,10 +390,15 @@ impl ResourcesTable {
                         return self.process_view_ports(resource);
                     }
 
+                    if self.app_data.has_binding(event, KeyCommand::ContainerAttach) {
+                        return self.process_container_attach(resource);
+                    }
+
                     if self.app_data.has_binding(event, KeyCommand::ShellOpen) {
                         return self.process_open_shell(resource);
                     }
                 } else if self.app_data.has_binding(event, KeyCommand::PortForwardsCreate)
+                    || self.app_data.has_binding(event, KeyCommand::ContainerAttach)
                     || self.app_data.has_binding(event, KeyCommand::ShellOpen)
                 {
                     return self.process_enter_key(resource);
@@ -446,6 +451,11 @@ impl ResourcesTable {
         } else {
             ResponseEvent::ViewLogs(resource, containers)
         }
+    }
+
+    fn process_container_attach(&self, resource: &ResourceItem) -> ResponseEvent {
+        self.resource_ref_from(resource, true)
+            .map_or(ResponseEvent::NotHandled, ResponseEvent::AttachContainer)
     }
 
     fn process_open_shell(&self, resource: &ResourceItem) -> ResponseEvent {

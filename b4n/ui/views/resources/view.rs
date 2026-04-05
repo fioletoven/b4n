@@ -148,6 +148,16 @@ impl ResourcesView {
         self.table.list.update_error_state(has_api_error);
     }
 
+    /// Updates all elements that could change in external view.
+    pub fn process_external_view_close(&mut self) {
+        if self.app_data.borrow().is_pinned
+            && let Some(filter) = self.app_data.borrow().pinned_filter.clone()
+        {
+            self.filter.set_value(filter);
+            self.table.set_filter(self.filter.value());
+        }
+    }
+
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
         if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
@@ -246,6 +256,7 @@ impl ResourcesView {
                 "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
                 "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
                 "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
+                "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "port_forward" => {
                     self.last_mouse_click = event.position();
@@ -283,14 +294,8 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
-            .with_action(
-                ActionItem::action("filter", "filter").with_description("shows resources filter input"),
-                Some(KeyCommand::FilterOpen),
-            )
-            .with_action(
-                ActionItem::action("pin filter", "pin_filter").with_description("toggles pin for resources filter"),
-                Some(KeyCommand::FilterPin),
-            );
+            .with_filter_action("filter")
+            .with_pin_filter_action("pin_filter");
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_action(
@@ -359,6 +364,10 @@ impl ResourcesView {
                             .with_description("shows container previous logs")
                             .with_aliases(&["previous"]),
                         Some(KeyCommand::PreviousLogsOpen),
+                    )
+                    .with_action(
+                        ActionItem::action("attach", "attach").with_description("attaches to container main process"),
+                        Some(KeyCommand::ContainerAttach),
                     )
                     .with_action(
                         ActionItem::action("shell", "open_shell").with_description("opens container shell"),
@@ -669,9 +678,9 @@ impl View for ResourcesView {
 
         if self.filter.is_visible {
             let result = self.filter.process_event(event);
-            self.table.set_filter(self.filter.value());
-            if self.app_data.borrow().is_pinned {
-                self.app_data.borrow_mut().pinned_filter = self.table.filter().map(String::from);
+            if self.filter.is_valid() {
+                self.table.set_filter(self.filter.value());
+                self.filter.update_pinned_filter();
             }
 
             return result;
@@ -693,21 +702,10 @@ impl View for ResourcesView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::FilterPin) {
-            if !self.filter.value().is_empty() {
-                if self.app_data.borrow().is_pinned {
-                    self.app_data.borrow_mut().is_pinned = false;
-                } else {
-                    self.app_data.borrow_mut().is_pinned = true;
-                    self.app_data.borrow_mut().pinned_filter = self.filter.to_option();
-                }
-            }
-            return ResponseEvent::Handled;
+            return self.filter.toggle_pin();
         }
 
-        if !self.app_data.borrow().is_pinned
-            && self.app_data.has_binding(event, KeyCommand::FilterReset)
-            && !self.filter.value().is_empty()
-        {
+        if self.filter.is_reset_filter_event(event) {
             self.filter.reset();
             self.table.set_filter("");
             return ResponseEvent::Handled;

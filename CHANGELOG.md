@@ -7,11 +7,13 @@
 - add prefixes for resources view filtering (`ns:` namespace, `n:` name, `a:` annotations, `l:` labels)
 - pin active filter across resources with `Ctrl+P`
 - validate and remember manually entered namespaces
-- allow selecting and copying text in shell view when mouse support is enabled
+- add attach command for containers
+- allow selecting and copying text in shell and attach view when mouse support is enabled
 
 ### Bug fixes
 
 - run save configuration tasks sequentially
+- fix pasting clipboard text containing non-ASCII characters
 
 ### Compatibility
 

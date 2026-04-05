@@ -276,7 +276,7 @@ fn insert_line(lines: &mut Vec<String>, position: ContentPosition, text: String)
     if let Some(line) = lines.get_mut(position.y) {
         if let Some(x) = char_to_index(line, position.x) {
             line.insert_str(x, &text);
-            return ContentPosition::new(x + text_len, position.y);
+            return ContentPosition::new(position.x + text_len, position.y);
         }
 
         line.push_str(&text);

@@ -84,7 +84,9 @@ impl ForwardsView {
     fn show_command_palette(&mut self) {
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_back()
-            .with_quit();
+            .with_quit()
+            .with_filter_action("filter")
+            .with_pin_filter_action("pin_filter");
 
         if !self.list.table.is_empty() {
             builder.add_action(
@@ -201,6 +203,35 @@ impl ForwardsView {
             .table
             .get_mouse_menu_position(line_no, resource_name, self.list.area)
     }
+
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match self.command_palette.process_event(event) {
+            ResponseEvent::ChangeKind(kind) => {
+                self.is_closing = true;
+                ResponseEvent::ChangeKind(kind)
+            },
+            ResponseEvent::Action("stop_selected") => {
+                self.last_mouse_click = event.position();
+                self.ask_stop_port_forwards();
+                ResponseEvent::Handled
+            },
+            ResponseEvent::Action("cleanup") => {
+                self.last_mouse_click = event.position();
+                self.ask_stop_stale_port_forwards();
+                ResponseEvent::Handled
+            },
+            ResponseEvent::Action("palette") => {
+                self.last_mouse_click = event.position();
+                self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
+            },
+            ResponseEvent::Action("filter") => {
+                self.last_mouse_click = event.position();
+                self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
+            },
+            ResponseEvent::Action("pin_filter") => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
+            response_event => response_event,
+        }
+    }
 }
 
 impl View for ForwardsView {
@@ -252,7 +283,11 @@ impl View for ForwardsView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.filter.is_visible {
             self.filter.process_event(event);
-            self.update_filter();
+            if self.filter.is_valid() {
+                self.update_filter();
+                self.filter.update_pinned_filter();
+            }
+
             return ResponseEvent::Handled;
         }
 
@@ -268,27 +303,9 @@ impl View for ForwardsView {
         }
 
         if self.command_palette.is_visible {
-            match self.command_palette.process_event(event) {
-                ResponseEvent::ChangeKind(kind) => {
-                    self.is_closing = true;
-                    return ResponseEvent::ChangeKind(kind);
-                },
-                ResponseEvent::Action("stop_selected") => {
-                    self.last_mouse_click = event.position();
-                    self.ask_stop_port_forwards();
-                    return ResponseEvent::Handled;
-                },
-                ResponseEvent::Action("cleanup") => {
-                    self.last_mouse_click = event.position();
-                    self.ask_stop_stale_port_forwards();
-                    return ResponseEvent::Handled;
-                },
-                ResponseEvent::Action("palette") => {
-                    self.last_mouse_click = event.position();
-                    return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
-                },
-                ResponseEvent::NotHandled => (),
-                response_event => return response_event,
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
             }
         }
 
@@ -318,7 +335,11 @@ impl View for ForwardsView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::FilterReset) && !self.filter.value().is_empty() {
+        if self.app_data.has_binding(event, KeyCommand::FilterPin) {
+            return self.filter.toggle_pin();
+        }
+
+        if self.filter.is_reset_filter_event(event) {
             self.filter.reset();
             self.update_filter();
             return ResponseEvent::Handled;

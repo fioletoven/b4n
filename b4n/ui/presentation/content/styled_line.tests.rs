@@ -128,6 +128,23 @@ into the yaml_ationTimestamp: 2025-08-27T19:31:08Z
 }
 
 #[test]
+fn insert_unicode_test() {
+    let styles = StyleFallback {
+        excluded: Style::default(),
+        fallback: Style::default(),
+    };
+    let mut actual = get_styled_text("metadata:");
+
+    let to_insert = vec!["ąęśćńółź".to_owned()];
+
+    actual.insert_text(ContentPosition::new(3, 0), &to_insert, &styles);
+    assert_eq!("metąęśćńółźadata:", actual.to_string());
+
+    actual.insert_text(ContentPosition::new(11, 0), &to_insert, &styles);
+    assert_eq!("metąęśćńółźąęśćńółźadata:", actual.to_string());
+}
+
+#[test]
 fn insert_text_line_end_test() {
     let styles = StyleFallback {
         excluded: Style::default(),

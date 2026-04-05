@@ -29,6 +29,7 @@ define_key_commands! {
         ApplicationExit => "app.exit" @ "Ctrl+C",
         CommandPaletteOpen => "command-palette.open" @ ":", ">", "Shift+:", "Shift+>",
         CommandPaletteReset => "command-palette.close" @ "Esc",
+        ContainerAttach => "container.attach" @ "A",
         ContentCopy => "content.copy" @ "C",
         EventsShow => "events.show" @ "E",
         FilterOpen => "filter.open" @ "/", "Shift+/",
