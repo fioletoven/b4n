@@ -10,7 +10,6 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 use tui_term::vt100::{self};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
@@ -21,6 +20,7 @@ pub struct ShellBridge {
     input_tx: Option<UnboundedSender<Vec<u8>>>,
     size_tx: Option<UnboundedSender<TerminalSize>>,
     parser: Arc<RwLock<vt100::Parser>>,
+    is_attach: bool,
     has_error: Arc<AtomicBool>,
     is_running: Arc<AtomicBool>,
     was_started: bool,
@@ -29,7 +29,7 @@ pub struct ShellBridge {
 
 impl ShellBridge {
     /// Creates new [`ShellBridge`] instance.
-    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>) -> Self {
+    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>, is_attach: bool) -> Self {
         Self {
             runtime,
             task: None,
@@ -37,6 +37,7 @@ impl ShellBridge {
             input_tx: None,
             size_tx: None,
             parser,
+            is_attach,
             has_error: Arc::new(AtomicBool::new(false)),
             is_running: Arc::new(AtomicBool::new(false)),
             was_started: false,
@@ -46,7 +47,7 @@ impl ShellBridge {
 
     /// Starts new shell process.\
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, client: Client, pod: ContainerRef, shell: impl Into<String>) {
+    pub fn start(&mut self, client: Client, pod: ContainerRef, shell: impl Into<String>, size: TerminalSize) {
         self.stop();
 
         let cancellation_token = CancellationToken::new();
@@ -65,6 +66,7 @@ impl ShellBridge {
         self.has_error.store(false, Ordering::Relaxed);
         let _has_error = Arc::clone(&self.has_error);
         let _is_running = Arc::clone(&self.is_running);
+        let _is_attach = self.is_attach;
 
         let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
@@ -73,18 +75,47 @@ impl ShellBridge {
                 attach_params = attach_params.container(container.clone());
             }
 
-            let mut attached = match api.exec(&pod.name, vec![_shell], &attach_params).await {
+            let attach_result = if _is_attach {
+                api.attach(&pod.name, &attach_params).await
+            } else {
+                api.exec(&pod.name, vec![_shell], &attach_params).await
+            };
+
+            let mut attached = match attach_result {
                 Ok(attached) => attached,
                 Err(err) => {
-                    warn!("Cannot attach to the pod's shell: {}", err);
+                    if _is_attach {
+                        tracing::warn!("Cannot attach to the pod's main process: {}", err);
+                    } else {
+                        tracing::warn!("Cannot attach to the pod's shell: {}", err);
+                    }
                     _has_error.store(true, Ordering::Relaxed);
                     return;
                 },
             };
 
-            let stdin = attached.stdin().unwrap();
-            let stdout = attached.stdout().unwrap();
-            let tty_resize = attached.terminal_size().unwrap();
+            let Some(stdin) = attached.stdin() else {
+                let name = attach_params.container.as_deref().unwrap_or("unknown");
+                tracing::warn!("Unable to use an stdin for container '{}'", name);
+                _has_error.store(true, Ordering::Relaxed);
+                return;
+            };
+            let Some(stdout) = attached.stdout() else {
+                let name = attach_params.container.as_deref().unwrap_or("unknown");
+                tracing::warn!("Unable to use an stdout for container '{}'", name);
+                _has_error.store(true, Ordering::Relaxed);
+                return;
+            };
+            let Some(tty_resize) = attached.terminal_size() else {
+                let name = attach_params.container.as_deref().unwrap_or("unknown");
+                tracing::warn!("Unable to use a TTY for container '{}'", name);
+                _has_error.store(true, Ordering::Relaxed);
+                return;
+            };
+
+            if _is_attach {
+                _is_running.store(true, Ordering::Relaxed);
+            }
 
             let ((), output_closed_too_soon, ()) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
@@ -95,6 +126,10 @@ impl ShellBridge {
             _is_running.store(false, Ordering::Relaxed);
             _has_error.store(output_closed_too_soon, Ordering::Relaxed);
         });
+
+        if let Some(tx) = &self.size_tx {
+            let _ = tx.send(size);
+        }
 
         self.cancellation_token = Some(cancellation_token);
         self.task = Some(task);
@@ -121,7 +156,7 @@ impl ShellBridge {
             && let Some(tx) = &self.input_tx
             && let Err(err) = tx.send(data)
         {
-            warn!("Cannot send data to the attached process: {}", err);
+            tracing::warn!("Cannot send data to the attached process: {}", err);
         }
     }
 
@@ -171,12 +206,12 @@ async fn input_bridge(
             () = cancellation_token.cancelled() => (),
             Some(input) = input_rx.recv() => {
                 if let Err(err) = stdin.write_all(&input[..]).await {
-                    warn!("Cannot write to the attached process stdin: {}", err);
+                    tracing::warn!("Cannot write to the attached process stdin: {}", err);
                     cancellation_token.cancel();
                     return;
                 }
                 if let Err(err) = stdin.flush().await {
-                    warn!("Cannot flush the attached process stdin: {}", err);
+                    tracing::warn!("Cannot flush the attached process stdin: {}", err);
                     cancellation_token.cancel();
                     return;
                 }
@@ -228,7 +263,7 @@ async fn resize_bridge(
             () = cancellation_token.cancelled() => (),
             Some(size) = receiver.recv() => {
                 if let Err(err) = sender.send(size).await {
-                    warn!("Cannot resize the attached process tty: {}", err);
+                    tracing::warn!("Cannot resize the attached process tty: {}", err);
                 }
             },
         }

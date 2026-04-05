@@ -256,6 +256,7 @@ impl ResourcesView {
                 "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
                 "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
                 "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
+                "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "port_forward" => {
                     self.last_mouse_click = event.position();
@@ -363,6 +364,10 @@ impl ResourcesView {
                             .with_description("shows container previous logs")
                             .with_aliases(&["previous"]),
                         Some(KeyCommand::PreviousLogsOpen),
+                    )
+                    .with_action(
+                        ActionItem::action("attach", "attach").with_description("attaches to container main process"),
+                        Some(KeyCommand::ContainerAttach),
                     )
                     .with_action(
                         ActionItem::action("shell", "open_shell").with_description("opens container shell"),

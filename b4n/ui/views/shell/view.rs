@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{ContainerRef, Namespace, PODS};
+use b4n_kube::{ContainerRef, PODS};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -43,6 +43,7 @@ pub struct ShellView {
     esc_count: u8,
     esc_time: Instant,
     clipboard_text: Option<String>,
+    is_attach: bool,
     footer_tx: NotificationSink,
 }
 
@@ -52,15 +53,18 @@ impl ShellView {
         runtime: Handle,
         app_data: SharedAppData,
         client: &KubernetesClient,
-        pod_name: String,
-        pod_namespace: Namespace,
-        pod_container: Option<String>,
+        pod: ContainerRef,
+        is_attach: bool,
         footer_tx: NotificationSink,
     ) -> Self {
-        let pod = ContainerRef::simple(pod_name.clone(), pod_namespace.clone(), pod_container.clone());
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(" shell");
-        header.set_data(pod_namespace, PODS.into(), Some(pod_name), pod_container);
+        header.set_title(if is_attach { " attach" } else { " shell" });
+        header.set_data(
+            pod.namespace.clone(),
+            PODS.into(),
+            Some(pod.name.clone()),
+            pod.container.clone(),
+        );
 
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let parser = Arc::new(RwLock::new(vt100::Parser::new(
@@ -68,14 +72,15 @@ impl ShellView {
             DEFAULT_SIZE.width,
             SCROLLBACK_LEN,
         )));
-        let mut bridge = ShellBridge::new(runtime, parser.clone());
-        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL);
+        let mut bridge = ShellBridge::new(runtime, parser.clone(), is_attach);
+        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, DEFAULT_SIZE);
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
 
         let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-        footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to detach shell"));
+        let action = if is_attach { "close attach view" } else { "detach shell" };
+        footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
 
         Self {
             app_data,
@@ -93,6 +98,7 @@ impl ShellView {
             esc_count: 0,
             esc_time: Instant::now(),
             clipboard_text: None,
+            is_attach,
             footer_tx,
         }
     }
@@ -104,10 +110,11 @@ impl ShellView {
 
         let is_selected = self.selection.sorted().is_some();
         let copy = if is_selected { "selected" } else { "all" };
+        let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-            .with_menu_action(ActionItem::menu(100, " detach shell", "detach"));
+            .with_menu_action(ActionItem::menu(100, detach, "detach"));
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
@@ -121,7 +128,13 @@ impl ShellView {
             return match action {
                 "paste" => self.insert_from_clipboard(),
                 "copy" => self.copy_to_clipboard(),
-                "detach" => self.ask_close_shell_forcibly(),
+                "detach" => {
+                    if self.is_attach {
+                        ResponseEvent::Cancelled
+                    } else {
+                        self.ask_close_shell_forcibly()
+                    }
+                },
                 _ => response,
             };
         }
@@ -132,6 +145,10 @@ impl ShellView {
     /// Inserts clipboard text to the current shell session.\
     /// **Note** that it displays a confirmation dialog instead if the clipboard text contains multiple lines.
     fn insert_from_clipboard(&mut self) -> ResponseEvent {
+        if !self.bridge.is_running() {
+            return ResponseEvent::Handled;
+        }
+
         let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
         if let Some(text) = text {
             if text.contains('\n') {
@@ -147,6 +164,10 @@ impl ShellView {
     }
 
     fn copy_to_clipboard(&mut self) -> ResponseEvent {
+        if !self.bridge.is_running() {
+            return ResponseEvent::Handled;
+        }
+
         if let Ok(parser) = self.parser.read() {
             if let Some((start, end)) = self.selection.sorted() {
                 let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
@@ -260,14 +281,16 @@ impl View for ShellView {
     fn process_tick(&mut self) -> ResponseEvent {
         if self.bridge.is_finished() {
             // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
-            if self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
-                self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL);
+            if !self.is_attach && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
+                self.bridge
+                    .start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, DEFAULT_SIZE);
                 self.size = DEFAULT_SIZE;
                 ResponseEvent::Handled
             } else {
                 if self.bridge.has_error() {
+                    let kind = if self.is_attach { "main" } else { "shell" };
                     self.footer_tx.show_error(
-                        "Unable to attach to the shell process of the selected container",
+                        format!("Unable to attach to the {kind} process of the selected container"),
                         DEFAULT_ERROR_DURATION,
                     );
                 }
@@ -301,7 +324,11 @@ impl View for ShellView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
-            return self.ask_close_shell_forcibly();
+            return if self.is_attach {
+                ResponseEvent::Cancelled
+            } else {
+                self.ask_close_shell_forcibly()
+            };
         }
 
         if let Ok(parser) = self.parser.read() {
@@ -366,28 +393,27 @@ impl View for ShellView {
 
         self.header.draw(frame, layout[0]);
 
-        if !self.bridge.is_running() {
-            return;
+        if self.bridge.is_running() {
+            if (self.size.width != layout[1].width || self.size.height != layout[1].height)
+                && let Ok(mut parser) = self.parser.write()
+            {
+                parser.screen_mut().set_size(layout[1].height, layout[1].width);
+                self.bridge.set_terminal_size(layout[1].width, layout[1].height);
+                self.size = TerminalSize {
+                    width: layout[1].width,
+                    height: layout[1].height,
+                };
+            }
+
+            if let Ok(parser) = self.parser.read() {
+                let screen = parser.screen();
+                let pseudo_term = PseudoTerminal::new(screen);
+                frame.render_widget(pseudo_term, layout[1]);
+            }
+
+            frame.render_widget(&self.selection, layout[1]);
         }
 
-        if (self.size.width != layout[1].width || self.size.height != layout[1].height)
-            && let Ok(mut parser) = self.parser.write()
-        {
-            parser.screen_mut().set_size(layout[1].height, layout[1].width);
-            self.bridge.set_terminal_size(layout[1].width, layout[1].height);
-            self.size = TerminalSize {
-                width: layout[1].width,
-                height: layout[1].height,
-            };
-        }
-
-        if let Ok(parser) = self.parser.read() {
-            let screen = parser.screen();
-            let pseudo_term = PseudoTerminal::new(screen);
-            frame.render_widget(pseudo_term, layout[1]);
-        }
-
-        frame.render_widget(&self.selection, layout[1]);
         self.command_palette.draw(frame, frame.area());
         self.modal.draw(frame, frame.area());
     }

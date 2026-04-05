@@ -521,17 +521,16 @@ impl ViewsManager {
         }
     }
 
-    /// Opens shell for the specified container.
-    pub fn open_shell(&mut self, resource: ResourceRef) {
+    /// Opens shell / attach to the main process of the specified container.
+    pub fn open_shell(&mut self, resource: ResourceRef, is_attach: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client() {
             self.footer().hide_hint();
             let view = ShellView::new(
                 self.worker.borrow().runtime_handle().clone(),
                 Rc::clone(&self.app_data),
                 client,
-                resource.name.unwrap_or_default(),
-                resource.namespace,
-                resource.container,
+                resource.into(),
+                is_attach,
                 self.footer.get_transmitter(),
             );
             self.view = Some(Box::new(view));

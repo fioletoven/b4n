@@ -77,6 +77,7 @@ pub enum ResponseEvent {
     ViewLogs(ResourceRef, Option<Vec<ResourceTag>>),
     ViewPreviousLogs(ResourceRef, Option<Vec<ResourceTag>>),
 
+    AttachContainer(ResourceRef),
     OpenShell(ResourceRef),
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),

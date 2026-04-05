@@ -47,6 +47,12 @@ impl ContainerRef {
     }
 }
 
+impl From<ResourceRef> for ContainerRef {
+    fn from(value: ResourceRef) -> Self {
+        Self::simple(value.name.unwrap_or_default(), value.namespace, value.container)
+    }
+}
+
 /// Points to the specific kubernetes resource.\
 /// **Note** that it can also point to the specific container or all containers in a pod.
 #[derive(Default, Debug, Clone, PartialEq)]
