@@ -293,14 +293,8 @@ impl ResourcesView {
         let mut builder = ActionsListBuilder::from_kinds(self.app_data.borrow().kinds.as_deref())
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
-            .with_action(
-                ActionItem::action("filter", "filter").with_description("shows resources filter input"),
-                Some(KeyCommand::FilterOpen),
-            )
-            .with_action(
-                ActionItem::action("pin filter", "pin_filter").with_description("toggles pin for resources filter"),
-                Some(KeyCommand::FilterPin),
-            );
+            .with_filter_action("filter")
+            .with_pin_filter_action("pin_filter");
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_action(
