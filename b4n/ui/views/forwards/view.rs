@@ -124,7 +124,12 @@ impl ForwardsView {
                 builder.add_menu_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
             }
 
-            builder.add_menu_action(ActionItem::menu(2, " stop ␝stale␝", "cleanup"));
+            let caption = if self.list.table.is_filtered() {
+                " stop ␝stale []␝"
+            } else {
+                " stop ␝stale␝"
+            };
+            builder.add_menu_action(ActionItem::menu(2, caption, "cleanup"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
@@ -174,19 +179,32 @@ impl ForwardsView {
         }
     }
 
-    /// Stops all stale port forwarding rules.
+    /// Stops stale port forwarding rules.\
+    /// **Note** that it stops only visible (full or filtered list) tasks.
     fn stop_stale_port_forwards(&mut self) {
-        self.worker.borrow_mut().stop_stale_port_forwards();
-        self.footer_tx
-            .show_info("All stale port forwarding rules have been stopped", 3_000);
+        if !self.list.table.is_filtered() && self.namespace.is_all() {
+            self.worker.borrow_mut().stop_stale_port_forwards(None);
+            self.footer_tx
+                .show_info("All stale port forwarding rules have been stopped", 3_000);
+        } else {
+            let filtered = Some(self.list.table.to_container_vec());
+            self.worker.borrow_mut().stop_stale_port_forwards(filtered.as_deref());
+            self.footer_tx
+                .show_info("Stale port forwarding rules stopped for pods in current view", 3_000);
+        };
     }
 
     /// Creates new cleanup stale pods dialog.
     fn new_cleanup_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
+        let kind = if !self.list.table.is_filtered() && self.namespace.is_all() {
+            "all"
+        } else {
+            "visible"
+        };
 
         Dialog::new(
-            "Are you sure you want to stop all port forwarding rules for pods that no longer exist? ".to_owned(),
+            format!("Are you sure you want to stop {kind} port forwarding rules for pods that no longer exist? "),
             vec![
                 Button::new("Stop", ResponseEvent::Action("cleanup"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
@@ -254,10 +272,23 @@ impl View for ForwardsView {
     }
 
     fn handle_namespace_change(&mut self) {
-        (self.namespace, self.list.view) = get_current_namespace(&self.app_data);
+        let (namespace, view) = get_current_namespace(&self.app_data);
+        if self.namespace == namespace {
+            return;
+        }
+
+        self.namespace = namespace;
+        self.list.view = view;
         self.list
             .table
             .update(self.worker.borrow_mut().get_port_forwards_list(&self.namespace));
+
+        if !self.app_data.borrow().is_pinned {
+            self.set_filter(String::new());
+        } else {
+            self.update_filter();
+        }
+
         self.header.set_count(self.list.table.len());
         self.header.set_namespace(self.namespace.as_option());
     }

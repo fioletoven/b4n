@@ -1,10 +1,11 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::stats::SharedStatistics;
-use b4n_kube::{PODS, ResourceRef};
+use b4n_kube::stats::{SharedStatistics, Statistics};
+use b4n_kube::{ContainerRef, PODS, ResourceRef};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::jiff::Timestamp;
 use kube::Api;
+use std::cell::Ref;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -147,15 +148,11 @@ impl PortForwarder {
         while self.events_rx.try_recv().is_ok() {}
     }
 
-    /// Stops all tasks for pods that are not on the statistics list.
-    pub fn stop_stale_pod_tasks(&mut self, statistics: &SharedStatistics) {
+    /// Stops all (or from specified list) port forwarding tasks for pods that no longer exist.
+    pub fn stop_stale_pod_tasks(&mut self, filtered: Option<&[ContainerRef]>, statistics: &SharedStatistics) {
         let statistics = statistics.borrow();
         for task in &mut self.tasks {
-            if !statistics.exists(
-                task.resource.name.as_deref().unwrap_or_default(),
-                task.resource.namespace.as_str(),
-                task.resource.container.as_deref(),
-            ) {
+            if task.is_in_filter(filtered) && !task.exists_in_statistics(&statistics) {
                 task.cancel();
             }
         }
@@ -279,6 +276,26 @@ impl PortForwardTask {
     fn stop(&mut self) {
         self.cancel();
         b4n_common::tasks::wait_for_task(self.task.take(), "port forward");
+    }
+
+    /// Returns `true` if task is on the specified list.\
+    /// **Note** that it returns also `true` if list is `None`.
+    fn is_in_filter(&self, list: Option<&[ContainerRef]>) -> bool {
+        list.is_none_or(|l| l.iter().any(|i| self.matches_ref(i)))
+    }
+
+    fn exists_in_statistics(&self, statistics: &Ref<'_, Statistics>) -> bool {
+        statistics.exists(
+            self.resource.name.as_deref().unwrap_or_default(),
+            self.resource.namespace.as_str(),
+            self.resource.container.as_deref(),
+        )
+    }
+
+    fn matches_ref(&self, i: &ContainerRef) -> bool {
+        i.name == self.resource.name.as_deref().unwrap_or_default()
+            && i.namespace == self.resource.namespace
+            && i.container == self.resource.container
     }
 }
 
