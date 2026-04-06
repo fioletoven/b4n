@@ -31,24 +31,27 @@ The resulting binary will be available at `./target/release/b4n`.
 
 The following features are currently supported:
 
-- View a list of Kubernetes resources.
+- View and filter a list of Kubernetes resources.
 - Create, read, update and delete Kubernetes resources.
 - View events for the highlighted resource.
 - View logs for the highlighted pod or container.
-- Open a shell session in the highlighted container.
+- Open a shell session / attach to the highlighted container main process.
 - Enable port forwarding for the highlighted container.
+- Mouse support in all views.
 
 ### Planned
 
 The following features are planned for future development:
 
-- Allow custom commands (simple plugin system to run external binaries).
+- File transfer from / to a pod.
+- Custom commands (simple plugin system to run external binaries).
 - Describe Kubernetes resources.
 
 ## Default Key Bindings
 
 | Action                                    | Command         | Comments                                                    |
 |:------------------------------------------|:----------------|:------------------------------------------------------------|
+| Attach to the container's main process    | `a`             | Works only in containers view                               |
 | Attach to the container's shell           | `s`             | Works only in containers view                               |
 | Copy YAML / logs / resources to clipboard | `c`             | Works only in YAML, logs and resources views                |
 | Create new resource                       | `n`             |                                                             |
@@ -60,7 +63,8 @@ The following features are planned for future development:
 | Navigate to the involved object           | `i`             | Works only for `events` kind                                |
 | Open / switch to the edit mode            | `i`             | Press `Esc` to exit, then `Esc` for save dialog             |
 | Open right mouse button menu              | `m`             | Navigate using `↑` or `↓`                                   |
-| Quit the application                      | `CTRL` + `c`    |                                                             |
+| Pin active filter across resources        | `CTRL` + `p`    | Works also in the filter dialog                             |
+| Quit the application                      | `CTRL` + `c`    | No confirmation dialog                                      |
 | Reverse selection                         | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Select resource                           | ` `             | (`SPACE`)                                                   |
 | Show / hide log timestamps                | `t`             | Works only in logs view                                     |
@@ -115,7 +119,8 @@ contexts:
   production: '#d8d8d8:#e1140a'
 aliases:
   daemonsets: ds,dms
-  namespaces: ns
+  namespace: nn
+  namespaces: ns,na,nam
   services: svc
 key_bindings:
   action.name: list of key bindings for that action
