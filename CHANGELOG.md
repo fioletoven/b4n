@@ -14,7 +14,7 @@
 
 - run save configuration tasks sequentially
 - fix pasting clipboard text containing non-ASCII characters
-- preserve filter on ports forward list update
+- preserve filter on port forward list update
 
 ### Compatibility
 

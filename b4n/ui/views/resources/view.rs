@@ -4,7 +4,7 @@ use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
+use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -277,10 +277,8 @@ impl ResourcesView {
             let actions = ActionsListBuilder::default()
                 .with_resources_actions(false)
                 .build(Some(&self.app_data.borrow().key_bindings));
-            self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
-                .with_highlighted_position(self.last_mouse_click.take());
-            self.command_palette.show();
-            self.footer_tx.hide_hint();
+
+            self.open_command_palette(actions);
             return;
         }
 
@@ -340,70 +338,84 @@ impl ResourcesView {
         }
 
         if is_highlighted {
-            builder.add_action(
-                ActionItem::action("show YAML", "show_yaml")
-                    .with_description(if is_containers {
-                        "shows YAML of the container's resource"
-                    } else {
-                        "shows YAML of the highlighted resource"
-                    })
-                    .with_aliases(&["yaml", "yml", "view"]),
-                Some(KeyCommand::YamlOpen),
-            );
-
+            builder = self.add_resource_actions(builder, is_containers);
             if is_containers || is_pods {
-                builder = builder
-                    .with_action(
-                        ActionItem::action("show logs", "show_logs")
-                            .with_description("shows container logs")
-                            .with_aliases(&["logs"]),
-                        Some(KeyCommand::LogsOpen),
-                    )
-                    .with_action(
-                        ActionItem::action("show previous logs", "show_plogs")
-                            .with_description("shows container previous logs")
-                            .with_aliases(&["previous"]),
-                        Some(KeyCommand::PreviousLogsOpen),
-                    )
-                    .with_action(
-                        ActionItem::action("attach", "attach").with_description("attaches to container main process"),
-                        Some(KeyCommand::ContainerAttach),
-                    )
-                    .with_action(
-                        ActionItem::action("shell", "open_shell").with_description("opens container shell"),
-                        Some(KeyCommand::ShellOpen),
-                    )
-                    .with_action(
-                        ActionItem::action("forward port", "port_forward")
-                            .with_description("forwards container port")
-                            .with_aliases(&["port", "pf"]),
-                        Some(KeyCommand::PortForwardsCreate),
-                    );
-            }
-
-            if self.table.kind_plural() == SECRETS {
-                builder.add_action(
-                    ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML of the highlighted secret"),
-                    Some(KeyCommand::YamlDecode),
-                );
-            }
-
-            if self.table.list.table.data.is_editable {
-                builder.add_action(
-                    ActionItem::action("edit YAML", "edit_yaml")
-                        .with_description("displays YAML and switches to edit mode")
-                        .with_aliases(&["yaml", "yml", "patch"]),
-                    Some(KeyCommand::YamlEdit),
-                );
+                builder = Self::add_container_actions(builder);
             }
         }
 
         builder = builder.with_aliases(&self.app_data.borrow().config.aliases);
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+
+        self.open_command_palette(actions);
+    }
+
+    fn open_command_palette(&mut self, actions: ActionsList) {
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
         self.footer_tx.hide_hint();
+    }
+
+    fn add_resource_actions(&self, mut builder: ActionsListBuilder, is_containers: bool) -> ActionsListBuilder {
+        builder.add_action(
+            ActionItem::action("show YAML", "show_yaml")
+                .with_description(if is_containers {
+                    "shows YAML of the container's resource"
+                } else {
+                    "shows YAML of the highlighted resource"
+                })
+                .with_aliases(&["yaml", "yml", "view"]),
+            Some(KeyCommand::YamlOpen),
+        );
+
+        if self.table.kind_plural() == SECRETS {
+            builder.add_action(
+                ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML of the highlighted secret"),
+                Some(KeyCommand::YamlDecode),
+            );
+        }
+
+        if self.table.list.table.data.is_editable {
+            builder.add_action(
+                ActionItem::action("edit YAML", "edit_yaml")
+                    .with_description("displays YAML and switches to edit mode")
+                    .with_aliases(&["yaml", "yml", "patch"]),
+                Some(KeyCommand::YamlEdit),
+            );
+        }
+
+        builder
+    }
+
+    fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
+        builder
+            .with_action(
+                ActionItem::action("show logs", "show_logs")
+                    .with_description("shows container logs")
+                    .with_aliases(&["logs"]),
+                Some(KeyCommand::LogsOpen),
+            )
+            .with_action(
+                ActionItem::action("show previous logs", "show_plogs")
+                    .with_description("shows container previous logs")
+                    .with_aliases(&["previous"]),
+                Some(KeyCommand::PreviousLogsOpen),
+            )
+            .with_action(
+                ActionItem::action("attach", "attach").with_description("attaches to container main process"),
+                Some(KeyCommand::ContainerAttach),
+            )
+            .with_action(
+                ActionItem::action("shell", "open_shell").with_description("opens container shell"),
+                Some(KeyCommand::ShellOpen),
+            )
+            .with_action(
+                ActionItem::action("forward port", "port_forward")
+                    .with_description("forwards container port")
+                    .with_aliases(&["port", "pf"]),
+                Some(KeyCommand::PortForwardsCreate),
+            )
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {

@@ -191,7 +191,7 @@ impl ForwardsView {
             self.worker.borrow_mut().stop_stale_port_forwards(filtered.as_deref());
             self.footer_tx
                 .show_info("Stale port forwarding rules stopped for pods in current view", 3_000);
-        };
+        }
     }
 
     /// Creates new cleanup stale pods dialog.
@@ -283,10 +283,10 @@ impl View for ForwardsView {
             .table
             .update(self.worker.borrow_mut().get_port_forwards_list(&self.namespace));
 
-        if !self.app_data.borrow().is_pinned {
-            self.set_filter(String::new());
-        } else {
+        if self.app_data.borrow().is_pinned {
             self.update_filter();
+        } else {
+            self.set_filter(String::new());
         }
 
         self.header.set_count(self.list.table.len());
