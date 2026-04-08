@@ -5,10 +5,8 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::tasks::run_command;
+use crate::tasks::{PendingTask, run_command};
 use crate::{BgTask, TaskResult, commands::Command};
-
-type SequentialTask = (String, Command, CancellationToken);
 
 /// Background commands executor.
 pub struct BgExecutor {
@@ -19,7 +17,7 @@ pub struct BgExecutor {
     sequential_worker: Option<JoinHandle<()>>,
     sequential_token: CancellationToken,
     sequential_drain: Arc<AtomicBool>,
-    sequential_tx: UnboundedSender<SequentialTask>,
+    sequential_tx: UnboundedSender<PendingTask>,
 }
 
 impl BgExecutor {
@@ -47,38 +45,6 @@ impl BgExecutor {
         }
     }
 
-    /// Worker that processes commands one by one in order.
-    async fn sequential_worker(
-        mut rx: UnboundedReceiver<SequentialTask>,
-        results_tx: UnboundedSender<Box<TaskResult>>,
-        drain: Arc<AtomicBool>,
-    ) {
-        while let Some((task_id, command, cancellation_token)) = rx.recv().await {
-            if drain.load(Ordering::Relaxed) {
-                while rx.try_recv().is_ok() {}
-                drain.store(false, Ordering::Relaxed);
-                continue;
-            }
-
-            let result = tokio::select! {
-                () = cancellation_token.cancelled() => {
-                    if drain.load(Ordering::Relaxed) {
-                        while rx.try_recv().is_ok() {}
-                        drain.store(false, Ordering::Relaxed);
-                    }
-                    continue;
-                },
-                result = run_command(command) => result,
-            };
-
-            if let Some(result) = result
-                && let Err(error) = results_tx.send(Box::new(TaskResult { id: task_id, result }))
-            {
-                tracing::warn!("Cannot send sequential task result: {}", error);
-            }
-        }
-    }
-
     /// Creates a task with the specified command and runs it.\
     /// **Note** that it returns a unique task ID by which the task can be canceled.
     pub fn run_task(&mut self, command: Command) -> String {
@@ -86,9 +52,9 @@ impl BgExecutor {
             return self.enqueue_sequential(command);
         }
 
-        let mut task = BgTask::new(command);
-        task.run(&self.runtime, self.results_tx.clone());
-        let id = task.id().to_owned();
+        let pending = PendingTask::new(command, CancellationToken::new());
+        let id = pending.id.clone();
+        let task = BgTask::run(pending, &self.runtime, self.results_tx.clone());
         self.tasks.push(task);
         self.cleanup_finished();
 
@@ -140,15 +106,44 @@ impl BgExecutor {
         self.results_rx.try_recv().ok()
     }
 
+    /// Worker that processes commands one by one in order.
+    async fn sequential_worker(
+        mut rx: UnboundedReceiver<PendingTask>,
+        results_tx: UnboundedSender<Box<TaskResult>>,
+        drain: Arc<AtomicBool>,
+    ) {
+        while let Some(pending) = rx.recv().await {
+            if drain.load(Ordering::Relaxed) {
+                while rx.try_recv().is_ok() {}
+                drain.store(false, Ordering::Relaxed);
+                continue;
+            }
+
+            let result = tokio::select! {
+                () = pending.cancellation_token.cancelled() => {
+                    if drain.load(Ordering::Relaxed) {
+                        while rx.try_recv().is_ok() {}
+                        drain.store(false, Ordering::Relaxed);
+                    }
+                    continue;
+                },
+                result = run_command(pending.command) => result,
+            };
+
+            if let Some(result) = result
+                && let Err(error) = results_tx.send(Box::new(TaskResult { id: pending.id, result }))
+            {
+                tracing::warn!("Cannot send sequential task result: {}", error);
+            }
+        }
+    }
+
     /// Enqueues a command for sequential execution.
     fn enqueue_sequential(&self, command: Command) -> String {
-        let id = uuid::Uuid::new_v4()
-            .hyphenated()
-            .encode_lower(&mut uuid::Uuid::encode_buffer())
-            .to_owned();
+        let pending = PendingTask::new(command, self.sequential_token.clone());
+        let id = pending.id.clone();
 
-        let token = self.sequential_token.clone();
-        if let Err(error) = self.sequential_tx.send((id.clone(), command, token)) {
+        if let Err(error) = self.sequential_tx.send(pending) {
             tracing::warn!("Cannot enqueue sequential command: {}", error);
         }
 

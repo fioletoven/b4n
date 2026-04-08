@@ -4,50 +4,58 @@ use uuid::Uuid;
 
 use crate::commands::{Command, CommandResult};
 
+/// Result from the executed task.
 pub struct TaskResult {
     pub id: String,
     pub result: CommandResult,
 }
 
+/// A task that has been created but not yet started.
+pub struct PendingTask {
+    pub id: String,
+    pub command: Command,
+    pub cancellation_token: CancellationToken,
+}
+
+impl PendingTask {
+    /// Creates new [`PendingTask`] instance.
+    pub fn new(command: Command, cancellation_token: CancellationToken) -> Self {
+        Self {
+            id: Uuid::new_v4()
+                .hyphenated()
+                .encode_lower(&mut Uuid::encode_buffer())
+                .to_owned(),
+            command,
+            cancellation_token,
+        }
+    }
+}
+
 /// Background task for background executor.
 pub struct BgTask {
-    uuid: String,
-    command: Option<Command>,
+    id: String,
     task: Option<JoinHandle<()>>,
     cancellation_token: Option<CancellationToken>,
 }
 
 impl BgTask {
-    /// Creates new [`BgTask`] instance.\
-    /// **Note** that it must be run in order to start execute a command.
-    pub fn new(command: Command) -> Self {
-        Self {
-            uuid: Uuid::new_v4()
-                .hyphenated()
-                .encode_lower(&mut Uuid::encode_buffer())
-                .to_owned(),
-            command: Some(command),
-            task: None,
-            cancellation_token: None,
-        }
-    }
+    /// Creates and immediately starts executing the given [`PendingTask`].
+    pub fn run(pending: PendingTask, runtime: &Handle, results_tx: UnboundedSender<Box<TaskResult>>) -> Self {
+        let PendingTask {
+            id,
+            command,
+            cancellation_token,
+        } = pending;
 
-    /// Starts executing an associated command.
-    pub fn run(&mut self, runtime: &Handle, results_tx: UnboundedSender<Box<TaskResult>>) {
-        let Some(_command) = self.command.take() else {
-            return;
-        };
-
-        let cancellation_token = CancellationToken::new();
-        let _cancellation_token = cancellation_token.clone();
-        let _task_id = self.id().to_owned();
+        let token = cancellation_token.clone();
+        let task_id = id.clone();
 
         let task = runtime.spawn(async move {
             tokio::select! {
-                () = _cancellation_token.cancelled() => (),
-                result = run_command(_command) => {
+                () = token.cancelled() => (),
+                result = run_command(command) => {
                     if let Some(result) = result
-                        && let Err(error) = results_tx.send(Box::new(TaskResult { id: _task_id, result }))
+                        && let Err(error) = results_tx.send(Box::new(TaskResult { id: task_id, result }))
                     {
                         tracing::warn!("Cannot send task result: {}", error);
                     }
@@ -55,13 +63,16 @@ impl BgTask {
             }
         });
 
-        self.task = Some(task);
-        self.cancellation_token = Some(cancellation_token);
+        Self {
+            id,
+            task: Some(task),
+            cancellation_token: Some(cancellation_token),
+        }
     }
 
     /// Unique task ID.
     pub fn id(&self) -> &str {
-        &self.uuid
+        &self.id
     }
 
     /// Indicates if the task is currently running.
@@ -69,15 +80,15 @@ impl BgTask {
         self.task.as_ref().is_some_and(|t| !t.is_finished())
     }
 
-    /// Indicates if the task was started and is currently in a finished state.
+    /// Indicates if the task is currently in a finished state.
     pub fn is_finished(&self) -> bool {
-        self.command.is_none() && !self.is_running()
+        !self.is_running()
     }
 
     /// Cancels [`BgTask`] task.
     pub fn cancel(&mut self) {
-        if let Some(cancellation_token) = self.cancellation_token.take() {
-            cancellation_token.cancel();
+        if let Some(token) = self.cancellation_token.take() {
+            token.cancel();
         }
     }
 

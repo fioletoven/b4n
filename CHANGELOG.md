@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.4.6 - 2026-04-08
 
 ### Features
 
@@ -14,6 +14,7 @@
 
 - run save configuration tasks sequentially
 - fix pasting clipboard text containing non-ASCII characters
+- preserve filter on port forward list update
 
 ### Compatibility
 

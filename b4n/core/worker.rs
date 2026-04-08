@@ -5,7 +5,7 @@ use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
 use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
-use b4n_kube::{BgDiscovery, BgObserverError, CRDS, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, DeleteResourcesOptions, GetNewResourceYamlCommand, GetResourceYamlCommand,
     ListResourcePortsCommand, SaveConfigurationCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions,
@@ -468,10 +468,10 @@ impl BgWorker {
         }
     }
 
-    /// Stops all port forwarding tasks for pods that no longer exist.
-    pub fn stop_stale_port_forwards(&mut self) {
+    /// Stops all (or from specified list) port forwarding tasks for pods that no longer exist.
+    pub fn stop_stale_port_forwards(&mut self, filtered: Option<&[ContainerRef]>) {
         if !self.statistics.has_error() {
-            self.forwarder.stop_stale_pod_tasks(self.statistics.stats());
+            self.forwarder.stop_stale_pod_tasks(filtered, self.statistics.stats());
         }
     }
 }

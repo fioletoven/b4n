@@ -1,6 +1,7 @@
 use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::ContainerRef;
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tasks::PortForwardTask;
 use k8s_openapi::jiff::Timestamp;
@@ -11,6 +12,7 @@ pub struct PortForwardItem {
     pub uid: String,
     group: String,
     name: String,
+    container: Option<String>,
     age: Option<String>,
     creation_timestamp: Option<Timestamp>,
     bind_address: String,
@@ -37,6 +39,7 @@ impl PortForwardItem {
             uid: task.uuid.clone(),
             group: task.resource.namespace.as_str().to_owned(),
             name: task.resource.name.as_deref().unwrap_or_default().to_owned(),
+            container: task.resource.container.clone(),
             age: task.start_time.as_ref().map(|t| t.as_millisecond().to_string()),
             creation_timestamp: task.start_time,
             bind_address: task.bind_address.clone(),
@@ -105,6 +108,12 @@ impl Row for PortForwardItem {
             7 => self.age.as_deref().unwrap_or("n/a"),
             _ => "n/a",
         }
+    }
+}
+
+impl From<&PortForwardItem> for ContainerRef {
+    fn from(value: &PortForwardItem) -> Self {
+        Self::simple(value.name.clone(), value.group.as_str().into(), value.container.clone())
     }
 }
 

@@ -1,4 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
+use b4n_kube::ContainerRef;
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, ItemExt, NAMESPACE, TabularList, ViewType};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, table::Table};
@@ -27,17 +28,22 @@ impl PortForwardsList {
         let (sort_by, is_descending) = self.table.header.sort_info();
         let highlighted_uid = self.table.list.get_highlighted_item_uid().map(String::from);
         let selected_uids: Vec<_> = self.table.list.get_selected_uids().iter().map(|&u| u.to_owned()).collect();
+        let filter = self.table.list.filter().map(String::from);
 
-        self.table
-            .list
-            .set_items(items.into_iter().map(Item::new).collect::<Vec<_>>());
+        self.table.list.set_items(items.into_iter().map(Item::new).collect());
         self.table.sort(sort_by, is_descending);
         self.table.update_data_lengths();
+        self.table.list.set_filter(filter);
 
         self.table.list.select_uids(selected_uids.as_slice());
         if let Some(uid) = highlighted_uid {
             self.table.list.highlight_item_by_uid(&uid);
         }
+    }
+
+    /// Copies filtered `self` into a new `Vec` of `ContainerRef`.
+    pub fn to_container_vec(&self) -> Vec<ContainerRef> {
+        self.table.list.iter().map(|i| (&i.data).into()).collect()
     }
 }
 
