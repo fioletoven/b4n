@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix `Backspace` and `Enter` keys in attach view
+
 ## 0.4.6 - 2026-04-08
 
 ### Features

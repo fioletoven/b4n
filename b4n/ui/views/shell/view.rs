@@ -58,7 +58,7 @@ impl ShellView {
         footer_tx: NotificationSink,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(if is_attach { " attach" } else { " shell" });
+        header.set_title(if is_attach { " attach" } else { " shell" });
         header.set_data(
             pod.namespace.clone(),
             PODS.into(),
@@ -109,7 +109,7 @@ impl ShellView {
         }
 
         let is_selected = self.selection.sorted().is_some();
-        let copy = if is_selected { "selected" } else { "all" };
+        let copy = if is_selected { "selection" } else { "all" };
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
@@ -359,8 +359,8 @@ impl View for ShellView {
             match key.code {
                 KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
                 KeyCode::Esc => self.bridge.send(vec![27]),
-                KeyCode::Backspace => self.bridge.send(vec![8]),
-                KeyCode::Enter => self.bridge.send(vec![b'\n']),
+                KeyCode::Backspace => self.bridge.send(vec![127]),
+                KeyCode::Enter => self.bridge.send(vec![b'\r']),
                 KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
                 KeyCode::Right => self.bridge.send(vec![27, 91, 67]),
                 KeyCode::Up => self.bridge.send(vec![27, 91, 65]),
