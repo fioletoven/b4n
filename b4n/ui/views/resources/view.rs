@@ -446,7 +446,7 @@ impl ResourcesView {
 
         if !is_containers && !is_events {
             if self.table.list.table.data.is_creatable {
-                builder.add_menu_action(ActionItem::menu(7, "󰐕 create new", "create"));
+                builder.add_menu_action(ActionItem::menu(8, "󰐕 create new", "create"));
             }
             if is_highlighted {
                 builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
@@ -460,14 +460,15 @@ impl ResourcesView {
         if is_highlighted {
             builder = builder
                 .with_menu_action(ActionItem::menu(1, " YAML", "show_yaml"))
-                .with_menu_action(ActionItem::menu(9, "󰆏 copy ␝name␝", "copy_name"));
+                .with_menu_action(ActionItem::menu(10, "󰆏 copy ␝name␝", "copy_name"));
 
             if is_containers || is_pods {
                 builder = builder
                     .with_menu_action(ActionItem::menu(2, " logs", "show_logs"))
                     .with_menu_action(ActionItem::menu(3, " logs ␝previous␝", "show_plogs"))
-                    .with_menu_action(ActionItem::menu(5, " shell", "open_shell"))
-                    .with_menu_action(ActionItem::menu(6, "󱘖 forward port", "port_forward"));
+                    .with_menu_action(ActionItem::menu(5, " attach", "attach"))
+                    .with_menu_action(ActionItem::menu(6, " shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(7, "󱘖 forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
@@ -475,7 +476,7 @@ impl ResourcesView {
             }
 
             if self.table.list.table.data.is_editable {
-                builder.add_menu_action(ActionItem::menu(8, " edit", "edit_yaml"));
+                builder.add_menu_action(ActionItem::menu(9, " edit", "edit_yaml"));
             }
         }
 
