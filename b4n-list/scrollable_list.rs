@@ -457,6 +457,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.highlight_item_by(|i| i.data.is_equal(text)) || self.highlight_item_by(|i| i.data.starts_with(text))
     }
 
+    /// Highlights element on list by its name and group (if specified).
+    pub fn highlight_item_by_name_and_group(&mut self, name: &str, group: &str) -> bool {
+        if group.is_empty() {
+            self.highlight_item_by_name(name)
+        } else {
+            self.highlight_item_by(|i| i.data.name() == name && i.data.group() == group)
+        }
+    }
+
     /// Highlights element on list by its `uid`.
     pub fn highlight_item_by_uid(&mut self, uid: &str) -> bool {
         self.highlight_item_by(|i| i.data.uid() == uid)

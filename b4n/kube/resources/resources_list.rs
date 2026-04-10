@@ -99,6 +99,12 @@ impl ResourcesList {
         self.data.resource.filter.is_some()
     }
 
+    /// Returns `true` if the item with specified `name` and `group` was selected on the list.\
+    /// **Note** that if `group` is empty it is omitted during check.
+    pub fn highlight_item_by_name_and_group(&mut self, name: &str, group: &str) -> bool {
+        self.table.list.highlight_item_by_name_and_group(name, group)
+    }
+
     /// Gets highlighted resource.
     pub fn get_highlighted_resource(&self) -> Option<&ResourceItem> {
         self.table.list.get_highlighted_item().map(|i| &i.data)

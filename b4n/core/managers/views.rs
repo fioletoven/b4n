@@ -304,9 +304,9 @@ impl ViewsManager {
     }
 
     /// Handles kind change.
-    pub fn handle_kind_change(&mut self, resource_to_select: Option<String>) {
+    pub fn handle_kind_change(&mut self, resource_to_select: Option<String>, namespace: Option<&str>) {
         self.resources.clear_header_scope(true);
-        self.resources.set_next_highlight(resource_to_select);
+        self.resources.set_next_highlight(resource_to_select, namespace);
         if let Some(view) = &mut self.view {
             view.handle_kind_change();
         }

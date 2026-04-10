@@ -60,7 +60,7 @@ impl ResourcesView {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
             pub fn set_next_refresh(&mut self, actions: NextRefreshActions);
-            pub fn set_next_highlight(&mut self, actions: Option<String>);
+            pub fn set_next_highlight(&mut self, name: Option<String>, namespace: Option<&str>);
             pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;

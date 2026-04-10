@@ -295,7 +295,7 @@ impl App {
                 self.data.borrow_mut().previous.clear();
             }
 
-            self.views_manager.handle_kind_change(to_select);
+            self.views_manager.handle_kind_change(to_select, namespace.as_option());
             self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
@@ -313,13 +313,13 @@ impl App {
             && (!kind.is_namespaces() || self.worker.borrow().namespaces.has_access())
         {
             let namespace = self.data.borrow().current.get_namespace();
-            let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
-            if to_select.is_none() && kind.as_str() == NAMESPACES {
-                let to_select: Option<String> = Some(self.data.borrow().current.get_namespace().as_str().to_owned());
-                self.views_manager.handle_kind_change(to_select);
+            if kind.as_str() == NAMESPACES {
+                let to_select = to_select.or(Some(self.data.borrow().current.get_namespace().as_str().to_owned()));
+                self.views_manager.handle_kind_change(to_select, None);
             } else {
-                self.views_manager.handle_kind_change(to_select);
+                self.views_manager.handle_kind_change(to_select, namespace.as_option());
             }
+            let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             self.process_resources_change(Some(kind.into()), None, &scope);
             self.data.borrow_mut().previous.clear();
         }
@@ -390,7 +390,7 @@ impl App {
             }
 
             let is_all_namespaces = namespace.is_all();
-            self.views_manager.handle_kind_change(to_select);
+            self.views_manager.handle_kind_change(to_select, namespace.as_option());
             self.views_manager.cache_page_data();
             self.views_manager
                 .restore_page_data(Some(kind.as_str()), Some(namespace.as_str()), &scope.list, false);
