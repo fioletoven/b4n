@@ -546,9 +546,7 @@ impl ResourcesView {
 
     pub fn remember_current_resource(&mut self) {
         let highlighted = self.table.list.table.get_highlighted_item_name_and_group();
-        let highlighted = highlighted
-            .map(|(i, g)| ToSelectData::Some(i.to_owned(), g.to_owned()))
-            .unwrap_or(ToSelectData::None);
+        let highlighted = highlighted.map_or(ToSelectData::None, |(i, g)| ToSelectData::Some(i.to_owned(), g.to_owned()));
         let header = self.table.header.get_scope();
         let namespace = self.app_data.borrow().current.namespace.clone();
         let resource = self.app_data.borrow().current.resource.clone();

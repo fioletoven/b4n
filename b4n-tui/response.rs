@@ -46,7 +46,7 @@ pub enum ToSelectData {
 impl ToSelectData {
     /// Creates new `Some` variant of `ToSelectData`.
     pub fn new(name: impl Into<String>, namespace: Option<impl Into<String>>) -> Self {
-        Self::Some(name.into(), namespace.map(|i| i.into()).unwrap_or_default())
+        Self::Some(name.into(), namespace.map(Into::into).unwrap_or_default())
     }
 }
 

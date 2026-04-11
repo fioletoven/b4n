@@ -121,8 +121,8 @@ impl ResourcesTable {
 
     /// Remembers resource name and namespace that will be highlighted for next background observer result.
     pub fn set_next_highlight(&mut self, to_select: ToSelectData) {
-        let highlight_item = match &to_select {
-            ToSelectData::Some(name, namespace) => Some((name.clone(), namespace.clone())),
+        let highlight_item = match to_select {
+            ToSelectData::Some(name, namespace) => Some((name, namespace)),
             ToSelectData::None => None,
         };
         self.next_refresh.highlight_item = highlight_item;
