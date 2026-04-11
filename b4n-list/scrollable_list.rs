@@ -484,6 +484,26 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         true
     }
 
+    /// Tries to highlight item finding it by closure.
+    pub fn highlight_item_by<F>(&mut self, f: F) -> bool
+    where
+        F: Fn(&Item<T, Fc>) -> bool,
+    {
+        let Some(index) = self.items.iter().position(f) else {
+            return false;
+        };
+
+        if let Some(highlighted) = self.highlighted
+            && highlighted < self.items.len()
+        {
+            self.items[highlighted].is_active = false;
+        }
+
+        self.items[index].is_active = true;
+        self.highlighted = Some(index);
+        true
+    }
+
     /// Highlights first item on the list, returns `true` on success.
     pub fn highlight_first_item(&mut self) -> bool {
         if self.items.is_empty() {
@@ -510,26 +530,6 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         }
 
         self.highlighted = None;
-    }
-
-    /// Tries to highlight item finding it by closure.
-    fn highlight_item_by<F>(&mut self, f: F) -> bool
-    where
-        F: Fn(&Item<T, Fc>) -> bool,
-    {
-        let Some(index) = self.items.iter().position(f) else {
-            return false;
-        };
-
-        if let Some(highlighted) = self.highlighted
-            && highlighted < self.items.len()
-        {
-            self.items[highlighted].is_active = false;
-        }
-
-        self.items[index].is_active = true;
-        self.highlighted = Some(index);
-        true
     }
 
     /// Adds `rows_to_move` to the currently highlighted item index.

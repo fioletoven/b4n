@@ -1,4 +1,4 @@
-pub use response::{ResponseEvent, Responsive, ScopeData};
+pub use response::{ResponseEvent, Responsive, ScopeData, ToSelectData};
 pub use tui::{MouseEvent, MouseEventKind, Tui, TuiEvent};
 
 pub mod table;

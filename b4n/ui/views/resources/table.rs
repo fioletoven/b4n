@@ -5,6 +5,7 @@ use b4n_kube::{
     REPLICA_SETS, ResourceRef, ResourceRefFilter, ResourceTag, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
+use b4n_tui::ToSelectData;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use crossterm::event::KeyModifiers;
 use delegate::delegate;
@@ -21,7 +22,7 @@ use crate::ui::presentation::{ListHeader, ListViewer};
 /// Actions to perform on the next table refresh.
 #[derive(Default)]
 pub struct NextRefreshActions {
-    pub highlight_item: Option<String>,
+    pub highlight_item: Option<(String, String)>,
     pub apply_filter: Option<String>,
     pub apply_offset: Option<usize>,
     pub sort_info: Option<(usize, bool)>,
@@ -29,18 +30,14 @@ pub struct NextRefreshActions {
 }
 
 impl NextRefreshActions {
-    /// Creates new [`NextRefreshActions`] instance that will highlight `resource_name` on next refresh.
-    pub fn highlight(resource_name: Option<String>) -> Self {
-        NextRefreshActions {
-            highlight_item: resource_name,
-            ..Default::default()
-        }
-    }
-
     /// Creates new [`NextRefreshActions`] instance from the [`PreviousData`] object.
     pub fn from_previous(previous: &PreviousData) -> Self {
+        let highlight_item = match &previous.highlighted {
+            ToSelectData::Some(name, namespace) => Some((name.clone(), namespace.clone())),
+            ToSelectData::None => None,
+        };
         NextRefreshActions {
-            highlight_item: previous.highlighted().map(String::from),
+            highlight_item,
             apply_filter: previous.filter.as_deref().map(String::from),
             apply_offset: Some(previous.offset),
             sort_info: Some(previous.sort_info),
@@ -122,9 +119,13 @@ impl ResourcesTable {
         self.next_refresh = actions;
     }
 
-    /// Remembers resource name that will be highlighted for next background observer result.
-    pub fn set_next_highlight(&mut self, resource_to_select: Option<String>) {
-        self.next_refresh.highlight_item = resource_to_select;
+    /// Remembers resource name and namespace that will be highlighted for next background observer result.
+    pub fn set_next_highlight(&mut self, to_select: ToSelectData) {
+        let highlight_item = match to_select {
+            ToSelectData::Some(name, namespace) => Some((name, namespace)),
+            ToSelectData::None => None,
+        };
+        self.next_refresh.highlight_item = highlight_item;
     }
 
     /// Remembers if header scope should be reset to default for next background observer result.
@@ -318,8 +319,8 @@ impl ResourcesTable {
     }
 
     fn process_initdone_result(&mut self) {
-        if let Some(name) = self.next_refresh.highlight_item.take() {
-            self.list.table.highlight_item_by_name(&name);
+        if let Some((name, group)) = self.next_refresh.highlight_item.take() {
+            self.list.table.highlight_item_by_name_and_group(&name, &group);
         } else if !self.list.table.is_anything_highlighted() {
             self.list.table.highlight_first_item();
         }
@@ -361,7 +362,7 @@ impl ResourcesTable {
                 return ResponseEvent::ViewInvolved(
                     involved.kind.clone().into(),
                     involved.namespace.clone().into(),
-                    Some(involved.name.clone()),
+                    ToSelectData::new(&involved.name, involved.namespace.as_option()),
                 );
             }
 
@@ -502,12 +503,17 @@ impl ResourcesTable {
             list: Scope::Cluster,
             filter: ResourceRefFilter::involved(resource.name.clone(), &resource.uid),
         };
-        ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), None, scope)
+        ResponseEvent::ViewScoped(EVENTS.to_owned(), resource.namespace.clone(), ToSelectData::None, scope)
     }
 
     fn process_view_nodes(resource: &ResourceItem) -> ResponseEvent {
         let filter = ResourceRefFilter::node(resource.name.clone(), &resource.name);
-        ResponseEvent::ViewScoped(PODS.to_owned(), None, None, ScopeData::namespace_visible(filter))
+        ResponseEvent::ViewScoped(
+            PODS.to_owned(),
+            None,
+            ToSelectData::None,
+            ScopeData::namespace_visible(filter),
+        )
     }
 
     fn process_view_jobs(&self, resource: &ResourceItem) -> ResponseEvent {
@@ -516,7 +522,7 @@ impl ResourcesTable {
             list: Scope::Cluster,
             filter: ResourceRefFilter::job(resource.name.clone(), &resource.name),
         };
-        ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), None, scope)
+        ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), ToSelectData::None, scope)
     }
 
     fn process_view_selector(&self, resource: &ResourceItem, target: &str) -> ResponseEvent {
@@ -531,7 +537,7 @@ impl ResourcesTable {
             ResponseEvent::ViewScoped(
                 target.to_owned(),
                 resource.namespace.clone(),
-                None,
+                ToSelectData::None,
                 ScopeData::namespace_hidden(filter),
             )
         } else {

@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix `Backspace` and `Enter` keys in attach view
+- remember namespace for previously selected resource
 
 ## 0.4.6 - 2026-04-08
 
