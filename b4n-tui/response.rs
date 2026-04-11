@@ -36,6 +36,20 @@ impl ScopeData {
     }
 }
 
+/// Data for items to select (highlight) on the resource list.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ToSelectData {
+    Some(String, String),
+    None,
+}
+
+impl ToSelectData {
+    /// Creates new `Some` variant of `ToSelectData`.
+    pub fn new(name: impl Into<String>, namespace: Option<impl Into<String>>) -> Self {
+        Self::Some(name.into(), namespace.map(|i| i.into()).unwrap_or_default())
+    }
+}
+
 /// Terminal UI Response Event.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ResponseEvent {
@@ -49,19 +63,19 @@ pub enum ResponseEvent {
     ExitApplication,
 
     Change(String, String),
-    ChangeAndSelect(String, String, Option<String>),
-    ChangeAndSelectPrev(String, String, Option<String>),
+    ChangeAndSelect(String, String, ToSelectData),
+    ChangeAndSelectPrev(String, String, ToSelectData),
     ChangeKind(String),
-    ChangeKindAndSelect(String, Option<String>),
+    ChangeKindAndSelect(String, ToSelectData),
     ChangeNamespace(String),
     ChangeContext(String, Option<String>),
     ChangeTheme(String),
 
     ViewPreviousResource,
     ViewContainers(String, String),
-    ViewInvolved(String, String, Option<String>),
-    ViewScoped(String, Option<String>, Option<String>, ScopeData),
-    ViewScopedPrev(String, Option<String>, Option<String>, ScopeData),
+    ViewInvolved(String, String, ToSelectData),
+    ViewScoped(String, Option<String>, ToSelectData, ScopeData),
+    ViewScopedPrev(String, Option<String>, ToSelectData, ScopeData),
     ViewNamespaces,
     ListNamespaces,
 

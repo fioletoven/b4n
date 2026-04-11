@@ -4,6 +4,7 @@ use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
+use b4n_tui::ToSelectData;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
@@ -60,7 +61,7 @@ impl ResourcesView {
         to self.table {
             pub fn set_resources_info(&mut self, context: String, namespace: Namespace, version: String, scope: Scope);
             pub fn set_next_refresh(&mut self, actions: NextRefreshActions);
-            pub fn set_next_highlight(&mut self, name: Option<String>, namespace: Option<&str>);
+            pub fn set_next_highlight(&mut self, to_select: ToSelectData);
             pub fn clear_header_scope(&mut self, clear_on_next: bool);
             pub fn deselect_all(&mut self);
             pub fn kind_plural(&self) -> &str;
@@ -544,7 +545,10 @@ impl ResourcesView {
     }
 
     pub fn remember_current_resource(&mut self) {
-        let highlighted = self.table.list.table.get_highlighted_item_name().map(String::from);
+        let highlighted = self.table.list.table.get_highlighted_item_name_and_group();
+        let highlighted = highlighted
+            .map(|(i, g)| ToSelectData::Some(i.to_owned(), g.to_owned()))
+            .unwrap_or(ToSelectData::None);
         let header = self.table.header.get_scope();
         let namespace = self.app_data.borrow().current.namespace.clone();
         let resource = self.app_data.borrow().current.resource.clone();
@@ -564,7 +568,7 @@ impl ResourcesView {
         let data = &mut self.app_data.borrow_mut();
         if let Some(previous) = data.previous.pop() {
             self.table.set_next_refresh(NextRefreshActions::from_previous(&previous));
-            let to_select = previous.highlighted().map(String::from);
+            let to_select = previous.highlighted;
             if let Some(filter) = previous.resource.filter {
                 let scope = ScopeData {
                     list: previous.list,

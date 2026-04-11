@@ -109,7 +109,8 @@ impl BgObserver {
         fallback_namespace: Option<Namespace>,
         stop_on_access_error: bool,
     ) -> Result<Scope, BgObserverError> {
-        if self.resource == new_resource {
+        let scope = discovery.as_ref().map(|(_, cap)| cap.scope.clone());
+        if self.resource.is_equal(&new_resource, &scope.unwrap_or(Scope::Namespaced)) {
             return Ok(self.scope.clone());
         }
 

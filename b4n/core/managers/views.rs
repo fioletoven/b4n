@@ -6,6 +6,7 @@ use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
 };
+use b4n_tui::ToSelectData;
 use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
 use kube::{config::NamedContext, discovery::Scope};
@@ -304,9 +305,9 @@ impl ViewsManager {
     }
 
     /// Handles kind change.
-    pub fn handle_kind_change(&mut self, resource_to_select: Option<String>, namespace: Option<&str>) {
+    pub fn handle_kind_change(&mut self, to_select: ToSelectData) {
         self.resources.clear_header_scope(true);
-        self.resources.set_next_highlight(resource_to_select, namespace);
+        self.resources.set_next_highlight(to_select);
         if let Some(view) = &mut self.view {
             view.handle_kind_change();
         }

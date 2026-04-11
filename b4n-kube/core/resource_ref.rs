@@ -1,5 +1,5 @@
 use k8s_openapi::jiff::Timestamp;
-use kube::api::ApiResource;
+use kube::{api::ApiResource, discovery::Scope};
 
 use super::{Kind, Namespace, PODS};
 
@@ -134,6 +134,16 @@ impl ResourceRef {
     /// Returns `true` if [`ResourceRef`] points to a filtered resource.
     pub fn is_filtered(&self) -> bool {
         self.filter.is_some()
+    }
+
+    /// Returns `true` if [`ResourceRef`] is equal to `other` considering specified `scope`.
+    pub fn is_equal(&self, other: &ResourceRef, scope: &Scope) -> bool {
+        self.kind == other.kind
+            && (*scope == Scope::Cluster || self.namespace == other.namespace)
+            && self.name == other.name
+            && self.filter == other.filter
+            && self.container == other.container
+            && self.all_containers == other.all_containers
     }
 }
 

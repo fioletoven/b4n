@@ -102,7 +102,21 @@ impl ResourcesList {
     /// Returns `true` if the item with specified `name` and `group` was selected on the list.\
     /// **Note** that if `group` is empty it is omitted during check.
     pub fn highlight_item_by_name_and_group(&mut self, name: &str, group: &str) -> bool {
-        self.table.list.highlight_item_by_name_and_group(name, group)
+        if group.is_empty() {
+            self.table.list.highlight_item_by_name(name)
+        } else {
+            self.table
+                .list
+                .highlight_item_by(|i| i.data.name() == name && i.data.group() == group)
+        }
+    }
+
+    /// Gets highlighted item `name` and `group`.
+    pub fn get_highlighted_item_name_and_group(&self) -> Option<(&str, &str)> {
+        self.table
+            .list
+            .get_highlighted_item()
+            .map(|i| (i.data.name(), i.data.group()))
     }
 
     /// Gets highlighted resource.
@@ -191,7 +205,7 @@ impl ResourcesList {
     }
 
     fn update_kind(&mut self, init: InitData, is_from_cache: bool) {
-        let are_equal = self.data.resource == init.resource;
+        let are_equal = self.data.resource.is_equal(&init.resource, &init.scope);
         self.data = init;
         if !is_from_cache || !are_equal {
             self.table.update_header(ResourceItem::header(

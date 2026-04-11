@@ -3,7 +3,7 @@ use b4n_common::NotificationSink;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
-use b4n_tui::TuiEvent;
+use b4n_tui::{ToSelectData, TuiEvent};
 use kube::discovery::Scope;
 use std::borrow::Cow;
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
@@ -97,21 +97,13 @@ pub struct PreviousData {
     pub header: Scope,
     pub namespace: Namespace,
     pub resource: ResourceRef,
-    pub highlighted: Option<String>,
+    pub highlighted: ToSelectData,
     pub filter: Option<String>,
     pub sort_info: (usize, bool),
     pub offset: usize,
 }
 
 impl PreviousData {
-    /// Returns resource name that was previously highlighted on the list.
-    pub fn highlighted(&self) -> Option<&str> {
-        self.highlighted
-            .as_deref()
-            .or_else(|| self.resource.filter.as_ref()?.name.as_deref())
-            .or(self.resource.name.as_deref())
-    }
-
     /// Returns `kind` name for this previous data.
     pub fn get_kind_name(&self) -> String {
         self.resource.kind.name().to_owned()

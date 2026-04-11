@@ -8,7 +8,7 @@ use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
 };
 use b4n_tui::widgets::Footer;
-use b4n_tui::{ResponseEvent, ScopeData, Tui, TuiEvent};
+use b4n_tui::{ResponseEvent, ScopeData, ToSelectData, Tui, TuiEvent};
 use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
@@ -207,14 +207,16 @@ impl App {
 
         match self.views_manager.process_event(event) {
             ResponseEvent::ExitApplication => return Ok(ResponseEvent::ExitApplication),
-            ResponseEvent::Change(kind, namespace) => self.change(kind.into(), namespace.into(), None, TrackFlow::Clear)?,
+            ResponseEvent::Change(kind, namespace) => {
+                self.change(kind.into(), namespace.into(), ToSelectData::None, TrackFlow::Clear)?
+            },
             ResponseEvent::ChangeAndSelect(kind, namespace, to_select) => {
                 self.change(kind.into(), namespace.into(), to_select, TrackFlow::Clear)?;
             },
             ResponseEvent::ChangeAndSelectPrev(kind, namespace, to_select) => {
                 self.change(kind.into(), namespace.into(), to_select, TrackFlow::Nothing)?;
             },
-            ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), None)?,
+            ResponseEvent::ChangeKind(kind) => self.change_kind(kind.into(), ToSelectData::None)?,
             ResponseEvent::ChangeKindAndSelect(kind, to_select) => self.change_kind(kind.into(), to_select)?,
             ResponseEvent::ChangeNamespace(namespace) => self.change_namespace(namespace.into())?,
             ResponseEvent::ViewContainers(pod_name, pod_namespace) => self.view_containers(pod_name, pod_namespace.into())?,
@@ -281,7 +283,7 @@ impl App {
         &mut self,
         kind: Kind,
         namespace: Namespace,
-        to_select: Option<String>,
+        to_select: ToSelectData,
         track: TrackFlow,
     ) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
@@ -295,7 +297,7 @@ impl App {
                 self.data.borrow_mut().previous.clear();
             }
 
-            self.views_manager.handle_kind_change(to_select, namespace.as_option());
+            self.views_manager.handle_kind_change(to_select);
             self.views_manager.handle_namespace_change(namespace.clone());
             let resource = ResourceRef::new(kind.clone(), namespace.clone());
             let scope = self.worker.borrow_mut().restart(resource)?;
@@ -307,17 +309,17 @@ impl App {
 
     /// Changes observed resources kind, optionally selects one of them.\
     /// **Note** that it selects current namespace if the resource kind is `namespaces`.
-    fn change_kind(&mut self, kind: Kind, to_select: Option<String>) -> Result<(), BgWorkerError> {
+    fn change_kind(&mut self, kind: Kind, to_select: ToSelectData) -> Result<(), BgWorkerError> {
         let kind = self.worker.borrow().ensure_kind_is_plural(kind);
         if (!self.data.borrow().current.is_kind_equal(&kind) || self.data.borrow().current.resource.filter.is_some())
             && (!kind.is_namespaces() || self.worker.borrow().namespaces.has_access())
         {
             let namespace = self.data.borrow().current.get_namespace();
             if kind.as_str() == NAMESPACES {
-                let to_select = to_select.or(Some(self.data.borrow().current.get_namespace().as_str().to_owned()));
-                self.views_manager.handle_kind_change(to_select, None);
+                let to_select = ToSelectData::Some(namespace.as_str().to_owned(), String::new());
+                self.views_manager.handle_kind_change(to_select);
             } else {
-                self.views_manager.handle_kind_change(to_select, namespace.as_option());
+                self.views_manager.handle_kind_change(to_select);
             }
             let scope = self.worker.borrow_mut().restart_new_kind(kind.clone(), namespace)?;
             self.process_resources_change(Some(kind.into()), None, &scope);
@@ -331,15 +333,13 @@ impl App {
     fn change_namespace(&mut self, namespace: Namespace) -> Result<(), BgWorkerError> {
         if !self.data.borrow().current.is_namespace_equal(&namespace) {
             if self.data.borrow().is_constrained() && !self.data.borrow().current.resource.kind.is_namespaces() {
-                let previous_kind = self.data.borrow().previous.last().map(|p| p.resource.kind.clone());
-                if let Some(kind) = previous_kind {
-                    let name = self
-                        .data
-                        .borrow()
-                        .previous
-                        .last()
-                        .and_then(|p| p.highlighted())
-                        .map(String::from);
+                let previous = self
+                    .data
+                    .borrow()
+                    .previous
+                    .last()
+                    .map(|p| (p.resource.kind.clone(), p.highlighted.clone()));
+                if let Some((kind, name)) = previous {
                     self.change(kind, namespace, name, TrackFlow::Clear)?;
                 }
             } else {
@@ -371,7 +371,7 @@ impl App {
     }
 
     /// Changes observed resource to the involved object.
-    fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: Option<String>) -> Result<(), BgWorkerError> {
+    fn view_involved(&mut self, kind: Kind, namespace: Namespace, to_select: ToSelectData) -> Result<(), BgWorkerError> {
         self.change(kind, namespace, to_select, TrackFlow::Add)
     }
 
@@ -380,7 +380,7 @@ impl App {
         &mut self,
         kind: Kind,
         namespace: Namespace,
-        to_select: Option<String>,
+        to_select: ToSelectData,
         scope: ScopeData,
         track: TrackFlow,
     ) -> Result<(), BgWorkerError> {
@@ -390,7 +390,7 @@ impl App {
             }
 
             let is_all_namespaces = namespace.is_all();
-            self.views_manager.handle_kind_change(to_select, namespace.as_option());
+            self.views_manager.handle_kind_change(to_select);
             self.views_manager.cache_page_data();
             self.views_manager
                 .restore_page_data(Some(kind.as_str()), Some(namespace.as_str()), &scope.list, false);
@@ -406,7 +406,7 @@ impl App {
 
     /// Changes observed resources kind to `namespaces`.
     fn view_namespaces(&mut self) -> Result<(), BgWorkerError> {
-        self.change_kind(NAMESPACES.into(), None)
+        self.change_kind(NAMESPACES.into(), ToSelectData::None)
     }
 
     /// Runs command to list kube contexts from the current config.
