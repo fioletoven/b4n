@@ -16,6 +16,7 @@ use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
+use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
@@ -44,6 +45,7 @@ pub struct ShellView {
     esc_time: Instant,
     clipboard_text: Option<String>,
     is_attach: bool,
+    is_mouse_enabled: bool,
     footer_tx: NotificationSink,
 }
 
@@ -99,6 +101,7 @@ impl ShellView {
             esc_time: Instant::now(),
             clipboard_text: None,
             is_attach,
+            is_mouse_enabled: false,
             footer_tx,
         }
     }
@@ -114,6 +117,7 @@ impl ShellView {
         let builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
+            .with_menu_action(ActionItem::menu(3, "󰍽 enable mouse", "mouse"))
             .with_menu_action(ActionItem::menu(100, detach, "detach"));
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
@@ -128,6 +132,7 @@ impl ShellView {
             return match action {
                 "paste" => self.insert_from_clipboard(),
                 "copy" => self.copy_to_clipboard(),
+                "mouse" => self.enable_mouse(),
                 "detach" => {
                     if self.is_attach {
                         ResponseEvent::Cancelled
@@ -275,6 +280,11 @@ impl ShellView {
             parser.screen_mut().set_scrollback(0);
         }
     }
+
+    fn enable_mouse(&mut self) -> ResponseEvent {
+        self.is_mouse_enabled = true;
+        ResponseEvent::Handled
+    }
 }
 
 impl View for ShellView {
@@ -331,17 +341,33 @@ impl View for ShellView {
             };
         }
 
-        if let Ok(parser) = self.parser.read() {
+        if !self.is_mouse_enabled
+            && let Ok(parser) = self.parser.read()
+        {
             self.selection.process_event(event, parser.screen(), self.area);
         }
 
         if let TuiEvent::Mouse(mouse) = event {
-            return match mouse.kind {
-                MouseEventKind::ScrollUp => self.set_scrollback(1, true),
-                MouseEventKind::ScrollDown => self.set_scrollback(1, false),
-                MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
-                _ => ResponseEvent::NotHandled,
-            };
+            if self.is_mouse_enabled {
+                if mouse.kind == MouseEventKind::RightDoubleClick {
+                    return self.show_mouse_menu(mouse.column, mouse.row);
+                } else {
+                    if self.is_mouse_enabled
+                        && let Some(bytes) = encode_mouse(mouse.kind, mouse.column, mouse.row, mouse.modifiers)
+                    {
+                        self.bridge.send(bytes);
+                    }
+
+                    return ResponseEvent::Handled;
+                }
+            } else {
+                return match mouse.kind {
+                    MouseEventKind::ScrollUp => self.set_scrollback(1, true),
+                    MouseEventKind::ScrollDown => self.set_scrollback(1, false),
+                    MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
+                    _ => ResponseEvent::NotHandled,
+                };
+            }
         }
 
         if let TuiEvent::Key(key) = event {
@@ -355,29 +381,12 @@ impl View for ShellView {
                 }
             }
 
-            let mut key_processed = true;
-            match key.code {
-                KeyCode::Char(input) => self.bridge.send(get_bytes(input, key.modifiers)),
-                KeyCode::Esc => self.bridge.send(vec![27]),
-                KeyCode::Backspace => self.bridge.send(vec![127]),
-                KeyCode::Enter => self.bridge.send(vec![b'\r']),
-                KeyCode::Left => self.bridge.send(vec![27, 91, 68]),
-                KeyCode::Right => self.bridge.send(vec![27, 91, 67]),
-                KeyCode::Up => self.bridge.send(vec![27, 91, 65]),
-                KeyCode::Down => self.bridge.send(vec![27, 91, 66]),
-                KeyCode::Home => self.bridge.send(vec![27, 91, 72]),
-                KeyCode::End => self.bridge.send(vec![27, 91, 70]),
-                KeyCode::PageUp => self.bridge.send(vec![27, 91, 53, 126]),
-                KeyCode::PageDown => self.bridge.send(vec![27, 91, 54, 126]),
-                KeyCode::Tab => self.bridge.send(vec![9]),
-                KeyCode::BackTab => self.bridge.send(vec![27, 91, 90]),
-                KeyCode::Delete => self.bridge.send(vec![27, 91, 51, 126]),
-                KeyCode::Insert => self.bridge.send(vec![27, 91, 50, 126]),
-                _ => key_processed = false,
-            }
+            if let Some(bytes) = encode_key(key.code, key.modifiers, self.bridge.is_application_cursor_mode()) {
+                self.bridge.send(bytes);
 
-            if key_processed && self.scrollback_rows > 0 {
-                self.reset_scrollback();
+                if self.scrollback_rows > 0 {
+                    self.reset_scrollback();
+                }
             }
         }
 
@@ -411,7 +420,9 @@ impl View for ShellView {
                 frame.render_widget(pseudo_term, layout[1]);
             }
 
-            frame.render_widget(&self.selection, layout[1]);
+            if !self.is_mouse_enabled {
+                frame.render_widget(&self.selection, layout[1]);
+            }
         }
 
         self.command_palette.draw(frame, frame.area());
@@ -425,15 +436,5 @@ impl Drop for ShellView {
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();
-    }
-}
-
-fn get_bytes(input: char, modifiers: KeyModifiers) -> Vec<u8> {
-    if modifiers == KeyModifiers::CONTROL {
-        let mut result = input.to_ascii_uppercase().to_string().into_bytes();
-        result[0] = result[0].saturating_sub(64);
-        result
-    } else {
-        input.to_string().into_bytes()
     }
 }

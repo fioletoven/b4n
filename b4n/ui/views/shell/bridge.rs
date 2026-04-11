@@ -21,10 +21,11 @@ pub struct ShellBridge {
     size_tx: Option<UnboundedSender<TerminalSize>>,
     parser: Arc<RwLock<vt100::Parser>>,
     is_attach: bool,
-    has_error: Arc<AtomicBool>,
     is_running: Arc<AtomicBool>,
+    has_error: Arc<AtomicBool>,
     was_started: bool,
     shell: Option<String>,
+    cursor_key_mode: Arc<AtomicBool>,
 }
 
 impl ShellBridge {
@@ -38,10 +39,11 @@ impl ShellBridge {
             size_tx: None,
             parser,
             is_attach,
-            has_error: Arc::new(AtomicBool::new(false)),
             is_running: Arc::new(AtomicBool::new(false)),
+            has_error: Arc::new(AtomicBool::new(false)),
             was_started: false,
             shell: None,
+            cursor_key_mode: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -67,6 +69,7 @@ impl ShellBridge {
         let _has_error = Arc::clone(&self.has_error);
         let _is_running = Arc::clone(&self.is_running);
         let _is_attach = self.is_attach;
+        let _cursor_key_mode = Arc::clone(&self.cursor_key_mode);
 
         let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
@@ -94,7 +97,7 @@ impl ShellBridge {
                 },
             };
 
-            let Some(stdin) = attached.stdin() else {
+            let Some(mut stdin) = attached.stdin() else {
                 let name = attach_params.container.as_deref().unwrap_or("unknown");
                 tracing::warn!("Unable to use an stdin for container '{}'", name);
                 _has_error.store(true, Ordering::Relaxed);
@@ -115,11 +118,16 @@ impl ShellBridge {
 
             if _is_attach {
                 _is_running.store(true, Ordering::Relaxed);
+
+                // DSR query cursor key mode
+                let query = vec![27, 91, 63, 49, 36, 112];
+                let _ = stdin.write_all(&query).await;
+                let _ = stdin.flush().await;
             }
 
             let ((), output_closed_too_soon, ()) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
-                output_bridge(stdout, _parser, _cancellation_token.clone(), Arc::clone(&_is_running)),
+                output_bridge(stdout, _parser, _cancellation_token.clone(), Arc::clone(&_is_running), _cursor_key_mode),
                 resize_bridge(tty_resize, _size_rx, _cancellation_token.clone())
             };
 
@@ -188,6 +196,11 @@ impl ShellBridge {
     pub fn has_error(&self) -> bool {
         self.has_error.load(Ordering::Relaxed)
     }
+
+    /// Returns `true` if terminal is in application mode.
+    pub fn is_application_cursor_mode(&self) -> bool {
+        self.cursor_key_mode.load(Ordering::Relaxed)
+    }
 }
 
 impl Drop for ShellBridge {
@@ -225,6 +238,7 @@ async fn output_bridge(
     parser: Arc<RwLock<vt100::Parser>>,
     cancellation_token: CancellationToken,
     is_running: Arc<AtomicBool>,
+    cursor_key_mode: Arc<AtomicBool>,
 ) -> bool {
     let mut buf = [0u8; 8192];
     let mut processed_buf = Vec::new();
@@ -242,6 +256,11 @@ async fn output_bridge(
                 is_running.store(true, Ordering::Relaxed);
 
                 processed_buf.extend_from_slice(&buf[..size]);
+
+                if let Some(app_mode) = detect_cursor_key_mode(&processed_buf) {
+                    cursor_key_mode.store(app_mode, Ordering::Relaxed);
+                }
+
                 let mut parser = parser.write().unwrap();
                 parser.process(&processed_buf);
                 processed_buf.clear();
@@ -268,4 +287,22 @@ async fn resize_bridge(
             },
         }
     }
+}
+
+fn detect_cursor_key_mode(data: &[u8]) -> Option<bool> {
+    // Check for cursor key mode
+    if let Some(mode) = data.windows(5).find_map(|w| match w {
+        [27, 91, 63, 49, 104] => Some(true),
+        [27, 91, 63, 49, 108] => Some(false),
+        _ => None,
+    }) {
+        return Some(mode);
+    }
+
+    // Check for DSR cursor key mode response
+    data.windows(8).find_map(|w| match w {
+        [27, 91, 63, 49, 59, 49, 36, 121] => Some(true),
+        [27, 91, 63, 49, 59, 50, 36, 121] => Some(false),
+        _ => None,
+    })
 }
