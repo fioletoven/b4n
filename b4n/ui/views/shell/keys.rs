@@ -1,5 +1,6 @@
 use b4n_tui::MouseEventKind;
 use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::layout::Rect;
 
 /// Converts a key event to terminal byte sequence.
 pub fn encode_key(code: KeyCode, modifiers: KeyModifiers, app_mode: bool) -> Option<Vec<u8>> {
@@ -31,23 +32,22 @@ pub fn encode_key(code: KeyCode, modifiers: KeyModifiers, app_mode: bool) -> Opt
 }
 
 /// Encodes mouse event to SGR extended format.
-pub fn encode_mouse(kind: MouseEventKind, column: u16, row: u16, modifiers: KeyModifiers) -> Option<Vec<u8>> {
-    let x = column + 1;
-    let y = row + 1;
-
+pub fn encode_mouse(kind: MouseEventKind, column: u16, row: u16, area: Rect, modifiers: KeyModifiers) -> Option<Vec<u8>> {
     let (button, is_release) = match kind {
-        MouseEventKind::LeftClick => (0, false),
+        MouseEventKind::LeftClick | MouseEventKind::LeftDoubleClick | MouseEventKind::LeftTripleClick => (0, false),
         MouseEventKind::LeftUp => (0, true),
         MouseEventKind::MiddleClick => (1, false),
         MouseEventKind::MiddleUp => (1, true),
         MouseEventKind::RightClick => (2, false),
         MouseEventKind::RightUp => (2, true),
+
         MouseEventKind::LeftDrag => (32, false),
         MouseEventKind::MiddleDrag => (33, false),
         MouseEventKind::RightDrag => (34, false),
+        MouseEventKind::Moved => (35, false),
+
         MouseEventKind::ScrollUp => (64, false),
         MouseEventKind::ScrollDown => (65, false),
-        MouseEventKind::Moved => (35, false),
         _ => return None,
     };
 
@@ -62,9 +62,11 @@ pub fn encode_mouse(kind: MouseEventKind, column: u16, row: u16, modifiers: KeyM
         button_code += 16;
     }
 
+    let x = column.saturating_sub(area.x) + 1;
+    let y = row.saturating_sub(area.y) + 1;
     let action = if is_release { 'm' } else { 'M' };
 
-    Some(format!("\x1b[<{};{};{}{}", button_code, x, y, action).into_bytes())
+    Some(format!("\x1b[<{button_code};{x};{y}{action}").into_bytes())
 }
 
 /// Converts a character to bytes, handling CTRL modifier.
@@ -105,9 +107,9 @@ fn get_function_key_sequence(n: u8, modifiers: KeyModifiers) -> Option<Vec<u8>> 
             };
 
             if modifier_code > 0 {
-                Some(format!("\x1b[{};{}~", base, modifier_code).into_bytes())
+                Some(format!("\x1b[{base};{modifier_code}~").into_bytes())
             } else {
-                Some(format!("\x1b[{}~", base).into_bytes())
+                Some(format!("\x1b[{base}~").into_bytes())
             }
         },
         _ => None,

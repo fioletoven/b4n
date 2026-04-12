@@ -122,7 +122,7 @@ impl ShellBridge {
             if _is_attach {
                 _is_running.store(true, Ordering::Relaxed);
 
-                // DSR query cursor key mode
+                // DSR query terminal mode
                 let query = vec![27, 91, 63, 49, 36, 112];
                 let _ = stdin.write_all(&query).await;
                 let _ = stdin.flush().await;
@@ -313,7 +313,7 @@ async fn resize_bridge(
 fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
     const CSI_PREFIX: &[u8] = &[27, 91, 63]; // ESC [ ?
 
-    let mut cursor_key_mode = None;
+    let mut application_mode = None;
     let mut mouse_mode = None;
     let mut i = 0;
 
@@ -345,11 +345,7 @@ fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
             end += 1;
         }
 
-        let terminator = match terminator {
-            Some(byte) => byte,
-            None => break,
-        };
-
+        let Some(terminator) = terminator else { break };
         let params = &data[i + CSI_PREFIX.len()..end];
 
         let mut param_start = 0;
@@ -359,7 +355,7 @@ fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
                 let param = &params[param_start..param_end];
 
                 match param {
-                    b"1" => cursor_key_mode = Some(terminator == b'h'),
+                    b"1" => application_mode = Some(terminator == b'h'),
                     b"1000" | b"1002" | b"1003" | b"1006" => mouse_mode = Some(terminator == b'h'),
                     _ => {},
                 }
@@ -371,5 +367,5 @@ fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
         i = end + 1;
     }
 
-    (cursor_key_mode, mouse_mode)
+    (application_mode, mouse_mode)
 }

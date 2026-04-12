@@ -79,10 +79,7 @@ impl ShellView {
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-
-        let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-        let action = if is_attach { "close attach view" } else { "detach shell" };
-        footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
+        set_hint(&app_data, &footer_tx, is_attach);
 
         Self {
             app_data,
@@ -111,18 +108,25 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
-        let is_mouse_enabled = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
-        let is_selected = self.selection.sorted().is_some();
-
-        let copy = if is_selected { "selection" } else { "all" };
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
-            .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
             .with_menu_action(ActionItem::menu(100, detach, "detach"));
 
-        if is_mouse_enabled {
-            builder.add_menu_action(ActionItem::menu(3, "󰍽 enable mouse", "mouse"));
+        let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
+        let is_selected = self.selection.sorted().is_some();
+
+        if !self.is_mouse_enabled {
+            let copy = if is_selected { "selection" } else { "all" };
+            builder = builder.with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        }
+
+        if is_mouse_allowed {
+            if self.is_mouse_enabled {
+                builder.add_menu_action(ActionItem::menu(3, "󰍾 release mouse", "mouse_off"));
+            } else {
+                builder.add_menu_action(ActionItem::menu(3, "󰍽 capture mouse", "mouse_on"));
+            }
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
@@ -137,7 +141,8 @@ impl ShellView {
             return match action {
                 "paste" => self.insert_from_clipboard(),
                 "copy" => self.copy_to_clipboard(),
-                "mouse" => self.enable_mouse(),
+                "mouse_on" => self.enable_mouse(true),
+                "mouse_off" => self.enable_mouse(false),
                 "detach" => {
                     if self.is_attach {
                         ResponseEvent::Cancelled
@@ -286,8 +291,14 @@ impl ShellView {
         }
     }
 
-    fn enable_mouse(&mut self) -> ResponseEvent {
-        self.is_mouse_enabled = true;
+    fn enable_mouse(&mut self, is_enabled: bool) -> ResponseEvent {
+        self.is_mouse_enabled = is_enabled;
+        if is_enabled {
+            self.footer_tx.show_hint(" Press ␝RMB␝ rapidly ␝2␝ times to open mouse menu");
+        } else {
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach);
+        }
+
         ResponseEvent::Handled
     }
 }
@@ -300,7 +311,6 @@ impl View for ShellView {
                 self.bridge
                     .start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, DEFAULT_SIZE);
                 self.size = DEFAULT_SIZE;
-                ResponseEvent::Handled
             } else {
                 if self.bridge.has_error() {
                     let kind = if self.is_attach { "main" } else { "shell" };
@@ -309,11 +319,13 @@ impl View for ShellView {
                         DEFAULT_ERROR_DURATION,
                     );
                 }
-                ResponseEvent::Cancelled
+                return ResponseEvent::Cancelled;
             }
-        } else {
-            ResponseEvent::Handled
+        } else if self.is_mouse_enabled && self.bridge.is_application_mode().is_some_and(|m| !m) {
+            return self.enable_mouse(false);
         }
+
+        ResponseEvent::Handled
     }
 
     fn process_disconnection(&mut self) {
@@ -356,23 +368,22 @@ impl View for ShellView {
             if self.is_mouse_enabled {
                 if mouse.kind == MouseEventKind::RightDoubleClick {
                     return self.show_mouse_menu(mouse.column, mouse.row);
-                } else {
-                    if self.is_mouse_enabled
-                        && let Some(bytes) = encode_mouse(mouse.kind, mouse.column, mouse.row, mouse.modifiers)
-                    {
-                        self.bridge.send(bytes);
-                    }
-
-                    return ResponseEvent::Handled;
                 }
-            } else {
-                return match mouse.kind {
-                    MouseEventKind::ScrollUp => self.set_scrollback(1, true),
-                    MouseEventKind::ScrollDown => self.set_scrollback(1, false),
-                    MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
-                    _ => ResponseEvent::NotHandled,
-                };
+                if self.is_mouse_enabled
+                    && let Some(bytes) = encode_mouse(mouse.kind, mouse.column, mouse.row, self.area, mouse.modifiers)
+                {
+                    self.bridge.send(bytes);
+                }
+
+                return ResponseEvent::Handled;
             }
+
+            return match mouse.kind {
+                MouseEventKind::ScrollUp => self.set_scrollback(1, true),
+                MouseEventKind::ScrollDown => self.set_scrollback(1, false),
+                MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
+                _ => ResponseEvent::NotHandled,
+            };
         }
 
         if let TuiEvent::Key(key) = event {
@@ -442,4 +453,10 @@ impl Drop for ShellView {
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();
     }
+}
+
+fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool) {
+    let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let action = if is_attach { "close attach view" } else { "detach shell" };
+    footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
 }
