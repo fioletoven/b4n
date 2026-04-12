@@ -4,7 +4,7 @@
 
 ### Features
 
-- mouse support in attach view and shell view
+- allow capture mouse events in attach view and shell view
 
 ### Bug fixes
 

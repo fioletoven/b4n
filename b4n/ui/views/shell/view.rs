@@ -294,7 +294,7 @@ impl ShellView {
     fn enable_mouse(&mut self, is_enabled: bool) -> ResponseEvent {
         self.is_mouse_enabled = is_enabled;
         if is_enabled {
-            self.footer_tx.show_hint(" Press ␝RMB␝ rapidly ␝2␝ times to open mouse menu");
+            self.footer_tx.show_hint(" Double right-click to open mouse menu");
         } else {
             set_hint(&self.app_data, &self.footer_tx, self.is_attach);
         }
