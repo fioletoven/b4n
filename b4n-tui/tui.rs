@@ -36,13 +36,21 @@ impl From<crossterm::event::MouseEvent> for MouseEvent {
                     MouseButton::Right => MouseEventKind::RightClick,
                     MouseButton::Middle => MouseEventKind::MiddleClick,
                 },
-                crossterm::event::MouseEventKind::Drag(MouseButton::Left) => MouseEventKind::LeftDrag,
+                crossterm::event::MouseEventKind::Up(button) => match button {
+                    MouseButton::Left => MouseEventKind::LeftUp,
+                    MouseButton::Right => MouseEventKind::RightUp,
+                    MouseButton::Middle => MouseEventKind::MiddleUp,
+                },
+                crossterm::event::MouseEventKind::Drag(button) => match button {
+                    MouseButton::Left => MouseEventKind::LeftDrag,
+                    MouseButton::Right => MouseEventKind::RightDrag,
+                    MouseButton::Middle => MouseEventKind::MiddleDrag,
+                },
                 crossterm::event::MouseEventKind::Moved => MouseEventKind::Moved,
                 crossterm::event::MouseEventKind::ScrollDown => MouseEventKind::ScrollDown,
                 crossterm::event::MouseEventKind::ScrollUp => MouseEventKind::ScrollUp,
                 crossterm::event::MouseEventKind::ScrollLeft => MouseEventKind::ScrollLeft,
                 crossterm::event::MouseEventKind::ScrollRight => MouseEventKind::ScrollRight,
-                _ => MouseEventKind::None,
             },
             column: value.column,
             row: value.row,
@@ -54,17 +62,21 @@ impl From<crossterm::event::MouseEvent> for MouseEvent {
 /// TUI mouse event kind.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum MouseEventKind {
-    None,
     LeftClick,
     LeftDoubleClick,
     LeftTripleClick,
+    LeftUp,
     LeftDrag,
     RightClick,
     RightDoubleClick,
     RightTripleClick,
+    RightUp,
+    RightDrag,
     MiddleClick,
     MiddleDoubleClick,
     MiddleTripleClick,
+    MiddleUp,
+    MiddleDrag,
     Moved,
     ScrollDown,
     ScrollUp,
@@ -322,7 +334,7 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
                     DblClickState::new(now, button, click_no)
                 },
 
-                crossterm::event::MouseEventKind::Drag(MouseButton::Left)
+                crossterm::event::MouseEventKind::Drag(_)
                 | crossterm::event::MouseEventKind::Moved
                 | crossterm::event::MouseEventKind::ScrollUp
                 | crossterm::event::MouseEventKind::ScrollDown
@@ -332,7 +344,10 @@ fn process_crossterm_event(event: Event, sender: &UnboundedSender<TuiEvent>, pre
                     DblClickState::default()
                 },
 
-                _ => prev_click,
+                crossterm::event::MouseEventKind::Up(_) => {
+                    let _ = sender.send(TuiEvent::Mouse(mouse_event.into()));
+                    prev_click
+                },
             }
         },
 

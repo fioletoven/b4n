@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- allow capture mouse events in attach view and shell view
+
 ### Bug fixes
 
 - fix `Backspace` and `Enter` keys in attach view
