@@ -3,7 +3,7 @@ use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{AttachParams, TerminalSize};
 use kube::{Api, Client};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::runtime::Handle;
@@ -25,7 +25,8 @@ pub struct ShellBridge {
     has_error: Arc<AtomicBool>,
     was_started: bool,
     shell: Option<String>,
-    cursor_key_mode: Arc<AtomicBool>,
+    application_mode: Arc<AtomicU8>,
+    mouse_mode: Arc<AtomicU8>,
 }
 
 impl ShellBridge {
@@ -43,7 +44,8 @@ impl ShellBridge {
             has_error: Arc::new(AtomicBool::new(false)),
             was_started: false,
             shell: None,
-            cursor_key_mode: Arc::new(AtomicBool::new(false)),
+            application_mode: Arc::new(AtomicU8::new(0)),
+            mouse_mode: Arc::new(AtomicU8::new(0)),
         }
     }
 
@@ -69,7 +71,8 @@ impl ShellBridge {
         let _has_error = Arc::clone(&self.has_error);
         let _is_running = Arc::clone(&self.is_running);
         let _is_attach = self.is_attach;
-        let _cursor_key_mode = Arc::clone(&self.cursor_key_mode);
+        let _application_mode = Arc::clone(&self.application_mode);
+        let _mouse_mode = Arc::clone(&self.mouse_mode);
 
         let task = self.runtime.spawn(async move {
             let api: Api<Pod> = Api::namespaced(client, pod.namespace.as_str());
@@ -127,7 +130,7 @@ impl ShellBridge {
 
             let ((), output_closed_too_soon, ()) = tokio::join! {
                 input_bridge(stdin, _input_rx, _cancellation_token.clone()),
-                output_bridge(stdout, _parser, _cancellation_token.clone(), Arc::clone(&_is_running), _cursor_key_mode),
+                output_bridge(stdout, _parser, _cancellation_token.clone(), Arc::clone(&_is_running), _application_mode, _mouse_mode),
                 resize_bridge(tty_resize, _size_rx, _cancellation_token.clone())
             };
 
@@ -198,8 +201,21 @@ impl ShellBridge {
     }
 
     /// Returns `true` if terminal is in application mode.
-    pub fn is_application_cursor_mode(&self) -> bool {
-        self.cursor_key_mode.load(Ordering::Relaxed)
+    pub fn is_application_mode(&self) -> Option<bool> {
+        match self.application_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
+    }
+
+    /// Returns `true` if terminal has mouse enabled.
+    pub fn is_mouse_enabled(&self) -> Option<bool> {
+        match self.mouse_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
     }
 }
 
@@ -238,7 +254,8 @@ async fn output_bridge(
     parser: Arc<RwLock<vt100::Parser>>,
     cancellation_token: CancellationToken,
     is_running: Arc<AtomicBool>,
-    cursor_key_mode: Arc<AtomicBool>,
+    cursor_key_mode: Arc<AtomicU8>,
+    mouse_mode: Arc<AtomicU8>,
 ) -> bool {
     let mut buf = [0u8; 8192];
     let mut processed_buf = Vec::new();
@@ -257,8 +274,12 @@ async fn output_bridge(
 
                 processed_buf.extend_from_slice(&buf[..size]);
 
-                if let Some(app_mode) = detect_cursor_key_mode(&processed_buf) {
-                    cursor_key_mode.store(app_mode, Ordering::Relaxed);
+                let (app_mode_enabled, mouse_enabled) = detect_terminal_modes(&processed_buf);
+                if let Some(is_enabled) = app_mode_enabled {
+                    cursor_key_mode.store(if is_enabled { 2 } else { 1 }, Ordering::Relaxed);
+                }
+                if let Some(is_enabled) = mouse_enabled {
+                    mouse_mode.store(if is_enabled { 2 } else { 1 }, Ordering::Relaxed);
                 }
 
                 let mut parser = parser.write().unwrap();
@@ -289,20 +310,66 @@ async fn resize_bridge(
     }
 }
 
-fn detect_cursor_key_mode(data: &[u8]) -> Option<bool> {
-    // Check for cursor key mode
-    if let Some(mode) = data.windows(5).find_map(|w| match w {
-        [27, 91, 63, 49, 104] => Some(true),
-        [27, 91, 63, 49, 108] => Some(false),
-        _ => None,
-    }) {
-        return Some(mode);
+fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
+    const CSI_PREFIX: &[u8] = &[27, 91, 63]; // ESC [ ?
+
+    let mut cursor_key_mode = None;
+    let mut mouse_mode = None;
+    let mut i = 0;
+
+    while i < data.len() {
+        if i + CSI_PREFIX.len() > data.len() {
+            break;
+        }
+
+        if &data[i..i + CSI_PREFIX.len()] != CSI_PREFIX {
+            i += 1;
+            continue;
+        }
+
+        let mut end = i + CSI_PREFIX.len();
+        let mut terminator = None;
+
+        // Find end of the escape sequence, example: `ESC [ ? 1006 ; 1000 h`.
+        while end < data.len() {
+            let byte = data[end];
+            if byte == b'h' || byte == b'l' {
+                terminator = Some(byte);
+                break;
+            }
+
+            if !byte.is_ascii_digit() && byte != b';' {
+                break;
+            }
+
+            end += 1;
+        }
+
+        let terminator = match terminator {
+            Some(byte) => byte,
+            None => break,
+        };
+
+        let params = &data[i + CSI_PREFIX.len()..end];
+
+        let mut param_start = 0;
+        for (j, &byte) in params.iter().enumerate() {
+            if byte == b';' || j == params.len() - 1 {
+                let param_end = if byte == b';' { j } else { j + 1 };
+                let param = &params[param_start..param_end];
+
+                match param {
+                    b"1" => cursor_key_mode = Some(terminator == b'h'),
+                    b"1000" | b"1002" | b"1003" | b"1006" => mouse_mode = Some(terminator == b'h'),
+                    _ => {},
+                }
+
+                param_start = param_end + 1;
+            }
+        }
+
+        i = end + 1;
     }
 
-    // Check for DSR cursor key mode response
-    data.windows(8).find_map(|w| match w {
-        [27, 91, 63, 49, 59, 49, 36, 121] => Some(true),
-        [27, 91, 63, 49, 59, 50, 36, 121] => Some(false),
-        _ => None,
-    })
+    (cursor_key_mode, mouse_mode)
 }

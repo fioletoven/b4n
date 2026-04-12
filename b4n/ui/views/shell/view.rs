@@ -111,14 +111,19 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
+        let is_mouse_enabled = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
         let is_selected = self.selection.sorted().is_some();
+
         let copy = if is_selected { "selection" } else { "all" };
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
-        let builder = ActionsListBuilder::default()
+        let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-            .with_menu_action(ActionItem::menu(3, "󰍽 enable mouse", "mouse"))
             .with_menu_action(ActionItem::menu(100, detach, "detach"));
+
+        if is_mouse_enabled {
+            builder.add_menu_action(ActionItem::menu(3, "󰍽 enable mouse", "mouse"));
+        }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
@@ -381,7 +386,7 @@ impl View for ShellView {
                 }
             }
 
-            if let Some(bytes) = encode_key(key.code, key.modifiers, self.bridge.is_application_cursor_mode()) {
+            if let Some(bytes) = encode_key(key.code, key.modifiers, self.bridge.is_application_mode().unwrap_or_default()) {
                 self.bridge.send(bytes);
 
                 if self.scrollback_rows > 0 {
