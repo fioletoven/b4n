@@ -4,13 +4,14 @@
 
 ### Features
 
-- allow capture mouse events in attach view and shell view
+- allow capturing mouse events in attach view and shell view
+- automatically detect cursor key and mouse modes in shell view
 
 ### Bug fixes
 
 - fix `Backspace` and `Enter` keys in attach view
 - remember namespace for previously selected resource
-- fix age column in container view
+- fix `AGE` column in container view
 
 ## 0.4.6 - 2026-04-08
 

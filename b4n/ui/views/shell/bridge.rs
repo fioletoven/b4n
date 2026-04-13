@@ -100,7 +100,7 @@ impl ShellBridge {
                 },
             };
 
-            let Some(mut stdin) = attached.stdin() else {
+            let Some(stdin) = attached.stdin() else {
                 let name = attach_params.container.as_deref().unwrap_or("unknown");
                 tracing::warn!("Unable to use an stdin for container '{}'", name);
                 _has_error.store(true, Ordering::Relaxed);
@@ -121,11 +121,6 @@ impl ShellBridge {
 
             if _is_attach {
                 _is_running.store(true, Ordering::Relaxed);
-
-                // DSR query terminal mode
-                let query = vec![27, 91, 63, 49, 36, 112];
-                let _ = stdin.write_all(&query).await;
-                let _ = stdin.flush().await;
             }
 
             let ((), output_closed_too_soon, ()) = tokio::join! {
