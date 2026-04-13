@@ -10,6 +10,7 @@
 
 - fix `Backspace` and `Enter` keys in attach view
 - remember namespace for previously selected resource
+- fix age column in container view
 
 ## 0.4.6 - 2026-04-08
 
