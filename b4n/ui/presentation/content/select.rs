@@ -194,6 +194,7 @@ impl SelectContext {
                 }
                 self.had_double_click = false;
             },
+            MouseEventKind::LeftUp => (),
             _ => self.had_double_click = false,
         }
     }

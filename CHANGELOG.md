@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix mouse triple-clicks in content views
+
 ## 0.4.7 - 2026-04-14
 
 ### Features
