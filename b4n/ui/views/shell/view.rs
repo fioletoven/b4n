@@ -45,6 +45,7 @@ pub struct ShellView {
     esc_time: Instant,
     clipboard_text: Option<String>,
     is_attach: bool,
+    is_app_mode: bool,
     is_mouse_enabled: bool,
     footer_tx: NotificationSink,
 }
@@ -98,6 +99,7 @@ impl ShellView {
             esc_time: Instant::now(),
             clipboard_text: None,
             is_attach,
+            is_app_mode: false,
             is_mouse_enabled: false,
             footer_tx,
         }
@@ -107,6 +109,8 @@ impl ShellView {
         if !self.app_data.borrow().is_connected() {
             return ResponseEvent::Handled;
         }
+
+        let mut size = 22;
 
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
@@ -118,18 +122,24 @@ impl ShellView {
 
         if !self.is_mouse_enabled {
             let copy = if is_selected { "selection" } else { "all" };
-            builder = builder.with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        }
+
+        if self.is_attach && self.bridge.is_application_mode().is_none() {
+            size = 28;
+            let mode = if self.is_app_mode { " normal" } else { " app." };
+            builder.add_menu_action(ActionItem::menu(3, &format!("{mode} cursor key mode"), "app_mode"));
         }
 
         if is_mouse_allowed {
             if self.is_mouse_enabled {
-                builder.add_menu_action(ActionItem::menu(3, "󰍾 release mouse", "mouse_off"));
+                builder.add_menu_action(ActionItem::menu(4, "󰍾 release mouse", "mouse_off"));
             } else {
-                builder.add_menu_action(ActionItem::menu(3, "󰍽 capture mouse", "mouse_on"));
+                builder.add_menu_action(ActionItem::menu(4, "󰍽 capture mouse", "mouse_on"));
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled
@@ -141,6 +151,7 @@ impl ShellView {
             return match action {
                 "paste" => self.insert_from_clipboard(),
                 "copy" => self.copy_to_clipboard(),
+                "app_mode" => self.toggle_app_mode(),
                 "mouse_on" => self.enable_mouse(true),
                 "mouse_off" => self.enable_mouse(false),
                 "detach" => {
@@ -291,6 +302,11 @@ impl ShellView {
         }
     }
 
+    fn toggle_app_mode(&mut self) -> ResponseEvent {
+        self.is_app_mode = !self.is_app_mode;
+        ResponseEvent::Handled
+    }
+
     fn enable_mouse(&mut self, is_enabled: bool) -> ResponseEvent {
         self.is_mouse_enabled = is_enabled;
         if is_enabled {
@@ -397,7 +413,8 @@ impl View for ShellView {
                 }
             }
 
-            if let Some(bytes) = encode_key(key.code, key.modifiers, self.bridge.is_application_mode().unwrap_or_default()) {
+            let is_app_mode = self.bridge.is_application_mode().unwrap_or(self.is_app_mode);
+            if let Some(bytes) = encode_key(key.code, key.modifiers, is_app_mode) {
                 self.bridge.send(bytes);
 
                 if self.scrollback_rows > 0 {

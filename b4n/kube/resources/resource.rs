@@ -67,7 +67,7 @@ impl ResourceItem {
         let involved_object = get_involved_object(kind, &object);
 
         Self {
-            age: get_age_string(&object.metadata),
+            age: get_age_string(creation_timestamp),
             name: object.name_any(),
             namespace: object.metadata.namespace,
             uid,
@@ -88,6 +88,7 @@ impl ResourceItem {
         is_init_container: bool,
     ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
+        let creation_timestamp = get_start_time(status, pod_metadata);
         let id_prefix = pod_metadata
             .uid
             .as_deref()
@@ -103,7 +104,7 @@ impl ResourceItem {
         filter.insert("n", vec![container_name.to_ascii_lowercase()]);
 
         Self {
-            age: get_age_string(pod_metadata),
+            age: get_age_string(creation_timestamp),
             name: container_name,
             namespace: pod_metadata.namespace.clone(),
             uid,
@@ -114,7 +115,7 @@ impl ResourceItem {
                 is_init_container,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
-            creation_timestamp: get_age_time(pod_metadata),
+            creation_timestamp,
             filter_metadata: filter,
             ..Default::default()
         }
@@ -145,20 +146,38 @@ impl ResourceItem {
     }
 }
 
-fn get_age_string(metadata: &ObjectMeta) -> Option<String> {
-    if metadata.resource_version.is_some() {
-        metadata.creation_timestamp.as_ref().map(|t| t.0.as_millisecond().to_string())
-    } else {
-        None
-    }
-}
-
 fn get_age_time(metadata: &ObjectMeta) -> Option<Timestamp> {
     if metadata.resource_version.is_some() {
         metadata.creation_timestamp.as_ref().map(|t| t.0)
     } else {
         None
     }
+}
+
+fn get_start_time(status: Option<&Value>, metadata: &ObjectMeta) -> Option<Timestamp> {
+    if let Some(status) = status {
+        if let Some(started_at) = status["state"]["running"]["startedAt"].as_str() {
+            return started_at.parse().ok();
+        }
+
+        if let Some(started_at) = status["state"]["terminated"]["startedAt"].as_str() {
+            return started_at.parse().ok();
+        }
+
+        if let Some(started_at) = status["lastState"]["running"]["startedAt"].as_str() {
+            return started_at.parse().ok();
+        }
+
+        if let Some(started_at) = status["lastState"]["terminated"]["startedAt"].as_str() {
+            return started_at.parse().ok();
+        }
+    }
+
+    get_age_time(metadata)
+}
+
+fn get_age_string(timestamp: Option<Timestamp>) -> Option<String> {
+    timestamp.map(|t| t.as_millisecond().to_string())
 }
 
 fn get_involved_object(kind: &str, object: &DynamicObject) -> Option<InvolvedObject> {
