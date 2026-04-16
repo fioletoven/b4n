@@ -4,6 +4,8 @@ use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use kube::{Api, api::LogParams, runtime::watcher::DefaultBackoff};
+use std::error::Error;
+use std::io::ErrorKind;
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -96,8 +98,9 @@ impl LogsObserver {
             let mut backoff = DefaultBackoff::default();
             let mut since_time = options.since_time;
             let mut should_continue = ObserveResult::Continue;
+            let mut error_state = ErrorState::default();
             while !_cancellation_token.is_cancelled() {
-                (should_continue, since_time) = observe(since_time, &context).await;
+                (should_continue, since_time) = observe(since_time, &context, &mut error_state).await;
                 if _cancellation_token.is_cancelled() || should_continue != ObserveResult::Continue {
                     break;
                 }
@@ -194,7 +197,11 @@ enum ObserveResult {
     StopOn,
 }
 
-async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (ObserveResult, Option<Timestamp>) {
+async fn observe(
+    since_time: Option<Timestamp>,
+    context: &ObserverContext<'_>,
+    error_state: &mut ErrorState,
+) -> (ObserveResult, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
         previous: context.previous,
@@ -231,6 +238,7 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
             line = lines.try_next() => {
                 match line {
                     Ok(Some(line)) => {
+                        error_state.reset();
                         if let Some(line) = process_line(container, &line) {
                             last_message_time = Some(line.datetime);
 
@@ -247,7 +255,9 @@ async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -
                         break;
                     },
                     Err(err) => {
-                        context.send_log_line(process_error(container, err.to_string(), None));
+                        if error_state.should_show_error(&err) {
+                            context.send_log_line(process_error(container, err.to_string(), None));
+                        }
                         break;
                     },
                 }
@@ -273,4 +283,43 @@ fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) 
 
 fn should_stop_on(current: &LogLine, dt: Timestamp, log: &str) -> bool {
     current.datetime == dt && current.lowercase == log
+}
+
+/// Tracks error state to avoid showing timeout errors on first occurrence.
+#[derive(Default)]
+struct ErrorState {
+    timeout_seen: bool,
+}
+
+impl ErrorState {
+    fn is_timeout_error(err: &std::io::Error) -> bool {
+        if err.kind() == ErrorKind::TimedOut {
+            return true;
+        }
+
+        if err.kind() == ErrorKind::Other {
+            let mut source = err.source();
+            while let Some(e) = source {
+                if format!("{:?}", e).contains("TimedOut") {
+                    return true;
+                }
+                source = e.source();
+            }
+        }
+
+        false
+    }
+
+    fn reset(&mut self) {
+        self.timeout_seen = false;
+    }
+
+    fn should_show_error(&mut self, err: &std::io::Error) -> bool {
+        if !self.timeout_seen && Self::is_timeout_error(err) {
+            self.timeout_seen = true;
+            false
+        } else {
+            true
+        }
+    }
 }

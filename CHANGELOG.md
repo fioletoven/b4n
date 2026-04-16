@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - fix mouse triple-clicks in content views
+- do not display the first stream timeout error in logs view
 
 ## 0.4.7 - 2026-04-14
 
