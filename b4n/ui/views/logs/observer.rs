@@ -98,9 +98,8 @@ impl LogsObserver {
             let mut backoff = DefaultBackoff::default();
             let mut since_time = options.since_time;
             let mut should_continue = ObserveResult::Continue;
-            let mut error_state = ErrorState::default();
             while !_cancellation_token.is_cancelled() {
-                (should_continue, since_time) = observe(since_time, &context, &mut error_state).await;
+                (should_continue, since_time) = observe(since_time, &context).await;
                 if _cancellation_token.is_cancelled() || should_continue != ObserveResult::Continue {
                     break;
                 }
@@ -197,11 +196,7 @@ enum ObserveResult {
     StopOn,
 }
 
-async fn observe(
-    since_time: Option<Timestamp>,
-    context: &ObserverContext<'_>,
-    error_state: &mut ErrorState,
-) -> (ObserveResult, Option<Timestamp>) {
+async fn observe(since_time: Option<Timestamp>, context: &ObserverContext<'_>) -> (ObserveResult, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
         previous: context.previous,
@@ -231,6 +226,7 @@ async fn observe(
     };
 
     let mut last_message_time = since_time;
+    let mut error_state = ErrorState::default();
     let mut result = ObserveResult::Continue;
     while !context.cancellation_token.is_cancelled() {
         tokio::select! {

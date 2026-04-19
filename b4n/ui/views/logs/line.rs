@@ -1,4 +1,5 @@
 use ansi_to_tui::IntoText;
+use b4n_config::APP_NAME;
 use k8s_openapi::jiff::Timestamp;
 use ratatui::style::Style;
 use std::fmt::{Display, Write};
@@ -51,10 +52,11 @@ impl LogLine {
             lowercase.push_str(&text.to_ascii_lowercase());
         }
 
+        let (container, container_len) = get_container(container);
         Self {
             datetime,
-            container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
-            container: container.map(String::from),
+            container_len,
+            container,
             message_len: lowercase.chars().count(),
             message,
             lowercase,
@@ -64,12 +66,14 @@ impl LogLine {
 
     /// Returns new error [`LogLine`] instance.
     pub fn error(datetime: Timestamp, container: Option<&str>, error: String) -> Self {
+        let (container, container_len) = get_container(container);
+        let (message, message_len) = get_message(error);
         Self {
             datetime,
-            container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
-            container: container.map(String::from),
-            message_len: error.chars().count(),
-            message: vec![(Style::default(), error)],
+            container_len,
+            container,
+            message_len,
+            message,
             lowercase: String::new(),
             kind: LineKind::Error,
         }
@@ -77,12 +81,14 @@ impl LogLine {
 
     /// Returns new info [`LogLine`] instance.
     pub fn info(datetime: Timestamp, container: Option<&str>, info: String) -> Self {
+        let (container, container_len) = get_container(container);
+        let (message, message_len) = get_message(info);
         Self {
             datetime,
-            container_len: container.map(|c| c.chars().count()).unwrap_or_default(),
-            container: container.map(String::from),
-            message_len: info.chars().count(),
-            message: vec![(Style::default(), info)],
+            container_len,
+            container,
+            message_len,
+            message,
             lowercase: String::new(),
             kind: LineKind::FetchInfo,
         }
@@ -134,4 +140,17 @@ impl LogLine {
 
         result
     }
+}
+
+fn get_container(container: Option<&str>) -> (Option<String>, usize) {
+    (
+        container.map(String::from),
+        container.map(|c| c.chars().count()).unwrap_or_default(),
+    )
+}
+
+fn get_message(text: String) -> (StyledLine, usize) {
+    let name = format!("[{APP_NAME}] ");
+    let len = name.chars().count() + text.chars().count();
+    (vec![(Style::default(), name), (Style::default(), text)], len)
 }

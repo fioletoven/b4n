@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- prepend app name to app errors in logs view for clarity
+
 ### Bug fixes
 
 - fix mouse triple-clicks in content views
