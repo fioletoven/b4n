@@ -366,6 +366,10 @@ impl ResourcesTable {
                 );
             }
 
+            if self.app_data.has_binding(event, KeyCommand::DescribeOpen) {
+                return self.process_describe(resource);
+            }
+
             if self.app_data.has_binding(event, KeyCommand::YamlOpen)
                 || (self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.kind_plural() == SECRETS)
             {
@@ -462,6 +466,11 @@ impl ResourcesTable {
     fn process_open_shell(&self, resource: &ResourceItem) -> ResponseEvent {
         self.resource_ref_from(resource, true)
             .map_or(ResponseEvent::NotHandled, ResponseEvent::OpenShell)
+    }
+
+    fn process_describe(&self, resource: &ResourceItem) -> ResponseEvent {
+        self.resource_ref_from(resource, false)
+            .map_or(ResponseEvent::NotHandled, ResponseEvent::Describe)
     }
 
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool, edit: bool) -> ResponseEvent {

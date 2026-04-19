@@ -242,6 +242,7 @@ impl App {
             ResponseEvent::ViewYaml(resource, decode, edit) => self.request_yaml(resource, decode, edit),
             ResponseEvent::ViewLogs(resource, containers) => self.views_manager.show_logs(&resource, containers, false),
             ResponseEvent::ViewPreviousLogs(resource, containers) => self.views_manager.show_logs(&resource, containers, true),
+            ResponseEvent::Describe(resource) => self.views_manager.describe(resource),
             ResponseEvent::AttachContainer(container) => self.views_manager.open_shell(container, true),
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
