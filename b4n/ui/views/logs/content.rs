@@ -164,7 +164,13 @@ impl LogsContent {
         }
 
         let style: Style = log_colors.into();
-        result.extend(line.message.iter().map(|(s, t)| (style.patch(*s), t.clone())));
+        if line.kind == LineKind::LogLine {
+            result.extend(line.message.iter().map(|(s, t)| (style.patch(*s), t.clone())));
+        } else if !line.message.is_empty() {
+            let info_style: Style = (&self.colors.info).into();
+            result.push((info_style.patch(line.message[0].0), line.message[0].1.clone()));
+            result.extend(line.message.iter().skip(1).map(|(s, t)| (style.patch(*s), t.clone())));
+        }
 
         result
     }
