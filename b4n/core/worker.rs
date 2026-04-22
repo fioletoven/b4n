@@ -208,6 +208,11 @@ impl BgWorker {
         self.client.as_ref()
     }
 
+    /// Returns [`DiscoveryList`].
+    pub fn discovery_list(&self) -> Option<&DiscoveryList> {
+        self.discovery_list.as_ref()
+    }
+
     /// Ensures that kind has plural name.
     pub fn ensure_kind_is_plural(&self, kind: Kind) -> Kind {
         if let Some(plural) = get_plural(self.discovery_list.as_ref(), &kind)

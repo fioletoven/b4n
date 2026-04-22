@@ -94,7 +94,7 @@ impl<T: Table> Responsive for List<T> {
 }
 
 /// Widget that renders all visible rows in a list.\
-/// **Note** that it removes `[` and `]` characters from the output dimming the inside text.
+/// **Note** that it removes `␝` characters from the output dimming the text between.
 pub struct ListWidget {
     pub list: Vec<(String, TextColors)>,
 }

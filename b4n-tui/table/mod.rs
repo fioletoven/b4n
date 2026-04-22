@@ -101,6 +101,9 @@ pub trait Table: crate::Responsive {
     /// Returns `true` if any item in the list is selected.
     fn is_anything_selected(&self) -> bool;
 
+    /// Sets page start and height.
+    fn set_page(&mut self, page_start: usize, page_height: u16);
+
     /// Updates page start for the current page size and highlighted list item.
     fn update_page(&mut self, new_height: u16);
 

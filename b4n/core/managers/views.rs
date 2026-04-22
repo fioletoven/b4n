@@ -523,15 +523,14 @@ impl ViewsManager {
     }
 
     /// Opens describe view for the specified resource.
-    pub fn describe(&mut self, resource: ResourceRef) {
-        if let Some(client) = self.worker.borrow().kubernetes_client() {
-            let view = DescribeView::new(
-                self.worker.borrow().runtime_handle().clone(),
-                Rc::clone(&self.app_data),
-                client,
-                resource,
-                self.footer.get_transmitter(),
-            );
+    pub fn describe(&mut self, resource: ResourceRef, uid: &str) {
+        if let Some(view) = DescribeView::new(
+            Rc::clone(&self.worker),
+            Rc::clone(&self.app_data),
+            resource,
+            uid,
+            self.footer.get_transmitter(),
+        ) {
             self.view = Some(Box::new(view));
         }
     }

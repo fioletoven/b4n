@@ -64,7 +64,7 @@ pub struct ContainerStats {
 }
 
 /// Holds all statistics for the Kubernetes cluster.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Statistics {
     pub generation: u16,
     pub has_metrics: bool,

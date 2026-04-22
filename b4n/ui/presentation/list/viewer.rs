@@ -35,6 +35,32 @@ impl<T: Table> ListViewer<T> {
         }
     }
 
+    /// Draws [`ListViewer`] on the provided frame area clipped with the offset and area height.
+    pub fn draw_clipped(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, offset: usize) {
+        let header_height = if offset == 0 { 1 } else { 0 };
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(header_height), Constraint::Fill(1)])
+            .split(area);
+        self.area = layout[1].inner(Margin::new(1, 0));
+
+        frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
+
+        if header_height == 1 {
+            self.draw_header(frame, layout[0]);
+        }
+
+        self.table
+            .set_page(offset.saturating_sub(header_height.into()), self.area.height);
+
+        self.is_disconnected.update(!self.app_data.borrow().is_connected());
+        if self.app_data.borrow().is_connected() {
+            let theme = &self.app_data.borrow().theme;
+            let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
+        }
+    }
+
     /// Draws [`ListViewer`] on the provided frame area.\
     /// It draws only the visible elements respecting the height of the `area`.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
@@ -44,23 +70,9 @@ impl<T: Table> ListViewer<T> {
             .split(area);
         self.area = layout[1].inner(Margin::new(1, 0));
 
-        {
-            let theme = &self.app_data.borrow().theme;
-            frame.render_widget(Block::new().style(&theme.colors.text), area);
+        frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
 
-            self.table.refresh_header(self.view, usize::from(self.area.width));
-            let sort_symbols = self.table.get_sort_symbols();
-            let offset = self.table.refresh_offset();
-            let mut header = HeaderWidget {
-                header: self.table.get_header(self.view, usize::from(self.area.width)),
-                offset,
-                colors: &theme.colors.header.text,
-                background: theme.colors.text.bg,
-                view: self.view,
-                sort_symbols: &sort_symbols,
-            };
-            frame.render_widget(&mut header, layout[0]);
-        }
+        self.draw_header(frame, layout[0]);
 
         self.table.update_page(self.area.height);
 
@@ -81,6 +93,24 @@ impl<T: Table> ListViewer<T> {
     /// Updates error state for the resources list.
     pub fn update_error_state(&mut self, has_api_error: bool) {
         self.has_api_error.update(has_api_error);
+    }
+
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        self.table.refresh_header(self.view, usize::from(self.area.width));
+
+        let theme = &self.app_data.borrow().theme;
+        let sort_symbols = self.table.get_sort_symbols();
+        let offset = self.table.refresh_offset();
+        let mut header = HeaderWidget {
+            header: self.table.get_header(self.view, usize::from(self.area.width)),
+            offset,
+            colors: &theme.colors.header.text,
+            background: theme.colors.text.bg,
+            view: self.view,
+            sort_symbols: &sort_symbols,
+        };
+
+        frame.render_widget(&mut header, area);
     }
 
     fn render_error(&mut self, frame: &mut ratatui::Frame<'_>, error: &str, has_spinner: bool) {
@@ -179,12 +209,12 @@ impl<T: Table> Responsive for ListViewer<T> {
 /// Widget that renders header for the items list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
-    pub header: &'a str,
-    pub offset: usize,
-    pub colors: &'a TextColors,
-    pub background: Color,
-    pub view: ViewType,
-    pub sort_symbols: &'a [char],
+    header: &'a str,
+    offset: usize,
+    colors: &'a TextColors,
+    background: Color,
+    view: ViewType,
+    sort_symbols: &'a [char],
 }
 
 impl Widget for &mut HeaderWidget<'_> {

@@ -1,13 +1,15 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ResourceRef, client::KubernetesClient};
+use b4n_kube::utils::get_resource;
+use b4n_kube::{EVENTS, ResourceRefFilter};
+use b4n_kube::{Kind, ResourceRef};
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, widgets::ActionsListBuilder};
 use kube::Client;
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
-use tokio::runtime::Handle;
 
-use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kube::resources::ResourceObserver;
 use crate::ui::{views::View, widgets::CommandPalette};
 
 /// Pod's describe view.
@@ -15,6 +17,7 @@ pub struct DescribeView {
     app_data: SharedAppData,
     client: Client,
     resource: ResourceRef,
+    events: ResourceObserver,
     command_palette: CommandPalette,
     footer_tx: NotificationSink,
 }
@@ -22,19 +25,33 @@ pub struct DescribeView {
 impl DescribeView {
     /// Creates new [`DescribeView`] instance.
     pub fn new(
-        runtime: Handle,
+        worker: SharedBgWorker,
         app_data: SharedAppData,
-        client: &KubernetesClient,
         resource: ResourceRef,
+        uid: &str,
         footer_tx: NotificationSink,
-    ) -> Self {
-        Self {
+    ) -> Option<Self> {
+        let worker = worker.borrow();
+        let resource_name = resource.name.as_deref().map(String::from)?;
+        let client = worker.kubernetes_client()?;
+
+        let runtime = worker.runtime_handle().clone();
+
+        let events_filter = ResourceRefFilter::involved(resource_name, uid);
+        let events_kind = Kind::from(EVENTS);
+        let events_dis = get_resource(worker.discovery_list(), &events_kind);
+        let events_res = ResourceRef::filtered(events_kind, resource.namespace.clone(), events_filter);
+        let mut events = ResourceObserver::simple(runtime);
+        events.start(client, events_res, events_dis, true).ok()?;
+
+        Some(Self {
             app_data,
             client: client.get_client(),
             resource,
+            events,
             command_palette: CommandPalette::default(),
             footer_tx,
-        }
+        })
     }
 
     /// Shows command palette.

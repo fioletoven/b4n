@@ -470,7 +470,9 @@ impl ResourcesTable {
 
     fn process_describe(&self, resource: &ResourceItem) -> ResponseEvent {
         self.resource_ref_from(resource, false)
-            .map_or(ResponseEvent::NotHandled, ResponseEvent::Describe)
+            .map_or(ResponseEvent::NotHandled, |r| {
+                ResponseEvent::Describe(r, resource.uid.clone())
+            })
     }
 
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool, edit: bool) -> ResponseEvent {
