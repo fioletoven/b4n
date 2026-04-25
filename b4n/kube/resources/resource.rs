@@ -12,7 +12,7 @@ use kube::ResourceExt;
 use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use super::{ResourceData, ResourceValue, container, get_header_data, get_resource_data};
+use crate::kube::resources::{ResourceData, ResourceValue, condition, container, get_header_data, get_resource_data};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -121,6 +121,22 @@ impl ResourceItem {
         }
     }
 
+    /// Creates [`ResourceItem`] from kubernetes resource status condition.
+    pub fn from_status_condition(status_condition: &Value) -> Self {
+        let creation_timestamp = get_transition_time(status_condition);
+        let condition_type = status_condition["type"].as_str().unwrap_or("unknown").to_owned();
+        let uid = format!("_{condition_type}_");
+
+        Self {
+            age: get_age_string(creation_timestamp),
+            name: condition_type,
+            uid,
+            data: Some(condition::data(status_condition)),
+            creation_timestamp,
+            ..Default::default()
+        }
+    }
+
     /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, is_filtered: bool) -> Header {
         get_header_data(kind, group, crd, has_metrics, is_filtered)
@@ -174,6 +190,14 @@ fn get_start_time(status: Option<&Value>, metadata: &ObjectMeta) -> Option<Times
     }
 
     get_age_time(metadata)
+}
+
+fn get_transition_time(condition: &Value) -> Option<Timestamp> {
+    if let Some(transition_time) = condition["lastTransitionTime"].as_str() {
+        transition_time.parse().ok()
+    } else {
+        None
+    }
 }
 
 fn get_age_string(timestamp: Option<Timestamp>) -> Option<String> {

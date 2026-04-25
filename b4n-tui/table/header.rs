@@ -47,6 +47,12 @@ impl Header {
         }
     }
 
+    /// Sets name column.
+    pub fn with_name_column(mut self, name_column: Column) -> Self {
+        self.name = name_column;
+        self
+    }
+
     /// Sets information required for sorting.
     pub fn with_sort_info(mut self, column_no: usize, is_descending: bool) -> Self {
         self.set_sort_info(column_no, is_descending);

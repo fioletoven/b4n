@@ -6,6 +6,7 @@ use kube::api::DynamicObject;
 use crate::kube::resources::ResourceData;
 
 pub mod api_service;
+pub mod condition;
 pub mod config_map;
 pub mod container;
 pub mod crd;
@@ -118,6 +119,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         ("StorageClass", "storage.k8s.io") => storage_class::header(),
 
         ("Container", "") => container::header(has_metrics),
+        ("Condition", "") => condition::header(),
         _ => default::header(),
     }
 }
