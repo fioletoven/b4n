@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use b4n_common::DelayedTrueTracker;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
 use b4n_tui::widgets::Spinner;
@@ -19,6 +21,7 @@ pub struct ListViewer<T: Table> {
     has_api_error: DelayedTrueTracker,
     is_disconnected: DelayedTrueTracker,
     spinner: Spinner,
+    show_border: bool,
 }
 
 impl<T: Table> ListViewer<T> {
@@ -32,7 +35,14 @@ impl<T: Table> ListViewer<T> {
             has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
             spinner: Spinner::default(),
+            show_border: true,
         }
+    }
+
+    /// Sets border to `false`.
+    pub fn with_no_border(mut self) -> Self {
+        self.show_border = false;
+        self
     }
 
     /// Draws [`ListViewer`] on the provided frame area clipped with the offset and area height.
@@ -108,6 +118,7 @@ impl<T: Table> ListViewer<T> {
             background: theme.colors.text.bg,
             view: self.view,
             sort_symbols: &sort_symbols,
+            show_border: self.show_border,
         };
 
         frame.render_widget(&mut header, area);
@@ -215,6 +226,7 @@ struct HeaderWidget<'a> {
     background: Color,
     view: ViewType,
     sort_symbols: &'a [char],
+    show_border: bool,
 }
 
 impl Widget for &mut HeaderWidget<'_> {
@@ -224,10 +236,15 @@ impl Widget for &mut HeaderWidget<'_> {
     {
         let x = area.left() + 1;
         let y = area.top();
-        let max_x = area.left() + buf.area.width - 1;
+        let max_x = min((area.left() + area.width).saturating_sub(1), buf.area.width.saturating_sub(1));
 
-        buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
-        buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        if self.show_border {
+            buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+            buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        } else {
+            buf[(x - 1, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
+            buf[(max_x, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
+        }
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;
