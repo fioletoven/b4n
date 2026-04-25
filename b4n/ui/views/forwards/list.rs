@@ -102,19 +102,12 @@ impl Table for PortForwardsList {
 
     /// Returns items from the current page in a form of text lines to display and colors for that lines.
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Vec<(String, TextColors)> {
-        let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
+        let widths = self.table.header.get_widths(view, width);
 
         let mut result = Vec::with_capacity(self.table.list.page_height().into());
         for item in self.table.list.get_page() {
             result.push((
-                item.get_text(
-                    view,
-                    &self.table.header,
-                    width,
-                    namespace_width,
-                    name_width + name_extra_width,
-                    self.table.offset(),
-                ),
+                item.get_text(view, &self.table.header, &widths, width, self.table.offset()),
                 item.data.get_colors(theme, item.is_active, item.is_selected),
             ));
         }

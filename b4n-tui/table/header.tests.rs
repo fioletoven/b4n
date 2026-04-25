@@ -4,21 +4,21 @@ use super::*;
 
 #[test]
 fn get_widths_test() {
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(0));
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(10));
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(15));
-    assert_eq!((0, 7, 0), Header::default().get_compact_widths(16));
-    assert_eq!((0, 11, 0), Header::default().get_compact_widths(20));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(0));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(10));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(15));
+    assert_eq!(HeaderWidths::new(0, 7, 0, 0), Header::default().get_compact_widths(16));
+    assert_eq!(HeaderWidths::new(0, 11, 0, 0), Header::default().get_compact_widths(20));
 }
 
 #[test]
 fn get_full_widths_test() {
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(0));
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(10));
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(27));
-    assert_eq!((11, 7, 0), Header::default().get_full_widths(28));
-    assert_eq!((11, 9, 0), Header::default().get_full_widths(30));
-    assert_eq!((11, 14, 0), Header::default().get_full_widths(35));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(0));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(10));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(27));
+    assert_eq!(HeaderWidths::new(11, 7, 0, 0), Header::default().get_full_widths(28));
+    assert_eq!(HeaderWidths::new(11, 9, 0, 0), Header::default().get_full_widths(30));
+    assert_eq!(HeaderWidths::new(11, 14, 0, 0), Header::default().get_full_widths(35));
 }
 
 #[test]

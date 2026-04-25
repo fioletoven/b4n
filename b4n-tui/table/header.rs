@@ -6,6 +6,27 @@ use crate::table::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
 #[path = "./header.tests.rs"]
 mod header_tests;
 
+/// Holds header dynamic widths.
+#[derive(Debug, PartialEq)]
+pub struct HeaderWidths {
+    pub group: usize,
+    pub name: usize,
+    pub name_extra: usize,
+    pub extra: usize,
+}
+
+impl HeaderWidths {
+    /// Creates new [`HeaderWidths`] instance.
+    pub fn new(group: usize, name: usize, name_extra: usize, extra: usize) -> Self {
+        Self {
+            group,
+            name,
+            name_extra,
+            extra,
+        }
+    }
+}
+
 /// Header for the list.
 pub struct Header {
     group: Column,                        // column: 0, optional
@@ -17,6 +38,7 @@ pub struct Header {
     sort_symbols: Rc<[char]>,
     sorted_column_no: usize,
     is_sorted_descending: bool,
+    stretch_last: bool,
     cache: HeaderCache,
 }
 
@@ -43,6 +65,7 @@ impl Header {
             sort_symbols,
             sorted_column_no: 1,
             is_sorted_descending: false,
+            stretch_last: false,
             cache: HeaderCache::default(),
         }
     }
@@ -56,6 +79,12 @@ impl Header {
     /// Sets information required for sorting.
     pub fn with_sort_info(mut self, column_no: usize, is_descending: bool) -> Self {
         self.set_sort_info(column_no, is_descending);
+        self
+    }
+
+    /// Sets last column as the one that is stretched (instead of name column).
+    pub fn with_stretch_last(mut self) -> Self {
+        self.stretch_last = true;
         self
     }
 
@@ -158,11 +187,10 @@ impl Header {
     /// Updates header text if recalculation is required.
     pub fn refresh_text(&mut self, view: ViewType, width: usize) {
         if self.cache.area_width.is_none_or(|w| w != width) || self.cache.view != view {
-            let (group_width, name_width, _) = self.get_widths(view, width);
-            self.update_cached_extra_columns_text(name_width);
+            let widths = self.get_widths(view, width);
+            self.update_cached_extra_columns_text(&widths);
 
-            let spaces_width = self.cache.double_spaces_count;
-            self.cache.text = self.get_text_string(view, group_width, name_width.saturating_sub(spaces_width), width);
+            self.cache.text = self.get_text_string(view, &widths, width);
             self.cache.view = view;
             self.cache.area_width = Some(width);
             self.cache.text_length = Some(self.cache.text.chars().count());
@@ -197,7 +225,7 @@ impl Header {
     }
 
     /// Returns widths for namespace and name columns together with an extra space for the name column.
-    pub fn get_widths(&self, view: ViewType, width: usize) -> (usize, usize, usize) {
+    pub fn get_widths(&self, view: ViewType, width: usize) -> HeaderWidths {
         if view == ViewType::Full {
             self.get_full_widths(width)
         } else {
@@ -206,44 +234,59 @@ impl Header {
     }
 
     /// Returns dynamic widths for name column together with extra space for it.
-    fn get_compact_widths(&self, area_width: usize) -> (usize, usize, usize) {
+    fn get_compact_widths(&self, area_width: usize) -> HeaderWidths {
         if area_width <= self.name.min_len() + self.all_extra_width {
-            (0, self.name.min_len(), self.extra_space)
+            HeaderWidths::new(0, self.name.min_len(), self.extra_space, 0)
         } else {
-            (0, area_width - self.all_extra_width, self.extra_space)
+            let avail_width = area_width - self.all_extra_width;
+            if self.stretch_last {
+                let full_name_width = self.name.data_len.saturating_sub(self.extra_space);
+                if avail_width <= full_name_width {
+                    HeaderWidths::new(0, avail_width, self.extra_space, 0)
+                } else {
+                    let extra = avail_width.saturating_sub(full_name_width);
+                    HeaderWidths::new(0, full_name_width, self.extra_space, extra)
+                }
+            } else {
+                HeaderWidths::new(0, avail_width, self.extra_space, 0)
+            }
         }
     }
 
     /// Returns dynamic widths for group and name columns together with extra space for name column.
-    fn get_full_widths(&self, area_width: usize) -> (usize, usize, usize) {
+    fn get_full_widths(&self, area_width: usize) -> HeaderWidths {
         let min_width_for_all = self.group.min_len() + 1 + self.name.min_len() + self.all_extra_width;
 
         if area_width <= min_width_for_all {
-            (self.group.min_len(), self.name.min_len(), self.extra_space)
+            HeaderWidths::new(self.group.min_len(), self.name.min_len(), self.extra_space, 0)
         } else {
-            let max_group_width = std::cmp::max(self.group.data_len, self.group.min_len());
-            let min_width_for_full_size = max_group_width + 1 + self.name.data_len;
+            let full_group_width = std::cmp::max(self.group.data_len, self.group.min_len());
+            let full_name_width = self.name.data_len.saturating_sub(self.extra_space);
+            let min_width_for_full_size = full_group_width + 1 + full_name_width;
 
             if area_width >= min_width_for_full_size + self.all_extra_width {
                 let avail_width = area_width - min_width_for_full_size - self.all_extra_width;
-
-                (max_group_width, self.name.data_len + avail_width, self.extra_space)
+                if self.stretch_last {
+                    HeaderWidths::new(full_group_width, full_name_width, self.extra_space, avail_width)
+                } else {
+                    HeaderWidths::new(full_group_width, full_name_width + avail_width, self.extra_space, 0)
+                }
             } else {
                 let avail_width = area_width - min_width_for_all;
-                let group_width = std::cmp::min(self.group.min_len() + avail_width / 2, max_group_width);
+                let group_width = std::cmp::min(self.group.min_len() + avail_width / 2, full_group_width);
                 let name_width = area_width - group_width - self.all_extra_width - 1;
 
-                (group_width, name_width, self.extra_space)
+                HeaderWidths::new(group_width, name_width, self.extra_space, 0)
             }
         }
     }
 
     /// Builds header `String` for the provided `group_width`, `name_width` and `area_width`.
-    fn get_text_string(&self, view: ViewType, group_width: usize, name_width: usize, area_width: usize) -> String {
+    fn get_text_string(&self, view: ViewType, widths: &HeaderWidths, area_width: usize) -> String {
         match view {
             ViewType::Name => self.get_name_text(area_width),
-            ViewType::Compact => self.get_compact_text(name_width, area_width),
-            ViewType::Full => self.get_full_text(group_width, name_width, area_width),
+            ViewType::Compact => self.get_compact_text(widths, area_width),
+            ViewType::Full => self.get_full_text(widths, area_width),
         }
     }
 
@@ -260,16 +303,24 @@ impl Header {
     }
 
     /// Gets header text without group column.
-    fn get_compact_text(&self, name_width: usize, area_width: usize) -> String {
-        self.get_text_inner(0, name_width.saturating_sub(1), area_width, false)
+    fn get_compact_text(&self, widths: &HeaderWidths, area_width: usize) -> String {
+        self.get_text_inner(widths, area_width, false)
     }
 
     /// Gets header text with group column.
-    fn get_full_text(&self, group_width: usize, name_width: usize, area_width: usize) -> String {
-        self.get_text_inner(group_width.saturating_sub(1), name_width, area_width, true)
+    fn get_full_text(&self, widths: &HeaderWidths, area_width: usize) -> String {
+        self.get_text_inner(widths, area_width, true)
     }
 
-    fn get_text_inner(&self, group_width: usize, name_width: usize, area_width: usize, full: bool) -> String {
+    fn get_text_inner(&self, widths: &HeaderWidths, area_width: usize, full: bool) -> String {
+        let group_width = widths.group.saturating_sub(1);
+        let mut name_width = widths.name.saturating_sub(if full { 0 } else { 1 });
+        let mut extra_width = widths.extra;
+        if widths.extra > 0 {
+            extra_width = extra_width.saturating_sub(self.cache.double_spaces_count);
+        } else {
+            name_width = name_width.saturating_sub(self.cache.double_spaces_count);
+        }
         let mut header = String::with_capacity(area_width + 2);
 
         if full {
@@ -281,22 +332,27 @@ impl Header {
         header.push(' ');
         header.push_str(self.cache.extra_columns_text());
         header.push(' ');
+        if extra_width > 0 {
+            header.extend(std::iter::repeat_n(' ', extra_width));
+        }
         header.push_column(&self.age, self.age.max_len(), self.is_sorted_descending);
         header.push(' ');
 
         header
     }
 
-    fn update_cached_extra_columns_text(&mut self, name_width: usize) {
+    fn update_cached_extra_columns_text(&mut self, widths: &HeaderWidths) {
         let double_spaces_count = self
             .extra_columns
             .as_ref()
             .map(|c| c.len())
             .unwrap_or_default()
             .saturating_sub(1);
-        let min_name_len = self.name.data_len.max(6 + self.extra_space);
-        let double_spaces_count = if double_spaces_count > 0 && min_name_len < name_width + self.extra_space {
-            let free_space = (name_width + self.extra_space).saturating_sub(min_name_len);
+        let min_name_len = self.name.data_len.max(6 + widths.name_extra);
+        let double_spaces_count = if double_spaces_count > 0 && widths.extra > 0 {
+            double_spaces_count.min(widths.extra)
+        } else if double_spaces_count > 0 && min_name_len < widths.name + widths.name_extra {
+            let free_space = (widths.name + widths.name_extra).saturating_sub(min_name_len);
             double_spaces_count.min(free_space)
         } else {
             0

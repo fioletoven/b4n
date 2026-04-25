@@ -27,4 +27,5 @@ pub fn header() -> Header {
         Rc::new([' ', 'T', 'S', 'R', 'M', 'A']),
     )
     .with_name_column(Column::bound("TYPE", 6, 6, false))
+    .with_stretch_last()
 }

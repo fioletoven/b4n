@@ -1,36 +1,20 @@
 use b4n_common::{substring_owned, truncate};
 use b4n_list::{FilterContext, Filterable, Item, Row};
 
-use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType};
+use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType, header::HeaderWidths};
 
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
-    fn get_text(
-        &self,
-        view: ViewType,
-        header: &Header,
-        width: usize,
-        namespace_width: usize,
-        name_width: usize,
-        offset: usize,
-    ) -> String;
+    fn get_text(&self, view: ViewType, header: &Header, widths: &HeaderWidths, width: usize, offset: usize) -> String;
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> ItemExt for Item<T, Fc> {
-    fn get_text(
-        &self,
-        view: ViewType,
-        header: &Header,
-        width: usize,
-        namespace_width: usize,
-        name_width: usize,
-        offset: usize,
-    ) -> String {
+    fn get_text(&self, view: ViewType, header: &Header, widths: &HeaderWidths, width: usize, offset: usize) -> String {
         let mut row = String::with_capacity(width + 2);
         match view {
             ViewType::Name => row.push_cell(self.data.name(), width, false),
-            ViewType::Compact => get_compact_text(self, &mut row, header, name_width),
-            ViewType::Full => get_full_text(self, &mut row, header, namespace_width, name_width),
+            ViewType::Compact => get_compact_text(self, &mut row, header, widths),
+            ViewType::Full => get_full_text(self, &mut row, header, widths),
         }
 
         if offset > 0 {
@@ -46,12 +30,19 @@ fn get_compact_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     item: &Item<T, Fc>,
     row: &mut String,
     header: &Header,
-    name_width: usize,
+    widths: &HeaderWidths,
 ) {
-    let name_width = name_width.saturating_sub(header.double_spaces_count());
+    let mut name_width = widths.name + widths.name_extra;
+    let mut extra_width = widths.extra;
+    if widths.extra > 0 {
+        extra_width = extra_width.saturating_sub(header.double_spaces_count());
+    } else {
+        name_width = name_width.saturating_sub(header.double_spaces_count());
+    }
+
     row.push_cell(item.data.name(), name_width, false);
     row.push(' ');
-    push_inner_text(item, row, header);
+    push_inner_text(item, row, header, extra_width);
     row.push(' ');
     row.push_cell(
         item.data
@@ -68,15 +59,19 @@ fn get_full_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     item: &Item<T, Fc>,
     row: &mut String,
     header: &Header,
-    namespace_width: usize,
-    name_width: usize,
+    widths: &HeaderWidths,
 ) {
-    row.push_cell(item.data.column_text(0).as_ref(), namespace_width, false);
+    row.push_cell(item.data.column_text(0).as_ref(), widths.group, false);
     row.push(' ');
-    get_compact_text(item, row, header, name_width);
+    get_compact_text(item, row, header, widths);
 }
 
-fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(item: &Item<T, Fc>, row: &mut String, header: &Header) {
+fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
+    item: &Item<T, Fc>,
+    row: &mut String,
+    header: &Header,
+    extra_space: usize,
+) {
     let Some(columns) = header.get_extra_columns() else {
         return;
     };
@@ -98,6 +93,10 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(item: &Item<T, Fc
         };
 
         row.push_cell(item.data.column_text(i + 2).as_ref(), len, columns[i].to_right);
+    }
+
+    if extra_space > 0 {
+        row.extend(std::iter::repeat_n(' ', extra_space));
     }
 }
 
