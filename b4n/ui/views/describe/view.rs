@@ -3,8 +3,10 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::utils::get_resource;
 use b4n_kube::{BgObserver, EVENTS, ResourceRefFilter};
 use b4n_kube::{Kind, ResourceRef};
+use b4n_tui::MouseEventKind;
+use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, widgets::ActionsListBuilder};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Position};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
@@ -22,13 +24,14 @@ pub struct DescribeView {
     observer: BgObserver,
     events: ResourceObserver,
     command_palette: CommandPalette,
+    last_mouse_click: Option<Position>,
     footer_tx: NotificationSink,
 }
 
 impl DescribeView {
     /// Creates new [`DescribeView`] instance.
     pub fn new(
-        worker: SharedBgWorker,
+        worker: &SharedBgWorker,
         app_data: SharedAppData,
         resource: ResourceRef,
         uid: &str,
@@ -65,6 +68,7 @@ impl DescribeView {
             observer,
             events,
             command_palette: CommandPalette::default(),
+            last_mouse_click: None,
             footer_tx,
         })
     }
@@ -77,9 +81,35 @@ impl DescribeView {
             .with_aliases(&self.app_data.borrow().config.aliases);
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65);
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
         self.footer_tx.hide_hint();
+    }
+
+    /// Shows menu for right mouse button.
+    fn show_mouse_menu(&mut self, x: u16, y: u16) {
+        if !self.app_data.borrow().is_connected() {
+            return;
+        }
+
+        let builder = ActionsListBuilder::default()
+            .with_menu_action(ActionItem::back())
+            .with_menu_action(ActionItem::command_palette());
+
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette.show_at((x.saturating_sub(3), y).into());
+    }
+
+    /// Processes events that are from the command palette.
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        match self.command_palette.process_event(event) {
+            ResponseEvent::Action("palette") => {
+                self.last_mouse_click = event.position();
+                self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
+            },
+            response_event => response_event,
+        }
     }
 }
 
@@ -102,7 +132,10 @@ impl View for DescribeView {
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
-            return self.command_palette.process_event(event);
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return result;
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
@@ -111,6 +144,13 @@ impl View for DescribeView {
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 

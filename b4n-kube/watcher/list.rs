@@ -87,7 +87,7 @@ pub async fn list(
 
         tokio::select! {
             () = cancellation_token.cancelled() => (),
-            () = sleep(Duration::from_millis(5_000)) => (),
+            () = sleep(Duration::from_secs(5)) => (),
         }
     }
 }

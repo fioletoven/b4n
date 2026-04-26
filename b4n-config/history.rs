@@ -308,10 +308,7 @@ impl fmt::Display for HistoryItem {
             f,
             "{}::{}",
             self.value,
-            self.creation_time
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0)
+            self.creation_time.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
         )
     }
 }

@@ -46,10 +46,8 @@ impl DescribeContent {
     }
 
     pub fn update_resource(&mut self, result: ObserverResult<DynamicObject>) {
-        let object = match result {
-            ObserverResult::Apply(resource) => resource,
-            ObserverResult::Delete(resource) => resource,
-            _ => return,
+        let (ObserverResult::Apply(object) | ObserverResult::Delete(object)) = result else {
+            return;
         };
 
         self.has_data = true;

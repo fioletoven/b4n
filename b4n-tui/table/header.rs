@@ -315,7 +315,7 @@ impl Header {
 
     fn get_text_inner(&self, widths: &HeaderWidths, area_width: usize, full: bool) -> String {
         let group_width = widths.group.saturating_sub(1);
-        let mut name_width = widths.name.saturating_sub(if full { 0 } else { 1 });
+        let mut name_width = widths.name.saturating_sub(usize::from(!full));
         let mut extra_width = widths.extra;
         if widths.extra > 0 {
             extra_width = extra_width.saturating_sub(self.cache.double_spaces_count);

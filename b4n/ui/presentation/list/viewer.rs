@@ -47,7 +47,7 @@ impl<T: Table> ListViewer<T> {
 
     /// Draws [`ListViewer`] on the provided frame area clipped with the offset and area height.
     pub fn draw_clipped(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, offset: usize) {
-        let header_height = if offset == 0 { 1 } else { 0 };
+        let header_height = u16::from(offset == 0);
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(header_height), Constraint::Fill(1)])
