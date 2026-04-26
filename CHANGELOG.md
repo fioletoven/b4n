@@ -5,6 +5,7 @@
 ### Features
 
 - prepend app name to app errors in logs view for clarity
+- add initial describe view for Kubernetes resources
 
 ### Bug fixes
 

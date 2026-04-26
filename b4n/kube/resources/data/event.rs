@@ -40,6 +40,7 @@ pub fn header_filtered() -> Header {
         Rc::new([' ', 'N', 'C', 'T', 'M', 'A']),
     )
     .with_sort_info(5, false)
+    .with_stretch_last()
 }
 
 fn data_full(object: &DynamicObject) -> ResourceData {

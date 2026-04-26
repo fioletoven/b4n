@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use b4n_common::DelayedTrueTracker;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
 use b4n_tui::widgets::Spinner;
@@ -19,6 +21,7 @@ pub struct ListViewer<T: Table> {
     has_api_error: DelayedTrueTracker,
     is_disconnected: DelayedTrueTracker,
     spinner: Spinner,
+    show_border: bool,
 }
 
 impl<T: Table> ListViewer<T> {
@@ -32,6 +35,39 @@ impl<T: Table> ListViewer<T> {
             has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
             spinner: Spinner::default(),
+            show_border: true,
+        }
+    }
+
+    /// Sets border to `false`.
+    pub fn with_no_border(mut self) -> Self {
+        self.show_border = false;
+        self
+    }
+
+    /// Draws [`ListViewer`] on the provided frame area clipped with the offset and area height.
+    pub fn draw_clipped(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, offset: usize) {
+        let header_height = u16::from(offset == 0);
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(header_height), Constraint::Fill(1)])
+            .split(area);
+        self.area = layout[1].inner(Margin::new(1, 0));
+
+        frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
+
+        if header_height == 1 {
+            self.draw_header(frame, layout[0]);
+        }
+
+        self.table
+            .set_page(offset.saturating_sub(header_height.into()), self.area.height);
+
+        self.is_disconnected.update(!self.app_data.borrow().is_connected());
+        if self.app_data.borrow().is_connected() {
+            let theme = &self.app_data.borrow().theme;
+            let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
+            frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
         }
     }
 
@@ -44,23 +80,9 @@ impl<T: Table> ListViewer<T> {
             .split(area);
         self.area = layout[1].inner(Margin::new(1, 0));
 
-        {
-            let theme = &self.app_data.borrow().theme;
-            frame.render_widget(Block::new().style(&theme.colors.text), area);
+        frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
 
-            self.table.refresh_header(self.view, usize::from(self.area.width));
-            let sort_symbols = self.table.get_sort_symbols();
-            let offset = self.table.refresh_offset();
-            let mut header = HeaderWidget {
-                header: self.table.get_header(self.view, usize::from(self.area.width)),
-                offset,
-                colors: &theme.colors.header.text,
-                background: theme.colors.text.bg,
-                view: self.view,
-                sort_symbols: &sort_symbols,
-            };
-            frame.render_widget(&mut header, layout[0]);
-        }
+        self.draw_header(frame, layout[0]);
 
         self.table.update_page(self.area.height);
 
@@ -81,6 +103,25 @@ impl<T: Table> ListViewer<T> {
     /// Updates error state for the resources list.
     pub fn update_error_state(&mut self, has_api_error: bool) {
         self.has_api_error.update(has_api_error);
+    }
+
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        self.table.refresh_header(self.view, usize::from(self.area.width));
+
+        let theme = &self.app_data.borrow().theme;
+        let sort_symbols = self.table.get_sort_symbols();
+        let offset = self.table.refresh_offset();
+        let mut header = HeaderWidget {
+            header: self.table.get_header(self.view, usize::from(self.area.width)),
+            offset,
+            colors: &theme.colors.header.text,
+            background: theme.colors.text.bg,
+            view: self.view,
+            sort_symbols: &sort_symbols,
+            show_border: self.show_border,
+        };
+
+        frame.render_widget(&mut header, area);
     }
 
     fn render_error(&mut self, frame: &mut ratatui::Frame<'_>, error: &str, has_spinner: bool) {
@@ -179,12 +220,13 @@ impl<T: Table> Responsive for ListViewer<T> {
 /// Widget that renders header for the items list pane.\
 /// It underlines sort symbol inside each column name.
 struct HeaderWidget<'a> {
-    pub header: &'a str,
-    pub offset: usize,
-    pub colors: &'a TextColors,
-    pub background: Color,
-    pub view: ViewType,
-    pub sort_symbols: &'a [char],
+    header: &'a str,
+    offset: usize,
+    colors: &'a TextColors,
+    background: Color,
+    view: ViewType,
+    sort_symbols: &'a [char],
+    show_border: bool,
 }
 
 impl Widget for &mut HeaderWidget<'_> {
@@ -194,10 +236,15 @@ impl Widget for &mut HeaderWidget<'_> {
     {
         let x = area.left() + 1;
         let y = area.top();
-        let max_x = area.left() + buf.area.width - 1;
+        let max_x = min((area.left() + area.width).saturating_sub(1), buf.area.width.saturating_sub(1));
 
-        buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
-        buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        if self.show_border {
+            buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+            buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        } else {
+            buf[(x - 1, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
+            buf[(max_x, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
+        }
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;

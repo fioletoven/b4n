@@ -292,6 +292,15 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.page_height
     }
 
+    /// Sets page start and height.
+    pub fn set_page(&mut self, page_start: usize, page_height: u16) {
+        let len = self.items.len();
+        let max_start = len.saturating_sub(page_height.into());
+
+        self.page_start = page_start.min(max_start);
+        self.page_height = page_height;
+    }
+
     /// Updates page start for the current page size and highlighted resource item.
     pub fn update_page(&mut self, new_height: u16) {
         self.page_height = new_height;

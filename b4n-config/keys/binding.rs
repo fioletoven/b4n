@@ -31,6 +31,7 @@ define_key_commands! {
         CommandPaletteReset => "command-palette.close" @ "Esc",
         ContainerAttach => "container.attach" @ "A",
         ContentCopy => "content.copy" @ "C",
+        DescribeOpen => "describe.open" @ "D",
         EventsShow => "events.show" @ "E",
         FilterOpen => "filter.open" @ "/", "Shift+/",
         FilterPin => "filter.pin" @ "Ctrl+P",

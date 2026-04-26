@@ -87,4 +87,18 @@ impl InitData {
             is_deletable: cap.supports_operation(verbs::DELETE),
         }
     }
+
+    /// Creates new simple initial data for [`ObserverResult`].
+    pub fn simple(resource: ResourceRef, kind: String, kind_plural: String) -> Self {
+        Self {
+            uuid: Uuid::new_v4()
+                .hyphenated()
+                .encode_lower(&mut Uuid::encode_buffer())
+                .to_owned(),
+            resource,
+            kind,
+            kind_plural,
+            ..Default::default()
+        }
+    }
 }

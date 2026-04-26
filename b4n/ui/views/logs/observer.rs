@@ -295,11 +295,11 @@ impl ErrorState {
 
         if err.kind() == ErrorKind::Other {
             let mut source = err.source();
-            while let Some(e) = source {
-                if format!("{:?}", e).contains("TimedOut") {
+            while let Some(error) = source {
+                if format!("{error:?}").contains("TimedOut") {
                     return true;
                 }
-                source = e.source();
+                source = error.source();
             }
         }
 

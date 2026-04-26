@@ -90,6 +90,7 @@ pub enum ResponseEvent {
     ViewYaml(ResourceRef, bool, bool),
     ViewLogs(ResourceRef, Option<Vec<ResourceTag>>),
     ViewPreviousLogs(ResourceRef, Option<Vec<ResourceTag>>),
+    Describe(ResourceRef, String),
 
     AttachContainer(ResourceRef),
     OpenShell(ResourceRef),

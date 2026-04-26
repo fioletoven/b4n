@@ -148,8 +148,7 @@ impl ResourcesList {
     pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {
         let width = self.get_best_width(view);
         let header = self.table.header.get_text(view, width).to_string();
-        let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
-        let name_width = name_width + name_extra_width;
+        let widths = self.table.header.get_widths(view, width);
 
         let items = self
             .table
@@ -165,7 +164,7 @@ impl ResourcesList {
         let mut result = Vec::with_capacity(items.len() + 1);
         result.push(header);
         for item in items {
-            result.push(item.get_text(view, &self.table.header, width, namespace_width, name_width, 0));
+            result.push(item.get_text(view, &self.table.header, &widths, width, 0));
         }
 
         result
@@ -271,6 +270,7 @@ impl Table for ResourcesList {
             fn select_highlighted_item(&mut self);
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
+            fn set_page(&mut self, page_start: usize, page_height: u16);
             fn update_page(&mut self, new_height: u16);
             fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
@@ -326,19 +326,12 @@ impl Table for ResourcesList {
     }
 
     fn get_paged_items(&self, theme: &Theme, view: ViewType, width: usize) -> Vec<(String, TextColors)> {
-        let (namespace_width, name_width, name_extra_width) = self.table.header.get_widths(view, width);
+        let widths = self.table.header.get_widths(view, width);
 
         let mut result = Vec::with_capacity(self.table.list.page_height().into());
         for item in self.table.list.get_page() {
             result.push((
-                item.get_text(
-                    view,
-                    &self.table.header,
-                    width,
-                    namespace_width,
-                    name_width + name_extra_width,
-                    self.table.offset(),
-                ),
+                item.get_text(view, &self.table.header, &widths, width, self.table.offset()),
                 item.data.get_colors(theme, item.is_active, item.is_selected),
             ));
         }

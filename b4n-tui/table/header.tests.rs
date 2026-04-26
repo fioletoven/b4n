@@ -4,21 +4,21 @@ use super::*;
 
 #[test]
 fn get_widths_test() {
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(0));
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(10));
-    assert_eq!((0, 6, 0), Header::default().get_compact_widths(15));
-    assert_eq!((0, 7, 0), Header::default().get_compact_widths(16));
-    assert_eq!((0, 11, 0), Header::default().get_compact_widths(20));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(0));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(10));
+    assert_eq!(HeaderWidths::new(0, 6, 0, 0), Header::default().get_compact_widths(15));
+    assert_eq!(HeaderWidths::new(0, 7, 0, 0), Header::default().get_compact_widths(16));
+    assert_eq!(HeaderWidths::new(0, 11, 0, 0), Header::default().get_compact_widths(20));
 }
 
 #[test]
 fn get_full_widths_test() {
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(0));
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(10));
-    assert_eq!((11, 6, 0), Header::default().get_full_widths(27));
-    assert_eq!((11, 7, 0), Header::default().get_full_widths(28));
-    assert_eq!((11, 9, 0), Header::default().get_full_widths(30));
-    assert_eq!((11, 14, 0), Header::default().get_full_widths(35));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(0));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(10));
+    assert_eq!(HeaderWidths::new(11, 6, 0, 0), Header::default().get_full_widths(27));
+    assert_eq!(HeaderWidths::new(11, 7, 0, 0), Header::default().get_full_widths(28));
+    assert_eq!(HeaderWidths::new(11, 9, 0, 0), Header::default().get_full_widths(30));
+    assert_eq!(HeaderWidths::new(11, 14, 0, 0), Header::default().get_full_widths(35));
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn get_text_extra_columns_test() {
         (" NAME↑    ", ViewType::Name, 10),
         (" NAME↑ FIRST SECOND    AGE ", ViewType::Compact, 0),
         (" TEST NAME↑  FIRST SECOND    AGE ", ViewType::Full, 0),
-        (" TEST NAME↑      FIRST  SECOND    AGE ", ViewType::Full, 38),
+        (" TEST NAME↑     FIRST  SECOND     AGE ", ViewType::Full, 38),
     ];
 
     let mut header = Header::from(
@@ -92,10 +92,10 @@ fn get_text_extra_columns_sized_test() {
         (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 0),
         (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 33),
         (" NAME↑  FIRST       SECOND     AGE ", ViewType::Compact, 35),
-        (" NAME↑           FIRST       SECOND     AGE ", ViewType::Compact, 44),
+        (" NAME↑          FIRST       SECOND      AGE ", ViewType::Compact, 44),
         (" NAMESPACE  NAME↑  FIRST      SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑   FIRST       SECOND     AGE ", ViewType::Full, 47),
-        (" NAMESPACE  NAME↑           FIRST       SECOND     AGE ", ViewType::Full, 55),
+        (" NAMESPACE  NAME↑          FIRST       SECOND      AGE ", ViewType::Full, 55),
     ];
 
     let mut header = Header::from(
@@ -117,7 +117,7 @@ fn get_text_extra_columns_to_right_test() {
         (" NAME↑       FIRST  SECOND     AGE ", ViewType::Compact, 35),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 45),
-        (" NAMESPACE  NAME↑                FIRST  SECOND     AGE ", ViewType::Full, 55),
+        (" NAMESPACE  NAME↑               FIRST  SECOND      AGE ", ViewType::Full, 55),
     ];
 
     let mut header = Header::from(

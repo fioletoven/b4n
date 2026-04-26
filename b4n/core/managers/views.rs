@@ -17,7 +17,7 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::ResourceItem;
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
-use crate::ui::views::{ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
+use crate::ui::views::{DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
 
 pub struct ViewsManager {
@@ -519,6 +519,19 @@ impl ViewsManager {
             }
         } else if let Some(view) = &mut self.view {
             view.process_command_result(wrap(result));
+        }
+    }
+
+    /// Opens describe view for the specified resource.
+    pub fn describe(&mut self, resource: ResourceRef, uid: &str) {
+        if let Some(view) = DescribeView::new(
+            &self.worker,
+            Rc::clone(&self.app_data),
+            resource,
+            uid,
+            self.footer.get_transmitter(),
+        ) {
+            self.view = Some(Box::new(view));
         }
     }
 

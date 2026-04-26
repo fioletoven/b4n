@@ -7,7 +7,9 @@ use delegate::delegate;
 use k8s_openapi::serde_json::Value;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, Scope};
+use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::rc::Rc;
 use tokio::runtime::Handle;
 
 use crate::kube::resources::ResourceItem;
@@ -32,6 +34,18 @@ impl ResourceObserver {
             crds,
             crd: None,
             statistics,
+        }
+    }
+
+    /// Creates new simple [`ResourceObserver`] instance.
+    pub fn simple(runtime: Handle) -> Self {
+        Self {
+            observer: BgObserver::new(runtime, None),
+            queue: VecDeque::with_capacity(200),
+            group: String::default(),
+            crds: Rc::new(RefCell::new(Vec::new())),
+            crd: None,
+            statistics: Rc::new(RefCell::new(Statistics::default())),
         }
     }
 

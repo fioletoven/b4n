@@ -17,19 +17,9 @@ fn get_text_name_test(#[case] expected: &str, #[case] resource: &str, #[case] te
     let header = Header::default();
     let item = Item::new(ResourceItem::new(resource, false));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
+    let widths = header.get_widths(ViewType::Compact, terminal_width);
 
-    assert_eq!(
-        expected,
-        item.get_text(
-            ViewType::Name,
-            &header,
-            terminal_width,
-            namespace_width,
-            name_width + name_extra_width,
-            0
-        )
-    );
+    assert_eq!(expected, item.get_text(ViewType::Name, &header, &widths, terminal_width, 0));
 }
 
 #[rstest]
@@ -42,18 +32,11 @@ fn get_text_compact_test(#[case] expected: &str, #[case] resource: &str, #[case]
     let header = Header::default();
     let item = Item::new(ResourceItem::new(resource, false));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Compact, terminal_width);
+    let widths = header.get_widths(ViewType::Compact, terminal_width);
 
     assert_eq!(
         expected,
-        item.get_text(
-            ViewType::Compact,
-            &header,
-            terminal_width,
-            namespace_width,
-            name_width + name_extra_width,
-            0
-        )
+        item.get_text(ViewType::Compact, &header, &widths, terminal_width, 0)
     );
 }
 
@@ -70,25 +53,15 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
     let header = Header::default();
     let item = Item::new(ResourceItem::new(resource, false));
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
+    let widths = header.get_widths(ViewType::Full, terminal_width);
 
-    assert_eq!(
-        expected,
-        item.get_text(
-            ViewType::Full,
-            &header,
-            terminal_width,
-            namespace_width,
-            name_width + name_extra_width,
-            0
-        )
-    );
+    assert_eq!(expected, item.get_text(ViewType::Full, &header, &widths, terminal_width, 0));
 }
 
 #[test]
 fn get_text_pod_test() {
-    // " NAMESPACE  NAME                                 RESTARTS↑ READY   STATUS       IP          NODE            AGE "
-    // "kube-system local-path-provisioner-84db5d44d9-kjjp5      5 1/1     Running      10.42.1.201 9764bc470abf     n/a"
+    // " NAMESPACE  NAME                               RESTARTS↑  READY    STATUS       IP          NODE            AGE "
+    // "kube-system local-path-provisioner-84db5d44d9-kjjp5    5  1/1      Running      10.42.1.201 9764bc470abf     n/a"
 
     let terminal_width = 112;
 
@@ -103,7 +76,7 @@ fn get_text_pod_test() {
     header.set_data_length(7, 6);
     header.set_sort_info(2, false);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
+    let widths = header.get_widths(ViewType::Full, terminal_width);
 
     let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5", false));
     item.data.namespace = Some("kube-system".to_owned());
@@ -120,20 +93,13 @@ fn get_text_pod_test() {
     });
 
     assert_eq!(
-        " NAMESPACE  NAME                              RESTARTS↑  READY    STATUS        IP          NODE            AGE ",
+        " NAMESPACE  NAME                               RESTARTS↑  READY    STATUS       IP          NODE            AGE ",
         header.get_text(ViewType::Full, terminal_width)
     );
 
     assert_eq!(
-        "kube-system local-path-provisioner-84db5d44d9-kjjp5   5  1/1      Running       10.42.1.201 9764bc470abf     n/a",
-        item.get_text(
-            ViewType::Full,
-            &header,
-            terminal_width,
-            namespace_width,
-            name_width + name_extra_width,
-            0
-        )
+        "kube-system local-path-provisioner-84db5d44d9-kjjp5    5  1/1      Running      10.42.1.201 9764bc470abf     n/a",
+        item.get_text(ViewType::Full, &header, &widths, terminal_width, 0)
     );
 }
 
@@ -160,7 +126,7 @@ fn align_column_to_right_test() {
     header.set_data_length(4, 6);
     header.set_sort_info(2, false);
 
-    let (namespace_width, name_width, name_extra_width) = header.get_widths(ViewType::Full, terminal_width);
+    let widths = header.get_widths(ViewType::Full, terminal_width);
 
     let mut item = Item::new(ResourceItem::new("local-path-provisioner-84db5d44d9-kjjp5", false));
     item.data.namespace = Some("kube-system".to_owned());
@@ -176,13 +142,6 @@ fn align_column_to_right_test() {
 
     assert_eq!(
         "kube-system local-path-provisioner-84db5d44d9-kjjp5 555555 10.42.1.201     n/a",
-        item.get_text(
-            ViewType::Full,
-            &header,
-            terminal_width,
-            namespace_width,
-            name_width + name_extra_width,
-            0
-        )
+        item.get_text(ViewType::Full, &header, &widths, terminal_width, 0)
     );
 }

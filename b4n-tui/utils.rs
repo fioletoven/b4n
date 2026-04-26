@@ -76,6 +76,14 @@ pub fn get_styled_spans(line: &str, color: TextColors) -> Vec<Span<'_>> {
         .collect::<Vec<_>>()
 }
 
+/// Adds a space to `text` if any spaces remain in the budget, decrementing the count.
+pub fn consume_and_add_space(text: &mut String, spaces_remaining: &mut usize) {
+    if *spaces_remaining > 0 {
+        text.push(' ');
+        *spaces_remaining -= 1;
+    }
+}
+
 /// Sets panic hook that additionally leaves alternate screen mode on panic.
 pub fn init_panic_hook() {
     let original_hook = take_hook();

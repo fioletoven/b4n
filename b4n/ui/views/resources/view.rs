@@ -257,6 +257,7 @@ impl ResourcesView {
                 "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
                 "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
                 "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
+                "describe" => self.table.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen)),
                 "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "port_forward" => {
@@ -359,17 +360,6 @@ impl ResourcesView {
     }
 
     fn add_resource_actions(&self, mut builder: ActionsListBuilder, is_containers: bool) -> ActionsListBuilder {
-        builder.add_action(
-            ActionItem::action("show YAML", "show_yaml")
-                .with_description(if is_containers {
-                    "shows YAML of the container's resource"
-                } else {
-                    "shows YAML of the highlighted resource"
-                })
-                .with_aliases(&["yaml", "yml", "view"]),
-            Some(KeyCommand::YamlOpen),
-        );
-
         if self.table.kind_plural() == SECRETS {
             builder.add_action(
                 ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML of the highlighted secret"),
@@ -387,6 +377,20 @@ impl ResourcesView {
         }
 
         builder
+            .with_action(
+                ActionItem::action("show YAML", "show_yaml")
+                    .with_description(if is_containers {
+                        "shows YAML of the container's resource"
+                    } else {
+                        "shows YAML of the highlighted resource"
+                    })
+                    .with_aliases(&["yaml", "yml", "view"]),
+                Some(KeyCommand::YamlOpen),
+            )
+            .with_action(
+                ActionItem::action("describe", "describe").with_description("shows resource describe view"),
+                Some(KeyCommand::DescribeOpen),
+            )
     }
 
     fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
@@ -434,20 +438,20 @@ impl ResourcesView {
         let copy = if is_selected { "selected" } else { "all" };
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::command_palette())
-            .with_menu_action(ActionItem::menu(10, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            .with_menu_action(ActionItem::menu(11, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
         }
 
         if self.table.list.table.is_anything_selected() && self.table.list.table.data.is_deletable {
-            let action = ActionItem::menu(11, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+            let action = ActionItem::menu(12, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
             builder.add_menu_action(action);
         }
 
         if !is_containers && !is_events {
             if self.table.list.table.data.is_creatable {
-                builder.add_menu_action(ActionItem::menu(8, "󰐕 create new", "create"));
+                builder.add_menu_action(ActionItem::menu(9, "󰐕 create new", "create"));
             }
             if is_highlighted {
                 builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
@@ -460,24 +464,25 @@ impl ResourcesView {
 
         if is_highlighted {
             builder = builder
+                .with_menu_action(ActionItem::menu(4, " describe", "describe"))
                 .with_menu_action(ActionItem::menu(1, " YAML", "show_yaml"))
-                .with_menu_action(ActionItem::menu(10, "󰆏 copy ␝name␝", "copy_name"));
+                .with_menu_action(ActionItem::menu(11, "󰆏 copy ␝name␝", "copy_name"));
 
             if is_containers || is_pods {
                 builder = builder
                     .with_menu_action(ActionItem::menu(2, " logs", "show_logs"))
                     .with_menu_action(ActionItem::menu(3, " logs ␝previous␝", "show_plogs"))
-                    .with_menu_action(ActionItem::menu(5, " attach", "attach"))
-                    .with_menu_action(ActionItem::menu(6, " shell", "open_shell"))
-                    .with_menu_action(ActionItem::menu(7, "󱘖 forward port", "port_forward"));
+                    .with_menu_action(ActionItem::menu(6, " attach", "attach"))
+                    .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
             }
 
             if self.table.kind_plural() == SECRETS {
-                builder.add_menu_action(ActionItem::menu(4, " YAML ␝decoded␝", "decode_yaml"));
+                builder.add_menu_action(ActionItem::menu(5, " YAML ␝decoded␝", "decode_yaml"));
             }
 
             if self.table.list.table.data.is_editable {
-                builder.add_menu_action(ActionItem::menu(9, " edit", "edit_yaml"));
+                builder.add_menu_action(ActionItem::menu(10, " edit", "edit_yaml"));
             }
         }
 

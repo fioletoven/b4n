@@ -48,6 +48,7 @@ impl Table for ActionsList {
             fn select_highlighted_item(&mut self);
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
+            fn set_page(&mut self, page_start: usize, page_height: u16);
             fn update_page(&mut self, new_height: u16);
             fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
