@@ -239,10 +239,10 @@ enum Section {
 impl Section {
     fn height(&self) -> u16 {
         match self {
-            Section::Spacer { height } => *height,
-            Section::Lines { height } => *height,
-            Section::Conditions { height } => *height,
-            Section::Events { height } => *height,
+            Section::Spacer { height }
+            | Section::Lines { height }
+            | Section::Conditions { height }
+            | Section::Events { height } => *height,
         }
     }
 }
