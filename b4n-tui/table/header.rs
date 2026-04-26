@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::table::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
+use crate::utils::consume_and_add_space;
 
 #[cfg(test)]
 #[path = "./header.tests.rs"]
@@ -347,7 +348,7 @@ impl Header {
             .as_ref()
             .map(|c| c.len())
             .unwrap_or_default()
-            .saturating_sub(1);
+            .saturating_add(1);
         let min_name_len = self.name.data_len.max(6 + widths.name_extra);
         let double_spaces_count = if double_spaces_count > 0 && widths.extra > 0 {
             double_spaces_count.min(widths.extra)
@@ -456,18 +457,18 @@ fn get_extra_columns_len(extra_columns: Option<&[Column]>) -> usize {
 /// Builds extra columns text.
 fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool, mut double_spaces: usize) -> String {
     let Some(columns) = extra_columns else {
-        return String::new();
+        return if double_spaces > 0 { String::from(" ") } else { String::new() };
     };
 
-    let header_len = columns.iter().map(|c| c.max_len() + 2).sum::<usize>() + 1;
+    let header_len = columns.iter().map(|c| c.max_len() + 2).sum::<usize>() + 2;
     let mut header_text = String::with_capacity(header_len);
+
+    consume_and_add_space(&mut header_text, &mut double_spaces);
+
     for (i, column) in columns.iter().enumerate() {
         if i > 0 {
             header_text.push(' ');
-            if double_spaces > 0 {
-                header_text.push(' ');
-                double_spaces -= 1;
-            }
+            consume_and_add_space(&mut header_text, &mut double_spaces);
         }
 
         header_text.push_column(
@@ -476,6 +477,8 @@ fn get_extra_columns_text(extra_columns: Option<&[Column]>, is_descending: bool,
             is_descending,
         );
     }
+
+    consume_and_add_space(&mut header_text, &mut double_spaces);
 
     header_text
 }

@@ -2,6 +2,7 @@ use b4n_common::{substring_owned, truncate};
 use b4n_list::{FilterContext, Filterable, Item, Row};
 
 use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType, header::HeaderWidths};
+use crate::utils::consume_and_add_space;
 
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
@@ -72,18 +73,17 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     header: &Header,
     extra_space: usize,
 ) {
+    let mut double_spaces_count = header.double_spaces_count();
+    consume_and_add_space(row, &mut double_spaces_count);
+
     let Some(columns) = header.get_extra_columns() else {
         return;
     };
 
-    let mut double_spaces_count = header.double_spaces_count();
     for (i, _) in columns.iter().enumerate() {
         if i > 0 {
             row.push(' ');
-            if double_spaces_count > 0 {
-                row.push(' ');
-                double_spaces_count -= 1;
-            }
+            consume_and_add_space(row, &mut double_spaces_count);
         }
 
         let len = if i == 0 && columns[i].to_right {
@@ -94,6 +94,8 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
 
         row.push_cell(item.data.column_text(i + 2).as_ref(), len, columns[i].to_right);
     }
+
+    consume_and_add_space(row, &mut double_spaces_count);
 
     if extra_space > 0 {
         row.extend(std::iter::repeat_n(' ', extra_space));

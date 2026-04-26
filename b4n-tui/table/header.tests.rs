@@ -72,7 +72,7 @@ fn get_text_extra_columns_test() {
         (" NAME↑    ", ViewType::Name, 10),
         (" NAME↑ FIRST SECOND    AGE ", ViewType::Compact, 0),
         (" TEST NAME↑  FIRST SECOND    AGE ", ViewType::Full, 0),
-        (" TEST NAME↑      FIRST  SECOND    AGE ", ViewType::Full, 38),
+        (" TEST NAME↑     FIRST  SECOND     AGE ", ViewType::Full, 38),
     ];
 
     let mut header = Header::from(
@@ -92,10 +92,10 @@ fn get_text_extra_columns_sized_test() {
         (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 0),
         (" NAME↑ FIRST      SECOND     AGE ", ViewType::Compact, 33),
         (" NAME↑  FIRST       SECOND     AGE ", ViewType::Compact, 35),
-        (" NAME↑           FIRST       SECOND     AGE ", ViewType::Compact, 44),
+        (" NAME↑          FIRST       SECOND      AGE ", ViewType::Compact, 44),
         (" NAMESPACE  NAME↑  FIRST      SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑   FIRST       SECOND     AGE ", ViewType::Full, 47),
-        (" NAMESPACE  NAME↑           FIRST       SECOND     AGE ", ViewType::Full, 55),
+        (" NAMESPACE  NAME↑          FIRST       SECOND      AGE ", ViewType::Full, 55),
     ];
 
     let mut header = Header::from(
@@ -117,7 +117,7 @@ fn get_text_extra_columns_to_right_test() {
         (" NAME↑       FIRST  SECOND     AGE ", ViewType::Compact, 35),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 0),
         (" NAMESPACE  NAME↑       FIRST SECOND     AGE ", ViewType::Full, 45),
-        (" NAMESPACE  NAME↑                FIRST  SECOND     AGE ", ViewType::Full, 55),
+        (" NAMESPACE  NAME↑               FIRST  SECOND      AGE ", ViewType::Full, 55),
     ];
 
     let mut header = Header::from(

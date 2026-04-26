@@ -60,8 +60,8 @@ fn get_text_full_test(#[case] expected: &str, #[case] resource: &str, #[case] te
 
 #[test]
 fn get_text_pod_test() {
-    // " NAMESPACE  NAME                                 RESTARTS↑ READY   STATUS       IP          NODE            AGE "
-    // "kube-system local-path-provisioner-84db5d44d9-kjjp5      5 1/1     Running      10.42.1.201 9764bc470abf     n/a"
+    // " NAMESPACE  NAME                               RESTARTS↑  READY    STATUS       IP          NODE            AGE "
+    // "kube-system local-path-provisioner-84db5d44d9-kjjp5    5  1/1      Running      10.42.1.201 9764bc470abf     n/a"
 
     let terminal_width = 112;
 
@@ -93,12 +93,12 @@ fn get_text_pod_test() {
     });
 
     assert_eq!(
-        " NAMESPACE  NAME                              RESTARTS↑  READY    STATUS        IP          NODE            AGE ",
+        " NAMESPACE  NAME                               RESTARTS↑  READY    STATUS       IP          NODE            AGE ",
         header.get_text(ViewType::Full, terminal_width)
     );
 
     assert_eq!(
-        "kube-system local-path-provisioner-84db5d44d9-kjjp5   5  1/1      Running       10.42.1.201 9764bc470abf     n/a",
+        "kube-system local-path-provisioner-84db5d44d9-kjjp5    5  1/1      Running      10.42.1.201 9764bc470abf     n/a",
         item.get_text(ViewType::Full, &header, &widths, terminal_width, 0)
     );
 }
