@@ -154,7 +154,7 @@ impl View for DescribeView {
             return ResponseEvent::Handled;
         }
 
-        ResponseEvent::NotHandled
+        self.content.process_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
