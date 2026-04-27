@@ -260,6 +260,18 @@ impl BgWorker {
             .collect()
     }
 
+    /// Returns list of [`ResourceRef`] references.\
+    /// **Note** that it also removes all finished tasks in forwarder.
+    pub fn get_port_forward_refs(&mut self, namespace: &Namespace) -> Vec<&ResourceRef> {
+        self.forwarder.cleanup_tasks();
+        self.forwarder
+            .tasks()
+            .iter()
+            .filter(|t| namespace.is_all() || t.resource.namespace == *namespace)
+            .map(|f| &f.resource)
+            .collect()
+    }
+
     /// Returns current generation counter of the port forwards list.\
     /// **Note** that it can be used only to detect add or remove changes on the list.
     pub fn port_forwards_list_generation(&self) -> u16 {

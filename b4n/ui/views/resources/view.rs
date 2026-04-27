@@ -127,7 +127,7 @@ impl ResourcesView {
             self.update_breadcrumb_trail();
         }
 
-        if is_init_done {
+        if !is_init && !is_init_done {
             self.update_port_forwards();
         }
     }
@@ -654,7 +654,8 @@ impl ResourcesView {
     fn update_port_forwards(&mut self) {
         if self.table.kind_plural() == PODS {
             let namespace = &self.table.list.table.data.resource.namespace;
-            let new_list = self.worker.borrow_mut().get_port_forwards_list(namespace);
+            let worker = &mut self.worker.borrow_mut();
+            let new_list = worker.get_port_forward_refs(namespace);
             self.table.list.table.update_port_forwards(&new_list);
         }
     }
