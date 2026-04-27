@@ -34,6 +34,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let mut values = vec![
         ResourceValue::integer(restarts, 5),
         ready_str.into(),
+        " ".into(),
         if is_terminating {
             "Terminating".into()
         } else if waiting.is_some() {
@@ -73,11 +74,12 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
 pub fn header(has_metrics: bool) -> Header {
     let mut columns = vec![
         Column::fixed("RESTARTS", 3, true),
-        Column::fixed("READY", 7, false),
+        Column::bound("READY", 3, 7, false),
+        Column::fixed("PF", 2, false),
         Column::bound("STATUS", 10, 20, false), // position of this column is used in `is_running` function
     ];
 
-    let mut symbols = vec![' ', 'N', 'R', 'E', 'S'];
+    let mut symbols = vec![' ', 'N', 'R', 'E', ' ', 'S'];
 
     if has_metrics {
         columns.push(Column::bound("CPU", 5, 15, true));

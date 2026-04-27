@@ -59,6 +59,11 @@ impl PortForwardItem {
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
         theme.colors.line.ready.get_specific(is_active, is_selected)
     }
+
+    /// Returns container name.
+    pub fn container(&self) -> Option<&str> {
+        self.container.as_deref()
+    }
 }
 
 impl Row for PortForwardItem {

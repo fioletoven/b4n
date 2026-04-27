@@ -1,6 +1,5 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::stats::SharedStatistics;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
@@ -24,8 +23,9 @@ use crate::ui::widgets::{CommandPalette, Filter, NamespaceSelector, StepBuilder}
 pub struct ResourcesView {
     pub table: ResourcesTable,
     app_data: SharedAppData,
-    stats: SharedStatistics,
-    generation: u16,
+    worker: SharedBgWorker,
+    last_stats_generation: u16,
+    last_ports_generation: u16,
     last_mouse_click: Option<Position>,
     modal: Dialog,
     command_palette: CommandPalette,
@@ -37,17 +37,18 @@ pub struct ResourcesView {
 impl ResourcesView {
     /// Creates a new resources view.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink) -> Self {
-        let stats = worker.borrow().statistics.share();
-        let generation = stats.borrow().generation;
+        let last_stats_generation = worker.borrow().statistics_generation();
+        let last_ports_generation = worker.borrow().port_forwards_list_generation();
         let table = ResourcesTable::new(Rc::clone(&app_data));
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
-        let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(worker), 65);
+        let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
 
         Self {
             table,
             app_data,
-            stats,
-            generation,
+            worker,
+            last_stats_generation,
+            last_ports_generation,
             last_mouse_click: None,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
@@ -95,12 +96,14 @@ impl ResourcesView {
     pub fn restore_list_data(&mut self, key: &str) {
         if self.table.restore_from_cache(key) {
             self.update_breadcrumb_trail();
+            self.update_port_forwards();
         }
     }
 
     /// Updates resources list with a new data from [`ObserverResult`].
     pub fn update_resources_list(&mut self, result: ObserverResult<ResourceItem>) {
         let is_init = matches!(result, ObserverResult::Init(_));
+        let is_init_done = matches!(result, ObserverResult::InitDone);
 
         if is_init {
             if self.app_data.borrow().is_pinned {
@@ -123,24 +126,29 @@ impl ResourcesView {
             // the breadcrumb trail must be updated after updating the table list
             self.update_breadcrumb_trail();
         }
+
+        if is_init_done {
+            self.update_port_forwards();
+        }
     }
 
     /// Updates statistics if current resource kind is `pods` or `nodes`.
     pub fn update_statistics(&mut self) {
-        let stats = &self.stats.borrow();
-        if stats.generation == self.generation {
+        let worker = &self.worker.borrow();
+        let stats = worker.statistics.stats().borrow();
+        if stats.generation == self.last_stats_generation {
             return;
         }
 
         if self.table.kind_plural() == PODS {
-            pod::update_statistics(self.table.list.table.table.list.full_iter_mut(), stats);
+            pod::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
         } else if self.table.kind_plural() == NODES {
-            node::update_statistics(self.table.list.table.table.list.full_iter_mut(), stats);
+            node::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
         }
 
-        self.generation = stats.generation;
+        self.last_stats_generation = stats.generation;
     }
 
     /// Updates API error state for the resources table.
@@ -642,6 +650,14 @@ impl ResourcesView {
             .table
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
     }
+
+    fn update_port_forwards(&mut self) {
+        if self.table.kind_plural() == PODS {
+            let namespace = &self.table.list.table.data.resource.namespace;
+            let new_list = self.worker.borrow_mut().get_port_forwards_list(namespace);
+            self.table.list.table.update_port_forwards(&new_list);
+        }
+    }
 }
 
 impl View for ResourcesView {
@@ -658,6 +674,13 @@ impl View for ResourcesView {
 
     fn process_tick(&mut self) -> ResponseEvent {
         self.table.list.table.remove_expired_cache_entries();
+
+        let generation = self.worker.borrow().port_forwards_list_generation();
+        if self.last_ports_generation != generation {
+            self.last_ports_generation = generation;
+            self.update_port_forwards();
+        }
+
         ResponseEvent::Handled
     }
 

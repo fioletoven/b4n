@@ -56,6 +56,12 @@ impl ResourceValue {
         }
     }
 
+    /// Sets resource raw text.
+    pub fn set_raw_text(&mut self, text: String) {
+        self.text = Some(text);
+        self.sort_text = None;
+    }
+
     /// Returns resource raw text.
     pub fn raw_text(&self) -> Option<&str> {
         self.text.as_deref()

@@ -9,7 +9,7 @@ use std::cell::Ref;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI16, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI16, AtomicI32, AtomicU16, Ordering};
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -57,6 +57,7 @@ pub struct PortForwarder {
     events_tx: UnboundedSender<PortForwardEvent>,
     events_rx: UnboundedReceiver<PortForwardEvent>,
     footer_tx: NotificationSink,
+    generation: Arc<AtomicU16>,
 }
 
 impl PortForwarder {
@@ -69,6 +70,7 @@ impl PortForwarder {
             events_tx,
             events_rx,
             footer_tx,
+            generation: Arc::new(AtomicU16::new(0)),
         }
     }
 
@@ -106,7 +108,12 @@ impl PortForwarder {
 
         let pods: Api<Pod> = Api::namespaced(client.get_client(), resource.namespace.as_str());
 
-        let mut task = PortForwardTask::new(self.runtime.clone(), self.events_tx.clone(), self.footer_tx.clone());
+        let mut task = PortForwardTask::new(
+            self.runtime.clone(),
+            self.generation.clone(),
+            self.events_tx.clone(),
+            self.footer_tx.clone(),
+        );
         task.run(pods, resource, port, address);
 
         self.tasks.push(task);
@@ -136,6 +143,12 @@ impl PortForwarder {
 
         self.tasks.clear();
         self.drain();
+    }
+
+    /// Returns current generation counter.
+    /// **Note** that it can be used only to detect add or remove changes on the list.
+    pub fn generation(&self) -> u16 {
+        self.generation.load(Ordering::Relaxed)
     }
 
     /// Tries to get next [`PortForwardEvent`].
@@ -180,11 +193,17 @@ pub struct PortForwardTask {
     cancellation_token: Option<CancellationToken>,
     events_tx: UnboundedSender<PortForwardEvent>,
     footer_tx: NotificationSink,
+    generation: Arc<AtomicU16>,
 }
 
 impl PortForwardTask {
     /// Creates new [`PortForwardTask`] instance.
-    fn new(runtime: Handle, events_tx: UnboundedSender<PortForwardEvent>, footer_tx: NotificationSink) -> Self {
+    fn new(
+        runtime: Handle,
+        generation: Arc<AtomicU16>,
+        events_tx: UnboundedSender<PortForwardEvent>,
+        footer_tx: NotificationSink,
+    ) -> Self {
         let statistics = TaskStatistics {
             active_connections: Arc::new(AtomicI16::new(0)),
             overall_connections: Arc::new(AtomicI32::new(0)),
@@ -206,6 +225,7 @@ impl PortForwardTask {
             cancellation_token: None,
             events_tx,
             footer_tx,
+            generation,
         }
     }
 
@@ -222,9 +242,12 @@ impl PortForwardTask {
         let _events_tx = self.events_tx.clone();
         let _footer_tx = self.footer_tx.clone();
         let _statistics = self.statistics.clone();
+        let _generation = self.generation.clone();
 
         let task = self.runtime.spawn(async move {
             let _ = _events_tx.send(PortForwardEvent::TaskStarted);
+            _generation.fetch_add(1, Ordering::Relaxed);
+
             match TcpListener::bind(address).await {
                 Ok(listener) => {
                     while !_cancellation_token.is_cancelled() {
@@ -257,6 +280,7 @@ impl PortForwardTask {
             }
 
             let _ = _events_tx.send(PortForwardEvent::TaskStopped);
+            _generation.fetch_add(1, Ordering::Relaxed);
         });
 
         self.task = Some(task);

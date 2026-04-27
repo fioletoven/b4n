@@ -260,7 +260,14 @@ impl BgWorker {
             .collect()
     }
 
-    /// Returns `true` if there was a change in the port forwards list since the last check.
+    /// Returns current generation counter of the port forwards list.\
+    /// **Note** that it can be used only to detect add or remove changes on the list.
+    pub fn port_forwards_list_generation(&self) -> u16 {
+        self.forwarder.generation()
+    }
+
+    /// Returns `true` if there was a change in the port forwards list since the last check.\
+    /// **Note** that it can be used only by one view and is used by forwards view already.
     pub fn check_port_forward_list_changed(&mut self) -> bool {
         let mut list_changed = false;
         while self.forwarder.try_next().is_some() {
@@ -268,6 +275,11 @@ impl BgWorker {
         }
 
         list_changed
+    }
+
+    /// Returns current generation counter of the background statistics.
+    pub fn statistics_generation(&self) -> u16 {
+        self.statistics.stats().borrow().generation
     }
 
     /// Checks and updates discovered resources list, returns `true` if discovery was updated.

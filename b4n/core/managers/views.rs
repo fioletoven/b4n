@@ -64,37 +64,41 @@ impl ViewsManager {
 
     /// Updates all lists with observed resources.
     pub fn update_lists(&mut self) {
-        let mut worker = self.worker.borrow_mut();
-        if !worker.resources.is_running() {
+        if !self.worker.borrow().resources.is_running() {
             return;
         }
 
-        // If this is not a built-in Kubernetes API group, wait for the CRD list to become ready
-        // before polling anything else. This ensures that the header for the current resource
-        // (if it is a custom resource) is shown only after all columns are known.
-        let is_crds_list_ready = worker.ensure_crds_list_is_ready();
-        if !worker.resources.observed_kind().is_builtin() && !is_crds_list_ready {
-            return;
+        {
+            let mut worker = self.worker.borrow_mut();
+
+            // If this is not a built-in Kubernetes API group, wait for the CRD list to become ready
+            // before polling anything else. This ensures that the header for the current resource
+            // (if it is a custom resource) is shown only after all columns are known.
+            let is_crds_list_ready = worker.ensure_crds_list_is_ready();
+            if !worker.resources.observed_kind().is_builtin() && !is_crds_list_ready {
+                return;
+            }
+
+            worker.update_crds_list();
+            worker.update_statistics();
+
+            if worker.update_discovery_list() {
+                self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
+                self.app_data.borrow_mut().kinds = Some(self.res_selector.select.items.to_vec());
+            }
+
+            self.resources.update_error_state(worker.resources.has_api_error());
         }
 
-        worker.update_crds_list();
-        worker.update_statistics();
-
-        if worker.update_discovery_list() {
-            self.res_selector.select.items.update(worker.get_kinds_list(), 1, false);
-            self.app_data.borrow_mut().kinds = Some(self.res_selector.select.items.to_vec());
-        }
-
-        while let Some(update_result) = worker.namespaces.try_next() {
+        while let Some(update_result) = { self.worker.borrow_mut().namespaces.try_next() } {
             self.ns_selector.select.items.update(*update_result);
         }
 
-        while let Some(update_result) = worker.resources.try_next() {
+        while let Some(update_result) = { self.worker.borrow_mut().resources.try_next() } {
             self.resources.update_resources_list(*update_result);
         }
 
         self.resources.update_statistics();
-        self.resources.update_error_state(worker.resources.has_api_error());
     }
 
     /// Draws visible views on the provided frame area.

@@ -21,7 +21,9 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ItemExt for Item<T, Fc> {
         if offset > 0 {
             substring_owned(row, offset, width)
         } else {
-            row.truncate(width);
+            if let Some((idx, _)) = row.char_indices().nth(width) {
+                row.truncate(idx);
+            }
             row
         }
     }

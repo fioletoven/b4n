@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, Scope};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{Item, Row, ScrollableList};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::kube::resources::{ResourceFilterContext, ResourceItem};
+use crate::ui::views::PortForwardItem;
 
 static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
 
@@ -79,6 +80,23 @@ impl ResourcesList {
                 false
             },
         }
+    }
+
+    /// Updates [`ResourcesList`] with new data from [`PortForwardItem`] collection.
+    pub fn update_port_forwards(&mut self, forwards: &[PortForwardItem]) {
+        if self.data.kind_plural != PODS {
+            return;
+        }
+
+        for item in self.table.list.full_iter_mut() {
+            let name = item.data.name();
+            let group = item.data.group();
+            let has_port_forward = forwards.iter().any(|f| f.name() == name && f.group() == group);
+
+            item.data.set_data_text(2, if has_port_forward { "●" } else { " " });
+        }
+
+        self.table.update_data_lengths();
     }
 
     /// Removes all expired entries from the cache, freeing their associated memory.
