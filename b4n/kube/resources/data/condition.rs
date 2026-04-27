@@ -22,7 +22,7 @@ pub fn header() -> Header {
         Some(Box::new([
             Column::bound("STATUS", 10, 20, false),
             Column::bound("REASON", 10, 20, false),
-            Column::bound("MESSAGE", 10, 50, false),
+            Column::bound("MESSAGE", 15, 150, false),
         ])),
         Rc::new([' ', 'T', 'S', 'R', 'M', 'A']),
     )
