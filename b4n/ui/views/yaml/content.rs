@@ -64,14 +64,30 @@ impl YamlContent {
     }
 
     fn mark_line_as_modified(&mut self, line_no: usize) {
-        if let Some(line) = self.plain.get(line_no) {
+        if line_no < self.plain.len() {
             self.modified.insert(line_no);
-            let len = line.chars().count();
-            if len > self.max_size {
-                self.max_size = len;
-                self.max_line_no = line_no;
-            } else if line_no == self.max_line_no {
-                (self.max_line_no, self.max_size) = get_longest_line(&self.plain);
+        }
+    }
+
+    /// Recalculates the maximum line size across all modified lines and updates max_size if needed.
+    fn recalculate_max_size(&mut self, start: usize, end: usize) {
+        if self.modified.is_empty() {
+            return;
+        }
+
+        let needs_full_recalc = start <= self.max_line_no && self.max_line_no <= end;
+        if needs_full_recalc {
+            // the current max line was modified, need to find new max across all lines
+            (self.max_line_no, self.max_size) = get_longest_line(&self.plain);
+        } else {
+            for line_no in start..=end {
+                if let Some(line) = self.plain.get(line_no) {
+                    let len = line.chars().count();
+                    if len > self.max_size {
+                        self.max_size = len;
+                        self.max_line_no = line_no;
+                    }
+                }
             }
         }
     }
@@ -88,6 +104,7 @@ impl YamlContent {
         }
 
         self.mark_line_as_modified(line_no);
+        self.recalculate_max_size(line_no, line_no);
     }
 
     fn join_lines(&mut self, line_no: usize) -> ContentPosition {
@@ -99,6 +116,7 @@ impl YamlContent {
 
         self.mark_line_as_modified(line_no);
         self.mark_line_as_modified(line_no + 1);
+        self.recalculate_max_size(line_no, line_no + 1);
 
         ContentPosition::new(new_x, line_no)
     }
@@ -125,6 +143,7 @@ impl YamlContent {
 
         self.mark_line_as_modified(y);
         self.mark_line_as_modified(insert_at);
+        self.recalculate_max_size(y, insert_at);
     }
 
     fn insert_char_internal(&mut self, pos: ContentPosition, ch: char) {
@@ -140,6 +159,7 @@ impl YamlContent {
                 self.lowercase[pos.y].insert(r.x.index, ch.to_ascii_lowercase());
                 self.styled[pos.y].sl_insert(r.x.index, ch);
                 self.mark_line_as_modified(pos.y);
+                self.recalculate_max_size(pos.y, pos.y);
             }
         } else if pos.y < self.plain.len() {
             if ch == '\n' {
@@ -149,6 +169,7 @@ impl YamlContent {
                 self.lowercase[pos.y].push(ch.to_ascii_lowercase());
                 self.styled[pos.y].sl_push(ch, &self.fallback);
                 self.mark_line_as_modified(pos.y);
+                self.recalculate_max_size(pos.y, pos.y);
             }
         }
     }
@@ -189,6 +210,7 @@ impl YamlContent {
         self.styled[line_no].sl_remove(idx);
 
         self.mark_line_as_modified(line_no);
+        self.recalculate_max_size(line_no, line_no);
         removed
     }
 
@@ -201,20 +223,27 @@ impl YamlContent {
     }
 
     fn remove_text_internal(&mut self, range: &Selection) -> Vec<String> {
-        self.mark_line_as_modified(range.start.y);
-        self.mark_line_as_modified(range.end.y);
         self.styled.remove_text(range);
         self.lowercase.remove_text(range);
-        self.plain.remove_text(range)
+        let result = self.plain.remove_text(range);
+
+        self.mark_line_as_modified(range.start.y);
+        self.mark_line_as_modified(range.end.y);
+        self.recalculate_max_size(range.start.y, range.end.y);
+        result
     }
 
     fn insert_text_internal(&mut self, position: ContentPosition, text: Vec<String>) -> ContentPosition {
-        self.mark_line_as_modified(position.y);
-        self.mark_line_as_modified(position.y + text.len());
+        let end_line = position.y + text.len();
         self.styled.insert_text(position, &text, &self.fallback);
         self.lowercase
             .insert_text(position, text.iter().map(|s| s.to_lowercase()).collect());
-        self.plain.insert_text(position, text)
+        let result = self.plain.insert_text(position, text);
+
+        self.mark_line_as_modified(position.y);
+        self.mark_line_as_modified(end_line);
+        self.recalculate_max_size(position.y, end_line);
+        result
     }
 
     fn move_position_left(&self, position: ContentPosition) -> ContentPosition {
@@ -227,13 +256,15 @@ impl YamlContent {
     }
 
     fn swap_lines_internal(&mut self, first_line: usize, second_line: usize) {
-        self.mark_line_as_modified(first_line);
-        self.mark_line_as_modified(second_line);
         if first_line < self.styled.len() && second_line < self.styled.len() {
             self.styled.swap(first_line, second_line);
             self.plain.swap(first_line, second_line);
             self.lowercase.swap(first_line, second_line);
         }
+
+        self.mark_line_as_modified(first_line);
+        self.mark_line_as_modified(second_line);
+        self.recalculate_max_size(first_line, second_line);
     }
 }
 
