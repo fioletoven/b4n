@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, ResourceRef, Scope};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{Item, Row, ScrollableList};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
@@ -78,6 +78,18 @@ impl ResourcesList {
                 self.sort(sort_by, is_descending);
                 false
             },
+        }
+    }
+
+    /// Updates [`ResourcesList`] with new data from [`PortForwardItem`] collection.
+    pub fn update_port_forwards(&mut self, forwards: &[&ResourceRef]) {
+        if self.data.kind_plural == PODS {
+            for item in self.table.list.full_iter_mut() {
+                let has_port_forward = forwards
+                    .iter()
+                    .any(|f| f.name.as_deref() == Some(item.data.name()) && f.namespace.as_str() == item.data.group());
+                item.data.set_data_text(2, if has_port_forward { "●" } else { " " });
+            }
         }
     }
 

@@ -79,4 +79,5 @@ pub fn header(has_metrics: bool) -> Header {
         Some(columns.into_boxed_slice()),
         Rc::from(symbols.into_boxed_slice()),
     )
+    .with_stretch_last()
 }

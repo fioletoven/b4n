@@ -137,6 +137,15 @@ impl ResourceItem {
         }
     }
 
+    /// Updates specified data column text.
+    pub fn set_data_text(&mut self, idx: usize, text: impl Into<String>) {
+        if let Some(data) = &mut self.data
+            && let Some(value) = data.extra_values.get_mut(idx)
+        {
+            value.set_raw_text(text.into());
+        }
+    }
+
     /// Returns [`Header`] for provided Kubernetes resource kind.
     pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, is_filtered: bool) -> Header {
         get_header_data(kind, group, crd, has_metrics, is_filtered)

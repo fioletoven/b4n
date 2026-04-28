@@ -5,12 +5,14 @@
 ### Features
 
 - prepend app name to app errors in logs view for clarity
+- show port forward indicator in pods view
 - add initial describe view for Kubernetes resources
 
 ### Bug fixes
 
 - fix mouse triple-clicks in content views
 - do not display the first stream timeout error in logs view
+- fix longest line calculation in edit mode
 
 ## 0.4.7 - 2026-04-14
 

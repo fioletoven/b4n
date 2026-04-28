@@ -21,7 +21,9 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ItemExt for Item<T, Fc> {
         if offset > 0 {
             substring_owned(row, offset, width)
         } else {
-            row.truncate(width);
+            if let Some((idx, _)) = row.char_indices().nth(width) {
+                row.truncate(idx);
+            }
             row
         }
     }
@@ -80,26 +82,25 @@ fn push_inner_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
         return;
     };
 
-    for (i, _) in columns.iter().enumerate() {
+    let last = columns.len().saturating_sub(1);
+    for (i, column) in columns.iter().enumerate() {
         if i > 0 {
             row.push(' ');
             consume_and_add_space(row, &mut double_spaces_count);
         }
 
-        let len = if i == 0 && columns[i].to_right {
-            columns[i].data_len
+        let len = if i == 0 && column.to_right {
+            column.data_len
+        } else if i == last {
+            column.len() + extra_space
         } else {
-            columns[i].len()
+            column.len()
         };
 
-        row.push_cell(item.data.column_text(i + 2).as_ref(), len, columns[i].to_right);
+        row.push_cell(item.data.column_text(i + 2).as_ref(), len, column.to_right);
     }
 
     consume_and_add_space(row, &mut double_spaces_count);
-
-    if extra_space > 0 {
-        row.extend(std::iter::repeat_n(' ', extra_space));
-    }
 }
 
 /// Extension methods for string.
