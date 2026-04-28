@@ -241,7 +241,7 @@ impl Header {
         } else {
             let avail_width = area_width - self.all_extra_width;
             if self.stretch_last {
-                let full_name_width = self.name.data_len.saturating_sub(self.extra_space);
+                let full_name_width = self.name.data_len.saturating_sub(self.extra_space).max(self.name.min_len());
                 if avail_width <= full_name_width {
                     HeaderWidths::new(0, avail_width, self.extra_space, 0)
                 } else {
@@ -262,7 +262,7 @@ impl Header {
             HeaderWidths::new(self.group.min_len(), self.name.min_len(), self.extra_space, 0)
         } else {
             let full_group_width = std::cmp::max(self.group.data_len, self.group.min_len());
-            let full_name_width = self.name.data_len.saturating_sub(self.extra_space);
+            let full_name_width = self.name.data_len.saturating_sub(self.extra_space).max(self.name.min_len());
             let min_width_for_full_size = full_group_width + 1 + full_name_width;
 
             if area_width >= min_width_for_full_size + self.all_extra_width {
