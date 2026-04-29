@@ -4,7 +4,7 @@ use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
 use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use kube::ResourceExt;
 use kube::api::DynamicObject;
 use ratatui::Frame;
@@ -17,7 +17,7 @@ use std::time::Instant;
 
 use crate::core::SharedAppData;
 use crate::kube::resources::{ResourceItem, ResourcesList};
-use crate::ui::presentation::{ListViewer, StyledLine, StyledLineExt};
+use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine, StyledLineExt};
 
 /// Describe resource content.
 pub struct DescribeContent {
@@ -29,16 +29,20 @@ pub struct DescribeContent {
     creation_time: Instant,
     has_data: bool,
     spinner: Spinner,
-    scroll: usize,
+    page_start: ContentPosition,
     max_height: usize,
+    max_width: usize,
     area: Rect,
 }
 
 impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
-        let conditions = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
-        let events = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
+        let mut conditions = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
+        let mut events = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
+
+        conditions.table.table.limit_offset(false);
+        events.table.table.limit_offset(false);
 
         Self {
             app_data,
@@ -49,8 +53,9 @@ impl DescribeContent {
             creation_time: Instant::now(),
             has_data: false,
             spinner: Spinner::default(),
-            scroll: 0,
+            page_start: ContentPosition::new(0, 0),
             max_height: 0,
+            max_width: 0,
             area: Rect::default(),
         }
     }
@@ -75,20 +80,40 @@ impl DescribeContent {
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         match event {
             TuiEvent::Key(key) => match key {
-                x if x.code == KeyCode::Home => self.scroll = 0,
-                x if x.code == KeyCode::PageUp => {
-                    self.scroll = self.scroll.saturating_sub(self.area.height.into());
+                // horizontal scroll
+                x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
+                x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
+                    self.page_start.sub_x(self.area.width.into());
                 },
-                x if x.code == KeyCode::Up => self.scroll = self.scroll.saturating_sub(1),
-                x if x.code == KeyCode::Down => self.scroll += 1,
-                x if x.code == KeyCode::PageDown => self.scroll += usize::from(self.area.height),
-                x if x.code == KeyCode::End => self.scroll = self.max_height,
+                x if x.code == KeyCode::Left => self.page_start.sub_x(1),
+                x if x.code == KeyCode::Right => self.page_start.add_x(1),
+                x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
+                    self.page_start.add_x(usize::from(self.area.width));
+                },
+                x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = self.max_width,
+
+                // vertical scroll
+                x if x.code == KeyCode::Home => self.page_start.y = 0,
+                x if x.code == KeyCode::PageUp => self.page_start.sub_y(self.area.height.into()),
+                x if x.code == KeyCode::Up => self.page_start.sub_y(1),
+                x if x.code == KeyCode::Down => self.page_start.add_y(1),
+                x if x.code == KeyCode::PageDown => self.page_start.add_y(self.area.height.into()),
+                x if x.code == KeyCode::End => self.page_start.y = self.max_height,
 
                 _ => return ResponseEvent::NotHandled,
             },
             TuiEvent::Mouse(mouse) => match mouse {
-                x if x.kind == MouseEventKind::ScrollUp => self.scroll = self.scroll.saturating_sub(1),
-                x if x.kind == MouseEventKind::ScrollDown => self.scroll += 1,
+                // horizontal scroll
+                x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
+                    self.page_start.sub_x(1);
+                },
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.add_x(1),
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.sub_x(1),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_start.add_x(1),
+
+                // vertical scroll
+                x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(1),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(1),
 
                 _ => return ResponseEvent::NotHandled,
             },
@@ -99,8 +124,18 @@ impl DescribeContent {
         ResponseEvent::Handled
     }
 
+    /// Returns current page coordinates.
+    pub fn get_coordinates(&self) -> ContentPosition {
+        self.page_start
+    }
+
     /// Redraws describe view content on the screen.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        if self.area != area {
+            self.area = area;
+            self.update_page_start();
+        }
+
         if self.has_data {
             self.draw_content(frame, area);
         } else if self.creation_time.elapsed().as_millis() > 200 {
@@ -118,32 +153,26 @@ impl DescribeContent {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let sections = vec![
-            Section::Lines {
-                height: u16::try_from(self.lines.len()).unwrap_or_default(),
-            },
-            Section::Spacer { height: 1 },
-            Section::Conditions {
-                height: u16::try_from(self.conditions.table.len()).unwrap_or_default() + 1,
-            },
-            Section::Spacer { height: 1 },
-            Section::Events {
-                height: u16::try_from(self.events.table.len()).unwrap_or_default() + 1,
-            },
+        let mut sections = vec![
+            Section::from_text(&mut self.lines),
+            Section::Spacer(1, 1),
+            Section::from_list(&mut self.conditions),
+            Section::Spacer(1, 1),
+            Section::from_list(&mut self.events),
         ];
 
-        self.area = area;
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
-        self.draw_sections(frame, area, &sections);
+        self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
+        Self::draw_sections(frame, area, &mut sections, self.page_start);
     }
 
-    fn draw_sections(&mut self, frame: &mut Frame<'_>, area: Rect, sections: &[Section]) {
-        let scroll = u16::try_from(self.scroll).unwrap_or(u16::MAX);
+    fn draw_sections(frame: &mut Frame<'_>, area: Rect, sections: &mut [Section], page_start: ContentPosition) {
+        let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
         let mut current_y = 0u16;
-        let viewport_start = scroll;
-        let viewport_end = scroll.saturating_add(area.height);
+        let viewport_start = scroll_y;
+        let viewport_end = scroll_y.saturating_add(area.height);
 
-        for section in sections {
+        for section in sections.iter_mut() {
             let section_height = section.height();
             let section_start = current_y;
             let section_end = current_y.saturating_add(section_height);
@@ -162,7 +191,7 @@ impl DescribeContent {
                         height: visible_height.min(area.height.saturating_sub(screen_y)),
                     };
 
-                    self.draw_section(frame, section, screen_rect, clip_top);
+                    section.draw(frame, screen_rect, clip_top, page_start.x);
                 }
             }
 
@@ -170,33 +199,16 @@ impl DescribeContent {
         }
     }
 
-    fn draw_section(&mut self, frame: &mut Frame<'_>, section: &Section, area: Rect, offset: u16) {
-        match section {
-            Section::Lines { .. } => {
-                frame.render_widget(
-                    Paragraph::new(self.get_page_lines(offset.into(), area.height.into())),
-                    area.inner(Margin::new(1, 0)),
-                );
-            },
-            Section::Conditions { .. } => {
-                self.conditions.draw_clipped(frame, area, offset as usize);
-            },
-            Section::Events { .. } => {
-                self.events.draw_clipped(frame, area, offset as usize);
-            },
-            Section::Spacer { .. } => {},
-        }
-    }
-
     fn update_page_start(&mut self) {
-        let max_height = self.max_height.saturating_sub(self.area.height.into());
-        if self.scroll > max_height {
-            self.scroll = max_height;
+        let max_width = self.max_width.saturating_sub(self.area.width.saturating_sub(2).into());
+        if self.page_start.x > max_width {
+            self.page_start.x = max_width;
         }
-    }
 
-    fn get_page_lines(&mut self, start: usize, len: usize) -> Vec<Line<'_>> {
-        self.lines.iter().skip(start).take(len).map(|line| line.as_line(0)).collect()
+        let max_height = self.max_height.saturating_sub(self.area.height.into());
+        if self.page_start.y > max_height {
+            self.page_start.y = max_height;
+        }
     }
 
     fn update_describe(&mut self, object: &DynamicObject) {
@@ -229,20 +241,56 @@ impl DescribeContent {
 }
 
 /// Represents a section in the describe view.
-enum Section {
-    Spacer { height: u16 },
-    Lines { height: u16 },
-    Conditions { height: u16 },
-    Events { height: u16 },
+enum Section<'a> {
+    Spacer(usize, u16),
+    Text(&'a mut Vec<StyledLine>, usize, u16),
+    List(&'a mut ListViewer<ResourcesList>, usize, u16),
 }
 
-impl Section {
+impl<'a> Section<'a> {
+    fn from_text(value: &'a mut Vec<StyledLine>) -> Self {
+        let width = value
+            .iter()
+            .map(|l| l.iter().map(|(_, s)| s.chars().count()).sum::<usize>())
+            .max();
+        let height = u16::try_from(value.len()).unwrap_or_default();
+        Section::Text(value, width.unwrap_or_default(), height)
+    }
+
+    fn from_list(value: &'a mut ListViewer<ResourcesList>) -> Self {
+        let width = value.table.table.header.get_cached_length().unwrap_or_default();
+        let height = u16::try_from(value.table.len()).unwrap_or_default() + 1;
+        Self::List(value, width, height)
+    }
+
+    fn width(&self) -> usize {
+        match self {
+            Section::Spacer(width, _) | Section::Text(_, width, _) | Section::List(_, width, _) => *width,
+        }
+    }
+
     fn height(&self) -> u16 {
         match self {
-            Section::Spacer { height }
-            | Section::Lines { height }
-            | Section::Conditions { height }
-            | Section::Events { height } => *height,
+            Section::Spacer(_, height) | Section::Text(_, _, height) | Section::List(_, _, height) => *height,
+        }
+    }
+
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, offset_y: u16, offset_x: usize) {
+        match self {
+            Section::Text(lines, _, _) => {
+                let lines: Vec<Line<'_>> = lines
+                    .iter()
+                    .skip(offset_y.into())
+                    .take(area.height.into())
+                    .map(|line| line.as_line(offset_x))
+                    .collect();
+                frame.render_widget(Paragraph::new(lines), area.inner(Margin::new(1, 0)));
+            },
+            Section::List(list, _, _) => {
+                list.table.table.set_offset(offset_x);
+                list.draw_clipped(frame, area, offset_y as usize);
+            },
+            Section::Spacer(_, _) => {},
         }
     }
 }

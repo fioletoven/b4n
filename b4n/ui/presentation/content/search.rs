@@ -15,6 +15,30 @@ impl ContentPosition {
     pub fn new(x: usize, y: usize) -> Self {
         Self { x, y }
     }
+
+    /// Adds `value` to the content `x` position.
+    #[inline]
+    pub fn add_x(&mut self, value: usize) {
+        self.x = self.x.saturating_add(value);
+    }
+
+    /// Subtracts `value` from the content `x` position.
+    #[inline]
+    pub fn sub_x(&mut self, value: usize) {
+        self.x = self.x.saturating_sub(value);
+    }
+
+    /// Adds `value` to the content `y` position.
+    #[inline]
+    pub fn add_y(&mut self, value: usize) {
+        self.y = self.y.saturating_add(value);
+    }
+
+    /// Subtracts `value` from the content `y` position.
+    #[inline]
+    pub fn sub_y(&mut self, value: usize) {
+        self.y = self.y.saturating_sub(value);
+    }
 }
 
 #[derive(Default)]

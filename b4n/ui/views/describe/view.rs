@@ -56,7 +56,7 @@ impl DescribeView {
         let mut events = ResourceObserver::simple(runtime);
         events.start(client, events_res, events_dis, true).ok()?;
 
-        let mut header = ContentHeader::new(Rc::clone(&app_data), false);
+        let mut header = ContentHeader::new(Rc::clone(&app_data), true);
         header.set_title(" describe");
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource);
@@ -163,6 +163,8 @@ impl View for DescribeView {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
+        let pos = self.content.get_coordinates();
+        self.header.set_coordinates(pos.x, pos.y);
         self.header.draw(frame, layout[0]);
         self.content.draw(frame, layout[1]);
 

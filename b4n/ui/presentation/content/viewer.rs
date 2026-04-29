@@ -445,23 +445,21 @@ impl<T: Content> ContentViewer<T> {
                     // horizontal scroll
                     x if x.code == KeyCode::Home && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = 0,
                     x if x.code == KeyCode::PageUp && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_start.x = self.page_start.x.saturating_sub(self.page_area.width.into());
+                        self.page_start.sub_x(self.page_area.width.into());
                     },
-                    x if x.code == KeyCode::Left => self.page_start.x = self.page_start.x.saturating_sub(1),
-                    x if x.code == KeyCode::Right => self.page_start.x += 1,
+                    x if x.code == KeyCode::Left => self.page_start.sub_x(1),
+                    x if x.code == KeyCode::Right => self.page_start.add_x(1),
                     x if x.code == KeyCode::PageDown && x.modifiers == KeyModifiers::CONTROL => {
-                        self.page_start.x += usize::from(self.page_area.width);
+                        self.page_start.add_x(usize::from(self.page_area.width));
                     },
                     x if x.code == KeyCode::End && x.modifiers == KeyModifiers::CONTROL => self.page_start.x = self.max_hstart(),
 
                     // vertical scroll
                     x if x.code == KeyCode::Home => self.page_start.y = 0,
-                    x if x.code == KeyCode::PageUp => {
-                        self.page_start.y = self.page_start.y.saturating_sub(self.page_area.height.into());
-                    },
-                    x if x.code == KeyCode::Up => self.page_start.y = self.page_start.y.saturating_sub(1),
-                    x if x.code == KeyCode::Down => self.page_start.y += 1,
-                    x if x.code == KeyCode::PageDown => self.page_start.y += usize::from(self.page_area.height),
+                    x if x.code == KeyCode::PageUp => self.page_start.sub_y(self.page_area.height.into()),
+                    x if x.code == KeyCode::Up => self.page_start.sub_y(1),
+                    x if x.code == KeyCode::Down => self.page_start.add_y(1),
+                    x if x.code == KeyCode::PageDown => self.page_start.add_y(usize::from(self.page_area.height)),
                     x if x.code == KeyCode::End => self.page_start.y = self.max_vstart(),
 
                     _ => return ResponseEvent::NotHandled,
@@ -470,15 +468,15 @@ impl<T: Content> ContentViewer<T> {
             TuiEvent::Mouse(mouse) => match mouse {
                 // horizontal scroll
                 x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
-                    self.page_start.x = self.page_start.x.saturating_sub(1);
+                    self.page_start.sub_x(1);
                 },
-                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.x += 1,
-                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.x = self.page_start.x.saturating_sub(1),
-                x if x.kind == MouseEventKind::ScrollRight => self.page_start.x += 1,
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.add_x(1),
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.sub_x(1),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_start.add_x(1),
 
                 // vertical scroll
-                x if x.kind == MouseEventKind::ScrollUp => self.page_start.y = self.page_start.y.saturating_sub(1),
-                x if x.kind == MouseEventKind::ScrollDown => self.page_start.y += 1,
+                x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(1),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(1),
 
                 _ => return ResponseEvent::NotHandled,
             },
