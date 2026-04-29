@@ -36,13 +36,14 @@ pub fn data(
         ready.into(),
         phase.into(),
         is_init_container.into(),
-        container["image"].as_str().into(),
     ];
 
     if let Some(metrics) = metrics {
         values.push(metrics.cpu.into());
         values.push(metrics.memory.into());
     }
+
+    values.push(container["image"].as_str().into());
 
     ResourceData {
         extra_values: values.into_boxed_slice(),
@@ -60,10 +61,9 @@ pub fn header(has_metrics: bool) -> Header {
         Column::fixed("READY", 7, false),
         Column::bound("STATE", 10, 20, false),
         Column::fixed("INIT", 6, false),
-        Column::bound("IMAGE", 15, 70, false),
     ];
 
-    let mut symbols = vec![' ', 'N', 'R', 'E', 'S', 'T', 'I'];
+    let mut symbols = vec![' ', 'N', 'R', 'E', 'S', 'T'];
 
     if has_metrics {
         columns.push(Column::bound("CPU", 5, 15, true));
@@ -72,6 +72,8 @@ pub fn header(has_metrics: bool) -> Header {
         symbols.push('M');
     }
 
+    columns.push(Column::bound("IMAGE", 15, 70, false));
+    symbols.push('I');
     symbols.push('A');
 
     Header::from(
