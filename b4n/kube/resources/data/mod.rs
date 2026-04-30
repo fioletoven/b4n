@@ -1,9 +1,9 @@
 use b4n_kube::crds::CrdColumns;
 use b4n_kube::stats::Statistics;
 use b4n_tui::table::Header;
-use kube::api::DynamicObject;
+use kube::{ResourceExt, api::DynamicObject};
 
-use crate::kube::resources::ResourceData;
+use crate::kube::resources::{ColumnsLayout, ResourceData};
 
 pub mod api_service;
 pub mod condition;
@@ -37,14 +37,23 @@ pub mod service_account;
 pub mod stateful_set;
 pub mod storage_class;
 
-/// Returns [`ResourceData`] for provided Kubernetes resource.
+/// Returns name for the provided Kubernetes resource.
+pub fn get_resource_name(kind: &str, group: &str, object: &DynamicObject, columns_layout: ColumnsLayout) -> String {
+    match (kind, group) {
+        ("Event", "") => event::name(object, columns_layout),
+
+        _ => object.name_any(),
+    }
+}
+
+/// Returns [`ResourceData`] for the provided Kubernetes resource.
 pub fn get_resource_data(
     kind: &str,
     group: &str,
     crd: Option<&CrdColumns>,
     stats: &Statistics,
     object: &DynamicObject,
-    is_filtered: bool,
+    columns_layout: ColumnsLayout,
 ) -> ResourceData {
     if let Some(crd) = crd {
         return custom_resource::data(crd, object);
@@ -58,7 +67,7 @@ pub fn get_resource_data(
         ("Deployment", "apps") => deployment::data(object),
         ("Endpoints", "") => endpoints::data(object),
         ("EndpointSlice", "discovery.k8s.io") => endpoint_slice::data(object),
-        ("Event", "") => event::data(object, is_filtered),
+        ("Event", "") => event::data(object, columns_layout),
         ("Ingress", "networking.k8s.io") => ingress::data(object),
         ("Job", "batch") => job::data(object),
         ("Lease", "coordination.k8s.io") => lease::data(object),
@@ -83,8 +92,14 @@ pub fn get_resource_data(
     }
 }
 
-/// Returns [`Header`] for provided Kubernetes resource kind.
-pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, is_filtered: bool) -> Header {
+/// Returns [`Header`] for the provided Kubernetes resource kind.
+pub fn get_header_data(
+    kind: &str,
+    group: &str,
+    crd: Option<&CrdColumns>,
+    has_metrics: bool,
+    columns_layout: ColumnsLayout,
+) -> Header {
     if let Some(crd) = crd {
         return custom_resource::header(crd);
     }
@@ -97,7 +112,7 @@ pub fn get_header_data(kind: &str, group: &str, crd: Option<&CrdColumns>, has_me
         ("Deployment", "apps") => deployment::header(),
         ("Endpoints", "") => endpoints::header(),
         ("EndpointSlice", "discovery.k8s.io") => endpoint_slice::header(),
-        ("Event", "") => event::header(is_filtered),
+        ("Event", "") => event::header(columns_layout),
         ("Ingress", "networking.k8s.io") => ingress::header(),
         ("Job", "batch") => job::header(),
         ("Lease", "coordination.k8s.io") => lease::header(),

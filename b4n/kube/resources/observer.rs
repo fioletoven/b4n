@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::kube::resources::ResourceItem;
+use crate::kube::resources::{ColumnsLayout, ResourceItem};
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
 pub struct ResourceObserver {
@@ -22,6 +22,7 @@ pub struct ResourceObserver {
     crds: SharedCrdsList,
     crd: Option<CrdColumns>,
     statistics: SharedStatistics,
+    columns_layout: Option<ColumnsLayout>,
 }
 
 impl ResourceObserver {
@@ -34,6 +35,7 @@ impl ResourceObserver {
             crds,
             crd: None,
             statistics,
+            columns_layout: None,
         }
     }
 
@@ -46,7 +48,14 @@ impl ResourceObserver {
             crds: Rc::new(RefCell::new(Vec::new())),
             crd: None,
             statistics: Rc::new(RefCell::new(Statistics::default())),
+            columns_layout: None,
         }
+    }
+
+    /// Sets columns layout for observed resources.
+    pub fn with_columns_layout(mut self, layout: ColumnsLayout) -> Self {
+        self.columns_layout = Some(layout);
+        self
     }
 
     delegate! {
@@ -219,11 +228,21 @@ impl ResourceObserver {
                 self.crd.as_ref(),
                 &self.statistics.borrow(),
                 object,
-                self.observer.is_filtered(),
+                self.columns_layout(),
             ),
             is_delete,
         );
         self.queue.push_back(Box::new(result));
+    }
+
+    fn columns_layout(&self) -> ColumnsLayout {
+        if let Some(layout) = self.columns_layout {
+            layout
+        } else if self.observer.is_filtered() {
+            ColumnsLayout::Individual
+        } else {
+            ColumnsLayout::General
+        }
     }
 
     /// Injects additional data to the [`InitData`] for observed resources.

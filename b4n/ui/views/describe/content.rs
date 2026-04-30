@@ -16,7 +16,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::core::SharedAppData;
-use crate::kube::resources::{ResourceItem, ResourcesList};
+use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine, StyledLineExt};
 
 /// Describe resource content.
@@ -39,7 +39,12 @@ impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
         let mut conditions = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
-        let mut events = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
+        let mut events = ListViewer::new(
+            Rc::clone(&app_data),
+            ResourcesList::default().with_columns_layout(ColumnsLayout::Compact),
+            ViewType::Compact,
+        )
+        .with_no_border();
 
         conditions.table.table.limit_offset(false);
         events.table.table.limit_offset(false);
