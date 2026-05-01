@@ -25,7 +25,9 @@ pub struct DescribeContent {
     app_data: SharedAppData,
     resource: ResourceRef,
     lines: Vec<StyledLine>,
+    conditions_text: Vec<StyledLine>,
     conditions: ListViewer<ResourcesList>,
+    events_text: Vec<StyledLine>,
     events: ListViewer<ResourcesList>,
     creation_time: Instant,
     has_data: bool,
@@ -41,31 +43,16 @@ pub struct DescribeContent {
 impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
-        let mut conditions = ListViewer::new(
-            Rc::clone(&app_data),
-            ResourcesList::default().with_focus(false),
-            ViewType::Compact,
-        )
-        .with_no_border()
-        .with_focus(false);
-        let mut events = ListViewer::new(
-            Rc::clone(&app_data),
-            ResourcesList::default()
-                .with_columns_layout(ColumnsLayout::Compact)
-                .with_focus(false),
-            ViewType::Compact,
-        )
-        .with_no_border()
-        .with_focus(false);
+        let conditions = Self::create_conditions_viewer(&app_data);
+        let events = Self::create_events_viewer(&app_data);
 
-        conditions.table.table.limit_offset(false);
-        events.table.table.limit_offset(false);
-
-        Self {
+        let mut instance = Self {
             app_data,
             resource,
             lines: Vec::new(),
+            conditions_text: vec![StyledLine::default()],
             conditions,
+            events_text: vec![StyledLine::default()],
             events,
             creation_time: Instant::now(),
             has_data: false,
@@ -76,7 +63,10 @@ impl DescribeContent {
             area: Rect::default(),
             section_areas: Vec::new(),
             focused: 0,
-        }
+        };
+
+        instance.initialize_section_headers();
+        instance
     }
 
     /// Updates resource that is currently described.
@@ -135,6 +125,38 @@ impl DescribeContent {
         }
     }
 
+    fn create_conditions_viewer(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
+        let mut viewer = ListViewer::new(
+            Rc::clone(app_data),
+            ResourcesList::default().with_focus(false),
+            ViewType::Compact,
+        )
+        .with_no_border()
+        .with_focus(false);
+        viewer.table.table.limit_offset(false);
+        viewer
+    }
+
+    fn create_events_viewer(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
+        let mut viewer = ListViewer::new(
+            Rc::clone(app_data),
+            ResourcesList::default()
+                .with_columns_layout(ColumnsLayout::Compact)
+                .with_focus(false),
+            ViewType::Compact,
+        )
+        .with_no_border()
+        .with_focus(false);
+        viewer.table.table.limit_offset(false);
+        viewer
+    }
+
+    fn initialize_section_headers(&mut self) {
+        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
+        self.conditions_text.push(property(colors, "Conditions", ""));
+        self.events_text.push(property(colors, "Events", ""));
+    }
+
     fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let colors = &self.app_data.borrow().theme.colors;
         let line = Line::default()
@@ -147,18 +169,24 @@ impl DescribeContent {
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let mut sections = vec![
             Section::from_text(&mut self.lines),
-            Section::Spacer(1, 1),
+            Section::from_text(&mut self.conditions_text),
             Section::from_list(&mut self.conditions),
-            Section::Spacer(1, 1),
+            Section::from_text(&mut self.events_text),
             Section::from_list(&mut self.events),
         ];
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
         self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
-        self.section_areas = Self::draw_sections(frame, area, &mut sections, self.page_start);
+        self.section_areas = Self::draw_sections(frame, area, &self.app_data, &mut sections, self.page_start);
     }
 
-    fn draw_sections(frame: &mut Frame<'_>, area: Rect, sections: &mut [Section], page_start: ContentPosition) -> Vec<Rect> {
+    fn draw_sections(
+        frame: &mut Frame<'_>,
+        area: Rect,
+        app_data: &SharedAppData,
+        sections: &mut [Section],
+        page_start: ContentPosition,
+    ) -> Vec<Rect> {
         let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
         let mut current_y = 0u16;
         let viewport_start = scroll_y;
@@ -184,7 +212,7 @@ impl DescribeContent {
                         height: visible_height.min(area.height.saturating_sub(screen_y)),
                     };
 
-                    section.draw(frame, screen_rect, clip_top, page_start.x);
+                    section.draw(frame, screen_rect, app_data, clip_top, page_start.x);
                     areas.push(screen_rect);
                 } else {
                     areas.push(Rect::default());
@@ -294,9 +322,9 @@ impl DescribeContent {
     fn update_describe(&mut self, object: &DynamicObject) {
         let colors = &self.app_data.borrow().theme.colors.syntax.describe;
         self.lines.clear();
-        self.lines.push(property(colors, "name", object.name_any()));
+        self.lines.push(property(colors, "Name", object.name_any()));
         if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines.push(property(colors, "namespace", namespace));
+            self.lines.push(property(colors, "Namespace", namespace));
         }
     }
 
@@ -322,7 +350,6 @@ impl DescribeContent {
 
 /// Represents a section in the describe view.
 enum Section<'a> {
-    Spacer(usize, u16),
     Text(&'a mut Vec<StyledLine>, usize, u16),
     List(&'a mut ListViewer<ResourcesList>, usize, u16),
 }
@@ -345,17 +372,17 @@ impl<'a> Section<'a> {
 
     fn width(&self) -> usize {
         match self {
-            Section::Spacer(width, _) | Section::Text(_, width, _) | Section::List(_, width, _) => *width,
+            Section::Text(_, width, _) | Section::List(_, width, _) => *width,
         }
     }
 
     fn height(&self) -> u16 {
         match self {
-            Section::Spacer(_, height) | Section::Text(_, _, height) | Section::List(_, _, height) => *height,
+            Section::Text(_, _, height) | Section::List(_, _, height) => *height,
         }
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, offset_y: u16, offset_x: usize) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppData, offset_y: u16, offset_x: usize) {
         match self {
             Section::Text(lines, _, _) => {
                 let lines: Vec<Line<'_>> = lines
@@ -367,10 +394,15 @@ impl<'a> Section<'a> {
                 frame.render_widget(Paragraph::new(lines), area.inner(Margin::new(1, 0)));
             },
             Section::List(list, _, _) => {
-                list.table.table.set_offset(offset_x);
-                list.draw_clipped(frame, area, offset_y as usize);
+                if list.table.is_empty() {
+                    let colors = &app_data.borrow().theme.colors.syntax.describe;
+                    let styled = vec![span(&colors.normal, "--list is empty--")];
+                    frame.render_widget(Paragraph::new(styled.as_line(offset_x)), area.inner(Margin::new(1, 0)));
+                } else {
+                    list.table.table.set_offset(offset_x);
+                    list.draw_clipped(frame, area, offset_y as usize);
+                }
             },
-            Section::Spacer(_, _) => {},
         }
     }
 }
