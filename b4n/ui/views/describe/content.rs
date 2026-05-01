@@ -226,7 +226,7 @@ impl DescribeContent {
     }
 
     fn update_describe(&mut self, object: &DynamicObject) {
-        let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
+        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
         self.lines.clear();
         self.lines.push(property(colors, "name", object.name_any()));
         if let Some(namespace) = object.metadata.namespace.as_deref() {

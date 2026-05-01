@@ -40,6 +40,27 @@ filter: &filter
     input: '#A3B8E1:light_yellow:bg_dark'
     prompt: light_blue:bg_dark
     error: light_red:bg_dark
+yaml: &yaml
+    normal: '#9CA2B8:no_bg'
+    property: green:no_bg
+    string: text:no_bg
+    numeric: blue:no_bg
+    language: light_blue:no_bg
+    timestamp: purple:no_bg
+    search: select_yellow
+    select: select_light
+logs: &logs
+  string: text:no_bg
+  info: text_light:no_bg
+  error: red:no_bg
+  timestamp: magenta:no_bg
+  search: select_yellow
+  select: select_light
+  containers:
+  - green
+  - blue
+  - cyan
+  - yellow
 
 # theme itself
 colors:
@@ -140,24 +161,6 @@ colors:
   shell:
     select: select_light
   syntax:
-    yaml:
-      normal: '#9CA2B8:no_bg'
-      property: green:no_bg
-      string: text:no_bg
-      numeric: blue:no_bg
-      language: light_blue:no_bg
-      timestamp: purple:no_bg
-      search: select_yellow
-      select: select_light
-    logs:
-      string: text:no_bg
-      info: text_light:no_bg
-      error: red:no_bg
-      timestamp: magenta:no_bg
-      search: select_yellow
-      select: select_light
-      containers:
-      - green
-      - blue
-      - cyan
-      - yellow
+    describe: *yaml 
+    yaml: *yaml
+    logs: *logs

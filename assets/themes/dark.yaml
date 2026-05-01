@@ -35,6 +35,27 @@ filter: &filter
     input: light_cyan:light_yellow:bg_dark
     prompt: light_blue:bg_dark
     error: light_red:bg_dark
+yaml: &yaml
+  normal: text:no_bg
+  property: green:no_bg
+  string: text_light:no_bg
+  numeric: blue:no_bg
+  language: light_blue:no_bg
+  timestamp: magenta:no_bg
+  search: select_yellow
+  select: select_dark
+logs: &logs
+  string: text_light:no_bg
+  info: text:no_bg
+  error: red:no_bg
+  timestamp: magenta:no_bg
+  search: select_yellow
+  select: select_dark
+  containers:
+  - green
+  - blue
+  - cyan
+  - yellow
 
 # theme itself
 colors:
@@ -134,24 +155,6 @@ colors:
   shell:
     select: select_dark
   syntax:
-    yaml:
-      normal: text:no_bg
-      property: green:no_bg
-      string: text_light:no_bg
-      numeric: blue:no_bg
-      language: light_blue:no_bg
-      timestamp: magenta:no_bg
-      search: select_yellow
-      select: select_dark
-    logs:
-      string: text_light:no_bg
-      info: text:no_bg
-      error: red:no_bg
-      timestamp: magenta:no_bg
-      search: select_yellow
-      select: select_dark
-      containers:
-      - green
-      - blue
-      - cyan
-      - yellow
+    describe: *yaml
+    yaml: *yaml
+    logs: *logs

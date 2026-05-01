@@ -272,12 +272,13 @@ pub struct ShellColors {
 /// Represents colors for syntax highlighting.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SyntaxColors {
+    pub describe: YamlSyntaxColors,
     pub yaml: YamlSyntaxColors,
     pub logs: LogsSyntaxColors,
 }
 
 /// Represents colors for YAML syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct YamlSyntaxColors {
     pub normal: TextColors,
     pub property: TextColors,
@@ -289,8 +290,23 @@ pub struct YamlSyntaxColors {
     pub select: Color,
 }
 
+impl Default for YamlSyntaxColors {
+    fn default() -> Self {
+        Self {
+            normal: TextColors::new(Color::DarkGray),
+            property: TextColors::new(Color::Green),
+            string: TextColors::new(Color::Gray),
+            numeric: TextColors::new(Color::Blue),
+            language: TextColors::new(Color::LightBlue),
+            timestamp: TextColors::new(Color::Magenta),
+            search: Color::Rgb(135, 114, 72),
+            select: Color::DarkGray,
+        }
+    }
+}
+
 /// Represents colors for logs syntax highlighting.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LogsSyntaxColors {
     pub string: TextColors,
     pub info: TextColors,
@@ -299,6 +315,25 @@ pub struct LogsSyntaxColors {
     pub search: Color,
     pub select: Color,
     pub containers: Vec<TextColors>,
+}
+
+impl Default for LogsSyntaxColors {
+    fn default() -> Self {
+        Self {
+            string: TextColors::new(Color::Gray),
+            info: TextColors::new(Color::DarkGray),
+            error: TextColors::new(Color::Red),
+            timestamp: TextColors::new(Color::Magenta),
+            search: Color::Rgb(135, 114, 72),
+            select: Color::DarkGray,
+            containers: vec![
+                TextColors::new(Color::Green),
+                TextColors::new(Color::Blue),
+                TextColors::new(Color::Cyan),
+                TextColors::new(Color::Yellow),
+            ],
+        }
+    }
 }
 
 /// All colors in theme.
@@ -363,30 +398,9 @@ impl Default for Theme {
                 },
                 shell: ShellColors { select: Color::DarkGray },
                 syntax: SyntaxColors {
-                    yaml: YamlSyntaxColors {
-                        normal: TextColors::new(Color::DarkGray),
-                        property: TextColors::new(Color::Green),
-                        string: TextColors::new(Color::Gray),
-                        numeric: TextColors::new(Color::Blue),
-                        language: TextColors::new(Color::LightBlue),
-                        timestamp: TextColors::new(Color::Magenta),
-                        search: Color::Rgb(135, 114, 72),
-                        select: Color::DarkGray,
-                    },
-                    logs: LogsSyntaxColors {
-                        string: TextColors::new(Color::Gray),
-                        info: TextColors::new(Color::DarkGray),
-                        error: TextColors::new(Color::Red),
-                        timestamp: TextColors::new(Color::Magenta),
-                        search: Color::Rgb(135, 114, 72),
-                        select: Color::DarkGray,
-                        containers: vec![
-                            TextColors::new(Color::Green),
-                            TextColors::new(Color::Blue),
-                            TextColors::new(Color::Cyan),
-                            TextColors::new(Color::Yellow),
-                        ],
-                    },
+                    describe: YamlSyntaxColors::default(),
+                    yaml: YamlSyntaxColors::default(),
+                    logs: LogsSyntaxColors::default(),
                 },
             },
         }
