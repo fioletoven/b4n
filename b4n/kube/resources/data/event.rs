@@ -7,8 +7,7 @@ use crate::kube::resources::{ColumnsLayout, ResourceData, ResourceValue};
 /// Returns name for the `event` kubernetes resource.
 pub fn name(object: &DynamicObject, columns_layout: ColumnsLayout) -> String {
     match columns_layout {
-        ColumnsLayout::General => object.name_any(),
-        ColumnsLayout::Individual => object.name_any(),
+        ColumnsLayout::General | ColumnsLayout::Individual => object.name_any(),
         ColumnsLayout::Compact => object.data["type"].as_str().map(String::from).unwrap_or_default(),
     }
 }
