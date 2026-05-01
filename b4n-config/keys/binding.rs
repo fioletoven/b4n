@@ -49,6 +49,7 @@ define_key_commands! {
         NavigateDelete => "navigate.delete" @ "Ctrl+D",
         NavigateInto => "navigate.into" @ "Enter",
         NavigateInvertSelection => "navigate.invert-selection" @ "Ctrl+Space",
+        NavigateNext => "navigate.next" @ "Tab",
         NavigateSelect => "navigate.select" @ "Space",
         NavigateSelectAll => "navigate.select-all" @ "Ctrl+A",
         PortForwardsCreate => "port-forwards.create" @ "F",

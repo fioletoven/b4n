@@ -36,6 +36,27 @@ filter: &filter
     input: '#A3B8E1:yellow:bg_black'
     prompt: blue:bg_black
     error: red:bg_black
+yaml: &yaml
+  normal: text:no_bg
+  property: green:no_bg
+  string: text_light:no_bg
+  numeric: blue:no_bg
+  language: '#3788D0:no_bg'
+  timestamp: purple:no_bg
+  search: select_yellow
+  select: select_dark
+logs: &logs
+  string: text_light:no_bg
+  info: text:no_bg
+  error: red:no_bg
+  timestamp: magenta:no_bg
+  search: select_yellow
+  select: select_dark
+  containers:
+  - green
+  - blue
+  - cyan
+  - yellow
 
 # theme itself
 colors:
@@ -89,61 +110,53 @@ colors:
     header: fg_dark:bg_black
     filter:
       input: blue:bg_black
-  line:
-    ready:
-      normal: blue:no_bg
-      normal_hl: text_dark:blue
-      selected: green:no_bg
-      selected_hl: text_dark:green
-    in_progress:
-      normal: red:no_bg
-      normal_hl: text_dark:red
-      selected: green:no_bg
-      selected_hl: text_dark:green
-    terminating:
-      normal: purple:no_bg
-      normal_hl: text_dark:purple
-      selected: green:no_bg
-      selected_hl: text_dark:green
-    completed:
-      normal: text_light:no_bg
-      normal_hl: text_dark:gray
-      selected: green:no_bg
-      selected_hl: text_dark:green
-  line_cached:
-    ready:
-      normal: text:no_bg
-      normal_hl: text:blue
-    in_progress:
-      normal: text:no_bg
-      normal_hl: text:red
-    terminating:
-      normal: text:no_bg
-      normal_hl: text:purple
-    completed:
-      normal: text:no_bg
-      normal_hl: text_dark:bg_dark
+  list:
+    header:
+      focused: fg_dark:yellow:bg_dark
+      dimmed: '#B6B9BD:yellow:bg_black'
+    line:
+      ready:
+        normal: blue:no_bg
+        normal_hl: text_dark:blue
+        selected: green:no_bg
+        selected_hl: text_dark:green
+      in_progress:
+        normal: red:no_bg
+        normal_hl: text_dark:red
+        selected: green:no_bg
+        selected_hl: text_dark:green
+      terminating:
+        normal: purple:no_bg
+        normal_hl: text_dark:purple
+        selected: green:no_bg
+        selected_hl: text_dark:green
+      completed:
+        normal: text_light:no_bg
+        normal_hl: text_dark:gray
+        selected: green:no_bg
+        selected_hl: text_dark:green
+      dimmed:
+        normal: text_light:no_bg
+        normal_hl: text_light:no_bg
+    line_cached:
+      ready:
+        normal: text:no_bg
+        normal_hl: text:blue
+      in_progress:
+        normal: text:no_bg
+        normal_hl: text:red
+      terminating:
+        normal: text:no_bg
+        normal_hl: text:purple
+      completed:
+        normal: text:no_bg
+        normal_hl: text_dark:bg_dark
+      dimmed:
+        normal: text:no_bg
+        normal_hl: text:no_bg
   shell:
     select: select_dark
   syntax:
-    yaml:
-      normal: text:no_bg
-      property: green:no_bg
-      string: text_light:no_bg
-      numeric: blue:no_bg
-      language: '#3788D0:no_bg'
-      timestamp: purple:no_bg
-      search: select_yellow
-      select: select_dark
-    logs:
-      string: text_light:no_bg
-      info: text:no_bg
-      error: red:no_bg
-      timestamp: magenta:no_bg
-      search: select_yellow
-      select: select_dark
-      containers:
-      - green
-      - blue
-      - cyan
-      - yellow
+    describe: *yaml
+    yaml: *yaml
+    logs: *logs

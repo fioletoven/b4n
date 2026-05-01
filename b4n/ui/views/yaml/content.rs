@@ -69,7 +69,7 @@ impl YamlContent {
         }
     }
 
-    /// Recalculates the maximum line size across all modified lines and updates max_size if needed.
+    /// Recalculates the maximum line size across all modified lines and updates `max_size` if needed.
     fn recalculate_max_size(&mut self, start: usize, end: usize) {
         if self.modified.is_empty() {
             return;

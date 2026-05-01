@@ -13,6 +13,11 @@
 - fix mouse triple-clicks in content views
 - do not display the first stream timeout error in logs view
 - fix longest line calculation in edit mode
+- fix header for views with no coordinates displayed
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
 
 ## 0.4.7 - 2026-04-14
 

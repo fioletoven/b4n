@@ -9,24 +9,51 @@ use delegate::delegate;
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, rc::Rc};
 
-use crate::kube::resources::{ResourceFilterContext, ResourceItem};
+use crate::kube::resources::{ColumnsLayout, ResourceFilterContext, ResourceItem};
 
 static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
 
 /// Kubernetes resources list.
-#[derive(Default)]
 pub struct ResourcesList {
     pub data: InitData,
     pub table: TabularList<ResourceItem, ResourceFilterContext>,
+    columns_layout: Option<ColumnsLayout>,
+    is_focused: bool,
     cache: HashMap<String, CacheEntry>,
     is_from_cache: bool,
     last_cache_cleanup: Option<Instant>,
+}
+
+impl Default for ResourcesList {
+    fn default() -> Self {
+        Self {
+            data: InitData::default(),
+            table: TabularList::default(),
+            columns_layout: None,
+            is_focused: true,
+            cache: HashMap::new(),
+            is_from_cache: false,
+            last_cache_cleanup: None,
+        }
+    }
 }
 
 impl ResourcesList {
     /// Sets filter settings for [`ResourcesList`].
     pub fn with_filter_settings(mut self, settings: Option<impl Into<String>>) -> Self {
         self.table.list.set_filter_settings(settings);
+        self
+    }
+
+    /// Sets columns layout for resources list.
+    pub fn with_columns_layout(mut self, layout: ColumnsLayout) -> Self {
+        self.columns_layout = Some(layout);
+        self
+    }
+
+    /// Sets `is_focused` for resources list.
+    pub fn with_focus(mut self, is_focused: bool) -> Self {
+        self.is_focused = is_focused;
         self
     }
 
@@ -224,7 +251,7 @@ impl ResourcesList {
                 &self.data.group,
                 self.data.crd.as_ref(),
                 self.data.has_metrics,
-                self.data.resource.is_filtered(),
+                self.columns_layout(),
             ));
         }
     }
@@ -249,6 +276,16 @@ impl ResourcesList {
     fn add_all_namespaces_item(&mut self) {
         if self.table.list.full_len() == 0 && self.data.kind_plural == NAMESPACES {
             self.table.list.push(Item::fixed(ResourceItem::new(ALL_NAMESPACES, true)));
+        }
+    }
+
+    fn columns_layout(&self) -> ColumnsLayout {
+        if let Some(layout) = self.columns_layout {
+            layout
+        } else if self.data.resource.is_filtered() {
+            ColumnsLayout::Individual
+        } else {
+            ColumnsLayout::General
         }
     }
 }
@@ -321,6 +358,10 @@ impl Table for ResourcesList {
         }
     }
 
+    fn set_focus(&mut self, is_focused: bool) {
+        self.is_focused = is_focused;
+    }
+
     fn get_column_at_position(&self, position: usize) -> Option<usize> {
         self.table.get_column_at_position(position)
     }
@@ -344,7 +385,8 @@ impl Table for ResourcesList {
         for item in self.table.list.get_page() {
             result.push((
                 item.get_text(view, &self.table.header, &widths, width, self.table.offset()),
-                item.data.get_colors(theme, item.is_active, item.is_selected),
+                item.data
+                    .get_colors(theme, item.is_active, item.is_selected, !self.is_focused),
             ));
         }
 

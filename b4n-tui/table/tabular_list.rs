@@ -51,6 +51,7 @@ pub struct TabularList<T: Row + Filterable<Fc>, Fc: FilterContext> {
     width: usize,
     length: usize,
     offset: usize,
+    limit_offset: bool,
 }
 
 impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> {
@@ -61,6 +62,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> Default for TabularList<T, Fc> 
             width: 0,
             length: 0,
             offset: 0,
+            limit_offset: true,
         }
     }
 }
@@ -150,11 +152,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         self.sort(column_no, if column_no == old_column_no { !is_descending } else { false });
     }
 
+    /// Sets flag indicating if offset should be limited on change.
+    pub fn limit_offset(&mut self, should_limit: bool) {
+        self.limit_offset = should_limit;
+    }
+
     /// Sets the current horizontal offset of the table.
     pub fn set_offset(&mut self, offset: usize) {
         self.width = self.header.get_cached_width().unwrap_or_default();
         self.length = self.header.get_cached_length().unwrap_or_default();
-        self.offset = offset.min(self.length.saturating_sub(self.width));
+        if self.limit_offset {
+            self.offset = offset.min(self.length.saturating_sub(self.width));
+        } else {
+            self.offset = offset;
+        }
     }
 
     /// Gets the current horizontal offset of the table recalculating it if needed.

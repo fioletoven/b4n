@@ -34,6 +34,11 @@ pub trait Table: crate::Responsive {
     /// Filters list.
     fn set_filter(&mut self, filter: Option<String>);
 
+    /// Sets focus.
+    fn set_focus(&mut self, is_focused: bool) {
+        let _ = is_focused;
+    }
+
     /// Returns column number located at the specified character position.
     fn get_column_at_position(&self, position: usize) -> Option<usize>;
 

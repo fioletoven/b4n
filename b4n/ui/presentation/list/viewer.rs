@@ -18,6 +18,8 @@ pub struct ListViewer<T: Table> {
     pub view: ViewType,
     pub area: Rect,
     app_data: SharedAppData,
+    is_header_visible: bool,
+    is_focused: bool,
     has_api_error: DelayedTrueTracker,
     is_disconnected: DelayedTrueTracker,
     spinner: Spinner,
@@ -32,6 +34,8 @@ impl<T: Table> ListViewer<T> {
             view,
             area: Rect::default(),
             app_data,
+            is_header_visible: true,
+            is_focused: true,
             has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
             spinner: Spinner::default(),
@@ -45,6 +49,18 @@ impl<T: Table> ListViewer<T> {
         self
     }
 
+    /// Sets focus for the list viewer.
+    pub fn with_focus(mut self, is_focused: bool) -> Self {
+        self.is_focused = is_focused;
+        self
+    }
+
+    /// Sets focus for the list viewer.
+    pub fn set_focus(&mut self, is_focused: bool) {
+        self.table.set_focus(is_focused);
+        self.is_focused = is_focused;
+    }
+
     /// Draws [`ListViewer`] on the provided frame area clipped with the offset and area height.
     pub fn draw_clipped(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, offset: usize) {
         let header_height = u16::from(offset == 0);
@@ -53,6 +69,7 @@ impl<T: Table> ListViewer<T> {
             .constraints(vec![Constraint::Length(header_height), Constraint::Fill(1)])
             .split(area);
         self.area = layout[1].inner(Margin::new(1, 0));
+        self.is_header_visible = header_height == 1;
 
         frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
 
@@ -79,6 +96,7 @@ impl<T: Table> ListViewer<T> {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
         self.area = layout[1].inner(Margin::new(1, 0));
+        self.is_header_visible = true;
 
         frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), area);
 
@@ -109,16 +127,22 @@ impl<T: Table> ListViewer<T> {
         self.table.refresh_header(self.view, usize::from(self.area.width));
 
         let theme = &self.app_data.borrow().theme;
+        let colors = if self.is_focused {
+            &theme.colors.list.header.focused
+        } else {
+            &theme.colors.list.header.dimmed
+        };
         let sort_symbols = self.table.get_sort_symbols();
         let offset = self.table.refresh_offset();
         let mut header = HeaderWidget {
             header: self.table.get_header(self.view, usize::from(self.area.width)),
             offset,
-            colors: &theme.colors.header.text,
+            colors,
             background: theme.colors.text.bg,
             view: self.view,
             sort_symbols: &sort_symbols,
             show_border: self.show_border,
+            is_focused: self.is_focused,
         };
 
         frame.render_widget(&mut header, area);
@@ -196,8 +220,9 @@ impl<T: Table> Responsive for ListViewer<T> {
                 }
 
                 return ResponseEvent::Handled;
-            } else if Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
-                .contains(Position::new(mouse.column, mouse.row))
+            } else if self.is_header_visible
+                && Rect::new(self.area.x, self.area.y.saturating_sub(1), self.area.width, 1)
+                    .contains(Position::new(mouse.column, mouse.row))
             {
                 // mouse click is inside header area
                 let position = usize::from(mouse.column.saturating_sub(self.area.x)) + self.table.offset();
@@ -227,6 +252,7 @@ struct HeaderWidget<'a> {
     view: ViewType,
     sort_symbols: &'a [char],
     show_border: bool,
+    is_focused: bool,
 }
 
 impl Widget for &mut HeaderWidget<'_> {
@@ -265,14 +291,16 @@ impl Widget for &mut HeaderWidget<'_> {
                 column_no += 1;
             }
 
-            let can_be_highlighted = column_no < self.sort_symbols.len()
-                && self.sort_symbols[column_no] != ' '
-                && char == self.sort_symbols[column_no];
+            if self.is_focused {
+                let can_be_highlighted = column_no < self.sort_symbols.len()
+                    && self.sort_symbols[column_no] != ' '
+                    && char == self.sort_symbols[column_no];
 
-            if in_column && can_be_highlighted && !highlighted {
-                highlighted = true;
-                if visible {
-                    buf[(x, y)].set_style(Style::default().underlined());
+                if in_column && can_be_highlighted && !highlighted {
+                    highlighted = true;
+                    if visible {
+                        buf[(x, y)].set_style(Style::default().underlined());
+                    }
                 }
             }
 

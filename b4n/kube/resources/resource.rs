@@ -8,11 +8,12 @@ use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
 use k8s_openapi::jiff::Timestamp;
 use k8s_openapi::serde_json::Value;
-use kube::ResourceExt;
 use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use crate::kube::resources::{ResourceData, ResourceValue, condition, container, get_header_data, get_resource_data};
+use crate::kube::resources::{
+    ResourceData, ResourceValue, condition, container, get_header_data, get_resource_data, get_resource_name,
+};
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -23,6 +24,19 @@ pub struct InvolvedObject {
     pub kind: Kind,
     pub namespace: Namespace,
     pub name: String,
+}
+
+/// What kind of columns should be displayed on the screen.
+#[derive(Clone, Copy)]
+pub enum ColumnsLayout {
+    /// Normal resources view.
+    General,
+
+    /// One object view.
+    Individual,
+
+    /// Describe view.
+    Compact,
 }
 
 /// Represents kubernetes resource of any kind.
@@ -58,9 +72,9 @@ impl ResourceItem {
         crd: Option<&CrdColumns>,
         stats: &Statistics,
         object: DynamicObject,
-        is_filtered: bool,
+        columns_layout: ColumnsLayout,
     ) -> Self {
-        let data = Some(get_resource_data(kind, group, crd, stats, &object, is_filtered));
+        let data = Some(get_resource_data(kind, group, crd, stats, &object, columns_layout));
         let filter = get_filter_metadata(kind, group, &object.metadata);
         let uid = get_object_uid(&object);
         let creation_timestamp = get_age_time(&object.metadata);
@@ -68,7 +82,7 @@ impl ResourceItem {
 
         Self {
             age: get_age_string(creation_timestamp),
-            name: object.name_any(),
+            name: get_resource_name(kind, group, &object, columns_layout),
             namespace: object.metadata.namespace,
             uid,
             data,
@@ -147,22 +161,24 @@ impl ResourceItem {
     }
 
     /// Returns [`Header`] for provided Kubernetes resource kind.
-    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, is_filtered: bool) -> Header {
-        get_header_data(kind, group, crd, has_metrics, is_filtered)
+    pub fn header(kind: &str, group: &str, crd: Option<&CrdColumns>, has_metrics: bool, columns_layout: ColumnsLayout) -> Header {
+        get_header_data(kind, group, crd, has_metrics, columns_layout)
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
-    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
-        if let Some(data) = &self.data {
-            if self.is_cached {
-                data.get_colors(&theme.colors.line_cached, is_active, is_selected)
-            } else {
-                data.get_colors(&theme.colors.line, is_active, is_selected)
-            }
-        } else if self.is_cached {
-            theme.colors.line_cached.ready.get_specific(is_active, is_selected)
+    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool, is_dimmed: bool) -> TextColors {
+        let line_colors = if self.is_cached {
+            &theme.colors.list.line_cached
         } else {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
+            &theme.colors.list.line
+        };
+
+        if is_dimmed {
+            line_colors.dimmed.get_specific(is_active, is_selected)
+        } else if let Some(data) = &self.data {
+            data.get_colors(line_colors, is_active, is_selected)
+        } else {
+            line_colors.ready.get_specific(is_active, is_selected)
         }
     }
 

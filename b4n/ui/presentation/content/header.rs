@@ -91,11 +91,12 @@ impl ContentHeader {
             )
         };
 
+        let coordinates_len = u16::try_from(coordinates.chars().count() + 2).unwrap_or_default();
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Fill(1),
-                Constraint::Length(u16::try_from(coordinates.chars().count() + 2).unwrap_or_default()),
+                Constraint::Length(if self.show_coordinates { coordinates_len } else { 0 }),
             ])
             .split(area);
 

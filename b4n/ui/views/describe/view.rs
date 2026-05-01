@@ -11,7 +11,7 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kube::resources::ResourceObserver;
+use crate::kube::resources::{ColumnsLayout, ResourceObserver};
 use crate::ui::presentation::ContentHeader;
 use crate::ui::views::describe::content::DescribeContent;
 use crate::ui::{views::View, widgets::CommandPalette};
@@ -53,10 +53,10 @@ impl DescribeView {
         let events_kind = Kind::from(EVENTS);
         let events_dis = get_resource(worker.discovery_list(), &events_kind);
         let events_res = ResourceRef::filtered(events_kind, resource.namespace.clone(), events_filter);
-        let mut events = ResourceObserver::simple(runtime);
+        let mut events = ResourceObserver::simple(runtime).with_columns_layout(ColumnsLayout::Compact);
         events.start(client, events_res, events_dis, true).ok()?;
 
-        let mut header = ContentHeader::new(Rc::clone(&app_data), false);
+        let mut header = ContentHeader::new(Rc::clone(&app_data), true);
         header.set_title(" describe");
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource);
@@ -162,6 +162,9 @@ impl View for DescribeView {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
+
+        let pos = self.content.get_coordinates();
+        self.header.set_coordinates(pos.x, pos.y);
 
         self.header.draw(frame, layout[0]);
         self.content.draw(frame, layout[1]);
