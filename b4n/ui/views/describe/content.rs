@@ -1,9 +1,10 @@
+use b4n_config::keys::KeyCommand;
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
 use b4n_kube::{InitData, ObserverResult, ResourceRef};
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
 use b4n_tui::widgets::Spinner;
-use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::ResourceExt;
 use kube::api::DynamicObject;
@@ -15,7 +16,7 @@ use ratatui::widgets::Paragraph;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::core::SharedAppData;
+use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine, StyledLineExt};
 
@@ -33,6 +34,8 @@ pub struct DescribeContent {
     max_height: usize,
     max_width: usize,
     area: Rect,
+    section_areas: Vec<Rect>,
+    focused: u8,
 }
 
 impl DescribeContent {
@@ -71,6 +74,8 @@ impl DescribeContent {
             max_height: 0,
             max_width: 0,
             area: Rect::default(),
+            section_areas: Vec::new(),
+            focused: 0,
         }
     }
 
@@ -92,6 +97,142 @@ impl DescribeContent {
 
     /// Processes UI key/mouse event.
     pub fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.has_binding(event, KeyCommand::NavigateNext) {
+            self.focus_next_section();
+            return ResponseEvent::Handled;
+        }
+
+        if event.is_mouse(MouseEventKind::LeftClick) {
+            let section = self.get_clicked_section(event);
+            if section != self.focused {
+                self.focus_section(section);
+            }
+        }
+
+        match self.focused {
+            1 => self.conditions.process_event(event),
+            2 => self.events.process_event(event),
+            _ => self.process_scroll_event(event),
+        }
+    }
+
+    /// Returns current page coordinates.
+    pub fn get_coordinates(&self) -> ContentPosition {
+        self.page_start
+    }
+
+    /// Redraws describe view content on the screen.
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        if self.area != area {
+            self.area = area;
+            self.update_page_start();
+        }
+
+        if self.has_data {
+            self.draw_content(frame, area);
+        } else if self.creation_time.elapsed().as_millis() > 200 {
+            self.draw_empty(frame, area);
+        }
+    }
+
+    fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let line = Line::default()
+            .spans([Span::raw(self.spinner.tick().to_string()), " waiting for data…".into()])
+            .style(&colors.text);
+        let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+        frame.render_widget(line, area);
+    }
+
+    fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let mut sections = vec![
+            Section::from_text(&mut self.lines),
+            Section::Spacer(1, 1),
+            Section::from_list(&mut self.conditions),
+            Section::Spacer(1, 1),
+            Section::from_list(&mut self.events),
+        ];
+
+        self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
+        self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
+        self.section_areas = Self::draw_sections(frame, area, &mut sections, self.page_start);
+    }
+
+    fn draw_sections(frame: &mut Frame<'_>, area: Rect, sections: &mut [Section], page_start: ContentPosition) -> Vec<Rect> {
+        let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
+        let mut current_y = 0u16;
+        let viewport_start = scroll_y;
+        let viewport_end = scroll_y.saturating_add(area.height);
+        let mut areas = Vec::new();
+
+        for section in sections.iter_mut() {
+            let section_height = section.height();
+            let section_start = current_y;
+            let section_end = current_y.saturating_add(section_height);
+
+            if section_end > viewport_start && section_start < viewport_end {
+                let clip_top = viewport_start.saturating_sub(section_start);
+                let clip_bottom = section_end.saturating_sub(viewport_end);
+                let visible_height = section_height.saturating_sub(clip_top).saturating_sub(clip_bottom);
+
+                if visible_height > 0 {
+                    let screen_y = section_start.saturating_sub(viewport_start);
+                    let screen_rect = Rect {
+                        x: area.x,
+                        y: area.y.saturating_add(screen_y),
+                        width: area.width,
+                        height: visible_height.min(area.height.saturating_sub(screen_y)),
+                    };
+
+                    section.draw(frame, screen_rect, clip_top, page_start.x);
+                    areas.push(screen_rect);
+                } else {
+                    areas.push(Rect::default());
+                }
+            } else {
+                areas.push(Rect::default());
+            }
+
+            current_y = section_end;
+        }
+
+        areas
+    }
+
+    fn get_clicked_section(&self, event: &TuiEvent) -> u8 {
+        if self.section_areas.len() > 4 {
+            if event.is_in(MouseEventKind::LeftClick, self.section_areas[2]) {
+                return 1;
+            }
+
+            if event.is_in(MouseEventKind::LeftClick, self.section_areas[4]) {
+                return 2;
+            }
+        }
+
+        0
+    }
+
+    fn update_focus(&mut self) {
+        self.conditions.set_focus(self.focused == 1);
+        self.events.set_focus(self.focused == 2);
+    }
+
+    fn focus_section(&mut self, section: u8) {
+        self.focused = section;
+        self.update_focus();
+    }
+
+    fn focus_next_section(&mut self) {
+        self.focused += 1;
+        if self.focused > 2 {
+            self.focused = 0;
+        }
+
+        self.update_focus();
+    }
+
+    fn process_scroll_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         match event {
             TuiEvent::Key(key) => match key {
                 // horizontal scroll
@@ -136,81 +277,6 @@ impl DescribeContent {
 
         self.update_page_start();
         ResponseEvent::Handled
-    }
-
-    /// Returns current page coordinates.
-    pub fn get_coordinates(&self) -> ContentPosition {
-        self.page_start
-    }
-
-    /// Redraws describe view content on the screen.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        if self.area != area {
-            self.area = area;
-            self.update_page_start();
-        }
-
-        if self.has_data {
-            self.draw_content(frame, area);
-        } else if self.creation_time.elapsed().as_millis() > 200 {
-            self.draw_empty(frame, area);
-        }
-    }
-
-    fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let colors = &self.app_data.borrow().theme.colors;
-        let line = Line::default()
-            .spans([Span::raw(self.spinner.tick().to_string()), " waiting for data…".into()])
-            .style(&colors.text);
-        let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
-        frame.render_widget(line, area);
-    }
-
-    fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let mut sections = vec![
-            Section::from_text(&mut self.lines),
-            Section::Spacer(1, 1),
-            Section::from_list(&mut self.conditions),
-            Section::Spacer(1, 1),
-            Section::from_list(&mut self.events),
-        ];
-
-        self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
-        self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
-        Self::draw_sections(frame, area, &mut sections, self.page_start);
-    }
-
-    fn draw_sections(frame: &mut Frame<'_>, area: Rect, sections: &mut [Section], page_start: ContentPosition) {
-        let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
-        let mut current_y = 0u16;
-        let viewport_start = scroll_y;
-        let viewport_end = scroll_y.saturating_add(area.height);
-
-        for section in sections.iter_mut() {
-            let section_height = section.height();
-            let section_start = current_y;
-            let section_end = current_y.saturating_add(section_height);
-
-            if section_end > viewport_start && section_start < viewport_end {
-                let clip_top = viewport_start.saturating_sub(section_start);
-                let clip_bottom = section_end.saturating_sub(viewport_end);
-                let visible_height = section_height.saturating_sub(clip_top).saturating_sub(clip_bottom);
-
-                if visible_height > 0 {
-                    let screen_y = section_start.saturating_sub(viewport_start);
-                    let screen_rect = Rect {
-                        x: area.x,
-                        y: area.y.saturating_add(screen_y),
-                        width: area.width,
-                        height: visible_height.min(area.height.saturating_sub(screen_y)),
-                    };
-
-                    section.draw(frame, screen_rect, clip_top, page_start.x);
-                }
-            }
-
-            current_y = section_end;
-        }
     }
 
     fn update_page_start(&mut self) {

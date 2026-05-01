@@ -358,6 +358,10 @@ impl Table for ResourcesList {
         }
     }
 
+    fn set_focus(&mut self, is_focused: bool) {
+        self.is_focused = is_focused;
+    }
+
     fn get_column_at_position(&self, position: usize) -> Option<usize> {
         self.table.get_column_at_position(position)
     }
