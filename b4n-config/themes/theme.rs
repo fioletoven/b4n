@@ -9,6 +9,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::themes::{LineColors, TextColors, to_syntect_color};
 use crate::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
+const LIGHT_TEXT: Color = Color::Rgb(164, 164, 184);
+
 /// Represents header colors.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct HeaderColors {
@@ -53,7 +55,7 @@ pub struct FooterColors {
 impl Default for FooterColors {
     fn default() -> Self {
         Self {
-            text: TextColors::dim(Color::Gray, Color::Rgb(164, 164, 184), Color::DarkGray),
+            text: TextColors::dim(Color::Gray, LIGHT_TEXT, Color::DarkGray),
             trail: TextColors::dim(Color::Blue, Color::Yellow, Color::DarkGray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             error: TextColors::bg(Color::LightRed, Color::DarkGray),
@@ -77,7 +79,7 @@ pub struct FooterDetailsColors {
 impl Default for FooterDetailsColors {
     fn default() -> Self {
         Self {
-            text: TextColors::dim(Color::Gray, Color::Rgb(164, 164, 184), Color::DarkGray),
+            text: TextColors::dim(Color::Gray, LIGHT_TEXT, Color::DarkGray),
             hint: TextColors::bg(Color::DarkGray, Color::Gray),
             info: TextColors::bg(Color::LightGreen, Color::DarkGray),
             info_hl: TextColors::bg(Color::Black, Color::LightGreen),
@@ -97,6 +99,30 @@ pub struct FilterColors {
     pub error: Option<TextColors>,
 }
 
+/// Represents list colors.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct ListColors {
+    pub header: ListHeaderColors,
+    pub line: ResourceColors,
+    pub line_cached: ResourceColors,
+}
+
+/// Represents list header colors.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ListHeaderColors {
+    pub focused: TextColors,
+    pub dimmed: TextColors,
+}
+
+impl Default for ListHeaderColors {
+    fn default() -> Self {
+        Self {
+            focused: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
+            dimmed: TextColors::dim(Color::Gray, LIGHT_TEXT, Color::DarkGray),
+        }
+    }
+}
+
 /// Represents kubernetes resource colors.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ResourceColors {
@@ -104,6 +130,7 @@ pub struct ResourceColors {
     pub in_progress: LineColors,
     pub terminating: LineColors,
     pub completed: LineColors,
+    pub dimmed: LineColors,
 }
 
 impl Default for ResourceColors {
@@ -133,6 +160,12 @@ impl Default for ResourceColors {
                 selected: Some(TextColors::new(Color::LightGreen)),
                 selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
             },
+            dimmed: LineColors {
+                normal: TextColors::new(Color::Gray),
+                normal_hl: TextColors::new(Color::Gray),
+                selected: None,
+                selected_hl: None,
+            },
         }
     }
 }
@@ -152,6 +185,9 @@ impl ResourceColors {
         colors.completed.normal = TextColors::new(Color::Gray);
         colors.completed.selected = None;
         colors.completed.selected_hl = None;
+        colors.dimmed.normal = TextColors::new(Color::Gray);
+        colors.dimmed.selected = None;
+        colors.dimmed.selected_hl = None;
         colors
     }
 }
@@ -278,8 +314,7 @@ pub struct ThemeColors {
     pub side_select: SelectColors,
     pub mouse_menu: SelectColors,
     pub modal: ModalColors,
-    pub line: ResourceColors,
-    pub line_cached: ResourceColors,
+    pub list: ListColors,
     pub shell: ShellColors,
     pub syntax: SyntaxColors,
 }
@@ -321,8 +356,11 @@ impl Default for Theme {
                 },
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors::default(),
-                line: ResourceColors::default(),
-                line_cached: ResourceColors::cached(),
+                list: ListColors {
+                    header: ListHeaderColors::default(),
+                    line: ResourceColors::default(),
+                    line_cached: ResourceColors::cached(),
+                },
                 shell: ShellColors { select: Color::DarkGray },
                 syntax: SyntaxColors {
                     yaml: YamlSyntaxColors {

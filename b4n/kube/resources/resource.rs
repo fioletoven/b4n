@@ -166,17 +166,19 @@ impl ResourceItem {
     }
 
     /// Returns [`TextColors`] for this kubernetes resource considering `theme` and other data.
-    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
-        if let Some(data) = &self.data {
-            if self.is_cached {
-                data.get_colors(&theme.colors.line_cached, is_active, is_selected)
-            } else {
-                data.get_colors(&theme.colors.line, is_active, is_selected)
-            }
-        } else if self.is_cached {
-            theme.colors.line_cached.ready.get_specific(is_active, is_selected)
+    pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool, is_dimmed: bool) -> TextColors {
+        let line_colors = if self.is_cached {
+            &theme.colors.list.line_cached
         } else {
-            theme.colors.line.ready.get_specific(is_active, is_selected)
+            &theme.colors.list.line
+        };
+
+        if is_dimmed {
+            line_colors.dimmed.get_specific(is_active, is_selected)
+        } else if let Some(data) = &self.data {
+            data.get_colors(line_colors, is_active, is_selected)
+        } else {
+            line_colors.ready.get_specific(is_active, is_selected)
         }
     }
 

@@ -57,7 +57,7 @@ impl PortForwardItem {
 
     /// Returns [`TextColors`] for this port forward item considering `theme` and other data.
     pub fn get_colors(&self, theme: &Theme, is_active: bool, is_selected: bool) -> TextColors {
-        theme.colors.line.ready.get_specific(is_active, is_selected)
+        theme.colors.list.line.ready.get_specific(is_active, is_selected)
     }
 
     /// Returns container name.

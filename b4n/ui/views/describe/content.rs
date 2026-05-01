@@ -38,13 +38,22 @@ pub struct DescribeContent {
 impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
-        let mut conditions = ListViewer::new(Rc::clone(&app_data), ResourcesList::default(), ViewType::Compact).with_no_border();
-        let mut events = ListViewer::new(
+        let mut conditions = ListViewer::new(
             Rc::clone(&app_data),
-            ResourcesList::default().with_columns_layout(ColumnsLayout::Compact),
+            ResourcesList::default().with_focus(false),
             ViewType::Compact,
         )
-        .with_no_border();
+        .with_no_border()
+        .with_focus(false);
+        let mut events = ListViewer::new(
+            Rc::clone(&app_data),
+            ResourcesList::default()
+                .with_columns_layout(ColumnsLayout::Compact)
+                .with_focus(false),
+            ViewType::Compact,
+        )
+        .with_no_border()
+        .with_focus(false);
 
         conditions.table.table.limit_offset(false);
         events.table.table.limit_offset(false);

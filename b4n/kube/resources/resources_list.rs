@@ -14,14 +14,28 @@ use crate::kube::resources::{ColumnsLayout, ResourceFilterContext, ResourceItem}
 static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
 
 /// Kubernetes resources list.
-#[derive(Default)]
 pub struct ResourcesList {
     pub data: InitData,
     pub table: TabularList<ResourceItem, ResourceFilterContext>,
     columns_layout: Option<ColumnsLayout>,
+    is_focused: bool,
     cache: HashMap<String, CacheEntry>,
     is_from_cache: bool,
     last_cache_cleanup: Option<Instant>,
+}
+
+impl Default for ResourcesList {
+    fn default() -> Self {
+        Self {
+            data: InitData::default(),
+            table: TabularList::default(),
+            columns_layout: None,
+            is_focused: true,
+            cache: HashMap::new(),
+            is_from_cache: false,
+            last_cache_cleanup: None,
+        }
+    }
 }
 
 impl ResourcesList {
@@ -34,6 +48,12 @@ impl ResourcesList {
     /// Sets columns layout for resources list.
     pub fn with_columns_layout(mut self, layout: ColumnsLayout) -> Self {
         self.columns_layout = Some(layout);
+        self
+    }
+
+    /// Sets `is_focused` for resources list.
+    pub fn with_focus(mut self, is_focused: bool) -> Self {
+        self.is_focused = is_focused;
         self
     }
 
@@ -361,7 +381,8 @@ impl Table for ResourcesList {
         for item in self.table.list.get_page() {
             result.push((
                 item.get_text(view, &self.table.header, &widths, width, self.table.offset()),
-                item.data.get_colors(theme, item.is_active, item.is_selected),
+                item.data
+                    .get_colors(theme, item.is_active, item.is_selected, !self.is_focused),
             ));
         }
 

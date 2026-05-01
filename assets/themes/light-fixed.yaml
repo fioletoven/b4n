@@ -93,40 +93,50 @@ colors:
     header: fg_dark:#5F626F
     filter:
       input: light_blue:bg_dark
-  line:
-    ready:
-      normal: light_blue:no_bg
-      normal_hl: text_dark:light_blue
-      selected: light_green:no_bg
-      selected_hl: text_dark:light_green
-    in_progress:
-      normal: red:no_bg
-      normal_hl: text_dark:light_red
-      selected: light_green:no_bg
-      selected_hl: text_dark:light_green
-    terminating:
-      normal: purple:no_bg
-      normal_hl: text_dark:light_purple
-      selected: light_green:no_bg
-      selected_hl: text_dark:light_green
-    completed:
-      normal: text:no_bg
-      normal_hl: text_light:bg_dark
-      selected: light_green:no_bg
-      selected_hl: text_dark:light_green
-  line_cached:
-    ready:
-      normal: text_light:no_bg
-      normal_hl: text:light_blue
-    in_progress:
-      normal: text_light:no_bg
-      normal_hl: text:light_red
-    terminating:
-      normal: text_light:no_bg
-      normal_hl: text:light_purple
-    completed:
-      normal: text_light:no_bg
-      normal_hl: text_dark:bg_dark
+  list:
+    header:
+      focused: fg_dark:light_yellow:bg_dark
+      dimmed: fg_light:yellow:bg_light
+    line:
+      ready:
+        normal: light_blue:no_bg
+        normal_hl: text_dark:light_blue
+        selected: light_green:no_bg
+        selected_hl: text_dark:light_green
+      in_progress:
+        normal: red:no_bg
+        normal_hl: text_dark:light_red
+        selected: light_green:no_bg
+        selected_hl: text_dark:light_green
+      terminating:
+        normal: purple:no_bg
+        normal_hl: text_dark:light_purple
+        selected: light_green:no_bg
+        selected_hl: text_dark:light_green
+      completed:
+        normal: text:no_bg
+        normal_hl: text_light:bg_dark
+        selected: light_green:no_bg
+        selected_hl: text_dark:light_green
+      dimmed:
+        normal: text:no_bg
+        normal_hl: text:no_bg
+    line_cached:
+      ready:
+        normal: text_light:no_bg
+        normal_hl: text:light_blue
+      in_progress:
+        normal: text_light:no_bg
+        normal_hl: text:light_red
+      terminating:
+        normal: text_light:no_bg
+        normal_hl: text:light_purple
+      completed:
+        normal: text_light:no_bg
+        normal_hl: text_dark:bg_dark
+      dimmed:
+        normal: text_light:no_bg
+        normal_hl: text_dark:bg_dark
   shell:
     select: select_light
   syntax:
