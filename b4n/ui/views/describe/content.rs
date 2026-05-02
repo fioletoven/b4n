@@ -32,6 +32,7 @@ pub struct DescribeContent {
     events_header: Vec<StyledLine>,
     creation_time: Instant,
     has_data: bool,
+    is_deleted: bool,
     spinner: Spinner,
     page_start: ContentPosition,
     max_height: usize,
@@ -56,6 +57,7 @@ impl DescribeContent {
             events_header,
             creation_time: Instant::now(),
             has_data: false,
+            is_deleted: false,
             spinner: Spinner::default(),
             page_start: ContentPosition::new(0, 0),
             max_height: 0,
@@ -68,6 +70,11 @@ impl DescribeContent {
 
     /// Updates resource that is currently described.
     pub fn update_resource(&mut self, result: ObserverResult<DynamicObject>) {
+        if self.is_deleted {
+            return;
+        }
+
+        self.is_deleted = matches!(result, ObserverResult::Delete(_));
         let (ObserverResult::Apply(object) | ObserverResult::Delete(object)) = result else {
             return;
         };

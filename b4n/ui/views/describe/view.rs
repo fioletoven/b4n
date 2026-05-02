@@ -1,7 +1,7 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::utils::get_resource;
-use b4n_kube::{BgObserver, EVENTS, ResourceRefFilter};
+use b4n_kube::{BgObserver, EVENTS, ObserverResult, ResourceRefFilter};
 use b4n_kube::{Kind, ResourceRef};
 use b4n_tui::MouseEventKind;
 use b4n_tui::widgets::ActionItem;
@@ -118,6 +118,10 @@ impl DescribeView {
 impl View for DescribeView {
     fn process_tick(&mut self) -> ResponseEvent {
         while let Some(result) = self.observer.try_next() {
+            if matches!(*result, ObserverResult::Delete(_)) {
+                self.observer.stop();
+            }
+
             self.content.update_resource(*result);
         }
 
