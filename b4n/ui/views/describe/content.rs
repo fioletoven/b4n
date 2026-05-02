@@ -25,10 +25,10 @@ pub struct DescribeContent {
     app_data: SharedAppData,
     resource: ResourceRef,
     lines: Vec<StyledLine>,
-    conditions_text: Vec<StyledLine>,
     conditions: ListViewer<ResourcesList>,
-    events_text: Vec<StyledLine>,
+    conditions_header: Vec<StyledLine>,
     events: ListViewer<ResourcesList>,
+    events_header: Vec<StyledLine>,
     creation_time: Instant,
     has_data: bool,
     spinner: Spinner,
@@ -43,17 +43,16 @@ pub struct DescribeContent {
 impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
-        let conditions = Self::create_conditions_viewer(&app_data);
-        let events = Self::create_events_viewer(&app_data);
-
-        let mut instance = Self {
+        let (conditions, conditions_header) = Self::create_conditions(&app_data);
+        let (events, events_header) = Self::create_events(&app_data);
+        Self {
             app_data,
             resource,
             lines: Vec::new(),
-            conditions_text: vec![StyledLine::default()],
             conditions,
-            events_text: vec![StyledLine::default()],
+            conditions_header,
             events,
+            events_header,
             creation_time: Instant::now(),
             has_data: false,
             spinner: Spinner::default(),
@@ -63,10 +62,7 @@ impl DescribeContent {
             area: Rect::default(),
             section_areas: Vec::new(),
             focused: 0,
-        };
-
-        instance.initialize_section_headers();
-        instance
+        }
     }
 
     /// Updates resource that is currently described.
@@ -93,10 +89,7 @@ impl DescribeContent {
         }
 
         if event.is_mouse(MouseEventKind::LeftClick) {
-            let section = self.get_clicked_section(event);
-            if section != self.focused {
-                self.focus_section(section);
-            }
+            self.focus_section(self.get_clicked_section(event));
         }
 
         match self.focused {
@@ -125,7 +118,7 @@ impl DescribeContent {
         }
     }
 
-    fn create_conditions_viewer(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
+    fn create_conditions(app_data: &SharedAppData) -> (ListViewer<ResourcesList>, Vec<StyledLine>) {
         let mut viewer = ListViewer::new(
             Rc::clone(app_data),
             ResourcesList::default().with_focus(false),
@@ -134,10 +127,14 @@ impl DescribeContent {
         .with_no_border()
         .with_focus(false);
         viewer.table.table.limit_offset(false);
-        viewer
+
+        let colors = &app_data.borrow().theme.colors.syntax.describe;
+        let header = vec![StyledLine::default(), property(colors, "Conditions", "")];
+
+        (viewer, header)
     }
 
-    fn create_events_viewer(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
+    fn create_events(app_data: &SharedAppData) -> (ListViewer<ResourcesList>, Vec<StyledLine>) {
         let mut viewer = ListViewer::new(
             Rc::clone(app_data),
             ResourcesList::default()
@@ -148,13 +145,11 @@ impl DescribeContent {
         .with_no_border()
         .with_focus(false);
         viewer.table.table.limit_offset(false);
-        viewer
-    }
 
-    fn initialize_section_headers(&mut self) {
-        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.conditions_text.push(property(colors, "Conditions", ""));
-        self.events_text.push(property(colors, "Events", ""));
+        let colors = &app_data.borrow().theme.colors.syntax.describe;
+        let header = vec![StyledLine::default(), property(colors, "Events", "")];
+
+        (viewer, header)
     }
 
     fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
@@ -169,9 +164,9 @@ impl DescribeContent {
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let mut sections = vec![
             Section::from_text(&mut self.lines),
-            Section::from_text(&mut self.conditions_text),
+            Section::from_text(&mut self.conditions_header),
             Section::from_list(&mut self.conditions),
-            Section::from_text(&mut self.events_text),
+            Section::from_text(&mut self.events_header),
             Section::from_list(&mut self.events),
         ];
 
@@ -241,23 +236,25 @@ impl DescribeContent {
         0
     }
 
-    fn update_focus(&mut self) {
-        self.conditions.set_focus(self.focused == 1);
-        self.events.set_focus(self.focused == 2);
+    fn can_focus_section(&self, section: u8) -> bool {
+        match section {
+            1 => !self.conditions.table.is_empty(),
+            2 => !self.events.table.is_empty(),
+            _ => false,
+        }
     }
 
     fn focus_section(&mut self, section: u8) {
-        self.focused = section;
-        self.update_focus();
+        if self.focused != section {
+            self.focused = if self.can_focus_section(section) { section } else { 0 };
+            self.conditions.set_focus(self.focused == 1);
+            self.events.set_focus(self.focused == 2);
+        }
     }
 
     fn focus_next_section(&mut self) {
-        self.focused += 1;
-        if self.focused > 2 {
-            self.focused = 0;
-        }
-
-        self.update_focus();
+        let section = if self.focused == 2 { 0 } else { self.focused + 1 };
+        self.focus_section(section);
     }
 
     fn process_scroll_event(&mut self, event: &TuiEvent) -> ResponseEvent {
