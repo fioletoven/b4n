@@ -447,13 +447,17 @@ fn add_describe_list(
     lines.push(StyledLine::default());
     lines.push(property(colors, title, ""));
 
-    if let Some(list) = list
-        && !list.is_empty()
-    {
+    let mut has_entries = false;
+    if let Some(list) = list {
         for (key, value) in list {
-            lines.push(element(colors, key, value));
+            if key != "kubectl.kubernetes.io/last-applied-configuration" {
+                has_entries = true;
+                lines.push(element(colors, key, value));
+            }
         }
-    } else {
+    }
+
+    if !has_entries {
         lines.push(none(colors))
     }
 }

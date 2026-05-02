@@ -61,6 +61,8 @@ impl DescribeView {
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource);
 
+        set_hint(&app_data, &footer_tx);
+
         Some(Self {
             app_data,
             header,
@@ -174,4 +176,15 @@ impl View for DescribeView {
 
         self.command_palette.draw(frame, area);
     }
+}
+
+impl Drop for DescribeView {
+    fn drop(&mut self) {
+        self.footer_tx.hide_hint();
+    }
+}
+
+fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink) {
+    let key = app_data.get_key_name(KeyCommand::NavigateNext).to_ascii_uppercase();
+    footer_tx.show_hint(format!(" Press ␝{key}␝ to change active section"));
 }
