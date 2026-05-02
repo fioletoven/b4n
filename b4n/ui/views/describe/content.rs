@@ -32,6 +32,7 @@ pub struct DescribeContent {
     events_header: Vec<StyledLine>,
     creation_time: Instant,
     has_data: bool,
+    is_deleted: bool,
     spinner: Spinner,
     page_start: ContentPosition,
     max_height: usize,
@@ -56,6 +57,7 @@ impl DescribeContent {
             events_header,
             creation_time: Instant::now(),
             has_data: false,
+            is_deleted: false,
             spinner: Spinner::default(),
             page_start: ContentPosition::new(0, 0),
             max_height: 0,
@@ -68,6 +70,11 @@ impl DescribeContent {
 
     /// Updates resource that is currently described.
     pub fn update_resource(&mut self, result: ObserverResult<DynamicObject>) {
+        if self.is_deleted {
+            return;
+        }
+
+        self.is_deleted = matches!(result, ObserverResult::Delete(_));
         let (ObserverResult::Apply(object) | ObserverResult::Delete(object)) = result else {
             return;
         };
@@ -98,6 +105,11 @@ impl DescribeContent {
             2 => self.events.process_event(event),
             _ => self.process_scroll_event(event),
         }
+    }
+
+    /// Returns `true` if content can be scrolled.
+    pub fn is_in_scroll_mode(&self) -> bool {
+        self.focused == 0
     }
 
     /// Returns current page coordinates.\
@@ -447,13 +459,17 @@ fn add_describe_list(
     lines.push(StyledLine::default());
     lines.push(property(colors, title, ""));
 
-    if let Some(list) = list
-        && !list.is_empty()
-    {
+    let mut has_entries = false;
+    if let Some(list) = list {
         for (key, value) in list {
-            lines.push(element(colors, key, value));
+            if key != "kubectl.kubernetes.io/last-applied-configuration" {
+                has_entries = true;
+                lines.push(element(colors, key, value));
+            }
         }
-    } else {
+    }
+
+    if !has_entries {
         lines.push(none(colors))
     }
 }

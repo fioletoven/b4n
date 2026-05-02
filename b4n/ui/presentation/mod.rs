@@ -3,7 +3,7 @@ pub use content::{
     VecStyledLineExt,
 };
 pub use list::{ListHeader, ListViewer};
-pub use select::ScreenSelection;
+pub use select::{BufferContent, ScreenSelection};
 
 pub mod utils;
 

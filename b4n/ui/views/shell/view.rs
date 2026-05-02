@@ -377,7 +377,7 @@ impl View for ShellView {
         if !self.is_mouse_enabled
             && let Ok(parser) = self.parser.read()
         {
-            self.selection.process_event(event, parser.screen(), self.area);
+            self.selection.process_screen_event(event, parser.screen(), self.area);
         }
 
         if let TuiEvent::Mouse(mouse) = event {
