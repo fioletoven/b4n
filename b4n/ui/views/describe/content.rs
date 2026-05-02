@@ -107,6 +107,11 @@ impl DescribeContent {
         }
     }
 
+    /// Returns `true` if content can be scrolled.
+    pub fn is_in_scroll_mode(&self) -> bool {
+        self.focused == 0
+    }
+
     /// Returns current page coordinates.\
     /// **Note** that it returns them only if page scrolling is possible.
     pub fn get_coordinates(&self) -> Option<ContentPosition> {

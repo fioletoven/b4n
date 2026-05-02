@@ -6,13 +6,14 @@ use b4n_kube::{Kind, ResourceRef};
 use b4n_tui::MouseEventKind;
 use b4n_tui::widgets::ActionItem;
 use b4n_tui::{ResponseEvent, Responsive, TuiEvent, widgets::ActionsListBuilder};
+use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Position};
 use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ColumnsLayout, ResourceObserver};
-use crate::ui::presentation::ContentHeader;
+use crate::ui::presentation::{BufferContent, ContentHeader, ScreenSelection};
 use crate::ui::views::describe::content::DescribeContent;
 use crate::ui::{views::View, widgets::CommandPalette};
 
@@ -24,7 +25,10 @@ pub struct DescribeView {
     observer: BgObserver,
     events: ResourceObserver,
     command_palette: CommandPalette,
+    selection: ScreenSelection,
     last_mouse_click: Option<Position>,
+    last_frame: Option<Buffer>,
+    area: Rect,
     footer_tx: NotificationSink,
 }
 
@@ -60,6 +64,7 @@ impl DescribeView {
         header.set_title(" describe");
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource);
+        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.syntax.describe.select);
 
         set_hint(&app_data, &footer_tx);
 
@@ -70,7 +75,10 @@ impl DescribeView {
             observer,
             events,
             command_palette: CommandPalette::default(),
+            selection,
             last_mouse_click: None,
+            last_frame: None,
+            area: Rect::default(),
             footer_tx,
         })
     }
@@ -95,9 +103,13 @@ impl DescribeView {
             return;
         }
 
-        let builder = ActionsListBuilder::default()
+        let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette());
+
+        let is_selected = self.selection.sorted().is_some();
+        let copy = if is_selected { "selection" } else { "all" };
+        builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
@@ -110,8 +122,27 @@ impl DescribeView {
                 self.last_mouse_click = event.position();
                 self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
             },
+            ResponseEvent::Action("copy") => self.copy_to_clipboard(),
             response_event => response_event,
         }
+    }
+
+    fn copy_to_clipboard(&mut self) -> ResponseEvent {
+        if let Some(frame) = &self.last_frame {
+            let buffer = BufferContent::new(frame, self.area);
+            if let Some((start, end)) = self.selection.sorted() {
+                let text = buffer.contents_between(start.y, start.x, end.y, end.x + 1);
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+            } else {
+                let text = buffer.contents();
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+            }
+        }
+
+        self.selection.reset();
+        ResponseEvent::Handled
     }
 }
 
@@ -139,9 +170,27 @@ impl View for DescribeView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
+            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
                 return result;
             }
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.copy_to_clipboard();
+            return ResponseEvent::Handled;
+        }
+
+        if self.content.is_in_scroll_mode()
+            && let Some(frame) = &self.last_frame
+        {
+            self.selection.process_buffer_event(event, frame, self.area);
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
@@ -150,13 +199,6 @@ impl View for DescribeView {
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-        {
-            self.show_mouse_menu(mouse.column, mouse.row);
             return ResponseEvent::Handled;
         }
 
@@ -178,6 +220,12 @@ impl View for DescribeView {
         self.header.draw(frame, layout[0]);
         self.content.draw(frame, layout[1]);
 
+        self.area = layout[1];
+        if self.content.is_in_scroll_mode() {
+            self.last_frame = Some(frame.buffer_mut().clone());
+        }
+
+        frame.render_widget(&self.selection, layout[1]);
         self.command_palette.draw(frame, area);
     }
 }
