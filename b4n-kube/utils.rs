@@ -131,7 +131,7 @@ pub fn get_resource(list: Option<&DiscoveryList>, kind: &Kind) -> Option<(ApiRes
     get_resource_internal(list, kind).cloned()
 }
 
-pub fn get_resource_internal<'a>(list: Option<&'a DiscoveryList>, kind: &Kind) -> Option<&'a (ApiResource, ApiCapabilities)> {
+fn get_resource_internal<'a>(list: Option<&'a DiscoveryList>, kind: &Kind) -> Option<&'a (ApiResource, ApiCapabilities)> {
     if kind.has_version() {
         get_resource_with_version(list, kind.name(), kind.api_version())
     } else if kind.has_group() && !kind.group().is_empty() {

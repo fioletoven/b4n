@@ -9,6 +9,7 @@ use delegate::delegate;
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, rc::Rc};
 
+use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::kube::resources::{ColumnsLayout, ResourceFilterContext, ResourceItem};
 
 static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
@@ -115,7 +116,8 @@ impl ResourcesList {
                 let has_port_forward = forwards
                     .iter()
                     .any(|f| f.name.as_deref() == Some(item.data.name()) && f.namespace.as_str() == item.data.group());
-                item.data.set_data_text(2, if has_port_forward { "●" } else { " " });
+                item.data
+                    .set_data_text(PF_COLUMN_NO, if has_port_forward { "●" } else { " " });
             }
         }
     }

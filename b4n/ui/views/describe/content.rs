@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
-use b4n_kube::{InitData, ObserverResult, ResourceRef};
+use b4n_kube::{InitData, ObserverResult, ResourceRef, status};
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
 use b4n_tui::widgets::Spinner;
@@ -99,9 +99,10 @@ impl DescribeContent {
         }
     }
 
-    /// Returns current page coordinates.
-    pub fn get_coordinates(&self) -> ContentPosition {
-        self.page_start
+    /// Returns current page coordinates.\
+    /// **Note** that it returns them only if page scrolling is possible.
+    pub fn get_coordinates(&self) -> Option<ContentPosition> {
+        if self.focused == 0 { Some(self.page_start) } else { None }
     }
 
     /// Redraws describe view content on the screen.
@@ -319,10 +320,15 @@ impl DescribeContent {
     fn update_describe(&mut self, object: &DynamicObject) {
         let colors = &self.app_data.borrow().theme.colors.syntax.describe;
         self.lines.clear();
+
         self.lines.push(property(colors, "Name", object.name_any()));
         if let Some(namespace) = object.metadata.namespace.as_deref() {
             self.lines.push(property(colors, "Namespace", namespace));
         }
+
+        self.lines.push(StyledLine::default());
+        self.lines
+            .push(property(colors, "Overall status", status::from_object(object)))
     }
 
     fn update_conditions(&mut self, object: &DynamicObject) {

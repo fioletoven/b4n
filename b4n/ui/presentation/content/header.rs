@@ -66,6 +66,11 @@ impl ContentHeader {
         self.position_y = y + 1;
     }
 
+    /// Hides header coordinates.
+    pub fn hide_coordinates(&mut self) {
+        self.show_coordinates = false;
+    }
+
     /// Sets edit icon and mode text.
     pub fn set_edit(&mut self, icon: char, mode: &'static str) {
         self.edit_icon = icon;
