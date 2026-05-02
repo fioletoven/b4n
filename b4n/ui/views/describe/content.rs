@@ -13,6 +13,7 @@ use ratatui::layout::{Constraint, Margin, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -317,20 +318,6 @@ impl DescribeContent {
         }
     }
 
-    fn update_describe(&mut self, object: &DynamicObject) {
-        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.lines.clear();
-
-        self.lines.push(property(colors, "Name", object.name_any()));
-        if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines.push(property(colors, "Namespace", namespace));
-        }
-
-        self.lines.push(StyledLine::default());
-        self.lines
-            .push(property(colors, "Overall status", status::from_object(object)))
-    }
-
     fn update_conditions(&mut self, object: &DynamicObject) {
         self.conditions.table.update(ObserverResult::Init(Box::new(InitData::simple(
             self.resource.clone(),
@@ -348,6 +335,23 @@ impl DescribeContent {
 
         self.conditions.table.update(ObserverResult::InitDone);
         self.conditions.table.sort(5, false);
+    }
+
+    fn update_describe(&mut self, object: &DynamicObject) {
+        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
+        self.lines.clear();
+
+        self.lines.push(property(colors, "Name", object.name_any()));
+        if let Some(namespace) = object.metadata.namespace.as_deref() {
+            self.lines.push(property(colors, "Namespace", namespace));
+        }
+
+        add_describe_list(&mut self.lines, colors, "Labels", object.metadata.labels.as_ref());
+        add_describe_list(&mut self.lines, colors, "Annotations", object.metadata.annotations.as_ref());
+
+        self.lines.push(StyledLine::default());
+        self.lines
+            .push(property(colors, "Overall status", status::from_object(object)))
     }
 }
 
@@ -399,8 +403,7 @@ impl<'a> Section<'a> {
             Section::List(list, _, _) => {
                 if list.table.is_empty() {
                     let colors = &app_data.borrow().theme.colors.syntax.describe;
-                    let styled = vec![span(&colors.normal, "--list is empty--")];
-                    frame.render_widget(Paragraph::new(styled.as_line(offset_x)), area.inner(Margin::new(1, 0)));
+                    frame.render_widget(Paragraph::new(none(colors).as_line(offset_x)), area.inner(Margin::new(1, 0)));
                 } else {
                     list.table.table.set_offset(offset_x);
                     list.draw_clipped(frame, area, offset_y as usize);
@@ -414,10 +417,43 @@ fn span(color: &TextColors, text: impl Into<String>) -> (Style, String) {
     (color.into(), text.into())
 }
 
+fn none(colors: &YamlSyntaxColors) -> StyledLine {
+    vec![span(&colors.normal, "  --none--")]
+}
+
 fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
     vec![
         span(&colors.property, name),
         span(&colors.normal, ": "),
         span(&colors.string, value),
     ]
+}
+
+fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl Into<String>) -> StyledLine {
+    vec![
+        span(&colors.normal, "  - "),
+        span(&colors.string, key),
+        span(&colors.normal, "="),
+        span(&colors.string, value),
+    ]
+}
+
+fn add_describe_list(
+    lines: &mut Vec<StyledLine>,
+    colors: &YamlSyntaxColors,
+    title: &str,
+    list: Option<&BTreeMap<String, String>>,
+) {
+    lines.push(StyledLine::default());
+    lines.push(property(colors, title, ""));
+
+    if let Some(list) = list
+        && !list.is_empty()
+    {
+        for (key, value) in list {
+            lines.push(element(colors, key, value));
+        }
+    } else {
+        lines.push(none(colors))
+    }
 }

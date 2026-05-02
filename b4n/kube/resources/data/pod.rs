@@ -76,8 +76,8 @@ pub fn header(has_metrics: bool) -> Header {
     let mut columns = vec![
         Column::fixed("RESTARTS", 3, true),
         Column::bound("READY", 3, 7, false),
-        Column::fixed("PF", 2, false),          // PF_COLUMN_NO
-        Column::bound("STATUS", 10, 20, false), // position of this column is used in `is_running` function
+        Column::fixed("PF", 2, false), // this column position must match PF_COLUMN_NO
+        Column::bound("STATUS", 10, 20, false),
     ];
 
     let mut symbols = vec![' ', 'N', 'R', 'E', ' ', 'S'];
