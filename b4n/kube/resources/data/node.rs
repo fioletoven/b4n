@@ -1,8 +1,7 @@
-use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
+use b4n_kube::{ResourceTag, status};
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, NAMESPACE};
-use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -18,8 +17,8 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let name = object.metadata.name.as_deref().unwrap_or_default();
     let pods = i64::try_from(statistics.pods_count(name)).ok();
     let containers = i64::try_from(statistics.containers_count(name)).ok();
-    let ready = get_first_status(status["conditions"].as_array());
-    let is_ready = ready.is_some_and(|r| r == "Ready");
+    let ready = status::from_object(object);
+    let is_ready = ready == "Ready";
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let mut values = vec![
@@ -109,13 +108,6 @@ pub fn update_statistics<'a>(
             data.extra_values[9] = ResourceValue::number(mem_usage, 7);
         }
     }
-}
-
-fn get_first_status(conditions: Option<&Vec<Value>>) -> Option<&str> {
-    conditions?
-        .iter()
-        .find(|c| c["status"].as_str() == Some("True"))
-        .and_then(|c| c["type"].as_str())
 }
 
 fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {

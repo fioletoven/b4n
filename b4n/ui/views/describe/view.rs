@@ -163,8 +163,11 @@ impl View for DescribeView {
             .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
             .split(area);
 
-        let pos = self.content.get_coordinates();
-        self.header.set_coordinates(pos.x, pos.y);
+        if let Some(pos) = self.content.get_coordinates() {
+            self.header.set_coordinates(pos.x, pos.y);
+        } else {
+            self.header.hide_coordinates();
+        }
 
         self.header.draw(frame, layout[0]);
         self.content.draw(frame, layout[1]);

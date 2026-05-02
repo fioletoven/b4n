@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
-use b4n_kube::{InitData, ObserverResult, ResourceRef};
+use b4n_kube::{InitData, ObserverResult, ResourceRef, status};
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
 use b4n_tui::widgets::Spinner;
@@ -13,6 +13,7 @@ use ratatui::layout::{Constraint, Margin, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -26,7 +27,9 @@ pub struct DescribeContent {
     resource: ResourceRef,
     lines: Vec<StyledLine>,
     conditions: ListViewer<ResourcesList>,
+    conditions_header: Vec<StyledLine>,
     events: ListViewer<ResourcesList>,
+    events_header: Vec<StyledLine>,
     creation_time: Instant,
     has_data: bool,
     spinner: Spinner,
@@ -41,32 +44,16 @@ pub struct DescribeContent {
 impl DescribeContent {
     /// Creates new [`DescribeContent`] instance.
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
-        let mut conditions = ListViewer::new(
-            Rc::clone(&app_data),
-            ResourcesList::default().with_focus(false),
-            ViewType::Compact,
-        )
-        .with_no_border()
-        .with_focus(false);
-        let mut events = ListViewer::new(
-            Rc::clone(&app_data),
-            ResourcesList::default()
-                .with_columns_layout(ColumnsLayout::Compact)
-                .with_focus(false),
-            ViewType::Compact,
-        )
-        .with_no_border()
-        .with_focus(false);
-
-        conditions.table.table.limit_offset(false);
-        events.table.table.limit_offset(false);
-
+        let (conditions, conditions_header) = Self::create_conditions(&app_data);
+        let (events, events_header) = Self::create_events(&app_data);
         Self {
             app_data,
             resource,
             lines: Vec::new(),
             conditions,
+            conditions_header,
             events,
+            events_header,
             creation_time: Instant::now(),
             has_data: false,
             spinner: Spinner::default(),
@@ -103,10 +90,7 @@ impl DescribeContent {
         }
 
         if event.is_mouse(MouseEventKind::LeftClick) {
-            let section = self.get_clicked_section(event);
-            if section != self.focused {
-                self.focus_section(section);
-            }
+            self.focus_section(self.get_clicked_section(event));
         }
 
         match self.focused {
@@ -116,9 +100,10 @@ impl DescribeContent {
         }
     }
 
-    /// Returns current page coordinates.
-    pub fn get_coordinates(&self) -> ContentPosition {
-        self.page_start
+    /// Returns current page coordinates.\
+    /// **Note** that it returns them only if page scrolling is possible.
+    pub fn get_coordinates(&self) -> Option<ContentPosition> {
+        if self.focused == 0 { Some(self.page_start) } else { None }
     }
 
     /// Redraws describe view content on the screen.
@@ -135,6 +120,40 @@ impl DescribeContent {
         }
     }
 
+    fn create_conditions(app_data: &SharedAppData) -> (ListViewer<ResourcesList>, Vec<StyledLine>) {
+        let mut viewer = ListViewer::new(
+            Rc::clone(app_data),
+            ResourcesList::default().with_focus(false),
+            ViewType::Compact,
+        )
+        .with_no_border()
+        .with_focus(false);
+        viewer.table.table.limit_offset(false);
+
+        let colors = &app_data.borrow().theme.colors.syntax.describe;
+        let header = vec![StyledLine::default(), property(colors, "Conditions", "")];
+
+        (viewer, header)
+    }
+
+    fn create_events(app_data: &SharedAppData) -> (ListViewer<ResourcesList>, Vec<StyledLine>) {
+        let mut viewer = ListViewer::new(
+            Rc::clone(app_data),
+            ResourcesList::default()
+                .with_columns_layout(ColumnsLayout::Compact)
+                .with_focus(false),
+            ViewType::Compact,
+        )
+        .with_no_border()
+        .with_focus(false);
+        viewer.table.table.limit_offset(false);
+
+        let colors = &app_data.borrow().theme.colors.syntax.describe;
+        let header = vec![StyledLine::default(), property(colors, "Events", "")];
+
+        (viewer, header)
+    }
+
     fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let colors = &self.app_data.borrow().theme.colors;
         let line = Line::default()
@@ -147,18 +166,24 @@ impl DescribeContent {
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let mut sections = vec![
             Section::from_text(&mut self.lines),
-            Section::Spacer(1, 1),
+            Section::from_text(&mut self.conditions_header),
             Section::from_list(&mut self.conditions),
-            Section::Spacer(1, 1),
+            Section::from_text(&mut self.events_header),
             Section::from_list(&mut self.events),
         ];
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
         self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
-        self.section_areas = Self::draw_sections(frame, area, &mut sections, self.page_start);
+        self.section_areas = Self::draw_sections(frame, area, &self.app_data, &mut sections, self.page_start);
     }
 
-    fn draw_sections(frame: &mut Frame<'_>, area: Rect, sections: &mut [Section], page_start: ContentPosition) -> Vec<Rect> {
+    fn draw_sections(
+        frame: &mut Frame<'_>,
+        area: Rect,
+        app_data: &SharedAppData,
+        sections: &mut [Section],
+        page_start: ContentPosition,
+    ) -> Vec<Rect> {
         let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
         let mut current_y = 0u16;
         let viewport_start = scroll_y;
@@ -184,7 +209,7 @@ impl DescribeContent {
                         height: visible_height.min(area.height.saturating_sub(screen_y)),
                     };
 
-                    section.draw(frame, screen_rect, clip_top, page_start.x);
+                    section.draw(frame, screen_rect, app_data, clip_top, page_start.x);
                     areas.push(screen_rect);
                 } else {
                     areas.push(Rect::default());
@@ -213,23 +238,25 @@ impl DescribeContent {
         0
     }
 
-    fn update_focus(&mut self) {
-        self.conditions.set_focus(self.focused == 1);
-        self.events.set_focus(self.focused == 2);
+    fn can_focus_section(&self, section: u8) -> bool {
+        match section {
+            1 => !self.conditions.table.is_empty(),
+            2 => !self.events.table.is_empty(),
+            _ => false,
+        }
     }
 
     fn focus_section(&mut self, section: u8) {
-        self.focused = section;
-        self.update_focus();
+        if self.focused != section {
+            self.focused = if self.can_focus_section(section) { section } else { 0 };
+            self.conditions.set_focus(self.focused == 1);
+            self.events.set_focus(self.focused == 2);
+        }
     }
 
     fn focus_next_section(&mut self) {
-        self.focused += 1;
-        if self.focused > 2 {
-            self.focused = 0;
-        }
-
-        self.update_focus();
+        let section = if self.focused == 2 { 0 } else { self.focused + 1 };
+        self.focus_section(section);
     }
 
     fn process_scroll_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -291,15 +318,6 @@ impl DescribeContent {
         }
     }
 
-    fn update_describe(&mut self, object: &DynamicObject) {
-        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.lines.clear();
-        self.lines.push(property(colors, "name", object.name_any()));
-        if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines.push(property(colors, "namespace", namespace));
-        }
-    }
-
     fn update_conditions(&mut self, object: &DynamicObject) {
         self.conditions.table.update(ObserverResult::Init(Box::new(InitData::simple(
             self.resource.clone(),
@@ -318,11 +336,27 @@ impl DescribeContent {
         self.conditions.table.update(ObserverResult::InitDone);
         self.conditions.table.sort(5, false);
     }
+
+    fn update_describe(&mut self, object: &DynamicObject) {
+        let colors = &self.app_data.borrow().theme.colors.syntax.describe;
+        self.lines.clear();
+
+        self.lines.push(property(colors, "Name", object.name_any()));
+        if let Some(namespace) = object.metadata.namespace.as_deref() {
+            self.lines.push(property(colors, "Namespace", namespace));
+        }
+
+        add_describe_list(&mut self.lines, colors, "Labels", object.metadata.labels.as_ref());
+        add_describe_list(&mut self.lines, colors, "Annotations", object.metadata.annotations.as_ref());
+
+        self.lines.push(StyledLine::default());
+        self.lines
+            .push(property(colors, "Overall status", status::from_object(object)))
+    }
 }
 
 /// Represents a section in the describe view.
 enum Section<'a> {
-    Spacer(usize, u16),
     Text(&'a mut Vec<StyledLine>, usize, u16),
     List(&'a mut ListViewer<ResourcesList>, usize, u16),
 }
@@ -345,17 +379,17 @@ impl<'a> Section<'a> {
 
     fn width(&self) -> usize {
         match self {
-            Section::Spacer(width, _) | Section::Text(_, width, _) | Section::List(_, width, _) => *width,
+            Section::Text(_, width, _) | Section::List(_, width, _) => *width,
         }
     }
 
     fn height(&self) -> u16 {
         match self {
-            Section::Spacer(_, height) | Section::Text(_, _, height) | Section::List(_, _, height) => *height,
+            Section::Text(_, _, height) | Section::List(_, _, height) => *height,
         }
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, offset_y: u16, offset_x: usize) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppData, offset_y: u16, offset_x: usize) {
         match self {
             Section::Text(lines, _, _) => {
                 let lines: Vec<Line<'_>> = lines
@@ -367,10 +401,14 @@ impl<'a> Section<'a> {
                 frame.render_widget(Paragraph::new(lines), area.inner(Margin::new(1, 0)));
             },
             Section::List(list, _, _) => {
-                list.table.table.set_offset(offset_x);
-                list.draw_clipped(frame, area, offset_y as usize);
+                if list.table.is_empty() {
+                    let colors = &app_data.borrow().theme.colors.syntax.describe;
+                    frame.render_widget(Paragraph::new(none(colors).as_line(offset_x)), area.inner(Margin::new(1, 0)));
+                } else {
+                    list.table.table.set_offset(offset_x);
+                    list.draw_clipped(frame, area, offset_y as usize);
+                }
             },
-            Section::Spacer(_, _) => {},
         }
     }
 }
@@ -379,10 +417,43 @@ fn span(color: &TextColors, text: impl Into<String>) -> (Style, String) {
     (color.into(), text.into())
 }
 
+fn none(colors: &YamlSyntaxColors) -> StyledLine {
+    vec![span(&colors.normal, "  --none--")]
+}
+
 fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
     vec![
         span(&colors.property, name),
         span(&colors.normal, ": "),
         span(&colors.string, value),
     ]
+}
+
+fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl Into<String>) -> StyledLine {
+    vec![
+        span(&colors.normal, "  - "),
+        span(&colors.string, key),
+        span(&colors.normal, "="),
+        span(&colors.string, value),
+    ]
+}
+
+fn add_describe_list(
+    lines: &mut Vec<StyledLine>,
+    colors: &YamlSyntaxColors,
+    title: &str,
+    list: Option<&BTreeMap<String, String>>,
+) {
+    lines.push(StyledLine::default());
+    lines.push(property(colors, title, ""));
+
+    if let Some(list) = list
+        && !list.is_empty()
+    {
+        for (key, value) in list {
+            lines.push(element(colors, key, value));
+        }
+    } else {
+        lines.push(none(colors))
+    }
 }

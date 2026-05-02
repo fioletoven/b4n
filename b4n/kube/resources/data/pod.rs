@@ -9,7 +9,8 @@ use std::rc::Rc;
 
 use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
 
-const COLUMNS_NO_WITH_STATS: usize = 7;
+pub const PF_COLUMN_NO: usize = 2;
+const COLUMNS_NO_WITH_STATS: usize = 8;
 
 /// Returns [`ResourceData`] for the `pod` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -75,8 +76,8 @@ pub fn header(has_metrics: bool) -> Header {
     let mut columns = vec![
         Column::fixed("RESTARTS", 3, true),
         Column::bound("READY", 3, 7, false),
-        Column::fixed("PF", 2, false),
-        Column::bound("STATUS", 10, 20, false), // position of this column is used in `is_running` function
+        Column::fixed("PF", 2, false), // this column position must match PF_COLUMN_NO
+        Column::bound("STATUS", 10, 20, false),
     ];
 
     let mut symbols = vec![' ', 'N', 'R', 'E', ' ', 'S'];
@@ -118,8 +119,8 @@ pub fn update_statistics<'a>(
             && let Some(pod_namespace) = item.data.namespace.as_deref()
             && let Some(stats) = statistics.pod(node_name, &item.data.name, pod_namespace)
         {
-            data.extra_values[3] = stats.metrics.map(|m| m.cpu).into();
-            data.extra_values[4] = stats.metrics.map(|m| m.memory).into();
+            data.extra_values[4] = stats.metrics.map(|m| m.cpu).into();
+            data.extra_values[5] = stats.metrics.map(|m| m.memory).into();
         }
     }
 }
