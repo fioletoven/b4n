@@ -15,10 +15,10 @@ use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::core::{SharedAppDataExt, ViewsManager};
+use crate::core::{
+    AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedAppDataExt, SharedBgWorker, ViewsManager,
+};
 use crate::ui::views::ResourcesView;
-
-use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};
 
 /// Application execution flow.
 #[derive(Clone, Debug, PartialEq)]
@@ -38,7 +38,6 @@ enum TrackFlow {
 pub struct App {
     data: SharedAppData,
     tui: Tui,
-    runtime: Handle,
     worker: SharedBgWorker,
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
@@ -69,7 +68,6 @@ impl App {
         Ok(Self {
             data,
             tui: Tui::new(is_mouse_enabled)?,
-            runtime: runtime.clone(),
             worker,
             config_watcher: Config::watcher(runtime.clone()),
             history_watcher: History::watcher(runtime.clone()),
@@ -88,7 +86,7 @@ impl App {
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
-        self.tui.enter_terminal(&self.runtime)?;
+        self.tui.enter_terminal()?;
         self.update_mouse_icon();
 
         Ok(())

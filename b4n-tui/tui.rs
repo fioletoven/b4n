@@ -3,15 +3,13 @@ use b4n_config::keys::{KeyCombination, KeyCommand};
 use crossterm::cursor::{self, SetCursorStyle};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers, MouseButton};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
-use futures::{FutureExt, StreamExt};
 use ratatui_core::layout::{Position, Rect};
 use ratatui_core::terminal::Terminal;
 use ratatui_crossterm::CrosstermBackend;
 use std::io::stdout;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 use super::utils::init_panic_hook;
@@ -168,14 +166,14 @@ impl Tui {
     }
 
     /// Enters the alternate screen mode and starts terminal events loop.
-    pub fn enter_terminal(&mut self, runtime: &Handle) -> Result<()> {
+    pub fn enter_terminal(&mut self) -> Result<()> {
         crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(stdout(), EnterAlternateScreen, SetCursorStyle::SteadyBar, cursor::Hide)?;
         if self.is_mouse_enabled {
             crossterm::execute!(stdout(), EnableMouseCapture)?;
         }
 
-        self.start_events_loop(runtime);
+        self.start_events_loop()?;
 
         Ok(())
     }
@@ -220,37 +218,39 @@ impl Tui {
         self.events_ct.cancel();
     }
 
-    /// Starts terminal events loop.
-    pub fn start_events_loop(&mut self, runtime: &Handle) {
+    /// Starts terminal events loop on a dedicated thread.
+    pub fn start_events_loop(&mut self) -> Result<()> {
         self.events_ct.cancel();
         self.events_ct = CancellationToken::new();
         let _cancellation_token = self.events_ct.clone();
         let _event_tx = self.event_tx.clone();
-        let task = runtime.spawn(async move {
+
+        let task = std::thread::Builder::new().name("tui-events".to_string()).spawn(move || {
             let mut click = DblClickState::default();
-            let mut reader = crossterm::event::EventStream::new();
-            loop {
-                let crossterm_event = reader.next().fuse();
-                tokio::select! {
-                    () = _cancellation_token.cancelled() => {
-                        break;
-                    },
-                    maybe_event = crossterm_event => {
-                        if let Some(Ok(event)) = maybe_event {
+
+            while !_cancellation_token.is_cancelled() {
+                match crossterm::event::poll(Duration::from_millis(100)) {
+                    Ok(true) => {
+                        if let Ok(event) = crossterm::event::read() {
                             click = process_crossterm_event(event, &_event_tx, click);
                         }
                     },
+                    _ => continue,
                 }
             }
-        });
+        })?;
 
         self.events_task = Some(task);
+
+        Ok(())
     }
 
     /// Stops terminal events loop.
     pub fn stop_events_loop(&mut self) -> Result<()> {
         self.events_ct.cancel();
-        b4n_common::tasks::wait_for_task(self.events_task.take(), "events");
+        if let Some(handle) = self.events_task.take() {
+            let _ = handle.join();
+        }
 
         Ok(())
     }

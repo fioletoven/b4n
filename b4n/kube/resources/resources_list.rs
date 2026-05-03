@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, ResourceRef, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{Item, Row, ScrollableList};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
@@ -339,19 +339,7 @@ impl Table for ResourcesList {
             return;
         }
 
-        if data.scope == Scope::Namespaced {
-            let key = if data.resource.is_container()
-                && let Some(name) = &data.resource.name
-            {
-                format!("{}/pods/{}", data.resource.namespace.as_str(), name)
-            } else {
-                format!("{}/{}", data.resource.namespace.as_str(), data.resource.kind.as_str())
-            };
-            self.cache.insert(key, CacheEntry::new(data, list));
-        } else {
-            self.cache
-                .insert(data.resource.kind.as_str().to_owned(), CacheEntry::new(data, list));
-        }
+        self.cache.insert(data.resource.get_key(), CacheEntry::new(data, list));
     }
 
     fn set_filter(&mut self, filter: Option<String>) {

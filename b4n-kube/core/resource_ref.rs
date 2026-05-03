@@ -145,6 +145,18 @@ impl ResourceRef {
             && self.container == other.container
             && self.all_containers == other.all_containers
     }
+
+    /// Gets unique string that can be used as a key.
+    pub fn get_key(&self) -> String {
+        let filter = self.filter.as_ref().map(|f| f.get_key()).unwrap_or_default();
+        if self.is_container()
+            && let Some(name) = &self.name
+        {
+            format!("{}/pods/{}/{}", self.namespace.as_str(), name, filter)
+        } else {
+            format!("{}/{}/{}", self.namespace.as_str(), self.kind.as_str(), filter)
+        }
+    }
 }
 
 impl From<&ApiResource> for ResourceRef {
@@ -203,6 +215,16 @@ impl ResourceRefFilter {
             fields: None,
             labels: Some(labels),
         }
+    }
+
+    /// Gets unique string that can be used as a key.
+    pub fn get_key(&self) -> String {
+        format!(
+            "{}/{}/{}",
+            self.fields.as_deref().unwrap_or_default(),
+            self.labels.as_deref().unwrap_or_default(),
+            self.name.as_deref().unwrap_or_default()
+        )
     }
 }
 
