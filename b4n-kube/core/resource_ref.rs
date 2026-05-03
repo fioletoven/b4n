@@ -148,7 +148,7 @@ impl ResourceRef {
 
     /// Gets unique string that can be used as a key.
     pub fn get_key(&self) -> String {
-        let filter = self.filter.as_ref().map(|f| f.get_key()).unwrap_or_default();
+        let filter = self.filter.as_ref().map(ResourceRefFilter::get_key).unwrap_or_default();
         if self.is_container()
             && let Some(name) = &self.name
         {

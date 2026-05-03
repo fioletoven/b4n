@@ -229,13 +229,11 @@ impl Tui {
             let mut click = DblClickState::default();
 
             while !_cancellation_token.is_cancelled() {
-                match crossterm::event::poll(Duration::from_millis(100)) {
-                    Ok(true) => {
-                        if let Ok(event) = crossterm::event::read() {
-                            click = process_crossterm_event(event, &_event_tx, click);
-                        }
-                    },
-                    _ => continue,
+                if let Ok(has_event) = crossterm::event::poll(Duration::from_millis(100))
+                    && has_event
+                    && let Ok(event) = crossterm::event::read()
+                {
+                    click = process_crossterm_event(event, &_event_tx, click);
                 }
             }
         })?;

@@ -374,7 +374,7 @@ impl DescribeContent {
 
         self.lines.push(StyledLine::default());
         self.lines
-            .push(property(colors, "Overall status", status::from_object(object)))
+            .push(property(colors, "Overall status", status::from_object(object)));
     }
 }
 
@@ -481,6 +481,6 @@ fn add_describe_list(
     }
 
     if !has_entries {
-        lines.push(none(colors))
+        lines.push(none(colors));
     }
 }

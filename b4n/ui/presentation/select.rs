@@ -1,5 +1,5 @@
 use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
-use ratatui::buffer::Buffer;
+use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Color;
 use ratatui::widgets::Widget;
@@ -172,7 +172,7 @@ impl SelectableContent for BufferContent<'_> {
 
         self.buffer
             .cell((x, y))
-            .map(|cell| cell.symbol())
+            .map(Cell::symbol)
             .and_then(|s| s.chars().next())
             .is_some_and(|ch| !ch.is_whitespace())
     }
@@ -244,7 +244,7 @@ fn buffer_contents_between(buffer: &Buffer, area: Rect, start_y: u16, start_x: u
             if let Some(cell) = buffer.cell((abs_x, abs_y)) {
                 let symbol = cell.symbol();
 
-                if symbol.chars().all(|c| c.is_whitespace()) {
+                if symbol.chars().all(char::is_whitespace) {
                     whitespace_count += 1;
                 } else {
                     result.extend(std::iter::repeat_n(' ', whitespace_count));
