@@ -45,39 +45,39 @@ The following features are planned for future development:
 
 - File transfer from/to a pod.
 - Custom commands (simple plugin system to run external binaries).
-- Describe Kubernetes resources.
 
 ## Default Key Bindings
 
-| Action                                    | Command         | Comments                                                    |
-|:------------------------------------------|:----------------|:------------------------------------------------------------|
-| Attach to the container's main process    | `a`             | Works only in containers view                               |
-| Attach to the container's shell           | `s`             | Works only in containers view                               |
-| Copy YAML / logs / resources to clipboard | `c`             | Works only in YAML, logs and resources views                |
-| Create new resource                       | `n`             |                                                             |
-| Decode highlighted secret                 | `x`             |                                                             |
-| Delete selected resources                 | `CTRL` + `d`    | Displays a confirmation dialog                              |
-| Enable / disable mouse support            | `CTRL` + `n`    | Not available inside a shell session                        |
-| Forward container's port                  | `f`             | Works only in containers view                               |
-| Go back to namespaces; clear filter       | `ESC`           | Also clears input in the filter widget                      |
-| Navigate to the involved object           | `i`             | Works only for `events` kind                                |
-| Open / switch to edit mode                | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
-| Open right mouse button menu              | `m`             | Navigate using `↑` or `↓`                                   |
-| Pin active filter across resources        | `CTRL` + `p`    | Also works in the filter dialog                             |
-| Quit the application                      | `CTRL` + `c`    | No confirmation dialog                                      |
-| Reverse selection                         | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
-| Select resource                           | ` `             | (`SPACE`)                                                   |
-| Show / hide log timestamps                | `t`             | Works only in logs view                                     |
-| Show / hide port forwards                 | `CTRL` + `f`    | Displays all active port forwarding rules                   |
-| Show command palette                      | `:`, `>`        | For example, entering `:q`↲ quits the application           |
-| Show events for the highlighted resource  | `e`             |                                                             |
-| Show filter / search input                | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
-| Show footer messages history pane         | `h`             | Also works with left mouse button click on the footer       |
-| Show logs for the pod or container        | `l`             | Press `p` to display previous logs                          |
-| Show namespaces selector                  | `←`             | To select `all` rapidly press `←` again                     |
-| Show resources selector                   | `→`             | To select `pods` rapidly press `→` again                    |
-| Show YAML for the highlighted resource    | `y`             |                                                             |
-| Sort column                               | `ALT` + `[0-9]` | Also works with `ALT` + `[underlined letter]`               |
+| Action                                     | Command         | Comments                                                    |
+|:-------------------------------------------|:----------------|:------------------------------------------------------------|
+| Attach to the container's main process     | `a`             | Works only in containers view                               |
+| Attach to the container's shell            | `s`             | Works only in containers view                               |
+| Copy YAML / logs / resources to clipboard  | `c`             | Works only in YAML, logs and resources views                |
+| Create new resource                        | `n`             |                                                             |
+| Decode highlighted secret                  | `x`             |                                                             |
+| Delete selected resources                  | `CTRL` + `d`    | Displays a confirmation dialog                              |
+| Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
+| Forward container's port                   | `f`             | Works only in containers view                               |
+| Go back to namespaces; clear filter        | `ESC`           | Also clears input in the filter widget                      |
+| Navigate to the involved object            | `i`             | Works only for `events` kind                                |
+| Open / switch to edit mode                 | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
+| Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |
+| Pin active filter across resources         | `CTRL` + `p`    | Also works in the filter dialog                             |
+| Quit the application                       | `CTRL` + `c`    | No confirmation dialog                                      |
+| Reverse selection                          | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
+| Select resource                            | ` `             | (`SPACE`)                                                   |
+| Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
+| Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |
+| Show command palette                       | `:`, `>`        | For example, entering `:q`↲ quits the application           |
+| Show describe for the highlighted resource | `d`             |                                                             |
+| Show events for the highlighted resource   | `e`             |                                                             |
+| Show filter / search input                 | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show footer messages history pane          | `h`             | Also works with left mouse button click on the footer       |
+| Show logs for the pod or container         | `l`             | Press `p` to display previous logs                          |
+| Show namespaces selector                   | `←`             | To select `all` rapidly press `←` again                     |
+| Show resources selector                    | `→`             | To select `pods` rapidly press `→` again                    |
+| Show YAML for the highlighted resource     | `y`             |                                                             |
+| Sort column                                | `ALT` + `[0-9]` | Also works with `ALT` + `[underlined letter]`               |
 
 ## Advanced Filtering
 

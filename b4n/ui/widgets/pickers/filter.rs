@@ -16,7 +16,7 @@ use crate::ui::widgets::{PatternsList, Picker};
 #[path = "./filter.tests.rs"]
 mod filter_tests;
 
-const FILTER_HINT: &str = " Use | for OR, & for AND, and parentheses to group terms.";
+const FILTER_HINT: &str = " Use | for OR, & for AND, ! for NOT, and ( ) to group terms.";
 const FILTER_HISTORY_SIZE: usize = 20;
 
 pub type Filter = Picker<FilterBehaviour>;
