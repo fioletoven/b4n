@@ -85,9 +85,20 @@ impl DescribeView {
 
     /// Shows command palette.
     fn show_command_palette(&mut self) {
+        let copy = if self.content.is_in_scroll_mode() {
+            let is_selected = self.selection.sorted().is_some();
+            if is_selected { "selection" } else { "screen" }
+        } else {
+            "table"
+        };
+
         let builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
+            .with_action(
+                ActionItem::action("copy", "copy").with_description(&format!("copies {copy} to clipboard")),
+                Some(KeyCommand::ContentCopy),
+            )
             .with_aliases(&self.app_data.borrow().config.aliases);
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
 
