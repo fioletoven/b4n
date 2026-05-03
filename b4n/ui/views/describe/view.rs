@@ -187,12 +187,6 @@ impl View for DescribeView {
             return ResponseEvent::Handled;
         }
 
-        if self.content.is_in_scroll_mode()
-            && let Some(frame) = &self.last_frame
-        {
-            self.selection.process_buffer_event(event, frame, self.area);
-        }
-
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return ResponseEvent::Cancelled;
         }
@@ -202,7 +196,17 @@ impl View for DescribeView {
             return ResponseEvent::Handled;
         }
 
-        self.content.process_event(event)
+        let result = self.content.process_event(event);
+
+        if self.content.is_in_scroll_mode()
+            && let Some(frame) = &self.last_frame
+        {
+            self.selection.process_buffer_event(event, frame, self.area);
+        } else {
+            self.selection.reset();
+        }
+
+        result
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
