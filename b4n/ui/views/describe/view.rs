@@ -108,8 +108,12 @@ impl DescribeView {
             .with_menu_action(ActionItem::command_palette());
 
         let is_selected = self.selection.sorted().is_some();
-        let copy = if is_selected { "selection" } else { "all" };
-        builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        if self.content.is_in_scroll_mode() {
+            let copy = if is_selected { "selection" } else { "all" };
+            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        } else {
+            builder.add_menu_action(ActionItem::menu(1, "󰆏 copy ␝table␝", "copy"));
+        }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
@@ -128,17 +132,22 @@ impl DescribeView {
     }
 
     fn copy_to_clipboard(&mut self) -> ResponseEvent {
-        if let Some(frame) = &self.last_frame {
-            let buffer = BufferContent::new(frame, self.area);
-            if let Some((start, end)) = self.selection.sorted() {
-                let text = buffer.contents_between(start.y, start.x, end.y, end.x + 1);
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
-            } else {
-                let text = buffer.contents();
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+        if self.content.is_in_scroll_mode() {
+            if let Some(frame) = &self.last_frame {
+                let buffer = BufferContent::new(frame, self.area);
+                if let Some((start, end)) = self.selection.sorted() {
+                    let text = buffer.contents_between(start.y, start.x, end.y, end.x + 1);
+                    self.app_data
+                        .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+                } else {
+                    let text = buffer.contents();
+                    self.app_data
+                        .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+                }
             }
+        } else if let Some(text) = self.content.get_focused_list_text() {
+            self.app_data
+                .copy_to_clipboard(text, &self.footer_tx, || "Whole table copied to clipboard");
         }
 
         self.selection.reset();
