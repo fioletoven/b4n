@@ -347,7 +347,7 @@ impl App {
                 if self.data.borrow().current.scope == Scope::Namespaced {
                     self.views_manager.cache_page_data();
                     self.views_manager
-                        .restore_page_data(None, Some(namespace.as_str()), &Scope::Namespaced, false);
+                        .restore_page_data(None, Some(namespace.as_str()), &Scope::Namespaced, false, None);
                     self.worker.borrow_mut().restart_new_namespace(namespace)?;
                 }
             }
@@ -361,7 +361,7 @@ impl App {
         self.views_manager.remember_current_resource();
         self.views_manager.cache_page_data();
         self.views_manager
-            .restore_page_data(Some(&pod_name), Some(pod_namespace.as_str()), &Scope::Namespaced, true);
+            .restore_page_data(Some(&pod_name), Some(pod_namespace.as_str()), &Scope::Namespaced, true, None);
         self.views_manager.set_page_view(&Scope::Cluster, pod_namespace.is_all());
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
@@ -391,8 +391,13 @@ impl App {
             let is_all_namespaces = namespace.is_all();
             self.views_manager.handle_kind_change(to_select);
             self.views_manager.cache_page_data();
-            self.views_manager
-                .restore_page_data(Some(kind.as_str()), Some(namespace.as_str()), &scope.list, false);
+            self.views_manager.restore_page_data(
+                Some(kind.as_str()),
+                Some(namespace.as_str()),
+                &scope.list,
+                false,
+                Some(&scope.filter),
+            );
             self.views_manager.set_page_view(&scope.list, is_all_namespaces);
             self.views_manager.force_header_scope(Some(scope.header));
 
@@ -446,7 +451,7 @@ impl App {
             .is_all();
         self.views_manager.cache_page_data();
         self.views_manager
-            .restore_page_data(kind.as_deref(), namespace.as_deref(), scope, false);
+            .restore_page_data(kind.as_deref(), namespace.as_deref(), scope, false, None);
         self.update_history_data(kind, namespace);
         self.views_manager.set_page_view(scope, is_all_namespaces);
     }

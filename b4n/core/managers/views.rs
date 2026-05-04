@@ -1,7 +1,9 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceTag};
+use b4n_kube::{
+    ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
+};
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
@@ -15,7 +17,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kube::resources::ResourceItem;
+use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
@@ -341,17 +343,19 @@ impl ViewsManager {
     }
 
     /// Tries to restore list from the cache.
-    pub fn restore_page_data(&mut self, kind: Option<&str>, namespace: Option<&str>, scope: &Scope, is_container: bool) {
+    pub fn restore_page_data(
+        &mut self,
+        kind: Option<&str>,
+        namespace: Option<&str>,
+        scope: &Scope,
+        is_container: bool,
+        filter: Option<&ResourceRefFilter>,
+    ) {
         let key = {
             let data = &self.app_data.borrow().current;
             let kind = kind.unwrap_or_else(|| data.resource.kind.as_str());
             let ns = namespace.unwrap_or_else(|| data.namespace.as_str());
-
-            match (scope, is_container) {
-                (Scope::Namespaced, true) => format!("{ns}/pods/{kind}"),
-                (Scope::Namespaced, false) => format!("{ns}/{kind}"),
-                _ => kind.to_owned(),
-            }
+            build_cache_key(scope, kind, ns, is_container, filter)
         };
 
         self.resources.restore_list_data(&key);

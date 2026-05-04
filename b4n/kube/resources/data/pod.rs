@@ -115,7 +115,7 @@ pub fn update_statistics<'a>(
     for item in items {
         if let Some(data) = &mut item.data.data
             && data.extra_values.len() == COLUMNS_NO_WITH_STATS
-            && let Some(node_name) = data.extra_values[6].raw_text()
+            && let Some(node_name) = data.extra_values[7].raw_text()
             && let Some(pod_namespace) = item.data.namespace.as_deref()
             && let Some(stats) = statistics.pod(node_name, &item.data.name, pod_namespace)
         {

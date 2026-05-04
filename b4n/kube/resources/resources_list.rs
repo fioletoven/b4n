@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, Theme};
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, NAMESPACES, Namespace, PODS, ResourceRef, ResourceRefFilter, Scope};
 use b4n_kube::{InitData, ObserverResult};
 use b4n_list::{Item, Row, ScrollableList};
 use b4n_tui::table::{ItemExt, TabularList, ViewType};
@@ -339,7 +339,19 @@ impl Table for ResourcesList {
             return;
         }
 
-        self.cache.insert(data.resource.get_key(), CacheEntry::new(data, list));
+        let key = build_cache_key(
+            &data.scope,
+            if data.resource.is_container() {
+                data.resource.name.as_deref().unwrap_or_default()
+            } else {
+                data.resource.kind.as_str()
+            },
+            data.resource.namespace.as_str(),
+            data.resource.is_container(),
+            data.resource.filter.as_ref(),
+        );
+
+        self.cache.insert(key, CacheEntry::new(data, list));
     }
 
     fn set_filter(&mut self, filter: Option<String>) {
@@ -403,6 +415,22 @@ impl Table for ResourcesList {
 impl From<&ResourceItem> for ActionItem {
     fn from(value: &ResourceItem) -> Self {
         ActionItem::raw(value.uid.clone(), "resource".to_owned(), value.name.clone(), None)
+    }
+}
+
+pub fn build_cache_key(
+    scope: &Scope,
+    kind: &str,
+    namespace: &str,
+    is_container: bool,
+    filter: Option<&ResourceRefFilter>,
+) -> String {
+    let filter = filter.map(ResourceRefFilter::get_key).unwrap_or_default();
+
+    match (scope, is_container) {
+        (Scope::Namespaced, true) => format!("{namespace}/pods/{kind}"),
+        (Scope::Namespaced, false) => format!("{namespace}/{kind}/{filter}"),
+        _ => format!("{kind}/{filter}"),
     }
 }
 
