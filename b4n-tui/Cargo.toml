@@ -16,7 +16,6 @@ b4n-list = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
 delegate = { workspace = true }
-futures = { workspace = true }
 ratatui-core = { workspace = true }
 ratatui-widgets = { workspace = true }
 ratatui-crossterm = { workspace = true }

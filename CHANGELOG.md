@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.4.8 - 2026-05-04
 
 ### Features
 
@@ -12,7 +12,7 @@
 
 - fix mouse triple-clicks in content views
 - do not display the first stream timeout error in logs view
-- fix longest line calculation in edit mode
+- fix the longest line calculation in edit mode
 - fix header for views with no coordinates displayed
 
 ### Compatibility

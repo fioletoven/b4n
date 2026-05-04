@@ -15,10 +15,10 @@ use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::core::{SharedAppDataExt, ViewsManager};
+use crate::core::{
+    AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedAppDataExt, SharedBgWorker, ViewsManager,
+};
 use crate::ui::views::ResourcesView;
-
-use super::{AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedBgWorker};
 
 /// Application execution flow.
 #[derive(Clone, Debug, PartialEq)]
@@ -38,7 +38,6 @@ enum TrackFlow {
 pub struct App {
     data: SharedAppData,
     tui: Tui,
-    runtime: Handle,
     worker: SharedBgWorker,
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
@@ -69,7 +68,6 @@ impl App {
         Ok(Self {
             data,
             tui: Tui::new(is_mouse_enabled)?,
-            runtime: runtime.clone(),
             worker,
             config_watcher: Config::watcher(runtime.clone()),
             history_watcher: History::watcher(runtime.clone()),
@@ -88,7 +86,7 @@ impl App {
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
-        self.tui.enter_terminal(&self.runtime)?;
+        self.tui.enter_terminal()?;
         self.update_mouse_icon();
 
         Ok(())
@@ -349,7 +347,7 @@ impl App {
                 if self.data.borrow().current.scope == Scope::Namespaced {
                     self.views_manager.cache_page_data();
                     self.views_manager
-                        .restore_page_data(None, Some(namespace.as_str()), &Scope::Namespaced, false);
+                        .restore_page_data(None, Some(namespace.as_str()), &Scope::Namespaced, false, None);
                     self.worker.borrow_mut().restart_new_namespace(namespace)?;
                 }
             }
@@ -363,7 +361,7 @@ impl App {
         self.views_manager.remember_current_resource();
         self.views_manager.cache_page_data();
         self.views_manager
-            .restore_page_data(Some(&pod_name), Some(pod_namespace.as_str()), &Scope::Namespaced, true);
+            .restore_page_data(Some(&pod_name), Some(pod_namespace.as_str()), &Scope::Namespaced, true, None);
         self.views_manager.set_page_view(&Scope::Cluster, pod_namespace.is_all());
         self.views_manager.force_header_scope(Some(Scope::Namespaced));
         self.worker.borrow_mut().restart_containers(pod_name, pod_namespace)?;
@@ -393,8 +391,13 @@ impl App {
             let is_all_namespaces = namespace.is_all();
             self.views_manager.handle_kind_change(to_select);
             self.views_manager.cache_page_data();
-            self.views_manager
-                .restore_page_data(Some(kind.as_str()), Some(namespace.as_str()), &scope.list, false);
+            self.views_manager.restore_page_data(
+                Some(kind.as_str()),
+                Some(namespace.as_str()),
+                &scope.list,
+                false,
+                Some(&scope.filter),
+            );
             self.views_manager.set_page_view(&scope.list, is_all_namespaces);
             self.views_manager.force_header_scope(Some(scope.header));
 
@@ -448,7 +451,7 @@ impl App {
             .is_all();
         self.views_manager.cache_page_data();
         self.views_manager
-            .restore_page_data(kind.as_deref(), namespace.as_deref(), scope, false);
+            .restore_page_data(kind.as_deref(), namespace.as_deref(), scope, false, None);
         self.update_history_data(kind, namespace);
         self.views_manager.set_page_view(scope, is_all_namespaces);
     }

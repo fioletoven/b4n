@@ -85,9 +85,20 @@ impl DescribeView {
 
     /// Shows command palette.
     fn show_command_palette(&mut self) {
+        let copy = if self.content.is_in_scroll_mode() {
+            let is_selected = self.selection.sorted().is_some();
+            if is_selected { "selection" } else { "screen" }
+        } else {
+            "table"
+        };
+
         let builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
+            .with_action(
+                ActionItem::action("copy", "copy").with_description(&format!("copies {copy} to clipboard")),
+                Some(KeyCommand::ContentCopy),
+            )
             .with_aliases(&self.app_data.borrow().config.aliases);
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
 
@@ -108,8 +119,12 @@ impl DescribeView {
             .with_menu_action(ActionItem::command_palette());
 
         let is_selected = self.selection.sorted().is_some();
-        let copy = if is_selected { "selection" } else { "all" };
-        builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        if self.content.is_in_scroll_mode() {
+            let copy = if is_selected { "selection" } else { "all" };
+            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        } else {
+            builder.add_menu_action(ActionItem::menu(1, "󰆏 copy ␝table␝", "copy"));
+        }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
@@ -128,17 +143,22 @@ impl DescribeView {
     }
 
     fn copy_to_clipboard(&mut self) -> ResponseEvent {
-        if let Some(frame) = &self.last_frame {
-            let buffer = BufferContent::new(frame, self.area);
-            if let Some((start, end)) = self.selection.sorted() {
-                let text = buffer.contents_between(start.y, start.x, end.y, end.x + 1);
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
-            } else {
-                let text = buffer.contents();
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+        if self.content.is_in_scroll_mode() {
+            if let Some(frame) = &self.last_frame {
+                let buffer = BufferContent::new(frame, self.area);
+                if let Some((start, end)) = self.selection.sorted() {
+                    let text = buffer.contents_between(start.y, start.x, end.y, end.x + 1);
+                    self.app_data
+                        .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+                } else {
+                    let text = buffer.contents();
+                    self.app_data
+                        .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+                }
             }
+        } else if let Some(text) = self.content.get_focused_list_text() {
+            self.app_data
+                .copy_to_clipboard(text, &self.footer_tx, || "Whole table copied to clipboard");
         }
 
         self.selection.reset();
@@ -170,7 +190,9 @@ impl View for DescribeView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
+            if result != ResponseEvent::NotHandled
+                || (event.is_mouse(MouseEventKind::LeftClick) && self.selection.sorted().is_some())
+            {
                 return result;
             }
         }
@@ -187,12 +209,6 @@ impl View for DescribeView {
             return ResponseEvent::Handled;
         }
 
-        if self.content.is_in_scroll_mode()
-            && let Some(frame) = &self.last_frame
-        {
-            self.selection.process_buffer_event(event, frame, self.area);
-        }
-
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return ResponseEvent::Cancelled;
         }
@@ -202,7 +218,17 @@ impl View for DescribeView {
             return ResponseEvent::Handled;
         }
 
-        self.content.process_event(event)
+        let result = self.content.process_event(event);
+
+        if self.content.is_in_scroll_mode()
+            && let Some(frame) = &self.last_frame
+        {
+            self.selection.process_buffer_event(event, frame, self.area);
+        } else {
+            self.selection.reset();
+        }
+
+        result
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {

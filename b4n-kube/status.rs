@@ -4,7 +4,7 @@ const STATUS_UNKNOWN: &str = "Unknown";
 const STATUS_READY: &str = "Ready";
 const STATUS_NOT_READY: &str = "NotReady";
 
-/// Extracts status from a DynamicObject as a string.
+/// Extracts status from a [`DynamicObject`] as a string.
 pub fn from_object(object: &DynamicObject) -> &str {
     let Some(status) = object.data.get("status") else {
         return STATUS_UNKNOWN;

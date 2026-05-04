@@ -107,6 +107,17 @@ impl DescribeContent {
         }
     }
 
+    /// Returns focused list as a text.
+    pub fn get_focused_list_text(&mut self) -> Option<String> {
+        if self.focused == 1 && !self.conditions.table.is_empty() {
+            Some(self.conditions.table.get_items_as_text(ViewType::Compact, false).join("\n"))
+        } else if self.focused == 2 && !self.events.table.is_empty() {
+            Some(self.events.table.get_items_as_text(ViewType::Compact, false).join("\n"))
+        } else {
+            None
+        }
+    }
+
     /// Returns `true` if content can be scrolled.
     pub fn is_in_scroll_mode(&self) -> bool {
         self.focused == 0
@@ -363,7 +374,7 @@ impl DescribeContent {
 
         self.lines.push(StyledLine::default());
         self.lines
-            .push(property(colors, "Overall status", status::from_object(object)))
+            .push(property(colors, "Overall status", status::from_object(object)));
     }
 }
 
@@ -470,6 +481,6 @@ fn add_describe_list(
     }
 
     if !has_entries {
-        lines.push(none(colors))
+        lines.push(none(colors));
     }
 }

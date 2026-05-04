@@ -204,6 +204,20 @@ impl ResourceRefFilter {
             labels: Some(labels),
         }
     }
+
+    /// Gets unique string that can be used as a key fragment.
+    pub fn get_key(&self) -> String {
+        if self.fields.is_none() && self.labels.is_none() && self.name.is_none() {
+            return String::new();
+        }
+
+        format!(
+            "{}/{}/{}",
+            self.fields.as_deref().unwrap_or_default(),
+            self.labels.as_deref().unwrap_or_default(),
+            self.name.as_deref().unwrap_or_default()
+        )
+    }
 }
 
 /// Possible resource tags.

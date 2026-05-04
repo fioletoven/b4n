@@ -322,7 +322,7 @@ impl View for LogsView {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || event.is_mouse(MouseEventKind::LeftClick) {
+            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.logs.has_selection()) {
                 return result;
             }
         }
