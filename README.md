@@ -2,7 +2,7 @@
 
 `b4n` is a terminal user interface (TUI) for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io) and built using the [`kube-rs`](https://kube.rs) and [`ratatui`](https://ratatui.rs) crates.
 
-![b4n demo](assets/b4n.gif?raw=true "b4n")
+![b4n demo](assets/b4n_048.gif?raw=true "b4n")
 
 ## Prerequisites
 
@@ -190,6 +190,12 @@ key_bindings:
 This file stores history for filters, search patterns, and the last selected resource for each Kubernetes context.
 To remove history entries (either for a specific context or entirely), you can manually edit this file or even delete it.  
 History entries can also be deleted from the UI, just highlight one and press `Ctrl+D` to delete it.
+
+## Screenshots
+
+![b4n pods](assets/screenshots/b4n_048-0.png?raw=true "b4n showing all pods")
+![b4n pods light](assets/screenshots/b4n_048-1.png?raw=true "b4n showing all pods (light theme)")
+![b4n describe](assets/screenshots/b4n_048-2.png?raw=true "describe resource")
 
 ## License
 
