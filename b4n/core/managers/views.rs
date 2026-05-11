@@ -324,7 +324,13 @@ impl ViewsManager {
         self.resources.remember_current_resource();
     }
 
+    /// Processes context change that app is connected to.
     pub fn process_context_change(&mut self, context: String, namespace: Namespace, version: String, scope: Scope) {
+        if self.app_data.borrow().current.context != context {
+            self.resources.process_disconnection();
+            self.app_data.borrow_mut().is_pinned = false;
+        }
+
         self.resources.set_resources_info(context, namespace, version, scope);
     }
 

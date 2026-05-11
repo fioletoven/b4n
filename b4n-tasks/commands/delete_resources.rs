@@ -73,14 +73,14 @@ impl DeleteResourcesCommand {
 
                     if let Err(err) = client.patch(&name, &PatchParams::default(), &Patch::Merge(&patch)).await {
                         let msg = format!("Cannot detach finalizers from {name} ({info}): {err}");
-                        tracing::error!(msg);
+                        tracing::error!("{}", msg);
                         footer_tx.show_error(msg, 0);
 
                         return;
                     }
 
                     let msg = format!("Detached finalizers from {name} ({info})");
-                    tracing::info!(msg);
+                    tracing::info!("{}", msg);
                     footer_tx.show_info(msg, 0);
                 }
 
@@ -93,11 +93,11 @@ impl DeleteResourcesCommand {
 
                 if let Err(err) = client.delete(&name, &delete_params).await {
                     let msg = format!("Cannot delete resource {name} ({info}): {err}");
-                    tracing::error!(msg);
+                    tracing::error!("{}", msg);
                     footer_tx.show_error(msg, 0);
                 } else {
                     let msg = format!("Deleted resource {name} ({info})");
-                    tracing::info!(msg);
+                    tracing::info!("{}", msg);
                     footer_tx.show_info(msg, 0);
                 }
             });
@@ -106,7 +106,7 @@ impl DeleteResourcesCommand {
         while let Some(res) = set.join_next().await {
             if let Err(err) = res {
                 let msg = format!("Delete task failed to complete: {err}");
-                tracing::error!(msg);
+                tracing::error!("{}", msg);
                 self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
             }
         }

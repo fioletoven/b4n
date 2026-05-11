@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- disable filter pin on context change
+
 ## 0.4.8 - 2026-05-04
 
 ### Features
