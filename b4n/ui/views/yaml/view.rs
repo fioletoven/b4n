@@ -13,7 +13,7 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::ui::presentation::{Content, ContentViewer, StyleFallback};
+use crate::ui::presentation::{Content, ContentViewer, StyleFallback, StyledLine};
 use crate::ui::views::{View, yaml::YamlContent};
 use crate::ui::widgets::{CommandPalette, Search};
 
@@ -569,7 +569,7 @@ impl YamlView {
         self.yaml.header.set_icon(icon);
         self.yaml.header.set_data(result.namespace, result.kind, name, None);
         self.yaml.set_content(YamlContent::new(
-            result.styled,
+            result.styled.into_iter().map(StyledLine::from).collect(),
             result.yaml,
             highlighter,
             result.is_editable,

@@ -1,6 +1,5 @@
 pub use content::{
-    Content, ContentHeader, ContentPosition, ContentViewer, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt,
-    VecStyledLineExt,
+    Content, ContentHeader, ContentPosition, ContentViewer, MatchPosition, Selection, StyleFallback, StyledLine, VecStyledLineExt,
 };
 pub use list::{ListHeader, ListViewer};
 pub use select::{BufferContent, ScreenSelection};

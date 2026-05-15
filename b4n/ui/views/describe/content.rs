@@ -19,7 +19,7 @@ use std::time::Instant;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
-use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine, StyledLineExt};
+use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
 
 /// Describe resource content.
 pub struct DescribeContent {
@@ -386,10 +386,7 @@ enum Section<'a> {
 
 impl<'a> Section<'a> {
     fn from_text(value: &'a mut Vec<StyledLine>) -> Self {
-        let width = value
-            .iter()
-            .map(|l| l.iter().map(|(_, s)| s.chars().count()).sum::<usize>())
-            .max();
+        let width = value.iter().map(|l| l.chars_len()).max();
         let height = u16::try_from(value.len()).unwrap_or_default();
         Section::Text(value, width.unwrap_or_default(), height)
     }
@@ -441,7 +438,7 @@ fn span(color: &TextColors, text: impl Into<String>) -> (Style, String) {
 }
 
 fn none(colors: &YamlSyntaxColors) -> StyledLine {
-    vec![span(&colors.normal, "  --none--")]
+    vec![span(&colors.normal, "  --none--")].into()
 }
 
 fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
@@ -450,6 +447,7 @@ fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into
         span(&colors.normal, ": "),
         span(&colors.string, value),
     ]
+    .into()
 }
 
 fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl Into<String>) -> StyledLine {
@@ -459,6 +457,7 @@ fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl Into<S
         span(&colors.normal, "="),
         span(&colors.string, value),
     ]
+    .into()
 }
 
 fn add_describe_list(

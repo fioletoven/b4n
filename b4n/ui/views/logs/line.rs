@@ -58,7 +58,7 @@ impl LogLine {
             container_len,
             container,
             message_len: lowercase.chars().count(),
-            message,
+            message: message.into(),
             lowercase,
             kind: LineKind::LogLine,
         }
@@ -134,7 +134,7 @@ impl LogLine {
             result.push_str(": ");
         }
 
-        for (_, text) in &self.message {
+        for (_, text) in self.message.segments() {
             result.push_str(text);
         }
 
@@ -152,5 +152,5 @@ fn get_container(container: Option<&str>) -> (Option<String>, usize) {
 fn get_message(text: String) -> (StyledLine, usize) {
     let name = format!("[{APP_NAME}] ");
     let len = name.chars().count() + text.chars().count();
-    (vec![(Style::default(), name), (Style::default(), text)], len)
+    (vec![(Style::default(), name), (Style::default(), text)].into(), len)
 }

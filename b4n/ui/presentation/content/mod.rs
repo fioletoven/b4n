@@ -1,7 +1,7 @@
 pub use header::ContentHeader;
 pub use search::{ContentPosition, MatchPosition};
 pub use select::Selection;
-pub use styled_line::{StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt};
+pub use styled_line::{StyleFallback, StyledLine, VecStyledLineExt};
 pub use viewer::ContentViewer;
 
 mod edit;

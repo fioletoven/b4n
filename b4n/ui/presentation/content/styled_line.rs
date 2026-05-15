@@ -5,8 +5,6 @@ use ratatui::text::{Line, Span};
 use crate::ui::presentation::utils::char_to_index;
 use crate::ui::presentation::{ContentPosition, Selection};
 
-pub type StyledLine = Vec<(Style, String)>;
-
 #[cfg(test)]
 #[path = "./styled_line.tests.rs"]
 mod styled_line_tests;
@@ -21,51 +19,39 @@ pub struct StyleFallback {
     pub fallback: Style,
 }
 
-/// Extension methods for `StyledLine`.
-pub trait StyledLineExt {
-    /// Returns byte index from char index for the [`StyledLine`].
-    fn char_to_index(&self, char_idx: usize) -> Option<usize>;
-
-    /// Returns length of the [`StyledLine`].
-    fn sl_len(&self) -> usize;
-
-    /// Returns the number of characters in the [`StyledLine`].
-    fn sl_chars_len(&self) -> usize;
-
-    /// Inserts a string slice into this [`StyledLine`] at byte position `byte_idx`.
-    fn sl_insert_str(&mut self, byte_idx: usize, s: &str);
-
-    /// Inserts a character into this [`StyledLine`] at byte position `byte_idx`.
-    fn sl_insert(&mut self, byte_idx: usize, ch: char);
-
-    /// Appends a given string slice to the end of this [`StyledLine`].
-    fn sl_push_str(&mut self, string: &str, styles: &StyleFallback);
-
-    /// Appends a character to the back of a [`StyledLine`].
-    fn sl_push(&mut self, ch: char, styles: &StyleFallback);
-
-    /// Removes a [`char`] from this [`StyledLine`] at byte position `byte_idx`.
-    fn sl_remove(&mut self, byte_idx: usize);
-
-    /// Shortens this [`StyledLine`] to the specified length.
-    fn sl_truncate(&mut self, new_len: usize);
-
-    /// Removes the specified range from the [`StyledLine`] in bulk.
-    fn sl_drain(&mut self, start: Option<usize>, end: Option<usize>);
-
-    /// Splits [`StyledLine`] at byte position `byte_idx` and returns the second part.
-    fn split_off_from(&self, byte_idx: usize) -> StyledLine;
-
-    /// Returns [`StyledLine`] as a [`Line`].
-    fn as_line(&self, offset: usize) -> Line<'_>;
+#[derive(Debug, Clone, Default)]
+pub struct StyledLine {
+    segments: Vec<(Style, String)>,
 }
 
-impl StyledLineExt for StyledLine {
-    fn char_to_index(&self, char_idx: usize) -> Option<usize> {
+impl From<Vec<(Style, String)>> for StyledLine {
+    fn from(value: Vec<(Style, String)>) -> Self {
+        Self { segments: value }
+    }
+}
+
+impl StyledLine {
+    /// Creates a new empty `StyledLine`.
+    pub fn new() -> Self {
+        Self { segments: Vec::new() }
+    }
+
+    /// Returns a reference to the internal segments.
+    pub fn segments(&self) -> &[(Style, String)] {
+        &self.segments
+    }
+
+    /// Appends all segments from another `StyledLine` to this one.
+    pub fn append(&mut self, other: &mut StyledLine) {
+        self.segments.append(&mut other.segments);
+    }
+
+    /// Returns byte index from char index for the [`StyledLine`].
+    pub fn char_to_index(&self, char_idx: usize) -> Option<usize> {
         let mut remaining = char_idx;
         let mut byte_offset = 0;
 
-        for (_, span) in self {
+        for (_, span) in &self.segments {
             for (byte_idx, _) in span.char_indices() {
                 if remaining == 0 {
                     return Some(byte_offset + byte_idx);
@@ -80,49 +66,61 @@ impl StyledLineExt for StyledLine {
         None
     }
 
-    fn sl_len(&self) -> usize {
-        self.iter().map(|s| s.1.len()).sum()
+    /// Returns true if the line is empty.
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty()
     }
 
-    fn sl_chars_len(&self) -> usize {
-        self.iter().map(|s| s.1.chars().count()).sum()
+    /// Returns length of the [`StyledLine`].
+    pub fn len(&self) -> usize {
+        self.segments.iter().map(|s| s.1.len()).sum()
     }
 
-    fn sl_insert_str(&mut self, byte_idx: usize, s: &str) {
+    /// Returns the number of characters in the [`StyledLine`].
+    pub fn chars_len(&self) -> usize {
+        self.segments.iter().map(|s| s.1.chars().count()).sum()
+    }
+
+    /// Inserts a string slice into this [`StyledLine`] at byte position `byte_idx`.
+    pub fn sl_insert_str(&mut self, byte_idx: usize, s: &str) {
         if let Some((idx, span)) = get_span(self, byte_idx) {
             span.insert_str(idx, s);
         }
     }
 
-    fn sl_insert(&mut self, byte_idx: usize, ch: char) {
+    /// Inserts a character into this [`StyledLine`] at byte position `byte_idx`.
+    pub fn insert(&mut self, byte_idx: usize, ch: char) {
         if let Some((idx, span)) = get_span(self, byte_idx) {
             span.insert(idx, ch);
         }
     }
 
-    fn sl_push_str(&mut self, string: &str, styles: &StyleFallback) {
-        if let Some(part) = self.last_mut()
+    /// Appends a given string slice to the end of this [`StyledLine`].
+    pub fn push_str(&mut self, string: &str, styles: &StyleFallback) {
+        if let Some(part) = self.segments.last_mut()
             && part.0 != styles.excluded
         {
             part.1.push_str(string);
         } else {
-            self.push((styles.fallback, string.to_owned()));
+            self.segments.push((styles.fallback, string.to_owned()));
         }
     }
 
-    fn sl_push(&mut self, ch: char, styles: &StyleFallback) {
-        if let Some(part) = self.last_mut()
+    /// Appends a character to the back of a [`StyledLine`].
+    pub fn push(&mut self, ch: char, styles: &StyleFallback) {
+        if let Some(part) = self.segments.last_mut()
             && part.0 != styles.excluded
         {
             part.1.push(ch);
         } else {
-            self.push((styles.fallback, ch.to_string()));
+            self.segments.push((styles.fallback, ch.to_string()));
         }
     }
 
-    fn sl_remove(&mut self, byte_idx: usize) {
+    /// Removes a [`char`] from this [`StyledLine`] at byte position `byte_idx`.
+    pub fn remove(&mut self, byte_idx: usize) {
         let mut current = 0;
-        for (_, span) in self {
+        for (_, span) in &mut self.segments {
             if current + span.len() > byte_idx {
                 span.remove(byte_idx - current);
                 return;
@@ -132,13 +130,14 @@ impl StyledLineExt for StyledLine {
         }
     }
 
-    fn sl_truncate(&mut self, new_len: usize) {
+    /// Shortens this [`StyledLine`] to the specified length.
+    pub fn truncate(&mut self, new_len: usize) {
         let mut current = 0;
-        for (i, (_, span)) in self.iter_mut().enumerate() {
+        for (i, (_, span)) in self.segments.iter_mut().enumerate() {
             if current + span.len() > new_len {
                 span.truncate(new_len - current);
-                if i + 1 < self.len() {
-                    self.truncate(i + 1);
+                if i + 1 < self.segments.len() {
+                    self.segments.truncate(i + 1);
                 }
 
                 break;
@@ -148,15 +147,16 @@ impl StyledLineExt for StyledLine {
         }
     }
 
-    fn sl_drain(&mut self, range_start: Option<usize>, range_end: Option<usize>) {
+    /// Removes the specified range from the [`StyledLine`] in bulk.
+    pub fn drain(&mut self, range_start: Option<usize>, range_end: Option<usize>) {
         let start = range_start.unwrap_or_default();
         let end = range_end.unwrap_or(usize::MAX);
 
-        let mut remove_start = self.len();
+        let mut remove_start = self.segments.len();
         let mut remove_end = 0;
         let mut current = 0;
 
-        for (i, (_, span)) in self.iter_mut().enumerate() {
+        for (i, (_, span)) in self.segments.iter_mut().enumerate() {
             let span_len = span.chars().count();
 
             if current + span_len <= start {
@@ -192,19 +192,20 @@ impl StyledLineExt for StyledLine {
         }
 
         if range_end.is_none() {
-            remove_end = self.len().saturating_sub(1);
+            remove_end = self.segments.len().saturating_sub(1);
         }
 
-        if remove_start <= remove_end && remove_end < self.len() {
-            self.drain(remove_start..=remove_end);
+        if remove_start <= remove_end && remove_end < self.segments.len() {
+            self.segments.drain(remove_start..=remove_end);
         }
     }
 
-    fn split_off_from(&self, byte_idx: usize) -> StyledLine {
+    /// Splits [`StyledLine`] at byte position `byte_idx` and returns the second part.
+    pub fn split_off_from(&self, byte_idx: usize) -> StyledLine {
         let mut result = Vec::new();
         let mut current = 0;
         let mut is_found = false;
-        for part in self {
+        for part in &self.segments {
             if is_found {
                 result.push((part.0, part.1.clone()));
             } else if current + part.1.len() > byte_idx {
@@ -215,14 +216,15 @@ impl StyledLineExt for StyledLine {
             current += part.1.len();
         }
 
-        result
+        StyledLine::from(result)
     }
 
-    fn as_line(&self, offset: usize) -> Line<'_> {
+    /// Returns [`StyledLine`] as a [`Line`].
+    pub fn as_line(&self, offset: usize) -> Line<'_> {
         let mut spans = Vec::new();
 
         let mut current = 0;
-        for part in self {
+        for part in &self.segments {
             let len = part.1.chars().count();
 
             if current >= offset {
@@ -244,7 +246,7 @@ impl StyledLineExt for StyledLine {
 
 fn get_span(line: &mut StyledLine, byte_idx: usize) -> Option<(usize, &mut String)> {
     let mut current = 0;
-    for part in line {
+    for part in &mut line.segments {
         if current + part.1.len() >= byte_idx {
             return Some((byte_idx - current, &mut part.1));
         }
@@ -273,7 +275,13 @@ pub trait VecStyledLineExt {
 impl VecStyledLineExt for Vec<StyledLine> {
     fn to_string(&self) -> String {
         self.iter()
-            .map(|line| line.iter().map(|span| span.1.as_str()).collect::<Vec<_>>().join(""))
+            .map(|line| {
+                line.segments()
+                    .iter()
+                    .map(|span| span.1.as_str())
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -290,10 +298,10 @@ impl VecStyledLineExt for Vec<StyledLine> {
         let (start, end) = range.sorted();
         let start_line = start.y.min(self.len().saturating_sub(1));
         let end_line = end.y.min(self.len().saturating_sub(1));
-        let is_eol = self[end_line].sl_chars_len() <= end.x;
+        let is_eol = self[end_line].chars_len() <= end.x;
 
         if start_line == end_line {
-            self[end_line].sl_drain(Some(start.x), Some(end.x + 1));
+            self[end_line].drain(Some(start.x), Some(end.x + 1));
             if is_eol {
                 self.join_lines(end_line);
             }
@@ -301,11 +309,11 @@ impl VecStyledLineExt for Vec<StyledLine> {
             let mut remove_start = false;
 
             if let Some(start) = self[start_line].char_to_index(start.x) {
-                self[start_line].sl_truncate(start);
+                self[start_line].truncate(start);
                 remove_start = start == 0;
             }
 
-            self[end_line].sl_drain(None, Some(end.x + 1));
+            self[end_line].drain(None, Some(end.x + 1));
 
             if is_eol {
                 self.join_lines(end_line);
@@ -339,12 +347,12 @@ fn remove_lines(lines: &mut Vec<StyledLine>, from: usize, to: usize) {
 
 fn insert_line(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &str, styles: &StyleFallback) {
     if lines.is_empty() || position.y >= lines.len() {
-        lines.push(vec![(styles.fallback, text.to_owned())]);
+        lines.push(vec![(styles.fallback, text.to_owned())].into());
         return;
     }
 
     if lines.len() == 1 && lines[0].is_empty() {
-        lines[0] = vec![(styles.fallback, text.to_owned())];
+        lines[0] = vec![(styles.fallback, text.to_owned())].into();
         return;
     }
 
@@ -352,7 +360,7 @@ fn insert_line(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &st
         if let Some(x) = line.char_to_index(position.x) {
             line.sl_insert_str(x, text);
         } else {
-            line.sl_push_str(text, styles);
+            line.push_str(text, styles);
         }
     }
 }
@@ -372,15 +380,15 @@ fn insert_lines(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &[
     let last_line = &text[text.len().saturating_sub(1)];
     let last_line = if let Some(x) = lines[position.y].char_to_index(position.x) {
         let mut rest = lines[position.y].split_off_from(x);
-        lines[position.y].sl_truncate(x);
-        lines[position.y].sl_push_str(first_line, styles);
+        lines[position.y].truncate(x);
+        lines[position.y].push_str(first_line, styles);
         rest.sl_insert_str(0, last_line);
         rest
-    } else if lines[position.y].sl_chars_len() == position.x {
-        lines[position.y].sl_push_str(first_line, styles);
-        vec![(styles.fallback, last_line.to_owned())]
+    } else if lines[position.y].chars_len() == position.x {
+        lines[position.y].push_str(first_line, styles);
+        vec![(styles.fallback, last_line.to_owned())].into()
     } else {
-        vec![(styles.fallback, last_line.to_owned())]
+        vec![(styles.fallback, last_line.to_owned())].into()
     };
 
     let mut middle_lines = if text.len() > 2 {
@@ -400,5 +408,5 @@ fn insert_lines(lines: &mut Vec<StyledLine>, position: ContentPosition, text: &[
 }
 
 fn add_style(text: &[String], style: Style) -> Vec<StyledLine> {
-    text.iter().map(|line| vec![(style, line.clone())]).collect()
+    text.iter().map(|line| vec![(style, line.clone())].into()).collect()
 }
