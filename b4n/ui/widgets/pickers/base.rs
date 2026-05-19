@@ -23,6 +23,11 @@ pub trait PickerBehaviour {
         None
     }
 
+    /// Gets flag indicating if select items should be only highlighted on exact filter match.
+    fn highlight_exact(&self) -> bool {
+        false
+    }
+
     /// Gets the key command used for `reset` action.
     fn reset_key_command(&self) -> KeyCommand;
 
@@ -30,7 +35,7 @@ pub trait PickerBehaviour {
     fn cancel_response(&self) -> ResponseEvent;
 
     /// Loads items when the picker is shown.
-    fn load_items(&self) -> PatternsList;
+    fn load_items(&mut self) -> PatternsList;
 
     /// Adds an item to the configuration history.
     fn add_item(&self, item: &str);
@@ -41,6 +46,11 @@ pub trait PickerBehaviour {
     /// Gets value indicating whether highlighted item can be removed.
     fn can_remove(&self, item: Option<&PatternItem>) -> bool {
         item.is_some()
+    }
+
+    /// Executes code when the picker is about to close, code should return if picker can be closed.
+    fn on_close(&mut self, _patterns: &mut Select<PatternsList>, _is_cancel: bool) -> bool {
+        true
     }
 
     /// Gets error highlight mode for the picker input.
@@ -98,6 +108,7 @@ pub struct Picker<B: PickerBehaviour> {
     worker: Option<SharedBgWorker>,
     patterns: Select<PatternsList>,
     current: String,
+    highlight_on_complete: bool,
     width: u16,
     behaviour: B,
 }
@@ -105,7 +116,9 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
-        let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true).with_prompt(behaviour.prompt());
+        let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
+            .with_prompt(behaviour.prompt())
+            .with_highlight_exact(behaviour.highlight_exact());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -119,9 +132,16 @@ impl<B: PickerBehaviour> Picker<B> {
             worker,
             patterns: select,
             current: String::new(),
+            highlight_on_complete: false,
             width,
             behaviour,
         }
+    }
+
+    /// Sets flat indicating that item should be highlighted on complete key press.
+    pub fn with_highlight_on_complete(mut self, highlight_on_complete: bool) -> Self {
+        self.highlight_on_complete = highlight_on_complete;
+        self
     }
 
     /// Marks the picker as visible and loads items.
@@ -254,8 +274,9 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.patterns.area())
+        if (self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || event.is_out(MouseEventKind::LeftClick, self.patterns.area()))
+            && self.behaviour.on_close(&mut self.patterns, true)
         {
             self.is_visible = false;
             if self.behaviour.restores_on_cancel() {
@@ -267,13 +288,18 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
         if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.items_area()) {
             self.patterns.items.highlight_item_by_line(line);
-            self.complete_with_selected_item();
-            self.remember_pattern();
-            self.is_visible = false;
+            if self.behaviour.on_close(&mut self.patterns, false) {
+                self.complete_with_selected_item();
+                self.remember_pattern();
+                self.is_visible = false;
 
-            return self
-                .behaviour
-                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                return self
+                    .behaviour
+                    .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+            }
+
+            self.patterns.items.clear();
+            return ResponseEvent::Handled;
         }
 
         if event.is_mouse(MouseEventKind::RightClick) {
@@ -281,12 +307,18 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
+            if self.highlight_on_complete && !self.patterns.is_anything_highlighted() {
+                self.patterns.items.highlight_first_item();
+            }
+
             self.complete_with_selected_item();
             return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
-            if self.behaviour.blocks_on_error() && self.patterns.has_error() {
+            if !self.behaviour.on_close(&mut self.patterns, false)
+                || (self.behaviour.blocks_on_error() && self.patterns.has_error())
+            {
                 return ResponseEvent::Handled;
             }
 

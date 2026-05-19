@@ -52,12 +52,7 @@ tokio-util = { version = "0.7" }
 tracing = { version = "0.1" }
 tracing-appender = { version = "0.2" }
 tracing-error = { version = "0.2" }
-tracing-subscriber = { version = "0.3", features = [
-    "std",
-    "fmt",
-    "time",
-    "env-filter",
-] }
+tracing-subscriber = { version = "0.3", features = ["std", "fmt", "time", "env-filter"] }
 tui-input = { version = "0.15" }
 tui-term = { version = "0.3" }
 uuid = { version = "1", features = ["v4"] }

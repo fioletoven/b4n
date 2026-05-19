@@ -99,7 +99,7 @@ impl PickerBehaviour for FilterBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&self) -> PatternsList {
+    fn load_items(&mut self) -> PatternsList {
         let context = &self.app_data.borrow().current.context;
         let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         PatternsList::from(self.app_data.borrow().history.filter_history(context), Some(&key_name))
