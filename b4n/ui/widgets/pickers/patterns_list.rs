@@ -24,11 +24,11 @@ impl PatternsList {
 
     /// Adds pattern to the list or updates if it already exists.
     pub fn add_or_update(&mut self, pattern: PatternItem) {
-        if pattern.value.is_empty() {
+        if pattern.value().is_empty() {
             return;
         }
 
-        let position = self.list.full_iter().position(|i| i.data.value == pattern.value);
+        let position = self.list.full_iter().position(|i| i.data.value() == pattern.value());
         if let Some(idx) = position {
             self.list.full_replace(idx, Item::new(pattern));
         } else {
@@ -65,7 +65,7 @@ impl PatternsList {
         if let Some(idx) = idx {
             let removed = self.list.remove(idx);
             self.list.full_iter_mut().for_each(|i| i.is_active = false);
-            Some((idx, removed.data.value))
+            Some((idx, removed.data.into()))
         } else {
             None
         }

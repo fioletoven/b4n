@@ -78,9 +78,11 @@ impl FileBehaviour {
                     self.loading = true;
                 },
                 DirListResult::Entry(entry) => {
-                    let icon = if entry.is_dir { DIR_ICON } else { "" };
                     let mut item = PatternItem::fixed(entry.name.clone());
-                    item.icon = Some(icon);
+                    if entry.is_dir {
+                        item.set_icon(Some(DIR_ICON));
+                        item.set_sort_value(Some(format!("0-{}", item.value())));
+                    }
 
                     patterns.items.add_or_update(item);
                 },
@@ -152,11 +154,11 @@ impl PickerBehaviour for FileBehaviour {
             return true;
         };
 
-        if item.icon.is_some_and(|i| i == DIR_ICON) {
+        if item.icon().is_some_and(|i| i == DIR_ICON) {
             if item.name() == ".." {
                 self.navigate_up();
             } else {
-                let path = self.current_path.join(item.value.clone());
+                let path = self.current_path.join(item.value());
                 self.navigate_to_dir(path);
             }
 
