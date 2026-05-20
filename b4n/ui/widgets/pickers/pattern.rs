@@ -7,6 +7,7 @@ use std::borrow::Cow;
 #[derive(Default)]
 pub struct PatternItem {
     value: String,
+    lowercase_value: String,
     sort_value: Option<String>,
     icon: Option<&'static str>,
     is_fixed: bool,
@@ -15,8 +16,10 @@ pub struct PatternItem {
 impl PatternItem {
     /// Creates new fixed [`PatternItem`] instance.
     pub fn fixed(value: String) -> Self {
+        let lowercase_value = value.to_ascii_lowercase();
         Self {
             value,
+            lowercase_value,
             is_fixed: true,
             ..Default::default()
         }
@@ -69,6 +72,7 @@ impl From<&HistoryItem> for PatternItem {
     fn from(value: &HistoryItem) -> Self {
         PatternItem {
             value: value.value.clone(),
+            lowercase_value: value.value.to_ascii_lowercase(),
             ..Default::default()
         }
     }
@@ -144,6 +148,18 @@ impl Row for PatternItem {
             },
             _ => "n/a",
         }
+    }
+
+    fn contains(&self, pattern: &str) -> bool {
+        self.lowercase_value.contains(&pattern.to_ascii_lowercase())
+    }
+
+    fn starts_with(&self, pattern: &str) -> bool {
+        self.lowercase_value.starts_with(&pattern.to_ascii_lowercase())
+    }
+
+    fn is_equal(&self, pattern: &str) -> bool {
+        self.lowercase_value == pattern.to_ascii_lowercase()
     }
 }
 

@@ -17,6 +17,7 @@ use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
 const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
+const BACK_ICON: &str = "󰕍";
 
 pub type FileSelector = Picker<FileBehaviour>;
 
@@ -80,8 +81,8 @@ impl FileBehaviour {
                 DirListResult::Entry(entry) => {
                     let mut item = PatternItem::fixed(entry.name.clone());
                     if entry.is_dir {
-                        item.set_icon(Some(DIR_ICON));
-                        item.set_sort_value(Some(format!("0-{}", item.value())));
+                        item.set_icon(Some(if entry.name == ".." { BACK_ICON } else { DIR_ICON }));
+                        item.set_sort_value(Some(format!("...-{}", entry.name)));
                     }
 
                     patterns.items.add_or_update(item);
@@ -154,7 +155,7 @@ impl PickerBehaviour for FileBehaviour {
             return true;
         };
 
-        if item.icon().is_some_and(|i| i == DIR_ICON) {
+        if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
             if item.name() == ".." {
                 self.navigate_up();
             } else {
