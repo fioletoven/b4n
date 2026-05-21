@@ -1,3 +1,4 @@
+use b4n_common::truncate_left;
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_list::Row;
@@ -8,13 +9,14 @@ use b4n_tui::widgets::{ErrorHighlightMode, Select};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
 use crate::core::{SharedAppData, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
+const PROMPT_LEN: usize = 30;
 const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
@@ -45,7 +47,7 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf) -> Self {
-        let prompt = format!("{}{}", initial_path.display(), PROMPT_END);
+        let prompt = truncated_prompt(&initial_path);
 
         Self {
             app_data,
@@ -57,7 +59,7 @@ impl FileBehaviour {
     }
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) {
-        self.prompt = format!("{}{}", dir_path.display(), PROMPT_END);
+        self.prompt = truncated_prompt(&dir_path);
         self.current_path = dir_path.clone();
         self.lister.list_dir(dir_path);
     }
@@ -199,5 +201,14 @@ impl PickerBehaviour for FileBehaviour {
 
     fn on_draw(&mut self, patterns: &mut Select<PatternsList>, _area: Rect) {
         self.process_dir_results(patterns);
+    }
+}
+
+fn truncated_prompt(path: &Path) -> String {
+    let prompt = format!("{}{}", path.display(), PROMPT_END);
+    if prompt.len() > PROMPT_LEN {
+        format!("…{}", truncate_left(&prompt, PROMPT_LEN.saturating_sub(1)))
+    } else {
+        prompt
     }
 }
