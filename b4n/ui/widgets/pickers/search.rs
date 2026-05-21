@@ -131,7 +131,7 @@ impl PickerBehaviour for SearchBehaviour {
         }
     }
 
-    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         if let Some(matches) = self.matches {
             let text = format!(" Total matches: {matches}");
             frame.render_widget(Paragraph::new(text).style(style), area);

@@ -149,7 +149,7 @@ impl PickerBehaviour for FilterBehaviour {
         true
     }
 
-    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         frame.render_widget(Paragraph::new(FILTER_HINT).style(style), area);
     }
 

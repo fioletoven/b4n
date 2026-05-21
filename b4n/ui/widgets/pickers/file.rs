@@ -5,7 +5,7 @@ use b4n_list::Row;
 use b4n_tasks::dir_lister::{DirListResult, DirLister};
 use b4n_tui::ResponseEvent;
 use b4n_tui::table::Table;
-use b4n_tui::widgets::{ErrorHighlightMode, Select};
+use b4n_tui::widgets::{ErrorHighlightMode, Select, Spinner};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
@@ -20,6 +20,7 @@ const PROMPT_LEN: usize = 30;
 const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
+const FILE_SELECT_HINT: &str = "Select or type a file path:";
 
 pub type FileSelector = Picker<FileBehaviour>;
 
@@ -39,10 +40,11 @@ impl FileSelector {
 
 pub struct FileBehaviour {
     app_data: SharedAppData,
-    current_path: PathBuf,
     lister: DirLister,
-    loading: bool,
+    current_path: PathBuf,
     prompt: String,
+    loading: bool,
+    spinner: Spinner,
 }
 
 impl FileBehaviour {
@@ -51,10 +53,11 @@ impl FileBehaviour {
 
         Self {
             app_data,
-            current_path: initial_path,
             lister: DirLister::new(runtime, 100).with_parent(true),
-            loading: true,
+            current_path: initial_path,
             prompt,
+            loading: true,
+            spinner: Spinner::default(),
         }
     }
 
@@ -148,6 +151,22 @@ impl PickerBehaviour for FileBehaviour {
         false
     }
 
+    fn error_mode(&self) -> ErrorHighlightMode {
+        ErrorHighlightMode::Value
+    }
+
+    fn validate(&mut self, _value: &str) -> Option<usize> {
+        None
+    }
+
+    fn restores_on_cancel(&self) -> bool {
+        false
+    }
+
+    fn blocks_on_error(&self) -> bool {
+        false
+    }
+
     fn on_close(&mut self, patterns: &mut Select<PatternsList>, is_cancel: bool) -> bool {
         if is_cancel {
             return true;
@@ -175,32 +194,21 @@ impl PickerBehaviour for FileBehaviour {
         }
     }
 
-    fn error_mode(&self) -> ErrorHighlightMode {
-        ErrorHighlightMode::Value
-    }
-
-    fn validate(&mut self, _value: &str) -> Option<usize> {
-        None
-    }
-
-    fn restores_on_cancel(&self) -> bool {
-        false
-    }
-
-    fn blocks_on_error(&self) -> bool {
-        false
+    fn on_draw(&mut self, patterns: &mut Select<PatternsList>, _area: Rect) {
+        self.process_dir_results(patterns);
     }
 
     fn has_header(&self) -> bool {
         true
     }
 
-    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
-        frame.render_widget(Paragraph::new("Select file").style(style), area);
-    }
-
-    fn on_draw(&mut self, patterns: &mut Select<PatternsList>, _area: Rect) {
-        self.process_dir_results(patterns);
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+        let line = format!(
+            "{} {}",
+            if self.loading { self.spinner.tick() } else { '' },
+            FILE_SELECT_HINT
+        );
+        frame.render_widget(Paragraph::new(line).style(style), area);
     }
 }
 

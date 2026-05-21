@@ -48,11 +48,6 @@ pub trait PickerBehaviour {
         item.is_some()
     }
 
-    /// Executes code when the picker is about to close, code should return if picker can be closed.
-    fn on_close(&mut self, _patterns: &mut Select<PatternsList>, _is_cancel: bool) -> bool {
-        true
-    }
-
     /// Gets error highlight mode for the picker input.
     fn error_mode(&self) -> ErrorHighlightMode {
         ErrorHighlightMode::PromptAndIndex
@@ -80,6 +75,11 @@ pub trait PickerBehaviour {
         ResponseEvent::Handled
     }
 
+    /// Executes code when the picker is about to close, code should return if picker can be closed.
+    fn on_close(&mut self, _patterns: &mut Select<PatternsList>, _is_cancel: bool) -> bool {
+        true
+    }
+
     /// Called before drawing.
     fn on_draw(&mut self, _patterns: &mut Select<PatternsList>, _area: Rect) {}
 
@@ -89,7 +89,7 @@ pub trait PickerBehaviour {
     }
 
     /// Draws the header area.
-    fn draw_header(&self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
+    fn draw_header(&mut self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
 
     /// Additional events processing logic.
     fn process_event(
