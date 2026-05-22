@@ -23,6 +23,11 @@ pub trait PickerBehaviour {
         None
     }
 
+    /// Sets delimiter characters for filter prefix exclusion.
+    fn filter_delimiters(&self) -> Vec<char> {
+        Vec::new()
+    }
+
     /// Gets flag indicating if select items should be only highlighted on exact filter match.
     fn highlight_exact(&self) -> bool {
         false
@@ -118,7 +123,8 @@ impl<B: PickerBehaviour> Picker<B> {
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
         let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
             .with_prompt(behaviour.prompt())
-            .with_highlight_exact(behaviour.highlight_exact());
+            .with_highlight_exact(behaviour.highlight_exact())
+            .with_filter_delimiters(behaviour.filter_delimiters());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -155,13 +161,13 @@ impl<B: PickerBehaviour> Picker<B> {
 
     /// Copies `self` value into a new `Option`.
     pub fn to_option(&self) -> Option<String> {
-        let value = self.patterns.value();
+        let value = self.patterns.full_value();
         if value.is_empty() { None } else { Some(value.to_owned()) }
     }
 
     /// Returns the current input value.
     pub fn value(&self) -> &str {
-        self.patterns.value()
+        self.patterns.full_value()
     }
 
     /// Sets the input value.
@@ -217,12 +223,12 @@ impl<B: PickerBehaviour> Picker<B> {
     }
 
     fn run_validation(&mut self) {
-        let error_pos = self.behaviour.validate(self.patterns.value());
+        let error_pos = self.behaviour.validate(self.patterns.full_value());
         self.patterns.set_error(error_pos);
     }
 
     fn remember_pattern(&mut self) {
-        let pattern = self.patterns.value();
+        let pattern = self.patterns.full_value();
         self.current = pattern.to_owned();
         self.behaviour.add_item(pattern);
         self.save_history_file();
@@ -258,7 +264,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(event, self.behaviour.reset_key_command()) && !self.patterns.value().is_empty() {
+        if self.app_data.has_binding(event, self.behaviour.reset_key_command()) && !self.patterns.full_value().is_empty() {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
@@ -295,7 +301,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
                 return self
                     .behaviour
-                    .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                    .navigate_into(self.patterns.full_value(), self.patterns.get_highlighted_item_name());
             }
 
             self.patterns.items.clear();
@@ -327,7 +333,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             return self
                 .behaviour
-                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                .navigate_into(self.patterns.full_value(), self.patterns.get_highlighted_item_name());
         }
 
         let result = self.behaviour.process_event(event, &mut self.patterns, &self.app_data);

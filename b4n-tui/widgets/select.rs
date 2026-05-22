@@ -68,6 +68,12 @@ impl<T: Table> Select<T> {
         self
     }
 
+    /// Sets delimiter characters for filter prefix exclusion.
+    pub fn with_filter_delimiters(mut self, delimiters: Vec<char>) -> Self {
+        self.filter.set_value_delimiters(delimiters);
+        self
+    }
+
     /// Sets flag indicating if filter is disabled for this [`Select`] instance.
     pub fn disable_filter(&mut self, disabled: bool) {
         self.filter_disabled = disabled;
@@ -126,12 +132,13 @@ impl<T: Table> Select<T> {
 
     delegate! {
         to self.filter {
-            pub fn set_cursor(&mut self, show_cursor: bool);
+            pub fn show_cursor(&mut self, show_cursor: bool);
             pub fn set_error_mode(&mut self, mode: ErrorHighlightMode);
             pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
+            pub fn full_value(&self) -> &str;
         }
     }
 

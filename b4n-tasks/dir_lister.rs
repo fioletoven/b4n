@@ -26,6 +26,7 @@ pub struct DirLister {
     tx: mpsc::Sender<DirListResult>,
     rx: mpsc::Receiver<DirListResult>,
     include_parent: bool,
+    current_path: Option<PathBuf>,
 }
 
 impl DirLister {
@@ -38,6 +39,7 @@ impl DirLister {
             tx,
             rx,
             include_parent: false,
+            current_path: None,
         }
     }
 
@@ -53,10 +55,16 @@ impl DirLister {
     }
 
     /// Starts listing a directory in the background.
-    pub fn list_dir(&mut self, path: PathBuf) {
+    pub fn list_dir(&mut self, path: PathBuf) -> bool {
+        if self.current_path.as_ref().is_some_and(|p| p == &path) {
+            return false;
+        }
+
         if let Some(handle) = self.task.take() {
             handle.abort();
         }
+
+        self.current_path = Some(path.clone());
 
         let tx = self.tx.clone();
         let include_parent = self.include_parent;
@@ -71,6 +79,7 @@ impl DirLister {
         });
 
         self.task = Some(handle);
+        true
     }
 
     /// Tries to receive the next result.

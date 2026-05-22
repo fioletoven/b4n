@@ -22,7 +22,8 @@ pub enum ErrorHighlightMode {
 /// Input widget for TUI.
 #[derive(Default)]
 pub struct Input {
-    input: tui_input::Input,
+    value: tui_input::Input,
+    value_delimiters: Vec<char>,
     colors: TextColors,
     prompt: Option<(String, TextColors)>,
     prompt_width: Option<u16>,
@@ -115,7 +116,7 @@ impl Input {
     }
 
     /// Sets whether to show the cursor.
-    pub fn set_cursor(&mut self, show_cursor: bool) {
+    pub fn show_cursor(&mut self, show_cursor: bool) {
         self.show_cursor = show_cursor;
     }
 
@@ -151,14 +152,39 @@ impl Input {
         self.error_index.is_some()
     }
 
-    /// Returns the input value.
+    /// Sets delimiter characters for value prefix exclusion.\
+    /// When these characters are present in the input, `value()` returns only the portion
+    /// after the last occurrence, effectively ignoring the prefix for filtering purposes.
+    pub fn set_value_delimiters(&mut self, delimiters: Vec<char>) {
+        self.value_delimiters = delimiters;
+    }
+
+    /// Returns the full input value.
+    pub fn full_value(&self) -> &str {
+        self.value.value()
+    }
+
+    /// Returns the input value, starting from after the last path separator if configured.
     pub fn value(&self) -> &str {
-        self.input.value()
+        if !self.value_delimiters.is_empty() {
+            let full_value = self.value.value();
+            if let Some(index) = full_value.rfind(self.value_delimiters.as_slice()) {
+                if index + 1 == full_value.len() {
+                    ""
+                } else {
+                    &full_value[index + 1..]
+                }
+            } else {
+                full_value
+            }
+        } else {
+            self.value.value()
+        }
     }
 
     /// Sets the input value.
     pub fn set_value(&mut self, value: impl Into<String>) {
-        self.input = tui_input::Input::new(value.into());
+        self.value = tui_input::Input::new(value.into());
         self.error_index = None;
     }
 
@@ -169,16 +195,16 @@ impl Input {
             match ch {
                 '\r' | '\n' => (),
                 '\t' => {
-                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
-                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                    self.value.handle(tui_input::InputRequest::InsertChar(' '));
+                    self.value.handle(tui_input::InputRequest::InsertChar(' '));
                 },
                 '\u{00A0}' => {
-                    self.input.handle(tui_input::InputRequest::InsertChar(' '));
+                    self.value.handle(tui_input::InputRequest::InsertChar(' '));
                 },
                 c if c.is_control() => (),
                 c if INVISIBLE_CHARACTERS.contains(&c) => (),
                 other => {
-                    self.input.handle(tui_input::InputRequest::InsertChar(other));
+                    self.value.handle(tui_input::InputRequest::InsertChar(other));
                 },
             }
         }
@@ -186,7 +212,7 @@ impl Input {
 
     /// Resets the input value.
     pub fn reset(&mut self) {
-        self.input.reset();
+        self.value.reset();
         self.error_index = None;
     }
 
@@ -227,7 +253,7 @@ impl Input {
             return;
         }
 
-        for (i, char) in self.input.value().chars().skip(scroll).enumerate() {
+        for (i, char) in self.value.value().chars().skip(scroll).enumerate() {
             let Ok(x) = u16::try_from(usize::from(x) + i) else { return };
             if x >= max_x {
                 return;
@@ -268,7 +294,7 @@ impl Responsive for Input {
                     return ResponseEvent::Handled;
                 }
 
-                self.input.handle_event(&Event::Key((*key).into()));
+                self.value.handle_event(&Event::Key((*key).into()));
 
                 ResponseEvent::Handled
             },
@@ -279,10 +305,10 @@ impl Responsive for Input {
                 {
                     let prompt = self.prompt_width.unwrap_or_default();
                     let width = area.width.saturating_sub(prompt);
-                    let scroll = self.input.visual_scroll(usize::from(width.saturating_sub(1)));
+                    let scroll = self.value.visual_scroll(usize::from(width.saturating_sub(1)));
                     let x = mouse.column.saturating_sub(area.x).saturating_sub(prompt);
 
-                    self.input.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
+                    self.value.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
 
                     return ResponseEvent::Handled;
                 }
@@ -315,16 +341,16 @@ impl Widget for &mut Input {
             return;
         }
 
-        let cursor = self.input.visual_cursor();
-        let is_end = cursor == self.input.value().len();
-        let scroll = self.input.visual_scroll(usize::from(max_x - x));
+        let cursor = self.value.visual_cursor();
+        let is_end = cursor == self.value.value().len();
+        let scroll = self.value.visual_scroll(usize::from(max_x - x));
         let cursor = cursor.saturating_sub(scroll);
 
         self.render_input(x, y, if is_end { max_x } else { max_x + 1 }, scroll, buf);
 
         let x = u16::try_from(usize::from(x) + cursor).unwrap_or(u16::MAX);
         if self.show_cursor && area.contains(Position::new(x, y)) {
-            if scroll + cursor == self.input.value().len() {
+            if scroll + cursor == self.value.value().len() {
                 buf[(x, y)].set_char('▊').set_fg(self.cursor_colors.bg);
             } else {
                 buf[(x, y)].set_bg(self.cursor_colors.bg);

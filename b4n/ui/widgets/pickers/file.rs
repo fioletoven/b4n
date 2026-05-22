@@ -3,9 +3,10 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_list::Row;
 use b4n_tasks::dir_lister::{DirListResult, DirLister};
-use b4n_tui::ResponseEvent;
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ErrorHighlightMode, Select, Spinner};
+use b4n_tui::{ResponseEvent, TuiEvent};
+use crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
@@ -61,15 +62,17 @@ impl FileBehaviour {
         }
     }
 
-    fn navigate_to_dir(&mut self, dir_path: PathBuf) {
+    fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
         self.prompt = truncated_prompt(&dir_path);
         self.current_path = dir_path.clone();
-        self.lister.list_dir(dir_path);
+        self.lister.list_dir(dir_path)
     }
 
-    fn navigate_up(&mut self) {
+    fn navigate_up(&mut self) -> bool {
         if let Some(parent) = self.current_path.parent() {
-            self.navigate_to_dir(parent.to_path_buf());
+            self.navigate_to_dir(parent.to_path_buf())
+        } else {
+            false
         }
     }
 
@@ -109,6 +112,34 @@ impl FileBehaviour {
             patterns.update_items_filter();
         }
     }
+
+    fn process_input_navigation(&mut self, is_full: bool, patterns: &mut Select<PatternsList>) -> bool {
+        let value = patterns.full_value();
+        if value.is_empty() {
+            return false;
+        }
+
+        let input_path = if Path::new(value).is_absolute() {
+            PathBuf::from(value)
+        } else {
+            self.current_path.join(value)
+        };
+
+        let target_dir = if is_full {
+            Some(input_path)
+        } else {
+            input_path.parent().map(|parent| parent.to_path_buf())
+        };
+
+        if let Some(dir) = target_dir
+            && self.lister.list_dir(dir)
+        {
+            patterns.items.clear();
+            return true;
+        }
+
+        false
+    }
 }
 
 impl PickerBehaviour for FileBehaviour {
@@ -122,6 +153,10 @@ impl PickerBehaviour for FileBehaviour {
 
     fn accent_characters(&self) -> Option<&str> {
         Some("/\\")
+    }
+
+    fn filter_delimiters(&self) -> Vec<char> {
+        vec!['\\', '/']
     }
 
     fn highlight_exact(&self) -> bool {
@@ -209,6 +244,12 @@ impl PickerBehaviour for FileBehaviour {
             FILE_SELECT_HINT
         );
         frame.render_widget(Paragraph::new(line).style(style), area);
+    }
+
+    fn process_event(&mut self, event: &TuiEvent, patterns: &mut Select<PatternsList>, _: &SharedAppData) -> ResponseEvent {
+        let is_full = matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Char('/') || key.code == KeyCode::Char('\\'));
+        self.process_input_navigation(is_full, patterns);
+        ResponseEvent::NotHandled
     }
 }
 
