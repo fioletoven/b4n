@@ -62,12 +62,12 @@ impl PickerBehaviour for NamespaceBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&self) -> PatternsList {
+    fn load_items(&mut self) -> PatternsList {
         let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         let context = &self.app_data.borrow().current.context;
         let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
         for item in items.list.full_iter_mut() {
-            item.data.icon = Some("");
+            item.data.set_icon(Some(""));
         }
 
         for ns in &self.discovered {
@@ -95,7 +95,7 @@ impl PickerBehaviour for NamespaceBehaviour {
     }
 
     fn can_remove(&self, item: Option<&PatternItem>) -> bool {
-        item.is_some_and(|i| !i.is_fixed)
+        item.is_some_and(|i| !i.is_fixed())
     }
 
     fn error_mode(&self) -> ErrorHighlightMode {

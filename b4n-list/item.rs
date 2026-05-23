@@ -23,7 +23,6 @@ pub trait Row {
     fn get_name(&self, width: usize) -> String;
 
     /// Returns the item's name with an added description, formatted to fit the given `width`.
-    #[inline]
     fn get_name_with_description(&self, width: usize, _description: &str) -> String {
         self.get_name(width)
     }
@@ -35,19 +34,16 @@ pub trait Row {
     fn column_sort_text(&self, column: usize) -> &str;
 
     /// Returns `true` if the given `pattern` is found in the [`Row`] item.
-    #[inline]
     fn contains(&self, pattern: &str) -> bool {
         self.name().contains(pattern)
     }
 
     /// Returns `true` if the [`Row`] item starts with the given `pattern`.
-    #[inline]
     fn starts_with(&self, pattern: &str) -> bool {
         self.name().starts_with(pattern)
     }
 
     /// Returns `true` if the given `pattern` exactly matches the [`Row`] item.
-    #[inline]
     fn is_equal(&self, pattern: &str) -> bool {
         self.name() == pattern
     }

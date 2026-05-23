@@ -22,6 +22,7 @@ pub struct Select<T: Table> {
     filter_area: Rect,
     filter_auto_hide: bool,
     filter_disabled: bool,
+    highlight_exact: bool,
 }
 
 impl<T: Table> Select<T> {
@@ -45,6 +46,7 @@ impl<T: Table> Select<T> {
             filter_area: Rect::default(),
             filter_auto_hide,
             filter_disabled: false,
+            highlight_exact: false,
         }
     }
 
@@ -57,6 +59,18 @@ impl<T: Table> Select<T> {
     /// Adds a set of characters that should be accented by the [`Select`] instance.
     pub fn with_accent_characters(mut self, highlight: impl Into<String>) -> Self {
         self.filter.set_accent_characters(Some(highlight.into()));
+        self
+    }
+
+    /// Sets flag indicating if items should be highlighted only on exact match.
+    pub fn with_highlight_exact(mut self, highlight_exact: bool) -> Self {
+        self.highlight_exact = highlight_exact;
+        self
+    }
+
+    /// Sets delimiter characters for filter prefix exclusion.
+    pub fn with_filter_delimiters(mut self, delimiters: Vec<char>) -> Self {
+        self.filter.set_value_delimiters(delimiters);
         self
     }
 
@@ -118,12 +132,14 @@ impl<T: Table> Select<T> {
 
     delegate! {
         to self.filter {
-            pub fn set_cursor(&mut self, show_cursor: bool);
+            pub fn show_cursor(&mut self, show_cursor: bool);
             pub fn set_error_mode(&mut self, mode: ErrorHighlightMode);
             pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
+            pub fn value_full(&self) -> &str;
+            pub fn value_prefix(&self) -> &str;
         }
     }
 
@@ -202,22 +218,43 @@ impl<T: Table> Select<T> {
 
     /// Updates filter applied on items.
     pub fn update_items_filter(&mut self) {
-        if self.filter.value().is_empty() {
-            self.items.set_filter(None);
-        } else if let Some(filter) = self.items.filter() {
-            if self.filter.value() != filter {
+        if self.filter_disabled {
+            return;
+        }
+
+        let new_filter = self.filter.value();
+        let current_filter = self.items.filter();
+        let filter_changed = match (new_filter.is_empty(), current_filter) {
+            (true, None | Some("")) => false,
+            (true, Some(_)) => {
+                self.items.set_filter(None);
+                true
+            },
+            (false, Some(current)) if new_filter == current => false,
+            (false, _) => {
                 self.filter_and_highlight();
-            }
-        } else {
-            self.filter_and_highlight();
+                true
+            },
+        };
+
+        if filter_changed
+            && self.highlight_exact
+            && let Some(highlighted) = self.items.get_highlighted_item_name()
+            && highlighted != self.filter.value()
+        {
+            self.items.unhighlight_item();
         }
     }
 
     fn filter_and_highlight(&mut self) {
         self.items.set_filter(Some(self.filter.value().to_owned()));
-        self.items.highlight_item_by_name_start(self.filter.value());
-        if self.items.get_highlighted_item_index().is_none() {
-            self.items.highlight_first_item();
+        if self.highlight_exact {
+            self.items.highlight_item_by_name(self.filter.value());
+        } else {
+            self.items.highlight_item_by_name_start(self.filter.value());
+            if self.items.get_highlighted_item_index().is_none() {
+                self.items.highlight_first_item();
+            }
         }
     }
 }

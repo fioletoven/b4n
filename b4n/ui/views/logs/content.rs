@@ -141,7 +141,7 @@ impl LogsContent {
         self.max_size = self.max_size.max(size);
     }
 
-    fn style_log_line(&self, line: &LogLine) -> Vec<(Style, String)> {
+    fn style_log_line(&self, line: &LogLine) -> StyledLine {
         let log_colors = match line.kind {
             LineKind::LogLine => &self.colors.string,
             LineKind::FetchInfo => &self.colors.info,
@@ -165,14 +165,15 @@ impl LogsContent {
 
         let style: Style = log_colors.into();
         if line.kind == LineKind::LogLine {
-            result.extend(line.message.iter().map(|(s, t)| (style.patch(*s), t.clone())));
+            result.extend(line.message.segments().iter().map(|(s, t)| (style.patch(*s), t.clone())));
         } else if !line.message.is_empty() {
             let info_style: Style = (&self.colors.info).into();
-            result.push((info_style.patch(line.message[0].0), line.message[0].1.clone()));
-            result.extend(line.message.iter().skip(1).map(|(s, t)| (style.patch(*s), t.clone())));
+            let segments = line.message.segments();
+            result.push((info_style.patch(segments[0].0), segments[0].1.clone()));
+            result.extend(segments.iter().skip(1).map(|(s, t)| (style.patch(*s), t.clone())));
         }
 
-        result
+        result.into()
     }
 }
 
@@ -244,7 +245,7 @@ impl Content for LogsContent {
                     result.push_str(": ");
                 }
 
-                for (_, text) in &line.message {
+                for (_, text) in line.message.segments() {
                     result.push_str(text);
                 }
 

@@ -99,7 +99,7 @@ impl PickerBehaviour for FilterBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&self) -> PatternsList {
+    fn load_items(&mut self) -> PatternsList {
         let context = &self.app_data.borrow().current.context;
         let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         PatternsList::from(self.app_data.borrow().history.filter_history(context), Some(&key_name))
@@ -149,11 +149,11 @@ impl PickerBehaviour for FilterBehaviour {
         true
     }
 
-    fn draw_header(&self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         frame.render_widget(Paragraph::new(FILTER_HINT).style(style), area);
     }
 
-    fn process_event(
+    fn pre_process_event(
         &mut self,
         event: &TuiEvent,
         patterns: &mut Select<PatternsList>,

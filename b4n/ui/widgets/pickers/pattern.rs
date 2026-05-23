@@ -2,24 +2,52 @@ use b4n_common::truncate;
 use b4n_config::HistoryItem;
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::borrow::Cow;
-use std::time::SystemTime;
 
 /// Filter pattern item.
+#[derive(Default)]
 pub struct PatternItem {
-    pub value: String,
-    pub creation_time: SystemTime,
-    pub icon: Option<&'static str>,
-    pub is_fixed: bool,
+    value: String,
+    lowercase_value: String,
+    sort_value: Option<String>,
+    icon: Option<&'static str>,
+    is_fixed: bool,
 }
 
 impl PatternItem {
     /// Creates new fixed [`PatternItem`] instance.
     pub fn fixed(value: String) -> Self {
+        let lowercase_value = value.to_ascii_lowercase();
         Self {
             value,
+            lowercase_value,
             is_fixed: true,
             ..Default::default()
         }
+    }
+
+    /// Returns pattern item value.
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    /// Returns `true` if pattern item is fixed.
+    pub fn is_fixed(&self) -> bool {
+        self.is_fixed
+    }
+
+    /// Returns pattern item icon.
+    pub fn icon(&self) -> Option<&str> {
+        self.icon
+    }
+
+    /// Sets new icon value.
+    pub fn set_icon(&mut self, icon: Option<&'static str>) {
+        self.icon = icon;
+    }
+
+    /// Sets sort value.
+    pub fn set_sort_value(&mut self, sort_value: Option<String>) {
+        self.sort_value = sort_value;
     }
 
     fn get_text_width(&self, width: usize) -> usize {
@@ -40,24 +68,19 @@ impl PatternItem {
     }
 }
 
-impl Default for PatternItem {
-    fn default() -> Self {
-        Self {
-            value: String::default(),
-            creation_time: SystemTime::now(),
-            icon: None,
-            is_fixed: false,
-        }
-    }
-}
-
 impl From<&HistoryItem> for PatternItem {
     fn from(value: &HistoryItem) -> Self {
         PatternItem {
             value: value.value.clone(),
-            creation_time: value.creation_time,
+            lowercase_value: value.value.to_ascii_lowercase(),
             ..Default::default()
         }
+    }
+}
+
+impl From<PatternItem> for String {
+    fn from(value: PatternItem) -> Self {
+        value.value
     }
 }
 
@@ -119,9 +142,24 @@ impl Row for PatternItem {
 
     fn column_sort_text(&self, column: usize) -> &str {
         match column {
-            1 => &self.value,
+            1 => match &self.sort_value {
+                Some(sort_value) => sort_value,
+                None => &self.value,
+            },
             _ => "n/a",
         }
+    }
+
+    fn contains(&self, pattern: &str) -> bool {
+        self.lowercase_value.contains(&pattern.to_ascii_lowercase())
+    }
+
+    fn starts_with(&self, pattern: &str) -> bool {
+        self.lowercase_value.starts_with(&pattern.to_ascii_lowercase())
+    }
+
+    fn is_equal(&self, pattern: &str) -> bool {
+        self.lowercase_value == pattern.to_ascii_lowercase()
     }
 }
 

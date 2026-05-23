@@ -10,7 +10,11 @@ fn get_styled_text(text: &str) -> Vec<StyledLine> {
     let syntax = SyntaxData::new(&Theme::default());
     let highlighter = syntax.get_highlighter("yaml").unwrap();
     let lines = text.split('\n').map(String::from).collect::<Vec<_>>();
-    highlight_all(highlighter, &syntax.syntax_set, &lines).unwrap()
+    highlight_all(highlighter, &syntax.syntax_set, &lines)
+        .unwrap()
+        .into_iter()
+        .map(StyledLine::from)
+        .collect()
 }
 
 #[test]
@@ -33,7 +37,7 @@ fn char_to_index_test() {
 #[case(Some(2), Some(12), "  est")]
 fn char_boundaries_test(#[case] start: Option<usize>, #[case] end: Option<usize>, #[case] expected: &str) {
     let mut styled = get_styled_text("  ąęśćńół: test");
-    styled[0].sl_drain(start, end);
+    styled[0].drain(start, end);
     assert_eq!(expected, styled.to_string());
 }
 
@@ -61,7 +65,7 @@ fn char_boundaries_test(#[case] start: Option<usize>, #[case] end: Option<usize>
 #[case(Some(100), Some(150), "apiVersion: v1 #with comment")]
 fn sl_drain_test(#[case] start: Option<usize>, #[case] end: Option<usize>, #[case] expected: &str) {
     let mut styled = get_styled_text("apiVersion: v1 #with comment");
-    styled[0].sl_drain(start, end);
+    styled[0].drain(start, end);
     assert_eq!(expected, styled.to_string());
 }
 

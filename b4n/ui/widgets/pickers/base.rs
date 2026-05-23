@@ -23,6 +23,16 @@ pub trait PickerBehaviour {
         None
     }
 
+    /// Sets delimiter characters for filter prefix exclusion.
+    fn filter_delimiters(&self) -> Vec<char> {
+        Vec::new()
+    }
+
+    /// Gets flag indicating if select items should be only highlighted on exact filter match.
+    fn highlight_exact(&self) -> bool {
+        false
+    }
+
     /// Gets the key command used for `reset` action.
     fn reset_key_command(&self) -> KeyCommand;
 
@@ -30,7 +40,7 @@ pub trait PickerBehaviour {
     fn cancel_response(&self) -> ResponseEvent;
 
     /// Loads items when the picker is shown.
-    fn load_items(&self) -> PatternsList;
+    fn load_items(&mut self) -> PatternsList;
 
     /// Adds an item to the configuration history.
     fn add_item(&self, item: &str);
@@ -70,6 +80,16 @@ pub trait PickerBehaviour {
         ResponseEvent::Handled
     }
 
+    /// Executes code when the picker is about to reset filter, code should return `true` if filter can be reset.
+    fn on_reset(&mut self, _patterns: &mut Select<PatternsList>) -> bool {
+        true
+    }
+
+    /// Executes code when the picker is about to close, code should return `true` if picker can be closed.
+    fn on_close(&mut self, _patterns: &mut Select<PatternsList>, _is_cancel: bool) -> bool {
+        true
+    }
+
     /// Called before drawing.
     fn on_draw(&mut self, _patterns: &mut Select<PatternsList>, _area: Rect) {}
 
@@ -79,10 +99,20 @@ pub trait PickerBehaviour {
     }
 
     /// Draws the header area.
-    fn draw_header(&self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
+    fn draw_header(&mut self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
 
-    /// Additional events processing logic.
-    fn process_event(
+    /// Additional events processing logic that is executed before filter input events.
+    fn pre_process_event(
+        &mut self,
+        _event: &TuiEvent,
+        _patterns: &mut Select<PatternsList>,
+        _app_data: &SharedAppData,
+    ) -> ResponseEvent {
+        ResponseEvent::NotHandled
+    }
+
+    /// Additional events processing logic that is executed after filter input events.
+    fn post_process_event(
         &mut self,
         _event: &TuiEvent,
         _patterns: &mut Select<PatternsList>,
@@ -98,6 +128,7 @@ pub struct Picker<B: PickerBehaviour> {
     worker: Option<SharedBgWorker>,
     patterns: Select<PatternsList>,
     current: String,
+    highlight_on_complete: bool,
     width: u16,
     behaviour: B,
 }
@@ -105,7 +136,10 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
-        let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true).with_prompt(behaviour.prompt());
+        let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
+            .with_prompt(behaviour.prompt())
+            .with_highlight_exact(behaviour.highlight_exact())
+            .with_filter_delimiters(behaviour.filter_delimiters());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -119,9 +153,16 @@ impl<B: PickerBehaviour> Picker<B> {
             worker,
             patterns: select,
             current: String::new(),
+            highlight_on_complete: false,
             width,
             behaviour,
         }
+    }
+
+    /// Sets flat indicating that item should be highlighted on complete key press.
+    pub fn with_highlight_on_complete(mut self, highlight_on_complete: bool) -> Self {
+        self.highlight_on_complete = highlight_on_complete;
+        self
     }
 
     /// Marks the picker as visible and loads items.
@@ -135,13 +176,13 @@ impl<B: PickerBehaviour> Picker<B> {
 
     /// Copies `self` value into a new `Option`.
     pub fn to_option(&self) -> Option<String> {
-        let value = self.patterns.value();
+        let value = self.patterns.value_full();
         if value.is_empty() { None } else { Some(value.to_owned()) }
     }
 
     /// Returns the current input value.
     pub fn value(&self) -> &str {
-        self.patterns.value()
+        self.patterns.value_full()
     }
 
     /// Sets the input value.
@@ -197,12 +238,12 @@ impl<B: PickerBehaviour> Picker<B> {
     }
 
     fn run_validation(&mut self) {
-        let error_pos = self.behaviour.validate(self.patterns.value());
+        let error_pos = self.behaviour.validate(self.patterns.value_full());
         self.patterns.set_error(error_pos);
     }
 
     fn remember_pattern(&mut self) {
-        let pattern = self.patterns.value();
+        let pattern = self.patterns.value_full();
         self.current = pattern.to_owned();
         self.behaviour.add_item(pattern);
         self.save_history_file();
@@ -238,7 +279,10 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(event, self.behaviour.reset_key_command()) && !self.patterns.value().is_empty() {
+        if self.app_data.has_binding(event, self.behaviour.reset_key_command())
+            && !self.patterns.value_full().is_empty()
+            && self.behaviour.on_reset(&mut self.patterns)
+        {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
@@ -254,8 +298,9 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack)
-            || event.is_out(MouseEventKind::LeftClick, self.patterns.area())
+        if (self.app_data.has_binding(event, KeyCommand::NavigateBack)
+            || event.is_out(MouseEventKind::LeftClick, self.patterns.area()))
+            && self.behaviour.on_close(&mut self.patterns, true)
         {
             self.is_visible = false;
             if self.behaviour.restores_on_cancel() {
@@ -267,13 +312,18 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
         if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.patterns.items_area()) {
             self.patterns.items.highlight_item_by_line(line);
-            self.complete_with_selected_item();
-            self.remember_pattern();
-            self.is_visible = false;
+            if self.behaviour.on_close(&mut self.patterns, false) {
+                self.complete_with_selected_item();
+                self.remember_pattern();
+                self.is_visible = false;
 
-            return self
-                .behaviour
-                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                return self
+                    .behaviour
+                    .navigate_into(self.patterns.value_full(), self.patterns.get_highlighted_item_name());
+            }
+
+            self.patterns.items.clear();
+            return ResponseEvent::Handled;
         }
 
         if event.is_mouse(MouseEventKind::RightClick) {
@@ -281,12 +331,18 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {
+            if self.highlight_on_complete && !self.patterns.is_anything_highlighted() {
+                self.patterns.items.highlight_first_item();
+            }
+
             self.complete_with_selected_item();
             return ResponseEvent::Handled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
-            if self.behaviour.blocks_on_error() && self.patterns.has_error() {
+            if !self.behaviour.on_close(&mut self.patterns, false)
+                || (self.behaviour.blocks_on_error() && self.patterns.has_error())
+            {
                 return ResponseEvent::Handled;
             }
 
@@ -295,16 +351,21 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             return self
                 .behaviour
-                .navigate_into(self.patterns.value(), self.patterns.get_highlighted_item_name());
+                .navigate_into(self.patterns.value_full(), self.patterns.get_highlighted_item_name());
         }
 
-        let result = self.behaviour.process_event(event, &mut self.patterns, &self.app_data);
+        let result = self.behaviour.pre_process_event(event, &mut self.patterns, &self.app_data);
         if result != ResponseEvent::NotHandled {
             return result;
         }
 
         self.patterns.process_event(event);
         self.run_validation();
+
+        let result = self.behaviour.post_process_event(event, &mut self.patterns, &self.app_data);
+        if result != ResponseEvent::NotHandled {
+            return result;
+        }
 
         ResponseEvent::Handled
     }

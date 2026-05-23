@@ -6,6 +6,7 @@ pub use self::highlighter::{
 pub use self::tasks::{BgExecutor, BgTask, TaskResult};
 
 pub mod commands;
+pub mod dir_lister;
 
 mod forwarder;
 mod highlighter;

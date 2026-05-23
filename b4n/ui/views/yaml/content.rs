@@ -7,9 +7,7 @@ use std::time::Duration;
 use tokio::sync::{mpsc::UnboundedSender, oneshot::Receiver};
 
 use crate::ui::presentation::utils::{VecStringExt, get_char_position};
-use crate::ui::presentation::{
-    Content, ContentPosition, MatchPosition, Selection, StyleFallback, StyledLine, StyledLineExt, VecStyledLineExt,
-};
+use crate::ui::presentation::{Content, ContentPosition, MatchPosition, Selection, StyleFallback, StyledLine, VecStyledLineExt};
 use crate::ui::views::yaml::undo::{Undo, UndoMode, pop_recent_group};
 
 #[cfg(test)]
@@ -96,11 +94,11 @@ impl YamlContent {
         if line_no < self.plain.len() {
             self.plain.insert(line_no, String::new());
             self.lowercase.insert(line_no, String::new());
-            self.styled.insert(line_no, Vec::new());
+            self.styled.insert(line_no, StyledLine::default());
         } else {
             self.plain.push(String::new());
             self.lowercase.push(String::new());
-            self.styled.push(Vec::new());
+            self.styled.push(StyledLine::default());
         }
 
         self.mark_line_as_modified(line_no);
@@ -139,7 +137,7 @@ impl YamlContent {
 
         self.plain[y].truncate(x);
         self.lowercase[y].truncate(x);
-        self.styled[y].sl_truncate(x);
+        self.styled[y].truncate(x);
 
         self.mark_line_as_modified(y);
         self.mark_line_as_modified(insert_at);
@@ -157,7 +155,7 @@ impl YamlContent {
             } else {
                 self.plain[pos.y].insert(r.x.index, ch);
                 self.lowercase[pos.y].insert(r.x.index, ch.to_ascii_lowercase());
-                self.styled[pos.y].sl_insert(r.x.index, ch);
+                self.styled[pos.y].insert(r.x.index, ch);
                 self.mark_line_as_modified(pos.y);
                 self.recalculate_max_size(pos.y, pos.y);
             }
@@ -167,7 +165,7 @@ impl YamlContent {
             } else {
                 self.plain[pos.y].push(ch);
                 self.lowercase[pos.y].push(ch.to_ascii_lowercase());
-                self.styled[pos.y].sl_push(ch, &self.fallback);
+                self.styled[pos.y].push(ch, &self.fallback);
                 self.mark_line_as_modified(pos.y);
                 self.recalculate_max_size(pos.y, pos.y);
             }
@@ -207,7 +205,7 @@ impl YamlContent {
     fn remove_ch(&mut self, idx: usize, line_no: usize) -> char {
         let removed = self.plain[line_no].remove(idx);
         self.lowercase[line_no].remove(idx);
-        self.styled[line_no].sl_remove(idx);
+        self.styled[line_no].remove(idx);
 
         self.mark_line_as_modified(line_no);
         self.recalculate_max_size(line_no, line_no);
@@ -515,7 +513,8 @@ impl Content for YamlContent {
                 // there are no new modifications, we can apply the styled fragment
                 let start = requested.start.min(self.styled.len().saturating_sub(1));
                 let end = requested.end.min(self.styled.len().saturating_sub(1));
-                self.styled.splice(start..=end, response.styled);
+                let response = response.styled.into_iter().map(StyledLine::from);
+                self.styled.splice(start..=end, response);
             } else {
                 // there are new modifications, we need to rollback modified lines, as the styled fragment is outdated
                 self.modified.extend(requested.first..=requested.last);
