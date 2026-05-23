@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
@@ -22,11 +22,10 @@ pub enum DirListResult {
 /// Allows to list directory in a background task.
 pub struct DirLister {
     runtime: Handle,
+    current_path: Option<PathBuf>,
     task: Option<JoinHandle<()>>,
     tx: mpsc::Sender<DirListResult>,
     rx: mpsc::Receiver<DirListResult>,
-    include_parent: bool,
-    current_path: Option<PathBuf>,
 }
 
 impl DirLister {
@@ -35,27 +34,23 @@ impl DirLister {
         let (tx, rx) = mpsc::channel(buffer_size);
         Self {
             runtime,
+            current_path: None,
             task: None,
             tx,
             rx,
-            include_parent: false,
-            current_path: None,
         }
     }
 
-    /// Sets whether to include parent directory (..) in the listing.
-    pub fn with_parent(mut self, include_parent: bool) -> Self {
-        self.include_parent = include_parent;
-        self
-    }
-
-    /// Sets whether to include parent directory (..) in the listing.
-    pub fn set_include_parent(&mut self, include_parent: bool) {
-        self.include_parent = include_parent;
+    /// Resets [`DirLister`].
+    pub fn reset(&mut self) {
+        self.current_path = None;
+        if let Some(handle) = self.task.take() {
+            handle.abort();
+        }
     }
 
     /// Starts listing a directory in the background.
-    pub fn list_dir(&mut self, path: PathBuf) -> bool {
+    pub fn list_dir(&mut self, path: PathBuf, include_parent: bool) -> bool {
         if self.current_path.as_ref().is_some_and(|p| p == &path) {
             return false;
         }
@@ -67,13 +62,17 @@ impl DirLister {
         self.current_path = Some(path.clone());
 
         let tx = self.tx.clone();
-        let include_parent = self.include_parent;
+        let mut include_parent = include_parent;
 
         let handle = self.runtime.spawn(async move {
             let _ = tx.send(DirListResult::Init).await;
-            if let Err(e) = Self::list_directory(path, tx.clone(), include_parent).await {
+            if let Err(e) = Self::list_loop(&path, tx.clone(), &mut include_parent).await {
                 let _ = tx.send(DirListResult::Error(e.to_string())).await;
             } else {
+                if include_parent {
+                    Self::include_parent(&path, &tx).await;
+                }
+
                 let _ = tx.send(DirListResult::Complete).await;
             }
         });
@@ -87,21 +86,14 @@ impl DirLister {
         self.rx.try_recv().ok()
     }
 
-    async fn list_directory(path: PathBuf, tx: mpsc::Sender<DirListResult>, include_parent: bool) -> Result<(), std::io::Error> {
-        if include_parent && let Some(parent) = path.parent() {
-            let parent_entry = DirEntry {
-                name: "..".to_string(),
-                path: parent.to_path_buf(),
-                is_dir: true,
-            };
-            if tx.send(DirListResult::Entry(parent_entry)).await.is_err() {
-                return Ok(());
-            }
-        }
-
+    async fn list_loop(path: &Path, tx: mpsc::Sender<DirListResult>, include_parent: &mut bool) -> Result<(), std::io::Error> {
         let mut entries = fs::read_dir(&path).await?;
-
         while let Some(entry) = entries.next_entry().await? {
+            if *include_parent {
+                Self::include_parent(path, &tx).await;
+                *include_parent = false;
+            }
+
             let metadata = entry.metadata().await?;
             let name = entry.file_name().to_string_lossy().to_string();
             let path = entry.path();
@@ -114,6 +106,17 @@ impl DirLister {
         }
 
         Ok(())
+    }
+
+    async fn include_parent(path: &Path, tx: &mpsc::Sender<DirListResult>) {
+        if let Some(parent) = path.parent() {
+            let parent_entry = DirEntry {
+                name: "..".to_string(),
+                path: parent.to_path_buf(),
+                is_dir: true,
+            };
+            let _ = tx.send(DirListResult::Entry(parent_entry)).await;
+        }
     }
 }
 

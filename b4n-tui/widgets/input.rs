@@ -160,31 +160,51 @@ impl Input {
     }
 
     /// Returns the full input value.
-    pub fn full_value(&self) -> &str {
+    pub fn value_full(&self) -> &str {
         self.value.value()
     }
 
-    /// Returns the input value, starting from after the last path separator if configured.
-    pub fn value(&self) -> &str {
-        if !self.value_delimiters.is_empty() {
-            let full_value = self.value.value();
-            if let Some(index) = full_value.rfind(self.value_delimiters.as_slice()) {
-                if index + 1 == full_value.len() {
-                    ""
-                } else {
-                    &full_value[index + 1..]
-                }
-            } else {
-                full_value
-            }
+    /// Returns only the prefix part of the value.
+    pub fn value_prefix(&self) -> &str {
+        let idx = self.get_delimiter_index();
+        let full_value = self.value.value();
+        if idx == 0 {
+            ""
+        } else if idx == full_value.len() {
+            full_value
         } else {
-            self.value.value()
+            &full_value[..idx]
         }
     }
 
-    /// Sets the input value.
+    /// Returns the input value, starting from after the last delimiter if configured.
+    pub fn value(&self) -> &str {
+        let idx = self.get_delimiter_index();
+        let full_value = self.value.value();
+        if idx == 0 {
+            full_value
+        } else if idx == full_value.len() {
+            ""
+        } else {
+            &full_value[idx..]
+        }
+    }
+
+    /// Sets the input value, starting from after the last delimiter if configured.
     pub fn set_value(&mut self, value: impl Into<String>) {
-        self.value = tui_input::Input::new(value.into());
+        let idx = self.get_delimiter_index();
+        let full_value = self.value.value();
+        let new_value = if idx == 0 {
+            value.into()
+        } else {
+            let value = value.into();
+            let mut new = String::with_capacity(idx + value.len());
+            new.push_str(&full_value[..idx]);
+            new.push_str(&value);
+            new
+        };
+
+        self.value = tui_input::Input::new(new_value);
         self.error_index = None;
     }
 
@@ -273,6 +293,16 @@ impl Input {
             } else {
                 buf[(x, y)].set_char(char).set_fg(self.colors.fg).set_bg(self.colors.bg);
             }
+        }
+    }
+
+    fn get_delimiter_index(&self) -> usize {
+        if !self.value_delimiters.is_empty()
+            && let Some(index) = self.value.value().rfind(self.value_delimiters.as_slice())
+        {
+            index + 1
+        } else {
+            0
         }
     }
 }

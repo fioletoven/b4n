@@ -138,7 +138,8 @@ impl<T: Table> Select<T> {
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
             pub fn value(&self) -> &str;
-            pub fn full_value(&self) -> &str;
+            pub fn value_full(&self) -> &str;
+            pub fn value_prefix(&self) -> &str;
         }
     }
 

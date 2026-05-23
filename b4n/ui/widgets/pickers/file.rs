@@ -54,7 +54,7 @@ impl FileBehaviour {
 
         Self {
             app_data,
-            lister: DirLister::new(runtime, 100).with_parent(true),
+            lister: DirLister::new(runtime, 100),
             current_path: initial_path,
             prompt,
             loading: true,
@@ -65,7 +65,7 @@ impl FileBehaviour {
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
         self.prompt = truncated_prompt(&dir_path);
         self.current_path = dir_path.clone();
-        self.lister.list_dir(dir_path)
+        self.lister.list_dir(dir_path, true)
     }
 
     fn navigate_up(&mut self) -> bool {
@@ -114,7 +114,7 @@ impl FileBehaviour {
     }
 
     fn process_input_navigation(&mut self, is_full: bool, patterns: &mut Select<PatternsList>) -> bool {
-        let value = patterns.full_value();
+        let value = patterns.value_full();
         if value.is_empty() {
             return false;
         }
@@ -125,16 +125,22 @@ impl FileBehaviour {
             self.current_path.join(value)
         };
 
+        let is_full = is_full || value.ends_with(['\\', '/']);
         let target_dir = if is_full {
             Some(input_path)
         } else {
             input_path.parent().map(|parent| parent.to_path_buf())
         };
 
+        let has_prefix = is_full || !patterns.value_prefix().is_empty();
         if let Some(dir) = target_dir
-            && self.lister.list_dir(dir)
+            && self.lister.list_dir(dir, !has_prefix)
         {
             patterns.items.clear();
+            if is_full {
+                patterns.items.set_filter(None);
+            }
+
             return true;
         }
 
@@ -172,7 +178,8 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn load_items(&mut self) -> PatternsList {
-        self.lister.list_dir(self.current_path.clone());
+        self.lister.reset();
+        self.lister.list_dir(self.current_path.clone(), true);
         PatternsList::default()
     }
 
@@ -220,8 +227,8 @@ impl PickerBehaviour for FileBehaviour {
             }
 
             patterns.set_prompt(self.prompt());
-            patterns.reset();
             patterns.items.clear();
+            patterns.reset();
 
             false
         } else {
@@ -247,8 +254,11 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn process_event(&mut self, event: &TuiEvent, patterns: &mut Select<PatternsList>, _: &SharedAppData) -> ResponseEvent {
-        let is_full = matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Char('/') || key.code == KeyCode::Char('\\'));
-        self.process_input_navigation(is_full, patterns);
+        if let TuiEvent::Key(key) = event {
+            let is_full = key.code == KeyCode::Char('/') || key.code == KeyCode::Char('\\');
+            self.process_input_navigation(is_full, patterns);
+        }
+
         ResponseEvent::NotHandled
     }
 }
