@@ -49,7 +49,7 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf) -> Self {
-        let prompt = truncated_prompt(&initial_path);
+        let prompt = truncate_prompt(&initial_path);
 
         Self {
             app_data,
@@ -62,7 +62,7 @@ impl FileBehaviour {
     }
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
-        self.prompt = truncated_prompt(&dir_path);
+        self.prompt = truncate_prompt(&dir_path);
         self.current_path = dir_path.clone();
         self.lister.list_dir(dir_path, true)
     }
@@ -230,7 +230,7 @@ impl PickerBehaviour for FileBehaviour {
             if item.name() == ".." {
                 self.navigate_up();
             } else {
-                let path = self.current_path.join(item.value());
+                let path = self.current_path.join(normalize(patterns.value_prefix())).join(item.value());
                 self.navigate_to_dir(path);
             }
 
@@ -270,11 +270,15 @@ impl PickerBehaviour for FileBehaviour {
     }
 }
 
-fn truncated_prompt(path: &Path) -> String {
+fn truncate_prompt(path: &Path) -> String {
     let prompt = format!("{}{}", path.display(), PROMPT_END);
     if prompt.len() > PROMPT_LEN {
         format!("…{}", truncate_left(&prompt, PROMPT_LEN.saturating_sub(1)))
     } else {
         prompt
     }
+}
+
+fn normalize(path: &str) -> PathBuf {
+    Path::new(path).components().collect()
 }
