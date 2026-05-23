@@ -153,7 +153,7 @@ impl PickerBehaviour for FilterBehaviour {
         frame.render_widget(Paragraph::new(FILTER_HINT).style(style), area);
     }
 
-    fn process_event(
+    fn pre_process_event(
         &mut self,
         event: &TuiEvent,
         patterns: &mut Select<PatternsList>,

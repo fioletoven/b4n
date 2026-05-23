@@ -6,7 +6,6 @@ use b4n_tasks::dir_lister::{DirListResult, DirLister};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ErrorHighlightMode, Select, Spinner};
 use b4n_tui::{ResponseEvent, TuiEvent};
-use crossterm::event::KeyCode;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
@@ -113,7 +112,7 @@ impl FileBehaviour {
         }
     }
 
-    fn process_input_navigation(&mut self, is_full: bool, patterns: &mut Select<PatternsList>) -> bool {
+    fn process_input_navigation(&mut self, patterns: &mut Select<PatternsList>) -> bool {
         let value = patterns.value_full();
         if value.is_empty() {
             return false;
@@ -125,7 +124,7 @@ impl FileBehaviour {
             self.current_path.join(value)
         };
 
-        let is_full = is_full || value.ends_with(['\\', '/']);
+        let is_full = value.ends_with(['\\', '/']);
         let target_dir = if is_full {
             Some(input_path)
         } else {
@@ -209,6 +208,15 @@ impl PickerBehaviour for FileBehaviour {
         false
     }
 
+    fn on_reset(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        if !patterns.value_prefix().is_empty() && self.navigate_to_dir(self.current_path.clone()) {
+            patterns.items.clear();
+            patterns.reset();
+        }
+
+        true
+    }
+
     fn on_close(&mut self, patterns: &mut Select<PatternsList>, is_cancel: bool) -> bool {
         if is_cancel {
             return true;
@@ -253,10 +261,9 @@ impl PickerBehaviour for FileBehaviour {
         frame.render_widget(Paragraph::new(line).style(style), area);
     }
 
-    fn process_event(&mut self, event: &TuiEvent, patterns: &mut Select<PatternsList>, _: &SharedAppData) -> ResponseEvent {
-        if let TuiEvent::Key(key) = event {
-            let is_full = key.code == KeyCode::Char('/') || key.code == KeyCode::Char('\\');
-            self.process_input_navigation(is_full, patterns);
+    fn post_process_event(&mut self, event: &TuiEvent, patterns: &mut Select<PatternsList>, _: &SharedAppData) -> ResponseEvent {
+        if let TuiEvent::Key(_) = event {
+            self.process_input_navigation(patterns);
         }
 
         ResponseEvent::NotHandled

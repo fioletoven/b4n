@@ -80,7 +80,12 @@ pub trait PickerBehaviour {
         ResponseEvent::Handled
     }
 
-    /// Executes code when the picker is about to close, code should return if picker can be closed.
+    /// Executes code when the picker is about to reset filter, code should return `true` if filter can be reset.
+    fn on_reset(&mut self, _patterns: &mut Select<PatternsList>) -> bool {
+        true
+    }
+
+    /// Executes code when the picker is about to close, code should return `true` if picker can be closed.
     fn on_close(&mut self, _patterns: &mut Select<PatternsList>, _is_cancel: bool) -> bool {
         true
     }
@@ -96,8 +101,18 @@ pub trait PickerBehaviour {
     /// Draws the header area.
     fn draw_header(&mut self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
 
-    /// Additional events processing logic.
-    fn process_event(
+    /// Additional events processing logic that is executed before filter input events.
+    fn pre_process_event(
+        &mut self,
+        _event: &TuiEvent,
+        _patterns: &mut Select<PatternsList>,
+        _app_data: &SharedAppData,
+    ) -> ResponseEvent {
+        ResponseEvent::NotHandled
+    }
+
+    /// Additional events processing logic that is executed after filter input events.
+    fn post_process_event(
         &mut self,
         _event: &TuiEvent,
         _patterns: &mut Select<PatternsList>,
@@ -264,7 +279,10 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return ResponseEvent::NotHandled;
         }
 
-        if self.app_data.has_binding(event, self.behaviour.reset_key_command()) && !self.patterns.value_full().is_empty() {
+        if self.app_data.has_binding(event, self.behaviour.reset_key_command())
+            && !self.patterns.value_full().is_empty()
+            && self.behaviour.on_reset(&mut self.patterns)
+        {
             self.patterns.reset();
             return ResponseEvent::Handled;
         }
@@ -336,13 +354,18 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
                 .navigate_into(self.patterns.value_full(), self.patterns.get_highlighted_item_name());
         }
 
-        let result = self.behaviour.process_event(event, &mut self.patterns, &self.app_data);
+        let result = self.behaviour.pre_process_event(event, &mut self.patterns, &self.app_data);
         if result != ResponseEvent::NotHandled {
             return result;
         }
 
         self.patterns.process_event(event);
         self.run_validation();
+
+        let result = self.behaviour.post_process_event(event, &mut self.patterns, &self.app_data);
+        if result != ResponseEvent::NotHandled {
+            return result;
+        }
 
         ResponseEvent::Handled
     }
