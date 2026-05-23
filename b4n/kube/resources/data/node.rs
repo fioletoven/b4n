@@ -17,8 +17,8 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let name = object.metadata.name.as_deref().unwrap_or_default();
     let pods = i64::try_from(statistics.pods_count(name)).ok();
     let containers = i64::try_from(statistics.containers_count(name)).ok();
-    let ready = status::from_object(object);
-    let is_ready = ready == "Ready";
+    let ready = status::from_conditions(object.data["status"]["conditions"].as_array());
+    let is_ready = ready.is_some_and(|r| r == "Ready");
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let mut values = vec![

@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - disable filter pin on context change
+- fix node status extracting
 
 ## 0.4.8 - 2026-05-04
 
