@@ -147,38 +147,22 @@ impl FileBehaviour {
         }
     }
 
-    fn process_input_navigation(&mut self, patterns: &mut Select<PatternsList>) -> bool {
-        let value = patterns.value_full();
-        if value.is_empty() {
-            return false;
-        }
-
-        let input_path = if Path::new(value).is_absolute() {
+    fn process_input_navigation(&mut self, patterns: &mut Select<PatternsList>) {
+        let value = patterns.value_prefix();
+        let dir = if value.is_empty() {
+            self.current_path.clone()
+        } else if Path::new(value).is_absolute() {
             PathBuf::from(value)
         } else {
             self.current_path.join(value)
         };
 
-        let is_full = value.ends_with(['\\', '/']);
-        let target_dir = if is_full {
-            Some(input_path)
-        } else {
-            input_path.parent().map(|parent| parent.to_path_buf())
-        };
-
-        let has_prefix = is_full || !patterns.value_prefix().is_empty();
-        if let Some(dir) = target_dir
-            && self.lister.list_dir(dir, !has_prefix)
-        {
+        if self.lister.list_dir(dir, value.is_empty()) {
             patterns.items.clear();
-            if is_full {
+            if patterns.value().is_empty() {
                 patterns.items.set_filter(None);
             }
-
-            return true;
         }
-
-        false
     }
 }
 
