@@ -36,6 +36,19 @@ impl FileSelector {
     pub fn current_path(&self) -> &PathBuf {
         &self.behaviour().current_path
     }
+
+    /// Sets the current directory path.
+    pub fn set_current_path(&mut self, path: PathBuf) {
+        if self.behaviour().current_path == path {
+            return;
+        }
+
+        let behaviour = self.behaviour_mut();
+        behaviour.prompt = truncate_prompt(&path);
+        behaviour.current_path = path;
+        behaviour.lister.reset();
+        behaviour.loading = true;
+    }
 }
 
 pub struct FileBehaviour {
@@ -173,7 +186,7 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn cancel_response(&self) -> ResponseEvent {
-        ResponseEvent::Cancelled
+        ResponseEvent::Handled
     }
 
     fn load_items(&mut self) -> PatternsList {

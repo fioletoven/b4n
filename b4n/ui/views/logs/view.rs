@@ -8,6 +8,7 @@ use crossterm::event::KeyCode;
 use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -16,7 +17,7 @@ use crate::ui::views::View;
 use crate::ui::views::logs::content::{LogsContent, TIMESTAMP_TEXT_LENGTH};
 use crate::ui::views::logs::line::LogLine;
 use crate::ui::views::logs::{LogsObserver, LogsObserverError, LogsObserverOptions};
-use crate::ui::widgets::{CommandPalette, Search};
+use crate::ui::widgets::{CommandPalette, FileSelector, Search};
 
 const DEFAULT_LOOKBACK_TIME: SignedDuration = SignedDuration::from_mins(15);
 const DEFAULT_LOOKBACK_LINES: i32 = 120;
@@ -42,6 +43,7 @@ pub struct LogsView {
     fetch_observer: Option<LogsObserver>,
     command_palette: CommandPalette,
     search: Search,
+    file_picker: FileSelector,
     footer: NotificationSink,
     container: Option<ContainerRef>,
     previous: bool,
@@ -92,6 +94,7 @@ impl LogsView {
         }
 
         let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
+        let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
 
         Ok(Self {
             logs,
@@ -101,6 +104,7 @@ impl LogsView {
             fetch_observer: None,
             command_palette: CommandPalette::default(),
             search,
+            file_picker,
             footer,
             previous,
             container,
@@ -124,6 +128,10 @@ impl LogsView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
+                ActionItem::action("save", "save").with_description("saves logs to a file"),
+                Some(KeyCommand::ContentSave),
+            )
+            .with_action(
                 ActionItem::action("search", "search").with_description("searches logs using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
@@ -140,10 +148,17 @@ impl LogsView {
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette())
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-            .with_menu_action(ActionItem::menu(2, " search", "search"))
-            .with_menu_action(ActionItem::menu(3, " timestamps", "timestamps"));
+            .with_menu_action(ActionItem::menu(2, " save to file", "save"))
+            .with_menu_action(ActionItem::menu(3, " search", "search"))
+            .with_menu_action(ActionItem::menu(4, " timestamps", "timestamps"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
+    }
+
+    fn show_file_picker(&mut self) {
+        self.file_picker
+            .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.show();
     }
 
     fn toggle_timestamps(&mut self) {
@@ -215,6 +230,9 @@ impl LogsView {
             return ResponseEvent::Handled;
         } else if response.is_action("copy") {
             self.copy_logs_to_clipboard();
+            return ResponseEvent::Handled;
+        } else if response.is_action("save") {
+            self.show_file_picker();
             return ResponseEvent::Handled;
         } else if response.is_action("search") {
             self.search.highlight_position(event.position());
@@ -339,6 +357,10 @@ impl View for LogsView {
             return result;
         }
 
+        if self.file_picker.is_visible {
+            return self.file_picker.process_event(event);
+        }
+
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
             self.show_command_palette();
             return ResponseEvent::Handled;
@@ -372,6 +394,11 @@ impl View for LogsView {
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
             self.copy_logs_to_clipboard();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentSave) {
+            self.show_file_picker();
             return ResponseEvent::Handled;
         }
 
@@ -413,6 +440,7 @@ impl View for LogsView {
         self.logs.draw(frame, area, self.get_offset());
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
+        self.file_picker.draw(frame, area);
 
         if area.height != self.area.height && self.bound_to_bottom {
             self.area = area;
