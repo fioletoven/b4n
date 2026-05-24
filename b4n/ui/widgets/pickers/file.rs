@@ -32,6 +32,18 @@ impl FileSelector {
         Picker::new_picker(app_data, Some(worker), width, behaviour).with_highlight_on_complete(true)
     }
 
+    /// Gets the selected path and flag if path already exists in the file system.
+    pub fn selected_path(&self) -> (PathBuf, bool) {
+        if let Some(path) = &self.behaviour().selected_path {
+            (
+                self.behaviour().current_path.join(normalize(path)),
+                self.behaviour().current_exists && self.behaviour().selected_exists,
+            )
+        } else {
+            (self.behaviour().current_path.clone(), self.behaviour().current_exists)
+        }
+    }
+
     /// Gets the current directory path.
     pub fn current_path(&self) -> &PathBuf {
         &self.behaviour().current_path
@@ -55,6 +67,9 @@ pub struct FileBehaviour {
     app_data: SharedAppData,
     lister: DirLister,
     current_path: PathBuf,
+    current_exists: bool,
+    selected_path: Option<String>,
+    selected_exists: bool,
     prompt: String,
     loading: bool,
     spinner: Spinner,
@@ -68,6 +83,9 @@ impl FileBehaviour {
             app_data,
             lister: DirLister::new(runtime, 100),
             current_path: initial_path,
+            current_exists: false,
+            selected_path: None,
+            selected_exists: false,
             prompt,
             loading: true,
             spinner: Spinner::default(),
@@ -77,6 +95,8 @@ impl FileBehaviour {
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
         self.prompt = truncate_prompt(&dir_path);
         self.current_path = dir_path.clone();
+        self.current_exists = false;
+        self.loading = true;
         self.lister.list_dir(dir_path, true)
     }
 
@@ -106,16 +126,18 @@ impl FileBehaviour {
                     }
 
                     patterns.items.add_or_update(item);
+                    self.current_exists = true;
                 },
                 DirListResult::Complete => {
                     self.loading = false;
+                    self.current_exists = true;
                     if patterns.value().is_empty() {
                         patterns.highlight_first();
                     }
                 },
-                DirListResult::Error(e) => {
-                    tracing::error!("Error listing directory: {}", e);
+                DirListResult::Error(_) => {
                     self.loading = false;
+                    self.current_exists = false;
                 },
             }
         }
@@ -221,6 +243,22 @@ impl PickerBehaviour for FileBehaviour {
         false
     }
 
+    fn navigate_into(&mut self, prefix: &str, value: &str, highlighted: Option<&str>) -> ResponseEvent {
+        if let Some(highlighted) = highlighted {
+            self.selected_path = Some(combine_values(prefix, highlighted));
+            self.selected_exists = true;
+            ResponseEvent::Accepted
+        } else if value.is_empty() {
+            self.selected_path = None;
+            self.selected_exists = false;
+            ResponseEvent::Handled
+        } else {
+            self.selected_path = Some(combine_values(prefix, value));
+            self.selected_exists = false;
+            ResponseEvent::Accepted
+        }
+    }
+
     fn on_reset(&mut self, patterns: &mut Select<PatternsList>) -> bool {
         if !patterns.value_prefix().is_empty() && self.navigate_to_dir(self.current_path.clone()) {
             patterns.items.clear();
@@ -294,4 +332,11 @@ fn truncate_prompt(path: &Path) -> String {
 
 fn normalize(path: &str) -> PathBuf {
     Path::new(path).components().collect()
+}
+
+fn combine_values(prefix: &str, highlighted: &str) -> String {
+    let mut result = String::with_capacity(prefix.len() + highlighted.len());
+    result.push_str(prefix);
+    result.push_str(highlighted);
+    result
 }

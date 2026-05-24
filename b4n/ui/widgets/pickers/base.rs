@@ -76,7 +76,7 @@ pub trait PickerBehaviour {
     }
 
     /// Gets response that should be returned by the picker on accepting selected item.
-    fn navigate_into(&self, _pattern: &str, _highlighted: Option<&str>) -> ResponseEvent {
+    fn navigate_into(&mut self, _prefix: &str, _value: &str, _highlighted: Option<&str>) -> ResponseEvent {
         ResponseEvent::Handled
     }
 
@@ -317,9 +317,11 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
                 self.remember_pattern();
                 self.is_visible = false;
 
-                return self
-                    .behaviour
-                    .navigate_into(self.patterns.value_full(), self.patterns.get_highlighted_item_name());
+                return self.behaviour.navigate_into(
+                    self.patterns.value_prefix(),
+                    self.patterns.value(),
+                    self.patterns.get_highlighted_item_name(),
+                );
             }
 
             self.patterns.items.clear();
@@ -349,9 +351,11 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             self.remember_pattern();
             self.is_visible = false;
 
-            return self
-                .behaviour
-                .navigate_into(self.patterns.value_full(), self.patterns.get_highlighted_item_name());
+            return self.behaviour.navigate_into(
+                self.patterns.value_prefix(),
+                self.patterns.value(),
+                self.patterns.get_highlighted_item_name(),
+            );
         }
 
         let result = self.behaviour.pre_process_event(event, &mut self.patterns, &self.app_data);

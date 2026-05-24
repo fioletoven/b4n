@@ -114,13 +114,13 @@ impl PickerBehaviour for NamespaceBehaviour {
         true
     }
 
-    fn navigate_into(&self, pattern: &str, highlighted: Option<&str>) -> ResponseEvent {
-        if pattern.is_empty()
+    fn navigate_into(&mut self, _prefix: &str, value: &str, highlighted: Option<&str>) -> ResponseEvent {
+        if value.is_empty()
             && let Some(highlighted) = highlighted
         {
             ResponseEvent::ChangeNamespace(highlighted.to_owned())
-        } else if !pattern.is_empty() {
-            ResponseEvent::ChangeNamespace(pattern.to_owned())
+        } else if !value.is_empty() {
+            ResponseEvent::ChangeNamespace(value.to_owned())
         } else {
             ResponseEvent::Handled
         }
