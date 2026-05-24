@@ -2,13 +2,13 @@ use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, PODS};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -41,6 +41,7 @@ pub struct LogsView {
     worker: SharedBgWorker,
     observers: Vec<LogsObserver>,
     fetch_observer: Option<LogsObserver>,
+    modal: Dialog,
     command_palette: CommandPalette,
     search: Search,
     file_picker: FileSelector,
@@ -102,6 +103,7 @@ impl LogsView {
             worker,
             observers,
             fetch_observer: None,
+            modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             search,
             file_picker,
@@ -181,6 +183,37 @@ impl LogsView {
                 }
             });
         }
+    }
+
+    fn save_logs_to_file(&mut self, force: bool) {
+        let (path, exists) = self.file_picker.selected_path();
+        if exists && !force {
+            self.ask_target_file_exists(&path);
+        } else {
+            // TODO: run task to save logs
+
+            self.footer
+                .show_info("Logs saved to the specified file.", DEFAULT_MESSAGE_DURATION);
+        }
+    }
+
+    fn ask_target_file_exists(&mut self, path: &Path) {
+        self.modal = self.new_file_exists_dialog(path);
+        self.modal.show();
+    }
+
+    fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
+            vec![
+                Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            65,
+            colors.modal.text,
+        )
     }
 
     fn update_bound_to_bottom(&mut self) {
@@ -358,7 +391,18 @@ impl View for LogsView {
         }
 
         if self.file_picker.is_visible {
-            return self.file_picker.process_event(event);
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                self.save_logs_to_file(false);
+            }
+
+            return ResponseEvent::Handled;
+        }
+
+        if self.modal.is_visible {
+            return self.modal.process_event(event).when_action_then("overwrite", || {
+                self.save_logs_to_file(true);
+                ResponseEvent::Handled
+            });
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
@@ -441,6 +485,7 @@ impl View for LogsView {
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
         self.file_picker.draw(frame, area);
+        self.modal.draw(frame, frame.area());
 
         if area.height != self.area.height && self.bound_to_bottom {
             self.area = area;
