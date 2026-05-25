@@ -216,8 +216,8 @@ impl PickerBehaviour for FileBehaviour {
         ErrorHighlightMode::Value
     }
 
-    fn validate(&mut self, _value: &str) -> Option<usize> {
-        None
+    fn validate(&mut self, value: &str) -> Option<usize> {
+        if !validate_path(value) { Some(0) } else { None }
     }
 
     fn restores_on_cancel(&self) -> bool {
@@ -258,12 +258,23 @@ impl PickerBehaviour for FileBehaviour {
             return true;
         };
 
+        if patterns.has_error() {
+            return false;
+        }
+
         let Some(item) = patterns.items.get_highlighted() else {
             if patterns.value().is_empty() {
                 if !patterns.value_prefix().is_empty() && !patterns.items.is_empty() {
                     self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())));
                     patterns.set_prompt(self.prompt());
                     patterns.reset();
+                    if self.current_path.parent().is_some() {
+                        let mut item = PatternItem::fixed(BACK_NAME.to_owned());
+                        item.set_icon(Some(BACK_ICON));
+                        item.set_sort_value(Some("...-..".to_string()));
+                        patterns.items.add_or_update(item);
+                        patterns.items.highlight_item_by_name(BACK_NAME);
+                    }
                 }
 
                 return false;
@@ -333,4 +344,25 @@ fn combine_values(prefix: &str, highlighted: &str) -> String {
     result.push_str(prefix);
     result.push_str(highlighted);
     result
+}
+
+fn validate_path(path_str: &str) -> bool {
+    if path_str.is_empty() || path_str.contains('\0') {
+        return false;
+    }
+
+    let path = PathBuf::from(path_str);
+    for component in path.components() {
+        if let Some(comp_str) = component.as_os_str().to_str() {
+            if comp_str.chars().any(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*')) {
+                return false;
+            }
+
+            if comp_str.len() > 255 {
+                return false;
+            }
+        }
+    }
+
+    true
 }
