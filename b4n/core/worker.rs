@@ -8,13 +8,13 @@ use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, DeleteResourcesOptions, GetNewResourceYamlCommand, GetResourceYamlCommand,
-    ListResourcePortsCommand, SaveConfigurationCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions,
+    ListResourcePortsCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions,
     SetResourceYamlCommand, SetResourceYamlOptions,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
 use kube::discovery::{Scope, verbs};
-use std::{cell::RefCell, collections::HashMap, net::SocketAddr, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
 
 use crate::core::ConnectionState;
@@ -379,6 +379,12 @@ impl BgWorker {
     pub fn save_history(&mut self, history: History) {
         self.executor
             .run_task(Command::SaveHistory(Box::new(SaveConfigurationCommand::new(history))));
+    }
+
+    /// Saves provided logs content to the specified file.
+    pub fn save_logs(&mut self, path: PathBuf, text: String, footer_tx: NotificationSink) {
+        let command = SaveContentCommand::new(path, text, footer_tx);
+        self.executor.run_task(Command::SaveContent(Box::new(command)));
     }
 
     /// Sends [`DeleteResourcesCommand`] to the background executor with provided resource names.

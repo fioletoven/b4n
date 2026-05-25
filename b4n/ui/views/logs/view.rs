@@ -190,10 +190,12 @@ impl LogsView {
         if exists && !force {
             self.ask_target_file_exists(&path);
         } else {
-            // TODO: run task to save logs
-
-            self.footer
-                .show_info("Logs saved to the specified file.", DEFAULT_MESSAGE_DURATION);
+            let text = self
+                .logs
+                .content()
+                .map(|content| content.to_plain_text(None))
+                .unwrap_or_default();
+            self.worker.borrow_mut().save_logs(path, text, self.footer.clone());
         }
     }
 
@@ -274,6 +276,125 @@ impl LogsView {
         }
 
         response
+    }
+
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.logs.has_selection()) {
+                return Some(result);
+            }
+        }
+
+        if self.search.is_visible {
+            let result = self.search.process_event(event);
+            if self.logs.search(self.search.value(), false) {
+                self.logs.scroll_to_current_match(self.get_offset());
+                self.update_search_count();
+            }
+
+            self.update_bound_to_bottom();
+            return Some(result);
+        }
+
+        if self.file_picker.is_visible {
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                self.save_logs_to_file(false);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.modal.is_visible {
+            return Some(self.modal.process_event(event).when_action_then("overwrite", || {
+                self.save_logs_to_file(true);
+                ResponseEvent::Handled
+            }));
+        }
+
+        None
+    }
+
+    fn process_bound_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
+            self.search.show();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
+            self.clear_search();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+            return Some(ResponseEvent::Cancelled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::LogsTimestamps) {
+            self.toggle_timestamps();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.copy_logs_to_clipboard();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentSave) {
+            self.show_file_picker();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
+            self.navigate_match(true);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
+            self.navigate_match(false);
+            return Some(ResponseEvent::Handled);
+        }
+
+        None
+    }
+
+    fn process_logs_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.logs.is_at_beginning()
+            && self.observers.len() == 1
+            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
+                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
+        {
+            self.fetch_previous_log_lines();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Key(key) = event
+            && (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
+            && self.logs.is_at_end()
+        {
+            self.update_bound_to_bottom();
+            self.logs.process_event(event);
+            return ResponseEvent::Handled;
+        }
+
+        if self.logs.process_event(event) == ResponseEvent::Handled {
+            self.update_bound_to_bottom();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
     }
 
     fn fetch_previous_log_lines(&mut self) {
@@ -372,112 +493,15 @@ impl View for LogsView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.logs.has_selection()) {
-                return result;
-            }
-        }
-
-        if self.search.is_visible {
-            let result = self.search.process_event(event);
-            if self.logs.search(self.search.value(), false) {
-                self.logs.scroll_to_current_match(self.get_offset());
-                self.update_search_count();
-            }
-
-            self.update_bound_to_bottom();
+        if let Some(result) = self.process_widget_event(event) {
             return result;
         }
 
-        if self.file_picker.is_visible {
-            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
-                self.save_logs_to_file(false);
-            }
-
-            return ResponseEvent::Handled;
+        if let Some(result) = self.process_bound_event(event) {
+            return result;
         }
 
-        if self.modal.is_visible {
-            return self.modal.process_event(event).when_action_then("overwrite", || {
-                self.save_logs_to_file(true);
-                ResponseEvent::Handled
-            });
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-        {
-            self.show_mouse_menu(mouse.column, mouse.row);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
-            self.search.show();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
-            self.clear_search();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            return ResponseEvent::Cancelled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::LogsTimestamps) {
-            self.toggle_timestamps();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
-            self.copy_logs_to_clipboard();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::ContentSave) {
-            self.show_file_picker();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
-            self.navigate_match(true);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
-            self.navigate_match(false);
-            return ResponseEvent::Handled;
-        }
-
-        if self.logs.is_at_beginning()
-            && self.observers.len() == 1
-            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
-                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
-        {
-            self.fetch_previous_log_lines();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Key(key) = event
-            && (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
-            && self.logs.is_at_end()
-        {
-            self.update_bound_to_bottom();
-            self.logs.process_event(event);
-            return ResponseEvent::Handled;
-        } else if self.logs.process_event(event) == ResponseEvent::Handled {
-            self.update_bound_to_bottom();
-            return ResponseEvent::Handled;
-        }
-
-        ResponseEvent::NotHandled
+        self.process_logs_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
