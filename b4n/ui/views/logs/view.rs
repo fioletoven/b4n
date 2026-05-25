@@ -2,12 +2,13 @@ use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, PODS};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
 use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -16,7 +17,7 @@ use crate::ui::views::View;
 use crate::ui::views::logs::content::{LogsContent, TIMESTAMP_TEXT_LENGTH};
 use crate::ui::views::logs::line::LogLine;
 use crate::ui::views::logs::{LogsObserver, LogsObserverError, LogsObserverOptions};
-use crate::ui::widgets::{CommandPalette, Search};
+use crate::ui::widgets::{CommandPalette, FileSelector, Search};
 
 const DEFAULT_LOOKBACK_TIME: SignedDuration = SignedDuration::from_mins(15);
 const DEFAULT_LOOKBACK_LINES: i32 = 120;
@@ -40,8 +41,10 @@ pub struct LogsView {
     worker: SharedBgWorker,
     observers: Vec<LogsObserver>,
     fetch_observer: Option<LogsObserver>,
+    modal: Dialog,
     command_palette: CommandPalette,
     search: Search,
+    file_picker: FileSelector,
     footer: NotificationSink,
     container: Option<ContainerRef>,
     previous: bool,
@@ -92,6 +95,7 @@ impl LogsView {
         }
 
         let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
+        let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
 
         Ok(Self {
             logs,
@@ -99,8 +103,10 @@ impl LogsView {
             worker,
             observers,
             fetch_observer: None,
+            modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             search,
+            file_picker,
             footer,
             previous,
             container,
@@ -124,6 +130,10 @@ impl LogsView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
+                ActionItem::action("save", "save").with_description("saves logs to a file"),
+                Some(KeyCommand::ContentSave),
+            )
+            .with_action(
                 ActionItem::action("search", "search").with_description("searches logs using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
@@ -140,9 +150,18 @@ impl LogsView {
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette())
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-            .with_menu_action(ActionItem::menu(2, " search", "search"));
+            .with_menu_action(ActionItem::menu(2, " save to file", "save"))
+            .with_menu_action(ActionItem::menu(3, " search", "search"))
+            .with_menu_action(ActionItem::menu(4, " timestamps", "timestamps"));
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
+    }
+
+    fn show_file_picker(&mut self) {
+        self.file_picker
+            .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.reset();
+        self.file_picker.show();
     }
 
     fn toggle_timestamps(&mut self) {
@@ -165,6 +184,39 @@ impl LogsView {
                 }
             });
         }
+    }
+
+    fn save_logs_to_file(&mut self, force: bool) {
+        let (path, exists) = self.file_picker.selected_path();
+        if exists && !force {
+            self.ask_target_file_exists(&path);
+        } else {
+            let text = self
+                .logs
+                .content()
+                .map(|content| content.to_plain_text(None))
+                .unwrap_or_default();
+            self.worker.borrow_mut().save_logs(path, text, self.footer.clone());
+        }
+    }
+
+    fn ask_target_file_exists(&mut self, path: &Path) {
+        self.modal = self.new_file_exists_dialog(path);
+        self.modal.show();
+    }
+
+    fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
+            vec![
+                Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            65,
+            colors.modal.text,
+        )
     }
 
     fn update_bound_to_bottom(&mut self) {
@@ -215,6 +267,9 @@ impl LogsView {
         } else if response.is_action("copy") {
             self.copy_logs_to_clipboard();
             return ResponseEvent::Handled;
+        } else if response.is_action("save") {
+            self.show_file_picker();
+            return ResponseEvent::Handled;
         } else if response.is_action("search") {
             self.search.highlight_position(event.position());
             self.search.show();
@@ -222,6 +277,125 @@ impl LogsView {
         }
 
         response
+    }
+
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.logs.has_selection()) {
+                return Some(result);
+            }
+        }
+
+        if self.search.is_visible {
+            let result = self.search.process_event(event);
+            if self.logs.search(self.search.value(), false) {
+                self.logs.scroll_to_current_match(self.get_offset());
+                self.update_search_count();
+            }
+
+            self.update_bound_to_bottom();
+            return Some(result);
+        }
+
+        if self.file_picker.is_visible {
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                self.save_logs_to_file(false);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.modal.is_visible {
+            return Some(self.modal.process_event(event).when_action_then("overwrite", || {
+                self.save_logs_to_file(true);
+                ResponseEvent::Handled
+            }));
+        }
+
+        None
+    }
+
+    fn process_bound_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+            self.show_command_palette();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if let TuiEvent::Mouse(mouse) = event
+            && mouse.kind == MouseEventKind::RightClick
+        {
+            self.show_mouse_menu(mouse.column, mouse.row);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
+            self.search.show();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
+            self.clear_search();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+            return Some(ResponseEvent::Cancelled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::LogsTimestamps) {
+            self.toggle_timestamps();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+            self.copy_logs_to_clipboard();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContentSave) {
+            self.show_file_picker();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
+            self.navigate_match(true);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
+            self.navigate_match(false);
+            return Some(ResponseEvent::Handled);
+        }
+
+        None
+    }
+
+    fn process_logs_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.logs.is_at_beginning()
+            && self.observers.len() == 1
+            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
+                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
+        {
+            self.fetch_previous_log_lines();
+            return ResponseEvent::Handled;
+        }
+
+        if let TuiEvent::Key(key) = event
+            && (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
+            && self.logs.is_at_end()
+        {
+            self.update_bound_to_bottom();
+            self.logs.process_event(event);
+            return ResponseEvent::Handled;
+        }
+
+        if self.logs.process_event(event) == ResponseEvent::Handled {
+            self.update_bound_to_bottom();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
     }
 
     fn fetch_previous_log_lines(&mut self) {
@@ -320,98 +494,23 @@ impl View for LogsView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.logs.has_selection()) {
-                return result;
-            }
-        }
-
-        if self.search.is_visible {
-            let result = self.search.process_event(event);
-            if self.logs.search(self.search.value(), false) {
-                self.logs.scroll_to_current_match(self.get_offset());
-                self.update_search_count();
-            }
-
-            self.update_bound_to_bottom();
+        if let Some(result) = self.process_widget_event(event) {
             return result;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
-            self.show_command_palette();
-            return ResponseEvent::Handled;
+        if let Some(result) = self.process_bound_event(event) {
+            return result;
         }
 
-        if let TuiEvent::Mouse(mouse) = event
-            && mouse.kind == MouseEventKind::RightClick
-        {
-            self.show_mouse_menu(mouse.column, mouse.row);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
-            self.search.show();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
-            self.clear_search();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            return ResponseEvent::Cancelled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::LogsTimestamps) {
-            self.toggle_timestamps();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
-            self.copy_logs_to_clipboard();
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.logs.matches_count().is_some() {
-            self.navigate_match(true);
-            return ResponseEvent::Handled;
-        }
-
-        if self.app_data.has_binding(event, KeyCommand::MatchPrevious) && self.logs.matches_count().is_some() {
-            self.navigate_match(false);
-            return ResponseEvent::Handled;
-        }
-
-        if self.logs.is_at_beginning()
-            && self.observers.len() == 1
-            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
-                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
-        {
-            self.fetch_previous_log_lines();
-            return ResponseEvent::Handled;
-        }
-
-        if let TuiEvent::Key(key) = event
-            && (key.code == KeyCode::Down || key.code == KeyCode::End || key.code == KeyCode::PageDown)
-            && self.logs.is_at_end()
-        {
-            self.update_bound_to_bottom();
-            self.logs.process_event(event);
-            return ResponseEvent::Handled;
-        } else if self.logs.process_event(event) == ResponseEvent::Handled {
-            self.update_bound_to_bottom();
-            return ResponseEvent::Handled;
-        }
-
-        ResponseEvent::NotHandled
+        self.process_logs_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         self.logs.draw(frame, area, self.get_offset());
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
+        self.file_picker.draw(frame, area);
+        self.modal.draw(frame, frame.area());
 
         if area.height != self.area.height && self.bound_to_bottom {
             self.area = area;

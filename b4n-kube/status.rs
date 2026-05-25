@@ -1,3 +1,4 @@
+use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 
 const STATUS_UNKNOWN: &str = "Unknown";
@@ -14,17 +15,8 @@ pub fn from_object(object: &DynamicObject) -> &str {
         return phase;
     }
 
-    if let Some(conditions) = status["conditions"].as_array() {
-        for condition in conditions {
-            if condition["type"].as_str() == Some(STATUS_READY) {
-                let status = condition["status"].as_str().unwrap_or(STATUS_UNKNOWN);
-                return if status == "True" {
-                    STATUS_READY
-                } else {
-                    condition["reason"].as_str().unwrap_or(STATUS_NOT_READY)
-                };
-            }
-        }
+    if let Some(status) = from_conditions(status["conditions"].as_array()) {
+        return status;
     }
 
     if let Some(desired) = status["replicas"].as_i64() {
@@ -33,4 +25,22 @@ pub fn from_object(object: &DynamicObject) -> &str {
     }
 
     STATUS_UNKNOWN
+}
+
+/// Extracts status from object's conditions.
+pub fn from_conditions(conditions: Option<&Vec<Value>>) -> Option<&str> {
+    if let Some(conditions) = conditions {
+        for condition in conditions {
+            if condition["type"].as_str() == Some(STATUS_READY) {
+                let status = condition["status"].as_str().unwrap_or(STATUS_UNKNOWN);
+                return if status == "True" {
+                    Some(STATUS_READY)
+                } else {
+                    Some(condition["reason"].as_str().unwrap_or(STATUS_NOT_READY))
+                };
+            }
+        }
+    }
+
+    None
 }

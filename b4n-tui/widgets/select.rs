@@ -216,6 +216,18 @@ impl<T: Table> Select<T> {
         }
     }
 
+    /// Highlights item which name matches specified filter value.
+    pub fn highlight_item_by_filter_value(&mut self) {
+        if self.highlight_exact {
+            self.items.highlight_item_by_name(self.filter.value());
+        } else {
+            self.items.highlight_item_by_name_start(self.filter.value());
+            if self.items.get_highlighted_item_index().is_none() {
+                self.items.highlight_first_item();
+            }
+        }
+    }
+
     /// Updates filter applied on items.
     pub fn update_items_filter(&mut self) {
         if self.filter_disabled {
@@ -232,7 +244,8 @@ impl<T: Table> Select<T> {
             },
             (false, Some(current)) if new_filter == current => false,
             (false, _) => {
-                self.filter_and_highlight();
+                self.items.set_filter(Some(self.filter.value().to_owned()));
+                self.highlight_item_by_filter_value();
                 true
             },
         };
@@ -243,18 +256,6 @@ impl<T: Table> Select<T> {
             && highlighted != self.filter.value()
         {
             self.items.unhighlight_item();
-        }
-    }
-
-    fn filter_and_highlight(&mut self) {
-        self.items.set_filter(Some(self.filter.value().to_owned()));
-        if self.highlight_exact {
-            self.items.highlight_item_by_name(self.filter.value());
-        } else {
-            self.items.highlight_item_by_name_start(self.filter.value());
-            if self.items.get_highlighted_item_index().is_none() {
-                self.items.highlight_first_item();
-            }
         }
     }
 }
