@@ -95,7 +95,7 @@ impl FileBehaviour {
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
         self.prompt = truncate_prompt(&dir_path);
-        self.current_path = dir_path.clone();
+        self.current_path.clone_from(&dir_path);
         self.current_exists = false;
         self.loading = self.lister.list_dir(dir_path, true);
         self.loading
@@ -217,7 +217,7 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn validate(&mut self, value: &str) -> Option<usize> {
-        if !validate_path(value) { Some(0) } else { None }
+        if validate_path(value) { None } else { Some(0) }
     }
 
     fn restores_on_cancel(&self) -> bool {
@@ -256,7 +256,7 @@ impl PickerBehaviour for FileBehaviour {
     fn on_close(&mut self, patterns: &mut Select<PatternsList>, is_cancel: bool) -> bool {
         if is_cancel {
             return true;
-        };
+        }
 
         if patterns.has_error() {
             return false;

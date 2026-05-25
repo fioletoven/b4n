@@ -386,7 +386,7 @@ enum Section<'a> {
 
 impl<'a> Section<'a> {
     fn from_text(value: &'a mut Vec<StyledLine>) -> Self {
-        let width = value.iter().map(|l| l.chars_len()).max();
+        let width = value.iter().map(StyledLine::chars_len).max();
         let height = u16::try_from(value.len()).unwrap_or_default();
         Section::Text(value, width.unwrap_or_default(), height)
     }
