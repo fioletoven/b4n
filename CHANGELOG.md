@@ -2,10 +2,14 @@
 
 ## WIP
 
+### Features
+
+- possibility to save logs to a file
+
 ### Bug fixes
 
 - disable filter pin on context change
-- fix node status extracting
+- fix node status extraction
 
 ## 0.4.8 - 2026-05-04
 

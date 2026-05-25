@@ -160,6 +160,7 @@ impl LogsView {
     fn show_file_picker(&mut self) {
         self.file_picker
             .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.reset();
         self.file_picker.show();
     }
 

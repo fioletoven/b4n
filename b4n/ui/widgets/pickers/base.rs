@@ -159,7 +159,7 @@ impl<B: PickerBehaviour> Picker<B> {
         }
     }
 
-    /// Sets flat indicating that item should be highlighted on complete key press.
+    /// Sets flag indicating that item should be highlighted on complete key press.
     pub fn with_highlight_on_complete(mut self, highlight_on_complete: bool) -> Self {
         self.highlight_on_complete = highlight_on_complete;
         self

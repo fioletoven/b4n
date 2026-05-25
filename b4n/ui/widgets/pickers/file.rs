@@ -20,6 +20,7 @@ const PROMPT_LEN: usize = 30;
 const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
+const BACK_NAME: &str = "..";
 const FILE_SELECT_HINT: &str = "Select or type a file path:";
 
 pub type FileSelector = Picker<FileBehaviour>;
@@ -32,7 +33,7 @@ impl FileSelector {
         Picker::new_picker(app_data, Some(worker), width, behaviour).with_highlight_on_complete(true)
     }
 
-    /// Gets the selected path and flag if path already exists in the file system.
+    /// Returns the selected path and flag indicating if path already exists in the file system.
     pub fn selected_path(&self) -> (PathBuf, bool) {
         if let Some(path) = &self.behaviour().selected_path {
             (
@@ -96,8 +97,8 @@ impl FileBehaviour {
         self.prompt = truncate_prompt(&dir_path);
         self.current_path = dir_path.clone();
         self.current_exists = false;
-        self.loading = true;
-        self.lister.list_dir(dir_path, true)
+        self.loading = self.lister.list_dir(dir_path, true);
+        self.loading
     }
 
     fn navigate_up(&mut self) -> bool {
@@ -109,41 +110,41 @@ impl FileBehaviour {
     }
 
     fn process_dir_results(&mut self, patterns: &mut Select<PatternsList>) {
-        let mut updated = false;
-
         while let Some(result) = self.lister.try_recv() {
-            updated = true;
             match result {
                 DirListResult::Init => {
-                    patterns.items.clear();
                     self.loading = true;
+                    patterns.items.clear();
+                    if !patterns.value().is_empty() {
+                        patterns.items.set_filter(Some(patterns.value().into()));
+                    }
                 },
                 DirListResult::Entry(entry) => {
+                    self.current_exists = true;
+
                     let mut item = PatternItem::fixed(entry.name.clone());
                     if entry.is_dir {
-                        item.set_icon(Some(if entry.name == ".." { BACK_ICON } else { DIR_ICON }));
+                        item.set_icon(Some(if entry.name == BACK_NAME { BACK_ICON } else { DIR_ICON }));
                         item.set_sort_value(Some(format!("...-{}", entry.name)));
                     }
 
                     patterns.items.add_or_update(item);
-                    self.current_exists = true;
+
+                    if entry.is_dir && entry.name == BACK_NAME && patterns.value_full().is_empty() {
+                        patterns.items.highlight_item_by_name(BACK_NAME);
+                    } else if !patterns.value().is_empty() {
+                        patterns.highlight_item_by_filter_value();
+                    }
                 },
                 DirListResult::Complete => {
                     self.loading = false;
                     self.current_exists = true;
-                    if patterns.value().is_empty() {
-                        patterns.highlight_first();
-                    }
                 },
                 DirListResult::Error(_) => {
                     self.loading = false;
                     self.current_exists = false;
                 },
             }
-        }
-
-        if updated {
-            patterns.update_items_filter();
         }
     }
 
@@ -258,15 +259,24 @@ impl PickerBehaviour for FileBehaviour {
         };
 
         let Some(item) = patterns.items.get_highlighted() else {
+            if patterns.value().is_empty() {
+                if !patterns.value_prefix().is_empty() && !patterns.items.is_empty() {
+                    self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())));
+                    patterns.set_prompt(self.prompt());
+                    patterns.reset();
+                }
+
+                return false;
+            }
+
             return true;
         };
 
         if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
-            if item.name() == ".." {
+            if item.name() == BACK_NAME {
                 self.navigate_up();
             } else {
-                let path = self.current_path.join(normalize(patterns.value_prefix())).join(item.value());
-                self.navigate_to_dir(path);
+                self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())).join(item.value()));
             }
 
             patterns.set_prompt(self.prompt());
