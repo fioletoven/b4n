@@ -381,8 +381,8 @@ impl BgWorker {
             .run_task(Command::SaveHistory(Box::new(SaveConfigurationCommand::new(history))));
     }
 
-    /// Saves provided logs content to the specified file.
-    pub fn save_logs(&mut self, path: PathBuf, text: String, footer_tx: NotificationSink) {
+    /// Saves provided text content to the specified file.
+    pub fn save_content(&mut self, path: PathBuf, text: String, footer_tx: NotificationSink) {
         let command = SaveContentCommand::new(path, text, footer_tx);
         self.executor.run_task(Command::SaveContent(Box::new(command)));
     }

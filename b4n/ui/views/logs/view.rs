@@ -41,10 +41,10 @@ pub struct LogsView {
     worker: SharedBgWorker,
     observers: Vec<LogsObserver>,
     fetch_observer: Option<LogsObserver>,
-    modal: Dialog,
-    command_palette: CommandPalette,
     search: Search,
     file_picker: FileSelector,
+    modal: Dialog,
+    command_palette: CommandPalette,
     footer: NotificationSink,
     container: Option<ContainerRef>,
     previous: bool,
@@ -103,10 +103,10 @@ impl LogsView {
             worker,
             observers,
             fetch_observer: None,
-            modal: Dialog::default(),
-            command_palette: CommandPalette::default(),
             search,
             file_picker,
+            modal: Dialog::default(),
+            command_palette: CommandPalette::default(),
             footer,
             previous,
             container,
@@ -196,7 +196,7 @@ impl LogsView {
                 .content()
                 .map(|content| content.to_plain_text(None))
                 .unwrap_or_default();
-            self.worker.borrow_mut().save_logs(path, text, self.footer.clone());
+            self.worker.borrow_mut().save_content(path, text, self.footer.clone());
         }
     }
 
@@ -207,7 +207,6 @@ impl LogsView {
 
     fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
             vec![

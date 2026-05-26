@@ -10,12 +10,13 @@ use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::{Content, ContentViewer, StyleFallback, StyledLine};
 use crate::ui::views::{View, yaml::YamlContent};
-use crate::ui::widgets::{CommandPalette, Search};
+use crate::ui::widgets::{CommandPalette, FileSelector, Search};
 
 /// YAML view.
 pub struct YamlView {
@@ -32,6 +33,7 @@ pub struct YamlView {
     command_id: Option<String>,
     last_mouse_click: Option<Position>,
     search: Search,
+    file_picker: FileSelector,
     modal: Dialog,
     command_palette: CommandPalette,
     footer: NotificationSink,
@@ -64,6 +66,7 @@ impl YamlView {
             None,
         );
         let search = Search::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
+        let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
 
         Self {
             yaml,
@@ -79,6 +82,7 @@ impl YamlView {
             command_id,
             last_mouse_click: None,
             search,
+            file_picker,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             footer,
@@ -148,6 +152,10 @@ impl YamlView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
+                ActionItem::action("save", "save").with_description("saves YAML to a file"),
+                Some(KeyCommand::ContentSave),
+            )
+            .with_action(
                 ActionItem::action("search", "search").with_description("searches YAML using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
@@ -192,13 +200,14 @@ impl YamlView {
                 .with_menu_action(ActionItem::back())
                 .with_menu_action(ActionItem::command_palette())
                 .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-                .with_menu_action(ActionItem::menu(2, " search", "search"));
+                .with_menu_action(ActionItem::menu(2, " save to file", "save"))
+                .with_menu_action(ActionItem::menu(3, " search", "search"));
             if self.yaml.content().is_some_and(Content::is_editable) {
-                builder.add_menu_action(ActionItem::menu(4, " edit", "edit"));
+                builder.add_menu_action(ActionItem::menu(5, " edit", "edit"));
             }
             if self.can_encode_decode() {
                 let action = if self.is_decoded { " encode" } else { " decode" };
-                builder.add_menu_action(ActionItem::menu(3, action, "decode"));
+                builder.add_menu_action(ActionItem::menu(4, action, "decode"));
             }
         }
 
@@ -243,25 +252,8 @@ impl YamlView {
     }
 
     fn process_event_internal(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.yaml.has_selection()) {
-                return result;
-            }
-        }
-
-        if self.search.is_visible {
-            let result = self.search.process_event(event);
-            if result != ResponseEvent::NotHandled && self.yaml.search(self.search.value(), false) {
-                self.yaml.scroll_to_current_match(None);
-                self.update_search_count();
-            }
-
+        if let Some(result) = self.process_widget_event(event) {
             return result;
-        }
-
-        if self.modal.is_visible {
-            return self.process_modal_event(event);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.enable_edit_mode() {
@@ -347,6 +339,11 @@ impl YamlView {
             return ResponseEvent::Handled;
         }
 
+        if self.app_data.has_binding(event, KeyCommand::ContentSave) {
+            self.show_file_picker();
+            return ResponseEvent::Handled;
+        }
+
         if self.app_data.has_binding(event, KeyCommand::MatchNext) && self.yaml.matches_count().is_some() {
             self.navigate_match(true);
         }
@@ -371,6 +368,9 @@ impl YamlView {
             return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
         } else if response.is_action("copy") {
             self.copy_to_clipboard(false);
+            return ResponseEvent::Handled;
+        } else if response.is_action("save") {
+            self.show_file_picker();
             return ResponseEvent::Handled;
         } else if response.is_action("copy_2") {
             return self.process_event(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL).into());
@@ -402,8 +402,46 @@ impl YamlView {
         response
     }
 
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.yaml.has_selection()) {
+                return Some(result);
+            }
+        }
+
+        if self.search.is_visible {
+            let result = self.search.process_event(event);
+            if result != ResponseEvent::NotHandled && self.yaml.search(self.search.value(), false) {
+                self.yaml.scroll_to_current_match(None);
+                self.update_search_count();
+            }
+
+            return Some(result);
+        }
+
+        if self.file_picker.is_visible {
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                self.save_yaml_to_file(false);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.modal.is_visible {
+            return Some(self.process_modal_event(event));
+        }
+
+        None
+    }
+
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.modal.process_event(event);
+        if response.is_action("overwrite") {
+            self.save_yaml_to_file(true);
+            return ResponseEvent::Handled;
+        }
+
         let force = self.modal.checkbox(0).is_some_and(|i| i.is_checked);
         let ignore_version = self.modal.checkbox(1).is_some_and(|i| i.is_checked);
         let patch_status = self.modal.checkbox(2).is_some_and(|i| i.is_checked);
@@ -436,6 +474,45 @@ impl YamlView {
         } else {
             response
         }
+    }
+
+    fn show_file_picker(&mut self) {
+        self.file_picker
+            .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.reset();
+        self.file_picker.show();
+    }
+
+    fn save_yaml_to_file(&mut self, force: bool) {
+        let (path, exists) = self.file_picker.selected_path();
+        if exists && !force {
+            self.ask_target_file_exists(&path);
+        } else {
+            let text = self
+                .yaml
+                .content()
+                .map(|content| content.to_plain_text(None))
+                .unwrap_or_default();
+            self.worker.borrow_mut().save_content(path, text, self.footer.clone());
+        }
+    }
+
+    fn ask_target_file_exists(&mut self, path: &Path) {
+        self.modal = self.new_file_exists_dialog(path);
+        self.modal.show();
+    }
+
+    fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+        Dialog::new(
+            format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
+            vec![
+                Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+            ],
+            65,
+            colors.modal.text,
+        )
     }
 
     fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
@@ -671,6 +748,7 @@ impl View for YamlView {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());
+        self.file_picker.draw(frame, area);
         self.modal.draw(frame, area);
     }
 }

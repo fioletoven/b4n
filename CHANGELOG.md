@@ -4,7 +4,7 @@
 
 ### Features
 
-- possibility to save logs to a file
+- possibility to save YAML or logs to a file
 
 ### Bug fixes
 

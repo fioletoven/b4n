@@ -1,6 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink};
 use std::path::PathBuf;
-use tokio::fs::File;
+use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 
 use crate::commands::CommandResult;
@@ -24,6 +24,16 @@ impl SaveContentCommand {
 
     /// Saves content to the specified file.
     pub async fn execute(self) -> Option<CommandResult> {
+        if let Some(parent) = self.path.parent()
+            && let Err(error) = fs::create_dir_all(parent).await
+        {
+            let msg = format!("Cannot create directories for {}: {}", self.path.display(), error);
+            tracing::error!("{}", msg);
+            self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+
+            return None;
+        }
+
         match File::create(&self.path).await {
             Ok(mut file) => {
                 if let Err(error) = file.write_all(self.content.as_bytes()).await {
