@@ -252,33 +252,8 @@ impl YamlView {
     }
 
     fn process_event_internal(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.yaml.has_selection()) {
-                return result;
-            }
-        }
-
-        if self.search.is_visible {
-            let result = self.search.process_event(event);
-            if result != ResponseEvent::NotHandled && self.yaml.search(self.search.value(), false) {
-                self.yaml.scroll_to_current_match(None);
-                self.update_search_count();
-            }
-
+        if let Some(result) = self.process_widget_event(event) {
             return result;
-        }
-
-        if self.file_picker.is_visible {
-            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
-                self.save_yaml_to_file(false);
-            }
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.modal.is_visible {
-            return self.process_modal_event(event);
         }
 
         if self.app_data.has_binding(event, KeyCommand::YamlEdit) && self.enable_edit_mode() {
@@ -425,6 +400,39 @@ impl YamlView {
         }
 
         response
+    }
+
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled || (event.is_mouse(MouseEventKind::LeftClick) && self.yaml.has_selection()) {
+                return Some(result);
+            }
+        }
+
+        if self.search.is_visible {
+            let result = self.search.process_event(event);
+            if result != ResponseEvent::NotHandled && self.yaml.search(self.search.value(), false) {
+                self.yaml.scroll_to_current_match(None);
+                self.update_search_count();
+            }
+
+            return Some(result);
+        }
+
+        if self.file_picker.is_visible {
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                self.save_yaml_to_file(false);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.modal.is_visible {
+            return Some(self.process_modal_event(event));
+        }
+
+        None
     }
 
     fn process_modal_event(&mut self, event: &TuiEvent) -> ResponseEvent {
