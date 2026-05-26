@@ -97,7 +97,10 @@ impl Dialog {
         let width = std::cmp::min(area.width, self.width).max(2) - 2;
         let text = textwrap::wrap(
             &self.message,
-            Options::new(width.into()).initial_indent("  ").subsequent_indent("  "),
+            Options::new(width.into())
+                .break_words(false)
+                .initial_indent("  ")
+                .subsequent_indent("  "),
         );
         let lines = u16::try_from(self.controls.controls_len()).unwrap_or_default();
         let lines = if lines == 0 { 3 } else { lines + 4 };

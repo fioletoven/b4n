@@ -9,7 +9,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, Prefix};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
@@ -258,16 +258,42 @@ impl PickerBehaviour for FileBehaviour {
             return true;
         }
 
-        if patterns.has_error() {
+        if !patterns.value_full().is_empty() && patterns.has_error() {
             return false;
         }
 
-        let Some(item) = patterns.items.get_highlighted() else {
+        if let Some(item) = patterns.items.get_highlighted() {
+            if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
+                if item.name() == BACK_NAME {
+                    self.navigate_up();
+                } else {
+                    self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())).join(item.value()));
+                }
+
+                patterns.set_prompt(self.prompt());
+                patterns.items.clear();
+                patterns.reset();
+
+                return false;
+            }
+        } else {
+            if patterns.value() == BACK_NAME {
+                self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix()).join(BACK_NAME)));
+
+                patterns.set_prompt(self.prompt());
+                patterns.items.clear();
+                patterns.reset();
+
+                return false;
+            }
+
             if patterns.value().is_empty() {
                 if !patterns.value_prefix().is_empty() && !patterns.items.is_empty() {
                     self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())));
+
                     patterns.set_prompt(self.prompt());
                     patterns.reset();
+
                     if self.current_path.parent().is_some() {
                         let mut item = PatternItem::fixed(BACK_NAME.to_owned());
                         item.set_icon(Some(BACK_ICON));
@@ -279,25 +305,9 @@ impl PickerBehaviour for FileBehaviour {
 
                 return false;
             }
-
-            return true;
-        };
-
-        if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
-            if item.name() == BACK_NAME {
-                self.navigate_up();
-            } else {
-                self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())).join(item.value()));
-            }
-
-            patterns.set_prompt(self.prompt());
-            patterns.items.clear();
-            patterns.reset();
-
-            false
-        } else {
-            true
         }
+
+        true
     }
 
     fn on_draw(&mut self, patterns: &mut Select<PatternsList>, _area: Rect) {
@@ -351,18 +361,40 @@ fn validate_path(path_str: &str) -> bool {
         return false;
     }
 
-    let path = PathBuf::from(path_str);
-    for component in path.components() {
-        if let Some(comp_str) = component.as_os_str().to_str() {
-            if comp_str.chars().any(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*')) {
-                return false;
-            }
+    validate_path_components(Path::new(path_str))
+}
 
-            if comp_str.len() > 255 {
-                return false;
-            }
+#[cfg(windows)]
+fn validate_path_components(path: &Path) -> bool {
+    let mut has_only_prefix = false;
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => {
+                has_only_prefix = matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_));
+            },
+            Component::RootDir => {
+                has_only_prefix = false;
+            },
+            Component::Normal(part) => {
+                let Some(part_str) = part.to_str() else {
+                    return false;
+                };
+
+                if part_str.len() > 255 || part_str.chars().any(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*')) {
+                    return false;
+                }
+            },
+            Component::CurDir | Component::ParentDir => {},
         }
     }
 
-    true
+    !has_only_prefix
+}
+
+#[cfg(not(windows))]
+fn validate_path_components(path: &Path) -> bool {
+    path.components().all(|component| match component {
+        Component::Normal(part) => part.to_str().is_some_and(|part_str| part_str.len() <= 255),
+        _ => true,
+    })
 }
