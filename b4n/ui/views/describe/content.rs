@@ -26,7 +26,8 @@ use crate::ui::views::describe::utils::{list, none, property};
 pub struct DescribeContent {
     app_data: SharedAppData,
     resource: ResourceRef,
-    lines: Vec<StyledLine>,
+    lines_start: Vec<StyledLine>,
+    lines_end: Vec<StyledLine>,
     conditions: ListViewer<ResourcesList>,
     conditions_header: Vec<StyledLine>,
     events: ListViewer<ResourcesList>,
@@ -54,7 +55,8 @@ impl DescribeContent {
         Self {
             app_data,
             resource,
-            lines: Vec::new(),
+            lines_start: Vec::new(),
+            lines_end: Vec::new(),
             conditions,
             conditions_header,
             events,
@@ -196,10 +198,10 @@ impl DescribeContent {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let mut sections = Vec::with_capacity(self.sections.len() + 5);
-        let mut section_targets = Vec::with_capacity(self.sections.len() + 5);
+        let mut sections = Vec::with_capacity(self.sections.len() + 6);
+        let mut section_targets = Vec::with_capacity(self.sections.len() + 6);
 
-        sections.push(Section::from_text(&mut self.lines));
+        sections.push(Section::from_text(&mut self.lines_start));
         section_targets.push(None);
 
         for (index, section) in self.sections.iter_mut().enumerate() {
@@ -214,6 +216,9 @@ impl DescribeContent {
                 },
             }
         }
+
+        sections.push(Section::from_text(&mut self.lines_end));
+        section_targets.push(None);
 
         sections.push(Section::from_text(&mut self.conditions_header));
         section_targets.push(None);
@@ -429,23 +434,29 @@ impl DescribeContent {
 
     fn update_describe(&mut self, object: &DynamicObject) {
         let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.lines.clear();
+        self.lines_start.clear();
+        self.lines_end.clear();
 
-        self.lines.push(property(colors, "Name", object.name_any()));
+        self.lines_start.push(property(colors, "Name", object.name_any()));
         if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines.push(property(colors, "Namespace", namespace));
+            self.lines_start.push(property(colors, "Namespace", namespace));
         }
 
-        add_list(&mut self.lines, colors, "Labels", object.metadata.labels.as_ref());
-        add_list(&mut self.lines, colors, "Annotations", object.metadata.annotations.as_ref());
+        add_list(&mut self.lines_start, colors, "Labels", object.metadata.labels.as_ref());
+        add_list(
+            &mut self.lines_start,
+            colors,
+            "Annotations",
+            object.metadata.annotations.as_ref(),
+        );
 
-        self.lines.push(StyledLine::default());
-        self.lines
+        self.lines_end.push(StyledLine::default());
+        self.lines_end
             .push(property(colors, "Overall status", status::from_object(object)));
     }
 
     fn update_additional_sections(&mut self, object: &DynamicObject) {
-        data::update_additional_sections(&self.resource, object, &mut self.sections);
+        data::update_additional_sections(&self.resource, &self.app_data, object, &mut self.sections);
     }
 
     fn get_list_by_focus(&mut self, section: FocusTarget) -> Option<&mut ListViewer<ResourcesList>> {

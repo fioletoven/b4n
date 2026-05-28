@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
-
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
+use k8s_openapi::serde_json::Value;
 use ratatui::style::Style;
+use std::collections::BTreeMap;
 
 use crate::ui::presentation::StyledLine;
 
@@ -20,6 +20,19 @@ pub fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl 
     vec![
         span(&colors.property, name),
         span(&colors.normal, ": "),
+        span(&colors.string, value),
+    ]
+    .into()
+}
+
+/// Creates aligned property with `name` and `value` as a `StyledLine`.
+pub fn aligned_property(colors: &YamlSyntaxColors, name: &str, value: &str, indent: usize, width: usize) -> StyledLine {
+    let spacing = " ".repeat(width.saturating_sub(name.len()) + 1);
+
+    vec![
+        span(&colors.normal, " ".repeat(indent)),
+        span(&colors.property, name),
+        span(&colors.normal, format!(":{spacing}")),
         span(&colors.string, value),
     ]
     .into()
@@ -47,4 +60,15 @@ pub fn list(colors: &YamlSyntaxColors, source: &BTreeMap<String, String>) -> Vec
     }
 
     lines
+}
+
+/// Converts `value` to a string.
+pub fn value_to_string(value: &Value) -> String {
+    match value {
+        Value::String(value) => value.clone(),
+        Value::Number(value) => value.to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Null => String::new(),
+        _ => value.to_string(),
+    }
 }

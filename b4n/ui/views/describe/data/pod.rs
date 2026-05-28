@@ -32,7 +32,12 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
 }
 
 /// Updates additional describe sections for `pod` resource.
-pub fn update_additional_sections(resource: &ResourceRef, object: &DynamicObject, sections: &mut [SectionData]) {
+pub fn update_additional_sections(
+    resource: &ResourceRef,
+    _app_data: &SharedAppData,
+    object: &DynamicObject,
+    sections: &mut [SectionData],
+) {
     if sections.len() != 2 {
         return;
     }
