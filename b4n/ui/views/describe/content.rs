@@ -39,7 +39,7 @@ pub struct DescribeContent {
     page_start: ContentPosition,
     max_height: usize,
     max_width: usize,
-    section_targets: Vec<(Rect, Option<FocusTarget>)>,
+    section_targets: Vec<(Rect, Rect, Option<FocusTarget>)>,
     focused: FocusTarget,
     area: Rect,
 }
@@ -237,7 +237,7 @@ impl DescribeContent {
         sections: &mut [Section],
         section_targets: &[Option<FocusTarget>],
         page_start: ContentPosition,
-    ) -> Vec<(Rect, Option<FocusTarget>)> {
+    ) -> Vec<(Rect, Rect, Option<FocusTarget>)> {
         let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
         let mut current_y = 0u16;
         let viewport_start = scroll_y;
@@ -248,6 +248,12 @@ impl DescribeContent {
             let section_height = section.height();
             let section_start = current_y;
             let section_end = current_y.saturating_add(section_height);
+            let page_rect = Rect {
+                x: 0,
+                y: section_start,
+                width: u16::try_from(section.width()).unwrap_or(u16::MAX),
+                height: section_height,
+            };
 
             if section_end > viewport_start && section_start < viewport_end {
                 let clip_top = viewport_start.saturating_sub(section_start);
@@ -264,12 +270,12 @@ impl DescribeContent {
                     };
 
                     section.draw(frame, screen_rect, app_data, clip_top, page_start.x);
-                    areas.push((screen_rect, target));
+                    areas.push((screen_rect, page_rect, target));
                 } else {
-                    areas.push((Rect::default(), target));
+                    areas.push((Rect::default(), page_rect, target));
                 }
             } else {
-                areas.push((Rect::default(), target));
+                areas.push((Rect::default(), page_rect, target));
             }
 
             current_y = section_end;
@@ -279,7 +285,7 @@ impl DescribeContent {
     }
 
     fn get_clicked_section(&self, event: &TuiEvent) -> FocusTarget {
-        for (area, target) in &self.section_targets {
+        for (area, _, target) in &self.section_targets {
             if let Some(target) = target
                 && event.is_in(MouseEventKind::LeftClick, *area)
             {
@@ -312,8 +318,34 @@ impl DescribeContent {
 
     fn focus_next_section(&mut self) {
         let targets = self.focus_targets();
-        if let Some(index) = targets.iter().position(|target| *target == self.focused) {
-            self.focus_section(targets[(index + 1) % targets.len()]);
+        if let Some(index) = targets.iter().position(|(target, _)| *target == self.focused) {
+            let (target, area) = targets[(index + 1) % targets.len()];
+            self.focus_section(target);
+            if target != FocusTarget::Scroll {
+                self.ensure_section_visible(area);
+            }
+        }
+    }
+
+    fn ensure_section_visible(&mut self, section: Rect) {
+        let page_start = self.page_start.y;
+        let section_start = usize::from(section.y);
+
+        if section_start < page_start {
+            self.page_start.x = 0;
+            self.page_start.y = section_start;
+            self.update_page_start();
+
+            return;
+        }
+
+        let page_end = page_start.saturating_add(self.area.height.into());
+        let section_end = usize::from(section.y.saturating_add(section.height));
+
+        if section_end > page_end {
+            self.page_start.x = 0;
+            self.page_start.y = section_end.saturating_sub(self.area.height.into());
+            self.update_page_start();
         }
     }
 
@@ -451,21 +483,15 @@ impl DescribeContent {
         }
     }
 
-    fn focus_targets(&self) -> Vec<FocusTarget> {
-        let mut targets = vec![FocusTarget::Scroll];
+    fn focus_targets(&self) -> Vec<(FocusTarget, Rect)> {
+        let mut targets = vec![(FocusTarget::Scroll, Rect::default())];
 
-        for (_, target) in &self.section_targets {
-            if let Some(target) = target {
-                targets.push(*target);
+        for (_, area, target) in &self.section_targets {
+            if let Some(target) = target
+                && self.can_focus_section(*target)
+            {
+                targets.push((*target, *area));
             }
-        }
-
-        if self.can_focus_section(FocusTarget::Conditions) {
-            targets.push(FocusTarget::Conditions);
-        }
-
-        if self.can_focus_section(FocusTarget::Events) {
-            targets.push(FocusTarget::Events);
         }
 
         targets
