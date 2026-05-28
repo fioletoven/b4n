@@ -20,7 +20,7 @@ use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
 use crate::ui::views::describe::data::{self, SectionData};
-use crate::ui::views::describe::utils::{list, none, property};
+use crate::ui::views::describe::utils::{header, list, none, property};
 
 /// Describe resource content.
 pub struct DescribeContent {
@@ -165,7 +165,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), property(colors, "Conditions", "")];
+        let header = vec![StyledLine::default(), header(colors, "Conditions")];
 
         (viewer, header)
     }
@@ -183,7 +183,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), property(colors, "Events", "")];
+        let header = vec![StyledLine::default(), header(colors, "Events")];
 
         (viewer, header)
     }
@@ -575,7 +575,7 @@ impl<'a> Section<'a> {
 
 fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str, source: Option<&BTreeMap<String, String>>) {
     lines.push(StyledLine::default());
-    lines.push(property(colors, title, ""));
+    lines.push(header(colors, title));
 
     if let Some(source) = source {
         lines.append(&mut list(colors, source));

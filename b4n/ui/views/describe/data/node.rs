@@ -8,7 +8,7 @@ use std::str::FromStr;
 use crate::core::SharedAppData;
 use crate::ui::presentation::StyledLine;
 use crate::ui::views::describe::data::SectionData;
-use crate::ui::views::describe::utils::{aligned_property, property, value_to_string};
+use crate::ui::views::describe::utils::{ValueKind, aligned_property, header, value_to_string};
 
 /// Returns additional describe sections for `node` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, _app_data: &SharedAppData) -> Vec<SectionData> {
@@ -49,7 +49,7 @@ fn add_resource_section(
     title: &str,
     source: Option<&Map<String, Value>>,
 ) {
-    lines.push(property(colors, title, ""));
+    lines.push(header(colors, title));
 
     let Some(source) = source else {
         return;
@@ -58,7 +58,8 @@ fn add_resource_section(
     let width = source.keys().map(String::len).max().unwrap_or_default() + 1;
 
     for (key, value) in source {
-        lines.push(aligned_property(colors, key, &format_value(key, value), 2, width));
+        let line = aligned_property(colors, key, &format_value(key, value), ValueKind::Numeric, 2, width);
+        lines.push(line);
     }
 }
 
