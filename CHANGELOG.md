@@ -4,7 +4,8 @@
 
 ### Features
 
-- possibility to save YAML or logs to a file
+- possibility to save YAML and logs to a file
+- additional sections for Pod and Node resources in describe view
 
 ### Bug fixes
 

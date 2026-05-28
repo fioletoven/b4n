@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_config::themes::{TextColors, YamlSyntaxColors};
+use b4n_config::themes::YamlSyntaxColors;
 use b4n_kube::{InitData, ObserverResult, ResourceRef, status};
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
@@ -10,7 +10,6 @@ use kube::ResourceExt;
 use kube::api::DynamicObject;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Margin, Rect};
-use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use std::collections::BTreeMap;
@@ -20,16 +19,20 @@ use std::time::Instant;
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
+use crate::ui::views::describe::data::{self, SectionData};
+use crate::ui::views::describe::utils::{header, list, none, property};
 
 /// Describe resource content.
 pub struct DescribeContent {
     app_data: SharedAppData,
     resource: ResourceRef,
-    lines: Vec<StyledLine>,
+    lines_start: Vec<StyledLine>,
+    lines_end: Vec<StyledLine>,
     conditions: ListViewer<ResourcesList>,
     conditions_header: Vec<StyledLine>,
     events: ListViewer<ResourcesList>,
     events_header: Vec<StyledLine>,
+    sections: Vec<SectionData>,
     creation_time: Instant,
     has_data: bool,
     is_deleted: bool,
@@ -37,9 +40,9 @@ pub struct DescribeContent {
     page_start: ContentPosition,
     max_height: usize,
     max_width: usize,
+    section_targets: Vec<(Rect, Rect, Option<FocusTarget>)>,
+    focused: FocusTarget,
     area: Rect,
-    section_areas: Vec<Rect>,
-    focused: u8,
 }
 
 impl DescribeContent {
@@ -47,14 +50,18 @@ impl DescribeContent {
     pub fn new(app_data: SharedAppData, resource: ResourceRef) -> Self {
         let (conditions, conditions_header) = Self::create_conditions(&app_data);
         let (events, events_header) = Self::create_events(&app_data);
+        let sections = data::create_additional_sections(&resource, &app_data);
+
         Self {
             app_data,
             resource,
-            lines: Vec::new(),
+            lines_start: Vec::new(),
+            lines_end: Vec::new(),
             conditions,
             conditions_header,
             events,
             events_header,
+            sections,
             creation_time: Instant::now(),
             has_data: false,
             is_deleted: false,
@@ -62,9 +69,9 @@ impl DescribeContent {
             page_start: ContentPosition::new(0, 0),
             max_height: 0,
             max_width: 0,
+            section_targets: Vec::new(),
+            focused: FocusTarget::Scroll,
             area: Rect::default(),
-            section_areas: Vec::new(),
-            focused: 0,
         }
     }
 
@@ -82,6 +89,7 @@ impl DescribeContent {
         self.has_data = true;
         self.update_describe(&object);
         self.update_conditions(&object);
+        self.update_additional_sections(&object);
     }
 
     /// Updates described resource events.
@@ -100,33 +108,36 @@ impl DescribeContent {
             self.focus_section(self.get_clicked_section(event));
         }
 
-        match self.focused {
-            1 => self.conditions.process_event(event),
-            2 => self.events.process_event(event),
-            _ => self.process_scroll_event(event),
+        if let Some(list) = self.get_list_by_focus(self.focused) {
+            list.process_event(event)
+        } else {
+            self.process_scroll_event(event)
         }
     }
 
     /// Returns focused list as a text.
     pub fn get_focused_list_text(&mut self) -> Option<String> {
-        if self.focused == 1 && !self.conditions.table.is_empty() {
-            Some(self.conditions.table.get_items_as_text(ViewType::Compact, false).join("\n"))
-        } else if self.focused == 2 && !self.events.table.is_empty() {
-            Some(self.events.table.get_items_as_text(ViewType::Compact, false).join("\n"))
-        } else {
+        let list = self.get_list_by_focus(self.focused)?;
+        if list.table.is_empty() {
             None
+        } else {
+            Some(list.table.get_items_as_text(ViewType::Compact, false).join("\n"))
         }
     }
 
     /// Returns `true` if content can be scrolled.
     pub fn is_in_scroll_mode(&self) -> bool {
-        self.focused == 0
+        self.focused == FocusTarget::Scroll
     }
 
     /// Returns current page coordinates.\
     /// **Note** that it returns them only if page scrolling is possible.
     pub fn get_coordinates(&self) -> Option<ContentPosition> {
-        if self.focused == 0 { Some(self.page_start) } else { None }
+        if self.focused == FocusTarget::Scroll {
+            Some(self.page_start)
+        } else {
+            None
+        }
     }
 
     /// Redraws describe view content on the screen.
@@ -154,7 +165,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), property(colors, "Conditions", "")];
+        let header = vec![StyledLine::default(), header(colors, "Conditions")];
 
         (viewer, header)
     }
@@ -172,7 +183,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), property(colors, "Events", "")];
+        let header = vec![StyledLine::default(), header(colors, "Events")];
 
         (viewer, header)
     }
@@ -187,17 +198,41 @@ impl DescribeContent {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let mut sections = vec![
-            Section::from_text(&mut self.lines),
-            Section::from_text(&mut self.conditions_header),
-            Section::from_list(&mut self.conditions),
-            Section::from_text(&mut self.events_header),
-            Section::from_list(&mut self.events),
-        ];
+        let mut sections = Vec::with_capacity(self.sections.len() + 6);
+        let mut section_targets = Vec::with_capacity(self.sections.len() + 6);
+
+        sections.push(Section::from_text(&mut self.lines_start));
+        section_targets.push(None);
+
+        for (index, section) in self.sections.iter_mut().enumerate() {
+            match section {
+                SectionData::Text(lines) => {
+                    sections.push(Section::from_text(lines));
+                    section_targets.push(None);
+                },
+                SectionData::List(list) => {
+                    sections.push(Section::from_list(list));
+                    section_targets.push(Some(FocusTarget::AdditionalSection(index)));
+                },
+            }
+        }
+
+        sections.push(Section::from_text(&mut self.lines_end));
+        section_targets.push(None);
+
+        sections.push(Section::from_text(&mut self.conditions_header));
+        section_targets.push(None);
+        sections.push(Section::from_list(&mut self.conditions));
+        section_targets.push(Some(FocusTarget::Conditions));
+
+        sections.push(Section::from_text(&mut self.events_header));
+        section_targets.push(None);
+        sections.push(Section::from_list(&mut self.events));
+        section_targets.push(Some(FocusTarget::Events));
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
         self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
-        self.section_areas = Self::draw_sections(frame, area, &self.app_data, &mut sections, self.page_start);
+        self.section_targets = Self::draw_sections(frame, area, &self.app_data, &mut sections, &section_targets, self.page_start);
     }
 
     fn draw_sections(
@@ -205,18 +240,25 @@ impl DescribeContent {
         area: Rect,
         app_data: &SharedAppData,
         sections: &mut [Section],
+        section_targets: &[Option<FocusTarget>],
         page_start: ContentPosition,
-    ) -> Vec<Rect> {
+    ) -> Vec<(Rect, Rect, Option<FocusTarget>)> {
         let scroll_y = u16::try_from(page_start.y).unwrap_or(u16::MAX);
         let mut current_y = 0u16;
         let viewport_start = scroll_y;
         let viewport_end = scroll_y.saturating_add(area.height);
         let mut areas = Vec::new();
 
-        for section in sections.iter_mut() {
+        for (section, target) in sections.iter_mut().zip(section_targets.iter().copied()) {
             let section_height = section.height();
             let section_start = current_y;
             let section_end = current_y.saturating_add(section_height);
+            let page_rect = Rect {
+                x: 0,
+                y: section_start,
+                width: u16::try_from(section.width()).unwrap_or(u16::MAX),
+                height: section_height,
+            };
 
             if section_end > viewport_start && section_start < viewport_end {
                 let clip_top = viewport_start.saturating_sub(section_start);
@@ -233,12 +275,12 @@ impl DescribeContent {
                     };
 
                     section.draw(frame, screen_rect, app_data, clip_top, page_start.x);
-                    areas.push(screen_rect);
+                    areas.push((screen_rect, page_rect, target));
                 } else {
-                    areas.push(Rect::default());
+                    areas.push((Rect::default(), page_rect, target));
                 }
             } else {
-                areas.push(Rect::default());
+                areas.push((Rect::default(), page_rect, target));
             }
 
             current_y = section_end;
@@ -247,39 +289,69 @@ impl DescribeContent {
         areas
     }
 
-    fn get_clicked_section(&self, event: &TuiEvent) -> u8 {
-        if self.section_areas.len() > 4 {
-            if event.is_in(MouseEventKind::LeftClick, self.section_areas[2]) {
-                return 1;
-            }
-
-            if event.is_in(MouseEventKind::LeftClick, self.section_areas[4]) {
-                return 2;
+    fn get_clicked_section(&self, event: &TuiEvent) -> FocusTarget {
+        for (area, _, target) in &self.section_targets {
+            if let Some(target) = target
+                && event.is_in(MouseEventKind::LeftClick, *area)
+            {
+                return *target;
             }
         }
 
-        0
+        FocusTarget::Scroll
     }
 
-    fn can_focus_section(&self, section: u8) -> bool {
+    fn can_focus_section(&self, section: FocusTarget) -> bool {
         match section {
-            1 => !self.conditions.table.is_empty(),
-            2 => !self.events.table.is_empty(),
-            _ => false,
+            FocusTarget::Scroll => true,
+            FocusTarget::AdditionalSection(index) => self.get_additional_list(index).is_some_and(|list| !list.table.is_empty()),
+            FocusTarget::Conditions => !self.conditions.table.is_empty(),
+            FocusTarget::Events => !self.events.table.is_empty(),
         }
     }
 
-    fn focus_section(&mut self, section: u8) {
+    fn focus_section(&mut self, section: FocusTarget) {
         if self.focused != section {
-            self.focused = if self.can_focus_section(section) { section } else { 0 };
-            self.conditions.set_focus(self.focused == 1);
-            self.events.set_focus(self.focused == 2);
+            self.focused = if self.can_focus_section(section) {
+                section
+            } else {
+                FocusTarget::Scroll
+            };
+            self.update_list_focuses();
         }
     }
 
     fn focus_next_section(&mut self) {
-        let section = if self.focused == 2 { 0 } else { self.focused + 1 };
-        self.focus_section(section);
+        let targets = self.focus_targets();
+        if let Some(index) = targets.iter().position(|(target, _)| *target == self.focused) {
+            let (target, area) = targets[(index + 1) % targets.len()];
+            self.focus_section(target);
+            if target != FocusTarget::Scroll {
+                self.ensure_section_visible(area);
+            }
+        }
+    }
+
+    fn ensure_section_visible(&mut self, section: Rect) {
+        let page_start = self.page_start.y;
+        let section_start = usize::from(section.y);
+
+        if section_start < page_start {
+            self.page_start.x = 0;
+            self.page_start.y = section_start;
+            self.update_page_start();
+
+            return;
+        }
+
+        let page_end = page_start.saturating_add(self.area.height.into());
+        let section_end = usize::from(section.y.saturating_add(section.height));
+
+        if section_end > page_end {
+            self.page_start.x = 0;
+            self.page_start.y = section_end.saturating_sub(self.area.height.into());
+            self.update_page_start();
+        }
     }
 
     fn process_scroll_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -362,20 +434,88 @@ impl DescribeContent {
 
     fn update_describe(&mut self, object: &DynamicObject) {
         let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.lines.clear();
+        self.lines_start.clear();
+        self.lines_end.clear();
 
-        self.lines.push(property(colors, "Name", object.name_any()));
+        self.lines_start.push(property(colors, "Name", object.name_any()));
         if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines.push(property(colors, "Namespace", namespace));
+            self.lines_start.push(property(colors, "Namespace", namespace));
         }
 
-        add_describe_list(&mut self.lines, colors, "Labels", object.metadata.labels.as_ref());
-        add_describe_list(&mut self.lines, colors, "Annotations", object.metadata.annotations.as_ref());
+        add_list(&mut self.lines_start, colors, "Labels", object.metadata.labels.as_ref());
+        add_list(
+            &mut self.lines_start,
+            colors,
+            "Annotations",
+            object.metadata.annotations.as_ref(),
+        );
 
-        self.lines.push(StyledLine::default());
-        self.lines
+        self.lines_end.push(StyledLine::default());
+        self.lines_end
             .push(property(colors, "Overall status", status::from_object(object)));
     }
+
+    fn update_additional_sections(&mut self, object: &DynamicObject) {
+        data::update_additional_sections(&self.resource, &self.app_data, object, &mut self.sections);
+    }
+
+    fn get_list_by_focus(&mut self, section: FocusTarget) -> Option<&mut ListViewer<ResourcesList>> {
+        match section {
+            FocusTarget::Scroll => None,
+            FocusTarget::AdditionalSection(index) => self.get_additional_list_mut(index),
+            FocusTarget::Conditions => Some(&mut self.conditions),
+            FocusTarget::Events => Some(&mut self.events),
+        }
+    }
+
+    fn get_additional_list(&self, index: usize) -> Option<&ListViewer<ResourcesList>> {
+        if let Some(SectionData::List(list)) = self.sections.get(index) {
+            Some(list)
+        } else {
+            None
+        }
+    }
+
+    fn get_additional_list_mut(&mut self, index: usize) -> Option<&mut ListViewer<ResourcesList>> {
+        if let Some(SectionData::List(list)) = self.sections.get_mut(index) {
+            Some(list)
+        } else {
+            None
+        }
+    }
+
+    fn update_list_focuses(&mut self) {
+        self.conditions.set_focus(self.focused == FocusTarget::Conditions);
+        self.events.set_focus(self.focused == FocusTarget::Events);
+        for (index, section) in self.sections.iter_mut().enumerate() {
+            if let SectionData::List(list) = section {
+                list.set_focus(self.focused == FocusTarget::AdditionalSection(index));
+            }
+        }
+    }
+
+    fn focus_targets(&self) -> Vec<(FocusTarget, Rect)> {
+        let mut targets = vec![(FocusTarget::Scroll, Rect::default())];
+
+        for (_, area, target) in &self.section_targets {
+            if let Some(target) = target
+                && self.can_focus_section(*target)
+            {
+                targets.push((*target, *area));
+            }
+        }
+
+        targets
+    }
+}
+
+/// Represents focus target in the describe view.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FocusTarget {
+    Scroll,
+    AdditionalSection(usize),
+    Conditions,
+    Events,
 }
 
 /// Represents a section in the describe view.
@@ -433,53 +573,13 @@ impl<'a> Section<'a> {
     }
 }
 
-fn span(color: &TextColors, text: impl Into<String>) -> (Style, String) {
-    (color.into(), text.into())
-}
-
-fn none(colors: &YamlSyntaxColors) -> StyledLine {
-    vec![span(&colors.normal, "  --none--")].into()
-}
-
-fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
-    vec![
-        span(&colors.property, name),
-        span(&colors.normal, ": "),
-        span(&colors.string, value),
-    ]
-    .into()
-}
-
-fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl Into<String>) -> StyledLine {
-    vec![
-        span(&colors.normal, "  - "),
-        span(&colors.string, key),
-        span(&colors.normal, "="),
-        span(&colors.string, value),
-    ]
-    .into()
-}
-
-fn add_describe_list(
-    lines: &mut Vec<StyledLine>,
-    colors: &YamlSyntaxColors,
-    title: &str,
-    list: Option<&BTreeMap<String, String>>,
-) {
+fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str, source: Option<&BTreeMap<String, String>>) {
     lines.push(StyledLine::default());
-    lines.push(property(colors, title, ""));
+    lines.push(header(colors, title));
 
-    let mut has_entries = false;
-    if let Some(list) = list {
-        for (key, value) in list {
-            if key != "kubectl.kubernetes.io/last-applied-configuration" {
-                has_entries = true;
-                lines.push(element(colors, key, value));
-            }
-        }
-    }
-
-    if !has_entries {
+    if let Some(source) = source {
+        lines.append(&mut list(colors, source));
+    } else {
         lines.push(none(colors));
     }
 }

@@ -63,7 +63,7 @@ impl ResourcesList {
         if let Some(mut entry) = self.cache.remove(key)
             && !entry.is_expired()
         {
-            self.update_kind(entry.init, true);
+            self.update_init(entry.init, true);
             for item in entry.list.full_iter_mut() {
                 item.data.is_cached = !item.is_fixed;
                 item.is_selected = false;
@@ -85,7 +85,7 @@ impl ResourcesList {
         let (sort_by, is_descending) = self.table.header.sort_info();
         match result {
             ObserverResult::Init(init) => {
-                self.update_kind(*init, self.is_from_cache);
+                self.update_init(*init, self.is_from_cache);
                 let (sort_by, is_descending) = self.table.header.sort_info();
                 self.sort(sort_by, is_descending);
                 self.is_from_cache = false;
@@ -244,7 +244,7 @@ impl ResourcesList {
         group_width + name_width + extra_width + age_width
     }
 
-    fn update_kind(&mut self, init: InitData, is_from_cache: bool) {
+    fn update_init(&mut self, init: InitData, is_from_cache: bool) {
         let are_equal = self.data.resource.is_equal(&init.resource, &init.scope);
         self.data = init;
         if !is_from_cache || !are_equal {
@@ -255,6 +255,14 @@ impl ResourcesList {
                 self.data.has_metrics,
                 self.columns_layout(),
             ));
+        }
+
+        // If the kind is the same as before and we are not in the cache path, mark all items as cached, so they will be removed
+        // if not updated during `InitDone`.
+        if !is_from_cache && are_equal {
+            for item in self.table.list.full_iter_mut() {
+                item.data.is_cached = !item.is_fixed;
+            }
         }
     }
 
