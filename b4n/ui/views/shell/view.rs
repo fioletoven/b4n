@@ -24,7 +24,6 @@ use super::bridge::ShellBridge;
 
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
-const DEFAULT_SIZE: TerminalSize = TerminalSize { width: 80, height: 24 };
 const SCROLLBACK_LEN: usize = 1_000;
 
 /// Pod's shell view.
@@ -59,6 +58,7 @@ impl ShellView {
         pod: ContainerRef,
         is_attach: bool,
         footer_tx: NotificationSink,
+        workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(if is_attach { " attach" } else { " shell" });
@@ -69,14 +69,11 @@ impl ShellView {
             pod.container.clone(),
         );
 
+        let area = get_layout(workspace)[1];
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(
-            DEFAULT_SIZE.height,
-            DEFAULT_SIZE.width,
-            SCROLLBACK_LEN,
-        )));
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, SCROLLBACK_LEN)));
         let mut bridge = ShellBridge::new(runtime, parser.clone(), is_attach);
-        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, DEFAULT_SIZE);
+        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, get_terminal_size(area));
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -87,14 +84,14 @@ impl ShellView {
             header,
             bridge,
             parser,
-            size: DEFAULT_SIZE,
+            size: get_terminal_size(area),
             client: client.get_client(),
             pod,
             scrollback_rows: 0,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             selection,
-            area: Rect::default(),
+            area,
             esc_count: 0,
             esc_time: Instant::now(),
             clipboard_text: None,
@@ -324,9 +321,8 @@ impl View for ShellView {
         if self.bridge.is_finished() {
             // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if !self.is_attach && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
-                self.bridge
-                    .start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, DEFAULT_SIZE);
-                self.size = DEFAULT_SIZE;
+                let size = get_terminal_size(self.area);
+                self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, size);
             } else {
                 if self.bridge.has_error() {
                     let kind = if self.is_attach { "main" } else { "shell" };
@@ -429,10 +425,7 @@ impl View for ShellView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-            .split(area);
+        let layout = get_layout(area);
         self.area = layout[1];
 
         self.header.draw(frame, layout[0]);
@@ -443,10 +436,7 @@ impl View for ShellView {
             {
                 parser.screen_mut().set_size(layout[1].height, layout[1].width);
                 self.bridge.set_terminal_size(layout[1].width, layout[1].height);
-                self.size = TerminalSize {
-                    width: layout[1].width,
-                    height: layout[1].height,
-                };
+                self.size = get_terminal_size(layout[1]);
             }
 
             if let Ok(parser) = self.parser.read() {
@@ -478,4 +468,18 @@ fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: b
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
     let action = if is_attach { "close attach view" } else { "detach shell" };
     footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
+}
+
+fn get_layout(area: Rect) -> Rc<[Rect]> {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
+        .split(area)
+}
+
+fn get_terminal_size(area: Rect) -> TerminalSize {
+    TerminalSize {
+        width: area.width,
+        height: area.height,
+    }
 }

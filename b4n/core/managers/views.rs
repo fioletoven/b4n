@@ -560,6 +560,7 @@ impl ViewsManager {
                 resource.into(),
                 is_attach,
                 self.footer.get_transmitter(),
+                self.workspace,
             );
             self.view = Some(Box::new(view));
         }

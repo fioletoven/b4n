@@ -134,6 +134,11 @@ impl ShellBridge {
         });
 
         if let Some(tx) = &self.size_tx {
+            if self.is_attach {
+                // For attach mode we need to send dummy size to trigger terminal resize in the attached process.
+                let _ = tx.send(TerminalSize { width: 1, height: 1 });
+            }
+
             let _ = tx.send(size);
         }
 
