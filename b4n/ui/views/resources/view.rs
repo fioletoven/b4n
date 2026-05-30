@@ -218,14 +218,14 @@ impl ResourcesView {
                         .with_validator(ValidatorKind::Number(0, 65_535))
                         .with_prompt("local port")
                         .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
-                        .build(),
+                        .build(&self.app_data),
                 )
                 .with_step(
                     StepBuilder::input("127.0.0.1")
                         .with_validator(ValidatorKind::IpAddr)
                         .with_prompt("bind address")
                         .with_colors(self.app_data.borrow().theme.colors.command_palette.clone())
-                        .build(),
+                        .build(&self.app_data),
                 )
                 .with_response(|v| build_port_forward_response(v, resource))
                 .with_highlighted_position(self.last_mouse_click.take());

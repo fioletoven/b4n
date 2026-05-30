@@ -31,9 +31,10 @@ impl CommandPalette {
     /// Creates new [`CommandPalette`] instance.
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.command_palette.clone();
+        let is_mouse_enabled = app_data.borrow().is_mouse_enabled;
         Self {
             app_data,
-            steps: vec![Step::new(actions, colors)],
+            steps: vec![Step::new(actions, colors, is_mouse_enabled)],
             width,
             ..Default::default()
         }
@@ -253,8 +254,8 @@ impl CommandPalette {
         self.steps.iter().map(|s| s.select.value().to_owned()).collect()
     }
 
-    fn process_enter_key(&mut self) -> ResponseEvent {
-        self.insert_highlighted_value(false);
+    fn process_enter_key(&mut self, overwrite_if_not_empty: bool) -> ResponseEvent {
+        self.insert_highlighted_value(overwrite_if_not_empty);
 
         if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
             self.is_visible = false;
@@ -321,7 +322,7 @@ impl Responsive for CommandPalette {
 
         if let Some(line) = event.get_line_no(MouseEventKind::LeftClick, KeyModifiers::NONE, self.select().items_area()) {
             self.select_mut().items.highlight_item_by_line(line);
-            return self.process_enter_key();
+            return self.process_enter_key(true);
         }
 
         if event.is_mouse(MouseEventKind::RightClick) && self.select().is_filter_visible() {
@@ -329,10 +330,13 @@ impl Responsive for CommandPalette {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
-            return self.process_enter_key();
+            return self.process_enter_key(false);
         }
 
         let response = self.select_mut().process_event(event);
+        if response == ResponseEvent::Accepted {
+            return self.process_enter_key(false);
+        }
 
         if self.is_mouse_menu && event.is_out(MouseEventKind::Moved, self.select().items_area()) {
             self.select_mut().items.unhighlight_item();
@@ -395,9 +399,11 @@ impl StepBuilder {
     }
 
     /// Builds [`Step`] instance.
-    pub fn build(self) -> Step {
+    pub fn build(self, app_data: &SharedAppData) -> Step {
         let list = self.actions.unwrap_or_default();
-        let mut select = Select::new(list, self.colors, false, true).with_prompt(DEFAULT_PROMPT);
+        let mut select = Select::new(list, self.colors, false, true)
+            .with_prompt(DEFAULT_PROMPT)
+            .with_accept_button(app_data.borrow().is_mouse_enabled);
         select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
             select.set_value(initial_value);
@@ -420,12 +426,12 @@ pub struct Step {
 
 impl Step {
     /// Creates new [`Step`] instance.
-    fn new(list: ActionsList, colors: SelectColors) -> Self {
-        let mut select = Select::new(list, colors, false, true).with_prompt(DEFAULT_PROMPT);
-        select.set_error_mode(ErrorHighlightMode::Value);
-
+    fn new(list: ActionsList, colors: SelectColors, accept_button: bool) -> Self {
         Self {
-            select,
+            select: Select::new(list, colors, false, true)
+                .with_prompt(DEFAULT_PROMPT)
+                .with_error_mode(ErrorHighlightMode::Value)
+                .with_accept_button(accept_button),
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
         }

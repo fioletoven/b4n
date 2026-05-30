@@ -171,6 +171,7 @@ impl<B: PickerBehaviour> Picker<B> {
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.behaviour.colors());
         self.patterns.set_prompt(self.behaviour.prompt());
+        self.patterns.set_accept_button(self.app_data.borrow().is_mouse_enabled);
         self.is_visible = true;
     }
 
@@ -271,6 +272,22 @@ impl<B: PickerBehaviour> Picker<B> {
 
         ResponseEvent::Handled
     }
+
+    fn process_enter_key(&mut self) -> ResponseEvent {
+        if !self.behaviour.on_close(&mut self.patterns, false) || (self.behaviour.blocks_on_error() && self.patterns.has_error())
+        {
+            return ResponseEvent::Handled;
+        }
+
+        self.remember_pattern();
+        self.is_visible = false;
+
+        self.behaviour.navigate_into(
+            self.patterns.value_prefix(),
+            self.patterns.value(),
+            self.patterns.get_highlighted_item_name(),
+        )
+    }
 }
 
 impl<B: PickerBehaviour> Responsive for Picker<B> {
@@ -342,20 +359,7 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
-            if !self.behaviour.on_close(&mut self.patterns, false)
-                || (self.behaviour.blocks_on_error() && self.patterns.has_error())
-            {
-                return ResponseEvent::Handled;
-            }
-
-            self.remember_pattern();
-            self.is_visible = false;
-
-            return self.behaviour.navigate_into(
-                self.patterns.value_prefix(),
-                self.patterns.value(),
-                self.patterns.get_highlighted_item_name(),
-            );
+            return self.process_enter_key();
         }
 
         let result = self.behaviour.pre_process_event(event, &mut self.patterns, &self.app_data);
@@ -363,7 +367,10 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             return result;
         }
 
-        self.patterns.process_event(event);
+        if self.patterns.process_event(event) == ResponseEvent::Accepted {
+            return self.process_enter_key();
+        }
+
         self.run_validation();
 
         let result = self.behaviour.post_process_event(event, &mut self.patterns, &self.app_data);
