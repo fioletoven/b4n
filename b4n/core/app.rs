@@ -87,7 +87,7 @@ impl App {
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
         self.tui.enter_terminal()?;
-        self.update_mouse_icon();
+        self.update_mouse_state();
 
         Ok(())
     }
@@ -199,7 +199,7 @@ impl App {
 
         if self.data.has_binding(event, KeyCommand::MouseSupportToggle) {
             let _ = self.tui.toggle_mouse_support();
-            self.update_mouse_icon();
+            self.update_mouse_state();
             return Ok(ResponseEvent::Handled);
         }
 
@@ -539,9 +539,10 @@ impl App {
         }
     }
 
-    fn update_mouse_icon(&self) {
+    fn update_mouse_state(&self) {
         let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
         self.views_manager.footer().set_icon("001_mouse", icon, IconKind::Default);
+        self.data.borrow_mut().is_mouse_enabled = self.tui.is_mouse_enabled();
     }
 }
 

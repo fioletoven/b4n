@@ -74,6 +74,21 @@ impl<T: Table> Select<T> {
         self
     }
 
+    /// Adds accept button to the filter input.
+    pub fn with_accept_button(mut self, visible: bool) -> Self {
+        self.set_accept_button(visible);
+        self
+    }
+
+    /// Sets accept button in the filter input.
+    pub fn set_accept_button(&mut self, visible: bool) {
+        if visible {
+            self.filter.set_accept_button(Some(("", ResponseEvent::Accepted)));
+        } else {
+            self.filter.set_accept_button(None);
+        }
+    }
+
     /// Sets flag indicating if filter is disabled for this [`Select`] instance.
     pub fn disable_filter(&mut self, disabled: bool) {
         self.filter_disabled = disabled;
@@ -141,6 +156,12 @@ impl<T: Table> Select<T> {
             pub fn value_full(&self) -> &str;
             pub fn value_prefix(&self) -> &str;
         }
+    }
+
+    /// Adds error highlight mode to the filter input.
+    pub fn with_error_mode(mut self, mode: ErrorHighlightMode) -> Self {
+        self.filter.set_error_mode(mode);
+        self
     }
 
     /// Sets the filter value.
@@ -288,8 +309,8 @@ impl<T: Table> Responsive for Select<T> {
                     self.items.highlight_item_by_line(line);
                 }
 
-                if !self.filter_disabled {
-                    self.filter.process_event(event);
+                if !self.filter_disabled && self.filter.process_event(event) == ResponseEvent::Accepted {
+                    return ResponseEvent::Accepted;
                 }
 
                 self.items.process_event(event);

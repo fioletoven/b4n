@@ -2,11 +2,13 @@ use b4n_common::INVISIBLE_CHARACTERS;
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui_core::buffer::Buffer;
-use ratatui_core::layout::{Position, Rect};
+use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui_core::style::Color;
 use ratatui_core::terminal::Frame;
+use ratatui_core::text::Span;
 use ratatui_core::widgets::Widget;
 use ratatui_widgets::block::Block;
+use std::rc::Rc;
 use tui_input::backend::crossterm::EventHandler;
 
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -33,7 +35,8 @@ pub struct Input {
     accent_chars: Option<String>,
     show_cursor: bool,
     cursor_colors: TextColors,
-    area: Option<Rect>,
+    accept_button: Option<(&'static str, ResponseEvent)>,
+    areas: Option<Rc<[Rect]>>,
 }
 
 impl Input {
@@ -60,9 +63,21 @@ impl Input {
         self
     }
 
+    /// Adds accept button to the [`Input`] instance.
+    pub fn with_accept_button(mut self, icon: &'static str, response: ResponseEvent) -> Self {
+        self.accept_button = Some((icon, response));
+        self
+    }
+
     /// Adds error colors to the [`Input`] instance.
     pub fn with_error_colors(mut self, colors: Option<TextColors>) -> Self {
         self.error = colors;
+        self
+    }
+
+    /// Adds error highlight mode.
+    pub fn with_error_mode(mut self, mode: ErrorHighlightMode) -> Self {
+        self.error_mode = mode;
         self
     }
 
@@ -103,6 +118,11 @@ impl Input {
         } else {
             None
         }
+    }
+
+    /// Sets the button.
+    pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>) {
+        self.accept_button = button;
     }
 
     /// Sets characters that should be accented by the [`Input`] instance.
@@ -238,9 +258,33 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        self.area = Some(area);
+        let button_len = self
+            .accept_button
+            .as_ref()
+            .map(|(i, _)| i.chars().count())
+            .unwrap_or_default();
+        let button_len = if self.value_full().is_empty() { 0 } else { button_len };
+
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(u16::try_from(button_len).unwrap_or_default()),
+            ])
+            .split(area);
+
         frame.render_widget(Block::new().style(&self.colors), area);
-        frame.render_widget(&mut *self, area);
+        frame.render_widget(&mut *self, layout[0]);
+
+        if button_len > 0
+            && !self.has_error()
+            && let Some((icon, _)) = &self.accept_button
+        {
+            let colors = self.prompt.as_ref().map(|(_, color)| color).unwrap_or(&self.colors);
+            frame.render_widget(Span::styled(*icon, colors), layout[1]);
+        }
+
+        self.areas = Some(layout);
     }
 
     fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut Buffer) -> u16 {
@@ -329,18 +373,25 @@ impl Responsive for Input {
                 ResponseEvent::Handled
             },
             TuiEvent::Mouse(mouse) => {
-                if let Some(area) = self.area
+                if let Some(areas) = &self.areas
                     && self.is_cursor_visible()
-                    && event.is_in(MouseEventKind::LeftClick, area)
                 {
-                    let prompt = self.prompt_width.unwrap_or_default();
-                    let width = area.width.saturating_sub(prompt);
-                    let scroll = self.value.visual_scroll(usize::from(width.saturating_sub(1)));
-                    let x = mouse.column.saturating_sub(area.x).saturating_sub(prompt);
+                    if event.is_in(MouseEventKind::LeftClick, areas[0]) {
+                        let prompt = self.prompt_width.unwrap_or_default();
+                        let width = areas[0].width.saturating_sub(prompt);
+                        let scroll = self.value.visual_scroll(usize::from(width.saturating_sub(1)));
+                        let x = mouse.column.saturating_sub(areas[0].x).saturating_sub(prompt);
 
-                    self.value.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
+                        self.value.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
 
-                    return ResponseEvent::Handled;
+                        return ResponseEvent::Handled;
+                    }
+
+                    if let Some((_, response)) = &self.accept_button
+                        && event.is_in(MouseEventKind::LeftClick, areas[1])
+                    {
+                        return response.clone();
+                    }
                 }
 
                 ResponseEvent::NotHandled

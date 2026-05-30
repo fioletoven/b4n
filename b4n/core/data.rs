@@ -144,6 +144,8 @@ pub struct AppData {
     pub pinned_filter: Option<String>,
     pub is_pinned: bool,
 
+    pub is_mouse_enabled: bool,
+
     /// Holds all discovered kinds.
     pub kinds: Option<Vec<KindItem>>,
 
