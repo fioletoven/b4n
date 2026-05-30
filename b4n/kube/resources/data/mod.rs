@@ -6,10 +6,12 @@ use kube::{ResourceExt, api::DynamicObject};
 use crate::kube::resources::{ColumnsLayout, ResourceData};
 
 pub mod api_service;
+pub mod cluster_role;
 pub mod condition;
 pub mod config_map;
 pub mod container;
 pub mod crd;
+pub mod cron_job;
 pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
@@ -18,6 +20,7 @@ pub mod endpoint_slice;
 pub mod endpoints;
 pub mod event;
 pub mod ingress;
+pub mod ingress_class;
 pub mod job;
 pub mod lease;
 pub mod namespace;
@@ -30,6 +33,7 @@ pub mod pod;
 pub mod pod_metrics;
 pub mod priority_class;
 pub mod replica_set;
+pub mod role;
 pub mod role_binding;
 pub mod secret;
 pub mod service;
@@ -61,7 +65,10 @@ pub fn get_resource_data(
 
     match (kind, group) {
         ("APIService", "apiregistration.k8s.io") => api_service::data(object),
+        ("ClusterRole", "rbac.authorization.k8s.io") => cluster_role::data(object),
+        ("ClusterRoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("ConfigMap", "") => config_map::data(object),
+        ("CronJob", "batch") => cron_job::data(object),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::data(object),
         ("DaemonSet", "apps") => daemon_set::data(object),
         ("Deployment", "apps") => deployment::data(object),
@@ -69,6 +76,7 @@ pub fn get_resource_data(
         ("EndpointSlice", "discovery.k8s.io") => endpoint_slice::data(object),
         ("Event", "") => event::data(object, columns_layout),
         ("Ingress", "networking.k8s.io") => ingress::data(object),
+        ("IngressClass", "networking.k8s.io") => ingress_class::data(object),
         ("Job", "batch") => job::data(object),
         ("Lease", "coordination.k8s.io") => lease::data(object),
         ("Namespace", "") => namespace::data(object),
@@ -81,6 +89,7 @@ pub fn get_resource_data(
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::data(object),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::data(object),
         ("ReplicaSet", "apps") => replica_set::data(object),
+        ("Role", "rbac.authorization.k8s.io") => role::data(object),
         ("RoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("Secret", "") => secret::data(object),
         ("Service", "") => service::data(object),
@@ -106,7 +115,10 @@ pub fn get_header_data(
 
     match (kind, group) {
         ("APIService", "apiregistration.k8s.io") => api_service::header(),
+        ("ClusterRole", "rbac.authorization.k8s.io") => cluster_role::header(),
+        ("ClusterRoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("ConfigMap", "") => config_map::header(),
+        ("CronJob", "batch") => cron_job::header(),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::header(),
         ("DaemonSet", "apps") => daemon_set::header(),
         ("Deployment", "apps") => deployment::header(),
@@ -114,6 +126,7 @@ pub fn get_header_data(
         ("EndpointSlice", "discovery.k8s.io") => endpoint_slice::header(),
         ("Event", "") => event::header(columns_layout),
         ("Ingress", "networking.k8s.io") => ingress::header(),
+        ("IngressClass", "networking.k8s.io") => ingress_class::header(),
         ("Job", "batch") => job::header(),
         ("Lease", "coordination.k8s.io") => lease::header(),
         ("Namespace", "") => namespace::header(),
@@ -126,6 +139,7 @@ pub fn get_header_data(
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::header(),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::header(),
         ("ReplicaSet", "apps") => replica_set::header(),
+        ("Role", "rbac.authorization.k8s.io") => role::header(),
         ("RoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("Secret", "") => secret::header(),
         ("Service", "") => service::header(),
