@@ -509,6 +509,11 @@ impl BgWorker {
             self.forwarder.stop_stale_pod_tasks(filtered, self.statistics.stats());
         }
     }
+
+    /// Stops all port forwarding tasks that match provided list of containers.
+    pub fn stop_container_port_forwards(&mut self, containers: &[ContainerRef]) {
+        self.forwarder.stop_container_port_forwards(containers);
+    }
 }
 
 impl Drop for BgWorker {

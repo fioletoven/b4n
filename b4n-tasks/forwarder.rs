@@ -172,6 +172,17 @@ impl PortForwarder {
 
         self.cleanup_tasks();
     }
+
+    /// Stops all port forwarding tasks that are on the specified list.
+    pub fn stop_container_port_forwards(&mut self, containers: &[ContainerRef]) {
+        for task in &mut self.tasks {
+            if task.is_in_filter(Some(containers)) {
+                task.cancel();
+            }
+        }
+
+        self.cleanup_tasks();
+    }
 }
 
 impl Drop for PortForwarder {

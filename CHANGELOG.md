@@ -1,17 +1,19 @@
 # Change Log
 
-## WIP
+## 0.4.9 - 2026-05-31
 
 ### Features
 
 - possibility to save YAML and logs to a file
 - additional sections for Pod and Node resources in describe view
+- allow to stop port forwarding rules from mouse menu in Pods view
 
 ### Bug fixes
 
 - disable filter pin on context change
 - fix node status extraction
 - do not send default terminal size in shell and attach views
+- fix navigate into behaviour in command palette steps
 
 ## 0.4.8 - 2026-05-04
 

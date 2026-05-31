@@ -3,6 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
+use b4n_list::Row;
 use b4n_tui::ToSelectData;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
@@ -14,6 +15,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::kinds::ActionsListBuilderKindExt;
+use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
@@ -176,6 +178,14 @@ impl ResourcesView {
         }
     }
 
+    /// Shows stop port forwarding rules dialog if anything is selected.
+    pub fn ask_stop_port_forwards(&mut self) {
+        if let Some(resource) = self.table.list.table.get_highlighted_item_name().map(String::from) {
+            self.modal = self.new_stop_port_forwards_dialog(&resource);
+            self.modal.show();
+        }
+    }
+
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         let actions_list = ActionsListBuilder::from_contexts(list).build(None);
@@ -233,6 +243,35 @@ impl ResourcesView {
         }
     }
 
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.modal.is_visible {
+            let response = self.modal.process_event(event);
+
+            if response.is_action("delete") {
+                return Some(ResponseEvent::DeleteResources(
+                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
+                ));
+            }
+
+            if response.is_action("stop_port_forwards") {
+                return Some(self.stop_port_forwards());
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return Some(result);
+            }
+        }
+
+        None
+    }
+
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::AskDeleteResources {
@@ -271,6 +310,11 @@ impl ResourcesView {
                 "port_forward" => {
                     self.last_mouse_click = event.position();
                     self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
+                },
+                "ask_stop_port_forwards" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_stop_port_forwards();
+                    ResponseEvent::Handled
                 },
                 "new_clone" => self.create_new_resource(true, false),
                 "new_full" => self.create_new_resource(false, true),
@@ -436,6 +480,7 @@ impl ResourcesView {
             return;
         }
 
+        let mut size = 22;
         let is_selected = self.table.list.table.is_anything_selected();
         let highlighted_name = self.table.list.table.get_highlighted_item_name();
         let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
@@ -483,6 +528,11 @@ impl ResourcesView {
                     .with_menu_action(ActionItem::menu(6, " attach", "attach"))
                     .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
                     .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+
+                if is_pods && self.has_highlighted_item_active_port_forward() {
+                    size = 25;
+                    builder.add_menu_action(ActionItem::menu(8, " stop ␝port forwards␝", "ask_stop_port_forwards"));
+                }
             }
 
             if self.table.kind_plural() == SECRETS {
@@ -494,7 +544,7 @@ impl ResourcesView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -554,6 +604,22 @@ impl ResourcesView {
             colors.modal.selector.clone(),
             &colors.modal.checkbox,
         )])
+        .with_highlighted_position(self.last_mouse_click.take())
+    }
+
+    /// Creates new stop port forwarding rules dialog.
+    fn new_stop_port_forwards_dialog(&mut self, resource: &str) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
+            vec![
+                Button::new("Stop", ResponseEvent::Action("stop_port_forwards"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
@@ -659,6 +725,28 @@ impl ResourcesView {
             self.table.list.table.update_port_forwards(&new_list);
         }
     }
+
+    fn has_highlighted_item_active_port_forward(&self) -> bool {
+        let Some(resource) = self.table.list.table.get_highlighted_resource().and_then(|r| r.data.as_ref()) else {
+            return false;
+        };
+
+        resource.extra_values.len() > PF_COLUMN_NO
+            && resource.extra_values[PF_COLUMN_NO].raw_text().is_some_and(|t| !t.is_empty())
+    }
+
+    fn stop_port_forwards(&self) -> ResponseEvent {
+        if let Some(resource) = self.table.list.table.get_highlighted_resource() {
+            let containers = resource.to_containers_vec();
+            self.worker.borrow_mut().stop_container_port_forwards(&containers);
+            self.footer_tx.show_info(
+                format!("Port forwarding rules for '{}' have been stopped", resource.name()),
+                3_000,
+            );
+        }
+
+        ResponseEvent::Handled
+    }
 }
 
 impl View for ResourcesView {
@@ -690,23 +778,8 @@ impl View for ResourcesView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.modal.is_visible {
-            if self.modal.process_event(event).is_action("delete") {
-                return ResponseEvent::DeleteResources(
-                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
-                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
-                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
-                );
-            }
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
-                return result;
-            }
+        if let Some(result) = self.process_widget_event(event) {
+            return result;
         }
 
         if !self.app_data.borrow().is_connected() {

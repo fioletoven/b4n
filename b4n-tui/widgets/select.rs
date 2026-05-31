@@ -23,6 +23,7 @@ pub struct Select<T: Table> {
     filter_auto_hide: bool,
     filter_disabled: bool,
     highlight_exact: bool,
+    last_key_highlighted: bool,
 }
 
 impl<T: Table> Select<T> {
@@ -47,6 +48,7 @@ impl<T: Table> Select<T> {
             filter_auto_hide,
             filter_disabled: false,
             highlight_exact: false,
+            last_key_highlighted: false,
         }
     }
 
@@ -176,6 +178,11 @@ impl<T: Table> Select<T> {
         self.update_items_filter();
     }
 
+    /// Returns `true` if last processed key event highlighted element on the list.
+    pub fn has_last_key_highlighted(&self) -> bool {
+        self.last_key_highlighted
+    }
+
     /// Returns `true` if anything on the select list is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
         self.items.get_highlighted_item_name().is_some()
@@ -283,10 +290,20 @@ impl<T: Table> Select<T> {
 
 impl<T: Table> Responsive for Select<T> {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        self.last_key_highlighted = false;
+
         match event {
             TuiEvent::Key(key) => {
                 if key.modifiers == KeyModifiers::ALT {
                     return ResponseEvent::Handled;
+                }
+
+                if key.code == KeyCode::PageUp
+                    || key.code == KeyCode::Up
+                    || key.code == KeyCode::PageDown
+                    || key.code == KeyCode::Down
+                {
+                    self.last_key_highlighted = true;
                 }
 
                 // Process Home and End keys directly by filter input if we show cursor

@@ -65,6 +65,7 @@ The following features are planned for future development:
 | Pin active filter across resources         | `CTRL` + `p`    | Also works in the filter dialog                             |
 | Quit the application                       | `CTRL` + `c`    | No confirmation dialog                                      |
 | Reverse selection                          | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
+| Save YAML / logs to a file                 | `s`             |                                                             |
 | Select resource                            | ` `             | (`SPACE`)                                                   |
 | Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
 | Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |

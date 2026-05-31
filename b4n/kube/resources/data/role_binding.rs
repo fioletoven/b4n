@@ -11,8 +11,8 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let values: [ResourceValue; 3] = [
         object.data["roleRef"]["name"].as_str().into(),
-        get_subjects(object.data["subjects"].as_array(), "kind").into(),
-        get_subjects(object.data["subjects"].as_array(), "name").into(),
+        get_subject_kinds(object.data["subjects"].as_array()).into(),
+        get_subject_names(object.data["subjects"].as_array()).into(),
     ];
 
     ResourceData::new(Box::new(values), is_terminating)
@@ -31,6 +31,24 @@ pub fn header() -> Header {
     )
 }
 
-fn get_subjects(subjects: Option<&Vec<Value>>, key: &str) -> Option<String> {
-    Some(subjects?.iter().filter_map(|s| s[key].as_str()).collect::<Vec<_>>().join(","))
+fn get_subject_kinds(subjects: Option<&Vec<Value>>) -> Option<String> {
+    Some(
+        subjects?
+            .iter()
+            .filter_map(|subject| subject["kind"].as_str())
+            .collect::<Vec<_>>()
+            .join(","),
+    )
+}
+
+fn get_subject_names(subjects: Option<&Vec<Value>>) -> Option<String> {
+    Some(subjects?.iter().filter_map(get_subject_name).collect::<Vec<_>>().join(","))
+}
+
+fn get_subject_name(subject: &Value) -> Option<String> {
+    let name = subject["name"].as_str()?;
+    match (subject["kind"].as_str(), subject["namespace"].as_str()) {
+        (Some("ServiceAccount"), Some(namespace)) => Some(format!("{namespace}/{name}")),
+        _ => Some(name.to_owned()),
+    }
 }
