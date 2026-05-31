@@ -9,7 +9,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::path::{Component, Path, PathBuf, Prefix};
+use std::path::{Component, Path, PathBuf};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
@@ -176,12 +176,24 @@ impl PickerBehaviour for FileBehaviour {
         self.app_data.borrow().theme.colors.command_palette.clone()
     }
 
+    #[cfg(windows)]
     fn accent_characters(&self) -> Option<&str> {
         Some("/\\")
     }
 
+    #[cfg(not(windows))]
+    fn accent_characters(&self) -> Option<&str> {
+        Some("/")
+    }
+
+    #[cfg(windows)]
     fn filter_delimiters(&self) -> Vec<char> {
         vec!['\\', '/']
+    }
+
+    #[cfg(not(windows))]
+    fn filter_delimiters(&self) -> Vec<char> {
+        vec!['/']
     }
 
     fn highlight_exact(&self) -> bool {
@@ -366,6 +378,8 @@ fn validate_path(path_str: &str) -> bool {
 
 #[cfg(windows)]
 fn validate_path_components(path: &Path) -> bool {
+    use std::path::Prefix;
+
     let mut has_only_prefix = false;
     for component in path.components() {
         match component {
