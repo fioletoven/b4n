@@ -178,6 +178,14 @@ impl ResourcesView {
         }
     }
 
+    /// Shows stop port forwarding rules dialog if anything is selected.
+    pub fn ask_stop_port_forwards(&mut self) {
+        if let Some(resource) = self.table.list.table.get_highlighted_item_name().map(String::from) {
+            self.modal = self.new_stop_port_forwards_dialog(&resource);
+            self.modal.show();
+        }
+    }
+
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         let actions_list = ActionsListBuilder::from_contexts(list).build(None);
@@ -235,6 +243,35 @@ impl ResourcesView {
         }
     }
 
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.modal.is_visible {
+            let response = self.modal.process_event(event);
+
+            if response.is_action("delete") {
+                return Some(ResponseEvent::DeleteResources(
+                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
+                ));
+            }
+
+            if response.is_action("stop_port_forwards") {
+                return Some(self.stop_port_forwards());
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled {
+                return Some(result);
+            }
+        }
+
+        None
+    }
+
     fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::AskDeleteResources {
@@ -274,7 +311,11 @@ impl ResourcesView {
                     self.last_mouse_click = event.position();
                     self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
                 },
-                "stop_port_forwards" => self.stop_port_forwards(),
+                "ask_stop_port_forwards" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_stop_port_forwards();
+                    ResponseEvent::Handled
+                },
                 "new_clone" => self.create_new_resource(true, false),
                 "new_full" => self.create_new_resource(false, true),
                 "new_minimal" => self.create_new_resource(false, false),
@@ -490,7 +531,7 @@ impl ResourcesView {
 
                 if is_pods && self.has_highlighted_item_active_port_forward() {
                     size = 25;
-                    builder.add_menu_action(ActionItem::menu(8, " stop ␝port forwards␝", "stop_port_forwards"));
+                    builder.add_menu_action(ActionItem::menu(8, " stop ␝port forwards␝", "ask_stop_port_forwards"));
                 }
             }
 
@@ -563,6 +604,22 @@ impl ResourcesView {
             colors.modal.selector.clone(),
             &colors.modal.checkbox,
         )])
+        .with_highlighted_position(self.last_mouse_click.take())
+    }
+
+    /// Creates new stop port forwarding rules dialog.
+    fn new_stop_port_forwards_dialog(&mut self, resource: &str) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+
+        Dialog::new(
+            format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
+            vec![
+                Button::new("Stop", ResponseEvent::Action("stop_port_forwards"), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            ],
+            60,
+            colors.modal.text,
+        )
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
@@ -721,23 +778,8 @@ impl View for ResourcesView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.modal.is_visible {
-            if self.modal.process_event(event).is_action("delete") {
-                return ResponseEvent::DeleteResources(
-                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
-                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
-                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
-                );
-            }
-
-            return ResponseEvent::Handled;
-        }
-
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled {
-                return result;
-            }
+        if let Some(result) = self.process_widget_event(event) {
+            return result;
         }
 
         if !self.app_data.borrow().is_connected() {

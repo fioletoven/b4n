@@ -178,7 +178,7 @@ impl<T: Table> Select<T> {
         self.update_items_filter();
     }
 
-    /// Retruns `true` if last processed key event highlighted element on the list.
+    /// Returns `true` if last processed key event highlighted element on the list.
     pub fn has_last_key_highlighted(&self) -> bool {
         self.last_key_highlighted
     }
