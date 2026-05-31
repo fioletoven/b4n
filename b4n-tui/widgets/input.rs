@@ -280,7 +280,7 @@ impl Input {
             && !self.has_error()
             && let Some((icon, _)) = &self.accept_button
         {
-            let colors = self.prompt.as_ref().map(|(_, color)| color).unwrap_or(&self.colors);
+            let colors = self.prompt.as_ref().map_or(&self.colors, |(_, color)| color);
             frame.render_widget(Span::styled(*icon, colors), layout[1]);
         }
 

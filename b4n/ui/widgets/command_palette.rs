@@ -330,7 +330,7 @@ impl Responsive for CommandPalette {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
-            return self.process_enter_key(false);
+            return self.process_enter_key(self.select().has_last_key_highlighted());
         }
 
         let response = self.select_mut().process_event(event);

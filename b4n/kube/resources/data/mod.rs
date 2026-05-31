@@ -66,7 +66,7 @@ pub fn get_resource_data(
     match (kind, group) {
         ("APIService", "apiregistration.k8s.io") => api_service::data(object),
         ("ClusterRole", "rbac.authorization.k8s.io") => cluster_role::data(object),
-        ("ClusterRoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
+        ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("ConfigMap", "") => config_map::data(object),
         ("CronJob", "batch") => cron_job::data(object),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::data(object),
@@ -90,7 +90,6 @@ pub fn get_resource_data(
         ("PriorityClass", "scheduling.k8s.io") => priority_class::data(object),
         ("ReplicaSet", "apps") => replica_set::data(object),
         ("Role", "rbac.authorization.k8s.io") => role::data(object),
-        ("RoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("Secret", "") => secret::data(object),
         ("Service", "") => service::data(object),
         ("ServiceAccount", "") => service_account::data(object),
@@ -116,7 +115,7 @@ pub fn get_header_data(
     match (kind, group) {
         ("APIService", "apiregistration.k8s.io") => api_service::header(),
         ("ClusterRole", "rbac.authorization.k8s.io") => cluster_role::header(),
-        ("ClusterRoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
+        ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("ConfigMap", "") => config_map::header(),
         ("CronJob", "batch") => cron_job::header(),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::header(),
@@ -140,7 +139,6 @@ pub fn get_header_data(
         ("PriorityClass", "scheduling.k8s.io") => priority_class::header(),
         ("ReplicaSet", "apps") => replica_set::header(),
         ("Role", "rbac.authorization.k8s.io") => role::header(),
-        ("RoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("Secret", "") => secret::header(),
         ("Service", "") => service::header(),
         ("ServiceAccount", "") => service_account::header(),

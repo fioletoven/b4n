@@ -12,6 +12,7 @@
 - disable filter pin on context change
 - fix node status extraction
 - do not send default terminal size in shell and attach views
+- fix navigate into behaviour in command palette steps
 
 ## 0.4.8 - 2026-05-04
 
