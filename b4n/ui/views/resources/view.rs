@@ -3,6 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
+use b4n_list::Row;
 use b4n_tui::ToSelectData;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
@@ -14,6 +15,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::kinds::ActionsListBuilderKindExt;
+use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
@@ -272,6 +274,7 @@ impl ResourcesView {
                     self.last_mouse_click = event.position();
                     self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
                 },
+                "stop_port_forwards" => self.stop_port_forwards(),
                 "new_clone" => self.create_new_resource(true, false),
                 "new_full" => self.create_new_resource(false, true),
                 "new_minimal" => self.create_new_resource(false, false),
@@ -436,6 +439,7 @@ impl ResourcesView {
             return;
         }
 
+        let mut size = 22;
         let is_selected = self.table.list.table.is_anything_selected();
         let highlighted_name = self.table.list.table.get_highlighted_item_name();
         let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
@@ -483,6 +487,11 @@ impl ResourcesView {
                     .with_menu_action(ActionItem::menu(6, " attach", "attach"))
                     .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
                     .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+
+                if is_pods && self.has_highlighted_item_active_port_forward() {
+                    size = 25;
+                    builder.add_menu_action(ActionItem::menu(8, " stop ␝port forwards␝", "stop_port_forwards"));
+                }
             }
 
             if self.table.kind_plural() == SECRETS {
@@ -494,7 +503,7 @@ impl ResourcesView {
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -658,6 +667,28 @@ impl ResourcesView {
             let new_list = worker.get_port_forward_refs(namespace);
             self.table.list.table.update_port_forwards(&new_list);
         }
+    }
+
+    fn has_highlighted_item_active_port_forward(&self) -> bool {
+        let Some(resource) = self.table.list.table.get_highlighted_resource().and_then(|r| r.data.as_ref()) else {
+            return false;
+        };
+
+        resource.extra_values.len() > PF_COLUMN_NO
+            && resource.extra_values[PF_COLUMN_NO].raw_text().is_some_and(|t| !t.is_empty())
+    }
+
+    fn stop_port_forwards(&self) -> ResponseEvent {
+        if let Some(resource) = self.table.list.table.get_highlighted_resource() {
+            let containers = resource.to_containers_vec();
+            self.worker.borrow_mut().stop_container_port_forwards(&containers);
+            self.footer_tx.show_info(
+                format!("Port forwarding rules for '{}' have been stopped", resource.name()),
+                3_000,
+            );
+        }
+
+        ResponseEvent::Handled
     }
 }
 

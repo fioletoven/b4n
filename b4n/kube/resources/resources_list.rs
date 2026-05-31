@@ -116,8 +116,7 @@ impl ResourcesList {
                 let has_port_forward = forwards
                     .iter()
                     .any(|f| f.name.as_deref() == Some(item.data.name()) && f.namespace.as_str() == item.data.group());
-                item.data
-                    .set_data_text(PF_COLUMN_NO, if has_port_forward { "●" } else { " " });
+                item.data.set_data_text(PF_COLUMN_NO, if has_port_forward { "●" } else { "" });
             }
         }
     }

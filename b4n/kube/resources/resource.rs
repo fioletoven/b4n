@@ -2,7 +2,7 @@ use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::stats::{Metrics, Statistics};
-use b4n_kube::{Kind, Namespace, PV};
+use b4n_kube::{ContainerRef, Kind, Namespace, PV, ResourceTag};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
@@ -180,6 +180,20 @@ impl ResourceItem {
         } else {
             line_colors.ready.get_specific(is_active, is_selected)
         }
+    }
+
+    /// Returns resource containers as a `Vec` if resource has container tags.
+    pub fn to_containers_vec(&self) -> Vec<ContainerRef> {
+        self.data
+            .as_ref()
+            .map(|data| {
+                data.tags
+                    .iter()
+                    .filter(|tag| matches!(tag, ResourceTag::Container(_, _, _)))
+                    .map(|tag| ContainerRef::new(self.name.clone(), self.namespace.clone().into(), Some(tag.clone())))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn get_extra_values(&self) -> Option<&[ResourceValue]> {

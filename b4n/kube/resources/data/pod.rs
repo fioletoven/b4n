@@ -35,7 +35,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let mut values = vec![
         ResourceValue::integer(restarts, 5),
         ready_str.into(),
-        " ".into(),
+        "".into(),
         if is_terminating {
             "Terminating".into()
         } else if waiting.is_some() {

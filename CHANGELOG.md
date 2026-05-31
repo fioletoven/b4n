@@ -6,6 +6,7 @@
 
 - possibility to save YAML and logs to a file
 - additional sections for Pod and Node resources in describe view
+- allow to stop port forwarding rules from mouse menu in Pods view
 
 ### Bug fixes
 
