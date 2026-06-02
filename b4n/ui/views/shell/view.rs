@@ -218,7 +218,6 @@ impl ShellView {
     /// Creates new insert multiline clipboard text dialog.
     fn new_insert_clipboard_text_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             "You are about to paste text that contains multiple lines. If you paste this text \
              into your shell, it may result in the unexpected execution of commands.\n\
@@ -228,9 +227,9 @@ impl ShellView {
                 Button::new("Paste Anyway", ResponseEvent::Action("paste"), &colors.modal.btn_accent),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
-            65,
-            colors.modal.text,
         )
+        .with_width(65)
+        .with_colors(colors.modal.text)
     }
 
     /// Displays a confirmation dialog to forcibly close the shell view.
@@ -246,7 +245,6 @@ impl ShellView {
     /// Creates new close dialog.
     fn new_close_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             "You are about to close the shell view without terminating the running shell process. \
              It will keep running in the background until you stop it manually. Type 'exit' to close it gracefully."
@@ -255,9 +253,9 @@ impl ShellView {
                 Button::new("Close Anyway", ResponseEvent::Cancelled, &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
-            65,
-            colors.modal.text,
         )
+        .with_width(65)
+        .with_colors(colors.modal.text)
     }
 
     /// Checks if `ESC` key was pressed quickly `x` times.

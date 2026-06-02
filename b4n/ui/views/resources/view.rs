@@ -583,16 +583,14 @@ impl ResourcesView {
 
     fn new_delete_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             "Are you sure you want to delete the selected resources?".to_owned(),
             vec![
                 Button::new("Delete", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
-            60,
-            colors.modal.text,
         )
+        .with_colors(colors.modal.text)
         .with_checkboxes(vec![
             CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
             CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
@@ -610,16 +608,14 @@ impl ResourcesView {
     /// Creates new stop port forwarding rules dialog.
     fn new_stop_port_forwards_dialog(&mut self, resource: &str) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
             vec![
                 Button::new("Stop", ResponseEvent::Action("stop_port_forwards"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
-            60,
-            colors.modal.text,
         )
+        .with_colors(colors.modal.text)
         .with_highlighted_position(self.last_mouse_click.take())
     }
 

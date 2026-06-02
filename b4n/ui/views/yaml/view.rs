@@ -510,9 +510,9 @@ impl YamlView {
                 Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
-            65,
-            colors.modal.text,
         )
+        .with_width(65)
+        .with_colors(colors.modal.text)
     }
 
     fn new_save_dialog(&mut self, response: ResponseEvent) -> Dialog {
@@ -547,9 +547,8 @@ impl YamlView {
                 Button::new("Discard", response, &colors.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
             ],
-            60,
-            colors.text,
         )
+        .with_colors(colors.text)
         .with_checkboxes(inputs)
         .with_highlighted_position(self.last_mouse_click.take())
     }
@@ -575,9 +574,8 @@ impl YamlView {
                 Button::new("Discard", response, &colors.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
             ],
-            60,
-            colors.text,
         )
+        .with_colors(colors.text)
         .with_checkboxes(inputs)
         .with_highlighted_position(self.last_mouse_click.take())
     }
