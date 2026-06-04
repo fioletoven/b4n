@@ -7,7 +7,8 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem};
+use crate::ui::widgets::table::Cell;
 
 pub const PF_COLUMN_NO: usize = 2;
 const COLUMNS_NO_WITH_STATS: usize = 8;
@@ -33,7 +34,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     };
 
     let mut values = vec![
-        ResourceValue::integer(restarts, 5),
+        Cell::integer(restarts, 5),
         ready_str.into(),
         "".into(),
         if is_terminating {

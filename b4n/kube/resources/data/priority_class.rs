@@ -2,14 +2,14 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `priorityclass` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [
-        ResourceValue::integer(object.data["value"].as_i64(), 12),
+    let values: [Cell; 2] = [
+        Cell::integer(object.data["value"].as_i64(), 12),
         object.data["globalDefault"].as_bool().unwrap_or_default().into(),
     ];
 

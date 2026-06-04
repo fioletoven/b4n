@@ -3,7 +3,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `daemonset` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -16,12 +16,12 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let tags = get_match_labels(object);
 
-    let values: [ResourceValue; 5] = [
-        ResourceValue::integer(desired, 5),
-        ResourceValue::integer(current, 5),
-        ResourceValue::integer(ready, 5),
-        ResourceValue::integer(updated, 5),
-        ResourceValue::integer(available, 5),
+    let values: [Cell; 5] = [
+        Cell::integer(desired, 5),
+        Cell::integer(current, 5),
+        Cell::integer(ready, 5),
+        Cell::integer(updated, 5),
+        Cell::integer(available, 5),
     ];
 
     ResourceData::new(Box::new(values), is_terminating).with_tags(tags)

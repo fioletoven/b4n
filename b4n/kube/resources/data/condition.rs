@@ -2,11 +2,11 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the kubernetes resource status `condition`.
 pub fn data(condition: &Value) -> ResourceData {
-    let values: [ResourceValue; 3] = [
+    let values: [Cell; 3] = [
         condition["status"].as_str().into(),
         condition["reason"].as_str().into(),
         condition["message"].as_str().into(),

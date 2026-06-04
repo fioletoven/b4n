@@ -6,7 +6,7 @@ use std::{borrow::Cow, cmp::max};
 #[path = "./column.tests.rs"]
 mod column_tests;
 
-pub const AGE_COLUMN_WIDTH: usize = 6;
+pub const AGE_COLUMN_WIDTH: usize = 7;
 
 /// Default `NAMESPACE` column.
 pub const NAMESPACE: Column = Column {
@@ -42,6 +42,18 @@ pub const AGE: Column = Column {
     min_len: AGE_COLUMN_WIDTH,
     max_len: AGE_COLUMN_WIDTH,
     data_len: AGE_COLUMN_WIDTH,
+};
+
+/// Default `NONE` column.
+pub const NONE: Column = Column {
+    name: Cow::Borrowed(""),
+    is_fixed: true,
+    to_right: true,
+    is_sorted: false,
+    has_reversed_order: false,
+    min_len: 0,
+    max_len: 0,
+    data_len: 0,
 };
 
 /// Column for the list header.

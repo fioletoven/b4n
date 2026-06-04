@@ -3,12 +3,12 @@ use k8s_openapi::serde_json::{Map, Value};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `networkpolicy` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
-    let values: [ResourceValue; 1] = [get_selector(object.data["spec"]["podSelector"]["matchLabels"].as_object()).into()];
+    let values: [Cell; 1] = [get_selector(object.data["spec"]["podSelector"]["matchLabels"].as_object()).into()];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

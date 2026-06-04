@@ -1,4 +1,4 @@
-pub use self::column::{AGE, AGE_COLUMN_WIDTH, Column, ColumnStringExt, NAME, NAMESPACE};
+pub use self::column::{AGE, AGE_COLUMN_WIDTH, Column, ColumnStringExt, NAME, NAMESPACE, NONE};
 pub use self::header::Header;
 pub use self::item::ItemExt;
 pub use self::tabular_list::{TabularList, ViewType};

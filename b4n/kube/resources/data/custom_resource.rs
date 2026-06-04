@@ -5,7 +5,7 @@ use k8s_openapi::serde_json::{Value, to_value};
 use kube::api::DynamicObject;
 use std::{collections::HashSet, rc::Rc};
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the custom resource.
 pub fn data(crd: &CrdColumns, object: &DynamicObject) -> ResourceData {
@@ -40,7 +40,7 @@ pub fn header(crd: &CrdColumns) -> Header {
     )
 }
 
-fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
+fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[Cell]> {
     let mut data = Vec::with_capacity(crd.columns.as_ref().map(Vec::len).unwrap_or_default());
     if let Some(columns) = &crd.columns {
         for column in columns {
@@ -49,7 +49,7 @@ fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
             {
                 data.push(get_resource_value(value[0], &column.field_type));
             } else {
-                data.push(ResourceValue::from(""));
+                data.push(Cell::from(""));
             }
         }
     }
@@ -57,14 +57,14 @@ fn get_data(crd: &CrdColumns, object_data: &Value) -> Box<[ResourceValue]> {
     data.into_boxed_slice()
 }
 
-fn get_resource_value(value: &Value, field_type: &str) -> ResourceValue {
+fn get_resource_value(value: &Value, field_type: &str) -> Cell {
     match field_type {
-        "boolean" => ResourceValue::from(value.as_bool().unwrap_or_default()),
-        "integer" => ResourceValue::integer(value.as_i64(), 10),
-        "number" => ResourceValue::number(value.as_f64(), 10),
-        "string" => ResourceValue::from(value.as_str()),
-        "date" => ResourceValue::time(value.clone()),
-        _ => ResourceValue::from(" "),
+        "boolean" => Cell::from(value.as_bool().unwrap_or_default()),
+        "integer" => Cell::integer(value.as_i64(), 10),
+        "number" => Cell::number(value.as_f64(), 10),
+        "string" => Cell::from(value.as_str()),
+        "date" => Cell::time(value.clone()),
+        _ => Cell::from(" "),
     }
 }
 

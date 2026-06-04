@@ -3,7 +3,7 @@ use b4n_list::{FilterContext, Filterable, Row, ScrollableList};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Position, Rect};
 
-use crate::table::Header;
+use crate::table::{Header, ItemExt};
 use crate::{MouseEvent, MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 /// Indicates which columns in the list should be displayed.
@@ -189,6 +189,32 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         let y = line_no.saturating_add(area.y);
 
         Position::new(x, y)
+    }
+
+    /// Returns table items as formatted strings.\
+    /// **Note** that this is the same format as for drawing on the terminal.
+    pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {
+        let items = self
+            .list
+            .iter()
+            .filter(|item| !selected || item.is_selected)
+            .collect::<Vec<_>>();
+
+        if items.is_empty() {
+            return Vec::new();
+        }
+
+        let width = self.header.get_best_width(view);
+        let header = self.header.get_text(view, width).to_string();
+        let widths = self.header.get_widths(view, width);
+        let mut result = Vec::with_capacity(items.len() + 1);
+
+        result.push(header);
+        for item in items {
+            result.push(item.get_text(view, &self.header, &widths, width, 0));
+        }
+
+        result
     }
 
     /// Sorts the internal list.

@@ -3,7 +3,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(
@@ -32,7 +32,7 @@ pub fn data(
     };
 
     let mut values = vec![
-        ResourceValue::integer(restarts, 5),
+        Cell::integer(restarts, 5),
         ready.into(),
         phase.into(),
         is_init_container.into(),

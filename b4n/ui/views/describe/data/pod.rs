@@ -28,7 +28,7 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
 
     vec![
         SectionData::Text(vec![StyledLine::default(), header(colors, "Containers")]),
-        SectionData::List(Box::new(viewer)),
+        SectionData::Resources(Box::new(viewer)),
         SectionData::Text(vec![StyledLine::default(), header(colors, "Volumes")]),
     ]
 }
@@ -49,7 +49,7 @@ pub fn update_additional_sections(
 }
 
 fn update_containers_section(resource: &ResourceRef, object: &DynamicObject, sections: &mut [SectionData]) {
-    let SectionData::List(list) = &mut sections[1] else {
+    let SectionData::Resources(list) = &mut sections[1] else {
         return;
     };
 

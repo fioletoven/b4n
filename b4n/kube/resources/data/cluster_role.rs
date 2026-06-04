@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `clusterrole` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -12,7 +12,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         .map_or(0, Vec::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [rules.to_string().into(), aggregates.to_string().into()];
+    let values: [Cell; 2] = [rules.to_string().into(), aggregates.to_string().into()];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

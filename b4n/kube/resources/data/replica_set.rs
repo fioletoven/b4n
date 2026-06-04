@@ -3,7 +3,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `replicaset` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -14,7 +14,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let tags = get_match_labels(object);
 
-    let values: [ResourceValue; 2] = [format!("{ready}/{replicas}").into(), format!("{available}/{replicas}").into()];
+    let values: [Cell; 2] = [format!("{ready}/{replicas}").into(), format!("{available}/{replicas}").into()];
 
     ResourceData::new(Box::new(values), is_terminating).with_tags(tags)
 }

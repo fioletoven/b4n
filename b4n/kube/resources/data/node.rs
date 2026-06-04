@@ -5,7 +5,8 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::{collections::BTreeMap, rc::Rc};
 
-use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem, ResourceValue};
+use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem};
+use crate::ui::widgets::table::Cell;
 
 const COLUMNS_NO_WITH_STATS: usize = 10;
 
@@ -22,11 +23,11 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let mut values = vec![
-        ResourceValue::integer(taints, 3),
+        Cell::integer(taints, 3),
         get_roles(object.metadata.labels.as_ref()).into(),
         version.into(),
-        ResourceValue::integer(pods, 6),
-        ResourceValue::integer(containers, 6),
+        Cell::integer(pods, 6),
+        Cell::integer(containers, 6),
         ready.into(),
     ];
 
@@ -36,8 +37,8 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
 
         values.push(statistics.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into());
         values.push(statistics.node(name).and_then(|n| n.metrics).map(|m| m.memory).into());
-        values.push(ResourceValue::number(cpu_usage, 7));
-        values.push(ResourceValue::number(mem_usage, 7));
+        values.push(Cell::number(cpu_usage, 7));
+        values.push(Cell::number(mem_usage, 7));
     }
 
     let tags = Box::new([
@@ -104,8 +105,8 @@ pub fn update_statistics<'a>(
 
             data.extra_values[6] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into();
             data.extra_values[7] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.memory).into();
-            data.extra_values[8] = ResourceValue::number(cpu_usage, 7);
-            data.extra_values[9] = ResourceValue::number(mem_usage, 7);
+            data.extra_values[8] = Cell::number(cpu_usage, 7);
+            data.extra_values[9] = Cell::number(mem_usage, 7);
         }
     }
 }

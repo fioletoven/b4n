@@ -135,7 +135,7 @@ impl ResourcesTable {
 
     /// Copies all / selected items to clipboard.
     pub fn copy_to_clipboard(&mut self, selected: bool, footer: &NotificationSink) {
-        let text = self.list.table.get_items_as_text(self.list.view, selected);
+        let text = self.list.table.table.get_items_as_text(self.list.view, selected);
         self.app_data.copy_to_clipboard(text.join("\n"), footer, || {
             if selected {
                 "Selected resources copied to clipboard"

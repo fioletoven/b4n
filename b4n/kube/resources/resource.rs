@@ -11,9 +11,8 @@ use k8s_openapi::serde_json::Value;
 use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use crate::kube::resources::{
-    ResourceData, ResourceValue, condition, container, get_header_data, get_resource_data, get_resource_name,
-};
+use crate::kube::resources::{ResourceData, condition, container, get_header_data, get_resource_data, get_resource_name};
+use crate::ui::widgets::table::Cell;
 
 #[cfg(test)]
 #[path = "./resource.tests.rs"]
@@ -196,7 +195,7 @@ impl ResourceItem {
             .unwrap_or_default()
     }
 
-    fn get_extra_values(&self) -> Option<&[ResourceValue]> {
+    fn get_extra_values(&self) -> Option<&[Cell]> {
         self.data.as_ref().map(|data| &*data.extra_values)
     }
 }

@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `namespace` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -10,7 +10,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let phase = status["phase"].as_str();
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 1] = [if is_terminating { "Terminating".into() } else { phase.into() }];
+    let values: [Cell; 1] = [if is_terminating { "Terminating".into() } else { phase.into() }];
 
     ResourceData::new(Box::new(values), is_terminating)
 }
