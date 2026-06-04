@@ -16,11 +16,12 @@ pub fn none(colors: &YamlSyntaxColors) -> StyledLine {
 }
 
 /// Creates property with `name` and `value` as a `StyledLine`.
-pub fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
+pub fn property(colors: &YamlSyntaxColors, name: &str, value: impl Into<String>, kind: ValueKind, indent: usize) -> StyledLine {
     vec![
+        span(&colors.normal, " ".repeat(indent)),
         span(&colors.property, name),
         span(&colors.normal, ": "),
-        span(&colors.string, value),
+        span(kind_to_color(colors, kind), value),
     ]
     .into()
 }
@@ -38,24 +39,17 @@ pub enum ValueKind {
 pub fn aligned_property(
     colors: &YamlSyntaxColors,
     name: &str,
-    value: &str,
+    value: impl Into<String>,
     kind: ValueKind,
     indent: usize,
     width: usize,
 ) -> StyledLine {
     let spacing = " ".repeat(width.saturating_sub(name.len()) + 1);
-    let value_color = match kind {
-        ValueKind::String => &colors.string,
-        ValueKind::Numeric => &colors.numeric,
-        ValueKind::Boolean => &colors.language,
-        ValueKind::Normal => &colors.normal,
-    };
-
     vec![
         span(&colors.normal, " ".repeat(indent)),
         span(&colors.property, name),
         span(&colors.normal, format!(":{spacing}")),
-        span(value_color, value),
+        span(kind_to_color(colors, kind), value),
     ]
     .into()
 }
@@ -106,5 +100,14 @@ pub fn uppercase_first_letter(value: &str) -> String {
     match c.next() {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
+    match kind {
+        ValueKind::String => &colors.string,
+        ValueKind::Numeric => &colors.numeric,
+        ValueKind::Boolean => &colors.language,
+        ValueKind::Normal => &colors.normal,
     }
 }
