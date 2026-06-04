@@ -21,6 +21,7 @@ use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
 use crate::ui::views::describe::data::{self, SectionData};
 use crate::ui::views::describe::utils::{header, list, none, property};
+use crate::ui::widgets::table::BasicTable;
 
 /// Describe resource content.
 pub struct DescribeContent {
@@ -108,21 +109,31 @@ impl DescribeContent {
             self.focus_section(self.get_clicked_section(event));
         }
 
-        if let Some(list) = self.get_list_by_focus(self.focused) {
-            list.process_event(event)
-        } else {
-            self.process_scroll_event(event)
+        match self.focused {
+            FocusTarget::Scroll => self.process_scroll_event(event),
+            FocusTarget::AdditionalSection(index) => match self.sections.get_mut(index) {
+                Some(SectionData::Resources(list)) => list.process_event(event),
+                Some(SectionData::List(list)) => list.process_event(event),
+                _ => ResponseEvent::NotHandled,
+            },
+            FocusTarget::Conditions => self.conditions.process_event(event),
+            FocusTarget::Events => self.events.process_event(event),
         }
     }
 
     /// Returns focused list as a text.
     pub fn get_focused_list_text(&mut self) -> Option<String> {
-        let list = self.get_list_by_focus(self.focused)?;
-        if list.table.is_empty() {
-            None
-        } else {
-            Some(list.table.get_items_as_text(ViewType::Compact, false).join("\n"))
-        }
+        let lines = match self.focused {
+            FocusTarget::Scroll => Vec::new(),
+            FocusTarget::AdditionalSection(index) => match self.sections.get_mut(index) {
+                Some(SectionData::Resources(list)) => list.table.get_items_as_text(ViewType::Compact, false),
+                Some(SectionData::List(list)) => list.table.get_items_as_text(ViewType::Compact, false),
+                _ => Vec::new(),
+            },
+            FocusTarget::Conditions => self.conditions.table.get_items_as_text(ViewType::Compact, false),
+            FocusTarget::Events => self.events.table.get_items_as_text(ViewType::Compact, false),
+        };
+        if lines.is_empty() { None } else { Some(lines.join("\n")) }
     }
 
     /// Returns `true` if content can be scrolled.
@@ -210,8 +221,12 @@ impl DescribeContent {
                     sections.push(Section::from_text(lines));
                     section_targets.push(None);
                 },
+                SectionData::Resources(list) => {
+                    sections.push(Section::from_resources_list(list));
+                    section_targets.push(Some(FocusTarget::AdditionalSection(index)));
+                },
                 SectionData::List(list) => {
-                    sections.push(Section::from_list(list));
+                    sections.push(Section::from_basic_list(list));
                     section_targets.push(Some(FocusTarget::AdditionalSection(index)));
                 },
             }
@@ -222,12 +237,12 @@ impl DescribeContent {
 
         sections.push(Section::from_text(&mut self.conditions_header));
         section_targets.push(None);
-        sections.push(Section::from_list(&mut self.conditions));
+        sections.push(Section::from_resources_list(&mut self.conditions));
         section_targets.push(Some(FocusTarget::Conditions));
 
         sections.push(Section::from_text(&mut self.events_header));
         section_targets.push(None);
-        sections.push(Section::from_list(&mut self.events));
+        sections.push(Section::from_resources_list(&mut self.events));
         section_targets.push(Some(FocusTarget::Events));
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
@@ -304,7 +319,11 @@ impl DescribeContent {
     fn can_focus_section(&self, section: FocusTarget) -> bool {
         match section {
             FocusTarget::Scroll => true,
-            FocusTarget::AdditionalSection(index) => self.get_additional_list(index).is_some_and(|list| !list.table.is_empty()),
+            FocusTarget::AdditionalSection(index) => match self.sections.get(index) {
+                Some(SectionData::Resources(list)) => !list.table.is_empty(),
+                Some(SectionData::List(list)) => !list.table.is_empty(),
+                _ => false,
+            },
             FocusTarget::Conditions => !self.conditions.table.is_empty(),
             FocusTarget::Events => !self.events.table.is_empty(),
         }
@@ -459,37 +478,14 @@ impl DescribeContent {
         data::update_additional_sections(&self.resource, &self.app_data, object, &mut self.sections);
     }
 
-    fn get_list_by_focus(&mut self, section: FocusTarget) -> Option<&mut ListViewer<ResourcesList>> {
-        match section {
-            FocusTarget::Scroll => None,
-            FocusTarget::AdditionalSection(index) => self.get_additional_list_mut(index),
-            FocusTarget::Conditions => Some(&mut self.conditions),
-            FocusTarget::Events => Some(&mut self.events),
-        }
-    }
-
-    fn get_additional_list(&self, index: usize) -> Option<&ListViewer<ResourcesList>> {
-        if let Some(SectionData::List(list)) = self.sections.get(index) {
-            Some(list)
-        } else {
-            None
-        }
-    }
-
-    fn get_additional_list_mut(&mut self, index: usize) -> Option<&mut ListViewer<ResourcesList>> {
-        if let Some(SectionData::List(list)) = self.sections.get_mut(index) {
-            Some(list)
-        } else {
-            None
-        }
-    }
-
     fn update_list_focuses(&mut self) {
         self.conditions.set_focus(self.focused == FocusTarget::Conditions);
         self.events.set_focus(self.focused == FocusTarget::Events);
         for (index, section) in self.sections.iter_mut().enumerate() {
-            if let SectionData::List(list) = section {
-                list.set_focus(self.focused == FocusTarget::AdditionalSection(index));
+            match section {
+                SectionData::Resources(list) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
+                SectionData::List(list) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
+                SectionData::Text(_) => (),
             }
         }
     }
@@ -521,7 +517,8 @@ enum FocusTarget {
 /// Represents a section in the describe view.
 enum Section<'a> {
     Text(&'a mut Vec<StyledLine>, usize, u16),
-    List(&'a mut ListViewer<ResourcesList>, usize, u16),
+    Resources(&'a mut ListViewer<ResourcesList>, usize, u16),
+    List(&'a mut ListViewer<BasicTable>, usize, u16),
 }
 
 impl<'a> Section<'a> {
@@ -531,7 +528,13 @@ impl<'a> Section<'a> {
         Section::Text(value, width.unwrap_or_default(), height)
     }
 
-    fn from_list(value: &'a mut ListViewer<ResourcesList>) -> Self {
+    fn from_resources_list(value: &'a mut ListViewer<ResourcesList>) -> Self {
+        let width = value.table.table.header.get_cached_length().unwrap_or_default();
+        let height = u16::try_from(value.table.len()).unwrap_or_default() + 1;
+        Self::Resources(value, width, height)
+    }
+
+    fn from_basic_list(value: &'a mut ListViewer<BasicTable>) -> Self {
         let width = value.table.table.header.get_cached_length().unwrap_or_default();
         let height = u16::try_from(value.table.len()).unwrap_or_default() + 1;
         Self::List(value, width, height)
@@ -539,13 +542,13 @@ impl<'a> Section<'a> {
 
     fn width(&self) -> usize {
         match self {
-            Section::Text(_, width, _) | Section::List(_, width, _) => *width,
+            Section::Text(_, width, _) | Section::Resources(_, width, _) | Section::List(_, width, _) => *width,
         }
     }
 
     fn height(&self) -> u16 {
         match self {
-            Section::Text(_, _, height) | Section::List(_, _, height) => *height,
+            Section::Text(_, _, height) | Section::Resources(_, _, height) | Section::List(_, _, height) => *height,
         }
     }
 
@@ -559,6 +562,15 @@ impl<'a> Section<'a> {
                     .map(|line| line.as_line(offset_x))
                     .collect();
                 frame.render_widget(Paragraph::new(lines), area.inner(Margin::new(1, 0)));
+            },
+            Section::Resources(list, _, _) => {
+                if list.table.is_empty() {
+                    let colors = &app_data.borrow().theme.colors.syntax.describe;
+                    frame.render_widget(Paragraph::new(none(colors).as_line(offset_x)), area.inner(Margin::new(1, 0)));
+                } else {
+                    list.table.table.set_offset(offset_x);
+                    list.draw_clipped(frame, area, offset_y as usize);
+                }
             },
             Section::List(list, _, _) => {
                 if list.table.is_empty() {

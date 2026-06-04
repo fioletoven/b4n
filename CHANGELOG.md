@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- additional sections for Service resource in describe view
+
 ## 0.4.9 - 2026-05-31
 
 ### Features

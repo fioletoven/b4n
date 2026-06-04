@@ -3,7 +3,8 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::{rc::Rc, str::FromStr};
 
-use crate::kube::resources::{ResourceData, ResourceValue, persistent_volume};
+use crate::kube::resources::{ResourceData, persistent_volume};
+use crate::ui::widgets::table::Cell;
 
 /// Returns [`ResourceData`] for the `persistentvolumeclaim` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -15,7 +16,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let is_ready = phase.is_some_and(|p| p == "Bound");
 
-    let values: [ResourceValue; 5] = [
+    let values: [Cell; 5] = [
         phase.into(),
         spec["volumeName"].as_str().into(),
         capacity.into(),

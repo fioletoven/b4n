@@ -4,7 +4,7 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::{rc::Rc, str::FromStr};
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `persistentvolume` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -16,7 +16,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
     let is_ready = phase.is_some_and(|p| p == "Bound");
 
-    let values: [ResourceValue; 6] = [
+    let values: [Cell; 6] = [
         phase.into(),
         capacity.into(),
         get_access_modes(spec["accessModes"].as_array()).into(),

@@ -3,7 +3,7 @@ use k8s_openapi::serde_json::Map;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `secret` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -11,9 +11,9 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let data_count = object.data["data"].as_object().map_or(0, Map::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [
+    let values: [Cell; 2] = [
         secret_type.into(),
-        ResourceValue::integer(Some(i64::try_from(data_count).unwrap_or_default()), 5),
+        Cell::integer(Some(i64::try_from(data_count).unwrap_or_default()), 5),
     ];
 
     ResourceData::new(Box::new(values), is_terminating)

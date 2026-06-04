@@ -4,6 +4,7 @@ use b4n_list::{FilterContext, Filterable, Item, Row};
 use crate::table::{AGE_COLUMN_WIDTH, Header, ViewType, header::HeaderWidths};
 use crate::utils::consume_and_add_space;
 
+/// Extension methods for [`Item`].
 pub trait ItemExt {
     /// Builds and returns the whole row of values for this item.
     fn get_text(&self, view: ViewType, header: &Header, widths: &HeaderWidths, width: usize, offset: usize) -> String;
@@ -46,16 +47,19 @@ fn get_compact_text<T: Row + Filterable<Fc>, Fc: FilterContext>(
     row.push_cell(item.data.name(), name_width, false);
     row.push(' ');
     push_inner_text(item, row, header, extra_width);
-    row.push(' ');
-    row.push_cell(
-        item.data
-            .creation_timestamp()
-            .map(b4n_kube::utils::format_datetime)
-            .as_deref()
-            .unwrap_or("n/a"),
-        AGE_COLUMN_WIDTH + 1,
-        true,
-    );
+
+    if header.is_age_column_visible() {
+        row.push(' ');
+        row.push_cell(
+            item.data
+                .creation_timestamp()
+                .map(b4n_kube::utils::format_datetime)
+                .as_deref()
+                .unwrap_or("n/a"),
+            AGE_COLUMN_WIDTH,
+            true,
+        );
+    }
 }
 
 fn get_full_text<T: Row + Filterable<Fc>, Fc: FilterContext>(

@@ -4,12 +4,12 @@ use kube::api::DynamicObject;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `endpoints` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
-    let values: [ResourceValue; 1] = [get_endpoints(object.data["subsets"].as_array()).into()];
+    let values: [Cell; 1] = [get_endpoints(object.data["subsets"].as_array()).into()];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

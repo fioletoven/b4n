@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `serviceaccount` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -10,7 +10,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         .as_array()
         .map(|s| i64::try_from(s.len()).unwrap_or_default());
     let is_terminating = object.metadata.deletion_timestamp.is_some();
-    let values: [ResourceValue; 1] = [ResourceValue::integer(secrets, 7)];
+    let values: [Cell; 1] = [Cell::integer(secrets, 7)];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

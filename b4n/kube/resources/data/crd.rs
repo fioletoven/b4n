@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `customresourcedefinition` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -12,7 +12,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         .map(|v| v.iter().filter_map(|v| v["name"].as_str()).collect::<Vec<_>>().join(","));
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 4] = [
+    let values: [Cell; 4] = [
         spec["group"].as_str().into(),
         spec["names"]["kind"].as_str().into(),
         versions.into(),

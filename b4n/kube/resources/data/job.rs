@@ -3,7 +3,7 @@ use k8s_openapi::jiff::Timestamp;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `job` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -15,10 +15,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let duration = ctime.and_then(|c| stime.map(|s| Timestamp::now() - (c - s)));
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [
-        format!("{succeeded}/{completions}").into(),
-        ResourceValue::from(duration.as_ref()),
-    ];
+    let values: [Cell; 2] = [format!("{succeeded}/{completions}").into(), Cell::from(duration.as_ref())];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

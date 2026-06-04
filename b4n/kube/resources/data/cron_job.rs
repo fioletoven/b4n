@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `cronjob` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -11,12 +11,12 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let active = status["active"].as_array().map_or(0, Vec::len);
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 5] = [
+    let values: [Cell; 5] = [
         spec["schedule"].as_str().into(),
         spec["suspend"].as_bool().unwrap_or_default().into(),
         active.to_string().into(),
-        ResourceValue::time(status["lastScheduleTime"].clone()),
-        ResourceValue::time(status["lastSuccessfulTime"].clone()),
+        Cell::time(status["lastScheduleTime"].clone()),
+        Cell::time(status["lastSuccessfulTime"].clone()),
     ];
 
     ResourceData::new(Box::new(values), is_terminating)

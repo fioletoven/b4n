@@ -3,13 +3,13 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `rolebinding` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 3] = [
+    let values: [Cell; 3] = [
         object.data["roleRef"]["name"].as_str().into(),
         get_subject_kinds(object.data["subjects"].as_array()).into(),
         get_subject_names(object.data["subjects"].as_array()).into(),

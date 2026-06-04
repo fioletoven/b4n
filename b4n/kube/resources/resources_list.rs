@@ -183,31 +183,10 @@ impl ResourcesList {
             .collect::<Vec<_>>()
     }
 
-    /// Returns resources as a list of formatted strings.\
+    /// Returns resources as formatted strings.\
     /// **Note** that this is the same format as for drawing on the terminal.
     pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {
-        let width = self.get_best_width(view);
-        let header = self.table.header.get_text(view, width).to_string();
-        let widths = self.table.header.get_widths(view, width);
-
-        let items = self
-            .table
-            .list
-            .iter()
-            .filter(|i| !selected || i.is_selected)
-            .collect::<Vec<_>>();
-
-        if items.is_empty() {
-            return Vec::new();
-        }
-
-        let mut result = Vec::with_capacity(items.len() + 1);
-        result.push(header);
-        for item in items {
-            result.push(item.get_text(view, &self.table.header, &widths, width, 0));
-        }
-
-        result
+        self.table.get_items_as_text(view, selected)
     }
 
     /// Returns resources names as a list.
@@ -219,28 +198,6 @@ impl ResourcesList {
     pub fn resort(&mut self) {
         let (sort_by, is_descending) = self.table.header.sort_info();
         self.sort(sort_by, is_descending);
-    }
-
-    fn get_best_width(&self, view: ViewType) -> usize {
-        let group_width = if view == ViewType::Full {
-            self.table.header.get_data_length(0).max(9) + 2
-        } else {
-            0
-        };
-        let name_width = self.table.header.get_data_length(1).max(4) + 2;
-        let extra_width = self
-            .table
-            .header
-            .get_extra_columns()
-            .map(|c| c.iter().map(|c| c.len() + 2).sum::<usize>())
-            .unwrap_or_default();
-        let age_width = self
-            .table
-            .header
-            .get_data_length(self.table.header.get_columns_count() - 1)
-            .max(7);
-
-        group_width + name_width + extra_width + age_width
     }
 
     fn update_init(&mut self, init: InitData, is_from_cache: bool) {

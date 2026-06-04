@@ -213,9 +213,9 @@ impl LogsView {
                 Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
             ],
-            65,
-            colors.modal.text,
         )
+        .with_width(65)
+        .with_colors(colors.modal.text)
     }
 
     fn update_bound_to_bottom(&mut self) {

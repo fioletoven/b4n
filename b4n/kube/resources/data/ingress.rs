@@ -3,7 +3,7 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `ingress` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -12,7 +12,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let ports = get_ports(object.data["spec"]["tls"].is_array());
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 4] = [
+    let values: [Cell; 4] = [
         object.data["spec"]["ingressClassName"].as_str().into(),
         hosts.into(),
         addresses.into(),

@@ -4,21 +4,25 @@ use kube::api::DynamicObject;
 use crate::core::SharedAppData;
 use crate::kube::resources::ResourcesList;
 use crate::ui::presentation::{ListViewer, StyledLine};
+use crate::ui::widgets::table::BasicTable;
 
 pub mod node;
 pub mod pod;
+pub mod service;
 
 /// Holds section's data.
 pub enum SectionData {
     Text(Vec<StyledLine>),
-    List(Box<ListViewer<ResourcesList>>),
+    Resources(Box<ListViewer<ResourcesList>>),
+    List(Box<ListViewer<BasicTable>>),
 }
 
 /// Creates new additional sections for describe view for the specified resource.
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     match resource.kind.name() {
-        "pods" => pod::create_additional_sections(resource, app_data),
         "nodes" => node::create_additional_sections(resource, app_data),
+        "pods" => pod::create_additional_sections(resource, app_data),
+        "services" => service::create_additional_sections(resource, app_data),
         _ => Vec::new(),
     }
 }
@@ -31,8 +35,9 @@ pub fn update_additional_sections(
     sections: &mut [SectionData],
 ) {
     match resource.kind.name() {
-        "pods" => pod::update_additional_sections(resource, app_data, object, sections),
         "nodes" => node::update_additional_sections(resource, app_data, object, sections),
+        "pods" => pod::update_additional_sections(resource, app_data, object, sections),
+        "services" => service::update_additional_sections(resource, app_data, object, sections),
         _ => (),
     }
 }

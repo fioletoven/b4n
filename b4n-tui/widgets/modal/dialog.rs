@@ -27,26 +27,38 @@ pub struct Dialog {
 
 impl Default for Dialog {
     fn default() -> Self {
-        Self::new(String::new(), Vec::new(), 0, TextColors::default())
+        Self::new(String::new(), Vec::new())
     }
 }
 
 impl Dialog {
     /// Creates new [`Dialog`] instance.
-    pub fn new(message: String, buttons: Vec<Button>, width: u16, colors: TextColors) -> Self {
+    pub fn new(message: String, buttons: Vec<Button>) -> Self {
         let default_button = if buttons.is_empty() { 0 } else { buttons.len() - 1 };
         let mut buttons = ControlsGroup::new(buttons);
         buttons.focus(default_button);
 
         Self {
             is_visible: false,
-            width,
-            colors,
+            width: 60,
+            colors: TextColors::default(),
             message,
             controls: buttons,
             default_button,
             area: Rect::default(),
         }
+    }
+
+    /// Sets dialog width.
+    pub fn with_width(mut self, width: u16) -> Self {
+        self.width = width;
+        self
+    }
+
+    /// Sets dialog colors.
+    pub fn with_colors(mut self, colors: TextColors) -> Self {
+        self.colors = colors;
+        self
     }
 
     /// Highlights item under the specified mouse position on the first dialog draw.

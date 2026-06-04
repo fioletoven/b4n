@@ -2,7 +2,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 const DEFAULT_CLASS_ANNOTATION: &str = "ingressclass.kubernetes.io/is-default-class";
 
@@ -17,7 +17,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         .and_then(|annotations| annotations.get(DEFAULT_CLASS_ANNOTATION))
         .is_some_and(|value| value == "true");
 
-    let values: [ResourceValue; 3] = [
+    let values: [Cell; 3] = [
         object.data["spec"]["controller"].as_str().into(),
         get_parameters(parameters).into(),
         is_default.into(),

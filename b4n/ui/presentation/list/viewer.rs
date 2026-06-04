@@ -51,7 +51,7 @@ impl<T: Table> ListViewer<T> {
 
     /// Sets focus for the list viewer.
     pub fn with_focus(mut self, is_focused: bool) -> Self {
-        self.is_focused = is_focused;
+        self.set_focus(is_focused);
         self
     }
 

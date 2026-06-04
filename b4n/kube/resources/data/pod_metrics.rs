@@ -3,7 +3,7 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::{rc::Rc, str::FromStr};
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `podmetrics` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
@@ -27,7 +27,7 @@ pub fn data(object: &DynamicObject) -> ResourceData {
 
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 3] = [Some(cpu).into(), Some(memory).into(), object.data["window"].as_str().into()];
+    let values: [Cell; 3] = [Some(cpu).into(), Some(memory).into(), object.data["window"].as_str().into()];
 
     ResourceData::new(Box::new(values), is_terminating)
 }

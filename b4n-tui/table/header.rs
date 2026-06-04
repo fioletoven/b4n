@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::table::{AGE, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
+use crate::table::{AGE, AGE_COLUMN_WIDTH, Column, ColumnStringExt, NAME, NAMESPACE, ViewType};
 use crate::utils::consume_and_add_space;
 
 #[cfg(test)]
@@ -39,6 +39,7 @@ pub struct Header {
     sort_symbols: Rc<[char]>,
     sorted_column_no: usize,
     is_sorted_descending: bool,
+    is_age_visible: bool,
     stretch_last: bool,
     cache: HeaderCache,
 }
@@ -53,7 +54,7 @@ impl Header {
     /// Creates new [`Header`] instance with provided columns.\
     /// **Note** that `sort_symbols` must be uppercase ASCII characters.
     pub fn from(group_column: Column, extra_columns: Option<Box<[Column]>>, sort_symbols: Rc<[char]>) -> Self {
-        let extra_width = get_extra_columns_len(extra_columns.as_deref()) + 9; // AGE + all spaces = 9
+        let extra_width = get_extra_columns_len(extra_columns.as_deref()) + AGE_COLUMN_WIDTH + 2;
         let extra_space = get_extra_space(extra_columns.as_deref());
 
         Self {
@@ -66,6 +67,7 @@ impl Header {
             sort_symbols,
             sorted_column_no: 1,
             is_sorted_descending: false,
+            is_age_visible: true,
             stretch_last: false,
             cache: HeaderCache::default(),
         }
@@ -89,12 +91,24 @@ impl Header {
         self
     }
 
+    /// Sets visibility for the age column.
+    pub fn with_age_column(mut self, is_visible: bool) -> Self {
+        self.is_age_visible = is_visible;
+        self.recalculate_extra_columns();
+        self
+    }
+
+    /// Returns `true` if age column is visible.
+    pub fn is_age_column_visible(&self) -> bool {
+        self.is_age_visible
+    }
+
     /// Returns number of columns in the header.
     pub fn get_columns_count(&self) -> usize {
         if let Some(extra_columns) = &self.extra_columns {
-            extra_columns.len() + 3
+            extra_columns.len() + 2 + usize::from(self.is_age_visible)
         } else {
-            3
+            2 + usize::from(self.is_age_visible)
         }
     }
 
@@ -147,8 +161,11 @@ impl Header {
     /// Recalculates extra columns text and width.
     pub fn recalculate_extra_columns(&mut self) {
         self.cache.invalidate();
-        self.all_extra_width = get_extra_columns_len(self.extra_columns.as_deref()) + 9; // AGE + all spaces = 9
+        self.all_extra_width = get_extra_columns_len(self.extra_columns.as_deref()) + 1; // 1 space before extra columns
         self.extra_space = get_extra_space(self.extra_columns.as_deref());
+        if self.is_age_visible {
+            self.all_extra_width += AGE_COLUMN_WIDTH + 1; // 1 space before age column
+        }
     }
 
     /// Resets `data_len` in each not fixed column.
@@ -203,6 +220,27 @@ impl Header {
     pub fn get_text(&mut self, view: ViewType, width: usize) -> &str {
         self.refresh_text(view, width);
         &self.cache.text
+    }
+
+    /// Returns width value for which all columns will perfectly fit.
+    pub fn get_best_width(&self, view: ViewType) -> usize {
+        let group_width = if view == ViewType::Full {
+            self.get_data_length(0).max(9) + 2
+        } else {
+            0
+        };
+        let name_width = self.get_data_length(1).max(4) + 2;
+        let extra_width = self
+            .get_extra_columns()
+            .map(|c| c.iter().map(|c| c.len() + 2).sum::<usize>())
+            .unwrap_or_default();
+
+        if self.is_age_visible {
+            let age_width = self.get_data_length(self.get_columns_count() - 1).max(7);
+            group_width + name_width + extra_width + age_width
+        } else {
+            group_width + name_width + extra_width - 2
+        }
     }
 
     /// Returns cached header text.
@@ -322,22 +360,27 @@ impl Header {
         } else {
             name_width = name_width.saturating_sub(self.cache.double_spaces_count);
         }
+
         let mut header = String::with_capacity(area_width + 2);
 
         if full {
             header.push(' ');
             header.push_column(&self.group, group_width, self.is_sorted_descending);
         }
+
         header.push(' ');
         header.push_column(&self.name, name_width, self.is_sorted_descending);
         header.push(' ');
         header.push_str(self.cache.extra_columns_text());
-        header.push(' ');
         if extra_width > 0 {
             header.extend(std::iter::repeat_n(' ', extra_width));
         }
-        header.push_column(&self.age, self.age.max_len(), self.is_sorted_descending);
-        header.push(' ');
+
+        if self.is_age_visible {
+            header.push(' ');
+            header.push_column(&self.age, self.age.max_len().saturating_sub(1), self.is_sorted_descending);
+            header.push(' ');
+        }
 
         header
     }
@@ -348,7 +391,7 @@ impl Header {
             .as_ref()
             .map(|c| c.len())
             .unwrap_or_default()
-            .saturating_add(1);
+            .saturating_add(usize::from(self.is_age_visible));
         let min_name_len = self.name.data_len.max(6 + widths.name_extra);
         let double_spaces_count = if double_spaces_count > 0 && widths.extra > 0 {
             double_spaces_count.min(widths.extra)

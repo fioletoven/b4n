@@ -3,14 +3,14 @@ use k8s_openapi::serde_json::Value;
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
-use crate::kube::resources::{ResourceData, ResourceValue};
+use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
 
 /// Returns [`ResourceData`] for the `apiservice` kubernetes resource.
 pub fn data(object: &DynamicObject) -> ResourceData {
     let service = &object.data["spec"]["service"];
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 2] = [
+    let values: [Cell; 2] = [
         get_service(service["name"].as_str(), service["namespace"].as_str()).into(),
         get_available_condition(object.data["status"]["conditions"].as_array()).into(),
     ];

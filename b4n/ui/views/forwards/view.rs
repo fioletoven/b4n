@@ -158,16 +158,14 @@ impl ForwardsView {
     /// Creates new stop dialog.
     fn new_stop_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-
         Dialog::new(
             "Are you sure you want to stop the selected port forwarding rules?".to_owned(),
             vec![
                 Button::new("Stop", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
-            60,
-            colors.modal.text,
         )
+        .with_colors(colors.modal.text)
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
@@ -197,11 +195,8 @@ impl ForwardsView {
     /// Creates new cleanup stale pods dialog.
     fn new_cleanup_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
-        let kind = if !self.list.table.is_filtered() && self.namespace.is_all() {
-            "all"
-        } else {
-            "visible"
-        };
+        let is_all = !self.list.table.is_filtered() && self.namespace.is_all();
+        let kind = if is_all { "all" } else { "visible" };
 
         Dialog::new(
             format!("Are you sure you want to stop {kind} port forwarding rules for pods that no longer exist? "),
@@ -209,9 +204,8 @@ impl ForwardsView {
                 Button::new("Stop", ResponseEvent::Action("cleanup"), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
             ],
-            60,
-            colors.modal.text,
         )
+        .with_colors(colors.modal.text)
         .with_highlighted_position(self.last_mouse_click.take())
     }
 

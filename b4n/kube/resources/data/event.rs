@@ -2,7 +2,8 @@ use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::{ResourceExt, api::DynamicObject};
 use std::rc::Rc;
 
-use crate::kube::resources::{ColumnsLayout, ResourceData, ResourceValue};
+use crate::kube::resources::{ColumnsLayout, ResourceData};
+use crate::ui::widgets::table::Cell;
 
 /// Returns name for the `event` kubernetes resource.
 pub fn name(object: &DynamicObject, columns_layout: ColumnsLayout) -> String {
@@ -46,8 +47,8 @@ fn data_general(object: &DynamicObject) -> ResourceData {
     };
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
-    let values: [ResourceValue; 5] = [
-        ResourceValue::time(last),
+    let values: [Cell; 5] = [
+        Cell::time(last),
         event_count(object),
         object.data["type"].as_str().into(),
         object.data["reason"].as_str().into(),
@@ -118,10 +119,10 @@ pub fn header_compact() -> Header {
     .with_stretch_last()
 }
 
-fn event_count(object: &DynamicObject) -> ResourceValue {
+fn event_count(object: &DynamicObject) -> Cell {
     if let Some(count) = object.data["count"].as_i64() {
-        ResourceValue::integer(Some(count), 6)
+        Cell::integer(Some(count), 6)
     } else {
-        ResourceValue::integer(object.data["series"]["count"].as_i64(), 6)
+        Cell::integer(object.data["series"]["count"].as_i64(), 6)
     }
 }
