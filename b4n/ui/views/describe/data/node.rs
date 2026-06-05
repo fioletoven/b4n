@@ -34,6 +34,9 @@ pub fn update_additional_sections(
 
     let colors = &app_data.borrow().theme.colors.syntax.describe;
 
+    add_networking_section(lines, colors, object);
+    add_system_section(lines, colors, object);
+
     let capacity = object.data["status"]["capacity"].as_object();
     lines.push(StyledLine::default());
     add_resource_section(lines, colors, "Capacity", capacity);
@@ -41,8 +44,6 @@ pub fn update_additional_sections(
     let allocatable = object.data["status"]["allocatable"].as_object();
     lines.push(StyledLine::default());
     add_resource_section(lines, colors, "Allocatable", allocatable);
-
-    add_system_section(lines, colors, object);
 }
 
 fn add_resource_section(
@@ -65,26 +66,27 @@ fn add_resource_section(
     }
 }
 
-fn format_value(key: &str, value: &Value) -> String {
-    let value = value_to_string(value);
+fn add_networking_section(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, object: &DynamicObject) {
+    lines.push(StyledLine::default());
+    lines.push(header(colors, "Networking"));
 
-    match key {
-        "cpu" => CpuMetrics::from_str(&value).map(CpuMetrics::millicores).unwrap_or(value),
-        "memory" | "ephemeral-storage" => MemoryMetrics::from_str(&value)
-            .map(|metrics| metrics.rounded())
-            .unwrap_or(value),
-        _ if key.starts_with("hugepages-") => MemoryMetrics::from_str(&value)
-            .map(|metrics| metrics.rounded())
-            .unwrap_or(value),
-        _ => value,
-    }
+    lines.push(property_str(colors, "Hostname", find_node_address(object, "Hostname")));
+    lines.push(property_str(colors, "Internal IP", find_node_address(object, "InternalIP")));
+    lines.push(property_str(colors, "External IP", find_node_address(object, "ExternalIP")));
+    lines.push(property_str(colors, "Pod CIDR", object.data["spec"]["podCIDR"].as_str()));
+    lines.push(property_str(
+        colors,
+        "Pod CIDRs",
+        simple_array(object.data["spec"]["podCIDRs"].as_array()).as_deref(),
+    ));
+    lines.push(property_str(
+        colors,
+        "Addresses",
+        node_addresses(object.data["status"]["addresses"].as_array()).as_deref(),
+    ));
 }
 
 fn add_system_section(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, object: &DynamicObject) {
-    lines.push(StyledLine::default());
-    let provider_id = object.data["spec"]["providerID"].as_str().unwrap_or_default();
-    lines.push(property(colors, "ProviderID", provider_id, ValueKind::String, 0));
-
     if let Some(node_info) = object.data["status"]["nodeInfo"].as_object() {
         lines.push(StyledLine::default());
         lines.push(header(colors, "System Info"));
@@ -104,8 +106,61 @@ fn add_system_section(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, ob
         lines.push(property_str(colors, "Kubelet", node_info["kubeletVersion"].as_str()));
         lines.push(property_str(colors, "Kube-Proxy", node_info["kubeProxyVersion"].as_str()));
     }
+
+    lines.push(StyledLine::default());
+    let provider_id = object.data["spec"]["providerID"].as_str().unwrap_or_default();
+    lines.push(property(colors, "ProviderID", provider_id, ValueKind::String, 0));
+}
+
+fn format_value(key: &str, value: &Value) -> String {
+    let value = value_to_string(value);
+
+    match key {
+        "cpu" => CpuMetrics::from_str(&value).map(CpuMetrics::millicores).unwrap_or(value),
+        "memory" | "ephemeral-storage" => MemoryMetrics::from_str(&value)
+            .map(|metrics| metrics.rounded())
+            .unwrap_or(value),
+        _ if key.starts_with("hugepages-") => MemoryMetrics::from_str(&value)
+            .map(|metrics| metrics.rounded())
+            .unwrap_or(value),
+        _ => value,
+    }
 }
 
 fn property_str(colors: &YamlSyntaxColors, name: &str, value: Option<&str>) -> StyledLine {
     property(colors, name, value.unwrap_or_default(), ValueKind::String, 2)
+}
+
+fn find_node_address<'a>(object: &'a DynamicObject, address_type: &str) -> Option<&'a str> {
+    object.data["status"]["addresses"].as_array().and_then(|addresses| {
+        addresses
+            .iter()
+            .find(|address| address["type"].as_str() == Some(address_type))
+            .and_then(|address| address["address"].as_str())
+    })
+}
+
+fn simple_array(values: Option<&Vec<Value>>) -> Option<String> {
+    values
+        .map(|items| {
+            items
+                .iter()
+                .map(value_to_string)
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .filter(|value| !value.is_empty())
+}
+
+fn node_addresses(values: Option<&Vec<Value>>) -> Option<String> {
+    values
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| Some(format!("{}={}", item["type"].as_str()?, item["address"].as_str()?)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .filter(|value| !value.is_empty())
 }
