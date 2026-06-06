@@ -61,17 +61,16 @@ fn create_tolerations_table(app_data: &SharedAppData) -> ListViewer<BasicTable> 
     let mut table = ListViewer::new(
         Rc::clone(app_data),
         BasicTable::new(
-            Column::fixed("KEY", 10, false),
+            Column::bound("KEY", 10, 50, false),
             Box::new([
                 Column::fixed("OPERATOR", 10, false),
-                Column::bound("VALUE", 10, 30, false),
-                Column::fixed("EFFECT", 10, false),
-                Column::fixed("SECONDS", 10, false),
+                Column::bound("VALUE", 6, 30, false),
+                Column::fixed("SECONDS", 8, true),
+                Column::bound("EFFECT", 6, 20, false),
             ]),
             &['K', 'O', 'V', 'E', 'S'],
         )
-        .with_focus(false)
-        .with_stretch_name(),
+        .with_focus(false),
         ViewType::Compact,
     )
     .with_no_border()
@@ -94,8 +93,8 @@ fn update_tolerations_section(object: &DynamicObject, section: &mut SectionData)
                 Box::new([
                     item["operator"].as_str().unwrap_or("Equal").into(),
                     item["value"].as_str().unwrap_or_default().into(),
-                    item["effect"].as_str().unwrap_or_default().into(),
                     Cell::integer(item["tolerationSeconds"].as_i64(), 6),
+                    item["effect"].as_str().unwrap_or_default().into(),
                 ]),
             );
             list.table.update(row, false);
