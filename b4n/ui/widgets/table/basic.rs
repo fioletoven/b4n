@@ -44,6 +44,12 @@ impl BasicTable {
         self
     }
 
+    /// Sets first column to be stretched instead of the default one (last).
+    pub fn with_stretch_name(mut self) -> Self {
+        self.table.header.set_stretch_last(false);
+        self
+    }
+
     /// Inserts or removes a single row while preserving current sort order.
     pub fn update(&mut self, row: BasicRow, is_delete: bool) {
         if is_delete {

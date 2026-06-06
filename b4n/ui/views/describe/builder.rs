@@ -48,13 +48,13 @@ impl<'a> TextSectionBuilder<'a> {
     }
 
     /// Adds string key value line.
-    pub fn add_str(&mut self, key: &str, value: Option<&str>) {
-        self.add_line(key, value.unwrap_or_default(), ValueKind::String);
+    pub fn add_str(&mut self, key: &str, value: Option<impl Into<String>>) {
+        self.add_line(key, value.map(|v| v.into()).unwrap_or_default(), ValueKind::String);
     }
 
     /// Adds numeric key value line.
-    pub fn add_num(&mut self, key: &str, value: Option<&str>) {
-        self.add_line(key, value.unwrap_or_default(), ValueKind::Numeric);
+    pub fn add_num(&mut self, key: &str, value: Option<impl Into<String>>) {
+        self.add_line(key, value.map(|v| v.into()).unwrap_or_default(), ValueKind::Numeric);
     }
 
     /// Adds bool key value line.

@@ -108,6 +108,15 @@ pub fn uppercase_first_letter(value: &str) -> String {
     }
 }
 
+/// Joins mapped array elements in one string using `", "` separator.
+pub fn map_join<F>(values: Option<&Vec<Value>>, map: F) -> Option<String>
+where
+    F: Fn(&Value) -> Option<String>,
+{
+    let filtered = values?.iter().filter_map(map).collect::<Vec<_>>();
+    (!filtered.is_empty()).then_some(filtered.join(", "))
+}
+
 fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
     match kind {
         ValueKind::String => &colors.string,

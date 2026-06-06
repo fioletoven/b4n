@@ -11,7 +11,16 @@ use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 
 /// Returns additional describe sections for `service` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
-    let mut viewer = ListViewer::new(
+    let colors = &app_data.borrow().theme.colors.syntax.describe;
+
+    vec![
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports", 0)]),
+        SectionData::List(Box::new(create_ports_table(app_data))),
+    ]
+}
+
+fn create_ports_table(app_data: &SharedAppData) -> ListViewer<BasicTable> {
+    let mut table = ListViewer::new(
         Rc::clone(app_data),
         BasicTable::new(
             Column::fixed("PROTOCOL", 10, false),
@@ -29,15 +38,11 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
     )
     .with_no_border()
     .with_focus(false);
-    viewer.table.table.limit_offset(false);
-    viewer.table.sort(2, false);
 
-    let colors = &app_data.borrow().theme.colors.syntax.describe;
+    table.table.table.limit_offset(false);
+    table.table.sort(2, false);
 
-    vec![
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports", 0)]),
-        SectionData::List(Box::new(viewer)),
-    ]
+    table
 }
 
 /// Updates additional describe sections for `service` resource.

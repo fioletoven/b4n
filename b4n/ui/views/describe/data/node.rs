@@ -8,7 +8,7 @@ use std::str::FromStr;
 use crate::core::SharedAppData;
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::SectionData;
-use crate::ui::views::describe::utils::value_to_string;
+use crate::ui::views::describe::utils::{map_join, value_to_string};
 
 /// Returns additional describe sections for `node` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, _app_data: &SharedAppData) -> Vec<SectionData> {
@@ -54,7 +54,7 @@ fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObje
     builder.add_str("Pod CIDR", object.data["spec"]["podCIDR"].as_str());
     builder.add_str(
         "Pod CIDRs",
-        join_filtered(object.data["spec"]["podCIDRs"].as_array(), value_to_string).as_deref(),
+        map_join(object.data["spec"]["podCIDRs"].as_array(), value_to_string).as_deref(),
     );
     builder.add_str(
         "Addresses",
@@ -143,15 +143,7 @@ fn find_node_address<'a>(object: &'a DynamicObject, address_type: &str) -> Optio
 }
 
 fn node_addresses(values: Option<&Vec<Value>>) -> Option<String> {
-    join_filtered(values, |item| {
+    map_join(values, |item| {
         Some(format!("{}={}", item["type"].as_str()?, item["address"].as_str()?))
     })
-}
-
-fn join_filtered<F>(values: Option<&Vec<Value>>, filter: F) -> Option<String>
-where
-    F: Fn(&Value) -> Option<String>,
-{
-    let filtered = values?.iter().filter_map(filter).collect::<Vec<_>>();
-    (!filtered.is_empty()).then_some(filtered.join(", "))
 }
