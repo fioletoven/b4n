@@ -84,13 +84,13 @@ pub fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl In
 }
 
 /// Converts `value` to a string.
-pub fn value_to_string(value: &Value) -> String {
+pub fn value_to_string(value: &Value) -> Option<String> {
     match value {
-        Value::String(value) => value.clone(),
-        Value::Number(value) => value.to_string(),
-        Value::Bool(value) => value.to_string(),
-        Value::Null => String::new(),
-        _ => value.to_string(),
+        Value::String(value) => Some(value.clone()),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Bool(value) => Some(value.to_string()),
+        Value::Null => None,
+        _ => Some(value.to_string()),
     }
 }
 

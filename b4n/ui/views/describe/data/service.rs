@@ -65,7 +65,7 @@ pub fn update_additional_sections(
                 Box::new([
                     name.into(),
                     Cell::integer(port["port"].as_i64(), 6),
-                    port.get("targetPort").map(value_to_string).into(),
+                    port.get("targetPort").and_then(value_to_string).into(),
                     Cell::integer(port["nodePort"].as_i64(), 6),
                     port["appProtocol"].as_str().unwrap_or_default().into(),
                 ]),

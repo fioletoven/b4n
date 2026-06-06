@@ -195,7 +195,7 @@ fn downward_api_properties(downward_api: &Map<String, Value>) -> Vec<TypedProper
 }
 
 fn empty_dir_properties(empty_dir: &Map<String, Value>) -> Vec<TypedProperty> {
-    let limit = empty_dir.get("sizeLimit").map(value_to_string);
+    let limit = empty_dir.get("sizeLimit").and_then(value_to_string);
     let (limit, kind) = limit.map_or_else(|| ("--unset--".to_owned(), ValueKind::Normal), |l| (l, ValueKind::String));
 
     vec![
@@ -244,7 +244,7 @@ fn ephemeral_properties(ephemeral: &Map<String, Value>) -> Vec<TypedProperty> {
         .get("volumeClaimTemplate")
         .and_then(|template| template.get("metadata"))
         .and_then(|metadata| metadata.get("name"))
-        .map(value_to_string);
+        .and_then(value_to_string);
     let (ephemeral, kind) = ephemeral.map_or_else(|| ("--generated--".to_owned(), ValueKind::Normal), |e| (e, ValueKind::String));
 
     vec![
@@ -260,7 +260,7 @@ fn projected_properties(projected: &Map<String, Value>) -> Vec<TypedProperty> {
         for source in sources {
             if let Some(secret) = source["secret"].as_object() {
                 if let Some(name) = secret.get("name") {
-                    properties.push(("SecretName", value_to_string(name), ValueKind::String));
+                    properties.push(("SecretName", value_to_string(name).unwrap_or_default(), ValueKind::String));
                 }
 
                 properties.push(("Optional", bool_value(secret, "optional"), ValueKind::Boolean));
@@ -268,7 +268,7 @@ fn projected_properties(projected: &Map<String, Value>) -> Vec<TypedProperty> {
 
             if let Some(config_map) = source["configMap"].as_object() {
                 if let Some(name) = config_map.get("name") {
-                    properties.push(("ConfigMapName", value_to_string(name), ValueKind::String));
+                    properties.push(("ConfigMapName", value_to_string(name).unwrap_or_default(), ValueKind::String));
                 }
 
                 properties.push(("Optional", bool_value(config_map, "optional"), ValueKind::Boolean));
@@ -284,7 +284,7 @@ fn projected_properties(projected: &Map<String, Value>) -> Vec<TypedProperty> {
             {
                 properties.push((
                     "TokenExpirationSeconds",
-                    value_to_string(expiration_seconds),
+                    value_to_string(expiration_seconds).unwrap_or_default(),
                     ValueKind::Numeric,
                 ));
             }
@@ -295,7 +295,7 @@ fn projected_properties(projected: &Map<String, Value>) -> Vec<TypedProperty> {
 }
 
 fn string_value(source: &Map<String, Value>, key: &str) -> String {
-    source.get(key).map(value_to_string).unwrap_or_default()
+    source.get(key).and_then(value_to_string).unwrap_or_default()
 }
 
 fn bool_value(source: &Map<String, Value>, key: &str) -> String {

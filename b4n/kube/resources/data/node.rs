@@ -1,9 +1,10 @@
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
+use b4n_kube::utils::get_node_roles;
 use b4n_kube::{ResourceTag, status};
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
-use std::{collections::BTreeMap, rc::Rc};
+use std::rc::Rc;
 
 use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem};
 use crate::ui::widgets::table::Cell;
@@ -24,7 +25,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
 
     let mut values = vec![
         Cell::integer(taints, 3),
-        get_roles(object.metadata.labels.as_ref()).into(),
+        get_node_roles(object, ",").unwrap_or_default().into(),
         version.into(),
         Cell::integer(pods, 6),
         Cell::integer(containers, 6),
@@ -109,17 +110,6 @@ pub fn update_statistics<'a>(
             data.extra_values[9] = Cell::number(mem_usage, 7);
         }
     }
-}
-
-fn get_roles(labels: Option<&BTreeMap<String, String>>) -> Option<String> {
-    labels.map(|labels| {
-        labels
-            .iter()
-            .filter(|(l, v)| l.starts_with("node-role.kubernetes.io/") && (v.is_empty() || *v == "true"))
-            .map(|(l, _)| &l[24..])
-            .collect::<Vec<_>>()
-            .join(",")
-    })
 }
 
 fn get_as_option(value: &ResourceTag) -> Option<&str> {
