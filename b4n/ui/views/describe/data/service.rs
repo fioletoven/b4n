@@ -35,7 +35,7 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
     let colors = &app_data.borrow().theme.colors.syntax.describe;
 
     vec![
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports")]),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports", 0)]),
         SectionData::List(Box::new(viewer)),
     ]
 }

@@ -47,7 +47,7 @@ pub fn update_additional_sections(
 }
 
 fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
-    builder.start_section("Networking", 2, Some(12));
+    builder.start_section("Networking", 0, 2, Some(12));
     builder.add_str("Hostname", find_node_address(object, "Hostname"));
     builder.add_str("Internal IP", find_node_address(object, "InternalIP"));
     builder.add_str("External IP", find_node_address(object, "ExternalIP"));
@@ -64,7 +64,7 @@ fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObje
 
 fn add_system_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
     if let Some(node_info) = object.data["status"]["nodeInfo"].as_object() {
-        builder.start_section("System Info", 2, Some(18));
+        builder.start_section("System Info", 0, 2, Some(18));
         builder.add_str("Machine ID", node_info["machineID"].as_str());
         builder.add_str("System UUID", node_info["systemUUID"].as_str());
         builder.add_str("Boot ID", node_info["bootID"].as_str());
@@ -82,7 +82,7 @@ fn add_system_section(builder: &mut TextSectionBuilder, object: &DynamicObject) 
 }
 
 fn add_scheduling_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
-    builder.start_section("Scheduling", 2, Some(14));
+    builder.start_section("Scheduling", 0, 2, Some(14));
     builder.add_bool("Unschedulable", object.data["spec"]["unschedulable"].as_bool());
     builder.add_str("Roles", get_node_roles(object, ", ").as_deref());
     builder.add_str("Taints", node_taints(object.data["spec"]["taints"].as_array()).as_deref());
@@ -94,7 +94,7 @@ fn add_resource_section(builder: &mut TextSectionBuilder, title: &str, source: O
     };
 
     let width = source.keys().map(String::len).max().unwrap_or_default() + 1;
-    builder.start_section(title, 2, Some(width));
+    builder.start_section(title, 0, 2, Some(width));
     for (key, value) in source {
         builder.add_num(key, format_metrics(key, value).as_deref());
     }

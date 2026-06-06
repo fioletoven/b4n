@@ -55,8 +55,13 @@ pub fn aligned_property(
 }
 
 /// Creates header with `name` as a `StyledLine`.
-pub fn header(colors: &YamlSyntaxColors, name: impl Into<String>) -> StyledLine {
-    vec![span(&colors.property, name), span(&colors.normal, ":")].into()
+pub fn header(colors: &YamlSyntaxColors, name: impl Into<String>, indent: usize) -> StyledLine {
+    vec![
+        span(&colors.normal, " ".repeat(indent)),
+        span(&colors.property, name),
+        span(&colors.normal, ":"),
+    ]
+    .into()
 }
 
 /// Returns a list created from the `source` map.

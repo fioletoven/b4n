@@ -176,7 +176,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), header(colors, "Conditions")];
+        let header = vec![StyledLine::default(), header(colors, "Conditions", 0)];
 
         (viewer, header)
     }
@@ -194,7 +194,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), header(colors, "Events")];
+        let header = vec![StyledLine::default(), header(colors, "Events", 0)];
 
         (viewer, header)
     }
@@ -589,7 +589,7 @@ impl<'a> Section<'a> {
 
 fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str, source: Option<&BTreeMap<String, String>>) {
     lines.push(StyledLine::default());
-    lines.push(header(colors, title));
+    lines.push(header(colors, title, 0));
 
     if let Some(source) = source {
         lines.append(&mut list(colors, source));

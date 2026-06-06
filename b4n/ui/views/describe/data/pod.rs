@@ -1,4 +1,3 @@
-use b4n_config::themes::YamlSyntaxColors;
 use b4n_kube::{CONTAINERS, InitData, ObserverResult, ResourceRef};
 use b4n_tui::table::ViewType;
 use k8s_openapi::serde_json::{Map, Value};
@@ -8,7 +7,8 @@ use std::rc::Rc;
 
 use crate::core::SharedAppData;
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
-use crate::ui::views::describe::utils::{ValueKind, aligned_property, header, none, uppercase_first_letter, value_to_string};
+use crate::ui::views::describe::builder::TextSectionBuilder;
+use crate::ui::views::describe::utils::{ValueKind, header, uppercase_first_letter, value_to_string};
 use crate::ui::{presentation::ListViewer, presentation::StyledLine, views::describe::data::SectionData};
 
 /// Returns additional describe sections for `pod` resource.
@@ -27,9 +27,9 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
     let colors = &app_data.borrow().theme.colors.syntax.describe;
 
     vec![
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers")]),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers", 0)]),
         SectionData::Resources(Box::new(viewer)),
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Volumes")]),
+        SectionData::Text(Vec::new()),
     ]
 }
 
@@ -92,26 +92,28 @@ fn update_volume_section(app_data: &SharedAppData, object: &DynamicObject, secti
         return;
     };
 
-    lines.truncate(2);
+    lines.clear();
 
     let colors = &app_data.borrow().theme.colors.syntax.describe;
+    let mut builder = TextSectionBuilder::new(colors, lines);
+    builder.start_section("Volumes", 0, 2, None);
 
     let Some(volumes) = object.data["spec"]["volumes"].as_array() else {
-        lines.push(none(colors));
+        builder.add_none();
         return;
     };
 
     if volumes.is_empty() {
-        lines.push(none(colors));
+        builder.add_none();
         return;
     }
 
     for volume in volumes {
-        add_volume(lines, colors, volume);
+        add_volume(&mut builder, volume);
     }
 }
 
-fn add_volume(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, volume: &Value) {
+fn add_volume(builder: &mut TextSectionBuilder, volume: &Value) {
     let Some(name) = volume["name"].as_str() else {
         return;
     };
@@ -119,9 +121,9 @@ fn add_volume(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, volume: &V
     let properties = get_volume_properties(volume);
     let width = properties.iter().map(|(key, _, _)| key.len()).max().unwrap_or_default() + 1;
 
-    lines.push(header(colors, format!("  {name}")));
+    builder.sub_section(name, 2, 4, Some(width));
     for (key, value, kind) in properties {
-        lines.push(aligned_property(colors, key, &value, kind, 4, width));
+        builder.add_line(key, value, kind);
     }
 }
 
