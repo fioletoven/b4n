@@ -8,7 +8,7 @@ use std::rc::Rc;
 use crate::core::SharedAppData;
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::views::describe::builder::TextSectionBuilder;
-use crate::ui::views::describe::utils::{ValueKind, header, map_join, uppercase_first_letter, value_to_string};
+use crate::ui::views::describe::utils::{ValueKind, header, map_join, map_to_string, uppercase_first_letter, value_to_string};
 use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 use crate::ui::{presentation::ListViewer, presentation::StyledLine, views::describe::data::SectionData};
 
@@ -163,7 +163,7 @@ fn add_scheduling_section(builder: &mut TextSectionBuilder, object: &DynamicObje
     builder.add_num("Priority", spec["priority"].as_i64().map(|v| v.to_string()));
     builder.add_str("Priority Class", spec["priorityClassName"].as_str());
     builder.add_str("Preemption Policy", spec["preemptionPolicy"].as_str());
-    builder.add_str("Node Selector", map_to_pairs(spec["nodeSelector"].as_object()));
+    builder.add_str("Node Selector", map_to_string(spec["nodeSelector"].as_object()));
     builder.add_str(
         "Scheduling Gates",
         map_join(spec["schedulingGates"].as_array(), |i| value_to_string(&i["name"])),
@@ -176,17 +176,6 @@ fn add_scheduling_section(builder: &mut TextSectionBuilder, object: &DynamicObje
         "Topology Spread Constraints",
         topology_spread_constraints(spec["topologySpreadConstraints"].as_array()),
     );
-}
-
-fn map_to_pairs(values: Option<&Map<String, Value>>) -> Option<String> {
-    values.and_then(|values| {
-        let mut items: Vec<_> = values
-            .iter()
-            .map(|(key, value)| format!("{key}={}", value_to_string(value).unwrap_or_default()))
-            .collect();
-        items.sort();
-        (!items.is_empty()).then_some(items.join(", "))
-    })
 }
 
 fn topology_spread_constraints(values: Option<&Vec<Value>>) -> Option<String> {

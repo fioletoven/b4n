@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
-use k8s_openapi::serde_json::Value;
+use k8s_openapi::serde_json::{Map, Value};
 use ratatui::style::Style;
 use std::collections::BTreeMap;
 
@@ -115,6 +115,17 @@ where
 {
     let filtered = values?.iter().filter_map(map).collect::<Vec<_>>();
     (!filtered.is_empty()).then_some(filtered.join(", "))
+}
+
+/// Creates string from a key value map.
+pub fn map_to_string(selector: Option<&Map<String, Value>>) -> Option<String> {
+    let mut items: Vec<_> = selector?
+        .iter()
+        .map(|(key, value)| format!("{key}={}", value_to_string(value).unwrap_or_default()))
+        .collect();
+    items.sort();
+
+    (!items.is_empty()).then_some(items.join(", "))
 }
 
 fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {

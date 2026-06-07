@@ -1,6 +1,5 @@
 use b4n_kube::ResourceRef;
 use b4n_tui::table::{Column, Table, ViewType};
-use k8s_openapi::serde_json::{Map, Value};
 use kube::api::DynamicObject;
 use std::rc::Rc;
 
@@ -8,7 +7,7 @@ use crate::core::SharedAppData;
 use crate::ui::presentation::{ListViewer, StyledLine};
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::SectionData;
-use crate::ui::views::describe::utils::{header, map_join, value_to_string};
+use crate::ui::views::describe::utils::{header, map_join, map_to_string, value_to_string};
 use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 
 /// Returns additional describe sections for `service` resource.
@@ -108,7 +107,7 @@ fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, s
         "External IPs",
         map_join(object.data["spec"]["externalIPs"].as_array(), value_to_string),
     );
-    builder.add_str("Selector", selector_string(object.data["spec"]["selector"].as_object()));
+    builder.add_str("Selector", map_to_string(object.data["spec"]["selector"].as_object()));
     builder.add_str("Session Affinity", object.data["spec"]["sessionAffinity"].as_str());
     builder.add_str(
         "Internal Traffic Policy",
@@ -137,14 +136,4 @@ fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, s
             .as_i64()
             .map(|value| value.to_string()),
     );
-}
-
-fn selector_string(selector: Option<&Map<String, Value>>) -> Option<String> {
-    let mut items: Vec<_> = selector?
-        .iter()
-        .map(|(key, value)| format!("{key}={}", value_to_string(value).unwrap_or_default()))
-        .collect();
-    items.sort();
-
-    (!items.is_empty()).then_some(items.join(", "))
 }

@@ -6,9 +6,11 @@ use crate::kube::resources::ResourcesList;
 use crate::ui::presentation::{ListViewer, StyledLine};
 use crate::ui::widgets::table::BasicTable;
 
-pub mod node;
-pub mod pod;
-pub mod service;
+mod node;
+mod persistent_volume;
+mod persistent_volume_claim;
+mod pod;
+mod service;
 
 /// Holds section's data.
 pub enum SectionData {
@@ -21,6 +23,8 @@ pub enum SectionData {
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     match resource.kind.name() {
         "nodes" => node::create_additional_sections(resource, app_data),
+        "persistentvolumes" => persistent_volume::create_additional_sections(resource, app_data),
+        "persistentvolumeclaims" => persistent_volume_claim::create_additional_sections(resource, app_data),
         "pods" => pod::create_additional_sections(resource, app_data),
         "services" => service::create_additional_sections(resource, app_data),
         _ => Vec::new(),
@@ -36,6 +40,8 @@ pub fn update_additional_sections(
 ) {
     match resource.kind.name() {
         "nodes" => node::update_additional_sections(resource, app_data, object, sections),
+        "persistentvolumes" => persistent_volume::update_additional_sections(resource, app_data, object, sections),
+        "persistentvolumeclaims" => persistent_volume_claim::update_additional_sections(resource, app_data, object, sections),
         "pods" => pod::update_additional_sections(resource, app_data, object, sections),
         "services" => service::update_additional_sections(resource, app_data, object, sections),
         _ => (),
