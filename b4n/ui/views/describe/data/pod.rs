@@ -1,5 +1,5 @@
 use b4n_kube::{CONTAINERS, InitData, ObserverResult, ResourceRef};
-use b4n_tui::table::{Column, ViewType};
+use b4n_tui::table::{Column, Table, ViewType};
 use k8s_openapi::serde_json::{Map, Value};
 use kube::ResourceExt;
 use kube::api::DynamicObject;
@@ -44,7 +44,7 @@ pub fn update_additional_sections(
 }
 
 fn create_containers_table(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
-    let mut viewer = ListViewer::new(
+    let mut table = ListViewer::new(
         Rc::clone(app_data),
         ResourcesList::default()
             .with_columns_layout(ColumnsLayout::Compact)
@@ -53,8 +53,9 @@ fn create_containers_table(app_data: &SharedAppData) -> ListViewer<ResourcesList
     )
     .with_no_border()
     .with_focus(false);
-    viewer.table.table.limit_offset(false);
-    viewer
+
+    table.table.table.limit_offset(false);
+    table
 }
 
 fn create_tolerations_table(app_data: &SharedAppData) -> ListViewer<BasicTable> {
@@ -77,7 +78,6 @@ fn create_tolerations_table(app_data: &SharedAppData) -> ListViewer<BasicTable> 
     .with_focus(false);
 
     table.table.table.limit_offset(false);
-
     table
 }
 
@@ -85,6 +85,7 @@ fn update_tolerations_section(object: &DynamicObject, section: &mut SectionData)
     if let SectionData::List(list) = section
         && let Some(tolerations) = object.data["spec"]["tolerations"].as_array()
     {
+        list.table.clear();
         for item in tolerations {
             let key = item["key"].as_str().unwrap_or_default();
             let row = BasicRow::new(

@@ -67,6 +67,7 @@ fn update_ports_table(object: &DynamicObject, section: &mut SectionData) {
     if let SectionData::List(list) = section
         && let Some(ports) = object.data["spec"]["ports"].as_array()
     {
+        list.table.clear();
         for port in ports {
             let name = port["name"]
                 .as_str()
