@@ -5,7 +5,7 @@ use kube::api::DynamicObject;
 use crate::core::SharedAppData;
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::SectionData;
-use crate::ui::views::describe::utils::{map_join, map_to_string, value_to_string};
+use crate::ui::views::describe::utils::{map_join, selector, value_to_string};
 
 /// Returns additional describe sections for `persistentvolumeclaim` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, _app_data: &SharedAppData) -> Vec<SectionData> {
@@ -48,7 +48,7 @@ pub fn update_additional_sections(
     builder.add_num("Capacity", object.data["status"]["capacity"]["storage"].as_str());
     builder.add_str("DataSource", data_source(object.data["spec"]["dataSource"].as_object()));
     builder.add_str("DataSourceRef", data_source(object.data["spec"]["dataSourceRef"].as_object()));
-    builder.add_str("Selector", selector_string(object.data["spec"]["selector"].as_object()));
+    builder.add_str("Selector", selector(object.data["spec"]["selector"].as_object()));
 }
 
 fn data_source(source: Option<&Map<String, Value>>) -> Option<String> {
@@ -59,15 +59,4 @@ fn data_source(source: Option<&Map<String, Value>>) -> Option<String> {
 
     let source = [kind, name, namespace].into_iter().flatten().collect::<Vec<_>>();
     (!source.is_empty()).then_some(source.join(" / "))
-}
-
-fn selector_string(selector: Option<&Map<String, Value>>) -> Option<String> {
-    let selector = selector?;
-
-    let mut items = Vec::new();
-    items.extend(map_to_string(selector["matchLabels"].as_object()));
-    items.extend(map_join(selector["matchExpressions"].as_array(), value_to_string));
-
-    items.sort();
-    (!items.is_empty()).then_some(items.join(", "))
 }

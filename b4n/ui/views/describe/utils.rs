@@ -128,6 +128,24 @@ pub fn map_to_string(selector: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
+/// Creates string from a selector map.
+pub fn selector(selector_map: Option<&Map<String, Value>>) -> Option<String> {
+    let selector = selector_map?;
+    let mut items = Vec::new();
+
+    items.extend(map_to_string(selector.get("matchLabels").and_then(Value::as_object)));
+    items.extend(map_join(
+        selector.get("matchExpressions").and_then(Value::as_array),
+        value_to_string,
+    ));
+    if items.is_empty() {
+        items.extend(map_to_string(selector_map));
+    }
+
+    items.sort();
+    (!items.is_empty()).then_some(items.join(", "))
+}
+
 fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
     match kind {
         ValueKind::String => &colors.string,
