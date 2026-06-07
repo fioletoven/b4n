@@ -1,5 +1,5 @@
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
-use k8s_openapi::serde_json::Value;
+use k8s_openapi::serde_json::{Map, Value};
 use ratatui::style::Style;
 use std::collections::BTreeMap;
 
@@ -16,11 +16,12 @@ pub fn none(colors: &YamlSyntaxColors) -> StyledLine {
 }
 
 /// Creates property with `name` and `value` as a `StyledLine`.
-pub fn property(colors: &YamlSyntaxColors, name: impl Into<String>, value: impl Into<String>) -> StyledLine {
+pub fn property(colors: &YamlSyntaxColors, name: &str, value: impl Into<String>, kind: ValueKind, indent: usize) -> StyledLine {
     vec![
+        span(&colors.normal, " ".repeat(indent)),
         span(&colors.property, name),
         span(&colors.normal, ": "),
-        span(&colors.string, value),
+        span(kind_to_color(colors, kind), value),
     ]
     .into()
 }
@@ -38,31 +39,29 @@ pub enum ValueKind {
 pub fn aligned_property(
     colors: &YamlSyntaxColors,
     name: &str,
-    value: &str,
+    value: impl Into<String>,
     kind: ValueKind,
     indent: usize,
     width: usize,
 ) -> StyledLine {
     let spacing = " ".repeat(width.saturating_sub(name.len()) + 1);
-    let value_color = match kind {
-        ValueKind::String => &colors.string,
-        ValueKind::Numeric => &colors.numeric,
-        ValueKind::Boolean => &colors.language,
-        ValueKind::Normal => &colors.normal,
-    };
-
     vec![
         span(&colors.normal, " ".repeat(indent)),
         span(&colors.property, name),
         span(&colors.normal, format!(":{spacing}")),
-        span(value_color, value),
+        span(kind_to_color(colors, kind), value),
     ]
     .into()
 }
 
 /// Creates header with `name` as a `StyledLine`.
-pub fn header(colors: &YamlSyntaxColors, name: impl Into<String>) -> StyledLine {
-    vec![span(&colors.property, name), span(&colors.normal, ":")].into()
+pub fn header(colors: &YamlSyntaxColors, name: impl Into<String>, indent: usize) -> StyledLine {
+    vec![
+        span(&colors.normal, " ".repeat(indent)),
+        span(&colors.property, name),
+        span(&colors.normal, ":"),
+    ]
+    .into()
 }
 
 /// Returns a list created from the `source` map.
@@ -90,13 +89,13 @@ pub fn element(colors: &YamlSyntaxColors, key: impl Into<String>, value: impl In
 }
 
 /// Converts `value` to a string.
-pub fn value_to_string(value: &Value) -> String {
+pub fn value_to_string(value: &Value) -> Option<String> {
     match value {
-        Value::String(value) => value.clone(),
-        Value::Number(value) => value.to_string(),
-        Value::Bool(value) => value.to_string(),
-        Value::Null => String::new(),
-        _ => value.to_string(),
+        Value::String(value) => Some(value.clone()),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Bool(value) => Some(value.to_string()),
+        Value::Null => None,
+        _ => Some(value.to_string()),
     }
 }
 
@@ -106,5 +105,34 @@ pub fn uppercase_first_letter(value: &str) -> String {
     match c.next() {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+/// Joins mapped array elements in one string using `", "` separator.
+pub fn map_join<F>(values: Option<&Vec<Value>>, map: F) -> Option<String>
+where
+    F: Fn(&Value) -> Option<String>,
+{
+    let filtered = values?.iter().filter_map(map).collect::<Vec<_>>();
+    (!filtered.is_empty()).then_some(filtered.join(", "))
+}
+
+/// Creates string from a key value map.
+pub fn map_to_string(selector: Option<&Map<String, Value>>) -> Option<String> {
+    let mut items: Vec<_> = selector?
+        .iter()
+        .map(|(key, value)| format!("{key}={}", value_to_string(value).unwrap_or_default()))
+        .collect();
+    items.sort();
+
+    (!items.is_empty()).then_some(items.join(", "))
+}
+
+fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
+    match kind {
+        ValueKind::String => &colors.string,
+        ValueKind::Numeric => &colors.numeric,
+        ValueKind::Boolean => &colors.language,
+        ValueKind::Normal => &colors.normal,
     }
 }

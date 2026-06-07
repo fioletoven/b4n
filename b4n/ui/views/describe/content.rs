@@ -20,7 +20,7 @@ use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
 use crate::ui::views::describe::data::{self, SectionData};
-use crate::ui::views::describe::utils::{header, list, none, property};
+use crate::ui::views::describe::utils::{ValueKind, header, list, none, property};
 use crate::ui::widgets::table::BasicTable;
 
 /// Describe resource content.
@@ -176,7 +176,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), header(colors, "Conditions")];
+        let header = vec![StyledLine::default(), header(colors, "Conditions", 0)];
 
         (viewer, header)
     }
@@ -194,7 +194,7 @@ impl DescribeContent {
         viewer.table.table.limit_offset(false);
 
         let colors = &app_data.borrow().theme.colors.syntax.describe;
-        let header = vec![StyledLine::default(), header(colors, "Events")];
+        let header = vec![StyledLine::default(), header(colors, "Events", 0)];
 
         (viewer, header)
     }
@@ -456,9 +456,11 @@ impl DescribeContent {
         self.lines_start.clear();
         self.lines_end.clear();
 
-        self.lines_start.push(property(colors, "Name", object.name_any()));
+        self.lines_start
+            .push(property(colors, "Name", object.name_any(), ValueKind::String, 0));
         if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines_start.push(property(colors, "Namespace", namespace));
+            self.lines_start
+                .push(property(colors, "Namespace", namespace, ValueKind::String, 0));
         }
 
         add_list(&mut self.lines_start, colors, "Labels", object.metadata.labels.as_ref());
@@ -471,7 +473,7 @@ impl DescribeContent {
 
         self.lines_end.push(StyledLine::default());
         self.lines_end
-            .push(property(colors, "Overall status", status::from_object(object)));
+            .push(property(colors, "Status", status::from_object(object), ValueKind::String, 0));
     }
 
     fn update_additional_sections(&mut self, object: &DynamicObject) {
@@ -587,7 +589,7 @@ impl<'a> Section<'a> {
 
 fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str, source: Option<&BTreeMap<String, String>>) {
     lines.push(StyledLine::default());
-    lines.push(header(colors, title));
+    lines.push(header(colors, title, 0));
 
     if let Some(source) = source {
         lines.append(&mut list(colors, source));

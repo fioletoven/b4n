@@ -57,6 +57,34 @@ pub fn get_object_uid(object: &DynamicObject) -> String {
     })
 }
 
+/// Returns node roles as single `String` joined with `separator`.
+pub fn get_node_roles(object: &DynamicObject, separator: &str) -> Option<String> {
+    let labels = object.metadata.labels.as_ref()?;
+    let mut roles = labels
+        .keys()
+        .filter_map(|key| key.strip_prefix("node-role.kubernetes.io/"))
+        .map(|role| {
+            if role.is_empty() {
+                "control-plane".to_owned()
+            } else {
+                role.to_owned()
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if roles.is_empty()
+        && labels.contains_key("kubernetes.io/role")
+        && let Some(role) = labels.get("kubernetes.io/role")
+    {
+        roles.push(role.clone());
+    }
+
+    roles.sort();
+    roles.dedup();
+
+    (!roles.is_empty()).then_some(roles.join(separator))
+}
+
 /// Formats datetime to a human-readable string.
 pub fn format_datetime(time: &Timestamp) -> String {
     let now = Timestamp::now();

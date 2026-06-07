@@ -5,13 +5,39 @@ use std::rc::Rc;
 
 use crate::core::SharedAppData;
 use crate::ui::presentation::{ListViewer, StyledLine};
+use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::SectionData;
-use crate::ui::views::describe::utils::{header, value_to_string};
+use crate::ui::views::describe::utils::{header, map_join, map_to_string, value_to_string};
 use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 
 /// Returns additional describe sections for `service` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
-    let mut viewer = ListViewer::new(
+    let colors = &app_data.borrow().theme.colors.syntax.describe;
+
+    vec![
+        SectionData::Text(Vec::new()),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports", 0)]),
+        SectionData::List(Box::new(create_ports_table(app_data))),
+    ]
+}
+
+/// Updates additional describe sections for `service` resource.
+pub fn update_additional_sections(
+    _resource: &ResourceRef,
+    app_data: &SharedAppData,
+    object: &DynamicObject,
+    sections: &mut [SectionData],
+) {
+    if sections.len() != 3 {
+        return;
+    }
+
+    update_networking_section(app_data, object, &mut sections[0]);
+    update_ports_table(object, &mut sections[2]);
+}
+
+fn create_ports_table(app_data: &SharedAppData) -> ListViewer<BasicTable> {
+    let mut table = ListViewer::new(
         Rc::clone(app_data),
         BasicTable::new(
             Column::fixed("PROTOCOL", 10, false),
@@ -29,31 +55,18 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
     )
     .with_no_border()
     .with_focus(false);
-    viewer.table.table.limit_offset(false);
-    viewer.table.sort(2, false);
 
-    let colors = &app_data.borrow().theme.colors.syntax.describe;
+    table.table.table.limit_offset(false);
+    table.table.sort(2, false);
 
-    vec![
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Ports")]),
-        SectionData::List(Box::new(viewer)),
-    ]
+    table
 }
 
-/// Updates additional describe sections for `service` resource.
-pub fn update_additional_sections(
-    _resource: &ResourceRef,
-    _app_data: &SharedAppData,
-    object: &DynamicObject,
-    sections: &mut [SectionData],
-) {
-    if sections.len() != 2 {
-        return;
-    }
-
-    if let SectionData::List(list) = &mut sections[1]
+fn update_ports_table(object: &DynamicObject, section: &mut SectionData) {
+    if let SectionData::List(list) = section
         && let Some(ports) = object.data["spec"]["ports"].as_array()
     {
+        list.table.clear();
         for port in ports {
             let name = port["name"]
                 .as_str()
@@ -65,7 +78,7 @@ pub fn update_additional_sections(
                 Box::new([
                     name.into(),
                     Cell::integer(port["port"].as_i64(), 6),
-                    port.get("targetPort").map(value_to_string).into(),
+                    port.get("targetPort").and_then(value_to_string).into(),
                     Cell::integer(port["nodePort"].as_i64(), 6),
                     port["appProtocol"].as_str().unwrap_or_default().into(),
                 ]),
@@ -73,4 +86,54 @@ pub fn update_additional_sections(
             list.table.update(row, false);
         }
     }
+}
+
+fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, section: &mut SectionData) {
+    let SectionData::Text(lines) = section else {
+        return;
+    };
+
+    lines.clear();
+
+    let colors = &app_data.borrow().theme.colors.syntax.describe;
+    let mut builder = TextSectionBuilder::new(colors, lines);
+
+    builder.start_section("Networking", 0, 2, Some(24));
+    builder.add_str("Type", object.data["spec"]["type"].as_str());
+    builder.add_str("Cluster IP", object.data["spec"]["clusterIP"].as_str());
+    builder.add_str("Cluster IPs", object.data["spec"]["clusterIPs"].as_str());
+    builder.add_str("External Name", object.data["spec"]["externalName"].as_str());
+    builder.add_str(
+        "External IPs",
+        map_join(object.data["spec"]["externalIPs"].as_array(), value_to_string),
+    );
+    builder.add_str("Selector", map_to_string(object.data["spec"]["selector"].as_object()));
+    builder.add_str("Session Affinity", object.data["spec"]["sessionAffinity"].as_str());
+    builder.add_str(
+        "Internal Traffic Policy",
+        object.data["spec"]["internalTrafficPolicy"].as_str(),
+    );
+    builder.add_str(
+        "External Traffic Policy",
+        object.data["spec"]["externalTrafficPolicy"].as_str(),
+    );
+    builder.add_str("Traffic Distribution", object.data["spec"]["trafficDistribution"].as_str());
+    builder.add_str(
+        "IP Families",
+        map_join(object.data["spec"]["ipFamilies"].as_array(), value_to_string),
+    );
+    builder.add_str("IP Family Policy", object.data["spec"]["ipFamilyPolicy"].as_str());
+    builder.add_str("Load Balancer Class", object.data["spec"]["loadBalancerClass"].as_str());
+    builder.add_str(
+        "Load Balancer Ingress",
+        map_join(object.data["status"]["loadBalancer"]["ingress"].as_array(), |item| {
+            item["ip"].as_str().or_else(|| item["hostname"].as_str()).map(String::from)
+        }),
+    );
+    builder.add_num(
+        "Health Check Node Port",
+        object.data["spec"]["healthCheckNodePort"]
+            .as_i64()
+            .map(|value| value.to_string()),
+    );
 }

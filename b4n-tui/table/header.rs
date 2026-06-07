@@ -85,17 +85,22 @@ impl Header {
         self
     }
 
+    /// Sets visibility for the age column.
+    pub fn with_age_column(mut self, is_visible: bool) -> Self {
+        self.is_age_visible = is_visible;
+        self.recalculate_extra_columns();
+        self
+    }
+
     /// Sets last column as the one that is stretched (instead of name column).
     pub fn with_stretch_last(mut self) -> Self {
         self.stretch_last = true;
         self
     }
 
-    /// Sets visibility for the age column.
-    pub fn with_age_column(mut self, is_visible: bool) -> Self {
-        self.is_age_visible = is_visible;
-        self.recalculate_extra_columns();
-        self
+    /// Sets flag indicating if the last column should be stretched.
+    pub fn set_stretch_last(&mut self, stretch_last: bool) {
+        self.stretch_last = stretch_last;
     }
 
     /// Returns `true` if age column is visible.

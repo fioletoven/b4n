@@ -44,6 +44,12 @@ impl BasicTable {
         self
     }
 
+    /// Sets first column to be stretched instead of the default one (last).
+    pub fn with_stretch_name(mut self) -> Self {
+        self.table.header.set_stretch_last(false);
+        self
+    }
+
     /// Inserts or removes a single row while preserving current sort order.
     pub fn update(&mut self, row: BasicRow, is_delete: bool) {
         if is_delete {
@@ -87,7 +93,6 @@ impl Responsive for BasicTable {
 impl Table for BasicTable {
     delegate! {
         to self.table.list {
-            fn clear(&mut self);
             fn len(&self) -> usize;
             fn is_filtered(&self) -> bool;
             fn set_filter(&mut self, filter: Option<String>);
@@ -113,6 +118,13 @@ impl Table for BasicTable {
             fn update_page(&mut self, new_height: u16);
             fn get_paged_names(&self, width: usize) -> Vec<(String, bool)>;
         }
+    }
+
+    fn clear(&mut self) {
+        let (sort_by, is_descending) = self.table.header.sort_info();
+        self.table.list.clear();
+        self.table.sort(sort_by, is_descending);
+        self.table.update_data_lengths();
     }
 
     fn set_focus(&mut self, is_focused: bool) {
