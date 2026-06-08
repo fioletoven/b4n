@@ -16,12 +16,12 @@ pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppD
     let colors = &app_data.borrow().theme.colors.syntax.describe;
 
     vec![
-        SectionData::Text(Vec::new()),
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers", 0)]),
-        SectionData::Resources(Box::new(create_containers_table(app_data))),
-        SectionData::Text(Vec::new()),
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Tolerations", 0)]),
-        SectionData::List(Box::new(create_tolerations_table(app_data))),
+        SectionData::Text(Vec::new(), 0),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers", 0)], 0),
+        SectionData::Resources(Box::new(create_containers_table(app_data)), 0),
+        SectionData::Text(Vec::new(), 0),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Tolerations", 0)], 0),
+        SectionData::List(Box::new(create_tolerations_table(app_data)), 0),
     ]
 }
 
@@ -88,7 +88,7 @@ fn create_tolerations_table(app_data: &SharedAppData) -> ListViewer<BasicTable> 
 }
 
 fn update_tolerations_section(data: &Value, section: &mut SectionData) {
-    if let SectionData::List(list) = section
+    if let SectionData::List(list, _) = section
         && let Some(tolerations) = data["spec"]["tolerations"].as_array()
     {
         list.table.clear();
@@ -110,7 +110,7 @@ fn update_tolerations_section(data: &Value, section: &mut SectionData) {
 }
 
 fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData) {
-    let SectionData::Text(lines) = section else {
+    let SectionData::Text(lines, _) = section else {
         return;
     };
 
@@ -261,7 +261,7 @@ fn pod_security_context(values: Option<&Map<String, Value>>) -> Option<String> {
 }
 
 fn update_containers_section(resource: &ResourceRef, data: &Value, metadata: &ObjectMeta, section: &mut SectionData) {
-    let SectionData::Resources(list) = section else {
+    let SectionData::Resources(list, _) = section else {
         return;
     };
 
@@ -300,7 +300,7 @@ fn get_container_status<'a>(data: &'a Value, status_array: &str, container: &Val
 }
 
 fn update_volume_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData) {
-    let SectionData::Text(lines) = section else {
+    let SectionData::Text(lines, _) = section else {
         return;
     };
 

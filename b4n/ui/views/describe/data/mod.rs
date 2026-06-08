@@ -15,9 +15,9 @@ mod service;
 
 /// Holds section's data.
 pub enum SectionData {
-    Text(Vec<StyledLine>),
-    Resources(Box<ListViewer<ResourcesList>>),
-    List(Box<ListViewer<BasicTable>>),
+    Text(Vec<StyledLine>, u16),
+    Resources(Box<ListViewer<ResourcesList>>, u16),
+    List(Box<ListViewer<BasicTable>>, u16),
 }
 
 /// Creates new additional sections for describe view for the specified resource.

@@ -8,8 +8,17 @@ use crate::ui::views::describe::utils::{selector, value_to_string};
 
 /// Returns additional describe sections for `deployment` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
-    let mut sections = vec![SectionData::Text(Vec::new())];
+    let mut sections = vec![SectionData::Text(Vec::new(), 0)];
+
     sections.append(&mut pod::create_additional_sections(resource, app_data));
+    for section in &mut sections[1..] {
+        match section {
+            SectionData::Text(_, indent) => *indent = 2u16,
+            SectionData::Resources(_, indent) => *indent = 2u16,
+            SectionData::List(_, indent) => *indent = 2u16,
+        }
+    }
+
     sections
 }
 
@@ -24,7 +33,7 @@ pub fn update_additional_sections(
         return;
     }
 
-    let SectionData::Text(lines) = &mut sections[0] else {
+    let SectionData::Text(lines, _) = &mut sections[0] else {
         return;
     };
 

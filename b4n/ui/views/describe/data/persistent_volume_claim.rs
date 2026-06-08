@@ -9,7 +9,7 @@ use crate::ui::views::describe::utils::{map_join, selector, value_to_string};
 
 /// Returns additional describe sections for `persistentvolumeclaim` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, _app_data: &SharedAppData) -> Vec<SectionData> {
-    vec![SectionData::Text(Vec::new())]
+    vec![SectionData::Text(Vec::new(), 0)]
 }
 
 /// Updates additional describe sections for `persistentvolumeclaim` resource.
@@ -23,7 +23,7 @@ pub fn update_additional_sections(
         return;
     }
 
-    let SectionData::Text(lines) = &mut sections[0] else {
+    let SectionData::Text(lines, _) = &mut sections[0] else {
         return;
     };
 
