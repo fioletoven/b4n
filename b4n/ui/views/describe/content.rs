@@ -209,8 +209,8 @@ impl DescribeContent {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let mut sections = Vec::with_capacity(self.sections.len() + 6);
-        let mut section_targets = Vec::with_capacity(self.sections.len() + 6);
+        let mut sections = Vec::with_capacity(self.sections.len() + 7);
+        let mut section_targets = Vec::with_capacity(self.sections.len() + 7);
 
         sections.push(Section::from_text(&mut self.lines_start, 0));
         section_targets.push(None);
@@ -244,6 +244,10 @@ impl DescribeContent {
         section_targets.push(None);
         sections.push(Section::from_resources_list(&mut self.events, 0));
         section_targets.push(Some(FocusTarget::Events));
+
+        let mut empty_line = vec![StyledLine::default()];
+        sections.push(Section::from_text(&mut empty_line, 0));
+        section_targets.push(None);
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
         self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
@@ -612,7 +616,12 @@ fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str,
     lines.push(header(colors, title, 0));
 
     if let Some(source) = source {
-        lines.append(&mut list(colors, source));
+        let mut items = list(colors, source);
+        if items.is_empty() {
+            lines.push(none(colors));
+        } else {
+            lines.append(&mut items);
+        }
     } else {
         lines.push(none(colors));
     }
