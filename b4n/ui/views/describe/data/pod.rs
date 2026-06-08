@@ -43,7 +43,7 @@ pub fn update_additional_sections(
         &object.data
     };
 
-    update_data_section(app_data, data, &mut sections[0]);
+    update_data_section(app_data, data, &mut sections[0], is_template);
     update_containers_section(resource, data, &object.metadata, &mut sections[2]);
     update_volume_section(app_data, data, &mut sections[3]);
     update_tolerations_section(data, &mut sections[5]);
@@ -109,7 +109,7 @@ fn update_tolerations_section(data: &Value, section: &mut SectionData) {
     }
 }
 
-fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData) {
+fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData, is_template: bool) {
     let SectionData::Text(lines, _) = section else {
         return;
     };
@@ -119,13 +119,17 @@ fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut Sec
     let colors = &app_data.borrow().theme.colors.syntax.describe;
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    add_networking_section(&mut builder, data);
+    add_networking_section(&mut builder, data, is_template);
     add_scheduling_section(&mut builder, data);
     add_runtime_section(&mut builder, data);
 }
 
-fn add_networking_section(builder: &mut TextSectionBuilder, data: &Value) {
-    builder.start_section("Networking", 0, 2, Some(16));
+fn add_networking_section(builder: &mut TextSectionBuilder, data: &Value, is_template: bool) {
+    if is_template {
+        builder.sub_section("Networking", 0, 2, Some(16));
+    } else {
+        builder.start_section("Networking", 0, 2, Some(16));
+    }
 
     if let Some(status) = &data.get("status") {
         builder.add_str("Pod IP", status["podIP"].as_str());

@@ -114,6 +114,18 @@ impl TuiEvent {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind)
     }
 
+    /// Returns `true` if this event is a mouse left click event inside a specified area.
+    pub fn is_left_click_in(&self, area: Rect) -> bool {
+        if let TuiEvent::Mouse(mouse) = self {
+            matches!(
+                mouse.kind,
+                MouseEventKind::LeftClick | MouseEventKind::LeftDoubleClick | MouseEventKind::LeftTripleClick
+            ) && area.contains(Position::new(mouse.column, mouse.row))
+        } else {
+            false
+        }
+    }
+
     /// Returns `true` if this event is a mouse event of a specified kind inside a specified area.
     pub fn is_in(&self, kind: MouseEventKind, area: Rect) -> bool {
         matches!(self, TuiEvent::Mouse(mouse) if mouse.kind == kind && area.contains(Position::new(mouse.column, mouse.row)))

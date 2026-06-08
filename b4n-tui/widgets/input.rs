@@ -388,7 +388,7 @@ impl Responsive for Input {
                     }
 
                     if let Some((_, response)) = &self.accept_button
-                        && event.is_in(MouseEventKind::LeftClick, areas[1])
+                        && event.is_left_click_in(areas[1])
                     {
                         return response.clone();
                     }
