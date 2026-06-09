@@ -3,22 +3,17 @@ use kube::api::DynamicObject;
 
 use crate::core::SharedAppData;
 use crate::ui::views::describe::builder::TextSectionBuilder;
-use crate::ui::views::describe::data::{SectionData, pod};
+use crate::ui::views::describe::data::{SectionData, SectionDataExt, pod};
 use crate::ui::views::describe::utils::{selector, value_to_string};
 
 /// Returns additional describe sections for `deployment` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let mut sections = vec![SectionData::Text(Vec::new(), 0)];
 
-    sections.append(&mut pod::create_additional_sections(resource, app_data));
-    for section in &mut sections[1..] {
-        match section {
-            SectionData::Text(_, indent) => *indent = 2u16,
-            SectionData::Resources(_, indent) => *indent = 2u16,
-            SectionData::List(_, indent) => *indent = 2u16,
-        }
-    }
+    let mut pod_sections = pod::create_additional_sections(resource, app_data);
+    pod_sections.set_indent(2);
 
+    sections.append(&mut pod_sections);
     sections
 }
 

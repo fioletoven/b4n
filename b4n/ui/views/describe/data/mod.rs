@@ -11,14 +11,8 @@ mod node;
 mod persistent_volume;
 mod persistent_volume_claim;
 mod pod;
+mod replica_set;
 mod service;
-
-/// Holds section's data.
-pub enum SectionData {
-    Text(Vec<StyledLine>, u16),
-    Resources(Box<ListViewer<ResourcesList>>, u16),
-    List(Box<ListViewer<BasicTable>>, u16),
-}
 
 /// Creates new additional sections for describe view for the specified resource.
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
@@ -28,6 +22,7 @@ pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppDa
         "persistentvolumes" => persistent_volume::create_additional_sections(resource, app_data),
         "persistentvolumeclaims" => persistent_volume_claim::create_additional_sections(resource, app_data),
         "pods" => pod::create_additional_sections(resource, app_data),
+        "replicasets" => replica_set::create_additional_sections(resource, app_data),
         "services" => service::create_additional_sections(resource, app_data),
         _ => Vec::new(),
     }
@@ -46,7 +41,33 @@ pub fn update_additional_sections(
         "persistentvolumes" => persistent_volume::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumeclaims" => persistent_volume_claim::update_additional_sections(resource, app_data, object, sections),
         "pods" => pod::update_additional_sections(resource, app_data, object, sections, false),
+        "replicasets" => replica_set::update_additional_sections(resource, app_data, object, sections),
         "services" => service::update_additional_sections(resource, app_data, object, sections),
         _ => (),
+    }
+}
+
+/// Holds section's data.
+pub enum SectionData {
+    Text(Vec<StyledLine>, u16),
+    Resources(Box<ListViewer<ResourcesList>>, u16),
+    List(Box<ListViewer<BasicTable>>, u16),
+}
+
+/// Extension methods for [`SectionData`].
+pub trait SectionDataExt {
+    /// Sets `indent` for all sections in the collection.
+    fn set_indent(&mut self, indent: u16);
+}
+
+impl SectionDataExt for Vec<SectionData> {
+    fn set_indent(&mut self, indent: u16) {
+        for section in self {
+            match section {
+                SectionData::Text(_, i) => *i = indent,
+                SectionData::Resources(_, i) => *i = indent,
+                SectionData::List(_, i) => *i = indent,
+            }
+        }
     }
 }
