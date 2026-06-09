@@ -146,6 +146,23 @@ pub fn selector(selector_map: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
+/// Returns rolling update as string.
+pub fn rolling_update_strategy(strategy: Option<&Map<String, Value>>) -> Option<String> {
+    let strategy = strategy?;
+    let max_unavailable = strategy.get("maxUnavailable").and_then(value_to_string);
+    let max_surge = strategy.get("maxSurge").and_then(value_to_string);
+
+    let strategy = [
+        max_unavailable.map(|value| format!("{value} max unavailable")),
+        max_surge.map(|value| format!("{value} max surge")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    (!strategy.is_empty()).then_some(strategy.join(", "))
+}
+
 fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
     match kind {
         ValueKind::String => &colors.string,

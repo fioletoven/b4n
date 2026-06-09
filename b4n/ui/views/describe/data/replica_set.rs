@@ -8,11 +8,7 @@ use crate::ui::views::describe::utils::selector;
 /// Returns additional describe sections for `replicaset` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let mut sections = vec![SectionData::Text(Vec::new(), 0)];
-
-    let mut pod_sections = pod::create_additional_sections(resource, app_data);
-    pod_sections.set_indent(2);
-
-    sections.append(&mut pod_sections);
+    sections.append(&mut pod::create_additional_sections(resource, app_data).with_indent(2));
     sections
 }
 
@@ -37,10 +33,10 @@ pub fn update_additional_sections(
     let spec = &object.data["spec"];
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    builder.start_section("Replica state", 0, 2, Some(17));
+    builder.start_section("Replica state", 0, 2, Some(16));
     builder.add_str("Selector", selector(spec["selector"].as_object()).as_deref());
     builder.add_str("Replicas", replicaset_replicas(object).as_deref());
-    builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|l| l.to_string()));
+    builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
 
     builder.start_section("Pod Template", 0, 0, None);
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);

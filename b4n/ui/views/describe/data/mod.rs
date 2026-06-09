@@ -6,6 +6,7 @@ use crate::kube::resources::ResourcesList;
 use crate::ui::presentation::{ListViewer, StyledLine};
 use crate::ui::widgets::table::BasicTable;
 
+mod daemon_set;
 mod deployments;
 mod node;
 mod persistent_volume;
@@ -17,6 +18,7 @@ mod service;
 /// Creates new additional sections for describe view for the specified resource.
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     match resource.kind.name() {
+        "daemonsets" => daemon_set::create_additional_sections(resource, app_data),
         "deployments" => deployments::create_additional_sections(resource, app_data),
         "nodes" => node::create_additional_sections(resource, app_data),
         "persistentvolumes" => persistent_volume::create_additional_sections(resource, app_data),
@@ -36,6 +38,7 @@ pub fn update_additional_sections(
     sections: &mut [SectionData],
 ) {
     match resource.kind.name() {
+        "daemonsets" => daemon_set::update_additional_sections(resource, app_data, object, sections),
         "deployments" => deployments::update_additional_sections(resource, app_data, object, sections),
         "nodes" => node::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumes" => persistent_volume::update_additional_sections(resource, app_data, object, sections),
@@ -57,17 +60,18 @@ pub enum SectionData {
 /// Extension methods for [`SectionData`].
 pub trait SectionDataExt {
     /// Sets `indent` for all sections in the collection.
-    fn set_indent(&mut self, indent: u16);
+    fn with_indent(self, indent: u16) -> Self;
 }
 
 impl SectionDataExt for Vec<SectionData> {
-    fn set_indent(&mut self, indent: u16) {
-        for section in self {
+    fn with_indent(mut self, indent: u16) -> Self {
+        for section in &mut self {
             match section {
                 SectionData::Text(_, i) => *i = indent,
                 SectionData::Resources(_, i) => *i = indent,
                 SectionData::List(_, i) => *i = indent,
             }
         }
+        self
     }
 }

@@ -5,14 +5,14 @@ use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::{SectionData, SectionDataExt, pod};
 use crate::ui::views::describe::utils::{rolling_update_strategy, selector};
 
-/// Returns additional describe sections for `deployment` resource.
+/// Returns additional describe sections for `daemonset` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let mut sections = vec![SectionData::Text(Vec::new(), 0)];
     sections.append(&mut pod::create_additional_sections(resource, app_data).with_indent(2));
     sections
 }
 
-/// Updates additional describe sections for `deployment` resource.
+/// Updates additional describe sections for `daemonset` resource.
 pub fn update_additional_sections(
     resource: &b4n_kube::ResourceRef,
     app_data: &SharedAppData,
@@ -33,37 +33,29 @@ pub fn update_additional_sections(
     let spec = &object.data["spec"];
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    builder.start_section("Rollout", 0, 2, Some(24));
+    builder.start_section("Scheduling", 0, 2, Some(16));
     builder.add_str("Selector", selector(spec["selector"].as_object()).as_deref());
-    builder.add_str("Replicas", deployment_replicas(object).as_deref());
-    builder.add_str("StrategyType", spec["strategy"]["type"].as_str());
+    builder.add_str("Pods", daemonset_pods(object).as_deref());
+    builder.add_str("UpdateStrategy", spec["updateStrategy"]["type"].as_str());
     builder.add_str(
         "RollingUpdate",
-        rolling_update_strategy(spec["strategy"]["rollingUpdate"].as_object()).as_deref(),
+        rolling_update_strategy(spec["updateStrategy"]["rollingUpdate"].as_object()).as_deref(),
     );
     builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
-    builder.add_num(
-        "ProgressDeadlineSeconds",
-        spec["progressDeadlineSeconds"].as_i64().map(|s| s.to_string()),
-    );
-    builder.add_num(
-        "RevisionHistoryLimit",
-        spec["revisionHistoryLimit"].as_i64().map(|l| l.to_string()),
-    );
-    builder.add_bool("Paused", spec["paused"].as_bool());
 
     builder.start_section("Pod Template", 0, 0, None);
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn deployment_replicas(object: &DynamicObject) -> Option<String> {
-    let desired = object.data["spec"]["replicas"].as_i64().unwrap_or(1);
-    let updated = object.data["status"]["updatedReplicas"].as_i64().unwrap_or_default();
-    let total = object.data["status"]["replicas"].as_i64().unwrap_or_default();
-    let available = object.data["status"]["availableReplicas"].as_i64().unwrap_or_default();
-    let unavailable = object.data["status"]["unavailableReplicas"].as_i64().unwrap_or_default();
+fn daemonset_pods(object: &DynamicObject) -> Option<String> {
+    let desired = object.data["status"]["desiredNumberScheduled"].as_i64().unwrap_or_default();
+    let current = object.data["status"]["currentNumberScheduled"].as_i64().unwrap_or_default();
+    let ready = object.data["status"]["numberReady"].as_i64().unwrap_or_default();
+    let available = object.data["status"]["numberAvailable"].as_i64().unwrap_or_default();
+    let up_to_date = object.data["status"]["updatedNumberScheduled"].as_i64().unwrap_or_default();
+    let misscheduled = object.data["status"]["numberMisscheduled"].as_i64().unwrap_or_default();
 
     Some(format!(
-        "{desired} desired | {updated} updated | {total} total | {available} available | {unavailable} unavailable"
+        "{desired} desired | {current} current | {ready} ready | {available} available | {up_to_date} up-to-date | {misscheduled} misscheduled"
     ))
 }
