@@ -134,6 +134,28 @@ impl ResourceItem {
         }
     }
 
+    /// Creates [`ResourceItem`] from kubernetes pod template and its metadata.
+    pub fn from_template(template: &Value, pod_metadata: &ObjectMeta, is_init_container: bool) -> Self {
+        let container_name = template["name"].as_str().unwrap_or("unknown").to_owned();
+        let creation_timestamp = None;
+        let uid = format!("{}.{}", container_name, if is_init_container { "I" } else { "M" });
+        let mut filter = get_filter_metadata("Container", "", pod_metadata);
+        filter.insert("n", vec![container_name.to_ascii_lowercase()]);
+        let mut data = container::data(template, None, None, is_init_container, false);
+        data.is_ready = true;
+
+        Self {
+            age: get_age_string(creation_timestamp),
+            name: container_name,
+            namespace: pod_metadata.namespace.clone(),
+            uid,
+            data: Some(data),
+            creation_timestamp,
+            filter_metadata: filter,
+            ..Default::default()
+        }
+    }
+
     /// Creates [`ResourceItem`] from kubernetes resource status condition.
     pub fn from_status_condition(status_condition: &Value) -> Self {
         let creation_timestamp = get_transition_time(status_condition);

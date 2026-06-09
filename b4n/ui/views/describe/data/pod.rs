@@ -44,7 +44,7 @@ pub fn update_additional_sections(
     };
 
     update_data_section(app_data, data, &mut sections[0], is_template);
-    update_containers_section(resource, data, &object.metadata, &mut sections[2]);
+    update_containers_section(resource, data, &object.metadata, &mut sections[2], is_template);
     update_volume_section(app_data, data, &mut sections[3]);
     update_tolerations_section(data, &mut sections[5]);
 }
@@ -264,7 +264,13 @@ fn pod_security_context(values: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
-fn update_containers_section(resource: &ResourceRef, data: &Value, metadata: &ObjectMeta, section: &mut SectionData) {
+fn update_containers_section(
+    resource: &ResourceRef,
+    data: &Value,
+    metadata: &ObjectMeta,
+    section: &mut SectionData,
+    is_template: bool,
+) {
     let SectionData::Resources(list, _) = section else {
         return;
     };
@@ -273,10 +279,30 @@ fn update_containers_section(resource: &ResourceRef, data: &Value, metadata: &Ob
     let init_data = InitData::simple(resource, "Container".to_owned(), CONTAINERS.to_owned());
     list.table.update(ObserverResult::Init(Box::new(init_data)));
 
-    add_containers(list, data, metadata, "initContainers", "initContainerStatuses", true);
-    add_containers(list, data, metadata, "containers", "containerStatuses", false);
+    if is_template {
+        add_template_containers(list, data, metadata, "initContainers", true);
+        add_template_containers(list, data, metadata, "containers", false);
+    } else {
+        add_containers(list, data, metadata, "initContainers", "initContainerStatuses", true);
+        add_containers(list, data, metadata, "containers", "containerStatuses", false);
+    }
 
     list.table.update(ObserverResult::InitDone);
+}
+
+fn add_template_containers(
+    list: &mut ListViewer<ResourcesList>,
+    data: &Value,
+    metadata: &ObjectMeta,
+    spec_array: &str,
+    is_init: bool,
+) {
+    if let Some(containers) = data["spec"][spec_array].as_array() {
+        for container in containers {
+            let resource = ResourceItem::from_template(container, metadata, is_init);
+            list.table.update(ObserverResult::new(resource, false));
+        }
+    }
 }
 
 fn add_containers(
