@@ -98,32 +98,21 @@ fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, s
     let colors = &app_data.borrow().theme.colors.syntax.describe;
     let mut builder = TextSectionBuilder::new(colors, lines);
 
+    let spec = &object.data["spec"];
     builder.start_section("Networking", 0, 2, Some(24));
-    builder.add_str("Type", object.data["spec"]["type"].as_str());
-    builder.add_str("Cluster IP", object.data["spec"]["clusterIP"].as_str());
-    builder.add_str("Cluster IPs", object.data["spec"]["clusterIPs"].as_str());
-    builder.add_str("External Name", object.data["spec"]["externalName"].as_str());
-    builder.add_str(
-        "External IPs",
-        map_join(object.data["spec"]["externalIPs"].as_array(), value_to_string),
-    );
-    builder.add_str("Selector", map_to_string(object.data["spec"]["selector"].as_object()));
-    builder.add_str("Session Affinity", object.data["spec"]["sessionAffinity"].as_str());
-    builder.add_str(
-        "Internal Traffic Policy",
-        object.data["spec"]["internalTrafficPolicy"].as_str(),
-    );
-    builder.add_str(
-        "External Traffic Policy",
-        object.data["spec"]["externalTrafficPolicy"].as_str(),
-    );
-    builder.add_str("Traffic Distribution", object.data["spec"]["trafficDistribution"].as_str());
-    builder.add_str(
-        "IP Families",
-        map_join(object.data["spec"]["ipFamilies"].as_array(), value_to_string),
-    );
-    builder.add_str("IP Family Policy", object.data["spec"]["ipFamilyPolicy"].as_str());
-    builder.add_str("Load Balancer Class", object.data["spec"]["loadBalancerClass"].as_str());
+    builder.add_str("Type", spec["type"].as_str());
+    builder.add_str("Cluster IP", spec["clusterIP"].as_str());
+    builder.add_str("Cluster IPs", spec["clusterIPs"].as_str());
+    builder.add_str("External Name", spec["externalName"].as_str());
+    builder.add_str("External IPs", map_join(spec["externalIPs"].as_array(), value_to_string));
+    builder.add_str("Selector", map_to_string(spec["selector"].as_object()));
+    builder.add_str("Session Affinity", spec["sessionAffinity"].as_str());
+    builder.add_str("Internal Traffic Policy", spec["internalTrafficPolicy"].as_str());
+    builder.add_str("External Traffic Policy", spec["externalTrafficPolicy"].as_str());
+    builder.add_str("Traffic Distribution", spec["trafficDistribution"].as_str());
+    builder.add_str("IP Families", map_join(spec["ipFamilies"].as_array(), value_to_string));
+    builder.add_str("IP Family Policy", spec["ipFamilyPolicy"].as_str());
+    builder.add_str("Load Balancer Class", spec["loadBalancerClass"].as_str());
     builder.add_str(
         "Load Balancer Ingress",
         map_join(object.data["status"]["loadBalancer"]["ingress"].as_array(), |item| {
@@ -132,8 +121,6 @@ fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, s
     );
     builder.add_num(
         "Health Check Node Port",
-        object.data["spec"]["healthCheckNodePort"]
-            .as_i64()
-            .map(|value| value.to_string()),
+        spec["healthCheckNodePort"].as_i64().map(|value| value.to_string()),
     );
 }

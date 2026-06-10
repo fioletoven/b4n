@@ -11,6 +11,8 @@ use crate::ui::views::describe::utils::{ValueKind, header, map_join, map_to_stri
 use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 use crate::ui::{presentation::ListViewer, presentation::StyledLine, views::describe::data::SectionData};
 
+pub const POD_SECTIONS_COUNT: usize = 6;
+
 /// Returns additional describe sections for `pod` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let colors = &app_data.borrow().theme.colors.syntax.describe;
@@ -33,7 +35,7 @@ pub fn update_additional_sections(
     sections: &mut [SectionData],
     is_template: bool,
 ) {
-    if sections.len() != 6 {
+    if sections.len() != POD_SECTIONS_COUNT {
         return;
     }
 

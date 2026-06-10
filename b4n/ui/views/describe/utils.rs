@@ -146,20 +146,22 @@ pub fn selector(selector_map: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
-/// Returns rolling update as string.
-pub fn rolling_update_strategy(strategy: Option<&Map<String, Value>>) -> Option<String> {
+/// Returns update strategy as string.
+pub fn update_strategy(strategy: Option<&Map<String, Value>>) -> Option<String> {
     let strategy = strategy?;
-    let max_unavailable = strategy.get("maxUnavailable").and_then(value_to_string);
-    let max_surge = strategy.get("maxSurge").and_then(value_to_string);
+    let mut elements = vec![strategy.get("type").and_then(value_to_string)];
 
-    let strategy = [
-        max_unavailable.map(|value| format!("{value} max unavailable")),
-        max_surge.map(|value| format!("{value} max surge")),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
+    if let Some(rolling_update) = strategy.get("rollingUpdate") {
+        let max_unavailable = rolling_update.get("maxUnavailable").and_then(value_to_string);
+        let max_surge = rolling_update.get("maxSurge").and_then(value_to_string);
+        let partition = rolling_update.get("partition").and_then(value_to_string);
 
+        elements.push(max_unavailable.map(|value| format!("{value} max unavailable")));
+        elements.push(max_surge.map(|value| format!("{value} max surge")));
+        elements.push(partition.map(|value| format!("partition {value}")));
+    }
+
+    let strategy = elements.into_iter().flatten().collect::<Vec<_>>();
     (!strategy.is_empty()).then_some(strategy.join(", "))
 }
 

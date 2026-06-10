@@ -47,19 +47,14 @@ pub fn update_additional_sections(
 }
 
 fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
+    let spec = &object.data["spec"];
     builder.start_section("Networking", 0, 2, Some(12));
     builder.add_str("Hostname", find_node_address(object, "Hostname"));
     builder.add_str("Internal IP", find_node_address(object, "InternalIP"));
     builder.add_str("External IP", find_node_address(object, "ExternalIP"));
-    builder.add_str("Pod CIDR", object.data["spec"]["podCIDR"].as_str());
-    builder.add_str(
-        "Pod CIDRs",
-        map_join(object.data["spec"]["podCIDRs"].as_array(), value_to_string).as_deref(),
-    );
-    builder.add_str(
-        "Addresses",
-        node_addresses(object.data["status"]["addresses"].as_array()).as_deref(),
-    );
+    builder.add_str("Pod CIDR", spec["podCIDR"].as_str());
+    builder.add_str("Pod CIDRs", map_join(spec["podCIDRs"].as_array(), value_to_string));
+    builder.add_str("Addresses", node_addresses(object.data["status"]["addresses"].as_array()));
 }
 
 fn add_system_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {

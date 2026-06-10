@@ -2,8 +2,9 @@ use kube::api::DynamicObject;
 
 use crate::core::SharedAppData;
 use crate::ui::views::describe::builder::TextSectionBuilder;
+use crate::ui::views::describe::data::pod::POD_SECTIONS_COUNT;
 use crate::ui::views::describe::data::{SectionData, SectionDataExt, pod};
-use crate::ui::views::describe::utils::{rolling_update_strategy, selector};
+use crate::ui::views::describe::utils::{selector, update_strategy};
 
 /// Returns additional describe sections for `deployment` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
@@ -19,7 +20,7 @@ pub fn update_additional_sections(
     object: &DynamicObject,
     sections: &mut [SectionData],
 ) {
-    if sections.len() != 7 {
+    if sections.len() != 1 + POD_SECTIONS_COUNT {
         return;
     }
 
@@ -34,13 +35,9 @@ pub fn update_additional_sections(
     let mut builder = TextSectionBuilder::new(colors, lines);
 
     builder.start_section("Rollout", 0, 2, Some(24));
-    builder.add_str("Selector", selector(spec["selector"].as_object()).as_deref());
-    builder.add_str("Replicas", deployment_replicas(object).as_deref());
-    builder.add_str("StrategyType", spec["strategy"]["type"].as_str());
-    builder.add_str(
-        "RollingUpdate",
-        rolling_update_strategy(spec["strategy"]["rollingUpdate"].as_object()).as_deref(),
-    );
+    builder.add_str("Selector", selector(spec["selector"].as_object()));
+    builder.add_str("Replicas", deployment_replicas(object));
+    builder.add_str("Strategy", update_strategy(spec["strategy"].as_object()));
     builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
     builder.add_num(
         "ProgressDeadlineSeconds",

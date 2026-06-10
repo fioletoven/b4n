@@ -14,6 +14,7 @@ mod persistent_volume_claim;
 mod pod;
 mod replica_set;
 mod service;
+mod stateful_set;
 
 /// Creates new additional sections for describe view for the specified resource.
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
@@ -26,6 +27,7 @@ pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppDa
         "pods" => pod::create_additional_sections(resource, app_data),
         "replicasets" => replica_set::create_additional_sections(resource, app_data),
         "services" => service::create_additional_sections(resource, app_data),
+        "statefulsets" => stateful_set::create_additional_sections(resource, app_data),
         _ => Vec::new(),
     }
 }
@@ -46,6 +48,7 @@ pub fn update_additional_sections(
         "pods" => pod::update_additional_sections(resource, app_data, object, sections, false),
         "replicasets" => replica_set::update_additional_sections(resource, app_data, object, sections),
         "services" => service::update_additional_sections(resource, app_data, object, sections),
+        "statefulsets" => stateful_set::update_additional_sections(resource, app_data, object, sections),
         _ => (),
     }
 }

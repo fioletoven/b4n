@@ -2,6 +2,7 @@ use kube::api::DynamicObject;
 
 use crate::core::SharedAppData;
 use crate::ui::views::describe::builder::TextSectionBuilder;
+use crate::ui::views::describe::data::pod::POD_SECTIONS_COUNT;
 use crate::ui::views::describe::data::{SectionData, SectionDataExt, pod};
 use crate::ui::views::describe::utils::selector;
 
@@ -19,7 +20,7 @@ pub fn update_additional_sections(
     object: &DynamicObject,
     sections: &mut [SectionData],
 ) {
-    if sections.len() != 7 {
+    if sections.len() != 1 + POD_SECTIONS_COUNT {
         return;
     }
 
@@ -34,8 +35,8 @@ pub fn update_additional_sections(
     let mut builder = TextSectionBuilder::new(colors, lines);
 
     builder.start_section("Replica state", 0, 2, Some(16));
-    builder.add_str("Selector", selector(spec["selector"].as_object()).as_deref());
-    builder.add_str("Replicas", replicaset_replicas(object).as_deref());
+    builder.add_str("Selector", selector(spec["selector"].as_object()));
+    builder.add_str("Replicas", replicaset_replicas(object));
     builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
 
     builder.start_section("Pod Template", 0, 0, None);
