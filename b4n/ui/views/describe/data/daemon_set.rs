@@ -38,7 +38,7 @@ pub fn update_additional_sections(
     builder.add_str("Selector", selector(spec["selector"].as_object()));
     builder.add_str("Pods", daemonset_pods(object));
     builder.add_str("UpdateStrategy", update_strategy(spec["updateStrategy"].as_object()));
-    builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
+    builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
 
     builder.start_section("Pod Template", 0, 0, None);
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);

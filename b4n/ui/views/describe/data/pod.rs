@@ -175,7 +175,7 @@ fn add_scheduling_section(builder: &mut TextSectionBuilder, data: &Value) {
         builder.add_str("Nominated Node", status["nominatedNodeName"].as_str());
     }
     builder.add_str("Scheduler", spec["schedulerName"].as_str());
-    builder.add_num("Priority", spec["priority"].as_i64().map(|v| v.to_string()));
+    builder.add_inum("Priority", spec["priority"].as_i64());
     builder.add_str("Priority Class", spec["priorityClassName"].as_str());
     builder.add_str("Preemption Policy", spec["preemptionPolicy"].as_str());
     builder.add_str("Node Selector", map_to_string(spec["nodeSelector"].as_object()));

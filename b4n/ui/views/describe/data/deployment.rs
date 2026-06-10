@@ -38,15 +38,9 @@ pub fn update_additional_sections(
     builder.add_str("Selector", selector(spec["selector"].as_object()));
     builder.add_str("Replicas", deployment_replicas(object));
     builder.add_str("Strategy", update_strategy(spec["strategy"].as_object()));
-    builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
-    builder.add_num(
-        "ProgressDeadlineSeconds",
-        spec["progressDeadlineSeconds"].as_i64().map(|s| s.to_string()),
-    );
-    builder.add_num(
-        "RevisionHistoryLimit",
-        spec["revisionHistoryLimit"].as_i64().map(|l| l.to_string()),
-    );
+    builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
+    builder.add_inum("ProgressDeadlineSeconds", spec["progressDeadlineSeconds"].as_i64());
+    builder.add_inum("RevisionHistoryLimit", spec["revisionHistoryLimit"].as_i64());
     builder.add_bool("Paused", spec["paused"].as_bool());
 
     builder.start_section("Pod Template", 0, 0, None);

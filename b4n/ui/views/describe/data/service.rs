@@ -119,8 +119,5 @@ fn update_networking_section(app_data: &SharedAppData, object: &DynamicObject, s
             item["ip"].as_str().or_else(|| item["hostname"].as_str()).map(String::from)
         }),
     );
-    builder.add_num(
-        "Health Check Node Port",
-        spec["healthCheckNodePort"].as_i64().map(|value| value.to_string()),
-    );
+    builder.add_inum("Health Check Node Port", spec["healthCheckNodePort"].as_i64());
 }

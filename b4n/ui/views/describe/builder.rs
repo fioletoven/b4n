@@ -57,6 +57,11 @@ impl<'a> TextSectionBuilder<'a> {
         self.add_line(key, value.map(|v| v.into()).unwrap_or_default(), ValueKind::Numeric);
     }
 
+    /// Adds numeric key value line.
+    pub fn add_inum(&mut self, key: &str, value: Option<i64>) {
+        self.add_line(key, value.map(|v| v.to_string()).unwrap_or_default(), ValueKind::Numeric);
+    }
+
     /// Adds bool key value line.
     pub fn add_bool(&mut self, key: &str, value: Option<bool>) {
         self.add_line(key, value.unwrap_or_default().to_string(), ValueKind::Boolean);

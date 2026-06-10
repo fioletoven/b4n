@@ -45,11 +45,8 @@ pub fn update_additional_sections(
         "PVCPolicy",
         pvc_retention_policy(spec["persistentVolumeClaimRetentionPolicy"].as_object()),
     );
-    builder.add_num("MinReadySeconds", spec["minReadySeconds"].as_i64().map(|s| s.to_string()));
-    builder.add_num(
-        "Revision History Limit",
-        spec["revisionHistoryLimit"].as_i64().map(|l| l.to_string()),
-    );
+    builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
+    builder.add_inum("Revision History Limit", spec["revisionHistoryLimit"].as_i64());
     builder.add_str("Current Revision", object.data["status"]["currentRevision"].as_str());
     builder.add_str("Update Revision", object.data["status"]["updateRevision"].as_str());
 

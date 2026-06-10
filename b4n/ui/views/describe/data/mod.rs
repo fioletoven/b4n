@@ -7,7 +7,8 @@ use crate::ui::presentation::{ListViewer, StyledLine};
 use crate::ui::widgets::table::BasicTable;
 
 mod daemon_set;
-mod deployments;
+mod deployment;
+mod job;
 mod node;
 mod persistent_volume;
 mod persistent_volume_claim;
@@ -20,7 +21,8 @@ mod stateful_set;
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     match resource.kind.name() {
         "daemonsets" => daemon_set::create_additional_sections(resource, app_data),
-        "deployments" => deployments::create_additional_sections(resource, app_data),
+        "deployments" => deployment::create_additional_sections(resource, app_data),
+        "jobs" => job::create_additional_sections(resource, app_data),
         "nodes" => node::create_additional_sections(resource, app_data),
         "persistentvolumes" => persistent_volume::create_additional_sections(resource, app_data),
         "persistentvolumeclaims" => persistent_volume_claim::create_additional_sections(resource, app_data),
@@ -41,7 +43,8 @@ pub fn update_additional_sections(
 ) {
     match resource.kind.name() {
         "daemonsets" => daemon_set::update_additional_sections(resource, app_data, object, sections),
-        "deployments" => deployments::update_additional_sections(resource, app_data, object, sections),
+        "deployments" => deployment::update_additional_sections(resource, app_data, object, sections),
+        "jobs" => job::update_additional_sections(resource, app_data, object, sections),
         "nodes" => node::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumes" => persistent_volume::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumeclaims" => persistent_volume_claim::update_additional_sections(resource, app_data, object, sections),
