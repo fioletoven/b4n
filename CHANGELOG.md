@@ -6,6 +6,10 @@
 
 - additional data sections for resources in describe view
 
+### Bug fixes
+
+- allow more than 999 days in AGE column
+
 ## 0.4.9 - 2026-05-31
 
 ### Features
