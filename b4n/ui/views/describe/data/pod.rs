@@ -40,7 +40,11 @@ pub fn update_additional_sections(
     }
 
     let data = if is_template {
-        &object.data["spec"]["template"]
+        if object.data["spec"].get("template").is_some() {
+            &object.data["spec"]["template"]
+        } else {
+            &object.data["spec"]["jobTemplate"]["spec"]["template"]
+        }
     } else {
         &object.data
     };

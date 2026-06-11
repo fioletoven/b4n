@@ -6,6 +6,8 @@ use crate::ui::views::describe::data::pod::POD_SECTIONS_COUNT;
 use crate::ui::views::describe::data::{SectionData, SectionDataExt, pod};
 use crate::ui::views::describe::utils::selector;
 
+pub const JOB_SECTIONS_COUNT: usize = POD_SECTIONS_COUNT + 1;
+
 /// Returns additional describe sections for `job` resource.
 pub fn create_additional_sections(resource: &b4n_kube::ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let mut sections = vec![SectionData::Text(Vec::new(), 0)];
@@ -19,6 +21,7 @@ pub fn update_additional_sections(
     app_data: &SharedAppData,
     object: &DynamicObject,
     sections: &mut [SectionData],
+    is_template: bool,
 ) {
     if sections.len() != 1 + POD_SECTIONS_COUNT {
         return;
@@ -31,15 +34,24 @@ pub fn update_additional_sections(
     lines.clear();
 
     let colors = &app_data.borrow().theme.colors.syntax.describe;
-    let spec = &object.data["spec"];
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    builder.start_section("Execution", 0, 2, Some(24));
+    let spec = if is_template {
+        builder.sub_section("Execution", 0, 2, Some(24));
+        &object.data["spec"]["jobTemplate"]
+    } else {
+        builder.start_section("Execution", 0, 2, Some(24));
+        &object.data["spec"]
+    };
+
     builder.add_str("Selector", selector(spec["selector"].as_object()));
     builder.add_inum("Parallelism", spec["parallelism"].as_i64());
     builder.add_inum("Completions", spec["completions"].as_i64());
     builder.add_str("CompletionMode", spec["completionMode"].as_str());
-    builder.add_str("Status", job_status(object));
+    if !is_template {
+        builder.add_str("Status", job_status(object));
+    }
+
     builder.add_inum("BackoffLimit", spec["backoffLimit"].as_i64());
     builder.add_inum("BackoffLimitPerIndex", spec["backoffLimitPerIndex"].as_i64());
     builder.add_inum("MaxFailedIndexes", spec["maxFailedIndexes"].as_i64());

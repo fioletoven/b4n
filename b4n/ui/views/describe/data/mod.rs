@@ -6,6 +6,7 @@ use crate::kube::resources::ResourcesList;
 use crate::ui::presentation::{ListViewer, StyledLine};
 use crate::ui::widgets::table::BasicTable;
 
+mod cron_job;
 mod daemon_set;
 mod deployment;
 mod job;
@@ -20,6 +21,7 @@ mod stateful_set;
 /// Creates new additional sections for describe view for the specified resource.
 pub fn create_additional_sections(resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     match resource.kind.name() {
+        "cronjobs" => cron_job::create_additional_sections(resource, app_data),
         "daemonsets" => daemon_set::create_additional_sections(resource, app_data),
         "deployments" => deployment::create_additional_sections(resource, app_data),
         "jobs" => job::create_additional_sections(resource, app_data),
@@ -42,9 +44,10 @@ pub fn update_additional_sections(
     sections: &mut [SectionData],
 ) {
     match resource.kind.name() {
+        "cronjobs" => cron_job::update_additional_sections(resource, app_data, object, sections),
         "daemonsets" => daemon_set::update_additional_sections(resource, app_data, object, sections),
         "deployments" => deployment::update_additional_sections(resource, app_data, object, sections),
-        "jobs" => job::update_additional_sections(resource, app_data, object, sections),
+        "jobs" => job::update_additional_sections(resource, app_data, object, sections, false),
         "nodes" => node::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumes" => persistent_volume::update_additional_sections(resource, app_data, object, sections),
         "persistentvolumeclaims" => persistent_volume_claim::update_additional_sections(resource, app_data, object, sections),
@@ -73,9 +76,9 @@ impl SectionDataExt for Vec<SectionData> {
     fn with_indent(mut self, indent: u16) -> Self {
         for section in &mut self {
             match section {
-                SectionData::Text(_, i) => *i = indent,
-                SectionData::Resources(_, i) => *i = indent,
-                SectionData::List(_, i) => *i = indent,
+                SectionData::Text(_, i) => *i += indent,
+                SectionData::Resources(_, i) => *i += indent,
+                SectionData::List(_, i) => *i += indent,
             }
         }
         self
