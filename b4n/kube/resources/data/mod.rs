@@ -32,6 +32,7 @@ pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_metrics;
 pub mod priority_class;
+pub mod priority_level_configuration;
 pub mod replica_set;
 pub mod role;
 pub mod role_binding;
@@ -88,6 +89,7 @@ pub fn get_resource_data(
         ("Pod", "") => pod::data(object, stats),
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::data(object),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::data(object),
+        ("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io") => priority_level_configuration::data(object),
         ("ReplicaSet", "apps") => replica_set::data(object),
         ("Role", "rbac.authorization.k8s.io") => role::data(object),
         ("Secret", "") => secret::data(object),
@@ -137,6 +139,7 @@ pub fn get_header_data(
         ("Pod", "") => pod::header(has_metrics),
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::header(),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::header(),
+        ("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io") => priority_level_configuration::header(),
         ("ReplicaSet", "apps") => replica_set::header(),
         ("Role", "rbac.authorization.k8s.io") => role::header(),
         ("Secret", "") => secret::header(),
