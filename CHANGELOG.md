@@ -4,7 +4,7 @@
 
 ### Features
 
-- additional sections for Service resource in describe view
+- additional data sections for resources in describe view
 
 ## 0.4.9 - 2026-05-31
 

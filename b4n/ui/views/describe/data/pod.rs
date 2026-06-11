@@ -1,8 +1,7 @@
 use b4n_kube::{CONTAINERS, InitData, ObserverResult, ResourceRef};
 use b4n_tui::table::{Column, Table, ViewType};
 use k8s_openapi::serde_json::{Map, Value};
-use kube::ResourceExt;
-use kube::api::DynamicObject;
+use kube::api::{DynamicObject, ObjectMeta};
 use std::rc::Rc;
 
 use crate::core::SharedAppData;
@@ -12,17 +11,19 @@ use crate::ui::views::describe::utils::{ValueKind, header, map_join, map_to_stri
 use crate::ui::widgets::table::{BasicRow, BasicTable, Cell};
 use crate::ui::{presentation::ListViewer, presentation::StyledLine, views::describe::data::SectionData};
 
+pub const POD_SECTIONS_COUNT: usize = 6;
+
 /// Returns additional describe sections for `pod` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, app_data: &SharedAppData) -> Vec<SectionData> {
     let colors = &app_data.borrow().theme.colors.syntax.describe;
 
     vec![
-        SectionData::Text(Vec::new()),
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers", 0)]),
-        SectionData::Resources(Box::new(create_containers_table(app_data))),
-        SectionData::Text(Vec::new()),
-        SectionData::Text(vec![StyledLine::default(), header(colors, "Tolerations", 0)]),
-        SectionData::List(Box::new(create_tolerations_table(app_data))),
+        SectionData::Text(Vec::new(), 0),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Containers", 0)], 0),
+        SectionData::Resources(Box::new(create_containers_table(app_data)), 0),
+        SectionData::Text(Vec::new(), 0),
+        SectionData::Text(vec![StyledLine::default(), header(colors, "Tolerations", 0)], 0),
+        SectionData::List(Box::new(create_tolerations_table(app_data)), 0),
     ]
 }
 
@@ -32,15 +33,26 @@ pub fn update_additional_sections(
     app_data: &SharedAppData,
     object: &DynamicObject,
     sections: &mut [SectionData],
+    is_template: bool,
 ) {
-    if sections.len() != 6 {
+    if sections.len() != POD_SECTIONS_COUNT {
         return;
     }
 
-    update_data_section(app_data, object, &mut sections[0]);
-    update_containers_section(resource, object, &mut sections[2]);
-    update_volume_section(app_data, object, &mut sections[3]);
-    update_tolerations_section(object, &mut sections[5]);
+    let data = if is_template {
+        if object.data["spec"].get("template").is_some() {
+            &object.data["spec"]["template"]
+        } else {
+            &object.data["spec"]["jobTemplate"]["spec"]["template"]
+        }
+    } else {
+        &object.data
+    };
+
+    update_data_section(app_data, data, &mut sections[0], is_template);
+    update_containers_section(resource, data, &object.metadata, &mut sections[2], is_template);
+    update_volume_section(app_data, data, &mut sections[3]);
+    update_tolerations_section(data, &mut sections[5]);
 }
 
 fn create_containers_table(app_data: &SharedAppData) -> ListViewer<ResourcesList> {
@@ -81,9 +93,9 @@ fn create_tolerations_table(app_data: &SharedAppData) -> ListViewer<BasicTable> 
     table
 }
 
-fn update_tolerations_section(object: &DynamicObject, section: &mut SectionData) {
-    if let SectionData::List(list) = section
-        && let Some(tolerations) = object.data["spec"]["tolerations"].as_array()
+fn update_tolerations_section(data: &Value, section: &mut SectionData) {
+    if let SectionData::List(list, _) = section
+        && let Some(tolerations) = data["spec"]["tolerations"].as_array()
     {
         list.table.clear();
         for item in tolerations {
@@ -103,8 +115,8 @@ fn update_tolerations_section(object: &DynamicObject, section: &mut SectionData)
     }
 }
 
-fn update_data_section(app_data: &SharedAppData, object: &DynamicObject, section: &mut SectionData) {
-    let SectionData::Text(lines) = section else {
+fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData, is_template: bool) {
+    let SectionData::Text(lines, _) = section else {
         return;
     };
 
@@ -113,27 +125,32 @@ fn update_data_section(app_data: &SharedAppData, object: &DynamicObject, section
     let colors = &app_data.borrow().theme.colors.syntax.describe;
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    add_networking_section(&mut builder, object);
-    add_scheduling_section(&mut builder, object);
-    add_runtime_section(&mut builder, object);
+    add_networking_section(&mut builder, data, is_template);
+    add_scheduling_section(&mut builder, data);
+    add_runtime_section(&mut builder, data);
 }
 
-fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
-    builder.start_section("Networking", 0, 2, Some(16));
+fn add_networking_section(builder: &mut TextSectionBuilder, data: &Value, is_template: bool) {
+    if is_template {
+        builder.sub_section("Networking", 0, 2, Some(16));
+    } else {
+        builder.start_section("Networking", 0, 2, Some(16));
+    }
 
-    let status = &object.data["status"];
-    builder.add_str("Pod IP", status["podIP"].as_str());
-    builder.add_str(
-        "Pod IPs",
-        map_join(status["podIPs"].as_array(), |i| value_to_string(&i["ip"])),
-    );
-    builder.add_str("Host IP", status["hostIP"].as_str());
-    builder.add_str(
-        "Host IPs",
-        map_join(status["hostIPs"].as_array(), |i| value_to_string(&i["ip"])),
-    );
+    if let Some(status) = &data.get("status") {
+        builder.add_str("Pod IP", status["podIP"].as_str());
+        builder.add_str(
+            "Pod IPs",
+            map_join(status["podIPs"].as_array(), |i| value_to_string(&i["ip"])),
+        );
+        builder.add_str("Host IP", status["hostIP"].as_str());
+        builder.add_str(
+            "Host IPs",
+            map_join(status["hostIPs"].as_array(), |i| value_to_string(&i["ip"])),
+        );
+    }
 
-    let spec = &object.data["spec"];
+    let spec = &data["spec"];
     builder.add_bool("Host Network", spec["hostNetwork"].as_bool());
     builder.add_str("DNS Policy", spec["dnsPolicy"].as_str());
     builder.add_str(
@@ -153,14 +170,16 @@ fn dns_options(values: Option<&Vec<Value>>) -> Option<String> {
     })
 }
 
-fn add_scheduling_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
+fn add_scheduling_section(builder: &mut TextSectionBuilder, data: &Value) {
     builder.start_section("Scheduling", 0, 2, Some(28));
 
-    let spec = &object.data["spec"];
+    let spec = &data["spec"];
     builder.add_str("Node", spec["nodeName"].as_str());
-    builder.add_str("Nominated Node", object.data["status"]["nominatedNodeName"].as_str());
+    if let Some(status) = data.get("status") {
+        builder.add_str("Nominated Node", status["nominatedNodeName"].as_str());
+    }
     builder.add_str("Scheduler", spec["schedulerName"].as_str());
-    builder.add_num("Priority", spec["priority"].as_i64().map(|v| v.to_string()));
+    builder.add_inum("Priority", spec["priority"].as_i64());
     builder.add_str("Priority Class", spec["priorityClassName"].as_str());
     builder.add_str("Preemption Policy", spec["preemptionPolicy"].as_str());
     builder.add_str("Node Selector", map_to_string(spec["nodeSelector"].as_object()));
@@ -192,14 +211,16 @@ fn topology_spread_constraints(values: Option<&Vec<Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
-fn add_runtime_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
+fn add_runtime_section(builder: &mut TextSectionBuilder, data: &Value) {
     builder.start_section("Runtime", 0, 2, Some(24));
 
-    let spec = &object.data["spec"];
+    let spec = &data["spec"];
     builder.add_str("Service Account", spec["serviceAccountName"].as_str());
     builder.add_str("Runtime Class", spec["runtimeClassName"].as_str());
     builder.add_str("Restart Policy", spec["restartPolicy"].as_str());
-    builder.add_str("QoS Class", object.data["status"]["qosClass"].as_str());
+    if let Some(status) = data.get("status") {
+        builder.add_str("QoS Class", status["qosClass"].as_str());
+    }
     builder.add_str(
         "Image Pull Secrets",
         map_join(spec["imagePullSecrets"].as_array(), |i| value_to_string(&i["name"])),
@@ -249,47 +270,73 @@ fn pod_security_context(values: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
-fn update_containers_section(resource: &ResourceRef, object: &DynamicObject, section: &mut SectionData) {
-    let SectionData::Resources(list) = section else {
+fn update_containers_section(
+    resource: &ResourceRef,
+    data: &Value,
+    metadata: &ObjectMeta,
+    section: &mut SectionData,
+    is_template: bool,
+) {
+    let SectionData::Resources(list, _) = section else {
         return;
     };
 
-    let resource = ResourceRef::containers(object.name_any(), resource.namespace.clone());
+    let resource = ResourceRef::containers(String::new(), resource.namespace.clone());
     let init_data = InitData::simple(resource, "Container".to_owned(), CONTAINERS.to_owned());
     list.table.update(ObserverResult::Init(Box::new(init_data)));
 
-    add_containers(list, object, "initContainers", "initContainerStatuses", true);
-    add_containers(list, object, "containers", "containerStatuses", false);
+    if is_template {
+        add_template_containers(list, data, metadata, "initContainers", true);
+        add_template_containers(list, data, metadata, "containers", false);
+    } else {
+        add_containers(list, data, metadata, "initContainers", "initContainerStatuses", true);
+        add_containers(list, data, metadata, "containers", "containerStatuses", false);
+    }
 
     list.table.update(ObserverResult::InitDone);
 }
 
-fn add_containers(
+fn add_template_containers(
     list: &mut ListViewer<ResourcesList>,
-    object: &DynamicObject,
+    data: &Value,
+    metadata: &ObjectMeta,
     spec_array: &str,
-    status_array: &str,
-    is_init_container: bool,
+    is_init: bool,
 ) {
-    if let Some(containers) = object.data["spec"][spec_array].as_array() {
+    if let Some(containers) = data["spec"][spec_array].as_array() {
         for container in containers {
-            let status = get_container_status(object, status_array, container);
-            let resource = ResourceItem::from_container(container, status, &object.metadata, None, is_init_container);
+            let resource = ResourceItem::from_template(container, metadata, is_init);
             list.table.update(ObserverResult::new(resource, false));
         }
     }
 }
 
-fn get_container_status<'a>(object: &'a DynamicObject, status_array: &str, container: &Value) -> Option<&'a Value> {
-    object.data["status"][status_array].as_array().and_then(|statuses| {
-        statuses
-            .iter()
-            .find(|status| status["name"].as_str() == container["name"].as_str())
-    })
+fn add_containers(
+    list: &mut ListViewer<ResourcesList>,
+    data: &Value,
+    metadata: &ObjectMeta,
+    spec_array: &str,
+    status_array: &str,
+    is_init: bool,
+) {
+    if let Some(containers) = data["spec"][spec_array].as_array() {
+        for container in containers {
+            let status = get_container_status(data, status_array, container);
+            let resource = ResourceItem::from_container(container, status, metadata, None, is_init);
+            list.table.update(ObserverResult::new(resource, false));
+        }
+    }
 }
 
-fn update_volume_section(app_data: &SharedAppData, object: &DynamicObject, section: &mut SectionData) {
-    let SectionData::Text(lines) = section else {
+fn get_container_status<'a>(data: &'a Value, status_array: &str, container: &Value) -> Option<&'a Value> {
+    let statuses = data["status"][status_array].as_array()?;
+    statuses
+        .iter()
+        .find(|status| status["name"].as_str() == container["name"].as_str())
+}
+
+fn update_volume_section(app_data: &SharedAppData, data: &Value, section: &mut SectionData) {
+    let SectionData::Text(lines, _) = section else {
         return;
     };
 
@@ -299,7 +346,7 @@ fn update_volume_section(app_data: &SharedAppData, object: &DynamicObject, secti
     let mut builder = TextSectionBuilder::new(colors, lines);
     builder.start_section("Volumes", 0, 2, None);
 
-    let Some(volumes) = object.data["spec"]["volumes"].as_array() else {
+    let Some(volumes) = data["spec"]["volumes"].as_array() else {
         builder.add_none();
         return;
     };

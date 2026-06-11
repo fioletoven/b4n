@@ -112,8 +112,8 @@ impl DescribeContent {
         match self.focused {
             FocusTarget::Scroll => self.process_scroll_event(event),
             FocusTarget::AdditionalSection(index) => match self.sections.get_mut(index) {
-                Some(SectionData::Resources(list)) => list.process_event(event),
-                Some(SectionData::List(list)) => list.process_event(event),
+                Some(SectionData::Resources(list, _)) => list.process_event(event),
+                Some(SectionData::List(list, _)) => list.process_event(event),
                 _ => ResponseEvent::NotHandled,
             },
             FocusTarget::Conditions => self.conditions.process_event(event),
@@ -126,8 +126,8 @@ impl DescribeContent {
         let lines = match self.focused {
             FocusTarget::Scroll => Vec::new(),
             FocusTarget::AdditionalSection(index) => match self.sections.get_mut(index) {
-                Some(SectionData::Resources(list)) => list.table.get_items_as_text(ViewType::Compact, false),
-                Some(SectionData::List(list)) => list.table.get_items_as_text(ViewType::Compact, false),
+                Some(SectionData::Resources(list, _)) => list.table.get_items_as_text(ViewType::Compact, false),
+                Some(SectionData::List(list, _)) => list.table.get_items_as_text(ViewType::Compact, false),
                 _ => Vec::new(),
             },
             FocusTarget::Conditions => self.conditions.table.get_items_as_text(ViewType::Compact, false),
@@ -209,41 +209,45 @@ impl DescribeContent {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let mut sections = Vec::with_capacity(self.sections.len() + 6);
-        let mut section_targets = Vec::with_capacity(self.sections.len() + 6);
+        let mut sections = Vec::with_capacity(self.sections.len() + 7);
+        let mut section_targets = Vec::with_capacity(self.sections.len() + 7);
 
-        sections.push(Section::from_text(&mut self.lines_start));
+        sections.push(Section::from_text(&mut self.lines_start, 0));
         section_targets.push(None);
 
         for (index, section) in self.sections.iter_mut().enumerate() {
             match section {
-                SectionData::Text(lines) => {
-                    sections.push(Section::from_text(lines));
+                SectionData::Text(lines, indent) => {
+                    sections.push(Section::from_text(lines, *indent));
                     section_targets.push(None);
                 },
-                SectionData::Resources(list) => {
-                    sections.push(Section::from_resources_list(list));
+                SectionData::Resources(list, indent) => {
+                    sections.push(Section::from_resources_list(list, *indent));
                     section_targets.push(Some(FocusTarget::AdditionalSection(index)));
                 },
-                SectionData::List(list) => {
-                    sections.push(Section::from_basic_list(list));
+                SectionData::List(list, indent) => {
+                    sections.push(Section::from_basic_list(list, *indent));
                     section_targets.push(Some(FocusTarget::AdditionalSection(index)));
                 },
             }
         }
 
-        sections.push(Section::from_text(&mut self.lines_end));
+        sections.push(Section::from_text(&mut self.lines_end, 0));
         section_targets.push(None);
 
-        sections.push(Section::from_text(&mut self.conditions_header));
+        sections.push(Section::from_text(&mut self.conditions_header, 0));
         section_targets.push(None);
-        sections.push(Section::from_resources_list(&mut self.conditions));
+        sections.push(Section::from_resources_list(&mut self.conditions, 0));
         section_targets.push(Some(FocusTarget::Conditions));
 
-        sections.push(Section::from_text(&mut self.events_header));
+        sections.push(Section::from_text(&mut self.events_header, 0));
         section_targets.push(None);
-        sections.push(Section::from_resources_list(&mut self.events));
+        sections.push(Section::from_resources_list(&mut self.events, 0));
         section_targets.push(Some(FocusTarget::Events));
+
+        let mut empty_line = vec![StyledLine::default()];
+        sections.push(Section::from_text(&mut empty_line, 0));
+        section_targets.push(None);
 
         self.max_height = sections.iter().map(|s| usize::from(s.height())).sum();
         self.max_width = sections.iter().map(Section::width).max().unwrap_or_default();
@@ -320,8 +324,8 @@ impl DescribeContent {
         match section {
             FocusTarget::Scroll => true,
             FocusTarget::AdditionalSection(index) => match self.sections.get(index) {
-                Some(SectionData::Resources(list)) => !list.table.is_empty(),
-                Some(SectionData::List(list)) => !list.table.is_empty(),
+                Some(SectionData::Resources(list, _)) => !list.table.is_empty(),
+                Some(SectionData::List(list, _)) => !list.table.is_empty(),
                 _ => false,
             },
             FocusTarget::Conditions => !self.conditions.table.is_empty(),
@@ -485,9 +489,9 @@ impl DescribeContent {
         self.events.set_focus(self.focused == FocusTarget::Events);
         for (index, section) in self.sections.iter_mut().enumerate() {
             match section {
-                SectionData::Resources(list) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
-                SectionData::List(list) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
-                SectionData::Text(_) => (),
+                SectionData::Resources(list, _) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
+                SectionData::List(list, _) => list.set_focus(self.focused == FocusTarget::AdditionalSection(index)),
+                SectionData::Text(_, _) => (),
             }
         }
     }
@@ -518,45 +522,65 @@ enum FocusTarget {
 
 /// Represents a section in the describe view.
 enum Section<'a> {
-    Text(&'a mut Vec<StyledLine>, usize, u16),
-    Resources(&'a mut ListViewer<ResourcesList>, usize, u16),
-    List(&'a mut ListViewer<BasicTable>, usize, u16),
+    Text(&'a mut Vec<StyledLine>, usize, u16, u16),
+    Resources(&'a mut ListViewer<ResourcesList>, usize, u16, u16),
+    List(&'a mut ListViewer<BasicTable>, usize, u16, u16),
 }
 
 impl<'a> Section<'a> {
-    fn from_text(value: &'a mut Vec<StyledLine>) -> Self {
+    fn from_text(value: &'a mut Vec<StyledLine>, indent: u16) -> Self {
         let width = value.iter().map(StyledLine::chars_len).max();
         let height = u16::try_from(value.len()).unwrap_or_default();
-        Section::Text(value, width.unwrap_or_default(), height)
+        Section::Text(value, width.unwrap_or_default(), height, indent)
     }
 
-    fn from_resources_list(value: &'a mut ListViewer<ResourcesList>) -> Self {
+    fn from_resources_list(value: &'a mut ListViewer<ResourcesList>, indent: u16) -> Self {
         let width = value.table.table.header.get_cached_length().unwrap_or_default();
         let height = u16::try_from(value.table.len()).unwrap_or_default() + 1;
-        Self::Resources(value, width, height)
+        Self::Resources(value, width, height, indent)
     }
 
-    fn from_basic_list(value: &'a mut ListViewer<BasicTable>) -> Self {
+    fn from_basic_list(value: &'a mut ListViewer<BasicTable>, indent: u16) -> Self {
         let width = value.table.table.header.get_cached_length().unwrap_or_default();
         let height = u16::try_from(value.table.len()).unwrap_or_default() + 1;
-        Self::List(value, width, height)
+        Self::List(value, width, height, indent)
     }
 
     fn width(&self) -> usize {
         match self {
-            Section::Text(_, width, _) | Section::Resources(_, width, _) | Section::List(_, width, _) => *width,
+            Section::Text(_, width, _, _) | Section::Resources(_, width, _, _) | Section::List(_, width, _, _) => *width,
         }
     }
 
     fn height(&self) -> u16 {
         match self {
-            Section::Text(_, _, height) | Section::Resources(_, _, height) | Section::List(_, _, height) => *height,
+            Section::Text(_, _, height, _) | Section::Resources(_, _, height, _) | Section::List(_, _, height, _) => *height,
+        }
+    }
+
+    fn indent(&self) -> u16 {
+        match self {
+            Section::Text(_, _, _, indent) | Section::Resources(_, _, _, indent) | Section::List(_, _, _, indent) => *indent,
         }
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppData, offset_y: u16, offset_x: usize) {
+        let indent = self.indent();
+        let visible_indent = indent.saturating_sub(offset_x as u16);
+        let offset_x = offset_x.saturating_sub(indent as usize);
+        let area = if visible_indent > 0 {
+            Rect {
+                x: area.x.saturating_add(visible_indent),
+                y: area.y,
+                width: area.width.saturating_sub(visible_indent),
+                height: area.height,
+            }
+        } else {
+            area
+        };
+
         match self {
-            Section::Text(lines, _, _) => {
+            Section::Text(lines, _, _, _) => {
                 let lines: Vec<Line<'_>> = lines
                     .iter()
                     .skip(offset_y.into())
@@ -565,7 +589,7 @@ impl<'a> Section<'a> {
                     .collect();
                 frame.render_widget(Paragraph::new(lines), area.inner(Margin::new(1, 0)));
             },
-            Section::Resources(list, _, _) => {
+            Section::Resources(list, _, _, _) => {
                 if list.table.is_empty() {
                     let colors = &app_data.borrow().theme.colors.syntax.describe;
                     frame.render_widget(Paragraph::new(none(colors).as_line(offset_x)), area.inner(Margin::new(1, 0)));
@@ -574,7 +598,7 @@ impl<'a> Section<'a> {
                     list.draw_clipped(frame, area, offset_y as usize);
                 }
             },
-            Section::List(list, _, _) => {
+            Section::List(list, _, _, _) => {
                 if list.table.is_empty() {
                     let colors = &app_data.borrow().theme.colors.syntax.describe;
                     frame.render_widget(Paragraph::new(none(colors).as_line(offset_x)), area.inner(Margin::new(1, 0)));
@@ -592,7 +616,12 @@ fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str,
     lines.push(header(colors, title, 0));
 
     if let Some(source) = source {
-        lines.append(&mut list(colors, source));
+        let mut items = list(colors, source);
+        if items.is_empty() {
+            lines.push(none(colors));
+        } else {
+            lines.append(&mut items);
+        }
     } else {
         lines.push(none(colors));
     }

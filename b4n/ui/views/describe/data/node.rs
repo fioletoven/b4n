@@ -12,7 +12,7 @@ use crate::ui::views::describe::utils::{map_join, value_to_string};
 
 /// Returns additional describe sections for `node` resource.
 pub fn create_additional_sections(_resource: &ResourceRef, _app_data: &SharedAppData) -> Vec<SectionData> {
-    vec![SectionData::Text(Vec::new())]
+    vec![SectionData::Text(Vec::new(), 0)]
 }
 
 /// Updates additional describe sections for `node` resource.
@@ -26,7 +26,7 @@ pub fn update_additional_sections(
         return;
     }
 
-    let SectionData::Text(lines) = &mut sections[0] else {
+    let SectionData::Text(lines, _) = &mut sections[0] else {
         return;
     };
 
@@ -47,19 +47,14 @@ pub fn update_additional_sections(
 }
 
 fn add_networking_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
+    let spec = &object.data["spec"];
     builder.start_section("Networking", 0, 2, Some(12));
     builder.add_str("Hostname", find_node_address(object, "Hostname"));
     builder.add_str("Internal IP", find_node_address(object, "InternalIP"));
     builder.add_str("External IP", find_node_address(object, "ExternalIP"));
-    builder.add_str("Pod CIDR", object.data["spec"]["podCIDR"].as_str());
-    builder.add_str(
-        "Pod CIDRs",
-        map_join(object.data["spec"]["podCIDRs"].as_array(), value_to_string).as_deref(),
-    );
-    builder.add_str(
-        "Addresses",
-        node_addresses(object.data["status"]["addresses"].as_array()).as_deref(),
-    );
+    builder.add_str("Pod CIDR", spec["podCIDR"].as_str());
+    builder.add_str("Pod CIDRs", map_join(spec["podCIDRs"].as_array(), value_to_string));
+    builder.add_str("Addresses", node_addresses(object.data["status"]["addresses"].as_array()));
 }
 
 fn add_system_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
@@ -84,8 +79,8 @@ fn add_system_section(builder: &mut TextSectionBuilder, object: &DynamicObject) 
 fn add_scheduling_section(builder: &mut TextSectionBuilder, object: &DynamicObject) {
     builder.start_section("Scheduling", 0, 2, Some(14));
     builder.add_bool("Unschedulable", object.data["spec"]["unschedulable"].as_bool());
-    builder.add_str("Roles", get_node_roles(object, ", ").as_deref());
-    builder.add_str("Taints", node_taints(object.data["spec"]["taints"].as_array()).as_deref());
+    builder.add_str("Roles", get_node_roles(object, ", "));
+    builder.add_str("Taints", node_taints(object.data["spec"]["taints"].as_array()));
 }
 
 fn add_resource_section(builder: &mut TextSectionBuilder, title: &str, source: Option<&Map<String, Value>>) {
@@ -96,7 +91,7 @@ fn add_resource_section(builder: &mut TextSectionBuilder, title: &str, source: O
     let width = source.keys().map(String::len).max().unwrap_or_default() + 1;
     builder.start_section(title, 0, 2, Some(width));
     for (key, value) in source {
-        builder.add_num(key, format_metrics(key, value).as_deref());
+        builder.add_num(key, format_metrics(key, value));
     }
 }
 

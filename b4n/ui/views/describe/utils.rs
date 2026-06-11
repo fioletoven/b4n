@@ -128,6 +128,43 @@ pub fn map_to_string(selector: Option<&Map<String, Value>>) -> Option<String> {
     (!items.is_empty()).then_some(items.join(", "))
 }
 
+/// Creates string from a selector map.
+pub fn selector(selector_map: Option<&Map<String, Value>>) -> Option<String> {
+    let selector = selector_map?;
+    let mut items = Vec::new();
+
+    items.extend(map_to_string(selector.get("matchLabels").and_then(Value::as_object)));
+    items.extend(map_join(
+        selector.get("matchExpressions").and_then(Value::as_array),
+        value_to_string,
+    ));
+    if items.is_empty() {
+        items.extend(map_to_string(selector_map));
+    }
+
+    items.sort();
+    (!items.is_empty()).then_some(items.join(", "))
+}
+
+/// Returns update strategy as string.
+pub fn update_strategy(strategy: Option<&Map<String, Value>>) -> Option<String> {
+    let strategy = strategy?;
+    let mut elements = vec![strategy.get("type").and_then(value_to_string)];
+
+    if let Some(rolling_update) = strategy.get("rollingUpdate") {
+        let max_unavailable = rolling_update.get("maxUnavailable").and_then(value_to_string);
+        let max_surge = rolling_update.get("maxSurge").and_then(value_to_string);
+        let partition = rolling_update.get("partition").and_then(value_to_string);
+
+        elements.push(max_unavailable.map(|value| format!("{value} max unavailable")));
+        elements.push(max_surge.map(|value| format!("{value} max surge")));
+        elements.push(partition.map(|value| format!("partition {value}")));
+    }
+
+    let strategy = elements.into_iter().flatten().collect::<Vec<_>>();
+    (!strategy.is_empty()).then_some(strategy.join(", "))
+}
+
 fn kind_to_color(colors: &YamlSyntaxColors, kind: ValueKind) -> &TextColors {
     match kind {
         ValueKind::String => &colors.string,
