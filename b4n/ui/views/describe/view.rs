@@ -21,6 +21,7 @@ use crate::ui::{views::View, widgets::CommandPalette};
 pub struct DescribeView {
     app_data: SharedAppData,
     header: ContentHeader,
+    resource: ResourceRef,
     content: DescribeContent,
     observer: BgObserver,
     events: ResourceObserver,
@@ -38,7 +39,6 @@ impl DescribeView {
         worker: &SharedBgWorker,
         app_data: SharedAppData,
         resource: ResourceRef,
-        uid: &str,
         footer_tx: NotificationSink,
     ) -> Option<Self> {
         let worker = worker.borrow();
@@ -53,7 +53,7 @@ impl DescribeView {
             .ok()?;
 
         let runtime = worker.runtime_handle().clone();
-        let events_filter = ResourceRefFilter::involved(resource_name, uid);
+        let events_filter = ResourceRefFilter::involved(resource_name, resource.uid.as_ref()?);
         let events_kind = Kind::from(EVENTS);
         let events_dis = get_resource(worker.discovery_list(), &events_kind);
         let events_res = ResourceRef::filtered(events_kind, resource.namespace.clone(), events_filter);
@@ -63,7 +63,7 @@ impl DescribeView {
         let mut header = ContentHeader::new(Rc::clone(&app_data), true);
         header.set_title(" describe");
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
-        let content = DescribeContent::new(Rc::clone(&app_data), resource);
+        let content = DescribeContent::new(Rc::clone(&app_data), resource.clone());
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.syntax.describe.select);
 
         set_hint(&app_data, &footer_tx);
@@ -71,6 +71,7 @@ impl DescribeView {
         Some(Self {
             app_data,
             header,
+            resource,
             content,
             observer,
             events,
@@ -97,6 +98,10 @@ impl DescribeView {
             .with_quit()
             .with_action(
                 ActionItem::action("copy", "copy").with_description(&format!("copies {copy} to clipboard")),
+                Some(KeyCommand::ContentCopy),
+            )
+            .with_action(
+                ActionItem::action("show YAML", "yaml").with_description("shows YAML of the current resource"),
                 Some(KeyCommand::ContentCopy),
             )
             .with_aliases(&self.app_data.borrow().config.aliases);
@@ -137,6 +142,7 @@ impl DescribeView {
                 self.last_mouse_click = event.position();
                 self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
             },
+            ResponseEvent::Action("yaml") => self.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
             ResponseEvent::Action("copy") => self.copy_to_clipboard(),
             response_event => response_event,
         }
@@ -211,6 +217,10 @@ impl View for DescribeView {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return ResponseEvent::Cancelled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlOpen) {
+            return ResponseEvent::ViewYaml(self.resource.clone(), false, false);
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {

@@ -5,10 +5,11 @@
 ### Features
 
 - additional data sections for resources in describe view
+- allow switching between YAML and describe views
 
 ### Bug fixes
 
-- allow more than 999 days in AGE column
+- display more than 999 days in AGE column
 
 ## 0.4.9 - 2026-05-31
 

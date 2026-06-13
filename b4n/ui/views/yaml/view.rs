@@ -23,6 +23,7 @@ pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
     worker: SharedBgWorker,
+    resource: ResourceRef,
     is_hint_visible: bool,
     is_new: bool,
     is_edit: bool,
@@ -55,13 +56,13 @@ impl YamlView {
         let select = app_data.borrow().theme.colors.syntax.yaml.select;
         let search = app_data.borrow().theme.colors.syntax.yaml.search;
         let is_secret = resource.kind.name() == SECRETS;
-        let name = if is_new { None } else { resource.name };
+        let name = if is_new { None } else { resource.name.clone() };
         let area = ContentViewer::<YamlContent>::get_content_area(workspace);
         let yaml = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if is_new { "create new resource" } else { "YAML" },
             '',
-            resource.namespace,
-            resource.kind,
+            resource.namespace.clone(),
+            resource.kind.clone(),
             name,
             None,
         );
@@ -72,6 +73,7 @@ impl YamlView {
             yaml,
             app_data,
             worker,
+            resource,
             is_hint_visible: false,
             is_new,
             is_edit: false,
@@ -172,6 +174,12 @@ impl YamlView {
             builder.add_action(
                 ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")),
                 Some(KeyCommand::YamlDecode),
+            );
+        }
+        if !self.is_new && !self.yaml.is_modified() {
+            builder.add_action(
+                ActionItem::action("describe", "describe").with_description("describes current resource"),
+                Some(KeyCommand::DescribeOpen),
             );
         }
 
@@ -329,6 +337,10 @@ impl YamlView {
             return self.process_view_close_event(ResponseEvent::Cancelled, false);
         }
 
+        if self.app_data.has_binding(event, KeyCommand::DescribeOpen) && !self.is_new && !self.yaml.is_modified() {
+            return ResponseEvent::Describe(self.resource.clone());
+        }
+
         if self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.yaml.header.kind.as_str() == SECRETS {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
@@ -389,6 +401,8 @@ impl YamlView {
             self.search.highlight_position(event.position());
             self.search.show();
             return ResponseEvent::Handled;
+        } else if response.is_action("describe") {
+            return self.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen));
         } else if response.is_action("edit") && self.enable_edit_mode() {
             return ResponseEvent::Handled;
         }
