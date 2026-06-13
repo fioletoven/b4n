@@ -36,7 +36,7 @@ pub fn update_additional_sections(
 
     builder.start_section("Rollout", 0, 2, Some(24));
     builder.add_str("Selector", selector(spec["selector"].as_object()));
-    builder.add_str("Replicas", deployment_replicas(object));
+    builder.add_str("Replicas", Some(deployment_replicas(object)));
     builder.add_str("Strategy", update_strategy(spec["strategy"].as_object()));
     builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
     builder.add_inum("ProgressDeadlineSeconds", spec["progressDeadlineSeconds"].as_i64());
@@ -47,14 +47,12 @@ pub fn update_additional_sections(
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn deployment_replicas(object: &DynamicObject) -> Option<String> {
+fn deployment_replicas(object: &DynamicObject) -> String {
     let desired = object.data["spec"]["replicas"].as_i64().unwrap_or(1);
     let updated = object.data["status"]["updatedReplicas"].as_i64().unwrap_or_default();
     let total = object.data["status"]["replicas"].as_i64().unwrap_or_default();
     let available = object.data["status"]["availableReplicas"].as_i64().unwrap_or_default();
     let unavailable = object.data["status"]["unavailableReplicas"].as_i64().unwrap_or_default();
 
-    Some(format!(
-        "{desired} desired | {updated} updated | {total} total | {available} available | {unavailable} unavailable"
-    ))
+    format!("{desired} desired | {updated} updated | {total} total | {available} available | {unavailable} unavailable")
 }

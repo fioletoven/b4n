@@ -36,7 +36,7 @@ pub fn update_additional_sections(
 
     builder.start_section("Scheduling", 0, 2, Some(16));
     builder.add_str("Selector", selector(spec["selector"].as_object()));
-    builder.add_str("Pods", daemonset_pods(object));
+    builder.add_str("Pods", Some(daemonset_pods(object)));
     builder.add_str("UpdateStrategy", update_strategy(spec["updateStrategy"].as_object()));
     builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
 
@@ -44,7 +44,7 @@ pub fn update_additional_sections(
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn daemonset_pods(object: &DynamicObject) -> Option<String> {
+fn daemonset_pods(object: &DynamicObject) -> String {
     let desired = object.data["status"]["desiredNumberScheduled"].as_i64().unwrap_or_default();
     let current = object.data["status"]["currentNumberScheduled"].as_i64().unwrap_or_default();
     let ready = object.data["status"]["numberReady"].as_i64().unwrap_or_default();
@@ -52,7 +52,7 @@ fn daemonset_pods(object: &DynamicObject) -> Option<String> {
     let up_to_date = object.data["status"]["updatedNumberScheduled"].as_i64().unwrap_or_default();
     let misscheduled = object.data["status"]["numberMisscheduled"].as_i64().unwrap_or_default();
 
-    Some(format!(
+    format!(
         "{desired} desired | {current} current | {ready} ready | {available} available | {up_to_date} up-to-date | {misscheduled} misscheduled"
-    ))
+    )
 }
