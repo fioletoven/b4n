@@ -1,7 +1,9 @@
 use b4n_config::themes::YamlSyntaxColors;
+use k8s_openapi::serde_json::{Map, Value};
+use std::collections::BTreeMap;
 
 use crate::ui::presentation::StyledLine;
-use crate::ui::views::describe::utils::{ValueKind, aligned_property, header, none, property};
+use crate::ui::views::describe::utils::{ValueKind, aligned_property, element, header, none, property};
 
 /// Simplifies building Text describe sections.
 pub struct TextSectionBuilder<'a> {
@@ -42,6 +44,11 @@ impl<'a> TextSectionBuilder<'a> {
         self.width = width;
     }
 
+    /// Adds empty line.
+    pub fn add_empty(&mut self) {
+        self.lines.push(StyledLine::default());
+    }
+
     /// Adds `--none--` line.
     pub fn add_none(&mut self) {
         self.lines.push(none(self.colors));
@@ -76,5 +83,39 @@ impl<'a> TextSectionBuilder<'a> {
         };
 
         self.lines.push(line);
+    }
+
+    /// Adds `BTreeMap` as a list.
+    pub fn add_btmap(&mut self, title: &str, source: Option<&BTreeMap<String, String>>) {
+        self.add_list(title, source.map(|s| s.iter().map(|(k, v)| (k.as_str(), v.as_str()))));
+    }
+
+    /// Adds `Map` as a list.
+    pub fn add_map(&mut self, title: &str, source: Option<&Map<String, Value>>) {
+        self.add_list(
+            title,
+            source.map(|s| s.iter().map(|(k, v)| (k.as_str(), v.as_str().unwrap_or_default()))),
+        );
+    }
+
+    fn add_list<'b>(&mut self, title: &str, source: Option<impl Iterator<Item = (&'b str, &'b str)>>) {
+        self.lines.push(header(self.colors, title, 0));
+
+        if let Some(source) = source {
+            let mut has_elements = false;
+
+            for (key, value) in source {
+                if key != "kubectl.kubernetes.io/last-applied-configuration" {
+                    self.lines.push(element(self.colors, key, value));
+                    has_elements = true;
+                }
+            }
+
+            if !has_elements {
+                self.lines.push(none(self.colors));
+            }
+        } else {
+            self.lines.push(none(self.colors));
+        }
     }
 }

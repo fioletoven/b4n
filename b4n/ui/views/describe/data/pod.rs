@@ -125,17 +125,23 @@ fn update_data_section(app_data: &SharedAppData, data: &Value, section: &mut Sec
     let colors = &app_data.borrow().theme.colors.syntax.describe;
     let mut builder = TextSectionBuilder::new(colors, lines);
 
-    add_networking_section(&mut builder, data, is_template);
+    if is_template {
+        add_metadata_section(&mut builder, data);
+    }
+
+    add_networking_section(&mut builder, data);
     add_scheduling_section(&mut builder, data);
     add_runtime_section(&mut builder, data);
 }
 
-fn add_networking_section(builder: &mut TextSectionBuilder, data: &Value, is_template: bool) {
-    if is_template {
-        builder.sub_section("Networking", 0, 2, Some(16));
-    } else {
-        builder.start_section("Networking", 0, 2, Some(16));
-    }
+fn add_metadata_section(builder: &mut TextSectionBuilder, data: &Value) {
+    builder.add_map("Labels", data["metadata"]["labels"].as_object());
+    builder.add_empty();
+    builder.add_map("Annotations", data["metadata"]["annotations"].as_object());
+}
+
+fn add_networking_section(builder: &mut TextSectionBuilder, data: &Value) {
+    builder.start_section("Networking", 0, 2, Some(16));
 
     if let Some(status) = &data.get("status") {
         builder.add_str("Pod IP", status["podIP"].as_str());

@@ -1,7 +1,6 @@
 use b4n_config::themes::{TextColors, YamlSyntaxColors};
 use k8s_openapi::serde_json::{Map, Value};
 use ratatui::style::Style;
-use std::collections::BTreeMap;
 
 use crate::ui::presentation::StyledLine;
 
@@ -62,19 +61,6 @@ pub fn header(colors: &YamlSyntaxColors, name: impl Into<String>, indent: usize)
         span(&colors.normal, ":"),
     ]
     .into()
-}
-
-/// Returns a list created from the `source` map.
-pub fn list(colors: &YamlSyntaxColors, source: &BTreeMap<String, String>) -> Vec<StyledLine> {
-    let mut lines = Vec::with_capacity(source.len());
-
-    for (key, value) in source {
-        if key != "kubectl.kubernetes.io/last-applied-configuration" {
-            lines.push(element(colors, key, value));
-        }
-    }
-
-    lines
 }
 
 /// Creates list element as a `StyledLine`.
