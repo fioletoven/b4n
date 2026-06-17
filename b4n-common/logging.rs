@@ -15,7 +15,8 @@ pub fn initialize(app_name: &str) -> Result<tracing_appender::non_blocking::Work
     let appender = tracing_appender::rolling::daily(home_dir, format!("{app_name}.log"));
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(appender);
 
-    let timer = time::format_description::parse("[year]-[month padding:zero]-[day padding:zero] [hour]:[minute]:[second]")?;
+    let timer =
+        time::format_description::parse_borrowed::<1>("[year]-[month padding:zero]-[day padding:zero] [hour]:[minute]:[second]")?;
     let time_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
     let timer = tracing_subscriber::fmt::time::OffsetTime::new(time_offset, timer);
 
