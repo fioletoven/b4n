@@ -470,9 +470,7 @@ impl ResourcesTable {
 
     fn process_describe(&self, resource: &ResourceItem) -> ResponseEvent {
         self.resource_ref_from(resource, false)
-            .map_or(ResponseEvent::NotHandled, |r| {
-                ResponseEvent::Describe(r, resource.uid.clone())
-            })
+            .map_or(ResponseEvent::NotHandled, ResponseEvent::Describe)
     }
 
     fn process_view_yaml(&self, resource: &ResourceItem, decode: bool, edit: bool) -> ResponseEvent {
@@ -483,26 +481,23 @@ impl ResourcesTable {
     fn resource_ref_from(&self, resource: &ResourceItem, prefer_container: bool) -> Option<ResourceRef> {
         if self.kind_plural() == CONTAINERS {
             if let Some(name) = self.app_data.borrow().current.resource.name.clone() {
-                return Some(ResourceRef::container(
-                    name,
-                    resource.namespace.clone().into(),
-                    resource.name.clone(),
-                ));
+                return Some(
+                    ResourceRef::container(name, resource.namespace.clone().into(), resource.name.clone())
+                        .with_uid(resource.uid.clone()),
+                );
             }
         } else if self.kind_plural() == PODS && prefer_container {
             if let Some(container) = get_single_container(resource.data.as_ref()) {
-                return Some(ResourceRef::container(
-                    resource.name.clone(),
-                    resource.namespace.clone().into(),
-                    container.to_owned(),
-                ));
+                return Some(
+                    ResourceRef::container(resource.name.clone(), resource.namespace.clone().into(), container.to_owned())
+                        .with_uid(resource.uid.clone()),
+                );
             }
         } else if resource.name() != ALL_NAMESPACES && resource.group() != NAMESPACES {
-            return Some(ResourceRef::named(
-                self.get_kind(),
-                resource.group().into(),
-                resource.name().to_owned(),
-            ));
+            return Some(
+                ResourceRef::named(self.get_kind(), resource.group().into(), resource.name().to_owned())
+                    .with_uid(resource.uid.clone()),
+            );
         }
 
         None

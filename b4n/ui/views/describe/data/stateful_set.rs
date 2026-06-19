@@ -38,7 +38,7 @@ pub fn update_additional_sections(
     builder.start_section("State", 0, 2, Some(23));
     builder.add_str("ServiceName", spec["serviceName"].as_str());
     builder.add_str("Selector", selector(spec["selector"].as_object()));
-    builder.add_str("Replicas", statefulset_replicas(object));
+    builder.add_str("Replicas", Some(statefulset_replicas(object)));
     builder.add_str("PodManagementPolicy", spec["podManagementPolicy"].as_str());
     builder.add_str("UpdateStrategy", update_strategy(spec["updateStrategy"].as_object()));
     builder.add_str(
@@ -54,16 +54,14 @@ pub fn update_additional_sections(
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn statefulset_replicas(object: &DynamicObject) -> Option<String> {
+fn statefulset_replicas(object: &DynamicObject) -> String {
     let desired = object.data["spec"]["replicas"].as_i64().unwrap_or(1);
     let current = object.data["status"]["replicas"].as_i64().unwrap_or_default();
     let ready = object.data["status"]["readyReplicas"].as_i64().unwrap_or_default();
     let available = object.data["status"]["availableReplicas"].as_i64().unwrap_or_default();
     let updated = object.data["status"]["updatedReplicas"].as_i64().unwrap_or_default();
 
-    Some(format!(
-        "{desired} desired | {current} current | {ready} ready | {available} available | {updated} updated"
-    ))
+    format!("{desired} desired | {current} current | {ready} ready | {available} available | {updated} updated")
 }
 
 fn pvc_retention_policy(policy: Option<&Map<String, Value>>) -> Option<String> {

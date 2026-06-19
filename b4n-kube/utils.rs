@@ -96,7 +96,9 @@ pub fn format_datetime(time: &Timestamp) -> String {
     let minutes = (total_secs % 3_600) / 60;
     let secs = total_secs % 60;
 
-    if days > 0 {
+    if days > 999 {
+        format!("{days}d")
+    } else if days > 0 {
         format!("{days}d{hours:0>2}h")
     } else if hours > 0 {
         format!("{hours}h{minutes:0>2}m")

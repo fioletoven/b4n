@@ -49,7 +49,7 @@ pub fn update_additional_sections(
     builder.add_inum("Completions", spec["completions"].as_i64());
     builder.add_str("CompletionMode", spec["completionMode"].as_str());
     if !is_template {
-        builder.add_str("Status", job_status(object));
+        builder.add_str("Status", Some(job_status(object)));
     }
 
     builder.add_inum("BackoffLimit", spec["backoffLimit"].as_i64());
@@ -64,14 +64,12 @@ pub fn update_additional_sections(
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn job_status(object: &DynamicObject) -> Option<String> {
+fn job_status(object: &DynamicObject) -> String {
     let active = object.data["status"]["active"].as_i64().unwrap_or_default();
     let succeeded = object.data["status"]["succeeded"].as_i64().unwrap_or_default();
     let failed = object.data["status"]["failed"].as_i64().unwrap_or_default();
     let ready = object.data["status"]["ready"].as_i64().unwrap_or_default();
     let terminating = object.data["status"]["terminating"].as_i64().unwrap_or_default();
 
-    Some(format!(
-        "{active} active | {ready} ready | {succeeded} succeeded | {failed} failed | {terminating} terminating"
-    ))
+    format!("{active} active | {ready} ready | {succeeded} succeeded | {failed} failed | {terminating} terminating")
 }

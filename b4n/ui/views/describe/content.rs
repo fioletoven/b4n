@@ -1,5 +1,4 @@
 use b4n_config::keys::KeyCommand;
-use b4n_config::themes::YamlSyntaxColors;
 use b4n_kube::{InitData, ObserverResult, ResourceRef, status};
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::utils::center;
@@ -12,15 +11,15 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Margin, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
-use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Instant;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
+use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::{self, SectionData};
-use crate::ui::views::describe::utils::{ValueKind, header, list, none, property};
+use crate::ui::views::describe::utils::{ValueKind, header, none};
 use crate::ui::widgets::table::BasicTable;
 
 /// Describe resource content.
@@ -457,27 +456,23 @@ impl DescribeContent {
 
     fn update_describe(&mut self, object: &DynamicObject) {
         let colors = &self.app_data.borrow().theme.colors.syntax.describe;
-        self.lines_start.clear();
-        self.lines_end.clear();
 
-        self.lines_start
-            .push(property(colors, "Name", object.name_any(), ValueKind::String, 0));
+        self.lines_start.clear();
+        let mut builder = TextSectionBuilder::new(colors, &mut self.lines_start);
+        builder.add_line("Name", object.name_any(), ValueKind::String);
         if let Some(namespace) = object.metadata.namespace.as_deref() {
-            self.lines_start
-                .push(property(colors, "Namespace", namespace, ValueKind::String, 0));
+            builder.add_line("Namespace", namespace, ValueKind::String);
         }
 
-        add_list(&mut self.lines_start, colors, "Labels", object.metadata.labels.as_ref());
-        add_list(
-            &mut self.lines_start,
-            colors,
-            "Annotations",
-            object.metadata.annotations.as_ref(),
-        );
+        builder.add_empty();
+        builder.add_btmap("Labels", object.metadata.labels.as_ref());
+        builder.add_empty();
+        builder.add_btmap("Annotations", object.metadata.annotations.as_ref());
 
-        self.lines_end.push(StyledLine::default());
-        self.lines_end
-            .push(property(colors, "Status", status::from_object(object), ValueKind::String, 0));
+        self.lines_end.clear();
+        let mut builder = TextSectionBuilder::new(colors, &mut self.lines_end);
+        builder.add_empty();
+        builder.add_line("Status", status::from_object(object), ValueKind::String);
     }
 
     fn update_additional_sections(&mut self, object: &DynamicObject) {
@@ -608,21 +603,5 @@ impl<'a> Section<'a> {
                 }
             },
         }
-    }
-}
-
-fn add_list(lines: &mut Vec<StyledLine>, colors: &YamlSyntaxColors, title: &str, source: Option<&BTreeMap<String, String>>) {
-    lines.push(StyledLine::default());
-    lines.push(header(colors, title, 0));
-
-    if let Some(source) = source {
-        let mut items = list(colors, source);
-        if items.is_empty() {
-            lines.push(none(colors));
-        } else {
-            lines.append(&mut items);
-        }
-    } else {
-        lines.push(none(colors));
     }
 }

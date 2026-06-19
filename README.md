@@ -1,5 +1,18 @@
 # b4n
 
+<div align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-008939?logo=mit&logoColor=fff&style=for-the-badge" alt="MIT license"></a>
+  <a href="https://rust-lang.org"><img src="https://img.shields.io/badge/Rust-c02c30?logo=rust&logoColor=fff&style=for-the-badge" alt="Rust badge"></a>
+  <a href="https://kube.rs"><img src="https://img.shields.io/badge/kube--rs-326ce5?logo=kubernetes&logoColor=fff&style=for-the-badge" alt="Built with kube-rs"></a>
+  <a href="https://ratatui.rs"><img src="https://img.shields.io/badge/Ratatui-000?logo=ratatui&logoColor=fff&style=for-the-badge" alt="Built with Ratatui"></a>
+  <a href="https://brainmade.org/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://brainmade.org/white-logo.svg">
+      <img alt="Brainmade mark" src="https://brainmade.org/black-logo.svg" height="28">
+    </picture>
+  </a>
+</div>
+
 `b4n` is a terminal user interface (TUI) for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io) and built using the [`kube-rs`](https://kube.rs) and [`ratatui`](https://ratatui.rs) crates.
 
 ![b4n demo](assets/b4n_048.gif?raw=true "b4n")

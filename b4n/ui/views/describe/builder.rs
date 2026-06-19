@@ -1,7 +1,9 @@
 use b4n_config::themes::YamlSyntaxColors;
+use k8s_openapi::serde_json::{Map, Value};
+use std::collections::BTreeMap;
 
 use crate::ui::presentation::StyledLine;
-use crate::ui::views::describe::utils::{ValueKind, aligned_property, header, none, property};
+use crate::ui::views::describe::utils::{ValueKind, aligned_property, element, header, none, property};
 
 /// Simplifies building Text describe sections.
 pub struct TextSectionBuilder<'a> {
@@ -35,11 +37,16 @@ impl<'a> TextSectionBuilder<'a> {
         self.sub_section(name, header_indent, indent, width);
     }
 
-    /// Adds sub-section with new indentations and properties width.
+    /// Adds subsection with new indentations and properties width.
     pub fn sub_section(&mut self, name: &str, header_indent: usize, indent: usize, width: Option<usize>) {
         self.lines.push(header(self.colors, name, header_indent));
         self.indent = indent;
         self.width = width;
+    }
+
+    /// Adds empty line.
+    pub fn add_empty(&mut self) {
+        self.lines.push(StyledLine::default());
     }
 
     /// Adds `--none--` line.
@@ -49,12 +56,12 @@ impl<'a> TextSectionBuilder<'a> {
 
     /// Adds string key value line.
     pub fn add_str(&mut self, key: &str, value: Option<impl Into<String>>) {
-        self.add_line(key, value.map(|v| v.into()).unwrap_or_default(), ValueKind::String);
+        self.add_line(key, value.map(Into::into).unwrap_or_default(), ValueKind::String);
     }
 
     /// Adds numeric key value line.
     pub fn add_num(&mut self, key: &str, value: Option<impl Into<String>>) {
-        self.add_line(key, value.map(|v| v.into()).unwrap_or_default(), ValueKind::Numeric);
+        self.add_line(key, value.map(Into::into).unwrap_or_default(), ValueKind::Numeric);
     }
 
     /// Adds numeric key value line.
@@ -76,5 +83,39 @@ impl<'a> TextSectionBuilder<'a> {
         };
 
         self.lines.push(line);
+    }
+
+    /// Adds `BTreeMap` as a list.
+    pub fn add_btmap(&mut self, title: &str, source: Option<&BTreeMap<String, String>>) {
+        self.add_list(title, source.map(|s| s.iter().map(|(k, v)| (k.as_str(), v.as_str()))));
+    }
+
+    /// Adds `Map` as a list.
+    pub fn add_map(&mut self, title: &str, source: Option<&Map<String, Value>>) {
+        self.add_list(
+            title,
+            source.map(|s| s.iter().map(|(k, v)| (k.as_str(), v.as_str().unwrap_or_default()))),
+        );
+    }
+
+    fn add_list<'b>(&mut self, title: &str, source: Option<impl Iterator<Item = (&'b str, &'b str)>>) {
+        self.lines.push(header(self.colors, title, 0));
+
+        if let Some(source) = source {
+            let mut has_elements = false;
+
+            for (key, value) in source {
+                if key != "kubectl.kubernetes.io/last-applied-configuration" {
+                    self.lines.push(element(self.colors, key, value));
+                    has_elements = true;
+                }
+            }
+
+            if !has_elements {
+                self.lines.push(none(self.colors));
+            }
+        } else {
+            self.lines.push(none(self.colors));
+        }
     }
 }

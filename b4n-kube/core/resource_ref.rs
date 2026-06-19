@@ -60,6 +60,7 @@ pub struct ResourceRef {
     pub kind: Kind,
     pub namespace: Namespace,
     pub name: Option<String>,
+    pub uid: Option<String>,
     pub filter: Option<ResourceRefFilter>,
     pub container: Option<String>,
     all_containers: bool,
@@ -71,10 +72,7 @@ impl ResourceRef {
         Self {
             kind: resource_kind,
             namespace: resource_namespace,
-            name: None,
-            filter: None,
-            container: None,
-            all_containers: false,
+            ..Default::default()
         }
     }
 
@@ -83,10 +81,8 @@ impl ResourceRef {
         Self {
             kind: resource_kind,
             namespace: resource_namespace,
-            name: None,
             filter: Some(filter),
-            container: None,
-            all_containers: false,
+            ..Default::default()
         }
     }
 
@@ -96,9 +92,7 @@ impl ResourceRef {
             kind: resource_kind,
             namespace: resource_namespace,
             name: Some(resource_name),
-            filter: None,
-            container: None,
-            all_containers: false,
+            ..Default::default()
         }
     }
 
@@ -108,9 +102,8 @@ impl ResourceRef {
             kind: PODS.into(),
             namespace: pod_namespace,
             name: Some(pod_name),
-            filter: None,
             container: Some(container_name),
-            all_containers: false,
+            ..Default::default()
         }
     }
 
@@ -120,10 +113,15 @@ impl ResourceRef {
             kind: PODS.into(),
             namespace: pod_namespace,
             name: Some(pod_name),
-            filter: None,
-            container: None,
             all_containers: true,
+            ..Default::default()
         }
+    }
+
+    /// Adds uid to the [`ResourceRef`] instance.
+    pub fn with_uid(mut self, uid: String) -> Self {
+        self.uid = Some(uid);
+        self
     }
 
     /// Returns `true` if [`ResourceRef`] points to a specific container or containers.
@@ -152,10 +150,7 @@ impl From<&ApiResource> for ResourceRef {
         Self {
             kind: Kind::new(&value.plural, &value.group, &value.version),
             namespace: Namespace::all(),
-            name: None,
-            filter: None,
-            container: None,
-            all_containers: false,
+            ..Default::default()
         }
     }
 }

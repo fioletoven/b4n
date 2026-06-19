@@ -36,20 +36,18 @@ pub fn update_additional_sections(
 
     builder.start_section("Replica state", 0, 2, Some(16));
     builder.add_str("Selector", selector(spec["selector"].as_object()));
-    builder.add_str("Replicas", replicaset_replicas(object));
+    builder.add_str("Replicas", Some(replicaset_replicas(object)));
     builder.add_inum("MinReadySeconds", spec["minReadySeconds"].as_i64());
 
     builder.start_section("Pod Template", 0, 0, None);
     pod::update_additional_sections(resource, app_data, object, &mut sections[1..], true);
 }
 
-fn replicaset_replicas(object: &DynamicObject) -> Option<String> {
+fn replicaset_replicas(object: &DynamicObject) -> String {
     let current = object.data["status"]["replicas"].as_i64().unwrap_or_default();
     let desired = object.data["spec"]["replicas"].as_i64().unwrap_or(1);
     let ready = object.data["status"]["readyReplicas"].as_i64().unwrap_or_default();
     let available = object.data["status"]["availableReplicas"].as_i64().unwrap_or_default();
 
-    Some(format!(
-        "{current} current | {desired} desired | {ready} ready | {available} available"
-    ))
+    format!("{current} current | {desired} desired | {ready} ready | {available} available")
 }

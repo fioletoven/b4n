@@ -1,10 +1,16 @@
 # Change Log
 
-## WIP
+## 0.5.0 - 2026-06-19
 
 ### Features
 
-- additional data sections for resources in describe view
+- add columns for CSIDriver, CSINode, CSIStorageCapacity and PriorityLevelConfiguration kinds
+- additional data sections for CronJobs, DaemonSets, Deployments, PersistentVolumes, PersistentVolumeClaims, ReplicaSets, Services and StatefulSets in describe view
+- allow switching between YAML and describe views
+
+### Bug fixes
+
+- display more than 999 days in AGE column
 
 ## 0.4.9 - 2026-05-31
 

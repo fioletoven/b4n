@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.9"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -25,6 +25,7 @@ b4n-tui = { path = "b4n-tui" }
 ansi-to-tui = { version = "8.0" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
+base16ct = { version = "1.0" }
 base64 = { version = "0.22" }
 clap = { version = "4.5", features = ["derive", "env"] }
 crossterm = { version = "0.29", features = ["event-stream"] }
@@ -33,16 +34,16 @@ futures = { version = "0.3" }
 http = { version = "1" }
 jsonpath-rust = { version = "1" }
 k8s-openapi = { version = "0.27", features = ["latest"] }
-kube = { version = "3.0", features = ["client", "derive", "runtime", "ws"] }
+kube = { version = "3.1", features = ["client", "derive", "runtime", "ws"] }
 notify = { version = "8.0" }
 pin-project = { version = "1.1" }
 ratatui = { version = "0.30", features = ["serde"] }
 ratatui-core = { version = "0.1", features = ["serde"] }
-ratatui-widgets = { version = "0.3" }
 ratatui-crossterm = { version = "0.1" }
+ratatui-widgets = { version = "0.3" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { version = "0.9" }
-sha1 = { version = "0.10" }
+sha1 = { version = "0.11" }
 syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }

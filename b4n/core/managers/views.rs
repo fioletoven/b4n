@@ -537,12 +537,11 @@ impl ViewsManager {
     }
 
     /// Opens describe view for the specified resource.
-    pub fn describe(&mut self, resource: ResourceRef, uid: &str) {
+    pub fn describe(&mut self, resource: ResourceRef) {
         if let Some(view) = DescribeView::new(
             &self.worker,
             Rc::clone(&self.app_data),
             resource,
-            uid,
             self.footer.get_transmitter(),
         ) {
             self.view = Some(Box::new(view));

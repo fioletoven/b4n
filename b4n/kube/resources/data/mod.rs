@@ -12,6 +12,9 @@ pub mod config_map;
 pub mod container;
 pub mod crd;
 pub mod cron_job;
+pub mod csi_driver;
+pub mod csi_node;
+pub mod csi_storage_capacity;
 pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
@@ -32,6 +35,7 @@ pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_metrics;
 pub mod priority_class;
+pub mod priority_level_configuration;
 pub mod replica_set;
 pub mod role;
 pub mod role_binding;
@@ -69,6 +73,9 @@ pub fn get_resource_data(
         ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("ConfigMap", "") => config_map::data(object),
         ("CronJob", "batch") => cron_job::data(object),
+        ("CSIDriver", "storage.k8s.io") => csi_driver::data(object),
+        ("CSINode", "storage.k8s.io") => csi_node::data(object),
+        ("CSIStorageCapacity", "storage.k8s.io") => csi_storage_capacity::data(object),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::data(object),
         ("DaemonSet", "apps") => daemon_set::data(object),
         ("Deployment", "apps") => deployment::data(object),
@@ -88,6 +95,7 @@ pub fn get_resource_data(
         ("Pod", "") => pod::data(object, stats),
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::data(object),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::data(object),
+        ("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io") => priority_level_configuration::data(object),
         ("ReplicaSet", "apps") => replica_set::data(object),
         ("Role", "rbac.authorization.k8s.io") => role::data(object),
         ("Secret", "") => secret::data(object),
@@ -118,6 +126,9 @@ pub fn get_header_data(
         ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("ConfigMap", "") => config_map::header(),
         ("CronJob", "batch") => cron_job::header(),
+        ("CSIDriver", "storage.k8s.io") => csi_driver::header(),
+        ("CSINode", "storage.k8s.io") => csi_node::header(),
+        ("CSIStorageCapacity", "storage.k8s.io") => csi_storage_capacity::header(),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::header(),
         ("DaemonSet", "apps") => daemon_set::header(),
         ("Deployment", "apps") => deployment::header(),
@@ -137,6 +148,7 @@ pub fn get_header_data(
         ("Pod", "") => pod::header(has_metrics),
         ("PodMetrics", "metrics.k8s.io") => pod_metrics::header(),
         ("PriorityClass", "scheduling.k8s.io") => priority_class::header(),
+        ("PriorityLevelConfiguration", "flowcontrol.apiserver.k8s.io") => priority_level_configuration::header(),
         ("ReplicaSet", "apps") => replica_set::header(),
         ("Role", "rbac.authorization.k8s.io") => role::header(),
         ("Secret", "") => secret::header(),

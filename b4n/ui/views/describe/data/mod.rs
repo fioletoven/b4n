@@ -76,9 +76,7 @@ impl SectionDataExt for Vec<SectionData> {
     fn with_indent(mut self, indent: u16) -> Self {
         for section in &mut self {
             match section {
-                SectionData::Text(_, i) => *i += indent,
-                SectionData::Resources(_, i) => *i += indent,
-                SectionData::List(_, i) => *i += indent,
+                SectionData::Text(_, i) | SectionData::Resources(_, i) | SectionData::List(_, i) => *i += indent,
             }
         }
         self

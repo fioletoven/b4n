@@ -115,7 +115,7 @@ pub fn add_padding(s: &str, width: usize) -> String {
 pub fn calculate_hash(t: &str, len: usize) -> String {
     let mut hasher = Sha1::new();
     hasher.update(t);
-    let mut hash = format!("{:x}", hasher.finalize());
+    let mut hash = format!("{:x}", base16ct::HexDisplay(&hasher.finalize()));
     if len > 0 {
         hash.truncate(len);
     }
