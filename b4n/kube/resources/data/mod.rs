@@ -12,6 +12,9 @@ pub mod config_map;
 pub mod container;
 pub mod crd;
 pub mod cron_job;
+pub mod csi_driver;
+pub mod csi_node;
+pub mod csi_storage_capacity;
 pub mod custom_resource;
 pub mod daemon_set;
 pub mod default;
@@ -70,6 +73,9 @@ pub fn get_resource_data(
         ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::data(object),
         ("ConfigMap", "") => config_map::data(object),
         ("CronJob", "batch") => cron_job::data(object),
+        ("CSIDriver", "storage.k8s.io") => csi_driver::data(object),
+        ("CSINode", "storage.k8s.io") => csi_node::data(object),
+        ("CSIStorageCapacity", "storage.k8s.io") => csi_storage_capacity::data(object),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::data(object),
         ("DaemonSet", "apps") => daemon_set::data(object),
         ("Deployment", "apps") => deployment::data(object),
@@ -120,6 +126,9 @@ pub fn get_header_data(
         ("ClusterRoleBinding" | "RoleBinding", "rbac.authorization.k8s.io") => role_binding::header(),
         ("ConfigMap", "") => config_map::header(),
         ("CronJob", "batch") => cron_job::header(),
+        ("CSIDriver", "storage.k8s.io") => csi_driver::header(),
+        ("CSINode", "storage.k8s.io") => csi_node::header(),
+        ("CSIStorageCapacity", "storage.k8s.io") => csi_storage_capacity::header(),
         ("CustomResourceDefinition", "apiextensions.k8s.io") => crd::header(),
         ("DaemonSet", "apps") => daemon_set::header(),
         ("Deployment", "apps") => deployment::header(),
