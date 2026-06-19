@@ -37,7 +37,7 @@ impl<'a> TextSectionBuilder<'a> {
         self.sub_section(name, header_indent, indent, width);
     }
 
-    /// Adds sub-section with new indentations and properties width.
+    /// Adds subsection with new indentations and properties width.
     pub fn sub_section(&mut self, name: &str, header_indent: usize, indent: usize, width: Option<usize>) {
         self.lines.push(header(self.colors, name, header_indent));
         self.indent = indent;

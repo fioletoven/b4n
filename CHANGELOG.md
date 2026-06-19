@@ -4,7 +4,8 @@
 
 ### Features
 
-- additional data sections for resources in describe view
+- add columns for CSIDriver, CSINode, CSIStorageCapacity and PriorityLevelConfiguration kinds
+- additional data sections for CronJobs, DaemonSets, Deployments, PersistentVolumes, PersistentVolumeClaims, ReplicaSets, Services and StatefulSets in describe view
 - allow switching between YAML and describe views
 
 ### Bug fixes
