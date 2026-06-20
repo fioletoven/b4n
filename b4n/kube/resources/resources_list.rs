@@ -111,7 +111,7 @@ impl ResourcesList {
 
     /// Updates [`ResourcesList`] with new data from [`PortForwardItem`] collection.
     pub fn update_port_forwards(&mut self, forwards: &[&ResourceRef]) {
-        if self.data.kind_plural == PODS {
+        if self.data.kind_plural == PODS && self.data.group.is_empty() {
             for item in self.table.list.full_iter_mut() {
                 let has_port_forward = forwards
                     .iter()

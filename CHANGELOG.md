@@ -1,5 +1,15 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- use serde-saphyr instead of deprecated serde_yaml crate
+
+### Bug fixes
+
+- fix WINDOW column for PodMetrics kind
+
 ## 0.5.0 - 2026-06-19
 
 ### Features

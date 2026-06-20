@@ -143,7 +143,7 @@ fn convert_style(style: syntect::highlighting::Style) -> Style {
 pub enum HighlightResourceError {
     /// Cannot serialize resource's YAML.
     #[error("cannot serialize resource's YAML")]
-    SerializationError(#[from] serde_yaml::Error),
+    SerializationError(#[from] serde_saphyr::ser::Error),
 
     /// Cannot send syntax highlight request to the highlighter thread.
     #[error("cannot send syntax highlight request")]

@@ -24,9 +24,13 @@ pub enum ConfigError {
     #[error("cannot read/write configuration file")]
     IoError(#[from] std::io::Error),
 
-    /// Cannot serialize/deserialize configuration.
-    #[error("cannot serialize/deserialize configuration")]
-    SerializationError(#[from] serde_yaml::Error),
+    /// Cannot serialize configuration.
+    #[error("cannot serialize configuration")]
+    SerializationError(#[from] serde_saphyr::ser::Error),
+
+    /// Cannot deserialize configuration.
+    #[error("cannot deserialize configuration")]
+    DeserializationError(#[from] serde_saphyr::Error),
 }
 
 /// Kubernetes logs configuration.
@@ -170,11 +174,11 @@ impl Persistable<Config> for Config {
         let mut config_str = String::new();
         file.read_to_string(&mut config_str).await?;
 
-        Ok(serde_yaml::from_str::<Config>(&config_str)?)
+        Ok(serde_saphyr::from_str::<Config>(&config_str)?)
     }
 
     async fn save(&self, path: &Path) -> Result<(), ConfigError> {
-        let config_str = serde_yaml::to_string(self)?;
+        let config_str = serde_saphyr::to_string(self)?;
 
         let mut file = File::create(path).await?;
         file.write_all(config_str.as_bytes()).await?;
@@ -188,9 +192,9 @@ async fn load_or_create_default<T: Persistable<T> + Default>(path: &Path) -> (T,
     let configuration = T::load(path).await;
     match configuration {
         Ok(configuration) => (configuration, None),
-        Err(ConfigError::SerializationError(error)) => {
+        Err(ConfigError::DeserializationError(error)) => {
             tracing::error!("Cannot deserialize config: {}", error);
-            (T::default(), Some(ConfigError::SerializationError(error)))
+            (T::default(), Some(ConfigError::DeserializationError(error)))
         },
         Err(error) => {
             tracing::error!("Cannot load config: {}", error);

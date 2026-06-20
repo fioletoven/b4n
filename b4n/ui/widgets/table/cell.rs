@@ -5,7 +5,7 @@ use k8s_openapi::serde_json::{Value, from_value};
 use std::borrow::Cow;
 
 /// Table cell.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Cell {
     text: Option<String>,
     sort_text: Option<String>,

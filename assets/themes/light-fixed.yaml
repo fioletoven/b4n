@@ -161,6 +161,6 @@ colors:
   shell:
     select: select_light
   syntax:
-    describe: *yaml 
+    describe: *yaml
     yaml: *yaml
     logs: *logs

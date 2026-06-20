@@ -53,49 +53,49 @@ fn from_str_test() {
 
 #[test]
 fn serialize_test() {
-    let key = serde_yaml::to_string(&KeyCombination::new(KeyCode::Null, KeyModifiers::NONE)).unwrap();
-    assert_eq!("'Null'", key.trim());
+    let key = serde_saphyr::to_string(&KeyCombination::new(KeyCode::Null, KeyModifiers::NONE)).unwrap();
+    assert_eq!("\"Null\"", key.trim());
 
-    let key = serde_yaml::to_string(&KeyCombination::new(KeyCode::Char('a'), KeyModifiers::NONE)).unwrap();
+    let key = serde_saphyr::to_string(&KeyCombination::new(KeyCode::Char('a'), KeyModifiers::NONE)).unwrap();
     assert_eq!("A", key.trim());
 
-    let key = serde_yaml::to_string(&KeyCombination::new(KeyCode::F(5), KeyModifiers::NONE)).unwrap();
+    let key = serde_saphyr::to_string(&KeyCombination::new(KeyCode::F(5), KeyModifiers::NONE)).unwrap();
     assert_eq!("F5", key.trim());
 
-    let key = serde_yaml::to_string(&KeyCombination::new(KeyCode::Char('A'), KeyModifiers::SHIFT)).unwrap();
+    let key = serde_saphyr::to_string(&KeyCombination::new(KeyCode::Char('A'), KeyModifiers::SHIFT)).unwrap();
     assert_eq!("Shift+A", key.trim());
 
-    let key = serde_yaml::to_string(&KeyCombination::new(
+    let key = serde_saphyr::to_string(&KeyCombination::new(
         KeyCode::Char('z'),
         KeyModifiers::CONTROL | KeyModifiers::SHIFT | KeyModifiers::ALT,
     ))
     .unwrap();
     assert_eq!("Shift+Ctrl+Alt+Z", key.trim());
 
-    let key = serde_yaml::to_string(&KeyCombination::new(KeyCode::Backspace, KeyModifiers::SHIFT)).unwrap();
+    let key = serde_saphyr::to_string(&KeyCombination::new(KeyCode::Backspace, KeyModifiers::SHIFT)).unwrap();
     assert_eq!("Shift+Backspace", key.trim());
 }
 
 #[test]
 fn deserialize_test() {
-    let key = serde_yaml::from_str("'Null'").unwrap();
+    let key = serde_saphyr::from_str("\"Null\"").unwrap();
     assert_eq!(KeyCombination::new(KeyCode::Null, KeyModifiers::NONE), key);
 
-    let key = serde_yaml::from_str("Ctrl+A").unwrap();
+    let key = serde_saphyr::from_str("Ctrl+A").unwrap();
     assert_eq!(KeyCombination::new(KeyCode::Char('A'), KeyModifiers::CONTROL), key);
 
-    let key = serde_yaml::from_str("shift+Ctrl+x").unwrap();
+    let key = serde_saphyr::from_str("shift+Ctrl+x").unwrap();
     assert_eq!(
         KeyCombination::new(KeyCode::Char('X'), KeyModifiers::CONTROL | KeyModifiers::SHIFT),
         key
     );
 
-    let key = serde_yaml::from_str("LEFT").unwrap();
+    let key = serde_saphyr::from_str("LEFT").unwrap();
     assert_eq!(KeyCombination::new(KeyCode::Left, KeyModifiers::NONE), key);
 
-    let key = serde_yaml::from_str("F7").unwrap();
+    let key = serde_saphyr::from_str("F7").unwrap();
     assert_eq!(KeyCombination::new(KeyCode::F(7), KeyModifiers::NONE), key);
 
-    let key = serde_yaml::from_str("Shift+F12").unwrap();
+    let key = serde_saphyr::from_str("Shift+F12").unwrap();
     assert_eq!(KeyCombination::new(KeyCode::F(12), KeyModifiers::SHIFT), key);
 }

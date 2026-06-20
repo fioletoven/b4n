@@ -43,4 +43,5 @@ pub fn header() -> Header {
         ])),
         Rc::new([' ', 'N', 'C', 'M', 'W', 'A']),
     )
+    .with_age_column(false)
 }

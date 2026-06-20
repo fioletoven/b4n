@@ -24,7 +24,7 @@ pub enum SetNewResourceYamlError {
 
     /// Failed to deserialize YAML into resource.
     #[error("failed to deserialize YAML: {0}")]
-    SerializationError(#[from] serde_yaml::Error),
+    SerializationError(#[from] serde_saphyr::Error),
 
     /// Specified group, version and kind not found.
     #[error("specified group, version and kind not found")]
@@ -67,7 +67,7 @@ impl SetNewResourceYamlCommand {
     }
 
     async fn create_resource(self, client: Client) -> Result<String, SetNewResourceYamlError> {
-        let mut resource = serde_yaml::from_str::<DynamicObject>(&self.yaml)?;
+        let mut resource = serde_saphyr::from_str::<DynamicObject>(&self.yaml)?;
         if self.options.encode
             && let Some(data) = resource.data.get_mut("data")
         {
