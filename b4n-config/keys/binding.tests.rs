@@ -5,8 +5,8 @@ use super::*;
 #[test]
 fn serialize_bindings_test() {
     let bindings = KeyBindings::default();
-    let serialized = serde_yaml::to_string(&bindings).unwrap();
-    let deserialized: KeyBindings = serde_yaml::from_str(&serialized).unwrap();
+    let serialized = serde_saphyr::to_string(&bindings).unwrap();
+    let deserialized: KeyBindings = serde_saphyr::from_str(&serialized).unwrap();
 
     assert_eq!(bindings, deserialized);
 }
@@ -61,7 +61,7 @@ fn command_from_str_test() {
 
 #[test]
 fn serialize_command_test() {
-    let key = serde_yaml::to_string(&KeyCommand::ApplicationExit).unwrap();
+    let key = serde_saphyr::to_string(&KeyCommand::ApplicationExit).unwrap();
     assert_eq!("app.exit", key.trim());
 }
 
@@ -69,6 +69,6 @@ fn serialize_command_test() {
 fn deserialize_command_test() {
     assert_eq!(
         KeyCommand::CommandPaletteOpen,
-        serde_yaml::from_str("command-palette.open").unwrap()
+        serde_saphyr::from_str("command-palette.open").unwrap()
     );
 }

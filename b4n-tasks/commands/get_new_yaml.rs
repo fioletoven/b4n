@@ -17,7 +17,7 @@ pub enum GetNewResourceYamlError {
 
     /// Failed to serialize YAML schemas.
     #[error("failed to serialize YAML schemas")]
-    YamlSerializationError(#[from] serde_yaml::Error),
+    YamlSerializationError(#[from] serde_saphyr::ser::Error),
 
     /// Failed to serialize YAML schemas.
     #[error("failed to serialize YAML schemas")]
@@ -81,7 +81,7 @@ impl GetNewResourceYamlCommand {
         let result = async {
             let (root, schema) = get_resource_schema(client, res).await?;
             let yaml_val = build_resource(res, cap, self.namespace.clone(), &root, &schema, self.required_only);
-            let yaml_str = serde_yaml::to_string(&yaml_val)?;
+            let yaml_str = serde_saphyr::to_string(&yaml_val)?;
             self.style_yaml(yaml_str, res, cap).await
         }
         .await;

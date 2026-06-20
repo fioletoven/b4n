@@ -1,7 +1,8 @@
 use ratatui_core::style::Color;
-use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
-use std::collections::HashMap;
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeMap;
+use std::fmt;
 use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -354,13 +355,6 @@ pub struct ThemeColors {
     pub syntax: SyntaxColors,
 }
 
-#[derive(Default, Serialize, Deserialize)]
-struct ColorsDefinition {
-    #[serde(skip_serializing)]
-    pub palette: Option<HashMap<String, String>>,
-    pub colors: Value,
-}
-
 /// Theme used in the application.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Theme {
@@ -442,19 +436,19 @@ impl Persistable<Theme> for Theme {
         let mut theme_str = String::new();
         file.read_to_string(&mut theme_str).await?;
 
-        let mut definitions = serde_yaml::from_str::<ColorsDefinition>(&theme_str)?;
+        let mut definitions = serde_saphyr::from_str::<ColorsDefinition>(&theme_str)?;
         if let Some(palette) = &definitions.palette
             && !palette.is_empty()
         {
             update_colors(&mut definitions.colors, palette);
-            theme_str = serde_yaml::to_string(&definitions)?;
+            theme_str = serde_saphyr::to_string(&definitions)?;
         }
 
-        Ok(serde_yaml::from_str::<Theme>(&theme_str)?)
+        Ok(serde_saphyr::from_str::<Theme>(&theme_str)?)
     }
 
     async fn save(&self, path: &Path) -> Result<(), ConfigError> {
-        let history_str = serde_yaml::to_string(self)?;
+        let history_str = serde_saphyr::to_string(self)?;
 
         let mut file = File::create(path).await?;
         file.write_all(history_str.as_bytes()).await?;
@@ -475,29 +469,80 @@ fn get_theme_item(scope: &str, colors: TextColors) -> syntect::highlighting::The
     }
 }
 
-fn update_colors(colors: &mut Value, palette: &HashMap<String, String>) {
-    let mut stack = vec![colors];
+#[derive(Default, Serialize, Deserialize)]
+struct ColorsDefinition {
+    #[serde(skip_serializing)]
+    pub palette: Option<BTreeMap<String, String>>,
+    pub colors: BTreeMap<String, ColorValue>,
+}
 
-    while let Some(current) = stack.pop() {
-        match current {
-            Value::Mapping(map) => {
-                for v in map.values_mut() {
-                    stack.push(v);
+#[derive(Debug, Serialize)]
+enum ColorValue {
+    String(String),
+    Mapping(BTreeMap<String, ColorValue>),
+    Sequence(Vec<String>),
+}
+
+impl Default for ColorValue {
+    fn default() -> Self {
+        Self::String(String::new())
+    }
+}
+
+impl<'de> Deserialize<'de> for ColorValue {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ColorsVisitor;
+
+        impl<'de> Visitor<'de> for ColorsVisitor {
+            type Value = ColorValue;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string, map, or sequence")
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<ColorValue, E> {
+                Ok(ColorValue::String(v.to_owned()))
+            }
+
+            fn visit_map<A: de::MapAccess<'de>>(self, mut map: A) -> Result<ColorValue, A::Error> {
+                let mut result = BTreeMap::new();
+                while let Some((k, v)) = map.next_entry::<String, ColorValue>()? {
+                    result.insert(k, v);
+                }
+                Ok(ColorValue::Mapping(result))
+            }
+
+            fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<ColorValue, A::Error> {
+                let mut result = Vec::new();
+                while let Some(v) = seq.next_element::<String>()? {
+                    result.push(v);
+                }
+                Ok(ColorValue::Sequence(result))
+            }
+        }
+
+        deserializer.deserialize_any(ColorsVisitor)
+    }
+}
+
+fn update_colors(colors: &mut BTreeMap<String, ColorValue>, palette: &BTreeMap<String, String>) {
+    fn resolve(color: &str, palette: &BTreeMap<String, String>) -> String {
+        color
+            .split(':')
+            .map(|c| palette.get(c).map(|s| s.as_str()).unwrap_or(c))
+            .collect::<Vec<&str>>()
+            .join(":")
+    }
+
+    for color in colors.values_mut() {
+        match color {
+            ColorValue::String(s) => *s = resolve(s, palette),
+            ColorValue::Mapping(map) => update_colors(map, palette),
+            ColorValue::Sequence(seq) => {
+                for v in seq {
+                    *v = resolve(v, palette);
                 }
             },
-            Value::Sequence(sequence) => {
-                for v in sequence {
-                    stack.push(v);
-                }
-            },
-            Value::String(string) => {
-                *string = string
-                    .split(':')
-                    .map(|c| if palette.contains_key(c) { &palette[c] } else { c })
-                    .collect::<Vec<&str>>()
-                    .join(":");
-            },
-            _ => (),
         }
     }
 }

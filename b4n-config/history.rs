@@ -281,11 +281,11 @@ impl Persistable<History> for History {
         let mut history_str = String::new();
         file.read_to_string(&mut history_str).await?;
 
-        Ok(serde_yaml::from_str::<History>(&history_str)?)
+        Ok(serde_saphyr::from_str::<History>(&history_str)?)
     }
 
     async fn save(&self, path: &Path) -> Result<(), ConfigError> {
-        let history_str = serde_yaml::to_string(self)?;
+        let history_str = serde_saphyr::to_string(self)?;
 
         let mut file = File::create(path).await?;
         file.write_all(history_str.as_bytes()).await?;

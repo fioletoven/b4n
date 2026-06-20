@@ -8,9 +8,9 @@ use kube::discovery::ApiCapabilities;
 use crate::{DiscoveryList, Kind, ResourceTag};
 
 /// Serializes kubernetes resource to YAML.
-pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_yaml::Error> {
+pub fn serialize_resource(resource: &mut DynamicObject) -> Result<String, serde_saphyr::ser::Error> {
     resource.managed_fields_mut().clear();
-    let mut yaml = serde_yaml::to_string(resource)?;
+    let mut yaml = serde_saphyr::to_string(resource)?;
 
     if let Some(index) = yaml.find("\n  managedFields: []\n") {
         yaml.replace_range(index + 1..index + 21, "");
@@ -139,7 +139,7 @@ pub fn can_patch_status(cap: &ApiCapabilities) -> bool {
 pub fn deserialize_kind(yaml: &[String]) -> Option<String> {
     for line in yaml {
         if line.starts_with("kind:") {
-            let v = serde_yaml::from_str::<Value>(line).ok()?;
+            let v = serde_saphyr::from_str::<Value>(line).ok()?;
             return v.get("kind").and_then(|k| k.as_str()).map(String::from);
         }
     }
