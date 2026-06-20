@@ -19,6 +19,7 @@ use crate::ui::widgets::table::Cell;
 mod resource_tests;
 
 /// Represents involved object of the resource.
+#[derive(Debug)]
 pub struct InvolvedObject {
     pub kind: Kind,
     pub namespace: Namespace,
@@ -39,7 +40,7 @@ pub enum ColumnsLayout {
 }
 
 /// Represents kubernetes resource of any kind.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ResourceItem {
     pub uid: String,
     pub name: String,

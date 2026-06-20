@@ -29,7 +29,7 @@ impl<T> ObserverResult<T> {
 }
 
 /// Data that is returned when [`BgObserver`] starts watching resource.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct InitData {
     pub uuid: String,
     pub resource: ResourceRef,

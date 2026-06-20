@@ -4,7 +4,7 @@ use b4n_kube::ResourceTag;
 use crate::ui::widgets::table::Cell;
 
 /// Extra data for the kubernetes resource.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ResourceData {
     pub is_completed: bool,
     pub is_ready: bool,

@@ -1,6 +1,7 @@
 use ratatui_core::style::Color;
 use serde::de::{self, Visitor};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::ser::{SerializeMap, SerializeSeq};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -476,7 +477,7 @@ struct ColorsDefinition {
     pub colors: BTreeMap<String, ColorValue>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 enum ColorValue {
     String(String),
     Mapping(BTreeMap<String, ColorValue>),
@@ -486,6 +487,28 @@ enum ColorValue {
 impl Default for ColorValue {
     fn default() -> Self {
         Self::String(String::new())
+    }
+}
+
+impl Serialize for ColorValue {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            ColorValue::String(s) => serializer.serialize_str(s),
+            ColorValue::Mapping(map) => {
+                let mut m = serializer.serialize_map(Some(map.len()))?;
+                for (k, v) in map {
+                    m.serialize_entry(k, v)?;
+                }
+                m.end()
+            },
+            ColorValue::Sequence(seq) => {
+                let mut s = serializer.serialize_seq(Some(seq.len()))?;
+                for item in seq {
+                    s.serialize_element(item)?;
+                }
+                s.end()
+            },
+        }
     }
 }
 
