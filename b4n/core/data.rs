@@ -1,5 +1,6 @@
 use arboard::Clipboard;
 use b4n_common::NotificationSink;
+use b4n_config::Plugins;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
@@ -135,6 +136,9 @@ pub struct AppData {
 
     /// Current application theme.
     pub theme: Theme,
+
+    /// Discovered plugins.
+    pub plugins: Plugins,
 
     /// Information about currently selected Kubernetes resource.
     pub current: ResourcesInfo,

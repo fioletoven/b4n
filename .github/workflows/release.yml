@@ -79,8 +79,10 @@ jobs:
         version="${version#v}"
         staging="${{ env.BIN_NAME }}-${version}-${{ matrix.target-short }}"
         mkdir -p "$staging/themes"
+        mkdir -p "$staging/plugins"
         cp {README.md,LICENSE,CHANGELOG.md} "$staging/"
         cp assets/themes/* "$staging/themes/"
+        cp assets/plugins/* "$staging/plugins/"
         if [ "${{ matrix.os }}" = "windows-2022" ]; then
           cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe" "$staging/"
           ls -l "$staging"

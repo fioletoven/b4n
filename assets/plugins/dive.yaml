@@ -1,0 +1,12 @@
+# example plugin that executes `dive` on the highlighted container
+
+name: dive
+description: "Dive image"
+shortcut: Shift+D
+confirm: false
+scopes:
+  - containers
+command: dive
+args:
+  - $IMAGE_NAME
+interactive: true
