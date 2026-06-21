@@ -23,7 +23,7 @@ The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any oth
 
 ## Building
 
-To build `b4n` ensure you have a recent Rust toolchain installed (1.88+ recommended). Clone the repository and navigate into the project directory:
+To build `b4n` ensure you have a recent Rust toolchain installed (1.95+). Clone the repository and navigate into the project directory:
 
 ```bash
 git clone https://github.com/fioletoven/b4n.git
