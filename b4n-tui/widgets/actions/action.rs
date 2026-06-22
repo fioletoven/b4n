@@ -55,34 +55,34 @@ impl ActionItem {
     pub fn menu(id: usize, name: &str, action: &'static str) -> Self {
         ActionItem::new(name)
             .with_response(ResponseEvent::Action(action))
-            .with_id(id)
-            .with_no_icon()
+            .with_sort_id(id)
+            .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `command palette` for mouse menu.
     pub fn command_palette() -> Self {
         ActionItem::new(" command palette")
             .with_response(ResponseEvent::Action("palette"))
-            .with_id(50)
-            .with_no_icon()
+            .with_sort_id(50)
+            .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `back` for mouse menu.
     pub fn back() -> Self {
         ActionItem::new("󰕍 back")
             .with_response(ResponseEvent::Cancelled)
-            .with_id(100)
-            .with_no_icon()
+            .with_sort_id(100)
+            .with_icon(None)
     }
 
-    /// Hides icon for this action instance.
-    pub fn with_no_icon(mut self) -> Self {
-        self.icon = None;
+    /// Sets icon for this action instance.
+    pub fn with_icon(mut self, icon: Option<&'static str>) -> Self {
+        self.icon = icon;
         self
     }
 
     /// Sets sort `id` for this action instance.
-    pub fn with_id(mut self, id: usize) -> Self {
+    pub fn with_sort_id(mut self, id: usize) -> Self {
         self.id = Some(id);
         self
     }
@@ -97,8 +97,8 @@ impl ActionItem {
     }
 
     /// Sets the provided aliases.
-    pub fn with_aliases(mut self, aliases: &[&str]) -> Self {
-        self.aliases = Some(aliases.iter().map(|a| (*a).to_owned()).collect());
+    pub fn with_aliases(mut self, aliases: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        self.aliases = Some(aliases.into_iter().map(|a| a.as_ref().to_string()).collect());
         self
     }
 

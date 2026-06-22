@@ -5,7 +5,9 @@ use b4n_kube::{
 };
 use b4n_list::Row;
 use b4n_tui::ToSelectData;
-use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
+use b4n_tui::widgets::{
+    ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, PluginsExt, Selector, ValidatorKind,
+};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -347,7 +349,13 @@ impl ResourcesView {
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
             .with_filter_action("filter")
-            .with_pin_filter_action("pin_filter");
+            .with_pin_filter_action("pin_filter")
+            .with_actions(
+                self.app_data
+                    .borrow()
+                    .plugins
+                    .to_actions(self.table.get_kind().as_str(), is_highlighted, is_selected),
+            );
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_action(
@@ -378,7 +386,7 @@ impl ResourcesView {
                 builder.add_action(
                     ActionItem::action("create", "create")
                         .with_description("creates new Kubernetes resource")
-                        .with_aliases(&["new", "add"]),
+                        .with_aliases(["new", "add"]),
                     Some(KeyCommand::YamlCreate),
                 );
             }
@@ -423,7 +431,7 @@ impl ResourcesView {
             builder.add_action(
                 ActionItem::action("edit YAML", "edit_yaml")
                     .with_description("displays YAML and switches to edit mode")
-                    .with_aliases(&["yaml", "yml", "patch"]),
+                    .with_aliases(["yaml", "yml", "patch"]),
                 Some(KeyCommand::YamlEdit),
             );
         }
@@ -436,7 +444,7 @@ impl ResourcesView {
                     } else {
                         "shows YAML of the highlighted resource"
                     })
-                    .with_aliases(&["yaml", "yml", "view"]),
+                    .with_aliases(["yaml", "yml", "view"]),
                 Some(KeyCommand::YamlOpen),
             )
             .with_action(
@@ -450,13 +458,13 @@ impl ResourcesView {
             .with_action(
                 ActionItem::action("show logs", "show_logs")
                     .with_description("shows container logs")
-                    .with_aliases(&["logs"]),
+                    .with_aliases(["logs"]),
                 Some(KeyCommand::LogsOpen),
             )
             .with_action(
                 ActionItem::action("show previous logs", "show_plogs")
                     .with_description("shows container previous logs")
-                    .with_aliases(&["previous"]),
+                    .with_aliases(["previous"]),
                 Some(KeyCommand::PreviousLogsOpen),
             )
             .with_action(
@@ -470,7 +478,7 @@ impl ResourcesView {
             .with_action(
                 ActionItem::action("forward port", "port_forward")
                     .with_description("forwards container port")
-                    .with_aliases(&["port", "pf"]),
+                    .with_aliases(["port", "pf"]),
                 Some(KeyCommand::PortForwardsCreate),
             )
     }
@@ -569,7 +577,7 @@ impl ResourcesView {
             builder = builder.with_menu_action(
                 ActionItem::action("duplicate", "new_clone")
                     .with_description("use the spec of the highlighted resource")
-                    .with_aliases(&["clone"]),
+                    .with_aliases(["clone"]),
             );
         }
 

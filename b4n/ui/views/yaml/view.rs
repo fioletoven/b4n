@@ -165,7 +165,7 @@ impl YamlView {
             builder.add_action(
                 ActionItem::action("edit", "edit")
                     .with_description("switches to the edit mode")
-                    .with_aliases(&["insert"]),
+                    .with_aliases(["insert"]),
                 Some(KeyCommand::YamlEdit),
             );
         }

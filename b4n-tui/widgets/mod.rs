@@ -1,4 +1,4 @@
-pub use self::actions::{ActionItem, ActionsList, ActionsListBuilder};
+pub use self::actions::{ActionItem, ActionsList, ActionsListBuilder, PluginsExt};
 pub use self::footer::Footer;
 pub use self::input::{ErrorHighlightMode, Input};
 pub use self::list::{List, ListWidget};

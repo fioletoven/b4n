@@ -11,6 +11,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 use crate::{APP_NAME, keys::KeyCombination};
 
@@ -29,14 +30,19 @@ pub enum PluginError {
 /// Holds particular plugin configuration.
 #[derive(Debug, Deserialize)]
 pub struct Plugin {
+    #[serde(skip_deserializing, default = "random_uuid")]
+    pub id: String,
     pub name: String,
+    pub aliases: Vec<String>,
     pub description: String,
     pub shortcut: KeyCombination,
-    pub confirm: bool,
-    pub scopes: Vec<String>,
     pub command: String,
     pub args: Vec<String>,
+    pub scopes: Vec<String>,
+    pub confirm: bool,
     pub interactive: bool,
+    pub highlighted: bool,
+    pub selected: bool,
 }
 
 /// All discovered plugins.
@@ -207,4 +213,11 @@ impl Drop for PluginsWatcher {
     fn drop(&mut self) {
         self.cancel();
     }
+}
+
+fn random_uuid() -> String {
+    Uuid::new_v4()
+        .hyphenated()
+        .encode_lower(&mut Uuid::encode_buffer())
+        .to_owned()
 }

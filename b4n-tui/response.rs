@@ -59,6 +59,7 @@ pub enum ResponseEvent {
     Cancelled,
     Accepted,
     Action(&'static str),
+    PluginAction(String),
 
     ExitApplication,
 

@@ -95,7 +95,7 @@ impl ActionsListBuilder {
         let actions = items
             .iter()
             .enumerate()
-            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_id(idx))
+            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_sort_id(idx))
             .collect();
         let commands = vec![None; items.len()];
         Self { actions, commands }
@@ -171,6 +171,15 @@ impl ActionsListBuilder {
         )
     }
 
+    /// Adds collection of actions.
+    pub fn with_actions(mut self, actions: Vec<ActionItem>) -> Self {
+        for action in actions {
+            self.actions.push(action);
+            self.commands.push(None);
+        }
+        self
+    }
+
     /// Adds custom action.
     pub fn with_action(mut self, action: ActionItem, command: Option<KeyCommand>) -> Self {
         self.actions.push(action);
@@ -208,7 +217,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("quit")
                 .with_description("exits the application")
-                .with_aliases(&["q", "exit"])
+                .with_aliases(["q", "exit"])
                 .with_response(ResponseEvent::ExitApplication),
         );
         self.commands.push(Some(KeyCommand::ApplicationExit));
@@ -220,7 +229,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("back")
                 .with_description("closes the current view")
-                .with_aliases(&["cancel", "close"])
+                .with_aliases(["cancel", "close"])
                 .with_response(ResponseEvent::Cancelled),
         );
         self.commands.push(Some(KeyCommand::NavigateBack));
@@ -232,7 +241,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("context")
                 .with_description("changes the current kube context")
-                .with_aliases(&["ctx", "change"])
+                .with_aliases(["ctx", "change"])
                 .with_response(ResponseEvent::ListKubeContexts),
         );
         self.commands.push(None);
@@ -244,7 +253,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("theme")
                 .with_description("selects the theme used by the application")
-                .with_aliases(&["change"])
+                .with_aliases(["change"])
                 .with_response(ResponseEvent::ListThemes),
         );
         self.commands.push(None);
@@ -256,7 +265,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("namespace")
                 .with_description("changes the current namespace")
-                .with_aliases(&["change"])
+                .with_aliases(["change"])
                 .with_response(ResponseEvent::ListNamespaces),
         );
         self.commands.push(None);
@@ -268,7 +277,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("delete")
                 .with_description("deletes selected resources")
-                .with_aliases(&["del", "remove"])
+                .with_aliases(["del", "remove"])
                 .with_response(ResponseEvent::AskDeleteResources),
         );
         self.commands.push(Some(KeyCommand::NavigateDelete));
@@ -280,7 +289,7 @@ impl ActionsListBuilder {
         self.actions.push(
             ActionItem::new("show port forwards")
                 .with_description("shows active port forwards")
-                .with_aliases(&["port", "pf", "forward"])
+                .with_aliases(["port", "pf", "forward"])
                 .with_response(ResponseEvent::ShowPortForwards),
         );
         self.commands.push(Some(KeyCommand::PortForwardsOpen));
