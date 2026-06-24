@@ -3,17 +3,9 @@ use b4n_kube::{Kind, Namespace, ResourceRef};
 
 use crate::{ResponseEvent, widgets::ActionItem};
 
-/// Execution context for a plugin.
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct PluginContext {
-    pub context: String,
-    pub kind: Kind,
-    pub namespace: Namespace,
-    pub highlighted: Option<ResourceRef>,
-    pub selected: Vec<ResourceRef>,
-    pub columns: Vec<String>,
-    pub values: Vec<Vec<String>>,
-}
+#[cfg(test)]
+#[path = "./plugins.tests.rs"]
+mod plugins_tests;
 
 /// Plugins extension trait.
 pub trait PluginsExt {
@@ -49,5 +41,79 @@ impl PluginsExt for Plugins {
         }
 
         actions
+    }
+}
+
+/// Execution context for a plugin.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PluginContext {
+    pub context: String,
+    pub kind: Kind,
+    pub namespace: Namespace,
+    pub highlighted: Option<ResourceRef>,
+    pub selected: Vec<ResourceRef>,
+    pub columns: Vec<String>,
+    pub values: Vec<Vec<String>>,
+}
+
+impl PluginContext {
+    pub fn resolve_arg(&self, arg: &str, row_index: usize) -> String {
+        let mut result = String::with_capacity(arg.len());
+        let mut remaining = arg;
+
+        while let Some(dollar_pos) = remaining.find('$') {
+            result.push_str(&remaining[..dollar_pos]);
+            remaining = &remaining[dollar_pos..];
+
+            if let Some((replacement, skip)) = self.try_resolve_placeholder(remaining, row_index) {
+                result.push_str(replacement);
+                remaining = &remaining[skip..];
+            } else {
+                result.push('$');
+                remaining = &remaining[1..];
+            }
+        }
+
+        result.push_str(remaining);
+        result
+    }
+
+    fn try_resolve_placeholder<'a>(&'a self, s: &str, row_index: usize) -> Option<(&'a str, usize)> {
+        type PlaceholderResolver = (&'static str, fn(&PluginContext) -> &str);
+
+        let simple: &[PlaceholderResolver] = &[
+            ("$CONTEXT", |ctx: &PluginContext| ctx.context.as_str()),
+            ("$PLURAL", |ctx: &PluginContext| ctx.kind.name()),
+            ("$GROUP", |ctx: &PluginContext| ctx.kind.group()),
+            ("$VERSION", |ctx: &PluginContext| ctx.kind.version()),
+            ("$NAMESPACE", |ctx: &PluginContext| ctx.namespace.as_str()),
+        ];
+
+        if s.starts_with("$COL[") {
+            let close_pos = s.find(']')?;
+            let col_name = &s["$COL[".len()..close_pos];
+            let value = self.resolve_col(col_name, row_index);
+
+            return Some((value, close_pos + 1));
+        }
+
+        for (prefix, resolver) in simple {
+            if s.starts_with(prefix) {
+                return Some((resolver(self), prefix.len()));
+            }
+        }
+
+        None
+    }
+
+    fn resolve_col(&self, col_name: &str, row_index: usize) -> &str {
+        let Some(col_index) = self.columns.iter().position(|c| c.eq_ignore_ascii_case(col_name)) else {
+            return "";
+        };
+        let Some(row) = self.values.get(row_index) else {
+            return "";
+        };
+
+        if let Some(value) = row.get(col_index) { value } else { "" }
     }
 }
