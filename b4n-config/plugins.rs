@@ -28,7 +28,7 @@ pub enum PluginError {
 }
 
 /// Holds particular plugin configuration.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Plugin {
     #[serde(skip_deserializing, default = "random_uuid")]
     pub id: String,

@@ -203,6 +203,41 @@ impl ResourcesTable {
             .and_then(|r| self.resource_ref_from(r, prefer_container))
     }
 
+    /// Returns collection of [`ResourceRef`]s for currently selected items.
+    pub fn get_selected_resources_ref(&self, prefer_container: bool) -> Vec<ResourceRef> {
+        self.list
+            .table
+            .get_selected_resources()
+            .iter()
+            .flat_map(|r| self.resource_ref_from(r, prefer_container))
+            .collect()
+    }
+
+    /// Returns column names for the table.
+    pub fn get_column_names(&self) -> Vec<String> {
+        self.list.table.table.header.get_names()
+    }
+
+    /// Returns column values for currently highlighted item.
+    pub fn get_column_values(&self) -> Option<Vec<String>> {
+        let columns_no = self.list.table.table.header.get_columns_count();
+        self.list
+            .table
+            .get_highlighted_resource()
+            .map(|r| self.columns_from(r, columns_no))
+    }
+
+    /// Returns collection of column values for currently selected items.
+    pub fn get_selected_column_values(&self) -> Vec<Vec<String>> {
+        let columns_no = self.list.table.table.header.get_columns_count();
+        self.list
+            .table
+            .get_selected_resources()
+            .iter()
+            .map(|r| self.columns_from(r, columns_no))
+            .collect()
+    }
+
     /// Sets namespace for [`ResourcesTable`].
     pub fn set_namespace(&mut self, namespace: Namespace) {
         let is_full = namespace.is_all() && self.app_data.borrow().current.scope == Scope::Namespaced;
@@ -556,5 +591,9 @@ impl ResourcesTable {
         // we need to refresh header here, as init data invalidates its cache.
         self.list.table.refresh_header(self.list.view, current_width);
         self.list.table.table.set_offset(offset);
+    }
+
+    fn columns_from(&self, resource: &ResourceItem, columns_no: usize) -> Vec<String> {
+        (0..columns_no).map(|i| resource.column_text(i).to_string()).collect()
     }
 }

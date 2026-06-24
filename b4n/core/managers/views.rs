@@ -8,9 +8,9 @@ use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
 };
-use b4n_tui::ToSelectData;
 use b4n_tui::widgets::Footer;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
+use b4n_tui::{PluginContext, ToSelectData};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::collections::HashMap;
@@ -585,6 +585,17 @@ impl ViewsManager {
         }
 
         self.view = Some(Box::new(view));
+    }
+
+    /// Runs plugin with the specified `id` and `context`.
+    pub fn run_plugin(&mut self, id: String, context: PluginContext) {
+        if let Some(plugin) = self.app_data.borrow().plugins.iter().find(|p| p.id == id).cloned() {
+            if plugin.interactive {
+                // TODO: run plugin in separate view that shows output and has interactive terminal.
+            } else {
+                self.worker.borrow_mut().run_plugin(plugin, context);
+            }
+        }
     }
 
     /// Updates footer message history pane hint with current key binding.

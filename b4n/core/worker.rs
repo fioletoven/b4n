@@ -1,6 +1,6 @@
 use anyhow::Result;
 use b4n_common::NotificationSink;
-use b4n_config::{Config, History, SyntaxData};
+use b4n_config::{Config, History, Plugin, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
 use b4n_kube::stats::BgStatistics;
@@ -13,6 +13,7 @@ use b4n_tasks::commands::{
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
+use b4n_tui::PluginContext;
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
@@ -513,6 +514,11 @@ impl BgWorker {
     /// Stops all port forwarding tasks that match provided list of containers.
     pub fn stop_container_port_forwards(&mut self, containers: &[ContainerRef]) {
         self.forwarder.stop_container_port_forwards(containers);
+    }
+
+    /// Runs specified plugin as a background task.
+    pub fn run_plugin(&mut self, _plugin: Plugin, _context: PluginContext) {
+        // TODO: run plugin as a background task.
     }
 }
 

@@ -222,6 +222,10 @@ pub trait SharedAppDataExt {
         sink: &NotificationSink,
         on_success_message: impl FnOnce() -> &'static str,
     );
+
+    /// Returns tuple with plugin id, highlighted, and selected values if the given [`TuiEvent`] is a key event
+    /// and is bound to one of the discovered `Plugin`s.
+    fn get_plugin_binding(&self, event: &TuiEvent, is_highlighted: bool, is_selected: bool) -> Option<(String, bool, bool)>;
 }
 
 impl SharedAppDataExt for SharedAppData {
@@ -274,5 +278,20 @@ impl SharedAppDataExt for SharedAppData {
                 sink.show_error("Unable to access clipboard functionality", 5_000);
             }
         }
+    }
+
+    fn get_plugin_binding(&self, event: &TuiEvent, is_highlighted: bool, is_selected: bool) -> Option<(String, bool, bool)> {
+        let TuiEvent::Key(key) = event else {
+            return None;
+        };
+
+        let plugins = &self.borrow().plugins;
+        let plugin = plugins.iter().find(|p| {
+            (!p.highlighted || p.highlighted == is_highlighted)
+                && (!p.selected || p.selected == is_selected)
+                && &p.shortcut == key
+        })?;
+
+        Some((plugin.id.clone(), plugin.highlighted, plugin.selected))
     }
 }

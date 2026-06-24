@@ -9,7 +9,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kube::kinds::ActionsListBuilderKindExt;
+use crate::kube::extensions::ActionsListBuilderExt;
 use crate::ui::presentation::{ListHeader, ListViewer};
 use crate::ui::views::{PortForwardsList, View};
 use crate::ui::widgets::{CommandPalette, Filter};

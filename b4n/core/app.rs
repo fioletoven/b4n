@@ -259,6 +259,7 @@ impl App {
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
+            ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(id, context),
             _ => (),
         }
 

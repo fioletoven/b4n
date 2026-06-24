@@ -2,7 +2,7 @@ use b4n_common::{truncate, truncate_left};
 use b4n_kube::{CORE_VERSION, Kind};
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use b4n_tui::ResponseEvent;
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder};
+use b4n_tui::widgets::ActionItem;
 use std::borrow::Cow;
 
 /// Represents kubernetes kind.
@@ -96,16 +96,5 @@ impl From<&KindItem> for ActionItem {
     fn from(value: &KindItem) -> Self {
         ActionItem::raw(value.uid().to_owned(), "resource".to_owned(), value.name().to_owned(), None)
             .with_response(ResponseEvent::ChangeKind(value.name().to_owned()))
-    }
-}
-
-pub trait ActionsListBuilderKindExt {
-    fn from_kinds(items: Option<&[KindItem]>) -> Self;
-}
-
-impl ActionsListBuilderKindExt for ActionsListBuilder {
-    fn from_kinds(items: Option<&[KindItem]>) -> Self {
-        let actions = items.unwrap_or(&[]).iter().map(Into::into).collect();
-        ActionsListBuilder::new(actions)
     }
 }

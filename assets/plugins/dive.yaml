@@ -2,11 +2,11 @@
 
 name: dive
 aliases: []
-description: "dive image"
+description: "opens image in dive"
 shortcut: Shift+D
 command: dive
 args:
-  - $IMAGE_NAME
+  - $COL[IMAGE]
 scopes:
   - containers
 confirm: false

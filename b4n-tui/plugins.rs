@@ -1,6 +1,19 @@
 use b4n_config::Plugins;
+use b4n_kube::{Kind, Namespace, ResourceRef};
 
 use crate::{ResponseEvent, widgets::ActionItem};
+
+/// Execution context for a plugin.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PluginContext {
+    pub context: String,
+    pub kind: Kind,
+    pub namespace: Namespace,
+    pub highlighted: Option<ResourceRef>,
+    pub selected: Vec<ResourceRef>,
+    pub columns: Vec<String>,
+    pub values: Vec<Vec<String>>,
+}
 
 /// Plugins extension trait.
 pub trait PluginsExt {
@@ -21,7 +34,11 @@ impl PluginsExt for Plugins {
             let mut action = ActionItem::new(&plugin.name)
                 .with_description(&plugin.description)
                 .with_aliases(&plugin.aliases)
-                .with_response(ResponseEvent::PluginAction(plugin.id.clone()))
+                .with_response(ResponseEvent::PluginAction(
+                    plugin.id.clone(),
+                    plugin.highlighted,
+                    plugin.selected,
+                ))
                 .with_icon(Some(""));
 
             if !plugin.shortcut.is_default() {

@@ -117,6 +117,21 @@ impl Header {
         }
     }
 
+    /// Returns names for all visible header columns.
+    pub fn get_names(&self) -> Vec<String> {
+        let mut names = Vec::with_capacity(self.get_columns_count());
+        names.push(self.group.name.to_string());
+        names.push(self.name.name.to_string());
+        if let Some(extra_columns) = &self.extra_columns {
+            extra_columns.iter().for_each(|c| names.push(c.name.to_string()));
+        }
+        if self.is_age_visible {
+            names.push(self.age.name.to_string());
+        }
+
+        names
+    }
+
     /// Returns sorting symbols for columns.
     pub fn get_sort_symbols(&self) -> Rc<[char]> {
         Rc::clone(&self.sort_symbols)
