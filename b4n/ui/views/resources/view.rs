@@ -907,18 +907,21 @@ fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) ->
 }
 
 fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlighted: bool, is_selected: bool) -> PluginContext {
-    let highlighted = is_highlighted.then_some(table.get_resource_ref(true)).flatten();
-    let selected = if is_selected {
-        table.get_selected_resources_ref(true)
-    } else {
-        Vec::new()
-    };
-
+    let mut resources = Vec::new();
     let mut values = Vec::new();
-    if is_highlighted && let Some(result) = table.get_column_values() {
-        values.push(result);
+
+    if is_highlighted {
+        if let Some(resource) = table.get_resource_ref(true) {
+            resources.push(resource);
+        }
+
+        if let Some(result) = table.get_column_values() {
+            values.push(result);
+        }
     }
+
     if is_selected {
+        resources.append(&mut table.get_selected_resources_ref(true));
         values.append(&mut table.get_selected_column_values());
     }
 
@@ -926,8 +929,7 @@ fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlig
         context: info.context.clone(),
         kind: info.resource.kind.clone(),
         namespace: info.namespace.clone(),
-        highlighted,
-        selected,
+        resources,
         columns: table.get_column_names(),
         values,
     }

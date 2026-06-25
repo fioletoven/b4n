@@ -28,7 +28,8 @@ pub enum PluginError {
 }
 
 /// Holds particular plugin configuration.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct Plugin {
     #[serde(skip_deserializing, default = "random_uuid")]
     pub id: String,
@@ -43,6 +44,8 @@ pub struct Plugin {
     pub interactive: bool,
     pub highlighted: bool,
     pub selected: bool,
+    pub for_each: bool,
+    pub stop_on_error: bool,
 }
 
 /// All discovered plugins.
