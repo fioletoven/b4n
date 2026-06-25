@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
 };
@@ -8,9 +9,8 @@ use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
 };
-use b4n_tui::widgets::Footer;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
-use b4n_tui::{PluginContext, ToSelectData};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
+use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::collections::HashMap;
@@ -593,7 +593,9 @@ impl ViewsManager {
             if plugin.interactive {
                 // TODO: run plugin in separate view that shows output and has interactive terminal.
             } else {
-                self.worker.borrow_mut().run_plugin(plugin, context);
+                self.worker
+                    .borrow_mut()
+                    .run_plugin(plugin, context, self.footer.get_transmitter());
             }
         }
     }

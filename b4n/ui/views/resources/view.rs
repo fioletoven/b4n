@@ -1,12 +1,13 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
 use b4n_list::Row;
+use b4n_tui::table::{Table, ViewType};
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
-use b4n_tui::{PluginContext, PluginsExt, ToSelectData};
+use b4n_tui::{MouseEventKind, PluginsExt, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::Position;

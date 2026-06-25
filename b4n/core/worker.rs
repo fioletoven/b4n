@@ -3,17 +3,17 @@ use b4n_common::NotificationSink;
 use b4n_config::{Config, History, Plugin, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, DeleteResourcesOptions, GetNewResourceYamlCommand, GetResourceYamlCommand,
-    ListResourcePortsCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions,
-    SetResourceYamlCommand, SetResourceYamlOptions,
+    ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand,
+    SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
-use b4n_tui::PluginContext;
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
@@ -517,8 +517,9 @@ impl BgWorker {
     }
 
     /// Runs specified plugin as a background task.
-    pub fn run_plugin(&mut self, _plugin: Plugin, _context: PluginContext) {
-        // TODO: run plugin as a background task.
+    pub fn run_plugin(&mut self, plugin: Plugin, context: PluginContext, footer_tx: NotificationSink) -> Option<String> {
+        let command = RunPluginCommand::new(plugin, context, footer_tx);
+        Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 }
 

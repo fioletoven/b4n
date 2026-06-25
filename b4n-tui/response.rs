@@ -1,6 +1,6 @@
-use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
+use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope, plugins::PluginContext};
 
-use crate::{PluginContext, TuiEvent};
+use crate::TuiEvent;
 
 /// UI object that is responsive and can process TUI key/mouse events.
 pub trait Responsive {

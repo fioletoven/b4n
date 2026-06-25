@@ -12,6 +12,7 @@ pub use kube::discovery::Scope;
 
 pub mod client;
 pub mod crds;
+pub mod plugins;
 pub mod stats;
 pub mod status;
 pub mod utils;
