@@ -1,7 +1,9 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink};
 use b4n_config::Plugin;
 use b4n_kube::plugins::PluginContext;
+use std::sync::Arc;
 use tokio::process::Command;
+use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
 
@@ -24,96 +26,91 @@ impl RunPluginCommand {
 
     /// Resolves arguments using the plugin context and executes the binary.
     pub async fn execute(self) -> Option<CommandResult> {
-        if self.plugin.for_each && !self.context.resources.is_empty() {
-            self.execute_for_each().await;
+        let once_index = if self.context.resources.len() == 1 { Some(0) } else { None };
+        let for_each = self.plugin.for_each && self.context.resources.len() > 1;
+
+        let plugin = Arc::new(self.plugin);
+        let context = Arc::new(self.context);
+        let footer_tx = self.footer_tx.clone();
+
+        if for_each {
+            execute_for_each(plugin, context, footer_tx).await;
         } else {
-            self.execute_once(None).await;
+            execute_once(plugin, context, footer_tx, once_index).await;
         }
 
         None
     }
+}
 
-    async fn execute_for_each(self) -> bool {
-        let resource_count = self.context.resources.len();
-        let mut any_success = false;
-        let mut any_failure = false;
+/// Executes plugin for all resources in parallel.
+async fn execute_for_each(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_tx: NotificationSink) {
+    let resource_count = context.resources.len();
+    let mut join_set = JoinSet::new();
 
-        for index in 0..resource_count {
-            if self.execute_once(Some(index)).await {
-                any_success = true;
-            } else {
-                any_failure = true;
+    for index in 0..resource_count {
+        let plugin = Arc::clone(&plugin);
+        let context = Arc::clone(&context);
+        let footer_tx = footer_tx.clone();
 
-                if self.plugin.stop_on_error {
-                    tracing::warn!(
-                        "Stopping execution of '{}' on first error (current index: {}).",
-                        &self.plugin.name,
-                        index
-                    );
-                    break;
-                }
-            }
-        }
-
-        any_success && !any_failure
+        join_set.spawn(async move {
+            execute_once(plugin, context, footer_tx, Some(index)).await;
+        });
     }
 
-    async fn execute_once(&self, row_index: Option<usize>) -> bool {
-        let resource_name = if let Some(row_index) = row_index {
-            self.context
-                .resources
-                .get(row_index)
-                .map(|r| format!("{}/{}", r.namespace.as_str(), r.name.as_deref().unwrap_or_default()))
-                .unwrap_or_else(String::new)
-        } else {
-            "all selected resources".to_string()
-        };
-
-        let resolved_args: Vec<String> = self
-            .plugin
-            .args
-            .iter()
-            .map(|arg| self.context.resolve_arg(arg, row_index))
-            .collect();
-
-        tracing::debug!(
-            binary = %self.plugin.command,
-            args = ?resolved_args,
-            "Executing plugin command"
-        );
-
-        let output = match Command::new(&self.plugin.command).args(&resolved_args).output().await {
-            Ok(output) => output,
-            Err(error) => {
-                let msg = format!("Cannot execute '{}' ({}): {}", self.plugin.name, resource_name, error);
-                tracing::error!("{}", msg);
-                self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-
-                return false;
-            },
-        };
-
-        if output.status.success() {
-            let msg = format!("'{}' ({}) executed successfully", self.plugin.name, resource_name);
-            tracing::info!("{}", msg);
-            self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
-
-            return true;
+    while let Some(result) = join_set.join_next().await {
+        if let Err(error) = result {
+            tracing::error!("Task panicked during plugin execution: {}", error);
         }
+    }
+}
 
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let code = output.status.code().unwrap_or(-1);
-        let msg = format!(
-            "'{}' ({}) failed with exit code {}: {}",
-            self.plugin.name,
-            resource_name,
-            code,
-            stderr.trim()
-        );
+/// Executes plugin for one resource or for all resources as one.
+async fn execute_once(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_tx: NotificationSink, row_index: Option<usize>) {
+    let resource_name = get_resource_name(&context, row_index);
+    let resolved_args: Vec<String> = plugin.args.iter().map(|arg| context.resolve_arg(arg, row_index)).collect();
 
-        tracing::error!("{}", msg);
-        self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+    let output = match Command::new(&plugin.command).args(&resolved_args).output().await {
+        Ok(output) => output,
+        Err(error) => {
+            let msg = format!("Cannot execute '{}' ({}): {}", plugin.name, resource_name, error);
+            tracing::error!("{}", msg);
+            footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 
-        false
+            return;
+        },
+    };
+
+    if output.status.success() {
+        let msg = format!("'{}' ({}) executed successfully", plugin.name, resource_name);
+        tracing::info!("{}", msg);
+        footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
+
+        return;
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let code = output.status.code().unwrap_or(-1);
+    let msg = format!(
+        "'{}' ({}) failed with exit code {}: {}",
+        plugin.name,
+        resource_name,
+        code,
+        stderr.trim()
+    );
+
+    tracing::error!("{}", msg);
+    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+}
+
+fn get_resource_name(context: &Arc<PluginContext>, row_index: Option<usize>) -> String {
+    if let Some(row_index) = row_index {
+        context
+            .resources
+            .get(row_index)
+            .map(|r| format!("{}/{}", r.namespace.as_str(), r.name.as_deref().unwrap_or_default()))
+            .unwrap_or_else(String::new)
+    } else {
+        "all selected resources".to_string()
     }
 }

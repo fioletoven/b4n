@@ -45,7 +45,6 @@ pub struct Plugin {
     pub highlighted: bool,
     pub selected: bool,
     pub for_each: bool,
-    pub stop_on_error: bool,
 }
 
 /// All discovered plugins.

@@ -912,7 +912,7 @@ fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlig
     let mut values = Vec::new();
 
     if is_highlighted {
-        if let Some(resource) = table.get_resource_ref(true) {
+        if let Some(resource) = table.get_resource_ref(false) {
             resources.push(resource);
         }
 
@@ -922,7 +922,7 @@ fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlig
     }
 
     if is_selected {
-        resources.append(&mut table.get_selected_resources_ref(true));
+        resources.append(&mut table.get_selected_resources_ref(false));
         values.append(&mut table.get_selected_column_values());
     }
 
