@@ -166,7 +166,7 @@ impl App {
         match self.plugins_watcher.try_next() {
             Some(Ok(plugins)) => self.data.borrow_mut().plugins = plugins,
             Some(Err(error)) => {
-                let msg = format!("Error loading plugins: {}", error);
+                let msg = format!("Error loading plugins: {error}");
                 self.views_manager.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
             _ => (),
@@ -259,7 +259,7 @@ impl App {
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
-            ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(id, context),
+            ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),
             _ => (),
         }
 

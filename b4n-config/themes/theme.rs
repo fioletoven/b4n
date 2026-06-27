@@ -552,7 +552,7 @@ fn update_colors(colors: &mut BTreeMap<String, ColorValue>, palette: &BTreeMap<S
     fn resolve(color: &str, palette: &BTreeMap<String, String>) -> String {
         color
             .split(':')
-            .map(|c| palette.get(c).map(|s| s.as_str()).unwrap_or(c))
+            .map(|c| palette.get(c).map_or(c, |s| s.as_str()))
             .collect::<Vec<&str>>()
             .join(":")
     }

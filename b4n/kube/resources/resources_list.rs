@@ -12,7 +12,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::kube::resources::{ColumnsLayout, ResourceFilterContext, ResourceItem};
 
-static CACHE_EXPIRED_DURATION: Duration = Duration::from_secs(120);
+static CACHE_EXPIRED_DURATION: Duration = Duration::from_mins(2);
 
 /// Kubernetes resources list.
 pub struct ResourcesList {

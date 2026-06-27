@@ -136,13 +136,10 @@ fn handle_csi(seq: &[u8], response: &mut Vec<u8>, parser: &Arc<RwLock<vt100::Par
 }
 
 fn cursor_position(parser: &Arc<RwLock<vt100::Parser>>) -> (u16, u16) {
-    parser
-        .read()
-        .map(|p| {
-            let (r, c) = p.screen().cursor_position();
-            (r + 1, c + 1)
-        })
-        .unwrap_or((1, 1))
+    parser.read().map_or((1, 1), |p| {
+        let (r, c) = p.screen().cursor_position();
+        (r + 1, c + 1)
+    })
 }
 
 /// Holds current terminal state.

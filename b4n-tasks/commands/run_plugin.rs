@@ -105,11 +105,9 @@ async fn execute_once(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_t
 
 fn get_resource_name(context: &Arc<PluginContext>, row_index: Option<usize>) -> String {
     if let Some(row_index) = row_index {
-        context
-            .resources
-            .get(row_index)
-            .map(|r| format!("{}/{}", r.namespace.as_str(), r.name.as_deref().unwrap_or_default()))
-            .unwrap_or_else(String::new)
+        context.resources.get(row_index).map_or_else(String::new, |r| {
+            format!("{}/{}", r.namespace.as_str(), r.name.as_deref().unwrap_or_default())
+        })
     } else {
         "all selected resources".to_string()
     }

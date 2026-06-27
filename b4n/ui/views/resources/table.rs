@@ -209,7 +209,7 @@ impl ResourcesTable {
             .table
             .get_selected_resources()
             .iter()
-            .flat_map(|r| self.resource_ref_from(r, prefer_container))
+            .filter_map(|r| self.resource_ref_from(r, prefer_container))
             .collect()
     }
 
@@ -224,7 +224,7 @@ impl ResourcesTable {
         self.list
             .table
             .get_highlighted_resource()
-            .map(|r| self.columns_from(r, columns_no))
+            .map(|r| columns_from(r, columns_no))
     }
 
     /// Returns collection of column values for currently selected items.
@@ -234,7 +234,7 @@ impl ResourcesTable {
             .table
             .get_selected_resources()
             .iter()
-            .map(|r| self.columns_from(r, columns_no))
+            .map(|r| columns_from(r, columns_no))
             .collect()
     }
 
@@ -592,8 +592,8 @@ impl ResourcesTable {
         self.list.table.refresh_header(self.list.view, current_width);
         self.list.table.table.set_offset(offset);
     }
+}
 
-    fn columns_from(&self, resource: &ResourceItem, columns_no: usize) -> Vec<String> {
-        (0..columns_no).map(|i| resource.column_text(i).to_string()).collect()
-    }
+fn columns_from(resource: &ResourceItem, columns_no: usize) -> Vec<String> {
+    (0..columns_no).map(|i| resource.column_text(i).to_string()).collect()
 }

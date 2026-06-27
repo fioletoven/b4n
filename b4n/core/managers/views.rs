@@ -588,7 +588,7 @@ impl ViewsManager {
     }
 
     /// Runs plugin with the specified `id` and `context`.
-    pub fn run_plugin(&mut self, id: String, context: PluginContext) {
+    pub fn run_plugin(&mut self, id: &str, context: PluginContext) {
         let Some(plugin) = self.app_data.borrow().plugins.iter().find(|p| p.id == id).cloned() else {
             return;
         };

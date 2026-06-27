@@ -152,17 +152,14 @@ impl PluginsWatcher {
                     let mut needs_check = false;
 
                     while let Ok(event) = rx.try_recv() {
-                        match event {
-                            Ok(res) => {
-                                needs_check = matches!(res.kind, EventKind::Remove(_));
-                                if matches!(res.kind, EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)) {
-                                    needs_reload = true;
-                                }
-                            },
-                            Err(_) => {
-                                let _ = watcher.unwatch(&_path);
-                                break 'w;
-                            },
+                        if let Ok(res) = event {
+                            needs_check = matches!(res.kind, EventKind::Remove(_));
+                            if matches!(res.kind, EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)) {
+                                needs_reload = true;
+                            }
+                        } else {
+                            let _ = watcher.unwatch(&_path);
+                            break 'w;
                         }
                     }
 
