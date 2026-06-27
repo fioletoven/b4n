@@ -183,6 +183,11 @@ impl KeyCombination {
             modifiers: all_modifiers,
         })
     }
+
+    /// Returns `true` if this key combination has default values.
+    pub fn is_default(&self) -> bool {
+        self.code == KeyCode::Null && self.modifiers == KeyModifiers::NONE
+    }
 }
 
 impl Serialize for KeyCombination {

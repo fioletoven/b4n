@@ -1,4 +1,4 @@
-use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
+use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope, plugins::PluginContext};
 
 use crate::TuiEvent;
 
@@ -51,7 +51,7 @@ impl ToSelectData {
 }
 
 /// Terminal UI Response Event.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum ResponseEvent {
     #[default]
     NotHandled,
@@ -96,6 +96,9 @@ pub enum ResponseEvent {
     OpenShell(ResourceRef),
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
+
+    PluginAction(String, bool, bool),
+    RunPlugin(String, PluginContext),
 }
 
 impl ResponseEvent {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
 };
@@ -8,9 +9,8 @@ use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
 };
-use b4n_tui::ToSelectData;
-use b4n_tui::widgets::Footer;
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
+use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::collections::HashMap;
@@ -19,7 +19,7 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
-use crate::ui::views::{DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
+use crate::ui::views::{CmdView, DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
 
 pub struct ViewsManager {
@@ -585,6 +585,35 @@ impl ViewsManager {
         }
 
         self.view = Some(Box::new(view));
+    }
+
+    /// Runs plugin with the specified `id` and `context`.
+    pub fn run_plugin(&mut self, id: &str, context: PluginContext) {
+        let Some(plugin) = self.app_data.borrow().plugins.iter().find(|p| p.id == id).cloned() else {
+            return;
+        };
+
+        if plugin.interactive {
+            self.footer().hide_hint();
+
+            let index = if context.resources.len() == 1 { Some(0) } else { None };
+            let resolved_args = plugin.args.iter().map(|arg| context.resolve_arg(arg, index)).collect();
+            let view = CmdView::new(
+                self.worker.borrow().runtime_handle().clone(),
+                Rc::clone(&self.app_data),
+                plugin.name,
+                plugin.command,
+                resolved_args,
+                self.footer.get_transmitter(),
+                self.workspace,
+            );
+
+            self.view = Some(Box::new(view));
+        } else {
+            self.worker
+                .borrow_mut()
+                .run_plugin(plugin, context, self.footer.get_transmitter());
+        }
     }
 
     /// Updates footer message history pane hint with current key binding.

@@ -37,6 +37,7 @@ k8s-openapi = { version = "0.28", features = ["latest"] }
 kube = { version = "4.0", features = ["client", "derive", "runtime", "ws"] }
 notify = { version = "8.0" }
 pin-project = { version = "1.1" }
+portable-pty = { version = "0.9" }
 ratatui = { version = "0.30", features = ["serde"] }
 ratatui-core = { version = "0.1", features = ["serde"] }
 ratatui-crossterm = { version = "0.1" }
@@ -48,12 +49,12 @@ syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }
 time = { version = "0.3", features = ["local-offset"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "time", "io-util", "macros", "sync"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "rt", "sync", "time"] }
 tokio-util = { version = "0.7" }
 tracing = { version = "0.1" }
 tracing-appender = { version = "0.2" }
 tracing-error = { version = "0.2" }
-tracing-subscriber = { version = "0.3", features = ["std", "fmt", "time", "env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "std", "time"] }
 tui-input = { version = "0.15" }
 tui-term = { version = "0.3" }
 uuid = { version = "1", features = ["v4"] }
@@ -86,6 +87,7 @@ futures = { workspace = true }
 jsonpath-rust = { workspace = true }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
+portable-pty = { workspace = true }
 ratatui = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

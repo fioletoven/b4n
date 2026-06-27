@@ -2,7 +2,7 @@ use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
-use b4n_config::{Config, ConfigWatcher, History, SyntaxData};
+use b4n_config::{Config, ConfigWatcher, History, Plugins, PluginsWatcher, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
@@ -42,6 +42,7 @@ pub struct App {
     config_watcher: ConfigWatcher<Config>,
     history_watcher: ConfigWatcher<History>,
     theme_watcher: ConfigWatcher<Theme>,
+    plugins_watcher: PluginsWatcher,
     client_manager: KubernetesClientManager,
     views_manager: ViewsManager,
 }
@@ -71,7 +72,8 @@ impl App {
             worker,
             config_watcher: Config::watcher(runtime.clone()),
             history_watcher: History::watcher(runtime.clone()),
-            theme_watcher: ConfigWatcher::new(runtime, theme_path),
+            theme_watcher: ConfigWatcher::new(runtime.clone(), theme_path),
+            plugins_watcher: PluginsWatcher::new(runtime, Plugins::default_path()),
             client_manager,
             views_manager,
         })
@@ -86,6 +88,7 @@ impl App {
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
+        self.plugins_watcher.start()?;
         self.tui.enter_terminal()?;
         self.update_mouse_state();
 
@@ -98,6 +101,7 @@ impl App {
         self.config_watcher.cancel();
         self.history_watcher.cancel();
         self.theme_watcher.cancel();
+        self.plugins_watcher.cancel();
         self.tui.cancel();
     }
 
@@ -107,6 +111,7 @@ impl App {
         self.config_watcher.stop();
         self.history_watcher.stop();
         self.theme_watcher.stop();
+        self.plugins_watcher.stop();
         self.tui.exit_terminal()?;
 
         Ok(())
@@ -154,6 +159,15 @@ impl App {
             Some(Err(error)) => {
                 let theme = &self.data.borrow().config.theme;
                 self.show_theme_error(format!("Error loading '{theme}' theme: {error}"));
+            },
+            _ => (),
+        }
+
+        match self.plugins_watcher.try_next() {
+            Some(Ok(plugins)) => self.data.borrow_mut().plugins = plugins,
+            Some(Err(error)) => {
+                let msg = format!("Error loading plugins: {error}");
+                self.views_manager.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
             _ => (),
         }
@@ -245,6 +259,7 @@ impl App {
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
+            ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),
             _ => (),
         }
 

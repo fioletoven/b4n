@@ -11,7 +11,7 @@ use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs}
 /// Header pane that shows resource namespace, kind and name.
 #[derive(Default)]
 pub struct ContentHeader {
-    pub title: &'static str,
+    pub title: String,
     pub icon: char,
     pub namespace: Namespace,
     pub kind: Kind,
@@ -50,8 +50,8 @@ impl ContentHeader {
     }
 
     /// Sets header title.
-    pub fn set_title(&mut self, title: &'static str) {
-        self.title = title;
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
     }
 
     /// Sets header icon.

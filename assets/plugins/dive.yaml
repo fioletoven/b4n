@@ -1,0 +1,15 @@
+# example plugin that executes `dive` on the highlighted container
+
+name: dive
+aliases: []
+description: "opens image in dive"
+shortcut: Shift+D
+command: dive
+args:
+  - $COL[IMAGE]
+scopes:
+  - containers
+confirm: false
+interactive: true
+highlighted: true
+selected: false

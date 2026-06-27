@@ -101,8 +101,10 @@ impl DescribeView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
-                ActionItem::action("show YAML", "yaml").with_description("shows YAML of the current resource"),
-                Some(KeyCommand::ContentCopy),
+                ActionItem::action("show YAML", "yaml")
+                    .with_description("shows YAML of the current resource")
+                    .with_aliases(["yaml", "yml"]),
+                Some(KeyCommand::YamlOpen),
             )
             .with_aliases(&self.app_data.borrow().config.aliases);
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));

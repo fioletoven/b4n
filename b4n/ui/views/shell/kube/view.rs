@@ -17,6 +17,7 @@ use tui_term::{vt100, widget::PseudoTerminal};
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
+use crate::ui::views::shell::terminal::RectExt;
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
@@ -73,7 +74,7 @@ impl ShellView {
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, SCROLLBACK_LEN)));
         let mut bridge = ShellBridge::new(runtime, parser.clone(), is_attach);
-        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, get_terminal_size(area));
+        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -84,7 +85,7 @@ impl ShellView {
             header,
             bridge,
             parser,
-            size: get_terminal_size(area),
+            size: area.to_terminal_size(),
             client: client.get_client(),
             pod,
             scrollback_rows: 0,
@@ -220,7 +221,7 @@ impl ShellView {
         let colors = &self.app_data.borrow().theme.colors;
         Dialog::new(
             "You are about to paste text that contains multiple lines. If you paste this text \
-             into your shell, it may result in the unexpected execution of commands.\n\
+             into the terminal, it may result in the unexpected execution of commands.\n\
              Do you wish to continue?"
                 .to_owned(),
             vec![
@@ -319,7 +320,7 @@ impl View for ShellView {
         if self.bridge.is_finished() {
             // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if !self.is_attach && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
-                let size = get_terminal_size(self.area);
+                let size = self.area.to_terminal_size();
                 self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, size);
             } else {
                 if self.bridge.has_error() {
@@ -434,7 +435,7 @@ impl View for ShellView {
             {
                 parser.screen_mut().set_size(layout[1].height, layout[1].width);
                 self.bridge.set_terminal_size(layout[1].width, layout[1].height);
-                self.size = get_terminal_size(layout[1]);
+                self.size = layout[1].to_terminal_size();
             }
 
             if let Ok(parser) = self.parser.read() {
@@ -473,11 +474,4 @@ fn get_layout(area: Rect) -> Rc<[Rect]> {
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
         .split(area)
-}
-
-fn get_terminal_size(area: Rect) -> TerminalSize {
-    TerminalSize {
-        width: area.width,
-        height: area.height,
-    }
 }

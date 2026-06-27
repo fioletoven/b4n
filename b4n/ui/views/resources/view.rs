@@ -1,20 +1,21 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, CONTAINERS, EVENTS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef, SECRETS,
 };
 use b4n_list::Row;
-use b4n_tui::ToSelectData;
+use b4n_tui::table::{Table, ViewType};
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector, ValidatorKind};
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, TuiEvent, table::Table, table::ViewType};
+use b4n_tui::{MouseEventKind, PluginsExt, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
-use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
-use crate::kube::kinds::ActionsListBuilderKindExt;
+use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
@@ -188,7 +189,7 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
-        let actions_list = ActionsListBuilder::from_contexts(list).build(None);
+        let actions_list = ActionsListBuilder::from_kube_contexts(list).build(None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("context")
             .with_highlighted(&self.app_data.borrow().current.context);
@@ -269,6 +270,20 @@ impl ResourcesView {
             }
         }
 
+        if self.filter.is_visible {
+            let result = self.filter.process_event(event);
+            if self.filter.is_valid() {
+                self.table.set_filter(self.filter.value());
+                self.filter.update_pinned_filter();
+            }
+
+            return Some(result);
+        }
+
+        if self.namespace_picker.is_visible {
+            return Some(self.namespace_picker.process_event(event));
+        }
+
         None
     }
 
@@ -276,6 +291,9 @@ impl ResourcesView {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::AskDeleteResources {
             self.last_mouse_click = event.position();
+        } else if let ResponseEvent::PluginAction(id, is_highlighted, is_selected) = response {
+            let info = &self.app_data.borrow().current;
+            return ResponseEvent::RunPlugin(id, build_plugin_context(info, &self.table, is_highlighted, is_selected));
         } else if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
@@ -347,7 +365,13 @@ impl ResourcesView {
             .with_resources_actions(!is_containers && is_deletable)
             .with_forwards()
             .with_filter_action("filter")
-            .with_pin_filter_action("pin_filter");
+            .with_pin_filter_action("pin_filter")
+            .with_actions(
+                self.app_data
+                    .borrow()
+                    .plugins
+                    .to_actions(self.table.get_kind().as_str(), is_highlighted, is_selected),
+            );
 
         if self.table.kind_plural() != NAMESPACES {
             builder.add_action(
@@ -378,7 +402,7 @@ impl ResourcesView {
                 builder.add_action(
                     ActionItem::action("create", "create")
                         .with_description("creates new Kubernetes resource")
-                        .with_aliases(&["new", "add"]),
+                        .with_aliases(["new", "add"]),
                     Some(KeyCommand::YamlCreate),
                 );
             }
@@ -423,7 +447,7 @@ impl ResourcesView {
             builder.add_action(
                 ActionItem::action("edit YAML", "edit_yaml")
                     .with_description("displays YAML and switches to edit mode")
-                    .with_aliases(&["yaml", "yml", "patch"]),
+                    .with_aliases(["yaml", "yml", "patch"]),
                 Some(KeyCommand::YamlEdit),
             );
         }
@@ -436,7 +460,7 @@ impl ResourcesView {
                     } else {
                         "shows YAML of the highlighted resource"
                     })
-                    .with_aliases(&["yaml", "yml", "view"]),
+                    .with_aliases(["yaml", "yml", "view"]),
                 Some(KeyCommand::YamlOpen),
             )
             .with_action(
@@ -450,13 +474,13 @@ impl ResourcesView {
             .with_action(
                 ActionItem::action("show logs", "show_logs")
                     .with_description("shows container logs")
-                    .with_aliases(&["logs"]),
+                    .with_aliases(["logs"]),
                 Some(KeyCommand::LogsOpen),
             )
             .with_action(
                 ActionItem::action("show previous logs", "show_plogs")
                     .with_description("shows container previous logs")
-                    .with_aliases(&["previous"]),
+                    .with_aliases(["previous"]),
                 Some(KeyCommand::PreviousLogsOpen),
             )
             .with_action(
@@ -470,7 +494,7 @@ impl ResourcesView {
             .with_action(
                 ActionItem::action("forward port", "port_forward")
                     .with_description("forwards container port")
-                    .with_aliases(&["port", "pf"]),
+                    .with_aliases(["port", "pf"]),
                 Some(KeyCommand::PortForwardsCreate),
             )
     }
@@ -569,7 +593,7 @@ impl ResourcesView {
             builder = builder.with_menu_action(
                 ActionItem::action("duplicate", "new_clone")
                     .with_description("use the spec of the highlighted resource")
-                    .with_aliases(&["clone"]),
+                    .with_aliases(["clone"]),
             );
         }
 
@@ -789,18 +813,11 @@ impl View for ResourcesView {
             return ResponseEvent::NotHandled;
         }
 
-        if self.filter.is_visible {
-            let result = self.filter.process_event(event);
-            if self.filter.is_valid() {
-                self.table.set_filter(self.filter.value());
-                self.filter.update_pinned_filter();
-            }
-
-            return result;
-        }
-
-        if self.namespace_picker.is_visible {
-            return self.namespace_picker.process_event(event);
+        let is_highlighted = self.table.list.table.is_anything_highlighted();
+        let is_selected = self.table.list.table.is_anything_selected();
+        if let Some((id, highlighted, selected)) = self.app_data.get_plugin_binding(event, is_highlighted, is_selected) {
+            let info = &self.app_data.borrow().current;
+            return ResponseEvent::RunPlugin(id, build_plugin_context(info, &self.table, highlighted, selected));
         }
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
@@ -890,21 +907,31 @@ fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) ->
     }
 }
 
-trait ActionsListBuilderExt {
-    fn from_contexts(items: &[NamedContext]) -> ActionsListBuilder;
-}
+fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlighted: bool, is_selected: bool) -> PluginContext {
+    let mut resources = Vec::new();
+    let mut values = Vec::new();
 
-impl ActionsListBuilderExt for ActionsListBuilder {
-    fn from_contexts(items: &[NamedContext]) -> ActionsListBuilder {
-        let actions = items.iter().map(|item| {
-            let cluster = item.context.as_ref().map(|c| c.cluster.as_str()).unwrap_or_default();
-            let uid = format!("_{}:{}_", item.name, cluster);
-            let namespace = item.context.as_ref().and_then(|c| c.namespace.clone());
-            ActionItem::raw(uid, "context".to_owned(), item.name.clone(), None)
-                .with_description(cluster)
-                .with_response(ResponseEvent::ChangeContext(item.name.clone(), namespace))
-        });
+    if is_highlighted {
+        if let Some(resource) = table.get_resource_ref(false) {
+            resources.push(resource);
+        }
 
-        ActionsListBuilder::new(actions.collect())
+        if let Some(result) = table.get_column_values() {
+            values.push(result);
+        }
+    }
+
+    if is_selected {
+        resources.append(&mut table.get_selected_resources_ref(false));
+        values.append(&mut table.get_selected_column_values());
+    }
+
+    PluginContext {
+        context: info.context.clone(),
+        kind: info.resource.kind.clone(),
+        namespace: info.namespace.clone(),
+        resources,
+        columns: table.get_column_names(),
+        values,
     }
 }
