@@ -19,7 +19,7 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
-use crate::ui::views::{DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
+use crate::ui::views::{CmdView, DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
 use crate::ui::widgets::{Position, SideSelect};
 
 pub struct ViewsManager {
@@ -589,14 +589,30 @@ impl ViewsManager {
 
     /// Runs plugin with the specified `id` and `context`.
     pub fn run_plugin(&mut self, id: String, context: PluginContext) {
-        if let Some(plugin) = self.app_data.borrow().plugins.iter().find(|p| p.id == id).cloned() {
-            if plugin.interactive {
-                // TODO: run plugin in separate view that shows output and has interactive terminal.
-            } else {
-                self.worker
-                    .borrow_mut()
-                    .run_plugin(plugin, context, self.footer.get_transmitter());
-            }
+        let Some(plugin) = self.app_data.borrow().plugins.iter().find(|p| p.id == id).cloned() else {
+            return;
+        };
+
+        if plugin.interactive {
+            self.footer().hide_hint();
+
+            let index = if context.resources.len() == 1 { Some(0) } else { None };
+            let resolved_args = plugin.args.iter().map(|arg| context.resolve_arg(arg, index)).collect();
+            let view = CmdView::new(
+                self.worker.borrow().runtime_handle().clone(),
+                Rc::clone(&self.app_data),
+                plugin.name,
+                plugin.command,
+                resolved_args,
+                self.footer.get_transmitter(),
+                self.workspace,
+            );
+
+            self.view = Some(Box::new(view));
+        } else {
+            self.worker
+                .borrow_mut()
+                .run_plugin(plugin, context, self.footer.get_transmitter());
         }
     }
 

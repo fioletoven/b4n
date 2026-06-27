@@ -1,5 +1,7 @@
-pub use self::view::*;
+pub use self::cmd::view::CmdView;
+pub use self::kube::view::ShellView;
 
-mod bridge;
+mod cmd;
 mod keys;
-mod view;
+mod kube;
+mod terminal;
