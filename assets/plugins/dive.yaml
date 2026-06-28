@@ -1,9 +1,9 @@
-# example plugin that executes `dive` on the highlighted container
+# example plugin that executes `dive` for the highlighted container
 
 name: dive
 aliases: []
 description: "opens containers's image in dive"
-shortcut: Shift+D
+shortcut: Shift+L
 command: dive
 args:
   - $COL[IMAGE]

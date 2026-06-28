@@ -815,7 +815,10 @@ impl View for ResourcesView {
 
         let is_highlighted = self.table.list.table.is_anything_highlighted();
         let is_selected = self.table.list.table.is_anything_selected();
-        if let Some((id, highlighted, selected)) = self.app_data.get_plugin_binding(event, is_highlighted, is_selected) {
+        if let Some((id, highlighted, selected)) =
+            self.app_data
+                .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
+        {
             let info = &self.app_data.borrow().current;
             return ResponseEvent::RunPlugin(id, build_plugin_context(info, &self.table, highlighted, selected));
         }
