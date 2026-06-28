@@ -72,9 +72,9 @@ impl ShellView {
 
         let area = get_layout(workspace)[1];
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, SCROLLBACK_LEN)));
-        let mut bridge = ShellBridge::new(runtime, parser.clone(), is_attach);
+        let mut bridge = ShellBridge::new(runtime, area, SCROLLBACK_LEN, is_attach);
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        let parser = bridge.get_parser();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);

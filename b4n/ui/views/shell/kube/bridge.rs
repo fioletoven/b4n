@@ -3,6 +3,7 @@ use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{AttachParams, TerminalSize};
 use kube::{Api, Client};
+use ratatui::layout::Rect;
 use std::sync::{Arc, RwLock};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::runtime::Handle;
@@ -29,7 +30,8 @@ pub struct ShellBridge {
 
 impl ShellBridge {
     /// Creates new [`ShellBridge`] instance.
-    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>, is_attach: bool) -> Self {
+    pub fn new(runtime: Handle, area: Rect, scrollback_len: usize, is_attach: bool) -> Self {
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, scrollback_len)));
         Self {
             runtime,
             task: None,
@@ -151,6 +153,11 @@ impl ShellBridge {
     pub fn stop(&mut self) {
         self.cancel();
         b4n_common::tasks::wait_for_task(self.task.take(), "shell bridge");
+    }
+
+    /// Returns vt100 parser used by this bridge instance.
+    pub fn get_parser(&self) -> Arc<RwLock<vt100::Parser>> {
+        Arc::clone(&self.parser)
     }
 
     /// Sends user input bytes to the attached process.

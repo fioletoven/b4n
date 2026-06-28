@@ -1,5 +1,6 @@
 use kube::api::TerminalSize;
 use portable_pty::Child;
+use ratatui::layout::Rect;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::runtime::Handle;
@@ -25,7 +26,8 @@ pub struct CmdBridge {
 
 impl CmdBridge {
     /// Creates new [`CmdBridge`] instance.
-    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>) -> Self {
+    pub fn new(runtime: Handle, area: Rect, scrollback_len: usize) -> Self {
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, scrollback_len)));
         Self {
             runtime,
             task: None,
@@ -164,6 +166,11 @@ impl CmdBridge {
     pub fn stop(&mut self) {
         self.cancel();
         b4n_common::tasks::wait_for_task(self.task.take(), "external bridge");
+    }
+
+    /// Returns vt100 parser used by this bridge instance.
+    pub fn get_parser(&self) -> Arc<RwLock<vt100::Parser>> {
+        Arc::clone(&self.parser)
     }
 
     /// Sends raw bytes to the process stdin.

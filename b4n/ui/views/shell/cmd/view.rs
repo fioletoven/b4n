@@ -62,9 +62,9 @@ impl CmdView {
         let area = get_layout(workspace)[1];
         let command = command.into();
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
-        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, SCROLLBACK_LEN)));
-        let mut bridge = CmdBridge::new(runtime, parser.clone());
+        let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
         bridge.start(command.clone(), args, area.to_terminal_size());
+        let parser = bridge.get_parser();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
