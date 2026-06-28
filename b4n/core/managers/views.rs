@@ -601,12 +601,13 @@ impl ViewsManager {
             let view = CmdView::new(
                 self.worker.borrow().runtime_handle().clone(),
                 Rc::clone(&self.app_data),
-                plugin.name,
+                &plugin.name,
                 plugin.command,
                 resolved_args,
                 self.footer.get_transmitter(),
                 self.workspace,
             )
+            .with_header_data(index.map(|i| &context.resources[i]))
             .with_auto_close(!plugin.keep_output);
 
             self.view = Some(Box::new(view));

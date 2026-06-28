@@ -8,6 +8,7 @@ command: kubectl
 args:
   - describe
   - $PLURAL
+  - $COL[NAME]
   - --namespace
   - $COL[NAMESPACE]
 interactive: true

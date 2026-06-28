@@ -1,5 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
+use b4n_kube::ResourceRef;
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -49,14 +50,14 @@ impl CmdView {
     pub fn new(
         runtime: Handle,
         app_data: SharedAppData,
-        title: impl Into<String>,
+        title: &str,
         command: impl Into<String>,
         args: Vec<String>,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(title.into());
+        header.set_title(format!(" {title}"));
 
         let area = get_layout_with_header(workspace)[1];
         let command = command.into();
@@ -90,7 +91,21 @@ impl CmdView {
         }
     }
 
-    /// Sets auto close flag.
+    /// Sets header for the view.
+    pub fn with_header_data(mut self, resource_ref: Option<&ResourceRef>) -> Self {
+        if let Some(resource) = resource_ref {
+            self.header
+                .set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
+        } else {
+            let data = &self.app_data.borrow().current;
+            self.header
+                .set_data(data.namespace.clone(), data.resource.kind.clone(), None, None);
+        }
+        self
+    }
+
+    /// Sets auto close flag.\
+    /// **Note** that view will be automatically closed after the running child process exits.
     pub fn with_auto_close(mut self, is_enabled: bool) -> Self {
         self.is_auto_close_enabled = is_enabled;
         self
