@@ -21,7 +21,7 @@ use crate::ui::views::shell::terminal::RectExt;
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
-const SCROLLBACK_LEN: usize = 1_000;
+const SCROLLBACK_LEN: usize = 2_000;
 
 /// External interactive commands view.
 pub struct CmdView {

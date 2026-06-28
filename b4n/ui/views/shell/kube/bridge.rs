@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100::{self};
 
-use crate::ui::views::shell::terminal::{TerminalState, detect_terminal_modes};
+use crate::ui::views::shell::terminal::{TerminalState, update_terminal_state};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
@@ -263,14 +263,7 @@ async fn output_bridge(
                 state.set_running(true);
 
                 processed_buf.extend_from_slice(&buf[..size]);
-
-                let (app_mode_enabled, mouse_enabled) = detect_terminal_modes(&processed_buf);
-                if let Some(is_enabled) = app_mode_enabled {
-                    state.set_cursor_key_mode(if is_enabled { 2 } else { 1 });
-                }
-                if let Some(is_enabled) = mouse_enabled {
-                    state.set_mouse_mode(if is_enabled { 2 } else { 1 });
-                }
+                update_terminal_state(&processed_buf, &mut state);
 
                 let mut parser = parser.write().unwrap();
                 parser.process(&processed_buf);

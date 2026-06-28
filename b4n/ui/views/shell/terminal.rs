@@ -51,6 +51,17 @@ pub fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
     (application_mode, mouse_mode)
 }
 
+/// Detects terminal mode changes and then updates it in [`TerminalState`].
+pub fn update_terminal_state(data: &[u8], state: &mut TerminalState) {
+    let (app_mode, mouse) = detect_terminal_modes(data);
+    if let Some(enabled) = app_mode {
+        state.set_cursor_key_mode(if enabled { 2 } else { 1 });
+    }
+    if let Some(enabled) = mouse {
+        state.set_mouse_mode(if enabled { 2 } else { 1 });
+    }
+}
+
 /// Responds to terminal queries embedded in raw process output.
 pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, size: &TerminalSize) -> Vec<u8> {
     let mut response = Vec::new();
