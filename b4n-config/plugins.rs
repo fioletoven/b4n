@@ -42,6 +42,7 @@ pub struct Plugin {
     pub scopes: Vec<String>,
     pub confirm: bool,
     pub interactive: bool,
+    pub keep_output: bool,
     pub highlighted: bool,
     pub selected: bool,
     pub for_each: bool,

@@ -2,7 +2,7 @@
 
 name: dive
 aliases: []
-description: "opens image in dive"
+description: "opens containers's image in dive"
 shortcut: Shift+D
 command: dive
 args:
@@ -11,5 +11,7 @@ scopes:
   - containers
 confirm: false
 interactive: true
+keep_output: false
 highlighted: true
 selected: false
+for_each: false

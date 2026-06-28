@@ -40,6 +40,7 @@ pub struct CmdView {
     clipboard_text: Option<String>,
     is_app_mode: bool,
     is_mouse_enabled: bool,
+    is_auto_close_enabled: bool,
     footer_tx: NotificationSink,
 }
 
@@ -85,18 +86,30 @@ impl CmdView {
             clipboard_text: None,
             is_app_mode: false,
             is_mouse_enabled: false,
+            is_auto_close_enabled: false,
             footer_tx,
         }
     }
 
+    /// Sets auto close flag.
+    pub fn with_auto_close(mut self, is_enabled: bool) -> Self {
+        self.is_auto_close_enabled = is_enabled;
+        self
+    }
+
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
-        if !self.bridge.is_running() {
+        if !self.bridge.is_running() && self.is_auto_close_enabled {
             return ResponseEvent::Handled;
         }
 
-        let mut builder = ActionsListBuilder::default()
-            .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-            .with_menu_action(ActionItem::menu(100, " close", "close"));
+        let mut builder = ActionsListBuilder::default();
+        if self.bridge.is_finished() {
+            builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
+        } else {
+            builder = builder
+                .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
+                .with_menu_action(ActionItem::menu(100, " close", "close"));
+        }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(false);
         let is_selected = self.selection.sorted().is_some();
@@ -129,10 +142,28 @@ impl CmdView {
                 "mouse_on" => self.enable_mouse(true),
                 "mouse_off" => self.enable_mouse(false),
                 "close" => self.ask_close_forcibly(),
+                "back" => ResponseEvent::Cancelled,
                 _ => response,
             };
         }
         response
+    }
+
+    fn copy_to_clipboard(&mut self) -> ResponseEvent {
+        if let Ok(parser) = self.parser.read() {
+            if let Some((start, end)) = self.selection.sorted() {
+                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+            } else {
+                let text = parser.screen().contents();
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+            }
+        }
+
+        self.selection.reset();
+        ResponseEvent::Handled
     }
 
     /// Inserts clipboard text to the currently running command.\
@@ -154,27 +185,6 @@ impl CmdView {
             }
         }
 
-        ResponseEvent::Handled
-    }
-
-    fn copy_to_clipboard(&mut self) -> ResponseEvent {
-        if !self.bridge.is_running() {
-            return ResponseEvent::Handled;
-        }
-
-        if let Ok(parser) = self.parser.read() {
-            if let Some((start, end)) = self.selection.sorted() {
-                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
-            } else {
-                let text = parser.screen().contents();
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
-            }
-        }
-
-        self.selection.reset();
         ResponseEvent::Handled
     }
 
@@ -287,7 +297,9 @@ impl View for CmdView {
                     .show_error(format!("'{}' exited with an error", self.command), DEFAULT_ERROR_DURATION);
             }
 
-            return ResponseEvent::Cancelled;
+            if self.is_auto_close_enabled {
+                return ResponseEvent::Cancelled;
+            }
         }
 
         if self.is_mouse_enabled && self.bridge.is_mouse_enabled().is_some_and(|m| !m) {
@@ -319,6 +331,10 @@ impl View for CmdView {
                 }
                 ResponseEvent::Handled
             });
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.bridge.is_finished() {
+            return ResponseEvent::Cancelled;
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
@@ -383,7 +399,7 @@ impl View for CmdView {
 
         self.header.draw(frame, layout[0]);
 
-        if self.bridge.is_running() {
+        if self.bridge.is_running() || (!self.is_auto_close_enabled && self.bridge.is_finished()) {
             if (self.size.width != layout[1].width || self.size.height != layout[1].height)
                 && let Ok(mut parser) = self.parser.write()
             {

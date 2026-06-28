@@ -166,6 +166,23 @@ impl ShellView {
         response
     }
 
+    fn copy_to_clipboard(&mut self) -> ResponseEvent {
+        if let Ok(parser) = self.parser.read() {
+            if let Some((start, end)) = self.selection.sorted() {
+                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
+            } else {
+                let text = parser.screen().contents();
+                self.app_data
+                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
+            }
+        }
+
+        self.selection.reset();
+        ResponseEvent::Handled
+    }
+
     /// Inserts clipboard text to the current shell session.\
     /// **Note** that it displays a confirmation dialog instead if the clipboard text contains multiple lines.
     fn insert_from_clipboard(&mut self) -> ResponseEvent {
@@ -184,27 +201,6 @@ impl ShellView {
             }
         }
 
-        ResponseEvent::Handled
-    }
-
-    fn copy_to_clipboard(&mut self) -> ResponseEvent {
-        if !self.bridge.is_running() {
-            return ResponseEvent::Handled;
-        }
-
-        if let Ok(parser) = self.parser.read() {
-            if let Some((start, end)) = self.selection.sorted() {
-                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
-            } else {
-                let text = parser.screen().contents();
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
-            }
-        }
-
-        self.selection.reset();
         ResponseEvent::Handled
     }
 

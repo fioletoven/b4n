@@ -14,7 +14,7 @@ impl PluginsExt for Plugins {
         let plugins = self.iter().filter(|p| {
             (!p.highlighted || p.highlighted == is_highlighted)
                 && (!p.selected || p.selected == is_selected)
-                && p.scopes.iter().any(|s| s == scope)
+                && (p.scopes.is_empty() || p.scopes.iter().any(|s| s == scope))
         });
 
         for plugin in plugins {
