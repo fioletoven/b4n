@@ -10,6 +10,7 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tokio::runtime::Handle;
+use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
@@ -95,6 +96,21 @@ impl CmdView {
     pub fn with_auto_close(mut self, is_enabled: bool) -> Self {
         self.is_auto_close_enabled = is_enabled;
         self
+    }
+
+    fn show_command_palette(&mut self) {
+        let copy_description = if self.selection.sorted().is_some() {
+            "copies selection to clipboard"
+        } else {
+            "copies screen to clipboard"
+        };
+        let builder = ActionsListBuilder::default().with_back().with_quit().with_action(
+            ActionItem::action("copy", "copy").with_description(copy_description),
+            Some(KeyCommand::ContentCopy),
+        );
+        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65);
+        self.command_palette.show();
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
@@ -263,18 +279,25 @@ impl CmdView {
             self.scrollback_rows = self.scrollback_rows.saturating_sub(usize::from(offset));
         }
 
-        if let Ok(mut parser) = self.parser.write() {
-            parser.screen_mut().set_scrollback(self.scrollback_rows);
-            self.scrollback_rows = parser.screen().scrollback();
-        }
-
+        self.update_scrollback();
         ResponseEvent::Handled
     }
 
-    fn reset_scrollback(&mut self) {
-        self.scrollback_rows = 0;
+    fn reset_scrollback(&mut self, is_up: bool) -> ResponseEvent {
+        if is_up {
+            self.scrollback_rows = SCROLLBACK_LEN + 1;
+        } else {
+            self.scrollback_rows = 0;
+        }
+
+        self.update_scrollback();
+        ResponseEvent::Handled
+    }
+
+    fn update_scrollback(&mut self) {
         if let Ok(mut parser) = self.parser.write() {
-            parser.screen_mut().set_scrollback(0);
+            parser.screen_mut().set_scrollback(self.scrollback_rows);
+            self.scrollback_rows = parser.screen().scrollback();
         }
     }
 
@@ -333,8 +356,15 @@ impl View for CmdView {
             });
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NavigateBack) && self.bridge.is_finished() {
-            return ResponseEvent::Cancelled;
+        if self.bridge.is_finished() {
+            if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
+                return ResponseEvent::Cancelled;
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
+                self.show_command_palette();
+                return ResponseEvent::Handled;
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
@@ -369,23 +399,27 @@ impl View for CmdView {
         }
 
         if let TuiEvent::Key(key) = event {
-            if key.modifiers == KeyModifiers::CONTROL {
+            if self.bridge.is_finished() || key.modifiers == KeyModifiers::CONTROL {
                 match key.code {
+                    KeyCode::Home => return self.reset_scrollback(true),
                     KeyCode::Up => return self.set_scrollback(1, true),
                     KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
                     KeyCode::Down => return self.set_scrollback(1, false),
                     KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
+                    KeyCode::End => return self.reset_scrollback(false),
                     _ => (),
                 }
             }
 
             let is_app_mode = self.bridge.is_application_mode().unwrap_or(self.is_app_mode);
 
-            if let Some(bytes) = encode_key(key.code, key.modifiers, is_app_mode) {
+            if self.bridge.is_running()
+                && let Some(bytes) = encode_key(key.code, key.modifiers, is_app_mode)
+            {
                 self.bridge.send(bytes);
 
                 if self.scrollback_rows > 0 {
-                    self.reset_scrollback();
+                    self.reset_scrollback(false);
                 }
             }
         }
@@ -410,7 +444,8 @@ impl View for CmdView {
 
             if let Ok(parser) = self.parser.read() {
                 let screen = parser.screen();
-                let pseudo_term = PseudoTerminal::new(screen);
+                let cursor = Cursor::default().visibility(!self.bridge.is_finished());
+                let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
                 frame.render_widget(pseudo_term, layout[1]);
             }
 

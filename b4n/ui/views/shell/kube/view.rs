@@ -279,18 +279,25 @@ impl ShellView {
             self.scrollback_rows = self.scrollback_rows.saturating_sub(usize::from(offset));
         }
 
-        if let Ok(mut parser) = self.parser.write() {
-            parser.screen_mut().set_scrollback(self.scrollback_rows);
-            self.scrollback_rows = parser.screen().scrollback();
-        }
-
+        self.update_scrollback();
         ResponseEvent::Handled
     }
 
-    fn reset_scrollback(&mut self) {
-        self.scrollback_rows = 0;
+    fn reset_scrollback(&mut self, is_up: bool) -> ResponseEvent {
+        if is_up {
+            self.scrollback_rows = SCROLLBACK_LEN + 1;
+        } else {
+            self.scrollback_rows = 0;
+        }
+
+        self.update_scrollback();
+        ResponseEvent::Handled
+    }
+
+    fn update_scrollback(&mut self) {
         if let Ok(mut parser) = self.parser.write() {
-            parser.screen_mut().set_scrollback(0);
+            parser.screen_mut().set_scrollback(self.scrollback_rows);
+            self.scrollback_rows = parser.screen().scrollback();
         }
     }
 
@@ -398,10 +405,12 @@ impl View for ShellView {
         if let TuiEvent::Key(key) = event {
             if key.modifiers == KeyModifiers::CONTROL {
                 match key.code {
+                    KeyCode::Home => return self.reset_scrollback(true),
                     KeyCode::Up => return self.set_scrollback(1, true),
                     KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
                     KeyCode::Down => return self.set_scrollback(1, false),
                     KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
+                    KeyCode::End => return self.reset_scrollback(false),
                     _ => (),
                 }
             }
@@ -411,7 +420,7 @@ impl View for ShellView {
                 self.bridge.send(bytes);
 
                 if self.scrollback_rows > 0 {
-                    self.reset_scrollback();
+                    self.reset_scrollback(false);
                 }
             }
         }
