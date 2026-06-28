@@ -1,5 +1,6 @@
 use kube::api::TerminalSize;
 use portable_pty::Child;
+use ratatui::layout::Rect;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::runtime::Handle;
@@ -8,7 +9,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100;
 
-use crate::ui::views::shell::terminal::{TerminalState, detect_terminal_modes, handle_terminal_queries};
+use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries, update_terminal_state};
 
 /// Bridge between external command and `b4n`'s TUI.
 pub struct CmdBridge {
@@ -25,7 +26,8 @@ pub struct CmdBridge {
 
 impl CmdBridge {
     /// Creates new [`CmdBridge`] instance.
-    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>) -> Self {
+    pub fn new(runtime: Handle, area: Rect, scrollback_len: usize) -> Self {
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, scrollback_len)));
         Self {
             runtime,
             task: None,
@@ -166,6 +168,11 @@ impl CmdBridge {
         b4n_common::tasks::wait_for_task(self.task.take(), "external bridge");
     }
 
+    /// Returns vt100 parser used by this bridge instance.
+    pub fn get_parser(&self) -> Arc<RwLock<vt100::Parser>> {
+        Arc::clone(&self.parser)
+    }
+
     /// Sends raw bytes to the process stdin.
     pub fn send(&self, data: Vec<u8>) {
         if self.is_running()
@@ -280,16 +287,14 @@ async fn output_bridge(
     size: TerminalSize,
 ) -> bool {
     let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
-    let ct = cancellation_token.clone();
 
     tokio::task::spawn_blocking(move || {
         let mut reader = reader;
         let mut buf = [0u8; 8192];
 
-        while !ct.is_cancelled() {
+        loop {
             match reader.read(&mut buf) {
                 Ok(0) => {
-                    ct.cancel();
                     break;
                 },
                 Ok(n) => {
@@ -299,7 +304,6 @@ async fn output_bridge(
                 },
                 Err(err) => {
                     tracing::debug!("PTY read ended: {}", err);
-                    ct.cancel();
                     break;
                 },
             }
@@ -307,36 +311,20 @@ async fn output_bridge(
     });
 
     let mut total_bytes = 0usize;
-    let ct = cancellation_token.clone();
+    while let Some(data) = rx.recv().await {
+        state.set_running(true);
+        total_bytes += data.len();
 
-    while !cancellation_token.is_cancelled() {
-        tokio::select! {
-            () = cancellation_token.cancelled() => break,
-            data = rx.recv() => match data {
-                Some(data) => {
-                    state.set_running(true);
-                    total_bytes += data.len();
+        update_terminal_state(&data, &mut state);
+        let response = handle_terminal_queries(&data, &parser, &size);
+        let _ = response_tx.send(response);
 
-                    let (app_mode, mouse) = detect_terminal_modes(&data);
-                    if let Some(enabled) = app_mode {
-                        state.set_cursor_key_mode(if enabled { 2 } else { 1 });
-                    }
-                    if let Some(enabled) = mouse {
-                        state.set_mouse_mode(if enabled { 2 } else { 1 });
-                    }
-
-                    let response = handle_terminal_queries(&data, &parser, &size);
-                    let _ = response_tx.send(response);
-
-                    if let Ok(mut p) = parser.write() {
-                        p.process(&data);
-                    }
-                }
-                None => ct.cancel(),
-            },
+        if let Ok(mut p) = parser.write() {
+            p.process(&data);
         }
     }
 
+    cancellation_token.cancel();
     total_bytes == 0
 }
 

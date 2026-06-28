@@ -3,6 +3,7 @@ use futures::{SinkExt, channel::mpsc::Sender};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{AttachParams, TerminalSize};
 use kube::{Api, Client};
+use ratatui::layout::Rect;
 use std::sync::{Arc, RwLock};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::runtime::Handle;
@@ -11,7 +12,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100::{self};
 
-use crate::ui::views::shell::terminal::{TerminalState, detect_terminal_modes};
+use crate::ui::views::shell::terminal::{TerminalState, update_terminal_state};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
@@ -29,7 +30,8 @@ pub struct ShellBridge {
 
 impl ShellBridge {
     /// Creates new [`ShellBridge`] instance.
-    pub fn new(runtime: Handle, parser: Arc<RwLock<vt100::Parser>>, is_attach: bool) -> Self {
+    pub fn new(runtime: Handle, area: Rect, scrollback_len: usize, is_attach: bool) -> Self {
+        let parser = Arc::new(RwLock::new(vt100::Parser::new(area.height, area.width, scrollback_len)));
         Self {
             runtime,
             task: None,
@@ -153,6 +155,11 @@ impl ShellBridge {
         b4n_common::tasks::wait_for_task(self.task.take(), "shell bridge");
     }
 
+    /// Returns vt100 parser used by this bridge instance.
+    pub fn get_parser(&self) -> Arc<RwLock<vt100::Parser>> {
+        Arc::clone(&self.parser)
+    }
+
     /// Sends user input bytes to the attached process.
     pub fn send(&self, data: Vec<u8>) {
         if self.is_running()
@@ -263,14 +270,7 @@ async fn output_bridge(
                 state.set_running(true);
 
                 processed_buf.extend_from_slice(&buf[..size]);
-
-                let (app_mode_enabled, mouse_enabled) = detect_terminal_modes(&processed_buf);
-                if let Some(is_enabled) = app_mode_enabled {
-                    state.set_cursor_key_mode(if is_enabled { 2 } else { 1 });
-                }
-                if let Some(is_enabled) = mouse_enabled {
-                    state.set_mouse_mode(if is_enabled { 2 } else { 1 });
-                }
+                update_terminal_state(&processed_buf, &mut state);
 
                 let mut parser = parser.write().unwrap();
                 parser.process(&processed_buf);

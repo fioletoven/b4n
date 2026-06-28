@@ -3,7 +3,7 @@ use b4n_kube::{Kind, Namespace};
 use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, widgets::Spinner};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::layout::{Constraint, Margin, Position, Rect};
 use ratatui::style::Color;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
@@ -15,6 +15,7 @@ use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
 use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
+use crate::ui::views::get_layout_with_header;
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
@@ -490,7 +491,7 @@ impl<T: Content> ContentViewer<T> {
     /// Draws the [`ContentViewer`] onto the given frame within the specified area.\
     /// `highlight_offset` - used to adjust the position of search highlights.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
-        let layout = get_layout(area);
+        let layout = get_layout_with_header(area);
         self.header.draw(frame, layout[0]);
         frame.render_widget(Block::new().style(&self.app_data.borrow().theme.colors.text), layout[1]);
 
@@ -503,7 +504,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Returns size of the content area for the specified area.
     pub fn get_content_area(area: Rect) -> Rect {
-        get_layout(area)[1].inner(Margin::new(1, 0))
+        get_layout_with_header(area)[1].inner(Margin::new(1, 0))
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
@@ -575,11 +576,4 @@ impl<T: Content> Drop for ContentViewer<T> {
     fn drop(&mut self) {
         self.disable_keys(false);
     }
-}
-
-fn get_layout(area: Rect) -> Rc<[Rect]> {
-    Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-        .split(area)
 }

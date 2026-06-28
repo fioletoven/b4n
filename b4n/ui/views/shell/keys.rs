@@ -4,7 +4,7 @@ use ratatui::layout::Rect;
 
 /// Converts a key event to terminal byte sequence.
 pub fn encode_key(code: KeyCode, modifiers: KeyModifiers, app_mode: bool) -> Option<Vec<u8>> {
-    match code {
+    let mut bytes = match code {
         KeyCode::Char(input) => Some(get_char_bytes(input, modifiers)),
 
         KeyCode::Esc => Some(vec![27]),
@@ -28,7 +28,13 @@ pub fn encode_key(code: KeyCode, modifiers: KeyModifiers, app_mode: bool) -> Opt
         KeyCode::F(n) => get_function_key_sequence(n, modifiers),
 
         _ => None,
+    }?;
+
+    if modifiers.contains(KeyModifiers::ALT) {
+        bytes.insert(0, 27);
     }
+
+    Some(bytes)
 }
 
 /// Encodes mouse event to SGR extended format.

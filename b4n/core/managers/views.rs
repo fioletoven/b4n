@@ -606,7 +606,8 @@ impl ViewsManager {
                 resolved_args,
                 self.footer.get_transmitter(),
                 self.workspace,
-            );
+            )
+            .with_auto_close(!plugin.keep_output);
 
             self.view = Some(Box::new(view));
         } else {

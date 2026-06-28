@@ -4,6 +4,7 @@
 
 ### Features
 
+- add simple plugins system that can extend resources view
 - use serde-saphyr instead of deprecated serde_yaml crate
 
 ### Bug fixes
