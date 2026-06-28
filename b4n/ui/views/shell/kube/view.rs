@@ -6,22 +6,21 @@ use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
-use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use std::time::Instant;
 use tokio::runtime::Handle;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
+use crate::ui::views::common::get_layout_with_header;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
+use crate::ui::views::shell::kube::bridge::ShellBridge;
 use crate::ui::views::shell::terminal::RectExt;
+use crate::ui::views::{EscPressTracker, ScreenExt};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
-
-use super::bridge::ShellBridge;
 
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
@@ -41,8 +40,7 @@ pub struct ShellView {
     command_palette: CommandPalette,
     selection: ScreenSelection,
     area: Rect,
-    esc_count: u8,
-    esc_time: Instant,
+    esc_tracker: EscPressTracker,
     clipboard_text: Option<String>,
     is_attach: bool,
     is_app_mode: bool,
@@ -70,7 +68,7 @@ impl ShellView {
             pod.container.clone(),
         );
 
-        let area = get_layout(workspace)[1];
+        let area = get_layout_with_header(workspace)[1];
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let mut bridge = ShellBridge::new(runtime, area, SCROLLBACK_LEN, is_attach);
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
@@ -93,8 +91,7 @@ impl ShellView {
             command_palette: CommandPalette::default(),
             selection,
             area,
-            esc_count: 0,
-            esc_time: Instant::now(),
+            esc_tracker: EscPressTracker::default(),
             clipboard_text: None,
             is_attach,
             is_app_mode: false,
@@ -168,15 +165,9 @@ impl ShellView {
 
     fn copy_to_clipboard(&mut self) -> ResponseEvent {
         if let Ok(parser) = self.parser.read() {
-            if let Some((start, end)) = self.selection.sorted() {
-                let text = parser.screen().contents_between(start.y, start.x, end.y, end.x + 1);
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Selected text copied to clipboard");
-            } else {
-                let text = parser.screen().contents();
-                self.app_data
-                    .copy_to_clipboard(text, &self.footer_tx, || "Whole screen copied to clipboard");
-            }
+            parser
+                .screen()
+                .copy_to_clipboard(&mut self.app_data, &mut self.selection, &self.footer_tx);
         }
 
         self.selection.reset();
@@ -253,23 +244,6 @@ impl ShellView {
         )
         .with_width(65)
         .with_colors(colors.modal.text)
-    }
-
-    /// Checks if `ESC` key was pressed quickly `x` times.
-    fn is_esc_key_pressed_times(&mut self, times: u8) -> bool {
-        if self.esc_time.elapsed().as_millis() < (200 * u128::from(times)) {
-            self.esc_count += 1;
-        } else {
-            self.esc_count = 1;
-            self.esc_time = Instant::now();
-        }
-
-        if self.esc_count == times {
-            self.esc_count = 0;
-            true
-        } else {
-            false
-        }
     }
 
     fn set_scrollback(&mut self, offset: u16, is_up: bool) -> ResponseEvent {
@@ -366,7 +340,7 @@ impl View for ShellView {
             });
         }
 
-        if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.is_esc_key_pressed_times(3) {
+        if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.esc_tracker.is_pressed_times(3) {
             return if self.is_attach {
                 ResponseEvent::Cancelled
             } else {
@@ -429,7 +403,7 @@ impl View for ShellView {
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let layout = get_layout(area);
+        let layout = get_layout_with_header(area);
         self.area = layout[1];
 
         self.header.draw(frame, layout[0]);
@@ -472,11 +446,4 @@ fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: b
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
     let action = if is_attach { "close attach view" } else { "detach shell" };
     footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
-}
-
-fn get_layout(area: Rect) -> Rc<[Rect]> {
-    Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
-        .split(area)
 }
