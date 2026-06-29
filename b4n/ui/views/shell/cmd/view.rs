@@ -39,7 +39,6 @@ pub struct CmdView {
     selection: ScreenSelection,
     area: Rect,
     esc_tracker: EscPressTracker,
-    clipboard_text: Option<String>,
     pin_to_top: bool,
     auto_close_view: bool,
     is_finished: bool,
@@ -85,7 +84,6 @@ impl CmdView {
             selection,
             area,
             esc_tracker: EscPressTracker::default(),
-            clipboard_text: None,
             pin_to_top: !plugin.interactive && plugin.pin_to_top,
             auto_close_view: !plugin.keep_output,
             is_finished: false,
@@ -186,8 +184,7 @@ impl CmdView {
         ResponseEvent::Handled
     }
 
-    /// Inserts clipboard text to the currently running command.\
-    /// **Note** that it displays a confirmation dialog instead if the clipboard text contains multiple lines.
+    /// Inserts clipboard text to the currently running command.
     fn insert_from_clipboard(&mut self) -> ResponseEvent {
         if !self.bridge.is_running() {
             return ResponseEvent::Handled;
@@ -195,41 +192,11 @@ impl CmdView {
 
         let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
         if let Some(text) = text {
-            if text.contains('\n') {
-                self.clipboard_text = Some(text.replace("\r\n", "\n"));
-                self.ask_insert_from_clipboard();
-            } else {
-                self.selection.reset();
-                self.bridge.send(text.into_bytes());
-            }
+            self.selection.reset();
+            self.bridge.send(text.replace("\r\n", "\n").into_bytes());
         }
 
         ResponseEvent::Handled
-    }
-
-    /// Displays a confirmation dialog to paste multiline clipboard text.
-    fn ask_insert_from_clipboard(&mut self) {
-        if self.bridge.is_running() && self.clipboard_text.is_some() {
-            self.modal = self.new_insert_clipboard_text_dialog();
-            self.modal.show();
-        }
-    }
-
-    /// Creates new insert multiline clipboard text dialog.
-    fn new_insert_clipboard_text_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        Dialog::new(
-            "You are about to paste text that contains multiple lines. If you paste this text \
-             into the terminal, it may result in the unexpected execution of commands.\n\
-             Do you wish to continue?"
-                .to_owned(),
-            vec![
-                Button::new("Paste Anyway", ResponseEvent::Action("paste"), &colors.modal.btn_accent),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
-            ],
-        )
-        .with_width(65)
-        .with_colors(colors.modal.text)
     }
 
     /// Displays a confirmation dialog to forcibly close the command.
@@ -342,13 +309,7 @@ impl View for CmdView {
         }
 
         if self.modal.is_visible {
-            return self.modal.process_event(event).when_action_then("paste", || {
-                if let Some(text) = self.clipboard_text.take() {
-                    self.selection.reset();
-                    self.bridge.send(text.into_bytes());
-                }
-                ResponseEvent::Handled
-            });
+            return self.modal.process_event(event);
         }
 
         if self.bridge.is_finished() {
@@ -358,6 +319,11 @@ impl View for CmdView {
 
             if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
                 self.show_command_palette();
+                return ResponseEvent::Handled;
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+                self.copy_to_clipboard();
                 return ResponseEvent::Handled;
             }
         }

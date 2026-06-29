@@ -1,4 +1,5 @@
 # Example plugin that executes `dive` for the highlighted container
+# https://github.com/wagoodman/dive
 
 name: dive
 aliases: []
