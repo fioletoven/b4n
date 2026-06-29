@@ -298,12 +298,9 @@ impl SharedAppDataExt for SharedAppData {
         };
 
         let plugins = &self.borrow().plugins;
-        let plugin = plugins.iter().find(|p| {
-            (!p.highlighted || p.highlighted == is_highlighted)
-                && (!p.selected || p.selected == is_selected)
-                && &p.shortcut == key
-                && (p.scopes.is_empty() || p.scopes.iter().any(|s| s == scope))
-        })?;
+        let plugin = plugins
+            .iter()
+            .find(|p| p.in_scope_for(scope, is_highlighted, is_selected) && &p.shortcut == key)?;
 
         Some((plugin.id.clone(), plugin.highlighted, plugin.selected))
     }

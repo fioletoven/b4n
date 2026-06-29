@@ -1,4 +1,5 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
+use b4n_config::Plugin;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::ResourceRef;
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
@@ -39,9 +40,11 @@ pub struct CmdView {
     area: Rect,
     esc_tracker: EscPressTracker,
     clipboard_text: Option<String>,
+    pin_to_top: bool,
+    auto_close_view: bool,
+    is_finished: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
-    is_auto_close_enabled: bool,
     footer_tx: NotificationSink,
 }
 
@@ -50,17 +53,16 @@ impl CmdView {
     pub fn new(
         runtime: Handle,
         app_data: SharedAppData,
-        title: &str,
-        command: impl Into<String>,
+        plugin: Plugin,
         args: Vec<String>,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(format!(" {title}"));
+        header.set_title(format!(" {}", plugin.name));
 
         let area = get_layout_with_header(workspace)[1];
-        let command = command.into();
+        let command = plugin.command;
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
         bridge.start(command.clone(), args, area.to_terminal_size());
@@ -84,9 +86,11 @@ impl CmdView {
             area,
             esc_tracker: EscPressTracker::default(),
             clipboard_text: None,
+            pin_to_top: !plugin.interactive && plugin.pin_to_top,
+            auto_close_view: !plugin.keep_output,
+            is_finished: false,
             is_app_mode: false,
             is_mouse_enabled: false,
-            is_auto_close_enabled: false,
             footer_tx,
         }
     }
@@ -101,13 +105,6 @@ impl CmdView {
             self.header
                 .set_data(data.namespace.clone(), data.resource.kind.clone(), None, None);
         }
-        self
-    }
-
-    /// Sets auto close flag.\
-    /// **Note** that view will be automatically closed after the running child process exits.
-    pub fn with_auto_close(mut self, is_enabled: bool) -> Self {
-        self.is_auto_close_enabled = is_enabled;
         self
     }
 
@@ -127,7 +124,7 @@ impl CmdView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
-        if !self.bridge.is_running() && self.is_auto_close_enabled {
+        if !self.bridge.is_running() && self.auto_close_view {
             return ResponseEvent::Handled;
         }
 
@@ -304,14 +301,22 @@ impl CmdView {
 
 impl View for CmdView {
     fn process_tick(&mut self) -> ResponseEvent {
-        if self.bridge.is_finished() {
+        if !self.is_finished && self.bridge.is_finished() {
+            self.is_finished = true;
+            self.footer_tx.hide_hint();
+
             if self.bridge.has_error() {
                 self.footer_tx
                     .show_error(format!("'{}' exited with an error", self.command), DEFAULT_ERROR_DURATION);
             }
 
-            if self.is_auto_close_enabled {
+            if self.auto_close_view {
                 return ResponseEvent::Cancelled;
+            }
+
+            if self.pin_to_top {
+                self.pin_to_top = false;
+                self.reset_scrollback(true);
             }
         }
 
@@ -423,13 +428,17 @@ impl View for CmdView {
 
         self.header.draw(frame, layout[0]);
 
-        if self.bridge.is_running() || (!self.is_auto_close_enabled && self.bridge.is_finished()) {
+        if self.bridge.is_running() || (!self.auto_close_view && self.bridge.is_finished()) {
             if (self.size.width != layout[1].width || self.size.height != layout[1].height)
                 && let Ok(mut parser) = self.parser.write()
             {
                 parser.screen_mut().set_size(layout[1].height, layout[1].width);
                 self.bridge.set_terminal_size(layout[1].width, layout[1].height);
                 self.size = layout[1].to_terminal_size();
+            }
+
+            if self.pin_to_top {
+                self.reset_scrollback(true);
             }
 
             if let Ok(parser) = self.parser.read() {
