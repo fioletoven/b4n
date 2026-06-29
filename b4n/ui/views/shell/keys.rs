@@ -10,27 +10,27 @@ pub fn encode_key(code: KeyCode, modifiers: KeyModifiers, app_mode: bool) -> Opt
         KeyCode::Esc => Some(vec![27]),
         KeyCode::Backspace => Some(vec![127]),
         KeyCode::Enter => Some(vec![13]),
-        KeyCode::PageUp => Some(vec![27, 91, 53, 126]),
-        KeyCode::PageDown => Some(vec![27, 91, 54, 126]),
+        KeyCode::PageUp => Some(get_tilde_key_sequence(5, modifiers)),
+        KeyCode::PageDown => Some(get_tilde_key_sequence(6, modifiers)),
         KeyCode::Tab => Some(vec![9]),
         KeyCode::BackTab => Some(vec![27, 91, 90]),
         KeyCode::Delete => Some(vec![27, 91, 51, 126]),
         KeyCode::Insert => Some(vec![27, 91, 50, 126]),
 
-        KeyCode::Home => Some(if app_mode { vec![27, 79, 72] } else { vec![27, 91, 72] }),
-        KeyCode::End => Some(if app_mode { vec![27, 79, 70] } else { vec![27, 91, 70] }),
+        KeyCode::Home => Some(get_navigation_key_sequence(b'H', modifiers, app_mode)),
+        KeyCode::End => Some(get_navigation_key_sequence(b'F', modifiers, app_mode)),
 
-        KeyCode::Left => Some(if app_mode { vec![27, 79, 68] } else { vec![27, 91, 68] }),
-        KeyCode::Right => Some(if app_mode { vec![27, 79, 67] } else { vec![27, 91, 67] }),
-        KeyCode::Up => Some(if app_mode { vec![27, 79, 65] } else { vec![27, 91, 65] }),
-        KeyCode::Down => Some(if app_mode { vec![27, 79, 66] } else { vec![27, 91, 66] }),
+        KeyCode::Left => Some(get_navigation_key_sequence(b'D', modifiers, app_mode)),
+        KeyCode::Right => Some(get_navigation_key_sequence(b'C', modifiers, app_mode)),
+        KeyCode::Up => Some(get_navigation_key_sequence(b'A', modifiers, app_mode)),
+        KeyCode::Down => Some(get_navigation_key_sequence(b'B', modifiers, app_mode)),
 
         KeyCode::F(n) => get_function_key_sequence(n, modifiers),
 
         _ => None,
     }?;
 
-    if modifiers.contains(KeyModifiers::ALT) {
+    if modifiers.contains(KeyModifiers::ALT) && !uses_csi_modifier_params(code, modifiers) {
         bytes.insert(0, 27);
     }
 
@@ -86,13 +86,37 @@ fn get_char_bytes(input: char, modifiers: KeyModifiers) -> Vec<u8> {
     }
 }
 
-/// Converts function key to terminal byte sequence.
-fn get_function_key_sequence(n: u8, modifiers: KeyModifiers) -> Option<Vec<u8>> {
+/// Converts cursor, Home, and End keys to terminal byte sequences.
+fn get_navigation_key_sequence(key_char: u8, modifiers: KeyModifiers, app_mode: bool) -> Vec<u8> {
     let modifier_code = get_modifier_code(modifiers);
 
+    if modifier_code > 0 {
+        format!("\x1b[1;{modifier_code}{}", char::from(key_char)).into_bytes()
+    } else if app_mode {
+        vec![27, 79, key_char]
+    } else {
+        vec![27, 91, key_char]
+    }
+}
+
+/// Converts Fn, PageUp, and PageDown keys to terminal byte sequences.
+fn get_tilde_key_sequence(base: u8, modifiers: KeyModifiers) -> Vec<u8> {
+    let modifier_code = get_modifier_code(modifiers);
+
+    if modifier_code > 0 {
+        format!("\x1b[{base};{modifier_code}~").into_bytes()
+    } else {
+        format!("\x1b[{base}~").into_bytes()
+    }
+}
+
+/// Converts function key to terminal byte sequence.
+fn get_function_key_sequence(n: u8, modifiers: KeyModifiers) -> Option<Vec<u8>> {
     match n {
         1..=4 => {
             let key_char = b'P' + (n - 1);
+            let modifier_code = get_modifier_code(modifiers);
+
             if modifier_code > 0 {
                 Some(vec![27, 91, 49, 59, modifier_code, key_char])
             } else {
@@ -112,14 +136,29 @@ fn get_function_key_sequence(n: u8, modifiers: KeyModifiers) -> Option<Vec<u8>> 
                 _ => unreachable!(),
             };
 
-            if modifier_code > 0 {
-                Some(format!("\x1b[{base};{modifier_code}~").into_bytes())
-            } else {
-                Some(format!("\x1b[{base}~").into_bytes())
-            }
+            Some(get_tilde_key_sequence(base, modifiers))
         },
         _ => None,
     }
+}
+
+fn uses_csi_modifier_params(code: KeyCode, modifiers: KeyModifiers) -> bool {
+    if get_modifier_code(modifiers) == 0 {
+        return false;
+    }
+
+    matches!(
+        code,
+        KeyCode::Home
+            | KeyCode::End
+            | KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::Up
+            | KeyCode::Down
+            | KeyCode::PageUp
+            | KeyCode::PageDown
+            | KeyCode::F(_)
+    )
 }
 
 /// Converts key modifiers to terminal modifier code.
