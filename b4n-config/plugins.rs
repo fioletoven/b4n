@@ -40,12 +40,46 @@ pub struct Plugin {
     pub command: String,
     pub args: Vec<String>,
     pub scopes: Vec<String>,
+    pub excluded_scopes: Vec<String>,
     pub confirm: bool,
     pub interactive: bool,
     pub keep_output: bool,
+    pub pin_to_top: bool,
     pub highlighted: bool,
     pub selected: bool,
     pub for_each: bool,
+}
+
+impl Plugin {
+    /// Returns `true` if plugin is in specified scope.
+    pub fn in_scope_for(&self, scope: &str, is_highlighted: bool, is_selected: bool) -> bool {
+        (!self.highlighted || self.highlighted == is_highlighted)
+            && (!self.selected || self.selected == is_selected)
+            && (self.scopes.is_empty() || self.scopes.iter().any(|s| s == scope))
+            && (self.excluded_scopes.is_empty() || self.excluded_scopes.iter().all(|s| s != scope))
+    }
+}
+
+/// Holds minimal set of a plugin configuration.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PluginRef {
+    pub id: String,
+    pub name: String,
+    pub confirm: bool,
+    pub highlighted: bool,
+    pub selected: bool,
+}
+
+impl From<&Plugin> for PluginRef {
+    fn from(plugin: &Plugin) -> Self {
+        Self {
+            id: plugin.id.clone(),
+            name: plugin.name.clone(),
+            confirm: plugin.confirm,
+            highlighted: plugin.highlighted,
+            selected: plugin.selected,
+        }
+    }
 }
 
 /// All discovered plugins.

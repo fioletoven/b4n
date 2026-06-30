@@ -1,5 +1,5 @@
 use kube::api::TerminalSize;
-use portable_pty::Child;
+use portable_pty::{Child, PtyPair};
 use ratatui::layout::Rect;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex, RwLock};
@@ -43,9 +43,10 @@ impl CmdBridge {
 
     /// Starts the external binary process.\
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, command: impl Into<String>, args: Vec<String>, size: TerminalSize) {
+    pub fn start(&mut self, command: String, args: Vec<String>, size: TerminalSize) {
         self.stop();
 
+        self.command = Some(command.clone());
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _parser = self.parser.clone();
@@ -57,21 +58,11 @@ impl CmdBridge {
         let (size_tx, _size_rx) = mpsc::unbounded_channel::<(u16, u16)>();
         self.size_tx = Some(size_tx);
 
-        let _command = command.into();
-        self.command = Some(_command.clone());
-
         self.state.set_error(false);
         let mut _state = self.state.clone();
 
         let task = self.runtime.spawn(async move {
-            let pty_system = portable_pty::native_pty_system();
-            let pty_size = portable_pty::PtySize {
-                rows: size.height,
-                cols: size.width,
-                ..Default::default()
-            };
-
-            let pair = match pty_system.openpty(pty_size) {
+            let pty_pair = match open_pty(&size) {
                 Ok(p) => p,
                 Err(err) => {
                     tracing::warn!("Cannot open PTY: {}", err);
@@ -80,46 +71,37 @@ impl CmdBridge {
                 },
             };
 
-            let mut cmd = portable_pty::CommandBuilder::new(&_command);
-            cmd.args(&args);
-
-            let child = match pair.slave.spawn_command(cmd) {
+            let child = match pty_pair.slave.spawn_command(get_command_builder(&command, args)) {
                 Ok(c) => c,
                 Err(err) => {
-                    tracing::warn!("Cannot spawn command '{}': {}", _command, err);
+                    tracing::warn!("Cannot spawn command '{}': {}", command, err);
                     _state.set_error(true);
                     return;
                 },
             };
 
-            drop(pair.slave);
+            drop(pty_pair.slave);
 
-            let writer = match pair.master.take_writer() {
+            let writer = match pty_pair.master.take_writer() {
                 Ok(w) => w,
                 Err(err) => {
-                    tracing::warn!("Cannot get PTY writer for '{}': {}", _command, err);
+                    tracing::warn!("Cannot get PTY writer for '{}': {}", command, err);
                     _state.set_error(true);
                     return;
                 },
             };
-
-            let reader = match pair.master.try_clone_reader() {
+            let reader = match pty_pair.master.try_clone_reader() {
                 Ok(r) => r,
                 Err(err) => {
-                    tracing::warn!("Cannot get PTY reader for '{}': {}", _command, err);
+                    tracing::warn!("Cannot get PTY reader for '{}': {}", command, err);
                     _state.set_error(true);
                     return;
                 },
             };
-
-            _state.set_running(true);
-
-            let master = Arc::new(Mutex::new(pair.master));
-            let _master = Arc::clone(&master);
 
             let child_task = tokio::spawn({
                 let _cancellation_token = _cancellation_token.clone();
-                let _command = _command.clone();
+                let _command = command.clone();
                 async move {
                     let ended_with_error = wait_for_child(&_command, child).await;
                     _cancellation_token.cancel();
@@ -127,26 +109,33 @@ impl CmdBridge {
                 }
             });
 
-            let ((), output_closed_too_soon, ()) = tokio::join! {
-                input_bridge(writer, _input_rx, _cancellation_token.clone()),
-                output_bridge(
-                    reader,
-                    _parser,
-                    _cancellation_token.clone(),
-                    _response_tx,
-                    _state.clone(),
-                    TerminalSize { width: size.width, height: size.height },
-                ),
-                resize_bridge(_master, _size_rx, _cancellation_token.clone()),
-            };
+            _state.set_running(true);
+            let master = Arc::new(Mutex::new(pty_pair.master));
+            let _master = Arc::clone(&master);
 
-            _cancellation_token.cancel();
+            let input_task = tokio::spawn(input_bridge(writer, _input_rx, _cancellation_token.clone()));
+            let output_task = tokio::spawn(output_bridge(
+                reader,
+                _parser,
+                _cancellation_token.clone(),
+                _response_tx,
+                _state.clone(),
+                TerminalSize {
+                    width: size.width,
+                    height: size.height,
+                },
+            ));
+            let resize_task = tokio::spawn(resize_bridge(_master, _size_rx, _cancellation_token.clone()));
 
             let ended_with_error = child_task.await.unwrap_or(true);
+            _cancellation_token.cancel();
+            drop(master);
+
+            let (_, output_result, _) = tokio::join!(input_task, output_task, resize_task);
+            let output_closed_too_soon = output_result.is_ok_and(|r| r);
+
             _state.set_error(ended_with_error || output_closed_too_soon);
             _state.set_running(false);
-
-            drop(master);
         });
 
         self.cancellation_token = Some(cancellation_token);
@@ -230,6 +219,23 @@ impl Drop for CmdBridge {
     fn drop(&mut self) {
         self.cancel();
     }
+}
+
+fn open_pty(size: &TerminalSize) -> anyhow::Result<PtyPair> {
+    let pty_system = portable_pty::native_pty_system();
+    let pty_size = portable_pty::PtySize {
+        rows: size.height,
+        cols: size.width,
+        ..Default::default()
+    };
+
+    pty_system.openpty(pty_size)
+}
+
+fn get_command_builder(command: &str, args: Vec<String>) -> portable_pty::CommandBuilder {
+    let mut cmd = portable_pty::CommandBuilder::new(command);
+    cmd.args(&args);
+    cmd
 }
 
 /// Waits for child process and returns `true` if it ended with an error.

@@ -1,17 +1,17 @@
-# example plugin that executes `kubectl describe` for the highlighted resource
+# Executes `kubectl describe` for the highlighted resource
 
 name: describe
-aliases: []
 description: "opens kubectl describe"
 shortcut: Shift+D
 command: kubectl
 args:
   - describe
   - $PLURAL
+  - $COL[NAME]
   - --namespace
   - $COL[NAMESPACE]
-interactive: true
+excluded_scopes:
+  - containers
 keep_output: true
+pin_to_top: true
 highlighted: true
-selected: false
-for_each: false

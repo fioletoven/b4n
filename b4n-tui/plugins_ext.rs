@@ -11,21 +11,13 @@ pub trait PluginsExt {
 impl PluginsExt for Plugins {
     fn to_actions(&self, scope: &str, is_highlighted: bool, is_selected: bool) -> Vec<ActionItem> {
         let mut actions = Vec::new();
-        let plugins = self.iter().filter(|p| {
-            (!p.highlighted || p.highlighted == is_highlighted)
-                && (!p.selected || p.selected == is_selected)
-                && (p.scopes.is_empty() || p.scopes.iter().any(|s| s == scope))
-        });
+        let plugins = self.iter().filter(|p| p.in_scope_for(scope, is_highlighted, is_selected));
 
         for plugin in plugins {
             let mut action = ActionItem::new(&plugin.name)
                 .with_description(&plugin.description)
                 .with_aliases(&plugin.aliases)
-                .with_response(ResponseEvent::PluginAction(
-                    plugin.id.clone(),
-                    plugin.highlighted,
-                    plugin.selected,
-                ))
+                .with_response(ResponseEvent::PluginAction(plugin.into()))
                 .with_icon(Some(""));
 
             if !plugin.shortcut.is_default() {

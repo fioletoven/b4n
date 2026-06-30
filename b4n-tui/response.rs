@@ -1,3 +1,4 @@
+use b4n_config::PluginRef;
 use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope, plugins::PluginContext};
 
 use crate::TuiEvent;
@@ -97,7 +98,7 @@ pub enum ResponseEvent {
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
 
-    PluginAction(String, bool, bool),
+    PluginAction(PluginRef),
     RunPlugin(String, PluginContext),
 }
 

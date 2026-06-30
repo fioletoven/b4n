@@ -1,4 +1,5 @@
-# example plugin that executes `dive` for the highlighted container
+# Example plugin that executes `dive` for the highlighted container
+# https://github.com/wagoodman/dive
 
 name: dive
 aliases: []
@@ -9,9 +10,11 @@ args:
   - $COL[IMAGE]
 scopes:
   - containers
+excluded_scopes: []
 confirm: false
 interactive: true
 keep_output: false
+pin_to_top: false
 highlighted: true
 selected: false
 for_each: false

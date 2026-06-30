@@ -1,5 +1,7 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
+use b4n_config::Plugin;
 use b4n_config::keys::KeyCommand;
+use b4n_kube::ResourceRef;
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -37,10 +39,11 @@ pub struct CmdView {
     selection: ScreenSelection,
     area: Rect,
     esc_tracker: EscPressTracker,
-    clipboard_text: Option<String>,
+    pin_to_top: bool,
+    auto_close_view: bool,
+    is_finished: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
-    is_auto_close_enabled: bool,
     footer_tx: NotificationSink,
 }
 
@@ -49,17 +52,16 @@ impl CmdView {
     pub fn new(
         runtime: Handle,
         app_data: SharedAppData,
-        title: impl Into<String>,
-        command: impl Into<String>,
+        plugin: Plugin,
         args: Vec<String>,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(title.into());
+        header.set_title(format!(" {}", plugin.name));
 
         let area = get_layout_with_header(workspace)[1];
-        let command = command.into();
+        let command = plugin.command;
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
         bridge.start(command.clone(), args, area.to_terminal_size());
@@ -82,17 +84,25 @@ impl CmdView {
             selection,
             area,
             esc_tracker: EscPressTracker::default(),
-            clipboard_text: None,
+            pin_to_top: !plugin.interactive && plugin.pin_to_top,
+            auto_close_view: !plugin.keep_output,
+            is_finished: false,
             is_app_mode: false,
             is_mouse_enabled: false,
-            is_auto_close_enabled: false,
             footer_tx,
         }
     }
 
-    /// Sets auto close flag.
-    pub fn with_auto_close(mut self, is_enabled: bool) -> Self {
-        self.is_auto_close_enabled = is_enabled;
+    /// Sets header for the view.
+    pub fn with_header_data(mut self, resource_ref: Option<&ResourceRef>) -> Self {
+        if let Some(resource) = resource_ref {
+            self.header
+                .set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
+        } else {
+            let data = &self.app_data.borrow().current;
+            self.header
+                .set_data(data.namespace.clone(), data.resource.kind.clone(), None, None);
+        }
         self
     }
 
@@ -112,7 +122,7 @@ impl CmdView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
-        if !self.bridge.is_running() && self.is_auto_close_enabled {
+        if !self.bridge.is_running() && self.auto_close_view {
             return ResponseEvent::Handled;
         }
 
@@ -174,8 +184,7 @@ impl CmdView {
         ResponseEvent::Handled
     }
 
-    /// Inserts clipboard text to the currently running command.\
-    /// **Note** that it displays a confirmation dialog instead if the clipboard text contains multiple lines.
+    /// Inserts clipboard text to the currently running command.
     fn insert_from_clipboard(&mut self) -> ResponseEvent {
         if !self.bridge.is_running() {
             return ResponseEvent::Handled;
@@ -183,41 +192,11 @@ impl CmdView {
 
         let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
         if let Some(text) = text {
-            if text.contains('\n') {
-                self.clipboard_text = Some(text.replace("\r\n", "\n"));
-                self.ask_insert_from_clipboard();
-            } else {
-                self.selection.reset();
-                self.bridge.send(text.into_bytes());
-            }
+            self.selection.reset();
+            self.bridge.send(text.replace("\r\n", "\n").into_bytes());
         }
 
         ResponseEvent::Handled
-    }
-
-    /// Displays a confirmation dialog to paste multiline clipboard text.
-    fn ask_insert_from_clipboard(&mut self) {
-        if self.bridge.is_running() && self.clipboard_text.is_some() {
-            self.modal = self.new_insert_clipboard_text_dialog();
-            self.modal.show();
-        }
-    }
-
-    /// Creates new insert multiline clipboard text dialog.
-    fn new_insert_clipboard_text_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        Dialog::new(
-            "You are about to paste text that contains multiple lines. If you paste this text \
-             into the terminal, it may result in the unexpected execution of commands.\n\
-             Do you wish to continue?"
-                .to_owned(),
-            vec![
-                Button::new("Paste Anyway", ResponseEvent::Action("paste"), &colors.modal.btn_accent),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
-            ],
-        )
-        .with_width(65)
-        .with_colors(colors.modal.text)
     }
 
     /// Displays a confirmation dialog to forcibly close the command.
@@ -289,14 +268,22 @@ impl CmdView {
 
 impl View for CmdView {
     fn process_tick(&mut self) -> ResponseEvent {
-        if self.bridge.is_finished() {
+        if !self.is_finished && self.bridge.is_finished() {
+            self.is_finished = true;
+            self.footer_tx.hide_hint();
+
             if self.bridge.has_error() {
                 self.footer_tx
                     .show_error(format!("'{}' exited with an error", self.command), DEFAULT_ERROR_DURATION);
             }
 
-            if self.is_auto_close_enabled {
+            if self.auto_close_view {
                 return ResponseEvent::Cancelled;
+            }
+
+            if self.pin_to_top {
+                self.pin_to_top = false;
+                self.reset_scrollback(true);
             }
         }
 
@@ -322,13 +309,7 @@ impl View for CmdView {
         }
 
         if self.modal.is_visible {
-            return self.modal.process_event(event).when_action_then("paste", || {
-                if let Some(text) = self.clipboard_text.take() {
-                    self.selection.reset();
-                    self.bridge.send(text.into_bytes());
-                }
-                ResponseEvent::Handled
-            });
+            return self.modal.process_event(event);
         }
 
         if self.bridge.is_finished() {
@@ -338,6 +319,11 @@ impl View for CmdView {
 
             if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
                 self.show_command_palette();
+                return ResponseEvent::Handled;
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
+                self.copy_to_clipboard();
                 return ResponseEvent::Handled;
             }
         }
@@ -408,13 +394,17 @@ impl View for CmdView {
 
         self.header.draw(frame, layout[0]);
 
-        if self.bridge.is_running() || (!self.is_auto_close_enabled && self.bridge.is_finished()) {
+        if self.bridge.is_running() || (!self.auto_close_view && self.bridge.is_finished()) {
             if (self.size.width != layout[1].width || self.size.height != layout[1].height)
                 && let Ok(mut parser) = self.parser.write()
             {
                 parser.screen_mut().set_size(layout[1].height, layout[1].width);
                 self.bridge.set_terminal_size(layout[1].width, layout[1].height);
                 self.size = layout[1].to_terminal_size();
+            }
+
+            if self.pin_to_top {
+                self.reset_scrollback(true);
             }
 
             if let Ok(parser) = self.parser.read() {

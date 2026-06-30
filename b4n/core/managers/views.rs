@@ -593,7 +593,7 @@ impl ViewsManager {
             return;
         };
 
-        if plugin.interactive {
+        if plugin.interactive || plugin.keep_output {
             self.footer().hide_hint();
 
             let index = if context.resources.len() == 1 { Some(0) } else { None };
@@ -601,13 +601,12 @@ impl ViewsManager {
             let view = CmdView::new(
                 self.worker.borrow().runtime_handle().clone(),
                 Rc::clone(&self.app_data),
-                plugin.name,
-                plugin.command,
+                plugin,
                 resolved_args,
                 self.footer.get_transmitter(),
                 self.workspace,
             )
-            .with_auto_close(!plugin.keep_output);
+            .with_header_data(index.map(|i| &context.resources[i]));
 
             self.view = Some(Box::new(view));
         } else {
