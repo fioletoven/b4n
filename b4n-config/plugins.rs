@@ -39,6 +39,7 @@ pub struct Plugin {
     pub shortcut: KeyCombination,
     pub command: String,
     pub args: Vec<String>,
+    pub current_dir: Option<String>,
     pub scopes: Vec<String>,
     pub excluded_scopes: Vec<String>,
     pub confirm: bool,

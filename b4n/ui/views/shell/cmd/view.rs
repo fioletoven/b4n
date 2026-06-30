@@ -64,7 +64,7 @@ impl CmdView {
         let command = plugin.command;
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
-        bridge.start(command.clone(), args, area.to_terminal_size());
+        bridge.start(command.clone(), args, plugin.current_dir, area.to_terminal_size());
         let parser = bridge.get_parser();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
