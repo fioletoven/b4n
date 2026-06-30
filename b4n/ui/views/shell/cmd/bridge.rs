@@ -247,7 +247,7 @@ async fn wait_for_child(command: &str, mut child: Box<dyn Child + Send + Sync>) 
     let exit_status = tokio::task::spawn_blocking(move || child.wait()).await;
     match exit_status {
         Ok(Ok(status)) if !status.success() => {
-            tracing::warn!("'{}' exited with non-zero status", command);
+            tracing::warn!("'{}' exited with non-zero status: {}", command, status);
             return true;
         },
         Ok(Err(err)) => {
