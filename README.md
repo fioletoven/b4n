@@ -50,6 +50,7 @@ The following features are currently supported:
 - View logs for the highlighted pod or container.
 - Open a shell session or attach to the highlighted container's main process.
 - Enable port forwarding for the highlighted container.
+- Simple plugin system to run external binaries.
 - Mouse support in all views.
 
 ### Planned
@@ -57,7 +58,7 @@ The following features are currently supported:
 The following features are planned for future development:
 
 - File transfer from/to a pod.
-- Custom commands (simple plugin system to run external binaries).
+- Ephemeral Containers.
 
 ## Default Key Bindings
 
@@ -144,6 +145,7 @@ Configuration files are stored in the `$HOME/.b4n` directory. The directory stru
 ```
 .b4n/
 ├─ logs/
+├─ plugins/
 ├─ themes/
 │  └─ default.yaml
 ├─ config.yaml
@@ -153,6 +155,45 @@ Configuration files are stored in the `$HOME/.b4n` directory. The directory stru
 ### logs/
 
 This directory contains application logs, with one log file generated per day.
+
+### plugins/
+
+This folder contains custom command configurations that will be added to the command palette options in the resources view (main `b4n` view). Each command must be stored in a separate file with the `.yaml` extension.
+
+```yaml
+name: plugin-name
+aliases: []          # additional name aliases that the command palette will recognise
+description: "plugin description"
+shortcut: Ctrl+Y
+command: dive
+args: []             # command arguments, see possible variables below
+scopes:
+  - pods             # scopes in which the plugin will be visible, empty - all (format: 'plural[.group/version]')
+excluded_scopes: []  # scopes from which the plugin will be excluded, empty - none
+confirm: false       # show run confirmation dialog
+interactive: true    # run command in terminal as an interactive application, if false command will be run in the background
+keep_output: false   # do not close terminal on command exit
+keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
+pin_to_top: false    # stay at the beginning of the command output
+highlighted: true    # allow running the plugin only if any resource on the list is highlighted
+selected: false      # allow running the plugin only if any resource on the list is selected (if interactive: false)
+for_each: false      # run each selected resource separately (if interactive: false)
+```
+
+| Variable name       | Description                                               |
+|:--------------------|:----------------------------------------------------------|
+| `$CONTEXT`          | currently selected kubeconfig context                     |
+| `$PLURAL`           | displayed resource kind plural name                       |
+| `$GROUP`            | displayed resource group                                  |
+| `$VERSION`          | displayed resource version                                |
+| `$NAMESPACE`        | currently selected namespace                              |
+| `$RES[NAME]`        | highlighted / selected resource name                      |
+| `$RES[NAMESPACE]`   | highlighted / selected resource namespace                 |
+| `$RES[UID]`         | highlighted / selected resource uid                       |
+| `$RES[CONTAINER]`   | highlighted / selected resource container (if pods)       |
+| `$COL[COLUMN_NAME]` | highlighted / selected resource any visible column value  |
+
+You can find example plugins in the `plugins` folder.
 
 ### themes/
 
