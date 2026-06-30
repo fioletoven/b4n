@@ -1,4 +1,5 @@
 use b4n_common::NotificationSink;
+use b4n_config::PluginRef;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
@@ -260,6 +261,14 @@ impl ResourcesView {
                 return Some(self.stop_port_forwards());
             }
 
+            if let ResponseEvent::PluginAction(plugin) = response {
+                let info = &self.app_data.borrow().current;
+                return Some(ResponseEvent::RunPlugin(
+                    plugin.id,
+                    build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+                ));
+            }
+
             return Some(ResponseEvent::Handled);
         }
 
@@ -291,9 +300,17 @@ impl ResourcesView {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::AskDeleteResources {
             self.last_mouse_click = event.position();
-        } else if let ResponseEvent::PluginAction(id, is_highlighted, is_selected) = response {
+        } else if let ResponseEvent::PluginAction(plugin) = response {
+            if plugin.confirm {
+                self.modal = self.new_run_plugin_dialog(plugin);
+                self.modal.show();
+                return ResponseEvent::Handled;
+            }
             let info = &self.app_data.borrow().current;
-            return ResponseEvent::RunPlugin(id, build_plugin_context(info, &self.table, is_highlighted, is_selected));
+            return ResponseEvent::RunPlugin(
+                plugin.id,
+                build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+            );
         } else if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
@@ -643,6 +660,20 @@ impl ResourcesView {
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
+    /// Creates new dialog for run plugin confirmation.
+    fn new_run_plugin_dialog(&mut self, plugin: PluginRef) -> Dialog {
+        let colors = &self.app_data.borrow().theme.colors;
+        Dialog::new(
+            format!("Are you sure you want to run '{}'?", &plugin.name),
+            vec![
+                Button::new("Run", ResponseEvent::PluginAction(plugin), &colors.modal.btn_delete),
+                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            ],
+        )
+        .with_colors(colors.modal.text)
+        .with_highlighted_position(self.last_mouse_click.take())
+    }
+
     pub fn remember_current_resource(&mut self) {
         let highlighted = self.table.list.table.get_highlighted_item_name_and_group();
         let highlighted = highlighted.map_or(ToSelectData::None, |(i, g)| ToSelectData::Some(i.to_owned(), g.to_owned()));
@@ -815,12 +846,21 @@ impl View for ResourcesView {
 
         let is_highlighted = self.table.list.table.is_anything_highlighted();
         let is_selected = self.table.list.table.is_anything_selected();
-        if let Some((id, highlighted, selected)) =
-            self.app_data
-                .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
+        if let Some(plugin) = self
+            .app_data
+            .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
+            if plugin.confirm {
+                self.modal = self.new_run_plugin_dialog(plugin);
+                self.modal.show();
+                return ResponseEvent::Handled;
+            }
+
             let info = &self.app_data.borrow().current;
-            return ResponseEvent::RunPlugin(id, build_plugin_context(info, &self.table, highlighted, selected));
+            return ResponseEvent::RunPlugin(
+                plugin.id,
+                build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+            );
         }
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {

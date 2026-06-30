@@ -17,11 +17,7 @@ impl PluginsExt for Plugins {
             let mut action = ActionItem::new(&plugin.name)
                 .with_description(&plugin.description)
                 .with_aliases(&plugin.aliases)
-                .with_response(ResponseEvent::PluginAction(
-                    plugin.id.clone(),
-                    plugin.highlighted,
-                    plugin.selected,
-                ))
+                .with_response(ResponseEvent::PluginAction(plugin.into()))
                 .with_icon(Some(""));
 
             if !plugin.shortcut.is_default() {

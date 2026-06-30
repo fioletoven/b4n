@@ -1,8 +1,8 @@
 use arboard::Clipboard;
 use b4n_common::NotificationSink;
-use b4n_config::Plugins;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
+use b4n_config::{PluginRef, Plugins};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
 use b4n_tui::{ToSelectData, TuiEvent};
 use kube::discovery::Scope;
@@ -223,15 +223,8 @@ pub trait SharedAppDataExt {
         on_success_message: impl FnOnce() -> &'static str,
     );
 
-    /// Returns tuple with plugin id, highlighted, and selected values if the given [`TuiEvent`] is a key event
-    /// and is bound to one of the discovered `Plugin`s.
-    fn get_plugin_binding(
-        &self,
-        event: &TuiEvent,
-        scope: &str,
-        is_highlighted: bool,
-        is_selected: bool,
-    ) -> Option<(String, bool, bool)>;
+    /// Returns a [`PluginRef`] if the given [`TuiEvent`] is a key event and is bound to one of the discovered `Plugin`s.
+    fn get_plugin_binding(&self, event: &TuiEvent, scope: &str, is_highlighted: bool, is_selected: bool) -> Option<PluginRef>;
 }
 
 impl SharedAppDataExt for SharedAppData {
@@ -286,13 +279,7 @@ impl SharedAppDataExt for SharedAppData {
         }
     }
 
-    fn get_plugin_binding(
-        &self,
-        event: &TuiEvent,
-        scope: &str,
-        is_highlighted: bool,
-        is_selected: bool,
-    ) -> Option<(String, bool, bool)> {
+    fn get_plugin_binding(&self, event: &TuiEvent, scope: &str, is_highlighted: bool, is_selected: bool) -> Option<PluginRef> {
         let TuiEvent::Key(key) = event else {
             return None;
         };
@@ -302,6 +289,6 @@ impl SharedAppDataExt for SharedAppData {
             .iter()
             .find(|p| p.in_scope_for(scope, is_highlighted, is_selected) && &p.shortcut == key)?;
 
-        Some((plugin.id.clone(), plugin.highlighted, plugin.selected))
+        Some(plugin.into())
     }
 }

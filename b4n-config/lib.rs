@@ -1,6 +1,6 @@
 pub use self::config::{APP_NAME, APP_VERSION, Config, ConfigError, DEFAULT_THEME_NAME};
 pub use self::history::{History, HistoryItem};
-pub use self::plugins::{Plugin, PluginError, Plugins, PluginsWatcher};
+pub use self::plugins::{Plugin, PluginError, PluginRef, Plugins, PluginsWatcher};
 pub use self::syntax::SyntaxData;
 pub use self::watcher::{ConfigWatcher, Persistable};
 

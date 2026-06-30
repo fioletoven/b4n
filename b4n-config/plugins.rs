@@ -60,6 +60,28 @@ impl Plugin {
     }
 }
 
+/// Holds minimal set of a plugin configuration.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PluginRef {
+    pub id: String,
+    pub name: String,
+    pub confirm: bool,
+    pub highlighted: bool,
+    pub selected: bool,
+}
+
+impl From<&Plugin> for PluginRef {
+    fn from(plugin: &Plugin) -> Self {
+        Self {
+            id: plugin.id.clone(),
+            name: plugin.name.clone(),
+            confirm: plugin.confirm,
+            highlighted: plugin.highlighted,
+            selected: plugin.selected,
+        }
+    }
+}
+
 /// All discovered plugins.
 #[derive(Debug, Default)]
 pub struct Plugins(Vec<Plugin>);
