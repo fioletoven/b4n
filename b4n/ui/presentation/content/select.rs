@@ -165,7 +165,7 @@ impl SelectContext {
                     && area.contains((mouse.column, mouse.row).into())
                     && let Some(pos) = get_position_in_content(area, content, *page_start, None, mouse.column, mouse.row)
                 {
-                    let line_end = content.line_size(pos.y).saturating_sub(1);
+                    let line_end = content.line_size(pos.y);
                     if line_end > 0 {
                         self.init = Some(ContentPosition::new(0, pos.y));
                         self.start = self.init;
