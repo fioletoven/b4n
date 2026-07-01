@@ -1,4 +1,4 @@
-use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
+use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink, random_uuid};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::stats::{SharedStatistics, Statistics};
 use b4n_kube::{ContainerRef, PODS, ResourceRef};
@@ -16,7 +16,6 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
-use uuid::Uuid;
 
 /// Possible errors from [`PortForwarder`].
 #[derive(thiserror::Error, Debug)]
@@ -222,10 +221,7 @@ impl PortForwardTask {
         };
 
         Self {
-            uuid: Uuid::new_v4()
-                .hyphenated()
-                .encode_lower(&mut Uuid::encode_buffer())
-                .to_owned(),
+            uuid: random_uuid(),
             resource: ResourceRef::default(),
             bind_address: String::default(),
             port: 0,

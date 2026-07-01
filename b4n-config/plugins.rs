@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_common::random_uuid;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Deserialize;
 use std::ops::Deref;
@@ -11,7 +12,6 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 use crate::{APP_NAME, keys::KeyCombination};
 
@@ -249,11 +249,4 @@ impl Drop for PluginsWatcher {
     fn drop(&mut self) {
         self.cancel();
     }
-}
-
-fn random_uuid() -> String {
-    Uuid::new_v4()
-        .hyphenated()
-        .encode_lower(&mut Uuid::encode_buffer())
-        .to_owned()
 }

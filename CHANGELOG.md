@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix command palette highlights wrong item on the list
+
 ## 0.5.1 - 2026-07-01
 
 ### Features

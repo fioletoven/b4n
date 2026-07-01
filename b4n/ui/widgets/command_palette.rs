@@ -204,9 +204,14 @@ impl CommandPalette {
     }
 
     fn insert_highlighted_value(&mut self, overwrite_if_not_empty: bool) {
-        if self.select().is_anything_highlighted() && (self.select().value().is_empty() || overwrite_if_not_empty) {
+        let Some(uid) = self.select().items.list.get_highlighted_item_uid().map(String::from) else {
+            return;
+        };
+
+        if self.select().value().is_empty() || overwrite_if_not_empty {
             let value = self.select().items.get_highlighted_item_name().unwrap_or_default().to_owned();
             self.select_mut().set_value(value);
+            self.select_mut().items.list.highlight_item_by_uid(&uid);
         }
     }
 

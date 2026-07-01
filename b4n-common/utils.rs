@@ -1,4 +1,5 @@
 use sha1::{Digest, Sha1};
+use uuid::Uuid;
 
 #[cfg(test)]
 #[path = "./utils.tests.rs"]
@@ -156,4 +157,12 @@ pub fn sanitize_and_split(input: &str) -> Vec<String> {
     lines.push(current);
 
     lines
+}
+
+/// Creates random `Uuid` as `String`.
+pub fn random_uuid() -> String {
+    Uuid::new_v4()
+        .hyphenated()
+        .encode_lower(&mut Uuid::encode_buffer())
+        .to_owned()
 }

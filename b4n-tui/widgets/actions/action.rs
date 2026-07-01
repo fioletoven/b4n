@@ -1,4 +1,4 @@
-use b4n_common::truncate;
+use b4n_common::{random_uuid, truncate};
 use b4n_kube::Port;
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::{borrow::Cow, path::PathBuf};
@@ -27,7 +27,7 @@ impl ActionItem {
     /// Creates new [`ActionItem`] instance.
     pub fn new(name: &str) -> Self {
         Self {
-            uid: format!("_action:{name}_"),
+            uid: random_uuid(),
             group: "action".to_owned(),
             name: name.to_owned(),
             icon: Some(""),
