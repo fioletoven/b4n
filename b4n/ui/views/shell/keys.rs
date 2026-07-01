@@ -99,7 +99,7 @@ fn get_navigation_key_sequence(key_char: u8, modifiers: KeyModifiers, app_mode: 
     }
 }
 
-/// Converts Fn, PageUp, and PageDown keys to terminal byte sequences.
+/// Converts Fn, `PageUp`, and `PageDown` keys to terminal byte sequences.
 fn get_tilde_key_sequence(base: u8, modifiers: KeyModifiers) -> Vec<u8> {
     let modifier_code = get_modifier_code(modifiers);
 

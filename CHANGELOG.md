@@ -1,6 +1,6 @@
 # Change Log
 
-## WIP
+## 0.5.1 - 2026-07-01
 
 ### Features
 
@@ -11,6 +11,7 @@
 
 - fix WINDOW column for PodMetrics kind
 - fix key binding for `show YAML` command in describe view
+- fix selection behaviour for left mouse button triple click
 
 ## 0.5.0 - 2026-06-19
 

@@ -40,7 +40,8 @@ pub struct CmdView {
     area: Rect,
     esc_tracker: EscPressTracker,
     pin_to_top: bool,
-    auto_close_view: bool,
+    keep_output: bool,
+    keep_error: bool,
     is_finished: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
@@ -64,7 +65,7 @@ impl CmdView {
         let command = plugin.command;
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
-        bridge.start(command.clone(), args, area.to_terminal_size());
+        bridge.start(command.clone(), args, plugin.current_dir, area.to_terminal_size());
         let parser = bridge.get_parser();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
@@ -85,7 +86,8 @@ impl CmdView {
             area,
             esc_tracker: EscPressTracker::default(),
             pin_to_top: !plugin.interactive && plugin.pin_to_top,
-            auto_close_view: !plugin.keep_output,
+            keep_output: plugin.keep_output,
+            keep_error: plugin.keep_error,
             is_finished: false,
             is_app_mode: false,
             is_mouse_enabled: false,
@@ -122,7 +124,7 @@ impl CmdView {
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
-        if !self.bridge.is_running() && self.auto_close_view {
+        if !self.bridge.is_running() && !self.keep_output() {
             return ResponseEvent::Handled;
         }
 
@@ -264,6 +266,10 @@ impl CmdView {
         }
         ResponseEvent::Handled
     }
+
+    fn keep_output(&self) -> bool {
+        self.keep_output || (self.keep_error && self.bridge.has_error())
+    }
 }
 
 impl View for CmdView {
@@ -277,7 +283,7 @@ impl View for CmdView {
                     .show_error(format!("'{}' exited with an error", self.command), DEFAULT_ERROR_DURATION);
             }
 
-            if self.auto_close_view {
+            if !self.keep_output() {
                 return ResponseEvent::Cancelled;
             }
 
@@ -394,7 +400,7 @@ impl View for CmdView {
 
         self.header.draw(frame, layout[0]);
 
-        if self.bridge.is_running() || (!self.auto_close_view && self.bridge.is_finished()) {
+        if self.bridge.is_running() || (self.keep_output() && self.bridge.is_finished()) {
             if (self.size.width != layout[1].width || self.size.height != layout[1].height)
                 && let Ok(mut parser) = self.parser.write()
             {

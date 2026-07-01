@@ -70,7 +70,13 @@ async fn execute_once(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_t
     let resource_name = get_resource_name(&context, row_index);
     let resolved_args: Vec<String> = plugin.args.iter().map(|arg| context.resolve_arg(arg, row_index)).collect();
 
-    let output = match Command::new(&plugin.command).args(&resolved_args).output().await {
+    let mut command = Command::new(&plugin.command);
+    command.args(&resolved_args);
+    if let Some(current_dir) = &plugin.current_dir {
+        command.current_dir(current_dir);
+    }
+
+    let output = match command.output().await {
         Ok(output) => output,
         Err(error) => {
             let msg = format!("Cannot execute '{}' ({}): {}", plugin.name, resource_name, error);

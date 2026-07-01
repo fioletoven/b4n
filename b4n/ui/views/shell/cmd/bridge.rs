@@ -43,7 +43,7 @@ impl CmdBridge {
 
     /// Starts the external binary process.\
     /// **Note** that it stops the old task if it is running.
-    pub fn start(&mut self, command: String, args: Vec<String>, size: TerminalSize) {
+    pub fn start(&mut self, command: String, args: Vec<String>, cwd: Option<String>, size: TerminalSize) {
         self.stop();
 
         self.command = Some(command.clone());
@@ -71,7 +71,7 @@ impl CmdBridge {
                 },
             };
 
-            let child = match pty_pair.slave.spawn_command(get_command_builder(&command, args)) {
+            let child = match pty_pair.slave.spawn_command(get_cmd_builder(&command, &args, cwd.as_deref())) {
                 Ok(c) => c,
                 Err(err) => {
                     tracing::warn!("Cannot spawn command '{}': {}", command, err);
@@ -232,9 +232,13 @@ fn open_pty(size: &TerminalSize) -> anyhow::Result<PtyPair> {
     pty_system.openpty(pty_size)
 }
 
-fn get_command_builder(command: &str, args: Vec<String>) -> portable_pty::CommandBuilder {
+fn get_cmd_builder(command: &str, args: &[String], cwd: Option<&str>) -> portable_pty::CommandBuilder {
     let mut cmd = portable_pty::CommandBuilder::new(command);
-    cmd.args(&args);
+    cmd.args(args);
+    if let Some(cwd) = cwd {
+        cmd.cwd(cwd);
+    }
+
     cmd
 }
 
@@ -243,7 +247,7 @@ async fn wait_for_child(command: &str, mut child: Box<dyn Child + Send + Sync>) 
     let exit_status = tokio::task::spawn_blocking(move || child.wait()).await;
     match exit_status {
         Ok(Ok(status)) if !status.success() => {
-            tracing::warn!("'{}' exited with non-zero status", command);
+            tracing::warn!("'{}' exited with non-zero status: {}", command, status);
             return true;
         },
         Ok(Err(err)) => {
