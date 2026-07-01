@@ -177,7 +177,7 @@ keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
 pin_to_top: false    # stay at the beginning of the command output
 highlighted: true    # allow running the plugin only when a resource in the list is highlighted
-selected: false      # allow running the plugin only when at least one resource is selected (if interactive: false)
+selected: false      # allow running the plugin only when at least one resource is selected
 for_each: false      # run each selected resource separately (if interactive: false)
 ```
 
@@ -191,7 +191,7 @@ for_each: false      # run each selected resource separately (if interactive: fa
 | `$RES[NAME]`        | name of the highlighted or selected resource                       |
 | `$RES[NAMESPACE]`   | namespace of the highlighted or selected resource                  |
 | `$RES[UID]`         | UID of the highlighted or selected resource                        |
-| `$RES[CONTAINER]`   | container of the highlighted or selected resource (pods only)      |
+| `$RES[CONTAINER]`   | container name of the highlighted or selected resource (pods only) |
 | `$COL[COLUMN_NAME]` | any visible column value from the highlighted or selected resource |
 
 Example plugins are available in the `plugins` folder.
