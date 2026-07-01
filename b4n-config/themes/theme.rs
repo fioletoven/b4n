@@ -527,20 +527,20 @@ impl<'de> Deserialize<'de> for ColorValue {
                 Ok(ColorValue::String(v.to_owned()))
             }
 
-            fn visit_map<A: de::MapAccess<'de>>(self, mut map: A) -> Result<ColorValue, A::Error> {
-                let mut result = BTreeMap::new();
-                while let Some((k, v)) = map.next_entry::<String, ColorValue>()? {
-                    result.insert(k, v);
-                }
-                Ok(ColorValue::Mapping(result))
-            }
-
             fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<ColorValue, A::Error> {
                 let mut result = Vec::new();
                 while let Some(v) = seq.next_element::<String>()? {
                     result.push(v);
                 }
                 Ok(ColorValue::Sequence(result))
+            }
+
+            fn visit_map<A: de::MapAccess<'de>>(self, mut map: A) -> Result<ColorValue, A::Error> {
+                let mut result = BTreeMap::new();
+                while let Some((k, v)) = map.next_entry::<String, ColorValue>()? {
+                    result.insert(k, v);
+                }
+                Ok(ColorValue::Mapping(result))
             }
         }
 

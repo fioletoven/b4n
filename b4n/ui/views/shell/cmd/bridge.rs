@@ -71,7 +71,7 @@ impl CmdBridge {
                 },
             };
 
-            let child = match pty_pair.slave.spawn_command(get_cmd_builder(&command, args, cwd.as_deref())) {
+            let child = match pty_pair.slave.spawn_command(get_cmd_builder(&command, &args, cwd.as_deref())) {
                 Ok(c) => c,
                 Err(err) => {
                     tracing::warn!("Cannot spawn command '{}': {}", command, err);
@@ -232,9 +232,9 @@ fn open_pty(size: &TerminalSize) -> anyhow::Result<PtyPair> {
     pty_system.openpty(pty_size)
 }
 
-fn get_cmd_builder(command: &str, args: Vec<String>, cwd: Option<&str>) -> portable_pty::CommandBuilder {
+fn get_cmd_builder(command: &str, args: &[String], cwd: Option<&str>) -> portable_pty::CommandBuilder {
     let mut cmd = portable_pty::CommandBuilder::new(command);
-    cmd.args(&args);
+    cmd.args(args);
     if let Some(cwd) = cwd {
         cmd.cwd(cwd);
     }

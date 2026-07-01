@@ -30,7 +30,7 @@ git clone https://github.com/fioletoven/b4n.git
 cd b4n
 ```
 
-Then compile the project in release mode for optimal performance:
+Then compile the project in release mode for the best performance:
 
 ```bash
 cargo build --release
@@ -107,11 +107,11 @@ Filters can be combined using logical operators: `&` (and), `|` (or), `!` (negat
 
 Example: `ns:default & (l:app=web | l:app=api)`
 
-> Note: `CTRL` + `p` will pin the active filter across resource changes
+> Note: `CTRL` + `p` keeps the active filter pinned when you switch resources.
 
 ## Logs View
 
-When viewing logs for a single container, you can fetch earlier log entries by pressing the `↑` (up arrow) key. This feature is only available when you are scrolled to the top of the currently displayed logs and there are additional log entries available before the first visible line.
+When viewing logs for a single container, you can fetch earlier entries by pressing `↑` (up arrow). This works only when you are already scrolled to the top of the current log output and earlier entries are still available.
 
 > Note: This functionality works only in single container logs view, not when viewing combined logs for all containers in a pod.
 
@@ -119,7 +119,7 @@ When viewing logs for a single container, you can fetch earlier log entries by p
 
 When mouse support is enabled, you can:
 
-- **Select text** by clicking and dragging in YAML, logs, shell, and attach view
+- **Select text** by clicking and dragging in the YAML, logs, shell, and attach views
 - **Select whole words** by double-clicking
 - **Select whole lines** by triple-clicking
 - **Copy selected text** to clipboard using standard key bindings
@@ -136,11 +136,11 @@ In edit mode, the following shortcuts are available:
 - `ALT`  + `↑` - move current line up
 - `ALT`  + `↓` - move current line down
 
-> Note: These shortcuts currently cannot be changed in the `key_bindings` configuration section
+> Note: These shortcuts currently cannot be changed in the `key_bindings` configuration section.
 
 ## Configuration Files
 
-Configuration files are stored in the `$HOME/.b4n` directory. The directory structure is as follows:
+Configuration files are stored in the `$HOME/.b4n` directory. The layout looks like this:
 
 ```
 .b4n/
@@ -154,58 +154,59 @@ Configuration files are stored in the `$HOME/.b4n` directory. The directory stru
 
 ### logs/
 
-This directory contains application logs, with one log file generated per day.
+This directory contains application logs, with one file created per day.
 
 ### plugins/
 
-This folder contains custom command configurations that will be added to the command palette options in the resources view (main `b4n` view). Each command must be stored in a separate file with the `.yaml` extension.
+This folder contains custom command definitions that appear in the command palette in the resources view (the main `b4n` screen).
+Store each command in a separate `.yaml` file.
 
 ```yaml
 name: plugin-name
-aliases: []          # additional name aliases that the command palette will recognise
+aliases: []          # additional aliases recognised by the command palette
 description: "plugin description"
 shortcut: Ctrl+Y
 command: dive
-args: []             # command arguments, see possible variables below
+args: []             # command arguments; see the available variables below
 scopes:
-  - pods             # scopes in which the plugin will be visible, empty - all (format: 'plural[.group/version]')
-excluded_scopes: []  # scopes from which the plugin will be excluded, empty - none
+  - pods             # scopes where the plugin will be visible; empty means all (format: 'plural[.group/version]')
+excluded_scopes: []  # scopes where the plugin will be hidden; empty means none
 confirm: false       # show run confirmation dialog
-interactive: true    # run command in terminal as an interactive application, if false command will be run in the background
+interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
 pin_to_top: false    # stay at the beginning of the command output
-highlighted: true    # allow running the plugin only if any resource on the list is highlighted
-selected: false      # allow running the plugin only if any resource on the list is selected (if interactive: false)
+highlighted: true    # allow running the plugin only when a resource in the list is highlighted
+selected: false      # allow running the plugin only when at least one resource is selected (if interactive: false)
 for_each: false      # run each selected resource separately (if interactive: false)
 ```
 
-| Variable name       | Description                                               |
-|:--------------------|:----------------------------------------------------------|
-| `$CONTEXT`          | currently selected kubeconfig context                     |
-| `$PLURAL`           | displayed resource kind plural name                       |
-| `$GROUP`            | displayed resource group                                  |
-| `$VERSION`          | displayed resource version                                |
-| `$NAMESPACE`        | currently selected namespace                              |
-| `$RES[NAME]`        | highlighted / selected resource name                      |
-| `$RES[NAMESPACE]`   | highlighted / selected resource namespace                 |
-| `$RES[UID]`         | highlighted / selected resource uid                       |
-| `$RES[CONTAINER]`   | highlighted / selected resource container (if pods)       |
-| `$COL[COLUMN_NAME]` | highlighted / selected resource any visible column value  |
+| Variable name       | Description                                                        |
+|:--------------------|:-------------------------------------------------------------------|
+| `$CONTEXT`          | currently selected kubeconfig context                              |
+| `$PLURAL`           | plural name of the displayed resource kind                         |
+| `$GROUP`            | displayed resource group                                           |
+| `$VERSION`          | displayed resource version                                         |
+| `$NAMESPACE`        | currently selected namespace                                       |
+| `$RES[NAME]`        | name of the highlighted or selected resource                       |
+| `$RES[NAMESPACE]`   | namespace of the highlighted or selected resource                  |
+| `$RES[UID]`         | UID of the highlighted or selected resource                        |
+| `$RES[CONTAINER]`   | container of the highlighted or selected resource (pods only)      |
+| `$COL[COLUMN_NAME]` | any visible column value from the highlighted or selected resource |
 
-You can find example plugins in the `plugins` folder.
+Example plugins are available in the `plugins` folder.
 
 ### themes/
 
-This folder stores all TUI (Text User Interface) themes.  
-The `default.yaml` theme will be automatically generated by the application if it doesn't already exist.
+This folder stores all TUI themes.  
+If `default.yaml` does not exist, the application will create it automatically.
 
-You can place additional theme files here by copying them from the `themes` folder or creating your own.
+You can add more theme files here by copying the ones from the repository `themes` folder or by creating your own.
 
 ### config.yaml
 
-This file contains configuration settings that control the behaviour of the `b4n` application.  
-Here is an example structure:
+This file contains settings that control how `b4n` behaves.  
+Example structure:
 
 ```yaml
 logs:
@@ -229,9 +230,9 @@ key_bindings:
 
 #### Configuration Options
 
-- `logs.lines` - The number of log lines to retrieve from the Kubernetes API for the selected container.
-- `logs.timestamps` - Indicates whether timestamps are enabled by default for logs; this setting can still be toggled while viewing the logs.
-- `mouse` - Indicates if mouse support should be enabled when the application starts. Mouse support can also be toggled while the app is running.
+- `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
+- `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
+- `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
 - `aliases` - Command palette aliases.
@@ -242,9 +243,9 @@ key_bindings:
 
 ### history.yaml
 
-This file stores history for filters, search patterns, and the last selected resource for each Kubernetes context.
-To remove history entries (either for a specific context or entirely), you can manually edit this file or even delete it.  
-History entries can also be deleted from the UI, just highlight one and press `Ctrl+D` to delete it.
+This file stores the history for filters, search patterns, and the last selected resource for each Kubernetes context.
+To remove entries for a specific context, or to clear the file entirely, you can edit or delete it manually.  
+You can also delete history entries from the UI by highlighting one and pressing `Ctrl+D`.
 
 ## Screenshots
 
