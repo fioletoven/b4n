@@ -474,6 +474,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     /// Highlights element on list by the visible line number.
     pub fn highlight_item_by_line(&mut self, line_no: u16) -> bool {
         let index = self.page_start + usize::from(line_no);
+        self.highlight_item_by_index(index)
+    }
+
+    /// Highlights element on list by index.
+    pub fn highlight_item_by_index(&mut self, index: usize) -> bool {
         if index >= self.items.len() {
             return false;
         }

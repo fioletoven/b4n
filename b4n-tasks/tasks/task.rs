@@ -1,6 +1,6 @@
+use b4n_common::random_uuid;
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 use crate::commands::{Command, CommandResult};
 
@@ -21,10 +21,7 @@ impl PendingTask {
     /// Creates new [`PendingTask`] instance.
     pub fn new(command: Command, cancellation_token: CancellationToken) -> Self {
         Self {
-            id: Uuid::new_v4()
-                .hyphenated()
-                .encode_lower(&mut Uuid::encode_buffer())
-                .to_owned(),
+            id: random_uuid(),
             command,
             cancellation_token,
         }

@@ -1,7 +1,7 @@
+use b4n_common::random_uuid;
 use kube::api::{ApiResource, DynamicObject};
 use kube::discovery::{ApiCapabilities, Scope, verbs};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use uuid::Uuid;
 
 use crate::crds::CrdColumns;
 use crate::{CONTAINERS, ResourceRef};
@@ -70,10 +70,7 @@ impl InitData {
         let kind = if rt.is_container() { "Container" } else { ar.kind.as_str() };
         let kind_plural = if rt.is_container() { CONTAINERS } else { ar.plural.as_str() };
         Self {
-            uuid: Uuid::new_v4()
-                .hyphenated()
-                .encode_lower(&mut Uuid::encode_buffer())
-                .to_owned(),
+            uuid: random_uuid(),
             resource: rt.clone(),
             kind: kind.to_owned(),
             kind_plural: kind_plural.to_lowercase(),
@@ -91,10 +88,7 @@ impl InitData {
     /// Creates new simple initial data for [`ObserverResult`].
     pub fn simple(resource: ResourceRef, kind: String, kind_plural: String) -> Self {
         Self {
-            uuid: Uuid::new_v4()
-                .hyphenated()
-                .encode_lower(&mut Uuid::encode_buffer())
-                .to_owned(),
+            uuid: random_uuid(),
             resource,
             kind,
             kind_plural,
