@@ -322,12 +322,8 @@ impl CursorShapeTracker {
         };
 
         let command = match cursor_shape {
-            CursorShape::BlinkingBlock => SetCursorStyle::SteadyBlock,
-            CursorShape::SteadyBlock => SetCursorStyle::SteadyBlock,
-            CursorShape::BlinkingUnderline => SetCursorStyle::SteadyUnderScore,
-            CursorShape::SteadyUnderline => SetCursorStyle::SteadyUnderScore,
-            CursorShape::BlinkingBar => SetCursorStyle::SteadyBar,
-            CursorShape::SteadyBar => SetCursorStyle::SteadyBar,
+            CursorShape::BlinkingUnderline | CursorShape::SteadyUnderline => SetCursorStyle::SteadyUnderScore,
+            CursorShape::BlinkingBar | CursorShape::SteadyBar => SetCursorStyle::SteadyBar,
             _ => SetCursorStyle::SteadyBlock,
         };
 
