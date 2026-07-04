@@ -15,6 +15,7 @@ confirm: false
 interactive: true
 keep_output: false
 keep_error: true
+auto_mouse: false
 pin_to_top: false
 highlighted: true
 selected: false
