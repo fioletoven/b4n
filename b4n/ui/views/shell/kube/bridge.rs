@@ -11,6 +11,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100::{self};
+use tui_term::widget::CursorShape;
 
 use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries};
 
@@ -203,20 +204,17 @@ impl ShellBridge {
 
     /// Returns `true` if terminal is in application mode.
     pub fn is_application_mode(&self) -> Option<bool> {
-        match self.state.cursor_key_mode() {
-            0 => None,
-            1 => Some(false),
-            _ => Some(true),
-        }
+        self.state.is_application_mode()
     }
 
     /// Returns `true` if terminal has mouse enabled.
     pub fn is_mouse_enabled(&self) -> Option<bool> {
-        match self.state.mouse_mode() {
-            0 => None,
-            1 => Some(false),
-            _ => Some(true),
-        }
+        self.state.is_mouse_enabled()
+    }
+
+    /// Returns cursor shape for the terminal.
+    pub fn cursor_shape(&self) -> CursorShape {
+        self.state.cursor_shape()
     }
 }
 

@@ -1,9 +1,12 @@
+use crossterm::ExecutableCommand;
+use crossterm::cursor::SetCursorStyle;
 use kube::api::TerminalSize;
 use ratatui::layout::Rect;
-use std::io::Write;
+use std::io::{Write, stdout};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, Ordering};
 use std::sync::{Arc, RwLock};
 use tui_term::vt100;
+use tui_term::widget::CursorShape;
 
 const ESC: u8 = 0x1B;
 
@@ -199,13 +202,17 @@ impl TerminalState {
         self.has_error.store(has_error, Ordering::Relaxed);
     }
 
-    /// Gets cursor shape.\
-    /// 0 - unknown,\
-    /// 1 - block,\
-    /// 2 - underline,\
-    /// 3 - bar.
-    pub fn cursor_shape(&self) -> u8 {
-        self.cursor_shape.load(Ordering::Relaxed)
+    /// Returns desired cursor shape.
+    pub fn cursor_shape(&self) -> CursorShape {
+        match self.cursor_shape.load(Ordering::Relaxed) {
+            1 => CursorShape::BlinkingBlock,
+            2 => CursorShape::SteadyBlock,
+            3 => CursorShape::BlinkingUnderline,
+            4 => CursorShape::SteadyUnderline,
+            5 => CursorShape::BlinkingBar,
+            6 => CursorShape::SteadyBar,
+            _ => CursorShape::Default,
+        }
     }
 
     /// Sets cursor shape.\
@@ -217,12 +224,13 @@ impl TerminalState {
         self.cursor_shape.store(shape, Ordering::Relaxed);
     }
 
-    /// Gets the terminal cursor key mode.\
-    /// 0 - unknown,\
-    /// 1 - normal cursor key mode,\
-    /// 2 - application cursor key mode.
-    pub fn cursor_key_mode(&self) -> u8 {
-        self.cursor_key_mode.load(Ordering::Relaxed)
+    /// Returns whether the terminal is in application cursor key mode.
+    pub fn is_application_mode(&self) -> Option<bool> {
+        match self.cursor_key_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
     }
 
     /// Sets terminal cursor key mode.\
@@ -233,12 +241,13 @@ impl TerminalState {
         self.cursor_key_mode.store(mode, Ordering::Relaxed);
     }
 
-    /// Gets mouse mode.\
-    /// 0 - unknown,\
-    /// 1 - disabled,\
-    /// 2 - enabled.
-    pub fn mouse_mode(&self) -> u8 {
-        self.mouse_mode.load(Ordering::Relaxed)
+    /// Returns whether the terminal has mouse reporting enabled.
+    pub fn is_mouse_enabled(&self) -> Option<bool> {
+        match self.mouse_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
     }
 
     /// Sets mouse mode.\
@@ -273,13 +282,56 @@ impl TerminalState {
         }
         if let Some(shape) = cursor_shape {
             let shape = match shape {
-                b'0' | b'1' | b'2' => 1, // block
-                b'3' | b'4' => 2,        // underline
-                b'5' | b'6' => 3,        // bar
-                _ => 0,
+                b'0' | b'1' => 1, // blinking block
+                b'2' => 2,        // steady block
+                b'3' => 3,        // blinking underline
+                b'4' => 4,        // steady underline
+                b'5' => 5,        // blinking bar
+                b'6' => 6,        // steady bar
+                _ => 0,           // default
             };
             self.set_cursor_shape(shape);
         }
+    }
+}
+
+/// Tracks current cursor shape for the terminal.
+#[derive(Default)]
+pub struct CursorShapeTracker {
+    cursor_shape: Option<CursorShape>,
+}
+
+impl CursorShapeTracker {
+    /// Apply new cursor shape to the terminal, if anything changed.
+    pub fn sync_shape(&mut self, shape: CursorShape) {
+        if self.cursor_shape.is_none_or(|s| s != shape) {
+            self.cursor_shape = Some(shape);
+            self.apply_terminal_cursor_shape();
+        }
+    }
+
+    /// Reset cursor shape for the terminal.
+    pub fn reset_shape(&mut self) {
+        self.cursor_shape = Some(CursorShape::Default);
+        self.apply_terminal_cursor_shape();
+    }
+
+    fn apply_terminal_cursor_shape(&self) {
+        let Some(cursor_shape) = self.cursor_shape else {
+            return;
+        };
+
+        let command = match cursor_shape {
+            CursorShape::BlinkingBlock => SetCursorStyle::SteadyBlock,
+            CursorShape::SteadyBlock => SetCursorStyle::SteadyBlock,
+            CursorShape::BlinkingUnderline => SetCursorStyle::SteadyUnderScore,
+            CursorShape::SteadyUnderline => SetCursorStyle::SteadyUnderScore,
+            CursorShape::BlinkingBar => SetCursorStyle::SteadyBar,
+            CursorShape::SteadyBar => SetCursorStyle::SteadyBar,
+            _ => SetCursorStyle::SteadyBlock,
+        };
+
+        let _ = stdout().execute(command);
     }
 }
 

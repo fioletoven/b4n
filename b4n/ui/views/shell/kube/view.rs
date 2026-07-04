@@ -10,6 +10,7 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Handle;
+use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
@@ -17,7 +18,7 @@ use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::common::get_layout_with_header;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::views::shell::kube::bridge::ShellBridge;
-use crate::ui::views::shell::terminal::RectExt;
+use crate::ui::views::shell::terminal::{CursorShapeTracker, RectExt};
 use crate::ui::views::{EscPressTracker, ScreenExt};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
@@ -45,6 +46,7 @@ pub struct ShellView {
     is_attach: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
+    cursor_shape: CursorShapeTracker,
     footer_tx: NotificationSink,
 }
 
@@ -96,6 +98,7 @@ impl ShellView {
             is_attach,
             is_app_mode: false,
             is_mouse_enabled: false,
+            cursor_shape: CursorShapeTracker::default(),
             footer_tx,
         }
     }
@@ -294,6 +297,8 @@ impl ShellView {
 
 impl View for ShellView {
     fn process_tick(&mut self) -> ResponseEvent {
+        self.cursor_shape.sync_shape(self.bridge.cursor_shape());
+
         if self.bridge.is_finished() {
             // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
             if !self.is_attach && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
@@ -419,8 +424,19 @@ impl View for ShellView {
 
             if let Ok(parser) = self.parser.read() {
                 let screen = parser.screen();
-                let pseudo_term = PseudoTerminal::new(screen);
+                let cursor = Cursor::default().visibility(false);
+                let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
+
                 frame.render_widget(pseudo_term, layout[1]);
+
+                if self.bridge.is_running() && !screen.hide_cursor() {
+                    let (row, col) = screen.cursor_position();
+                    let x = layout[1].x.saturating_add(col);
+                    let y = layout[1].y.saturating_add(row);
+                    if x < layout[1].x + layout[1].width && y < layout[1].y + layout[1].height {
+                        frame.set_cursor_position((x, y));
+                    }
+                }
             }
 
             if !self.is_mouse_enabled {
@@ -436,6 +452,7 @@ impl View for ShellView {
 impl Drop for ShellView {
     fn drop(&mut self) {
         self.bridge.stop();
+        self.cursor_shape.reset_shape();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();
