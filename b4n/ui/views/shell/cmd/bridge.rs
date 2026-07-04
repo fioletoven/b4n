@@ -8,6 +8,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100;
+use tui_term::widget::Cursor;
 
 use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries};
 
@@ -59,6 +60,7 @@ impl CmdBridge {
         self.size_tx = Some(size_tx);
 
         self.state.set_error(false);
+        self.state.set_size(size.width, size.height);
         let mut _state = self.state.clone();
 
         let task = self.runtime.spawn(async move {
@@ -120,10 +122,6 @@ impl CmdBridge {
                 _cancellation_token.clone(),
                 _response_tx,
                 _state.clone(),
-                TerminalSize {
-                    width: size.width,
-                    height: size.height,
-                },
             ));
             let resize_task = tokio::spawn(resize_bridge(_master, _size_rx, _cancellation_token.clone()));
 
@@ -173,11 +171,12 @@ impl CmdBridge {
     }
 
     /// Resizes the PTY.
-    pub fn set_terminal_size(&self, width: u16, height: u16) {
+    pub fn set_terminal_size(&mut self, width: u16, height: u16) {
         if self.is_running()
             && let Some(tx) = &self.size_tx
         {
             let _ = tx.send((width, height));
+            self.state.set_size(width, height);
         }
     }
 
@@ -212,6 +211,11 @@ impl CmdBridge {
             1 => Some(false),
             _ => Some(true),
         }
+    }
+
+    /// Returns cursor for the terminal.
+    pub fn cursor(&self) -> Cursor {
+        Cursor::default().visibility(!self.is_finished())
     }
 }
 
@@ -294,7 +298,6 @@ async fn output_bridge(
     cancellation_token: CancellationToken,
     response_tx: UnboundedSender<Vec<u8>>,
     mut state: TerminalState,
-    size: TerminalSize,
 ) -> bool {
     let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
@@ -325,7 +328,7 @@ async fn output_bridge(
         state.set_running(true);
         total_bytes += data.len();
 
-        let response = handle_terminal_queries(&data, &parser, &mut state, &size);
+        let response = handle_terminal_queries(&data, &parser, &mut state);
         if !response.is_empty() {
             let _ = response_tx.send(response);
         }

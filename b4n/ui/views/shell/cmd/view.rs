@@ -10,7 +10,6 @@ use ratatui::{Frame, layout::Rect};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Handle;
-use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
@@ -424,8 +423,7 @@ impl View for CmdView {
 
             if let Ok(parser) = self.parser.read() {
                 let screen = parser.screen();
-                let cursor = Cursor::default().visibility(!self.bridge.is_finished());
-                let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
+                let pseudo_term = PseudoTerminal::new(screen).cursor(self.bridge.cursor());
                 frame.render_widget(pseudo_term, layout[1]);
             }
 

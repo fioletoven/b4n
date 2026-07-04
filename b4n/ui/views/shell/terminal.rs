@@ -1,27 +1,19 @@
 use kube::api::TerminalSize;
 use ratatui::layout::Rect;
 use std::io::Write;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, Ordering};
 use std::sync::{Arc, RwLock};
 use tui_term::vt100;
 
 const ESC: u8 = 0x1B;
 
-/// Detects terminal mode changes and then updates it in [`TerminalState`].
-pub fn handle_terminal_modes(data: &[u8], state: &mut TerminalState) {
-    let (app_mode, mouse) = detect_terminal_modes(data);
-    state.update_state(app_mode, mouse);
-}
-
 /// Responds to terminal queries embedded in raw process output.
-pub fn handle_terminal_queries(
-    data: &[u8],
-    parser: &Arc<RwLock<vt100::Parser>>,
-    state: &mut TerminalState,
-    size: &TerminalSize,
-) -> Vec<u8> {
-    let mut application_mode = None;
+pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, state: &mut TerminalState) -> Vec<u8> {
+    let mut app_mode = None;
     let mut mouse_mode = None;
+    let mut cursor_shape = None;
+    let size = state.size();
+
     let mut response = Vec::new();
     let mut i = 0;
 
@@ -43,7 +35,15 @@ pub fn handle_terminal_queries(
         // ESC [ cases
         if data[i] == b'[' {
             let seq = &data[i + 1..];
-            if let Some(advance) = handle_csi(seq, &mut response, parser, &mut application_mode, &mut mouse_mode, size) {
+            if let Some(advance) = handle_csi(
+                seq,
+                &mut response,
+                parser,
+                &mut app_mode,
+                &mut mouse_mode,
+                &mut cursor_shape,
+                &size,
+            ) {
                 i += advance;
             }
         }
@@ -51,7 +51,7 @@ pub fn handle_terminal_queries(
         i += 1;
     }
 
-    state.update_state(application_mode, mouse_mode);
+    state.update_state(app_mode, mouse_mode, cursor_shape);
     response
 }
 
@@ -63,6 +63,7 @@ fn handle_csi(
     parser: &Arc<RwLock<vt100::Parser>>,
     application_mode: &mut Option<bool>,
     mouse_mode: &mut Option<bool>,
+    cursor_shape: &mut Option<u8>,
     size: &TerminalSize,
 ) -> Option<usize> {
     Some(match seq {
@@ -105,30 +106,17 @@ fn handle_csi(
             3
         },
 
+        // ESC [ Ps SP q - DECSCUSR, cursor shape
+        [param, b' ', b'q', ..] => {
+            *cursor_shape = Some(*param);
+            3
+        },
+
         // ESC [ ? cases
         [b'?', ..] => detect_terminal_modes_internal(&seq[1..], application_mode, mouse_mode) + 1,
 
         _ => return None,
     })
-}
-
-fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
-    const CSI_PRIVATE: &[u8] = &[ESC, b'[', b'?']; // ESC [ ?
-
-    let mut application_mode = None;
-    let mut mouse_mode = None;
-    let mut i = 0;
-
-    while let Some(slice) = data.get(i..) {
-        let Some(offset) = slice.windows(CSI_PRIVATE.len()).position(|w| w == CSI_PRIVATE) else {
-            break;
-        };
-
-        i += offset + CSI_PRIVATE.len();
-        i += detect_terminal_modes_internal(&data[i..], &mut application_mode, &mut mouse_mode);
-    }
-
-    (application_mode, mouse_mode)
 }
 
 fn detect_terminal_modes_internal(data: &[u8], application_mode: &mut Option<bool>, mouse_mode: &mut Option<bool>) -> usize {
@@ -169,8 +157,11 @@ fn cursor_position(parser: &Arc<RwLock<vt100::Parser>>) -> (u16, u16) {
 pub struct TerminalState {
     is_running: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
+    cursor_shape: Arc<AtomicU8>,
     cursor_key_mode: Arc<AtomicU8>,
     mouse_mode: Arc<AtomicU8>,
+    width: Arc<AtomicU16>,
+    height: Arc<AtomicU16>,
 }
 
 impl Default for TerminalState {
@@ -178,8 +169,11 @@ impl Default for TerminalState {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
             has_error: Arc::new(AtomicBool::new(false)),
+            cursor_shape: Arc::new(AtomicU8::new(0)),
             cursor_key_mode: Arc::new(AtomicU8::new(0)),
             mouse_mode: Arc::new(AtomicU8::new(0)),
+            width: Arc::new(AtomicU16::new(0)),
+            height: Arc::new(AtomicU16::new(0)),
         }
     }
 }
@@ -203,6 +197,24 @@ impl TerminalState {
     /// Sets flag indicating if terminal has error.
     pub fn set_error(&mut self, has_error: bool) {
         self.has_error.store(has_error, Ordering::Relaxed);
+    }
+
+    /// Gets cursor shape.\
+    /// 0 - unknown,\
+    /// 1 - block,\
+    /// 2 - underline,\
+    /// 3 - bar.
+    pub fn cursor_shape(&self) -> u8 {
+        self.cursor_shape.load(Ordering::Relaxed)
+    }
+
+    /// Sets cursor shape.\
+    /// 0 - unknown,\
+    /// 1 - block,\
+    /// 2 - underline,\
+    /// 3 - bar.
+    pub fn set_cursor_shape(&mut self, shape: u8) {
+        self.cursor_shape.store(shape, Ordering::Relaxed);
     }
 
     /// Gets the terminal cursor key mode.\
@@ -237,13 +249,36 @@ impl TerminalState {
         self.mouse_mode.store(mode, Ordering::Relaxed);
     }
 
+    /// Returns terminal size.
+    pub fn size(&self) -> TerminalSize {
+        TerminalSize {
+            width: self.width.load(Ordering::Relaxed),
+            height: self.height.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Sets new terminal size.
+    pub fn set_size(&mut self, width: u16, height: u16) {
+        self.width.store(width, Ordering::Relaxed);
+        self.height.store(height, Ordering::Relaxed);
+    }
+
     /// Updates cursor key and mouse modes.
-    pub fn update_state(&mut self, cursor_key_mode: Option<bool>, mouse_mode: Option<bool>) {
+    pub fn update_state(&mut self, cursor_key_mode: Option<bool>, mouse_mode: Option<bool>, cursor_shape: Option<u8>) {
         if let Some(enabled) = cursor_key_mode {
             self.set_cursor_key_mode(if enabled { 2 } else { 1 });
         }
         if let Some(enabled) = mouse_mode {
             self.set_mouse_mode(if enabled { 2 } else { 1 });
+        }
+        if let Some(shape) = cursor_shape {
+            let shape = match shape {
+                b'0' | b'1' | b'2' => 1, // block
+                b'3' | b'4' => 2,        // underline
+                b'5' | b'6' => 3,        // bar
+                _ => 0,
+            };
+            self.set_cursor_shape(shape);
         }
     }
 }
