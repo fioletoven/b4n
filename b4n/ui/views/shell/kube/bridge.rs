@@ -11,8 +11,9 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100::{self};
+use tui_term::widget::CursorShape;
 
-use crate::ui::views::shell::terminal::{TerminalState, update_terminal_state};
+use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
@@ -65,6 +66,7 @@ impl ShellBridge {
         self.shell = Some(_shell.clone());
 
         self.state.set_error(false);
+        self.state.set_size(size.width, size.height);
         let mut _state = self.state.clone();
         let _is_attach = self.is_attach;
 
@@ -176,6 +178,7 @@ impl ShellBridge {
             && let Some(tx) = &self.size_tx
         {
             let _ = tx.send(TerminalSize { width, height });
+            self.state.set_size(width, height);
         }
     }
 
@@ -201,20 +204,17 @@ impl ShellBridge {
 
     /// Returns `true` if terminal is in application mode.
     pub fn is_application_mode(&self) -> Option<bool> {
-        match self.state.cursor_key_mode() {
-            0 => None,
-            1 => Some(false),
-            _ => Some(true),
-        }
+        self.state.is_application_mode()
     }
 
     /// Returns `true` if terminal has mouse enabled.
     pub fn is_mouse_enabled(&self) -> Option<bool> {
-        match self.state.mouse_mode() {
-            0 => None,
-            1 => Some(false),
-            _ => Some(true),
-        }
+        self.state.is_mouse_enabled()
+    }
+
+    /// Returns cursor shape for the terminal.
+    pub fn cursor_shape(&self) -> CursorShape {
+        self.state.cursor_shape()
     }
 }
 
@@ -270,7 +270,7 @@ async fn output_bridge(
                 state.set_running(true);
 
                 processed_buf.extend_from_slice(&buf[..size]);
-                update_terminal_state(&processed_buf, &mut state);
+                let _ = handle_terminal_queries(&processed_buf, &parser, &mut state);
 
                 let mut parser = parser.write().unwrap();
                 parser.process(&processed_buf);

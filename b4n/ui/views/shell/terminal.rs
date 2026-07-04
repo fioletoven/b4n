@@ -1,107 +1,74 @@
+use crossterm::ExecutableCommand;
+use crossterm::cursor::SetCursorStyle;
 use kube::api::TerminalSize;
 use ratatui::layout::Rect;
-use std::io::Write;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::io::{Write, stdout};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, Ordering};
 use std::sync::{Arc, RwLock};
 use tui_term::vt100;
+use tui_term::widget::CursorShape;
 
 const ESC: u8 = 0x1B;
 
-/// Detects terminal mode changes (application cursor keys, mouse) from raw PTY output.
-pub fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
-    const CSI_PRIVATE: &[u8] = &[ESC, b'[', b'?']; // ESC [ ?
-
-    let mut application_mode = None;
+/// Responds to terminal queries embedded in raw process output.
+pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, state: &mut TerminalState) -> Vec<u8> {
+    let mut app_mode = None;
     let mut mouse_mode = None;
+    let mut cursor_shape = None;
+    let size = state.size();
+
+    let mut response = Vec::new();
     let mut i = 0;
 
-    while let Some(slice) = data.get(i..) {
-        let Some(offset) = slice.windows(CSI_PRIVATE.len()).position(|w| w == CSI_PRIVATE) else {
-            break;
-        };
-        i += offset + CSI_PRIVATE.len();
-
-        // collect digits and ';' until terminator 'h' or 'l'
-        let params_start = i;
-        let terminator = loop {
-            match data.get(i) {
-                Some(&b'h') => break b'h',
-                Some(&b'l') => break b'l',
-                Some(&b) if b.is_ascii_digit() || b == b';' => i += 1,
-                _ => break 0,
-            }
-        };
-
-        if terminator == 0 {
-            break;
+    while i + 1 < data.len() {
+        if data[i] != ESC {
+            i += 1;
+            continue;
         }
 
-        let enabled = terminator == b'h';
-        for param in data[params_start..i].split(|&b| b == b';') {
-            match param {
-                b"1" => application_mode = Some(enabled),
-                b"1000" | b"1002" | b"1003" | b"1006" => mouse_mode = Some(enabled),
-                _ => {},
+        i += 1;
+
+        // ESC Z case
+        if data[i] == b'Z' {
+            response.extend_from_slice(b"\x1b[?6c");
+            i += 1;
+            continue;
+        }
+
+        // ESC [ cases
+        if data[i] == b'[' {
+            let seq = &data[i + 1..];
+            if let Some(advance) = handle_csi(
+                seq,
+                &mut response,
+                parser,
+                &mut app_mode,
+                &mut mouse_mode,
+                &mut cursor_shape,
+                &size,
+            ) {
+                i += advance;
             }
         }
 
         i += 1;
     }
 
-    (application_mode, mouse_mode)
-}
-
-/// Detects terminal mode changes and then updates it in [`TerminalState`].
-pub fn update_terminal_state(data: &[u8], state: &mut TerminalState) {
-    let (app_mode, mouse) = detect_terminal_modes(data);
-    if let Some(enabled) = app_mode {
-        state.set_cursor_key_mode(if enabled { 2 } else { 1 });
-    }
-    if let Some(enabled) = mouse {
-        state.set_mouse_mode(if enabled { 2 } else { 1 });
-    }
-}
-
-/// Responds to terminal queries embedded in raw process output.
-pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, size: &TerminalSize) -> Vec<u8> {
-    let mut response = Vec::new();
-    let mut i = 0;
-
-    while i < data.len() {
-        if data[i] != ESC {
-            i += 1;
-            continue;
-        }
-
-        let tail = &data[i..];
-
-        // ESC Z case
-        if tail.get(1) == Some(&b'Z') {
-            response.extend_from_slice(b"\x1b[?6c");
-            i += 2;
-            continue;
-        }
-
-        // all ESC [ cases
-        let Some(seq) = tail.get(2..) else { break };
-        if tail.get(1) != Some(&b'[') {
-            i += 1;
-            continue;
-        }
-
-        if let Some(advance) = handle_csi(seq, &mut response, parser, size) {
-            i += 2 + advance;
-        } else {
-            i += 1;
-        }
-    }
-
+    state.update_state(app_mode, mouse_mode, cursor_shape);
     response
 }
 
 /// Handles a CSI sequence (the part after `ESC [`).\
 /// Returns how many bytes were consumed (including the final byte), or `None` to skip.
-fn handle_csi(seq: &[u8], response: &mut Vec<u8>, parser: &Arc<RwLock<vt100::Parser>>, size: &TerminalSize) -> Option<usize> {
+fn handle_csi(
+    seq: &[u8],
+    response: &mut Vec<u8>,
+    parser: &Arc<RwLock<vt100::Parser>>,
+    application_mode: &mut Option<bool>,
+    mouse_mode: &mut Option<bool>,
+    cursor_shape: &mut Option<u8>,
+    size: &TerminalSize,
+) -> Option<usize> {
     Some(match seq {
         // ESC [ 6 n - cursor position query
         [b'6', b'n', ..] => {
@@ -142,8 +109,43 @@ fn handle_csi(seq: &[u8], response: &mut Vec<u8>, parser: &Arc<RwLock<vt100::Par
             3
         },
 
+        // ESC [ Ps SP q - DECSCUSR, cursor shape
+        [param, b' ', b'q', ..] => {
+            *cursor_shape = Some(*param);
+            3
+        },
+
+        // ESC [ ? cases
+        [b'?', ..] => detect_terminal_modes_internal(&seq[1..], application_mode, mouse_mode) + 1,
+
         _ => return None,
     })
+}
+
+fn detect_terminal_modes_internal(data: &[u8], application_mode: &mut Option<bool>, mouse_mode: &mut Option<bool>) -> usize {
+    let mut i = 0;
+
+    // collect digits and ';' until terminator 'h' or 'l'
+    let params_start = i;
+    let terminator = loop {
+        match data.get(i) {
+            Some(&b'h') => break b'h',
+            Some(&b'l') => break b'l',
+            Some(&b) if b.is_ascii_digit() || b == b';' => i += 1,
+            _ => return 0,
+        }
+    };
+
+    let enabled = terminator == b'h';
+    for param in data[params_start..i].split(|&b| b == b';') {
+        match param {
+            b"1" => *application_mode = Some(enabled),
+            b"1000" | b"1002" | b"1003" | b"1006" => *mouse_mode = Some(enabled),
+            _ => {},
+        }
+    }
+
+    i + 1
 }
 
 fn cursor_position(parser: &Arc<RwLock<vt100::Parser>>) -> (u16, u16) {
@@ -158,8 +160,11 @@ fn cursor_position(parser: &Arc<RwLock<vt100::Parser>>) -> (u16, u16) {
 pub struct TerminalState {
     is_running: Arc<AtomicBool>,
     has_error: Arc<AtomicBool>,
+    cursor_shape: Arc<AtomicU8>,
     cursor_key_mode: Arc<AtomicU8>,
     mouse_mode: Arc<AtomicU8>,
+    width: Arc<AtomicU16>,
+    height: Arc<AtomicU16>,
 }
 
 impl Default for TerminalState {
@@ -167,8 +172,11 @@ impl Default for TerminalState {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
             has_error: Arc::new(AtomicBool::new(false)),
+            cursor_shape: Arc::new(AtomicU8::new(0)),
             cursor_key_mode: Arc::new(AtomicU8::new(0)),
             mouse_mode: Arc::new(AtomicU8::new(0)),
+            width: Arc::new(AtomicU16::new(0)),
+            height: Arc::new(AtomicU16::new(0)),
         }
     }
 }
@@ -194,12 +202,35 @@ impl TerminalState {
         self.has_error.store(has_error, Ordering::Relaxed);
     }
 
-    /// Gets the terminal cursor key mode.\
+    /// Returns desired cursor shape.
+    pub fn cursor_shape(&self) -> CursorShape {
+        match self.cursor_shape.load(Ordering::Relaxed) {
+            1 => CursorShape::BlinkingBlock,
+            2 => CursorShape::SteadyBlock,
+            3 => CursorShape::BlinkingUnderline,
+            4 => CursorShape::SteadyUnderline,
+            5 => CursorShape::BlinkingBar,
+            6 => CursorShape::SteadyBar,
+            _ => CursorShape::Default,
+        }
+    }
+
+    /// Sets cursor shape.\
     /// 0 - unknown,\
-    /// 1 - normal cursor key mode,\
-    /// 2 - application cursor key mode.
-    pub fn cursor_key_mode(&self) -> u8 {
-        self.cursor_key_mode.load(Ordering::Relaxed)
+    /// 1 - block,\
+    /// 2 - underline,\
+    /// 3 - bar.
+    pub fn set_cursor_shape(&mut self, shape: u8) {
+        self.cursor_shape.store(shape, Ordering::Relaxed);
+    }
+
+    /// Returns whether the terminal is in application cursor key mode.
+    pub fn is_application_mode(&self) -> Option<bool> {
+        match self.cursor_key_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
     }
 
     /// Sets terminal cursor key mode.\
@@ -210,12 +241,13 @@ impl TerminalState {
         self.cursor_key_mode.store(mode, Ordering::Relaxed);
     }
 
-    /// Gets mouse mode.\
-    /// 0 - unknown,\
-    /// 1 - disabled,\
-    /// 2 - enabled.
-    pub fn mouse_mode(&self) -> u8 {
-        self.mouse_mode.load(Ordering::Relaxed)
+    /// Returns whether the terminal has mouse reporting enabled.
+    pub fn is_mouse_enabled(&self) -> Option<bool> {
+        match self.mouse_mode.load(Ordering::Relaxed) {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
     }
 
     /// Sets mouse mode.\
@@ -224,6 +256,78 @@ impl TerminalState {
     /// 2 - enabled.
     pub fn set_mouse_mode(&mut self, mode: u8) {
         self.mouse_mode.store(mode, Ordering::Relaxed);
+    }
+
+    /// Returns terminal size.
+    pub fn size(&self) -> TerminalSize {
+        TerminalSize {
+            width: self.width.load(Ordering::Relaxed),
+            height: self.height.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Sets new terminal size.
+    pub fn set_size(&mut self, width: u16, height: u16) {
+        self.width.store(width, Ordering::Relaxed);
+        self.height.store(height, Ordering::Relaxed);
+    }
+
+    /// Updates cursor key and mouse modes.
+    pub fn update_state(&mut self, cursor_key_mode: Option<bool>, mouse_mode: Option<bool>, cursor_shape: Option<u8>) {
+        if let Some(enabled) = cursor_key_mode {
+            self.set_cursor_key_mode(if enabled { 2 } else { 1 });
+        }
+        if let Some(enabled) = mouse_mode {
+            self.set_mouse_mode(if enabled { 2 } else { 1 });
+        }
+        if let Some(shape) = cursor_shape {
+            let shape = match shape {
+                b'0' | b'1' => 1, // blinking block
+                b'2' => 2,        // steady block
+                b'3' => 3,        // blinking underline
+                b'4' => 4,        // steady underline
+                b'5' => 5,        // blinking bar
+                b'6' => 6,        // steady bar
+                _ => 0,           // default
+            };
+            self.set_cursor_shape(shape);
+        }
+    }
+}
+
+/// Tracks current cursor shape for the terminal.
+#[derive(Default)]
+pub struct CursorShapeTracker {
+    cursor_shape: Option<CursorShape>,
+}
+
+impl CursorShapeTracker {
+    /// Apply new cursor shape to the terminal, if anything changed.
+    pub fn sync_shape(&mut self, shape: CursorShape) {
+        if self.cursor_shape.is_none_or(|s| s != shape) {
+            self.cursor_shape = Some(shape);
+            self.apply_terminal_cursor_shape();
+        }
+    }
+
+    /// Reset cursor shape for the terminal.
+    pub fn reset_shape(&mut self) {
+        self.cursor_shape = Some(CursorShape::Default);
+        self.apply_terminal_cursor_shape();
+    }
+
+    fn apply_terminal_cursor_shape(&self) {
+        let Some(cursor_shape) = self.cursor_shape else {
+            return;
+        };
+
+        let command = match cursor_shape {
+            CursorShape::BlinkingUnderline | CursorShape::SteadyUnderline => SetCursorStyle::SteadyUnderScore,
+            CursorShape::BlinkingBar | CursorShape::SteadyBar => SetCursorStyle::SteadyBar,
+            _ => SetCursorStyle::SteadyBlock,
+        };
+
+        let _ = stdout().execute(command);
     }
 }
 
