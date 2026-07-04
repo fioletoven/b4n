@@ -39,6 +39,7 @@ pub struct CmdView {
     selection: ScreenSelection,
     area: Rect,
     esc_tracker: EscPressTracker,
+    auto_mouse: bool,
     pin_to_top: bool,
     keep_output: bool,
     keep_error: bool,
@@ -85,6 +86,7 @@ impl CmdView {
             selection,
             area,
             esc_tracker: EscPressTracker::default(),
+            auto_mouse: plugin.interactive && plugin.auto_mouse,
             pin_to_top: !plugin.interactive && plugin.pin_to_top,
             keep_output: plugin.keep_output,
             keep_error: plugin.keep_error,
@@ -293,8 +295,15 @@ impl View for CmdView {
             }
         }
 
-        if self.is_mouse_enabled && self.bridge.is_mouse_enabled().is_some_and(|m| !m) {
-            return self.enable_mouse(false);
+        if let Some(mouse_enabled) = self.bridge.is_mouse_enabled() {
+            if self.is_mouse_enabled && !mouse_enabled {
+                return self.enable_mouse(false);
+            }
+
+            if self.auto_mouse && mouse_enabled {
+                self.auto_mouse = false;
+                return self.enable_mouse(true);
+            }
         }
 
         ResponseEvent::Handled

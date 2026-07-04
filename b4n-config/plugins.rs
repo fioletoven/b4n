@@ -46,6 +46,7 @@ pub struct Plugin {
     pub interactive: bool,
     pub keep_output: bool,
     pub keep_error: bool,
+    pub auto_mouse: bool,
     pub pin_to_top: bool,
     pub highlighted: bool,
     pub selected: bool,

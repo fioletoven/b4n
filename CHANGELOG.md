@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- new option `auto_mouse` for interactive plugins
+
 ### Bug fixes
 
 - fix command palette highlights wrong item on the list
