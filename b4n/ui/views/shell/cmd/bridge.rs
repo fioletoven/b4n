@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100;
 
-use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries, update_terminal_state};
+use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_queries};
 
 /// Bridge between external command and `b4n`'s TUI.
 pub struct CmdBridge {
@@ -325,9 +325,10 @@ async fn output_bridge(
         state.set_running(true);
         total_bytes += data.len();
 
-        update_terminal_state(&data, &mut state);
-        let response = handle_terminal_queries(&data, &parser, &size);
-        let _ = response_tx.send(response);
+        let response = handle_terminal_queries(&data, &parser, &mut state, &size);
+        if !response.is_empty() {
+            let _ = response_tx.send(response);
+        }
 
         if let Ok(mut p) = parser.write() {
             p.process(&data);

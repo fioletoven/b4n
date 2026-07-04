@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tui_term::vt100::{self};
 
-use crate::ui::views::shell::terminal::{TerminalState, update_terminal_state};
+use crate::ui::views::shell::terminal::{TerminalState, handle_terminal_modes};
 
 /// Bridge between pod's shell and `b4n`'s TUI.
 pub struct ShellBridge {
@@ -270,7 +270,7 @@ async fn output_bridge(
                 state.set_running(true);
 
                 processed_buf.extend_from_slice(&buf[..size]);
-                update_terminal_state(&processed_buf, &mut state);
+                handle_terminal_modes(&processed_buf, &mut state);
 
                 let mut parser = parser.write().unwrap();
                 parser.process(&processed_buf);

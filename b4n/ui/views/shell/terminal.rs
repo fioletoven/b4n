@@ -7,101 +7,64 @@ use tui_term::vt100;
 
 const ESC: u8 = 0x1B;
 
-/// Detects terminal mode changes (application cursor keys, mouse) from raw PTY output.
-pub fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
-    const CSI_PRIVATE: &[u8] = &[ESC, b'[', b'?']; // ESC [ ?
+/// Detects terminal mode changes and then updates it in [`TerminalState`].
+pub fn handle_terminal_modes(data: &[u8], state: &mut TerminalState) {
+    let (app_mode, mouse) = detect_terminal_modes(data);
+    state.update_state(app_mode, mouse);
+}
 
+/// Responds to terminal queries embedded in raw process output.
+pub fn handle_terminal_queries(
+    data: &[u8],
+    parser: &Arc<RwLock<vt100::Parser>>,
+    state: &mut TerminalState,
+    size: &TerminalSize,
+) -> Vec<u8> {
     let mut application_mode = None;
     let mut mouse_mode = None;
+    let mut response = Vec::new();
     let mut i = 0;
 
-    while let Some(slice) = data.get(i..) {
-        let Some(offset) = slice.windows(CSI_PRIVATE.len()).position(|w| w == CSI_PRIVATE) else {
-            break;
-        };
-        i += offset + CSI_PRIVATE.len();
-
-        // collect digits and ';' until terminator 'h' or 'l'
-        let params_start = i;
-        let terminator = loop {
-            match data.get(i) {
-                Some(&b'h') => break b'h',
-                Some(&b'l') => break b'l',
-                Some(&b) if b.is_ascii_digit() || b == b';' => i += 1,
-                _ => break 0,
-            }
-        };
-
-        if terminator == 0 {
-            break;
+    while i + 1 < data.len() {
+        if data[i] != ESC {
+            i += 1;
+            continue;
         }
 
-        let enabled = terminator == b'h';
-        for param in data[params_start..i].split(|&b| b == b';') {
-            match param {
-                b"1" => application_mode = Some(enabled),
-                b"1000" | b"1002" | b"1003" | b"1006" => mouse_mode = Some(enabled),
-                _ => {},
+        i += 1;
+
+        // ESC Z case
+        if data[i] == b'Z' {
+            response.extend_from_slice(b"\x1b[?6c");
+            i += 1;
+            continue;
+        }
+
+        // ESC [ cases
+        if data[i] == b'[' {
+            let seq = &data[i + 1..];
+            if let Some(advance) = handle_csi(seq, &mut response, parser, &mut application_mode, &mut mouse_mode, size) {
+                i += advance;
             }
         }
 
         i += 1;
     }
 
-    (application_mode, mouse_mode)
-}
-
-/// Detects terminal mode changes and then updates it in [`TerminalState`].
-pub fn update_terminal_state(data: &[u8], state: &mut TerminalState) {
-    let (app_mode, mouse) = detect_terminal_modes(data);
-    if let Some(enabled) = app_mode {
-        state.set_cursor_key_mode(if enabled { 2 } else { 1 });
-    }
-    if let Some(enabled) = mouse {
-        state.set_mouse_mode(if enabled { 2 } else { 1 });
-    }
-}
-
-/// Responds to terminal queries embedded in raw process output.
-pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, size: &TerminalSize) -> Vec<u8> {
-    let mut response = Vec::new();
-    let mut i = 0;
-
-    while i < data.len() {
-        if data[i] != ESC {
-            i += 1;
-            continue;
-        }
-
-        let tail = &data[i..];
-
-        // ESC Z case
-        if tail.get(1) == Some(&b'Z') {
-            response.extend_from_slice(b"\x1b[?6c");
-            i += 2;
-            continue;
-        }
-
-        // all ESC [ cases
-        let Some(seq) = tail.get(2..) else { break };
-        if tail.get(1) != Some(&b'[') {
-            i += 1;
-            continue;
-        }
-
-        if let Some(advance) = handle_csi(seq, &mut response, parser, size) {
-            i += 2 + advance;
-        } else {
-            i += 1;
-        }
-    }
-
+    state.update_state(application_mode, mouse_mode);
     response
 }
 
 /// Handles a CSI sequence (the part after `ESC [`).\
 /// Returns how many bytes were consumed (including the final byte), or `None` to skip.
-fn handle_csi(seq: &[u8], response: &mut Vec<u8>, parser: &Arc<RwLock<vt100::Parser>>, size: &TerminalSize) -> Option<usize> {
+fn handle_csi(
+    seq: &[u8],
+    response: &mut Vec<u8>,
+    parser: &Arc<RwLock<vt100::Parser>>,
+    application_mode: &mut Option<bool>,
+    mouse_mode: &mut Option<bool>,
+    size: &TerminalSize,
+) -> Option<usize> {
     Some(match seq {
         // ESC [ 6 n - cursor position query
         [b'6', b'n', ..] => {
@@ -142,8 +105,56 @@ fn handle_csi(seq: &[u8], response: &mut Vec<u8>, parser: &Arc<RwLock<vt100::Par
             3
         },
 
+        // ESC [ ? cases
+        [b'?', ..] => detect_terminal_modes_internal(&seq[1..], application_mode, mouse_mode) + 1,
+
         _ => return None,
     })
+}
+
+fn detect_terminal_modes(data: &[u8]) -> (Option<bool>, Option<bool>) {
+    const CSI_PRIVATE: &[u8] = &[ESC, b'[', b'?']; // ESC [ ?
+
+    let mut application_mode = None;
+    let mut mouse_mode = None;
+    let mut i = 0;
+
+    while let Some(slice) = data.get(i..) {
+        let Some(offset) = slice.windows(CSI_PRIVATE.len()).position(|w| w == CSI_PRIVATE) else {
+            break;
+        };
+
+        i += offset + CSI_PRIVATE.len();
+        i += detect_terminal_modes_internal(&data[i..], &mut application_mode, &mut mouse_mode);
+    }
+
+    (application_mode, mouse_mode)
+}
+
+fn detect_terminal_modes_internal(data: &[u8], application_mode: &mut Option<bool>, mouse_mode: &mut Option<bool>) -> usize {
+    let mut i = 0;
+
+    // collect digits and ';' until terminator 'h' or 'l'
+    let params_start = i;
+    let terminator = loop {
+        match data.get(i) {
+            Some(&b'h') => break b'h',
+            Some(&b'l') => break b'l',
+            Some(&b) if b.is_ascii_digit() || b == b';' => i += 1,
+            _ => return 0,
+        }
+    };
+
+    let enabled = terminator == b'h';
+    for param in data[params_start..i].split(|&b| b == b';') {
+        match param {
+            b"1" => *application_mode = Some(enabled),
+            b"1000" | b"1002" | b"1003" | b"1006" => *mouse_mode = Some(enabled),
+            _ => {},
+        }
+    }
+
+    i + 1
 }
 
 fn cursor_position(parser: &Arc<RwLock<vt100::Parser>>) -> (u16, u16) {
@@ -224,6 +235,16 @@ impl TerminalState {
     /// 2 - enabled.
     pub fn set_mouse_mode(&mut self, mode: u8) {
         self.mouse_mode.store(mode, Ordering::Relaxed);
+    }
+
+    /// Updates cursor key and mouse modes.
+    pub fn update_state(&mut self, cursor_key_mode: Option<bool>, mouse_mode: Option<bool>) {
+        if let Some(enabled) = cursor_key_mode {
+            self.set_cursor_key_mode(if enabled { 2 } else { 1 });
+        }
+        if let Some(enabled) = mouse_mode {
+            self.set_mouse_mode(if enabled { 2 } else { 1 });
+        }
     }
 }
 
