@@ -3,7 +3,7 @@ use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{
-    CommandResult, ResourceYamlResult, SetNewResourceYamlOptions, SetResourceYamlAction, SetResourceYamlOptions,
+    CommandResult, ResourceYamlResult, RunPluginOutput, SetNewResourceYamlOptions, SetResourceYamlAction, SetResourceYamlOptions,
 };
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -672,6 +672,19 @@ impl YamlView {
         }
     }
 
+    fn process_new_output(&mut self, result: RunPluginOutput) {
+        let Some(highlighter) = self.worker.borrow().get_highlighter() else {
+            return;
+        };
+        self.yaml.set_content(YamlContent::new(
+            result.styled.into_iter().map(StyledLine::from).collect(),
+            result.output,
+            highlighter,
+            false,
+            StyleFallback::default(),
+        ));
+    }
+
     fn update_view_state(&mut self) {
         if self.state == ViewState::WaitingForClose {
             self.state = ViewState::Closing;
@@ -725,6 +738,9 @@ impl View for YamlView {
             CommandResult::SetResourceYaml(Ok(name)) => {
                 self.update_view_state();
                 self.footer.show_info(format!("'{name}' YAML saved successfully"), 3_000);
+            },
+            CommandResult::RunPluginOutput(result) => {
+                self.process_new_output(result);
             },
             _ => (),
         }

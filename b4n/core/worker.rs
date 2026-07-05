@@ -518,7 +518,8 @@ impl BgWorker {
 
     /// Runs specified plugin as a background task.
     pub fn run_plugin(&mut self, plugin: Plugin, context: PluginContext, footer_tx: NotificationSink) -> Option<String> {
-        let command = RunPluginCommand::new(plugin, context, footer_tx);
+        let sender = self.highlighter.get_sender()?;
+        let command = RunPluginCommand::new(plugin, context, sender, footer_tx);
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 }

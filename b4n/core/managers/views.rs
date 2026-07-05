@@ -7,7 +7,7 @@ use b4n_kube::{
 };
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
-    ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
+    ResourceYamlResult, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
@@ -593,7 +593,7 @@ impl ViewsManager {
             return;
         };
 
-        if plugin.interactive || plugin.keep_output {
+        if plugin.interactive {
             self.footer().hide_hint();
 
             let index = if context.resources.len() == 1 { Some(0) } else { None };
@@ -610,9 +610,33 @@ impl ViewsManager {
 
             self.view = Some(Box::new(view));
         } else {
-            self.worker
+            let keep_output = plugin.keep_output;
+            let resource = context.resources.first().cloned().unwrap_or_default();
+            let command_id = self
+                .worker
                 .borrow_mut()
                 .run_plugin(plugin, context, self.footer.get_transmitter());
+            if keep_output {
+                let view = YamlView::new(
+                    Rc::clone(&self.app_data),
+                    Rc::clone(&self.worker),
+                    command_id,
+                    resource,
+                    self.footer.get_transmitter(),
+                    false,
+                    self.workspace,
+                );
+                self.view = Some(Box::new(view));
+            }
+        }
+    }
+
+    /// Shows returned plugin command output in an already opened YAML view.
+    pub fn show_plugin_output(&mut self, command_id: &str, result: RunPluginOutput) {
+        if let Some(view) = &mut self.view
+            && view.command_id_match(command_id)
+        {
+            view.process_command_result(CommandResult::RunPluginOutput(result));
         }
     }
 

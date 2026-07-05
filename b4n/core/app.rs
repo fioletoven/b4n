@@ -279,6 +279,7 @@ impl App {
                 CommandResult::ContextsList(list) => self.views_manager.show_contexts_list(&list),
                 CommandResult::ThemesList(list) => self.views_manager.show_themes_list(list),
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(&list),
+                CommandResult::RunPluginOutput(output) => self.views_manager.show_plugin_output(&command.id, output),
             }
         }
     }
