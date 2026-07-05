@@ -100,7 +100,7 @@ async fn execute_output(
     let raw = if output.status.success() {
         String::from_utf8_lossy(&output.stdout).into_owned()
     } else {
-        show_error(&plugin.name, &resource_name, output, &footer_tx);
+        show_error(&plugin.name, &resource_name, &output, &footer_tx);
         return None;
     };
 
@@ -177,7 +177,7 @@ async fn execute_once(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_t
         tracing::info!("{}", msg);
         footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
     } else {
-        show_error(&plugin.name, &resource_name, output, &footer_tx);
+        show_error(&plugin.name, &resource_name, &output, &footer_tx);
     }
 }
 
@@ -191,7 +191,7 @@ fn get_resource_name(context: &Arc<PluginContext>, row_index: Option<usize>) -> 
     }
 }
 
-fn show_error(plugin_name: &str, resource_name: &str, output: std::process::Output, footer_tx: &NotificationSink) {
+fn show_error(plugin_name: &str, resource_name: &str, output: &std::process::Output, footer_tx: &NotificationSink) {
     let stderr = String::from_utf8_lossy(&output.stderr);
     let code = output.status.code().unwrap_or(-1);
     let msg = format!(
