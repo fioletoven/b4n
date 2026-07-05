@@ -11,6 +11,10 @@ use tokio::task::JoinSet;
 use crate::commands::CommandResult;
 use crate::{HighlightRequest, highlight_yaml};
 
+/// Indicates error while running command.\
+/// Used only to signal that view should be closed.
+pub struct RunPluginError;
+
 /// Result for the [`RunPluginCommand`] command.
 pub struct RunPluginOutput {
     pub output: Vec<String>,
@@ -57,7 +61,7 @@ impl RunPluginCommand {
 
         if keep_output {
             let result = execute_output(plugin, context, footer_tx, highlighter, &self.default_color, once_index).await;
-            result.map(CommandResult::RunPluginOutput)
+            Some(CommandResult::RunPluginOutput(result))
         } else if for_each {
             execute_for_each(plugin, context, footer_tx).await;
             None
@@ -76,7 +80,7 @@ async fn execute_output(
     highlighter: UnboundedSender<HighlightRequest>,
     default_color: &TextColors,
     row_index: Option<usize>,
-) -> Option<RunPluginOutput> {
+) -> Result<RunPluginOutput, RunPluginError> {
     let resource_name = get_resource_name(&context, row_index);
     let resolved_args: Vec<String> = plugin.args.iter().map(|arg| context.resolve_arg(arg, row_index)).collect();
 
@@ -93,7 +97,7 @@ async fn execute_output(
             tracing::error!("{}", msg);
             footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 
-            return None;
+            return Err(RunPluginError);
         },
     };
 
@@ -101,12 +105,12 @@ async fn execute_output(
         String::from_utf8_lossy(&output.stdout).into_owned()
     } else {
         show_error(&plugin.name, &resource_name, &output, &footer_tx);
-        return None;
+        return Err(RunPluginError);
     };
 
     if plugin.yaml_output {
         match highlight_yaml(&highlighter, raw).await {
-            Ok(result) => Some(RunPluginOutput {
+            Ok(result) => Ok(RunPluginOutput {
                 output: result.plain,
                 styled: result.styled,
             }),
@@ -115,7 +119,7 @@ async fn execute_output(
                 tracing::error!("{}", msg);
                 footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 
-                None
+                Err(RunPluginError)
             },
         }
     } else {
@@ -124,7 +128,7 @@ async fn execute_output(
             .iter()
             .map(|l| vec![(default_color.into(), l.clone())])
             .collect::<Vec<_>>();
-        Some(RunPluginOutput { output: plain, styled })
+        Ok(RunPluginOutput { output: plain, styled })
     }
 }
 

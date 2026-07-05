@@ -7,7 +7,7 @@ use b4n_kube::{
 };
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
-    ResourceYamlResult, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
+    ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
@@ -632,10 +632,16 @@ impl ViewsManager {
     }
 
     /// Shows returned plugin command output in an already opened YAML view.
-    pub fn show_plugin_output(&mut self, command_id: &str, result: RunPluginOutput) {
-        if let Some(view) = &mut self.view
-            && view.command_id_match(command_id)
-        {
+    pub fn show_plugin_output(&mut self, command_id: &str, result: Result<RunPluginOutput, RunPluginError>) {
+        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
+            return;
+        }
+        if result.is_err() {
+            self.view = None;
+            return;
+        };
+
+        if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::RunPluginOutput(result));
         }
     }

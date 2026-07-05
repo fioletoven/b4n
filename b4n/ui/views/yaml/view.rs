@@ -747,7 +747,7 @@ impl View for YamlView {
                 self.update_view_state();
                 self.footer.show_info(format!("'{name}' YAML saved successfully"), 3_000);
             },
-            CommandResult::RunPluginOutput(result) => {
+            CommandResult::RunPluginOutput(Ok(result)) => {
                 self.process_new_output(result);
             },
             _ => (),
