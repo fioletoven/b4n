@@ -610,12 +610,12 @@ impl ViewsManager {
 
             self.view = Some(Box::new(view));
         } else {
-            let keep_output = plugin.keep_output;
             let resource = context.resources.first().cloned().unwrap_or_default();
-            let command_id = self
-                .worker
-                .borrow_mut()
-                .run_plugin(plugin, context, self.footer.get_transmitter());
+            let title = plugin.name.clone();
+            let color = self.app_data.borrow().theme.colors.syntax.yaml.string;
+            let sink = self.footer.get_transmitter();
+            let keep_output = plugin.keep_output;
+            let command_id = self.worker.borrow_mut().run_plugin(plugin, context, color, sink);
             if keep_output {
                 let view = YamlView::new(
                     Rc::clone(&self.app_data),
@@ -626,7 +626,7 @@ impl ViewsManager {
                     false,
                     self.workspace,
                 );
-                self.view = Some(Box::new(view));
+                self.view = Some(Box::new(view.with_title(title, '')));
             }
         }
     }

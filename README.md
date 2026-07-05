@@ -175,6 +175,7 @@ confirm: false       # show run confirmation dialog
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
+yaml_output: false   # highlight output as YAML (if keep_output: true)
 auto_mouse: false    # automatically enable mouse support if app asks for it
 pin_to_top: false    # stay at the beginning of the command output
 highlighted: true    # allow running the plugin only when a resource in the list is highlighted

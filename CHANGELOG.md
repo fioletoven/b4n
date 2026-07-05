@@ -5,6 +5,7 @@
 ### Features
 
 - new option `auto_mouse` for interactive plugins
+- new option `yaml_output` for plugins with `keep_output` set to `true`
 
 ### Bug fixes
 

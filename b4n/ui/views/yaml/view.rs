@@ -18,7 +18,8 @@ use crate::ui::presentation::{Content, ContentViewer, StyleFallback, StyledLine}
 use crate::ui::views::{View, yaml::YamlContent};
 use crate::ui::widgets::{CommandPalette, FileSelector, Search};
 
-/// YAML view.
+/// YAML view.\
+/// **Note** that it is also used to display plugin command output.
 pub struct YamlView {
     yaml: ContentViewer<YamlContent>,
     app_data: SharedAppData,
@@ -93,6 +94,13 @@ impl YamlView {
         }
     }
 
+    /// Sets header title for the view.
+    pub fn with_title(mut self, title: impl Into<String>, icon: char) -> Self {
+        self.yaml.header.set_title(title);
+        self.yaml.header.set_icon(icon);
+        self
+    }
+
     /// Marks YAML view to switch to edit when data is received.
     pub fn switch_to_edit(&mut self) {
         self.is_edit = true;
@@ -120,7 +128,7 @@ impl YamlView {
             } else if is_current_line {
                 "Line copied to clipboard"
             } else {
-                "YAML content copied to clipboard"
+                "View content copied to clipboard"
             }
         });
     }
@@ -150,15 +158,15 @@ impl YamlView {
             .with_back()
             .with_quit()
             .with_action(
-                ActionItem::action("copy", "copy").with_description("copies YAML to clipboard"),
+                ActionItem::action("copy", "copy").with_description("copies content to clipboard"),
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
-                ActionItem::action("save", "save").with_description("saves YAML to a file"),
+                ActionItem::action("save", "save").with_description("saves content to a file"),
                 Some(KeyCommand::ContentSave),
             )
             .with_action(
-                ActionItem::action("search", "search").with_description("searches YAML using the provided query"),
+                ActionItem::action("search", "search").with_description("searches content using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
         if self.yaml.content().is_some_and(Content::is_editable) {
