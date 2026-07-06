@@ -62,7 +62,8 @@ impl CmdView {
         workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(format!(" {}", plugin.name));
+        header.set_title(plugin.name);
+        header.set_icon('');
 
         let area = get_layout_with_header(workspace)[1];
         let command = plugin.command;
@@ -91,7 +92,7 @@ impl CmdView {
             area,
             esc_tracker: EscPressTracker::default(),
             auto_mouse: plugin.interactive && plugin.auto_mouse,
-            pin_to_top: !plugin.interactive && plugin.pin_to_top,
+            pin_to_top: plugin.keep_output && plugin.pin_to_top,
             keep_output: plugin.keep_output,
             keep_error: plugin.keep_error,
             is_finished: false,
