@@ -1,5 +1,5 @@
 # Example plugin that executes `dive` for the highlighted container
-# https://github.com/wagoodman/dive
+# Requires: https://github.com/wagoodman/dive
 
 name: dive
 aliases: []
@@ -15,6 +15,7 @@ confirm: false
 interactive: true
 keep_output: false
 keep_error: true
+yaml_output: false
 auto_mouse: false
 pin_to_top: false
 highlighted: true

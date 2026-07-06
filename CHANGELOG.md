@@ -6,6 +6,7 @@
 
 - new option `auto_mouse` for interactive plugins
 - new option `yaml_output` to highlight plugin output as YAML
+- add terminal settings (`system_cursor` and `scrollback_lines`) to the configuration file
 
 ### Bug fixes
 
