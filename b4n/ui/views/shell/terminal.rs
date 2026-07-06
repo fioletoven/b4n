@@ -1,11 +1,12 @@
 use crossterm::ExecutableCommand;
 use crossterm::cursor::SetCursorStyle;
 use kube::api::TerminalSize;
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use std::io::{Write, stdout};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, Ordering};
 use std::sync::{Arc, RwLock};
-use tui_term::vt100;
+use tui_term::vt100::{self, Screen};
 use tui_term::widget::CursorShape;
 
 const ESC: u8 = 0x1B;
@@ -342,6 +343,23 @@ impl RectExt for Rect {
         TerminalSize {
             width: self.width,
             height: self.height,
+        }
+    }
+}
+
+/// Extension methods for [`Frame`].
+pub trait FrameExt {
+    /// Sets cursor position calculated from `screen` and `area`.
+    fn set_cursor_screen_position(&mut self, screen: &Screen, area: Rect);
+}
+
+impl FrameExt for Frame<'_> {
+    fn set_cursor_screen_position(&mut self, screen: &Screen, area: Rect) {
+        let (row, col) = screen.cursor_position();
+        let x = area.x.saturating_add(col);
+        let y = area.y.saturating_add(row);
+        if x < area.x + area.width && y < area.y + area.height {
+            self.set_cursor_position((x, y));
         }
     }
 }

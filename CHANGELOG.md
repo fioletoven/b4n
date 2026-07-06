@@ -5,11 +5,12 @@
 ### Features
 
 - new option `auto_mouse` for interactive plugins
+- new option `yaml_output` to highlight plugin output as YAML
 
 ### Bug fixes
 
 - fix command palette highlights wrong item on the list
-- react to cursor shape changes in shell, attach and plugin views
+- react to cursor shape changes in shell, attach, and plugin views
 
 ## 0.5.1 - 2026-07-01
 

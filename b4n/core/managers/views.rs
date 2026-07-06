@@ -7,7 +7,7 @@ use b4n_kube::{
 };
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
-    ResourceYamlResult, SetNewResourceYamlError, SetResourceYamlError,
+    ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
@@ -110,10 +110,12 @@ impl ViewsManager {
         self.footer.show_breadcrumb_trail(self.view.is_none());
         self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
 
+        let has_focus =
+            !self.footer.is_message_history_visible() && !self.ns_selector.is_visible() && !self.res_selector.is_visible();
         if let Some(view) = &mut self.view {
-            view.draw(frame, layout[0]);
+            view.draw(frame, layout[0], has_focus);
         } else {
-            self.resources.draw(frame, layout[0]);
+            self.resources.draw(frame, layout[0], has_focus);
         }
 
         self.draw_selectors(frame, layout[0]);
@@ -593,7 +595,7 @@ impl ViewsManager {
             return;
         };
 
-        if plugin.interactive || plugin.keep_output {
+        if plugin.interactive {
             self.footer().hide_hint();
 
             let index = if context.resources.len() == 1 { Some(0) } else { None };
@@ -610,9 +612,39 @@ impl ViewsManager {
 
             self.view = Some(Box::new(view));
         } else {
-            self.worker
-                .borrow_mut()
-                .run_plugin(plugin, context, self.footer.get_transmitter());
+            let resource = context.resources.first().cloned().unwrap_or_default();
+            let title = plugin.name.clone();
+            let color = self.app_data.borrow().theme.colors.syntax.yaml.string;
+            let sink = self.footer.get_transmitter();
+            let keep_output = plugin.keep_output;
+            let command_id = self.worker.borrow_mut().run_plugin(plugin, context, color, sink);
+            if keep_output {
+                let view = YamlView::new(
+                    Rc::clone(&self.app_data),
+                    Rc::clone(&self.worker),
+                    command_id,
+                    resource,
+                    self.footer.get_transmitter(),
+                    false,
+                    self.workspace,
+                );
+                self.view = Some(Box::new(view.with_title(title, '')));
+            }
+        }
+    }
+
+    /// Shows returned plugin command output in an already opened YAML view.
+    pub fn show_plugin_output(&mut self, command_id: &str, result: Result<RunPluginOutput, RunPluginError>) {
+        if self.view.as_ref().is_some_and(|v| !v.command_id_match(command_id)) {
+            return;
+        }
+        if result.is_err() {
+            self.view = None;
+            return;
+        };
+
+        if let Some(view) = &mut self.view {
+            view.process_command_result(CommandResult::RunPluginOutput(result));
         }
     }
 

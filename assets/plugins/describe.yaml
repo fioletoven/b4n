@@ -13,5 +13,6 @@ args:
 excluded_scopes:
   - containers
 keep_output: true
+yaml_output: true
 pin_to_top: true
 highlighted: true

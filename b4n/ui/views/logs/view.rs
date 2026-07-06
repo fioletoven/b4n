@@ -504,7 +504,7 @@ impl View for LogsView {
         self.process_logs_event(event)
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, _has_focus: bool) {
         self.logs.draw(frame, area, self.get_offset());
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());

@@ -71,7 +71,7 @@ pub trait View {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent;
 
     /// Draw [`View`] on the provided frame and area.
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect);
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, has_focus: bool);
 }
 
 /// Extension methods for [`Screen`].

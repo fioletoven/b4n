@@ -10,7 +10,7 @@ pub use self::list_contexts::ListKubeContextsCommand;
 pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
 pub use self::new_kubernetes_client::{KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
-pub use self::run_plugin::RunPluginCommand;
+pub use self::run_plugin::{RunPluginCommand, RunPluginError, RunPluginOutput};
 pub use self::save_configuration::SaveConfigurationCommand;
 pub use self::save_content::SaveContentCommand;
 pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError, SetNewResourceYamlOptions};
@@ -63,4 +63,5 @@ pub enum CommandResult {
     GetResourceYaml(Result<ResourceYamlResult, ResourceYamlError>),
     SetNewResourceYaml(Result<String, SetNewResourceYamlError>),
     SetResourceYaml(Result<String, SetResourceYamlError>),
+    RunPluginOutput(Result<RunPluginOutput, RunPluginError>),
 }

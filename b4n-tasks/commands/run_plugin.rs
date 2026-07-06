@@ -1,25 +1,49 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink};
 use b4n_config::Plugin;
+use b4n_config::themes::TextColors;
 use b4n_kube::plugins::PluginContext;
+use ratatui_core::style::Style;
 use std::sync::Arc;
 use tokio::process::Command;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
+use crate::{HighlightRequest, highlight_yaml};
+
+/// Indicates error while running command.\
+/// Used only to signal that view should be closed.
+pub struct RunPluginError;
+
+/// Result for the [`RunPluginCommand`] command.
+pub struct RunPluginOutput {
+    pub output: Vec<String>,
+    pub styled: Vec<Vec<(Style, String)>>,
+}
 
 /// Command that executes an external binary with resolved arguments from the plugin context.
 pub struct RunPluginCommand {
     plugin: Plugin,
     context: PluginContext,
+    highlighter: UnboundedSender<HighlightRequest>,
+    default_color: TextColors,
     footer_tx: NotificationSink,
 }
 
 impl RunPluginCommand {
     /// Creates new [`RunPluginCommand`] instance.
-    pub fn new(plugin: Plugin, context: PluginContext, footer_tx: NotificationSink) -> Self {
+    pub fn new(
+        plugin: Plugin,
+        context: PluginContext,
+        highlighter: UnboundedSender<HighlightRequest>,
+        default_color: TextColors,
+        footer_tx: NotificationSink,
+    ) -> Self {
         Self {
             plugin,
             context,
+            highlighter,
+            default_color,
             footer_tx,
         }
     }
@@ -27,19 +51,84 @@ impl RunPluginCommand {
     /// Resolves arguments using the plugin context and executes the binary.
     pub async fn execute(self) -> Option<CommandResult> {
         let once_index = if self.context.resources.len() == 1 { Some(0) } else { None };
+        let keep_output = self.plugin.keep_output;
         let for_each = self.plugin.for_each && self.context.resources.len() > 1;
 
         let plugin = Arc::new(self.plugin);
         let context = Arc::new(self.context);
         let footer_tx = self.footer_tx.clone();
+        let highlighter = self.highlighter;
 
-        if for_each {
+        if keep_output {
+            let result = execute_output(plugin, context, footer_tx, highlighter, &self.default_color, once_index).await;
+            Some(CommandResult::RunPluginOutput(result))
+        } else if for_each {
             execute_for_each(plugin, context, footer_tx).await;
+            None
         } else {
             execute_once(plugin, context, footer_tx, once_index).await;
+            None
         }
+    }
+}
 
-        None
+/// Runs the command, captures stdout and highlights it.
+async fn execute_output(
+    plugin: Arc<Plugin>,
+    context: Arc<PluginContext>,
+    footer_tx: NotificationSink,
+    highlighter: UnboundedSender<HighlightRequest>,
+    default_color: &TextColors,
+    row_index: Option<usize>,
+) -> Result<RunPluginOutput, RunPluginError> {
+    let resource_name = get_resource_name(&context, row_index);
+    let resolved_args: Vec<String> = plugin.args.iter().map(|arg| context.resolve_arg(arg, row_index)).collect();
+
+    let mut command = Command::new(&plugin.command);
+    command.args(&resolved_args);
+    if let Some(current_dir) = &plugin.current_dir {
+        command.current_dir(current_dir);
+    }
+
+    let output = match command.output().await {
+        Ok(output) => output,
+        Err(error) => {
+            let msg = format!("Cannot execute '{}' ({}): {}", plugin.name, resource_name, error);
+            tracing::error!("{}", msg);
+            footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+
+            return Err(RunPluginError);
+        },
+    };
+
+    let raw = if output.status.success() {
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    } else {
+        show_error(&plugin.name, &resource_name, &output, &footer_tx);
+        return Err(RunPluginError);
+    };
+
+    if plugin.yaml_output {
+        match highlight_yaml(&highlighter, raw).await {
+            Ok(result) => Ok(RunPluginOutput {
+                output: result.plain,
+                styled: result.styled,
+            }),
+            Err(error) => {
+                let msg = format!("'{}' ({}) cannot highlight output: {}", plugin.name, resource_name, error);
+                tracing::error!("{}", msg);
+                footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+
+                Err(RunPluginError)
+            },
+        }
+    } else {
+        let plain = raw.lines().map(String::from).collect::<Vec<_>>();
+        let styled = plain
+            .iter()
+            .map(|l| vec![(default_color.into(), l.clone())])
+            .collect::<Vec<_>>();
+        Ok(RunPluginOutput { output: plain, styled })
     }
 }
 
@@ -91,22 +180,9 @@ async fn execute_once(plugin: Arc<Plugin>, context: Arc<PluginContext>, footer_t
         let msg = format!("'{}' ({}) executed successfully", plugin.name, resource_name);
         tracing::info!("{}", msg);
         footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
-
-        return;
+    } else {
+        show_error(&plugin.name, &resource_name, &output, &footer_tx);
     }
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let code = output.status.code().unwrap_or(-1);
-    let msg = format!(
-        "'{}' ({}) failed with exit code {}: {}",
-        plugin.name,
-        resource_name,
-        code,
-        stderr.trim()
-    );
-
-    tracing::error!("{}", msg);
-    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 }
 
 fn get_resource_name(context: &Arc<PluginContext>, row_index: Option<usize>) -> String {
@@ -117,4 +193,18 @@ fn get_resource_name(context: &Arc<PluginContext>, row_index: Option<usize>) -> 
     } else {
         "all selected resources".to_string()
     }
+}
+
+fn show_error(plugin_name: &str, resource_name: &str, output: &std::process::Output, footer_tx: &NotificationSink) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let code = output.status.code().unwrap_or(-1);
+    let msg = format!(
+        "'{}' ({}) failed with exit code {}: {}",
+        plugin_name,
+        resource_name,
+        code,
+        stderr.trim()
+    );
+    tracing::error!("{}", msg);
+    footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
 }

@@ -18,7 +18,7 @@ use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::common::get_layout_with_header;
 use crate::ui::views::shell::cmd::bridge::CmdBridge;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
-use crate::ui::views::shell::terminal::{CursorShapeTracker, RectExt};
+use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt};
 use crate::ui::views::{EscPressTracker, ScreenExt};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
@@ -274,6 +274,10 @@ impl CmdView {
     fn keep_output(&self) -> bool {
         self.keep_output || (self.keep_error && self.bridge.has_error())
     }
+
+    fn hide_cursor(&self) -> bool {
+        self.bridge.is_finished() || self.command_palette.is_visible || self.modal.is_visible
+    }
 }
 
 impl View for CmdView {
@@ -407,7 +411,7 @@ impl View for CmdView {
         ResponseEvent::Handled
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, has_focus: bool) {
         let layout = get_layout_with_header(area);
         self.area = layout[1];
 
@@ -433,13 +437,8 @@ impl View for CmdView {
 
                 frame.render_widget(pseudo_term, layout[1]);
 
-                if self.bridge.is_running() && !screen.hide_cursor() {
-                    let (row, col) = screen.cursor_position();
-                    let x = layout[1].x.saturating_add(col);
-                    let y = layout[1].y.saturating_add(row);
-                    if x < layout[1].x + layout[1].width && y < layout[1].y + layout[1].height {
-                        frame.set_cursor_position((x, y));
-                    }
+                if has_focus && !self.hide_cursor() && !screen.hide_cursor() {
+                    frame.set_cursor_screen_position(screen, layout[1]);
                 }
             }
 

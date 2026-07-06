@@ -928,7 +928,7 @@ impl View for ResourcesView {
         result
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, _has_focus: bool) {
         self.table.draw(frame, area);
 
         let area = frame.area();
