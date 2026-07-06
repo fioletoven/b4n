@@ -411,7 +411,7 @@ impl View for ShellView {
         ResponseEvent::Handled
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, has_focus: bool) {
         let layout = get_layout_with_header(area);
         self.area = layout[1];
 
@@ -433,7 +433,7 @@ impl View for ShellView {
 
                 frame.render_widget(pseudo_term, layout[1]);
 
-                if !self.hide_cursor() && !screen.hide_cursor() {
+                if has_focus && !self.hide_cursor() && !screen.hide_cursor() {
                     frame.set_cursor_screen_position(screen, layout[1]);
                 }
             }

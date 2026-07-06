@@ -780,7 +780,7 @@ impl View for YamlView {
         result
     }
 
-    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, _has_focus: bool) {
         self.yaml.draw(frame, area, None);
         self.command_palette.draw(frame, frame.area());
         self.search.draw(frame, frame.area());

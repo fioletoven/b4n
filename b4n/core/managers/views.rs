@@ -110,10 +110,12 @@ impl ViewsManager {
         self.footer.show_breadcrumb_trail(self.view.is_none());
         self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
 
+        let has_focus =
+            !self.footer.is_message_history_visible() && !self.ns_selector.is_visible() && !self.res_selector.is_visible();
         if let Some(view) = &mut self.view {
-            view.draw(frame, layout[0]);
+            view.draw(frame, layout[0], has_focus);
         } else {
-            self.resources.draw(frame, layout[0]);
+            self.resources.draw(frame, layout[0], has_focus);
         }
 
         self.draw_selectors(frame, layout[0]);
