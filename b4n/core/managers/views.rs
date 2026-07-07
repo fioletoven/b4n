@@ -214,7 +214,7 @@ impl ViewsManager {
             if response == ResponseEvent::Cancelled {
                 self.resources.process_external_view_close();
                 return ResponseEvent::Handled;
-            };
+            }
         }
 
         response
@@ -642,10 +642,7 @@ impl ViewsManager {
         }
         if result.is_err() {
             self.view = None;
-            return;
-        };
-
-        if let Some(view) = &mut self.view {
+        } else if let Some(view) = &mut self.view {
             view.process_command_result(CommandResult::RunPluginOutput(result));
         }
     }
