@@ -102,7 +102,7 @@ impl ShellView {
             is_app_mode: false,
             is_mouse_enabled: false,
             own_cursor,
-            cursor_shape: CursorShapeTracker::default(),
+            cursor_shape: CursorShapeTracker::new(!own_cursor),
             footer_tx,
         }
     }
@@ -455,7 +455,6 @@ impl View for ShellView {
 impl Drop for ShellView {
     fn drop(&mut self) {
         self.bridge.stop();
-        self.cursor_shape.reset_shape();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();

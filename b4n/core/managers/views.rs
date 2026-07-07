@@ -209,10 +209,12 @@ impl ViewsManager {
         };
 
         let response = view.process_event(event);
-        if response == ResponseEvent::Cancelled {
+        if response == ResponseEvent::Cancelled || response == ResponseEvent::ExitApplication {
             self.view = None;
-            self.resources.process_external_view_close();
-            return ResponseEvent::Handled;
+            if response == ResponseEvent::Cancelled {
+                self.resources.process_external_view_close();
+                return ResponseEvent::Handled;
+            };
         }
 
         response
