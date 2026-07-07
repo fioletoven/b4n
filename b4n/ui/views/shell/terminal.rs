@@ -297,15 +297,23 @@ impl TerminalState {
 }
 
 /// Tracks current cursor shape for the terminal.
-#[derive(Default)]
 pub struct CursorShapeTracker {
+    has_system_cursor: bool,
     cursor_shape: Option<CursorShape>,
 }
 
 impl CursorShapeTracker {
+    /// Creates new [`CursorShapeTracker`] instance.
+    pub fn new(has_system_cursor: bool) -> Self {
+        Self {
+            has_system_cursor,
+            cursor_shape: None,
+        }
+    }
+
     /// Apply new cursor shape to the terminal, if anything changed.
     pub fn sync_shape(&mut self, shape: CursorShape) {
-        if self.cursor_shape.is_none_or(|s| s != shape) {
+        if self.has_system_cursor && self.cursor_shape.is_none_or(|s| s != shape) {
             self.cursor_shape = Some(shape);
             self.apply_terminal_cursor_shape();
         }
@@ -313,8 +321,10 @@ impl CursorShapeTracker {
 
     /// Reset cursor shape for the terminal.
     pub fn reset_shape(&mut self) {
-        self.cursor_shape = Some(CursorShape::Default);
-        self.apply_terminal_cursor_shape();
+        if self.has_system_cursor {
+            self.cursor_shape = Some(CursorShape::Default);
+            self.apply_terminal_cursor_shape();
+        }
     }
 
     fn apply_terminal_cursor_shape(&self) {
@@ -329,6 +339,12 @@ impl CursorShapeTracker {
         };
 
         let _ = stdout().execute(command);
+    }
+}
+
+impl Drop for CursorShapeTracker {
+    fn drop(&mut self) {
+        self.reset_shape();
     }
 }
 

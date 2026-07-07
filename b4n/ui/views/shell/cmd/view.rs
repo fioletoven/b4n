@@ -23,7 +23,7 @@ use crate::ui::views::{EscPressTracker, ScreenExt};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
-const SCROLLBACK_LEN: usize = 2_000;
+const SCROLLBACK_LEN: usize = 1_000;
 
 /// External interactive commands view.
 pub struct CmdView {
@@ -46,6 +46,7 @@ pub struct CmdView {
     is_finished: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
+    own_cursor: bool,
     cursor_shape: CursorShapeTracker,
     footer_tx: NotificationSink,
 }
@@ -61,14 +62,17 @@ impl CmdView {
         workspace: Rect,
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(format!(" {}", plugin.name));
+        header.set_title(plugin.name);
+        header.set_icon('');
 
         let area = get_layout_with_header(workspace)[1];
         let command = plugin.command;
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
-        let mut bridge = CmdBridge::new(runtime, area, SCROLLBACK_LEN);
+        let scrollback = app_data.borrow().config.terminal.scrollback_lines.unwrap_or(SCROLLBACK_LEN);
+        let mut bridge = CmdBridge::new(runtime, area, scrollback);
         bridge.start(command.clone(), args, plugin.current_dir, area.to_terminal_size());
         let parser = bridge.get_parser();
+        let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -88,13 +92,14 @@ impl CmdView {
             area,
             esc_tracker: EscPressTracker::default(),
             auto_mouse: plugin.interactive && plugin.auto_mouse,
-            pin_to_top: !plugin.interactive && plugin.pin_to_top,
+            pin_to_top: plugin.keep_output && plugin.pin_to_top,
             keep_output: plugin.keep_output,
             keep_error: plugin.keep_error,
             is_finished: false,
             is_app_mode: false,
             is_mouse_enabled: false,
-            cursor_shape: CursorShapeTracker::default(),
+            own_cursor,
+            cursor_shape: CursorShapeTracker::new(!own_cursor),
             footer_tx,
         }
     }
@@ -245,7 +250,7 @@ impl CmdView {
 
     fn reset_scrollback(&mut self, is_up: bool) -> ResponseEvent {
         if is_up {
-            self.scrollback_rows = SCROLLBACK_LEN + 1;
+            self.scrollback_rows = usize::MAX;
         } else {
             self.scrollback_rows = 0;
         }
@@ -432,12 +437,12 @@ impl View for CmdView {
 
             if let Ok(parser) = self.parser.read() {
                 let screen = parser.screen();
-                let cursor = Cursor::default().visibility(false);
+                let cursor = Cursor::default().visibility(self.own_cursor && has_focus && !self.hide_cursor());
                 let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
 
                 frame.render_widget(pseudo_term, layout[1]);
 
-                if has_focus && !self.hide_cursor() && !screen.hide_cursor() {
+                if !self.own_cursor && has_focus && !self.hide_cursor() && !screen.hide_cursor() {
                     frame.set_cursor_screen_position(screen, layout[1]);
                 }
             }
@@ -455,7 +460,6 @@ impl View for CmdView {
 impl Drop for CmdView {
     fn drop(&mut self) {
         self.bridge.stop();
-        self.cursor_shape.reset_shape();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();

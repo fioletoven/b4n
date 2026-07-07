@@ -46,6 +46,7 @@ pub struct ShellView {
     is_attach: bool,
     is_app_mode: bool,
     is_mouse_enabled: bool,
+    own_cursor: bool,
     cursor_shape: CursorShapeTracker,
     footer_tx: NotificationSink,
 }
@@ -72,9 +73,11 @@ impl ShellView {
 
         let area = get_layout_with_header(workspace)[1];
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
-        let mut bridge = ShellBridge::new(runtime, area, SCROLLBACK_LEN, is_attach);
+        let scrollback = app_data.borrow().config.terminal.scrollback_lines.unwrap_or(SCROLLBACK_LEN);
+        let mut bridge = ShellBridge::new(runtime, area, scrollback, is_attach);
         bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
         let parser = bridge.get_parser();
+        let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -98,7 +101,8 @@ impl ShellView {
             is_attach,
             is_app_mode: false,
             is_mouse_enabled: false,
-            cursor_shape: CursorShapeTracker::default(),
+            own_cursor,
+            cursor_shape: CursorShapeTracker::new(!own_cursor),
             footer_tx,
         }
     }
@@ -262,7 +266,7 @@ impl ShellView {
 
     fn reset_scrollback(&mut self, is_up: bool) -> ResponseEvent {
         if is_up {
-            self.scrollback_rows = SCROLLBACK_LEN + 1;
+            self.scrollback_rows = usize::MAX;
         } else {
             self.scrollback_rows = 0;
         }
@@ -428,12 +432,12 @@ impl View for ShellView {
 
             if let Ok(parser) = self.parser.read() {
                 let screen = parser.screen();
-                let cursor = Cursor::default().visibility(false);
+                let cursor = Cursor::default().visibility(self.own_cursor && has_focus && !self.hide_cursor());
                 let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
 
                 frame.render_widget(pseudo_term, layout[1]);
 
-                if has_focus && !self.hide_cursor() && !screen.hide_cursor() {
+                if !self.own_cursor && has_focus && !self.hide_cursor() && !screen.hide_cursor() {
                     frame.set_cursor_screen_position(screen, layout[1]);
                 }
             }
@@ -451,7 +455,6 @@ impl View for ShellView {
 impl Drop for ShellView {
     fn drop(&mut self) {
         self.bridge.stop();
-        self.cursor_shape.reset_shape();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();

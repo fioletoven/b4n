@@ -49,6 +49,22 @@ impl Default for Logs {
     }
 }
 
+/// Terminal configuration used in shell, attach and plugin views.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Terminal {
+    pub system_cursor: Option<bool>,
+    pub scrollback_lines: Option<usize>,
+}
+
+impl Default for Terminal {
+    fn default() -> Self {
+        Self {
+            system_cursor: Some(false),
+            scrollback_lines: Some(1_000),
+        }
+    }
+}
+
 /// Application configuration.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -57,6 +73,9 @@ pub struct Config {
 
     #[serde(default = "default_mouse")]
     pub mouse: bool,
+
+    #[serde(default)]
+    pub terminal: Terminal,
 
     #[serde(default = "default_theme_name")]
     pub theme: String,
@@ -105,6 +124,7 @@ impl Default for Config {
         Self {
             logs: Logs::default(),
             mouse: default_mouse(),
+            terminal: Terminal::default(),
             theme: default_theme_name(),
             contexts: None,
             key_bindings: Some(KeyBindings::default()),

@@ -215,6 +215,9 @@ logs:
   lines: 800
   timestamps: true
 mouse: true
+terminal:
+  system_cursor: false
+  scrollback_lines: 1000
 theme: light
 contexts:
   test-cluster: '#43464f:#8aad81'
@@ -235,6 +238,8 @@ key_bindings:
 - `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
 - `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
+- `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
+- `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
 - `aliases` - Command palette aliases.
