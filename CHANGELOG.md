@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix cursor start position in the new resource view
+
 ## 0.5.2 - 2026-07-07
 
 ### Features
