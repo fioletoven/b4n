@@ -137,8 +137,10 @@ impl<T: Content> ContentViewer<T> {
         }
 
         let cursor_start = if is_new && let Some(content) = self.content() {
-            let start = content.search_first("  name: ''");
-            start.map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
+            content
+                .search_first("  name: \"\"")
+                .or_else(|| content.search_first("  name: ''"))
+                .map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
         } else {
             self.current_match_position()
         };
