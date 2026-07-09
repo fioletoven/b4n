@@ -664,7 +664,7 @@ impl ResourcesView {
     fn new_run_plugin_dialog(&mut self, plugin: PluginRef) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
         Dialog::new(
-            format!("Are you sure you want to run '{}'?", &plugin.name),
+            format!("Are you sure you want to run '{}'?", plugin.name),
             vec![
                 Button::new("Run", ResponseEvent::PluginAction(plugin), &colors.modal.btn_delete),
                 Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),

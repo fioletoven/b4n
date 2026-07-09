@@ -35,7 +35,7 @@ pub struct Input {
     accent_chars: Option<String>,
     show_cursor: bool,
     cursor_colors: TextColors,
-    accept_button: Option<(&'static str, ResponseEvent)>,
+    accept_button: Option<AcceptButton>,
     areas: Option<Rc<[Rect]>>,
 }
 
@@ -65,7 +65,7 @@ impl Input {
 
     /// Adds accept button to the [`Input`] instance.
     pub fn with_accept_button(mut self, icon: &'static str, response: ResponseEvent) -> Self {
-        self.accept_button = Some((icon, response));
+        self.accept_button = Some(AcceptButton::new(icon, response));
         self
     }
 
@@ -122,7 +122,7 @@ impl Input {
 
     /// Sets the button.
     pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>) {
-        self.accept_button = button;
+        self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1));
     }
 
     /// Sets characters that should be accented by the [`Input`] instance.
@@ -261,7 +261,7 @@ impl Input {
         let button_len = self
             .accept_button
             .as_ref()
-            .map(|(i, _)| i.chars().count())
+            .map(|b| b.title.chars().count())
             .unwrap_or_default();
         let button_len = if self.value_full().is_empty() { 0 } else { button_len };
 
@@ -278,10 +278,10 @@ impl Input {
 
         if button_len > 0
             && !self.has_error()
-            && let Some((icon, _)) = &self.accept_button
+            && let Some(button) = &self.accept_button
         {
             let colors = self.prompt.as_ref().map_or(&self.colors, |(_, color)| color);
-            frame.render_widget(Span::styled(*icon, colors), layout[1]);
+            frame.render_widget(button.as_span(colors), layout[1]);
         }
 
         self.areas = Some(layout);
@@ -387,10 +387,14 @@ impl Responsive for Input {
                         return ResponseEvent::Handled;
                     }
 
-                    if let Some((_, response)) = &self.accept_button
-                        && event.is_left_click_in(areas[1])
-                    {
-                        return response.clone();
+                    if let Some(button) = &mut self.accept_button {
+                        if event.is_in(MouseEventKind::Moved, areas[1]) {
+                            button.is_highlighted = true;
+                        } else if event.is_out(MouseEventKind::Moved, areas[1]) {
+                            button.is_highlighted = false;
+                        } else if event.is_left_click_in(areas[1]) {
+                            return button.response.clone();
+                        }
                     }
                 }
 
@@ -439,6 +443,30 @@ impl Widget for &mut Input {
                     buf[(x, y)].set_fg(self.cursor_colors.fg);
                 }
             }
+        }
+    }
+}
+
+struct AcceptButton {
+    title: &'static str,
+    response: ResponseEvent,
+    is_highlighted: bool,
+}
+
+impl AcceptButton {
+    fn new(title: &'static str, response: ResponseEvent) -> Self {
+        Self {
+            title,
+            response,
+            is_highlighted: false,
+        }
+    }
+
+    fn as_span(&self, colors: &TextColors) -> Span<'_> {
+        if self.is_highlighted {
+            Span::styled(self.title, &colors.to_reverted())
+        } else {
+            Span::styled(self.title, colors)
         }
     }
 }

@@ -144,8 +144,8 @@ async fn get_builtin_schema(client: &Client, resource: &ApiResource) -> Result<(
     let key = format!(
         "io.k8s.api.{}.{}.{}",
         if resource.group.is_empty() { "core" } else { &resource.group },
-        &resource.version,
-        &resource.kind,
+        resource.version,
+        resource.kind,
     );
 
     let schema = schemas

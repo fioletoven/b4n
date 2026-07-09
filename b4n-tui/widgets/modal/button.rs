@@ -57,7 +57,7 @@ impl Button {
     /// Draws [`Button`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let line = Line::styled(format!(" {} ", &self.caption), &colors);
+        let line = Line::styled(format!(" {} ", self.caption), &colors);
         frame.render_widget(Paragraph::new(line), area);
         self.area = area;
     }

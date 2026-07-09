@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- highlight command palette accept button on mouse move
+
 ### Bug fixes
 
 - fix cursor start position in the new resource view

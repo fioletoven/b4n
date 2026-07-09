@@ -53,7 +53,7 @@ impl CheckBox {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
-        let text = format!(" {} {} ", if self.is_checked { '󰄵' } else { '' }, &self.caption);
+        let text = format!(" {} {} ", if self.is_checked { '󰄵' } else { '' }, self.caption);
         let line = Line::styled(text, &colors);
         frame.render_widget(Paragraph::new(line), area);
         self.area = area;
