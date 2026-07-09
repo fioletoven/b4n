@@ -170,14 +170,14 @@ fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, has_api_error:
     };
     let text = if !data.current.version.is_empty() && data.state == ConnectionState::Ready {
         if has_api_error {
-            format!("  {} ", &data.current.version)
+            format!("  {} ", data.current.version)
         } else {
-            format!(" {} ", &data.current.version)
+            format!(" {} ", data.current.version)
         }
     } else if data.current.version.is_empty() {
         format!(" {} connecting… ", spinner.tick())
     } else {
-        format!(" {} {} ", spinner.tick(), &data.current.version)
+        format!(" {} {} ", spinner.tick(), data.current.version)
     };
 
     (text, colors)

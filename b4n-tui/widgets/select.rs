@@ -85,7 +85,7 @@ impl<T: Table> Select<T> {
     /// Sets accept button in the filter input.
     pub fn set_accept_button(&mut self, visible: bool) {
         if visible {
-            self.filter.set_accept_button(Some(("", ResponseEvent::Accepted)));
+            self.filter.set_accept_button(Some(("  ", ResponseEvent::Accepted)));
         } else {
             self.filter.set_accept_button(None);
         }
