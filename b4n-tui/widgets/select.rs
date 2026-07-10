@@ -154,6 +154,9 @@ impl<T: Table> Select<T> {
             pub fn has_error(&self) -> bool;
             pub fn set_error(&mut self, error_index: Option<usize>);
             pub fn prompt(&self) -> Option<&str>;
+            pub fn is_accept_button_highlighted(&self) -> bool;
+            pub fn highlight_accept_button(&mut self, is_highlighted: bool);
+            pub fn highlight_accept_button_in(&mut self, x: u16, y: u16);
             pub fn value(&self) -> &str;
             pub fn value_full(&self) -> &str;
             pub fn value_prefix(&self) -> &str;

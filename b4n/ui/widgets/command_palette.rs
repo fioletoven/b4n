@@ -111,12 +111,14 @@ impl CommandPalette {
 
     /// Marks [`CommandPalette`] as visible.
     pub fn show(&mut self) {
+        self.select_mut().highlight_accept_button(false);
         self.is_visible = true;
         self.position = None;
     }
 
     /// Marks [`CommandPalette`] as visible and sets position to show and highlight.
     pub fn show_at(&mut self, position: Position) {
+        self.select_mut().highlight_accept_button_in(position.x, position.y);
         self.is_visible = true;
         self.highlight_position = Some(position);
         self.position = Some(position);
@@ -135,14 +137,15 @@ impl CommandPalette {
 
         let area = self.get_area_to_draw(area);
 
-        if let Some(position) = self.highlight_position.take()
-            && area.contains(position)
-        {
-            let line = position
-                .y
-                .saturating_sub(area.y)
-                .saturating_sub(u16::from(self.select().is_filter_visible()));
-            self.select_mut().items.highlight_item_by_line(line);
+        if let Some(position) = self.highlight_position.take() {
+            self.select_mut().highlight_accept_button_in(position.x, position.y);
+            if area.contains(position) {
+                let line = position
+                    .y
+                    .saturating_sub(area.y)
+                    .saturating_sub(u16::from(self.select().is_filter_visible()));
+                self.select_mut().items.highlight_item_by_line(line);
+            }
         }
 
         {
@@ -231,6 +234,8 @@ impl CommandPalette {
             self.steps[self.index + 1].select.set_value(value);
         }
 
+        let is_highlighted = self.select().is_accept_button_highlighted();
+
         let prompt = format!(
             "{0}{1}{DEFAULT_PROMPT}{2}",
             self.build_prev_prompt(),
@@ -240,8 +245,16 @@ impl CommandPalette {
 
         self.index += 1;
         self.select_mut().set_prompt(prompt);
+        self.select_mut().highlight_accept_button(is_highlighted);
 
         true
+    }
+
+    fn prev_step(&mut self) {
+        let is_highlighted = self.select().is_accept_button_highlighted();
+
+        self.index -= 1;
+        self.select_mut().highlight_accept_button(is_highlighted);
     }
 
     fn build_prev_prompt(&self) -> String {
@@ -294,7 +307,7 @@ impl Responsive for CommandPalette {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteReset) {
             if self.index > 0 {
-                self.index -= 1;
+                self.prev_step();
                 return ResponseEvent::Handled;
             } else if !self.select().value().is_empty() {
                 self.select_mut().reset();

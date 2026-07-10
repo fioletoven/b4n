@@ -120,9 +120,31 @@ impl Input {
         }
     }
 
-    /// Sets the button.
+    /// Sets the accept button.
     pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>) {
         self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1));
+    }
+
+    /// Returns `true` if accept button is highlighted.
+    pub fn is_accept_button_highlighted(&self) -> bool {
+        self.accept_button.as_ref().is_some_and(|b| b.is_highlighted)
+    }
+
+    /// Highlights accept button.
+    pub fn highlight_accept_button(&mut self, is_highlighted: bool) {
+        if let Some(button) = &mut self.accept_button {
+            button.is_highlighted = is_highlighted;
+        }
+    }
+
+    /// Highlights accept button if `x` and `y` are inside its area.
+    pub fn highlight_accept_button_in(&mut self, x: u16, y: u16) {
+        if let Some(areas) = &self.areas
+            && areas.len() > 1
+            && let Some(button) = &mut self.accept_button
+        {
+            button.is_highlighted = areas[1].contains(Position::new(x, y));
+        }
     }
 
     /// Sets characters that should be accented by the [`Input`] instance.
@@ -388,12 +410,12 @@ impl Responsive for Input {
                     }
 
                     if let Some(button) = &mut self.accept_button {
-                        if event.is_in(MouseEventKind::Moved, areas[1]) {
-                            button.is_highlighted = true;
-                        } else if event.is_out(MouseEventKind::Moved, areas[1]) {
-                            button.is_highlighted = false;
-                        } else if event.is_left_click_in(areas[1]) {
+                        if event.is_left_click_in(areas[1]) {
                             return button.response.clone();
+                        } else if let TuiEvent::Mouse(mouse) = event
+                            && mouse.kind == MouseEventKind::Moved
+                        {
+                            self.highlight_accept_button_in(mouse.column, mouse.row);
                         }
                     }
                 }
