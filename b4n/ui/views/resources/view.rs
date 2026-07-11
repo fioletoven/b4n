@@ -396,7 +396,7 @@ impl ResourcesView {
 
     fn show_ephemeral_containers_palette(&mut self) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            self.command_palette = build_ephemeral_container_steps(&self.app_data);
+            self.command_palette = build_ephemeral_container_steps(&self.app_data, resource);
             self.command_palette.show();
         }
     }

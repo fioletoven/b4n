@@ -229,7 +229,7 @@ impl CommandPalette {
             return false;
         }
 
-        if self.steps[self.index + 1].select.value().is_empty() {
+        if self.steps[self.index + 1].requires_previous_value() {
             let value = self.select().value().to_owned();
             self.steps[self.index + 1].select.set_value(value);
         }
@@ -275,7 +275,8 @@ impl CommandPalette {
     fn process_enter_key(&mut self, overwrite_if_not_empty: bool) -> ResponseEvent {
         self.insert_highlighted_value(overwrite_if_not_empty);
 
-        if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
+        let has_value = !self.steps[self.index].required || !self.select().value().is_empty();
+        if !self.select().has_error() && has_value && (self.steps.len() == 1 || !self.next_step()) {
             self.is_visible = false;
 
             if self.steps.len() == self.index + 1
@@ -373,6 +374,8 @@ pub struct StepBuilder {
     prompt: Option<String>,
     validator: InputValidator,
     colors: SelectColors,
+    copy_previous: bool,
+    required: bool,
 }
 
 impl StepBuilder {
@@ -384,6 +387,8 @@ impl StepBuilder {
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
             colors: SelectColors::default(),
+            copy_previous: false,
+            required: false,
         }
     }
 
@@ -395,6 +400,8 @@ impl StepBuilder {
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
             colors: SelectColors::default(),
+            copy_previous: false,
+            required: false,
         }
     }
 
@@ -416,6 +423,18 @@ impl StepBuilder {
         self
     }
 
+    /// Copies the previous step's value as this step's initial value.
+    pub fn with_copy_previous(mut self, copy_previous: bool) -> Self {
+        self.copy_previous = copy_previous;
+        self
+    }
+
+    /// Marks this step's value as required (rejects empty input).
+    pub fn with_required(mut self, required: bool) -> Self {
+        self.required = required;
+        self
+    }
+
     /// Builds [`Step`] instance.
     pub fn build(self, app_data: &SharedAppData) -> Step {
         let list = self.actions.unwrap_or_default();
@@ -431,6 +450,8 @@ impl StepBuilder {
             select,
             prompt: self.prompt,
             validator: self.validator,
+            copy_previous: self.copy_previous,
+            required: self.required,
         }
     }
 }
@@ -440,6 +461,8 @@ pub struct Step {
     select: Select<ActionsList>,
     prompt: Option<String>,
     validator: InputValidator,
+    copy_previous: bool,
+    required: bool,
 }
 
 impl Step {
@@ -452,6 +475,8 @@ impl Step {
                 .with_accept_button(accept_button),
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
+            copy_previous: false,
+            required: false,
         }
     }
 
@@ -464,5 +489,10 @@ impl Step {
             self.select.set_error(None);
             true
         }
+    }
+
+    /// Returns `true` if this step requires previous value.
+    fn requires_previous_value(&self) -> bool {
+        self.copy_previous && self.select.value().is_empty()
     }
 }
