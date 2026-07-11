@@ -16,6 +16,17 @@ pub struct ActionsList {
     width: usize,
 }
 
+impl ActionsList {
+    /// Returns length of the longest item in the [`ActionsList`].
+    pub fn max_item_len(&self) -> usize {
+        self.list
+            .full_iter()
+            .map(|i| i.data.name.chars().filter(|c| *c != '␝').count())
+            .max()
+            .unwrap_or_default()
+    }
+}
+
 impl Responsive for ActionsList {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.list.process_event(event)

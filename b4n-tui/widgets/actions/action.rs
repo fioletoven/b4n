@@ -132,8 +132,19 @@ impl ActionItem {
             .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
     }
 
-    fn get_name_width(&self) -> usize {
-        self.name.chars().filter(|c| *c != '␝').count()
+    fn get_name_width(&self, width: usize) -> (usize, usize) {
+        let (total, count) = self
+            .name
+            .chars()
+            .try_fold((0, 0), |(total, count), c| {
+                if count < width {
+                    Ok((total + 1, if c != '␝' { count + 1 } else { count }))
+                } else {
+                    Err((total + 1, if c != '␝' { count + 1 } else { count }))
+                }
+            })
+            .unwrap_or_else(|x| x);
+        (count, total - count)
     }
 
     fn add_icon(&self, text: &mut String) {
@@ -193,10 +204,10 @@ impl Row for ActionItem {
 
     fn get_name(&self, width: usize) -> String {
         let text_width = self.get_text_width(width);
-        let name_width = self.get_name_width().min(text_width);
+        let (name_width, invisible_chars) = self.get_name_width(text_width);
 
-        let mut text = String::with_capacity(text_width + 2);
-        text.push_str(truncate(&self.name, text_width));
+        let mut text = String::with_capacity(text_width + invisible_chars + 2);
+        text.push_str(truncate(&self.name, text_width + invisible_chars));
 
         if let Some(descr) = &self.description {
             let descr_width = descr.chars().count();

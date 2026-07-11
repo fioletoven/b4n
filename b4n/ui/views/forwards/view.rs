@@ -125,7 +125,7 @@ impl ForwardsView {
             }
 
             let caption = if self.list.table.is_filtered() {
-                " stop ␝stale    ␝"
+                " stop ␝stale␝     "
             } else {
                 " stop ␝stale␝"
             };
