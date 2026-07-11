@@ -1,11 +1,12 @@
 use b4n_config::{Config, History};
-use b4n_kube::Port;
+use b4n_kube::{Port, ResourceRef};
 use kube::config::NamedContext;
 use std::path::PathBuf;
 
 pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions};
 pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
+pub use self::inject_container::{EphemeralContainerConfig, InjectContainerCommand, InjectContainerError, SecurityProfile};
 pub use self::list_contexts::ListKubeContextsCommand;
 pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
@@ -19,6 +20,7 @@ pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResou
 mod delete_resources;
 mod get_new_yaml;
 mod get_yaml;
+mod inject_container;
 mod list_contexts;
 mod list_resource_ports;
 mod list_themes;
@@ -44,6 +46,7 @@ pub enum Command {
     SetNewYaml(Box<SetNewResourceYamlCommand>),
     SetYaml(Box<SetResourceYamlCommand>),
     RunPlugin(Box<RunPluginCommand>),
+    InjectContainer(Box<InjectContainerCommand>),
 }
 
 impl Command {
@@ -64,4 +67,5 @@ pub enum CommandResult {
     SetNewResourceYaml(Result<String, SetNewResourceYamlError>),
     SetResourceYaml(Result<String, SetResourceYamlError>),
     RunPluginOutput(Result<RunPluginOutput, RunPluginError>),
+    InjectedContainer(Result<ResourceRef, InjectContainerError>),
 }

@@ -280,6 +280,7 @@ impl App {
                 CommandResult::ThemesList(list) => self.views_manager.show_themes_list(list),
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(&list),
                 CommandResult::RunPluginOutput(result) => self.views_manager.show_plugin_output(&command.id, result),
+                CommandResult::InjectedContainer(_) => (),
             }
         }
     }
