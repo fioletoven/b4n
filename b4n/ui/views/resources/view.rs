@@ -18,7 +18,8 @@ use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::menu::{
-    build_create_resource_actions, build_mouse_menu_actions, build_port_forward_steps, build_resources_actions,
+    build_create_resource_actions, build_ephemeral_container_steps, build_mouse_menu_actions, build_port_forward_steps,
+    build_resources_actions,
 };
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
 use crate::ui::widgets::{CommandPalette, Filter, NamespaceSelector};
@@ -318,6 +319,10 @@ impl ResourcesView {
                 "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
                 "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
                 "describe" => self.table.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen)),
+                "inject" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::ContainerInject))
+                },
                 "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "port_forward" => {
@@ -381,12 +386,19 @@ impl ResourcesView {
             return;
         }
 
-        let actions = build_create_resource_actions(&self.table, self.kind_plural());
+        let actions = build_create_resource_actions(&self.table);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
             .with_prompt("create new resource")
             .with_first_highlighted()
             .with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
+    }
+
+    fn show_ephemeral_containers_palette(&mut self) {
+        if let Some(resource) = self.table.get_resource_ref(true) {
+            self.command_palette = build_ephemeral_container_steps(&self.app_data);
+            self.command_palette.show();
+        }
     }
 
     fn new_delete_dialog(&mut self) -> Dialog {
@@ -667,6 +679,11 @@ impl View for ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::YamlCreate) {
             self.show_create_resource_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
+            self.show_ephemeral_containers_palette();
             return ResponseEvent::Handled;
         }
 

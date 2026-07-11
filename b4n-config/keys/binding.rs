@@ -32,6 +32,7 @@ define_key_commands! {
         ContainerAttach => "container.attach" @ "A",
         ContentCopy => "content.copy" @ "C",
         ContentSave => "content.save" @ "S",
+        ContainerInject => "container.inject" @ "Ctrl+I",
         DescribeOpen => "describe.open" @ "D",
         EventsShow => "events.show" @ "E",
         FilterOpen => "filter.open" @ "/", "Shift+/",

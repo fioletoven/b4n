@@ -11,6 +11,20 @@ use crate::kube::resources::pod::PF_COLUMN_NO;
 use crate::ui::views::resources::ResourcesTable;
 use crate::ui::widgets::{CommandPalette, StepBuilder};
 
+/// Builds steps required to inject ephemeral container.
+pub fn build_ephemeral_container_steps(app_data: &SharedAppData) -> CommandPalette {
+    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
+    CommandPalette::new(Rc::clone(app_data), actions, 65)
+        .with_header(" Configure ephemeral container to inject")
+        .with_prompt("image")
+        .with_step(
+            StepBuilder::input("")
+                .with_prompt("command")
+                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .build(app_data),
+        )
+}
+
 /// Builds steps required to configure port forward for specified resource container.
 pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef, list: &[Port]) -> CommandPalette {
     let actions_list = ActionsListBuilder::from_resource_ports(list).build(None);
@@ -36,6 +50,25 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .build(app_data),
         )
         .with_response(|v| build_port_forward_response(v, resource))
+}
+
+/// Builds actions for creating new resource.
+pub fn build_create_resource_actions(table: &ResourcesTable) -> ActionsList {
+    let mut builder = ActionsListBuilder::default()
+        .with_menu_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
+        .with_menu_action(ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"));
+
+    if let Some(name) = table.list.table.get_highlighted_item_name()
+        && (table.kind_plural() != NAMESPACES || name != ALL_NAMESPACES)
+    {
+        builder = builder.with_menu_action(
+            ActionItem::action("duplicate", "new_clone")
+                .with_description("use the spec of the highlighted resource")
+                .with_aliases(["clone"]),
+        );
+    }
+
+    builder.build(None)
 }
 
 /// Builds actions for mouse menu.
@@ -168,6 +201,10 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         );
     }
 
+    if is_containers || (is_pods && is_highlighted) {
+        builder = add_ephemeral_container_actions(builder);
+    }
+
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers);
         if is_containers || is_pods {
@@ -178,25 +215,6 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     builder
         .with_aliases(&app_data.borrow().config.aliases)
         .build(Some(&app_data.borrow().key_bindings))
-}
-
-/// Builds actions for creating new resource.
-pub fn build_create_resource_actions(table: &ResourcesTable, plural: &str) -> ActionsList {
-    let mut builder = ActionsListBuilder::default()
-        .with_menu_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
-        .with_menu_action(ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"));
-
-    if let Some(name) = table.list.table.get_highlighted_item_name()
-        && (plural != NAMESPACES || name != ALL_NAMESPACES)
-    {
-        builder = builder.with_menu_action(
-            ActionItem::action("duplicate", "new_clone")
-                .with_description("use the spec of the highlighted resource")
-                .with_aliases(["clone"]),
-        );
-    }
-
-    builder.build(None)
 }
 
 fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable, is_containers: bool) -> ActionsListBuilder {
@@ -231,6 +249,15 @@ fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable,
             ActionItem::action("describe", "describe").with_description("shows resource describe view"),
             Some(KeyCommand::DescribeOpen),
         )
+}
+
+fn add_ephemeral_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
+    builder.with_action(
+        ActionItem::action("inject container", "inject")
+            .with_description("injects ephemeral container")
+            .with_aliases(["ephemeral"]),
+        Some(KeyCommand::ContainerInject),
+    )
 }
 
 fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {

@@ -80,6 +80,9 @@ pub struct Config {
     #[serde(default = "default_theme_name")]
     pub theme: String,
 
+    #[serde(default = "default_images_list")]
+    pub debug_images: Vec<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contexts: Option<HashMap<String, TextColors>>,
 
@@ -90,12 +93,16 @@ pub struct Config {
     pub key_bindings: Option<KeyBindings>,
 }
 
+fn default_mouse() -> bool {
+    true
+}
+
 fn default_theme_name() -> String {
     DEFAULT_THEME_NAME.to_owned()
 }
 
-fn default_mouse() -> bool {
-    true
+fn default_images_list() -> Vec<String> {
+    vec!["busybox".to_string(), "alpine".to_string(), "nicolaka/netshoot".to_string()]
 }
 
 fn default_aliases() -> HashMap<String, String> {
@@ -126,6 +133,7 @@ impl Default for Config {
             mouse: default_mouse(),
             terminal: Terminal::default(),
             theme: default_theme_name(),
+            debug_images: default_images_list(),
             contexts: None,
             key_bindings: Some(KeyBindings::default()),
             aliases: default_aliases(),

@@ -102,11 +102,13 @@ impl ActionsListBuilder {
 
     /// Creates new [`ActionsListBuilder`] instance from the list of string slices.\
     /// **Note** that items order is preserved.
-    pub fn from_strings(items: &[&str]) -> Self {
+    pub fn from_strings<S: AsRef<str>>(items: &[S]) -> Self {
         let actions = items
             .iter()
             .enumerate()
-            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_sort_id(idx))
+            .map(|(idx, item)| {
+                ActionItem::raw(idx.to_string(), "items".to_owned(), item.as_ref().to_string(), None).with_sort_id(idx)
+            })
             .collect();
         let commands = vec![None; items.len()];
         Self { actions, commands }
