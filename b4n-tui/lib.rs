@@ -1,5 +1,5 @@
 pub use plugins_ext::PluginsExt;
-pub use response::{ResponseEvent, Responsive, ScopeData, ToSelectData};
+pub use response::{EphemeralContainer, ResponseEvent, Responsive, ScopeData, ToSelectData};
 pub use tui::{MouseEvent, MouseEventKind, Tui, TuiEvent};
 
 pub mod table;

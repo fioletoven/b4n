@@ -17,7 +17,7 @@ use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, 
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
-use crate::ui::views::resources::menu::{
+use crate::ui::views::resources::menus::{
     build_create_resource_actions, build_ephemeral_container_steps, build_mouse_menu_actions, build_port_forward_steps,
     build_resources_actions,
 };

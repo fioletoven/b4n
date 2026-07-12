@@ -10,6 +10,8 @@ pub enum ValidatorKind {
     None,
     Number(usize, usize),
     StringExcept(Vec<String>),
+    StringOneOf(Vec<String>),
+    ShellCommand,
     DockerImage,
     IpAddr,
     DnsLabel,
@@ -43,6 +45,8 @@ impl InputValidator {
         match &self.kind {
             ValidatorKind::Number(min, max) => self.validate_number(input, *min, *max),
             ValidatorKind::StringExcept(except) => self.validate_sting_except(input, except),
+            ValidatorKind::StringOneOf(one_of) => self.validate_sting_one_of(input, one_of),
+            ValidatorKind::ShellCommand => self.validate_shell_command(input),
             ValidatorKind::DockerImage => self.validate_docker_image(input),
             ValidatorKind::IpAddr => self.validate_ip_address(input),
             ValidatorKind::DnsLabel => self.validate_dns_label(input),
@@ -82,6 +86,14 @@ impl InputValidator {
             Err(0)
         } else {
             Ok(())
+        }
+    }
+
+    fn validate_sting_one_of(&self, input: &str, one_of: &[String]) -> Result<(), usize> {
+        if one_of.contains(&input.to_ascii_lowercase()) {
+            Ok(())
+        } else {
+            Err(0)
         }
     }
 
@@ -146,6 +158,11 @@ impl InputValidator {
 
         self.last_error = None;
         Ok(())
+    }
+
+    /// Validates shell command using `shlex` crate.
+    fn validate_shell_command(&mut self, input: &str) -> Result<(), usize> {
+        if shlex::split(input).is_some() { Ok(()) } else { Err(0) }
     }
 
     /// Validates a docker container image name.\

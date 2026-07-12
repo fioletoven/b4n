@@ -15,6 +15,7 @@ use b4n_tasks::commands::{
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
+use b4n_tui::EphemeralContainer;
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
@@ -530,14 +531,14 @@ impl BgWorker {
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 
-    pub fn inject_container(&mut self, resource: &ResourceRef, image: String, command: String) -> Option<String> {
+    pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) -> Option<String> {
         let client = self.client.as_ref()?;
         let name = resource.name.as_deref()?;
         let config = EphemeralContainerConfig {
-            name: "test".to_string(),
-            image,
-            target_container: None,
-            command: None,
+            name: container.name,
+            image: container.image,
+            target_container: container.target,
+            command: container.command,
             share_process_namespace: true,
             security_context: None,
             wait_for_container: true,

@@ -9,7 +9,7 @@ use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
     ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
 };
-use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
+use b4n_tui::{EphemeralContainer, MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -648,8 +648,8 @@ impl ViewsManager {
     }
 
     /// Runs command to inject ephemeral container to the specified resource.
-    pub fn inject_container(&mut self, resource: &ResourceRef, image: String, command: String) {
-        self.worker.borrow_mut().inject_container(resource, image, command);
+    pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) {
+        self.worker.borrow_mut().inject_container(resource, container);
     }
 
     /// Updates footer message history pane hint with current key binding.

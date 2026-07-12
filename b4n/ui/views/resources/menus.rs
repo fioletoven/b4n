@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
-use b4n_tui::{PluginsExt, ResponseEvent};
+use b4n_tui::{EphemeralContainer, PluginsExt, ResponseEvent};
 use std::rc::Rc;
 
 use crate::core::SharedAppData;
@@ -17,34 +17,36 @@ pub fn build_ephemeral_container_steps(
     resource: ResourceRef,
     tags: Vec<ResourceTag>,
 ) -> CommandPalette {
-    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
-    let names: Vec<String> = tags
-        .iter()
-        .filter_map(|t| match t {
-            ResourceTag::Container(name, _, _) => Some(name.to_ascii_lowercase()),
-            _ => None,
-        })
-        .collect();
+    let containers = get_names_from_container_tags(&tags);
+    let images = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
+    let names = get_actions_from_container_tags(tags);
 
     CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
-        .with_header(" Configure ephemeral container to inject")
-        .with_prompt("name")
-        .with_validator(ValidatorKind::StringExcept(names))
+        .with_header(" Configure ephemeral container; command and target are optional.")
+        .with_prompt("container name")
+        .with_validator(ValidatorKind::StringExcept(containers.clone()))
         .with_validator(ValidatorKind::DnsLabel)
-        .with_value("test")
+        .with_value("debug")
         .with_step(
-            StepBuilder::actions(actions)
+            StepBuilder::actions(images)
                 .with_prompt("image")
                 .with_validator(ValidatorKind::DockerImage)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
-                .with_copy_previous(false)
                 .build(app_data),
         )
         .with_step(
             StepBuilder::input("")
                 .with_prompt("command")
+                .with_validator(ValidatorKind::ShellCommand)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
-                .with_copy_previous(false)
+                .with_required(false)
+                .build(app_data),
+        )
+        .with_step(
+            StepBuilder::actions(names)
+                .with_prompt("target")
+                .with_validator(ValidatorKind::StringOneOf(containers))
+                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
                 .with_required(false)
                 .build(app_data),
         )
@@ -66,6 +68,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .with_validator(ValidatorKind::Number(0, 65_535))
                 .with_prompt("local port")
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_copy_previous(true)
                 .build(app_data),
         )
         .with_step(
@@ -317,10 +320,18 @@ fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
 }
 
 fn build_ephemeral_container_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
-    if input.len() == 2 {
-        let command = input.remove(1);
-        let image = input.remove(0);
-        ResponseEvent::InjectContainer(resource, image, command)
+    if input.len() == 4 {
+        let target = input.remove(3);
+        let command = input.remove(2);
+        let image = input.remove(1);
+        let name = input.remove(0);
+        let container = EphemeralContainer {
+            name,
+            image,
+            command,
+            target: if target.is_empty() { None } else { Some(target) },
+        };
+        ResponseEvent::InjectContainer(resource, container)
     } else {
         ResponseEvent::Handled
     }
@@ -351,4 +362,27 @@ fn has_highlighted_item_active_port_forward(table: &ResourcesTable) -> bool {
     };
 
     resource.extra_values.len() > PF_COLUMN_NO && resource.extra_values[PF_COLUMN_NO].raw_text().is_some_and(|t| !t.is_empty())
+}
+
+fn get_names_from_container_tags(tags: &[ResourceTag]) -> Vec<String> {
+    tags.iter()
+        .filter_map(|t| match t {
+            ResourceTag::Container(name, _, _) => Some(name.to_ascii_lowercase()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn get_actions_from_container_tags(tags: Vec<ResourceTag>) -> ActionsList {
+    let actions = tags.into_iter().filter_map(|t| match t {
+        ResourceTag::Container(name, kind, _) => {
+            let uid = format!("_{}:{}_", name, kind);
+            Some(
+                ActionItem::raw(uid, "container".to_owned(), name, None).with_description(&kind.to_string().to_ascii_lowercase()),
+            )
+        },
+        _ => None,
+    });
+
+    ActionsListBuilder::new(actions.collect()).build(None)
 }

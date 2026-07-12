@@ -207,6 +207,14 @@ impl CommandPalette {
         frame.render_widget(Paragraph::new(text).style(&colors.header.unwrap_or_default()), area);
     }
 
+    fn step(&self) -> &Step {
+        &self.steps[self.index]
+    }
+
+    fn step_mut(&mut self) -> &mut Step {
+        &mut self.steps[self.index]
+    }
+
     fn select(&self) -> &Select<ActionsList> {
         &self.steps[self.index].select
     }
@@ -224,13 +232,12 @@ impl CommandPalette {
             let value = self.select().items.get_highlighted_item_name().unwrap_or_default().to_owned();
             self.select_mut().set_value(value);
             self.select_mut().items.list.highlight_item_by_uid(&uid);
+            self.step_mut().validate();
         }
     }
 
     fn can_advance_to_next_step(&self) -> bool {
-        !self.select().has_error()
-            && self.index + 1 < self.steps.len()
-            && (self.select().is_anything_highlighted() || (self.select().items.len() == 0 && !self.select().value().is_empty()))
+        self.step().has_valid_value() && self.index + 1 < self.steps.len()
     }
 
     fn next_step(&mut self) -> bool {
@@ -255,6 +262,7 @@ impl CommandPalette {
         self.index += 1;
         self.select_mut().set_prompt(prompt);
         self.select_mut().highlight_accept_button(is_highlighted);
+        self.step_mut().validate();
 
         true
     }
@@ -284,8 +292,7 @@ impl CommandPalette {
     fn process_enter_key(&mut self, overwrite_if_not_empty: bool) -> ResponseEvent {
         self.insert_highlighted_value(overwrite_if_not_empty);
 
-        let has_value = !self.steps[self.index].required || !self.select().value().is_empty();
-        if !self.select().has_error() && has_value && (self.steps.len() == 1 || !self.next_step()) {
+        if self.step().has_valid_value() && (self.steps.len() == 1 || !self.next_step()) {
             self.is_visible = false;
 
             if self.steps.len() == self.index + 1
@@ -306,7 +313,7 @@ impl CommandPalette {
         let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
         if let Some(text) = text {
             self.select_mut().insert_value(&text);
-            self.steps[self.index].validate();
+            self.step_mut().validate();
         }
 
         ResponseEvent::Handled
@@ -370,7 +377,7 @@ impl Responsive for CommandPalette {
             self.select_mut().items.unhighlight_item();
         }
 
-        self.steps[self.index].validate();
+        self.step_mut().validate();
 
         response
     }
@@ -396,7 +403,7 @@ impl StepBuilder {
             prompt: None,
             validators: Vec::new(),
             colors: SelectColors::default(),
-            copy_previous: true,
+            copy_previous: false,
             required: true,
         }
     }
@@ -409,7 +416,7 @@ impl StepBuilder {
             prompt: None,
             validators: Vec::new(),
             colors: SelectColors::default(),
-            copy_previous: true,
+            copy_previous: false,
             required: true,
         }
     }
@@ -484,7 +491,7 @@ impl Step {
                 .with_accept_button(accept_button),
             prompt: None,
             validators: Vec::new(),
-            copy_previous: true,
+            copy_previous: false,
             required: true,
         }
     }
@@ -508,5 +515,10 @@ impl Step {
     /// Returns `true` if this step requires previous value.
     fn requires_previous_value(&self) -> bool {
         self.copy_previous && self.select.value().is_empty()
+    }
+
+    /// Returns `true` if step has valid value.
+    fn has_valid_value(&self) -> bool {
+        (!self.required && self.select.value().is_empty()) || (!self.select.has_error() && !self.select.value().is_empty())
     }
 }

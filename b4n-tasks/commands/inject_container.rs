@@ -37,7 +37,7 @@ pub struct EphemeralContainerConfig {
     pub name: String,
     pub image: String,
     pub target_container: Option<String>,
-    pub command: Option<Vec<String>>,
+    pub command: String,
     pub share_process_namespace: bool,
     pub security_context: Option<SecurityProfile>,
     pub wait_for_container: bool,
@@ -119,11 +119,17 @@ async fn wait_for_ephemeral_container(
 }
 
 fn build_ephemeral_container(config: &EphemeralContainerConfig) -> EphemeralContainer {
+    let command = if config.command.is_empty() {
+        None
+    } else {
+        shlex::split(&config.command)
+    };
+
     EphemeralContainer {
         name: config.name.clone(),
         image: Some(config.image.clone()),
         image_pull_policy: Some("Always".to_string()),
-        command: config.command.clone(),
+        command,
         stdin: Some(true),
         tty: Some(true),
         target_container_name: config.target_container.clone(),
