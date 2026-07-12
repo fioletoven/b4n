@@ -1,13 +1,13 @@
 use anyhow::Result;
-use b4n_common::{DEFAULT_ERROR_DURATION, IconKind, NotificationSink};
+use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
 };
 use b4n_tasks::commands::{
-    CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, ResourceYamlError,
-    ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
+    CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, InjectContainerError,
+    ResourceYamlError, ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
 };
 use b4n_tui::{EphemeralContainer, MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
@@ -650,6 +650,31 @@ impl ViewsManager {
     /// Runs command to inject ephemeral container to the specified resource.
     pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) {
         self.worker.borrow_mut().inject_container(resource, container);
+        self.footer().show_info(
+            format!(
+                "Injecting ephemeral container '{}' into '{}' pod",
+                resource.container.as_deref().unwrap_or_default(),
+                resource.name.as_deref().unwrap_or_default()
+            ),
+            DEFAULT_MESSAGE_DURATION,
+        );
+    }
+
+    /// Shows result from the ephemeral container injection in the footer.
+    pub fn show_inject_result(&mut self, result: Result<ResourceRef, InjectContainerError>) {
+        match result {
+            Ok(resource) => self.footer().show_info(
+                format!(
+                    "Ephemeral container '{}' successfully injected into '{}' pod",
+                    resource.container.as_deref().unwrap_or_default(),
+                    resource.name.as_deref().unwrap_or_default()
+                ),
+                DEFAULT_MESSAGE_DURATION,
+            ),
+            Err(error) => self
+                .footer()
+                .show_error(format!("Ephemeral container error: {}", error), DEFAULT_ERROR_DURATION),
+        }
     }
 
     /// Updates footer message history pane hint with current key binding.

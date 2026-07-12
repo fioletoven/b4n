@@ -22,7 +22,7 @@ pub fn build_ephemeral_container_steps(
     let names = get_actions_from_container_tags(tags);
 
     CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
-        .with_header(" Configure ephemeral container; command and target are optional.")
+        .with_header(" Ephemeral container (command and target are optional):")
         .with_prompt("container name")
         .with_validator(ValidatorKind::StringExcept(containers.clone()))
         .with_validator(ValidatorKind::DnsLabel)
