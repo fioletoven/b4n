@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{ContainerRef, PODS};
+use b4n_kube::{ContainerRef, ContainerType, PODS};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
@@ -72,8 +72,11 @@ impl LogsView {
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
         let area = ContentViewer::<LogsContent>::get_content_area(workspace);
-        let non_init = containers.iter().filter(|c| !c.is_init).collect::<Vec<_>>();
-        let container = (non_init.len() == 1).then(|| non_init[0].container.clone()).flatten();
+        let regular = containers
+            .iter()
+            .filter(|c| c.kind == ContainerType::Regular)
+            .collect::<Vec<_>>();
+        let container = (regular.len() == 1).then(|| regular[0].container.clone()).flatten();
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
             '',

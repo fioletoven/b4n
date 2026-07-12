@@ -3,8 +3,8 @@ pub use self::core::{
     REPLICA_SETS, SECRETS, SERVICES, STATEFUL_SETS,
 };
 pub use self::core::{
-    ContainerRef, Kind, Namespace, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
-    is_builtin_api_group,
+    ContainerRef, ContainerType, Kind, Namespace, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter,
+    ResourceTag, is_builtin_api_group,
 };
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
 pub use self::watcher::{BgObserver, BgObserverError, BgObserverState, InitData, ObserverResult};

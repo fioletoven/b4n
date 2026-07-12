@@ -1,11 +1,10 @@
-use b4n_kube::{CONTAINERS, InitData, ObserverResult, ResourceRef};
+use b4n_kube::{CONTAINERS, ContainerType, InitData, ObserverResult, ResourceRef};
 use b4n_tui::table::{Column, Table, ViewType};
 use k8s_openapi::serde_json::{Map, Value};
 use kube::api::{DynamicObject, ObjectMeta};
 use std::rc::Rc;
 
 use crate::core::SharedAppData;
-use crate::kube::resources::container::ContainerType;
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::utils::{ValueKind, header, map_join, map_to_string, uppercase_first_letter, value_to_string};

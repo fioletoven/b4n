@@ -387,8 +387,8 @@ impl StepBuilder {
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
             colors: SelectColors::default(),
-            copy_previous: false,
-            required: false,
+            copy_previous: true,
+            required: true,
         }
     }
 
@@ -400,8 +400,8 @@ impl StepBuilder {
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
             colors: SelectColors::default(),
-            copy_previous: false,
-            required: false,
+            copy_previous: true,
+            required: true,
         }
     }
 
@@ -475,8 +475,8 @@ impl Step {
                 .with_accept_button(accept_button),
             prompt: None,
             validator: InputValidator::new(ValidatorKind::None),
-            copy_previous: false,
-            required: false,
+            copy_previous: true,
+            required: true,
         }
     }
 

@@ -1,5 +1,6 @@
 use k8s_openapi::jiff::Timestamp;
 use kube::{api::ApiResource, discovery::Scope};
+use std::fmt::Display;
 
 use super::{Kind, Namespace, PODS};
 
@@ -9,7 +10,7 @@ pub struct ContainerRef {
     pub name: String,
     pub namespace: Namespace,
     pub container: Option<String>,
-    pub is_init: bool,
+    pub kind: ContainerType,
     pub finished_at: Option<Timestamp>,
 }
 
@@ -18,18 +19,18 @@ impl ContainerRef {
     /// **Note** that it checks if container name starts with `i:` and removes this prefix.
     pub fn new(name: String, namespace: Namespace, container: Option<ResourceTag>) -> Self {
         match container {
-            Some(ResourceTag::Container(container, is_init, finished_at)) => Self {
+            Some(ResourceTag::Container(container, kind, finished_at)) => Self {
                 name,
                 namespace,
                 container: Some(container),
-                is_init,
+                kind,
                 finished_at,
             },
             _ => Self {
                 name,
                 namespace,
                 container: None,
-                is_init: false,
+                kind: ContainerType::Regular,
                 finished_at: None,
             },
         }
@@ -41,7 +42,7 @@ impl ContainerRef {
             name,
             namespace,
             container,
-            is_init: false,
+            kind: ContainerType::Regular,
             finished_at: None,
         }
     }
@@ -215,11 +216,29 @@ impl ResourceRefFilter {
     }
 }
 
+/// Pod container type.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ContainerType {
+    Regular,
+    Init,
+    Ephemeral,
+}
+
+impl Display for ContainerType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContainerType::Regular => write!(f, "Regular"),
+            ContainerType::Init => write!(f, "Init"),
+            ContainerType::Ephemeral => write!(f, "Ephemeral"),
+        }
+    }
+}
+
 /// Possible resource tags.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceTag {
     MatchLabels(String),
-    Container(String, bool, Option<Timestamp>),
+    Container(String, ContainerType, Option<Timestamp>),
     CpuStatistics(String),
     MemoryStatistics(String),
 }

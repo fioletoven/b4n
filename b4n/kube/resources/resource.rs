@@ -2,7 +2,7 @@ use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::stats::{Metrics, Statistics};
-use b4n_kube::{ContainerRef, Kind, Namespace, PV, ResourceTag};
+use b4n_kube::{ContainerRef, ContainerType, Kind, Namespace, PV, ResourceTag};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
@@ -11,7 +11,6 @@ use k8s_openapi::serde_json::Value;
 use kube::api::{DynamicObject, ObjectMeta};
 use std::{borrow::Cow, collections::BTreeMap};
 
-use crate::kube::resources::container::ContainerType;
 use crate::kube::resources::{ResourceData, condition, container, get_header_data, get_resource_data, get_resource_name};
 use crate::ui::widgets::table::Cell;
 

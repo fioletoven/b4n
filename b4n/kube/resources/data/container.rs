@@ -1,27 +1,9 @@
-use b4n_kube::stats::Metrics;
+use b4n_kube::{ContainerType, stats::Metrics};
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
-use std::{fmt::Display, rc::Rc};
+use std::rc::Rc;
 
 use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
-
-/// Pod container type.
-#[derive(Clone, Copy, PartialEq)]
-pub enum ContainerType {
-    Regular,
-    Init,
-    Ephemeral,
-}
-
-impl Display for ContainerType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ContainerType::Regular => write!(f, "Regular"),
-            ContainerType::Init => write!(f, "Init"),
-            ContainerType::Ephemeral => write!(f, "Ephemeral"),
-        }
-    }
-}
 
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(
