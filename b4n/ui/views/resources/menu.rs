@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, SECRETS, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
@@ -12,11 +12,34 @@ use crate::ui::views::resources::ResourcesTable;
 use crate::ui::widgets::{CommandPalette, StepBuilder};
 
 /// Builds steps required to inject ephemeral container.
-pub fn build_ephemeral_container_steps(app_data: &SharedAppData, resource: ResourceRef) -> CommandPalette {
+pub fn build_ephemeral_container_steps(
+    app_data: &SharedAppData,
+    resource: ResourceRef,
+    tags: Vec<ResourceTag>,
+) -> CommandPalette {
     let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
-    CommandPalette::new(Rc::clone(app_data), actions, 65)
+    let names: Vec<String> = tags
+        .iter()
+        .filter_map(|t| match t {
+            ResourceTag::Container(name, _, _) => Some(name.to_ascii_lowercase()),
+            _ => None,
+        })
+        .collect();
+
+    CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
         .with_header(" Configure ephemeral container to inject")
-        .with_prompt("image")
+        .with_prompt("name")
+        .with_validator(ValidatorKind::StringExcept(names))
+        .with_validator(ValidatorKind::DnsLabel)
+        .with_value("test")
+        .with_step(
+            StepBuilder::actions(actions)
+                .with_prompt("image")
+                .with_validator(ValidatorKind::DockerImage)
+                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_copy_previous(false)
+                .build(app_data),
+        )
         .with_step(
             StepBuilder::input("")
                 .with_prompt("command")

@@ -54,10 +54,19 @@ impl CommandPalette {
         self
     }
 
+    /// Sets the initial value for the last added step of the command palette.
+    pub fn with_value(mut self, value: impl Into<String>) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.set_value(value);
+        self.steps[index].validate();
+        self
+    }
+
     /// Sets validator for the last added step of the command palette.
     pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
         let index = self.steps.len().saturating_sub(1);
-        self.steps[index].validator = InputValidator::new(validator);
+        self.steps[index].validators.push(InputValidator::new(validator));
+        self.steps[index].validate();
         self
     }
 
@@ -372,7 +381,7 @@ pub struct StepBuilder {
     actions: Option<ActionsList>,
     initial_value: Option<String>,
     prompt: Option<String>,
-    validator: InputValidator,
+    validators: Vec<InputValidator>,
     colors: SelectColors,
     copy_previous: bool,
     required: bool,
@@ -385,7 +394,7 @@ impl StepBuilder {
             actions: None,
             initial_value: Some(initial_value.into()),
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
             colors: SelectColors::default(),
             copy_previous: true,
             required: true,
@@ -398,7 +407,7 @@ impl StepBuilder {
             actions: Some(actions),
             initial_value: None,
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
             colors: SelectColors::default(),
             copy_previous: true,
             required: true,
@@ -407,7 +416,7 @@ impl StepBuilder {
 
     /// Adds validator to the [`Step`].
     pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
-        self.validator = InputValidator::new(validator);
+        self.validators.push(InputValidator::new(validator));
         self
     }
 
@@ -449,7 +458,7 @@ impl StepBuilder {
         Step {
             select,
             prompt: self.prompt,
-            validator: self.validator,
+            validators: self.validators,
             copy_previous: self.copy_previous,
             required: self.required,
         }
@@ -460,7 +469,7 @@ impl StepBuilder {
 pub struct Step {
     select: Select<ActionsList>,
     prompt: Option<String>,
-    validator: InputValidator,
+    validators: Vec<InputValidator>,
     copy_previous: bool,
     required: bool,
 }
@@ -474,7 +483,7 @@ impl Step {
                 .with_error_mode(ErrorHighlightMode::Value)
                 .with_accept_button(accept_button),
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
             copy_previous: true,
             required: true,
         }
@@ -482,13 +491,18 @@ impl Step {
 
     /// Validates the current step using associated validator.
     fn validate(&mut self) -> bool {
-        if let Err(error_index) = self.validator.validate(self.select.value()) {
-            self.select.set_error(Some(error_index));
-            false
-        } else {
-            self.select.set_error(None);
-            true
+        if !self.validators.is_empty() {
+            let value = self.select.value();
+            for validator in &mut self.validators {
+                if let Err(error_index) = validator.validate(value) {
+                    self.select.set_error(Some(error_index));
+                    return false;
+                }
+            }
         }
+
+        self.select.set_error(None);
+        true
     }
 
     /// Returns `true` if this step requires previous value.

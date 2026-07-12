@@ -331,6 +331,7 @@ dependencies = [
  "b4n-list",
  "crossterm 0.29.0",
  "delegate",
+ "http",
  "ratatui-core",
  "ratatui-crossterm",
  "ratatui-widgets",

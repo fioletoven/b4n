@@ -35,7 +35,7 @@ impl NamespaceBehaviour {
         Self {
             app_data,
             discovered: Vec::new(),
-            validator: InputValidator::new(ValidatorKind::Namespace),
+            validator: InputValidator::new(ValidatorKind::DnsLabel),
         }
     }
 
