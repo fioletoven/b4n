@@ -20,4 +20,7 @@ fn get_name_test() {
 
     let action = ActionItem::menu(9, " delete ␝selected␝", "");
     assert_eq!(" delete ␝selected␝     ".to_owned(), action.get_name(22));
+
+    let action = ActionItem::menu(9, " logs ␝previous␝", "");
+    assert_eq!(" logs ␝previous␝".to_owned(), action.get_name(15));
 }

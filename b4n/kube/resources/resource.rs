@@ -2,7 +2,7 @@ use b4n_common::expr::{Expression, ExpressionExt, SelectiveMap, parse};
 use b4n_common::truncate;
 use b4n_config::themes::{TextColors, Theme};
 use b4n_kube::stats::{Metrics, Statistics};
-use b4n_kube::{ContainerRef, Kind, Namespace, PV, ResourceTag};
+use b4n_kube::{ContainerRef, ContainerType, Kind, Namespace, PV, ResourceTag};
 use b4n_kube::{crds::CrdColumns, utils::get_object_uid};
 use b4n_list::{FilterContext, Filterable, Row};
 use b4n_tui::table::Header;
@@ -99,7 +99,7 @@ impl ResourceItem {
         status: Option<&Value>,
         pod_metadata: &ObjectMeta,
         metrics: Option<Metrics>,
-        is_init_container: bool,
+        container_type: ContainerType,
     ) -> Self {
         let container_name = container["name"].as_str().unwrap_or("unknown").to_owned();
         let creation_timestamp = get_start_time(status, pod_metadata);
@@ -108,12 +108,12 @@ impl ResourceItem {
             .as_deref()
             .or(pod_metadata.name.as_deref())
             .unwrap_or_default();
-        let uid = format!(
-            "{}.{}.{}",
-            id_prefix,
-            container_name,
-            if is_init_container { "I" } else { "M" }
-        );
+        let id_suffix = match container_type {
+            ContainerType::Regular => "M",
+            ContainerType::Init => "I",
+            ContainerType::Ephemeral => "E",
+        };
+        let uid = format!("{id_prefix}.{container_name}.{id_suffix}");
         let mut filter = get_filter_metadata("Container", "", pod_metadata);
         filter.insert("n", vec![container_name.to_ascii_lowercase()]);
 
@@ -126,7 +126,7 @@ impl ResourceItem {
                 container,
                 status,
                 metrics,
-                is_init_container,
+                container_type,
                 pod_metadata.deletion_timestamp.is_some(),
             )),
             creation_timestamp,
@@ -140,9 +140,14 @@ impl ResourceItem {
         let container_name = template["name"].as_str().unwrap_or("unknown").to_owned();
         let creation_timestamp = None;
         let uid = format!("{}.{}", container_name, if is_init_container { "I" } else { "M" });
+        let container_type = if is_init_container {
+            ContainerType::Init
+        } else {
+            ContainerType::Regular
+        };
         let mut filter = get_filter_metadata("Container", "", pod_metadata);
         filter.insert("n", vec![container_name.to_ascii_lowercase()]);
-        let mut data = container::data(template, None, None, is_init_container, false);
+        let mut data = container::data(template, None, None, container_type, false);
         data.is_ready = true;
 
         Self {

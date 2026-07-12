@@ -1,4 +1,4 @@
-use b4n_common::INVISIBLE_CHARACTERS;
+use b4n_common::{INVISIBLE_CHARACTERS, truncate_left};
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui_core::buffer::Buffer;
@@ -12,6 +12,8 @@ use std::rc::Rc;
 use tui_input::backend::crossterm::EventHandler;
 
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
+
+const MAX_PROMPT_LEN: usize = 30;
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]
@@ -310,28 +312,34 @@ impl Input {
     }
 
     fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut Buffer) -> u16 {
-        let mut count = 0;
-        if let Some(prompt) = &self.prompt {
-            for (i, char) in prompt.0.chars().enumerate() {
-                let Ok(x) = u16::try_from(usize::from(x) + i) else { break };
-                if x >= max_x {
-                    break;
-                }
+        let Some((text, colors)) = &self.prompt else { return 0 };
+        let max_len = usize::from(max_x.saturating_sub(x)).min(MAX_PROMPT_LEN);
+        let (prefix, text) = if text.chars().count() > max_len {
+            (Some('…'), truncate_left(text, max_len.saturating_sub(1)))
+        } else {
+            (None, text.as_str())
+        };
 
-                count = u16::try_from(i + 1).unwrap_or(0);
+        let chars = prefix.into_iter().chain(text.chars());
+        chars
+            .enumerate()
+            .take_while(|(i, _)| x.saturating_add(*i as u16) < max_x)
+            .map(|(i, char)| {
+                let char_x = x.saturating_add(i as u16);
+                self.set_prompt_char(char_x, y, char, colors, buf);
+            })
+            .count() as u16
+    }
 
-                if self.error_mode == ErrorHighlightMode::PromptAndIndex
-                    && self.error_index.is_some()
-                    && let Some(colors) = self.error
-                {
-                    buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
-                } else {
-                    buf[(x, y)].set_char(char).set_fg(prompt.1.fg).set_bg(prompt.1.bg);
-                }
-            }
+    fn set_prompt_char(&self, x: u16, y: u16, char: char, colors: &TextColors, buf: &mut Buffer) {
+        if self.error_mode == ErrorHighlightMode::PromptAndIndex
+            && self.error_index.is_some()
+            && let Some(error_colors) = self.error
+        {
+            buf[(x, y)].set_char(char).set_fg(error_colors.fg).set_bg(error_colors.bg);
+        } else {
+            buf[(x, y)].set_char(char).set_fg(colors.fg).set_bg(colors.bg);
         }
-
-        count
     }
 
     fn render_input(&self, x: u16, y: u16, max_x: u16, scroll: usize, buf: &mut Buffer) {

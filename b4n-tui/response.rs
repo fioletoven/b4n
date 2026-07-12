@@ -51,6 +51,15 @@ impl ToSelectData {
     }
 }
 
+/// Ephemeral container data.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EphemeralContainer {
+    pub name: String,
+    pub image: String,
+    pub command: String,
+    pub target: Option<String>,
+}
+
 /// Terminal UI Response Event.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum ResponseEvent {
@@ -93,6 +102,7 @@ pub enum ResponseEvent {
     ViewPreviousLogs(ResourceRef, Option<Vec<ResourceTag>>),
     Describe(ResourceRef),
 
+    InjectContainer(ResourceRef, EphemeralContainer),
     AttachContainer(ResourceRef),
     OpenShell(ResourceRef),
     ShowPortForwards,

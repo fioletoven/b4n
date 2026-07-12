@@ -16,6 +16,17 @@ pub struct ActionsList {
     width: usize,
 }
 
+impl ActionsList {
+    /// Returns length of the longest item in the [`ActionsList`].
+    pub fn max_item_len(&self) -> usize {
+        self.list
+            .full_iter()
+            .map(|i| i.data.name.chars().filter(|c| *c != '␝').count())
+            .max()
+            .unwrap_or_default()
+    }
+}
+
 impl Responsive for ActionsList {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         self.list.process_event(event)
@@ -91,11 +102,13 @@ impl ActionsListBuilder {
 
     /// Creates new [`ActionsListBuilder`] instance from the list of string slices.\
     /// **Note** that items order is preserved.
-    pub fn from_strings(items: &[&str]) -> Self {
+    pub fn from_strings<S: AsRef<str>>(items: &[S]) -> Self {
         let actions = items
             .iter()
             .enumerate()
-            .map(|(idx, item)| ActionItem::raw(idx.to_string(), "items".to_owned(), item.to_string(), None).with_sort_id(idx))
+            .map(|(idx, item)| {
+                ActionItem::raw(idx.to_string(), "items".to_owned(), item.as_ref().to_string(), None).with_sort_id(idx)
+            })
             .collect();
         let commands = vec![None; items.len()];
         Self { actions, commands }

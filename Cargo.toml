@@ -45,6 +45,7 @@ ratatui-widgets = { version = "0.3" }
 serde = { version = "1.0", features = ["derive"] }
 serde-saphyr = { version = "0.0.27" }
 sha1 = { version = "0.11" }
+shlex = { version = "2" }
 syntect = { version = "5.3" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }

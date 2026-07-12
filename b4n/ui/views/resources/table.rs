@@ -195,6 +195,15 @@ impl ResourcesTable {
         }
     }
 
+    /// Returns tags for currently highlighted item.
+    pub fn get_resource_tags(&self) -> Vec<ResourceTag> {
+        self.list
+            .table
+            .get_highlighted_resource()
+            .and_then(|r| r.data.as_ref())
+            .map_or(Vec::new(), |d| d.tags.to_vec())
+    }
+
     /// Returns [`ResourceRef`] for currently highlighted item.
     pub fn get_resource_ref(&self, prefer_container: bool) -> Option<ResourceRef> {
         self.list

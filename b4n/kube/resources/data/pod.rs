@@ -1,5 +1,5 @@
-use b4n_kube::ResourceTag;
 use b4n_kube::stats::{CpuMetrics, MemoryMetrics, Statistics};
+use b4n_kube::{ContainerType, ResourceTag};
 use b4n_list::Item;
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::jiff::Timestamp;
@@ -127,23 +127,23 @@ pub fn update_statistics<'a>(
 }
 
 /// Returns `true` if this pod has only one container.\
-/// **Note** that init containers are not counted.
+/// **Note** that init or ephemeral containers are not counted.
 pub fn has_single_container(data: Option<&ResourceData>) -> bool {
     data.is_some_and(|d| {
         d.tags
             .iter()
-            .filter(|t| matches!(t, ResourceTag::Container(_, false, _)))
+            .filter(|t| matches!(t, ResourceTag::Container(_, ContainerType::Regular, _)))
             .count()
             == 1
     })
 }
 
 /// Returns single container name if pod has only one container.\
-/// **Note** that init containers are not counted.
+/// **Note** that init or ephemeral containers are not counted.
 pub fn get_single_container(data: Option<&ResourceData>) -> Option<&str> {
     data.and_then(|d| {
         let mut non_init = d.tags.iter().filter_map(|t| match t {
-            ResourceTag::Container(name, false, _) => Some(name.as_str()),
+            ResourceTag::Container(name, ContainerType::Regular, _) => Some(name.as_str()),
             _ => None,
         });
 
@@ -184,9 +184,20 @@ fn get_container_tags(object: &DynamicObject) -> Box<[ResourceTag]> {
     let status = &object.data["status"];
     let spec = &object.data["spec"];
 
-    if let Some(mut names) = get_container_tag(&spec["containers"], &status["containerStatuses"], false) {
-        if let Some(mut init) = get_container_tag(&spec["initContainers"], &status["initContainerStatuses"], true) {
+    let names = get_container_tag(&spec["containers"], &status["containerStatuses"], ContainerType::Regular);
+    if let Some(mut names) = names {
+        let init = get_container_tag(&spec["initContainers"], &status["initContainerStatuses"], ContainerType::Init);
+        if let Some(mut init) = init {
             names.append(&mut init);
+        }
+
+        let ephemeral = get_container_tag(
+            &spec["ephemeralContainers"],
+            &status["ephemeralContainerStatuses"],
+            ContainerType::Ephemeral,
+        );
+        if let Some(mut ephemeral) = ephemeral {
+            names.append(&mut ephemeral);
         }
 
         names.into_boxed_slice()
@@ -195,13 +206,13 @@ fn get_container_tags(object: &DynamicObject) -> Box<[ResourceTag]> {
     }
 }
 
-fn get_container_tag(containers: &Value, statuses: &Value, init: bool) -> Option<Vec<ResourceTag>> {
+fn get_container_tag(containers: &Value, statuses: &Value, kind: ContainerType) -> Option<Vec<ResourceTag>> {
     containers.as_array().map(|arr| {
         arr.iter()
             .filter_map(|i| i["name"].as_str())
             .map(|name| {
                 let finished_at = get_finished_at(statuses, name);
-                ResourceTag::Container(name.to_owned(), init, finished_at)
+                ResourceTag::Container(name.to_owned(), kind, finished_at)
             })
             .collect()
     })

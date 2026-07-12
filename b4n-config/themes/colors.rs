@@ -5,7 +5,7 @@ use std::fmt::{self};
 use std::str::FromStr;
 
 /// Represents foreground, dim foreground and background colors for UI text.
-#[derive(Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct TextColors {
     pub fg: Color,
     pub dim: Color,

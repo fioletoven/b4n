@@ -17,6 +17,7 @@ k8s-openapi = { workspace = true }
 kube = { workspace = true }
 ratatui-core = { workspace = true }
 serde-saphyr = { workspace = true }
+shlex = { workspace = true }
 syntect = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

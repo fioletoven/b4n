@@ -9,12 +9,13 @@ use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
-    Command, DeleteResourcesCommand, DeleteResourcesOptions, GetNewResourceYamlCommand, GetResourceYamlCommand,
-    ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand,
-    SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions,
+    Command, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig, GetNewResourceYamlCommand,
+    GetResourceYamlCommand, InjectContainerCommand, ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand,
+    SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
+use b4n_tui::EphemeralContainer;
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
@@ -528,6 +529,23 @@ impl BgWorker {
         let sender = self.highlighter.get_sender()?;
         let command = RunPluginCommand::new(plugin, context, sender, default_color, footer_tx);
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
+    }
+
+    pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) -> Option<String> {
+        let client = self.client.as_ref()?;
+        let name = resource.name.as_deref()?;
+        let config = EphemeralContainerConfig {
+            name: container.name,
+            image: container.image,
+            target_container: container.target,
+            command: container.command,
+            share_process_namespace: true,
+            security_context: None,
+            wait_for_container: true,
+            wait_timeout: Some(120),
+        };
+        let command = InjectContainerCommand::new(name.to_owned(), resource.namespace.clone(), client.get_client(), config);
+        Some(self.executor.run_task(Command::InjectContainer(Box::new(command))))
     }
 }
 

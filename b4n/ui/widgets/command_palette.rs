@@ -54,10 +54,19 @@ impl CommandPalette {
         self
     }
 
+    /// Sets the initial value for the last added step of the command palette.
+    pub fn with_value(mut self, value: impl Into<String>) -> Self {
+        let index = self.steps.len().saturating_sub(1);
+        self.steps[index].select.set_value(value);
+        self.steps[index].validate();
+        self
+    }
+
     /// Sets validator for the last added step of the command palette.
     pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
         let index = self.steps.len().saturating_sub(1);
-        self.steps[index].validator = InputValidator::new(validator);
+        self.steps[index].validators.push(InputValidator::new(validator));
+        self.steps[index].validate();
         self
     }
 
@@ -198,6 +207,14 @@ impl CommandPalette {
         frame.render_widget(Paragraph::new(text).style(&colors.header.unwrap_or_default()), area);
     }
 
+    fn step(&self) -> &Step {
+        &self.steps[self.index]
+    }
+
+    fn step_mut(&mut self) -> &mut Step {
+        &mut self.steps[self.index]
+    }
+
     fn select(&self) -> &Select<ActionsList> {
         &self.steps[self.index].select
     }
@@ -215,13 +232,12 @@ impl CommandPalette {
             let value = self.select().items.get_highlighted_item_name().unwrap_or_default().to_owned();
             self.select_mut().set_value(value);
             self.select_mut().items.list.highlight_item_by_uid(&uid);
+            self.step_mut().validate();
         }
     }
 
     fn can_advance_to_next_step(&self) -> bool {
-        !self.select().has_error()
-            && self.index + 1 < self.steps.len()
-            && (self.select().is_anything_highlighted() || (self.select().items.len() == 0 && !self.select().value().is_empty()))
+        self.step().has_valid_value() && self.index + 1 < self.steps.len()
     }
 
     fn next_step(&mut self) -> bool {
@@ -229,7 +245,7 @@ impl CommandPalette {
             return false;
         }
 
-        if self.steps[self.index + 1].select.value().is_empty() {
+        if self.steps[self.index + 1].requires_previous_value() {
             let value = self.select().value().to_owned();
             self.steps[self.index + 1].select.set_value(value);
         }
@@ -246,6 +262,7 @@ impl CommandPalette {
         self.index += 1;
         self.select_mut().set_prompt(prompt);
         self.select_mut().highlight_accept_button(is_highlighted);
+        self.step_mut().validate();
 
         true
     }
@@ -275,7 +292,7 @@ impl CommandPalette {
     fn process_enter_key(&mut self, overwrite_if_not_empty: bool) -> ResponseEvent {
         self.insert_highlighted_value(overwrite_if_not_empty);
 
-        if !self.select().has_error() && !self.select().value().is_empty() && (self.steps.len() == 1 || !self.next_step()) {
+        if self.step().has_valid_value() && (self.steps.len() == 1 || !self.next_step()) {
             self.is_visible = false;
 
             if self.steps.len() == self.index + 1
@@ -296,7 +313,7 @@ impl CommandPalette {
         let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
         if let Some(text) = text {
             self.select_mut().insert_value(&text);
-            self.steps[self.index].validate();
+            self.step_mut().validate();
         }
 
         ResponseEvent::Handled
@@ -360,7 +377,7 @@ impl Responsive for CommandPalette {
             self.select_mut().items.unhighlight_item();
         }
 
-        self.steps[self.index].validate();
+        self.step_mut().validate();
 
         response
     }
@@ -371,8 +388,10 @@ pub struct StepBuilder {
     actions: Option<ActionsList>,
     initial_value: Option<String>,
     prompt: Option<String>,
-    validator: InputValidator,
+    validators: Vec<InputValidator>,
     colors: SelectColors,
+    copy_previous: bool,
+    required: bool,
 }
 
 impl StepBuilder {
@@ -382,8 +401,10 @@ impl StepBuilder {
             actions: None,
             initial_value: Some(initial_value.into()),
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
             colors: SelectColors::default(),
+            copy_previous: false,
+            required: true,
         }
     }
 
@@ -393,14 +414,16 @@ impl StepBuilder {
             actions: Some(actions),
             initial_value: None,
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
             colors: SelectColors::default(),
+            copy_previous: false,
+            required: true,
         }
     }
 
     /// Adds validator to the [`Step`].
     pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
-        self.validator = InputValidator::new(validator);
+        self.validators.push(InputValidator::new(validator));
         self
     }
 
@@ -413,6 +436,18 @@ impl StepBuilder {
     /// Adds custom select colors to the step.
     pub fn with_colors(mut self, colors: SelectColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Copies the previous step's value as this step's initial value.
+    pub fn with_copy_previous(mut self, copy_previous: bool) -> Self {
+        self.copy_previous = copy_previous;
+        self
+    }
+
+    /// Marks this step's value as required (rejects empty input).
+    pub fn with_required(mut self, required: bool) -> Self {
+        self.required = required;
         self
     }
 
@@ -430,7 +465,9 @@ impl StepBuilder {
         Step {
             select,
             prompt: self.prompt,
-            validator: self.validator,
+            validators: self.validators,
+            copy_previous: self.copy_previous,
+            required: self.required,
         }
     }
 }
@@ -439,7 +476,9 @@ impl StepBuilder {
 pub struct Step {
     select: Select<ActionsList>,
     prompt: Option<String>,
-    validator: InputValidator,
+    validators: Vec<InputValidator>,
+    copy_previous: bool,
+    required: bool,
 }
 
 impl Step {
@@ -451,18 +490,35 @@ impl Step {
                 .with_error_mode(ErrorHighlightMode::Value)
                 .with_accept_button(accept_button),
             prompt: None,
-            validator: InputValidator::new(ValidatorKind::None),
+            validators: Vec::new(),
+            copy_previous: false,
+            required: true,
         }
     }
 
     /// Validates the current step using associated validator.
     fn validate(&mut self) -> bool {
-        if let Err(error_index) = self.validator.validate(self.select.value()) {
-            self.select.set_error(Some(error_index));
-            false
-        } else {
-            self.select.set_error(None);
-            true
+        if !self.validators.is_empty() {
+            let value = self.select.value();
+            for validator in &mut self.validators {
+                if let Err(error_index) = validator.validate(value) {
+                    self.select.set_error(Some(error_index));
+                    return false;
+                }
+            }
         }
+
+        self.select.set_error(None);
+        true
+    }
+
+    /// Returns `true` if this step requires previous value.
+    fn requires_previous_value(&self) -> bool {
+        self.copy_previous && self.select.value().is_empty()
+    }
+
+    /// Returns `true` if step has valid value.
+    fn has_valid_value(&self) -> bool {
+        (!self.required && self.select.value().is_empty()) || (!self.select.has_error() && !self.select.value().is_empty())
     }
 }
