@@ -1,4 +1,3 @@
-use b4n_common::truncate_left;
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_list::Row;
@@ -16,7 +15,6 @@ use tokio::runtime::Handle;
 use crate::core::{SharedAppData, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
-const PROMPT_LEN: usize = 30;
 const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
@@ -57,7 +55,7 @@ impl FileSelector {
         }
 
         let behaviour = self.behaviour_mut();
-        behaviour.prompt = truncate_prompt(&path);
+        behaviour.prompt = build_prompt(&path);
         behaviour.current_path = path;
         behaviour.lister.reset();
         behaviour.loading = true;
@@ -78,7 +76,7 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf) -> Self {
-        let prompt = truncate_prompt(&initial_path);
+        let prompt = build_prompt(&initial_path);
 
         Self {
             app_data,
@@ -94,7 +92,7 @@ impl FileBehaviour {
     }
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
-        self.prompt = truncate_prompt(&dir_path);
+        self.prompt = build_prompt(&dir_path);
         self.current_path.clone_from(&dir_path);
         self.current_exists = false;
         self.loading = self.lister.list_dir(dir_path, true);
@@ -348,13 +346,8 @@ impl PickerBehaviour for FileBehaviour {
     }
 }
 
-fn truncate_prompt(path: &Path) -> String {
-    let prompt = format!("{}{}", path.display(), PROMPT_END);
-    if prompt.len() > PROMPT_LEN {
-        format!("…{}", truncate_left(&prompt, PROMPT_LEN.saturating_sub(1)))
-    } else {
-        prompt
-    }
+fn build_prompt(path: &Path) -> String {
+    format!("{}{}", path.display(), PROMPT_END)
 }
 
 fn normalize(path: &str) -> PathBuf {
