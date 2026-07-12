@@ -260,6 +260,9 @@ impl App {
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
             ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),
+            ResponseEvent::InjectContainer(resource, image, command) => {
+                self.views_manager.inject_container(&resource, image, command)
+            },
             _ => (),
         }
 

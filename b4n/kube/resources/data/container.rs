@@ -1,16 +1,34 @@
 use b4n_kube::stats::Metrics;
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use k8s_openapi::serde_json::Value;
-use std::rc::Rc;
+use std::{fmt::Display, rc::Rc};
 
 use crate::{kube::resources::ResourceData, ui::widgets::table::Cell};
+
+/// Pod container type.
+#[derive(Clone, Copy, PartialEq)]
+pub enum ContainerType {
+    Regular,
+    Init,
+    Ephemeral,
+}
+
+impl Display for ContainerType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContainerType::Regular => write!(f, "Regular"),
+            ContainerType::Init => write!(f, "Init"),
+            ContainerType::Ephemeral => write!(f, "Ephemeral"),
+        }
+    }
+}
 
 /// Returns [`ResourceData`] for the pod's `container`.
 pub fn data(
     container: &Value,
     status: Option<&Value>,
     metrics: Option<Metrics>,
-    is_init_container: bool,
+    container_type: ContainerType,
     is_terminating: bool,
 ) -> ResourceData {
     let restarts = status.and_then(|s| s.get("restartCount")).and_then(Value::as_i64);
@@ -35,7 +53,7 @@ pub fn data(
         Cell::integer(restarts, 5),
         ready.into(),
         phase.into(),
-        is_init_container.into(),
+        container_type.to_string().into(),
     ];
 
     if let Some(metrics) = metrics {
@@ -60,7 +78,7 @@ pub fn header(has_metrics: bool) -> Header {
         Column::fixed("RESTARTS", 3, true),
         Column::fixed("READY", 7, false),
         Column::bound("STATE", 10, 20, false),
-        Column::fixed("INIT", 6, false),
+        Column::bound("TYPE", 7, 9, false),
     ];
 
     let mut symbols = vec![' ', 'N', 'R', 'E', 'S', 'T'];

@@ -5,6 +5,7 @@ use kube::api::{DynamicObject, ObjectMeta};
 use std::rc::Rc;
 
 use crate::core::SharedAppData;
+use crate::kube::resources::container::ContainerType;
 use crate::kube::resources::{ColumnsLayout, ResourceItem, ResourcesList};
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::utils::{ValueKind, header, map_join, map_to_string, uppercase_first_letter, value_to_string};
@@ -295,8 +296,30 @@ fn update_containers_section(
         add_template_containers(list, data, metadata, "initContainers", true);
         add_template_containers(list, data, metadata, "containers", false);
     } else {
-        add_containers(list, data, metadata, "initContainers", "initContainerStatuses", true);
-        add_containers(list, data, metadata, "containers", "containerStatuses", false);
+        add_containers(
+            list,
+            data,
+            metadata,
+            "initContainers",
+            "initContainerStatuses",
+            ContainerType::Init,
+        );
+        add_containers(
+            list,
+            data,
+            metadata,
+            "containers",
+            "containerStatuses",
+            ContainerType::Regular,
+        );
+        add_containers(
+            list,
+            data,
+            metadata,
+            "ephemeralContainers",
+            "ephemeralContainerStatuses",
+            ContainerType::Ephemeral,
+        );
     }
 
     list.table.update(ObserverResult::InitDone);
@@ -323,12 +346,12 @@ fn add_containers(
     metadata: &ObjectMeta,
     spec_array: &str,
     status_array: &str,
-    is_init: bool,
+    container_type: ContainerType,
 ) {
     if let Some(containers) = data["spec"][spec_array].as_array() {
         for container in containers {
             let status = get_container_status(data, status_array, container);
-            let resource = ResourceItem::from_container(container, status, metadata, None, is_init);
+            let resource = ResourceItem::from_container(container, status, metadata, None, container_type);
             list.table.update(ObserverResult::new(resource, false));
         }
     }

@@ -647,6 +647,11 @@ impl ViewsManager {
         }
     }
 
+    /// Runs command to inject ephemeral container to the specified resource.
+    pub fn inject_container(&mut self, resource: &ResourceRef, image: String, command: String) {
+        self.worker.borrow_mut().inject_container(resource, image, command);
+    }
+
     /// Updates footer message history pane hint with current key binding.
     pub fn set_message_history_hint(&mut self) {
         let copy_key = self.app_data.get_key_name(KeyCommand::ContentCopy).to_ascii_uppercase();

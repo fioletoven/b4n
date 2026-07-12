@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
+use crate::kube::resources::container::ContainerType;
 use crate::kube::resources::{ColumnsLayout, ResourceItem};
 
 /// Background k8s resource observer that emits [`ResourceItem`]s.
@@ -200,20 +201,40 @@ impl ResourceObserver {
 
     fn queue_results(&mut self, object: DynamicObject, is_delete: bool) {
         if self.observer.is_container() {
-            self.queue_containers(&object, "initContainers", "initContainerStatuses", true, is_delete);
-            self.queue_containers(&object, "containers", "containerStatuses", false, is_delete);
+            self.queue_containers(
+                &object,
+                "initContainers",
+                "initContainerStatuses",
+                ContainerType::Init,
+                is_delete,
+            );
+            self.queue_containers(&object, "containers", "containerStatuses", ContainerType::Regular, is_delete);
+            self.queue_containers(
+                &object,
+                "ephemeralContainers",
+                "ephemeralContainerStatuses",
+                ContainerType::Ephemeral,
+                is_delete,
+            );
         } else {
             self.queue_resource(object, is_delete);
         }
     }
 
-    fn queue_containers(&mut self, object: &DynamicObject, array: &str, statuses_array: &str, is_init: bool, is_delete: bool) {
+    fn queue_containers(
+        &mut self,
+        object: &DynamicObject,
+        array: &str,
+        statuses_array: &str,
+        container_type: ContainerType,
+        is_delete: bool,
+    ) {
         if let Some(containers) = get_containers(object, array) {
             let stats = &self.statistics.borrow();
             let pod_stats = get_pod_statistics(object, stats);
             for c in containers {
                 let metrics = get_container_metrics(c, pod_stats, stats.has_metrics);
-                let result = get_container_result(c, object, statuses_array, metrics, is_init, is_delete);
+                let result = get_container_result(c, object, statuses_array, metrics, container_type, is_delete);
                 self.queue.push_back(Box::new(result));
             }
         }
@@ -290,7 +311,7 @@ fn get_container_result(
     object: &DynamicObject,
     statuses_array: &str,
     metrics: Option<Metrics>,
-    is_init_container: bool,
+    container_type: ContainerType,
     is_delete: bool,
 ) -> ObserverResult<ResourceItem> {
     let status = object.data["status"][statuses_array]
@@ -298,7 +319,7 @@ fn get_container_result(
         .and_then(|s| s.iter().find(|s| s["name"].as_str() == container["name"].as_str()));
 
     ObserverResult::new(
-        ResourceItem::from_container(container, status, &object.metadata, metrics, is_init_container),
+        ResourceItem::from_container(container, status, &object.metadata, metrics, container_type),
         is_delete,
     )
 }
