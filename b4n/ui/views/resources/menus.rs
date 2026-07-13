@@ -25,7 +25,10 @@ pub fn build_ephemeral_container_steps(
     let images = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
 
     CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
-        .with_header(" Ephemeral container (command and target are optional):")
+        .with_header(format!(
+            " Inject ephemeral container into '{}':",
+            resource.name.as_deref().unwrap_or_default()
+        ))
         .with_prompt("container name")
         .with_validator(ValidatorKind::StringExcept(except_names))
         .with_validator(ValidatorKind::DnsLabel)
@@ -39,7 +42,7 @@ pub fn build_ephemeral_container_steps(
         )
         .with_step(
             StepBuilder::input("")
-                .with_prompt("command")
+                .with_prompt("optional command")
                 .with_validator(ValidatorKind::ShellCommand)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
                 .with_required(false)
@@ -47,7 +50,7 @@ pub fn build_ephemeral_container_steps(
         )
         .with_step(
             StepBuilder::actions(target_actions)
-                .with_prompt("target")
+                .with_prompt("optional target")
                 .with_validator(ValidatorKind::StringOneOf(target_names))
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
                 .with_required(false)

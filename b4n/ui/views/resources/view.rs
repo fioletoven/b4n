@@ -1,11 +1,10 @@
 use b4n_common::NotificationSink;
-use b4n_config::PluginRef;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
-use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Button, CheckBox, Dialog, Selector};
+use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -17,6 +16,9 @@ use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, 
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
+use crate::ui::views::resources::dialogs::{
+    new_delete_dialog, new_inject_container_dialog, new_run_plugin_dialog, new_stop_port_forwards_dialog,
+};
 use crate::ui::views::resources::menus::{
     build_create_resource_actions, build_ephemeral_container_steps, build_mouse_menu_actions, build_port_forward_steps,
     build_resources_actions,
@@ -176,7 +178,7 @@ impl ResourcesView {
     pub fn ask_delete_resources(&mut self) {
         if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
         {
-            self.modal = self.new_delete_dialog();
+            self.modal = new_delete_dialog(&self.app_data, self.last_mouse_click.take());
             self.modal.show();
         }
     }
@@ -184,7 +186,15 @@ impl ResourcesView {
     /// Shows stop port forwarding rules dialog if anything is selected.
     pub fn ask_stop_port_forwards(&mut self) {
         if let Some(resource) = self.table.list.table.get_highlighted_item_name().map(String::from) {
-            self.modal = self.new_stop_port_forwards_dialog(&resource);
+            self.modal = new_stop_port_forwards_dialog(&self.app_data, self.last_mouse_click.take(), &resource);
+            self.modal.show();
+        }
+    }
+
+    /// Shows confirmation dialog for ephemeral container injection.
+    pub fn ask_inject_container(&mut self, response: ResponseEvent) {
+        if let ResponseEvent::InjectContainer(resource, container) = response {
+            self.modal = new_inject_container_dialog(&self.app_data, self.last_mouse_click.take(), resource, container);
             self.modal.show();
         }
     }
@@ -253,6 +263,10 @@ impl ResourcesView {
 
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
+            if matches!(result, ResponseEvent::InjectContainer(_, _)) {
+                self.ask_inject_container(result);
+                return Some(ResponseEvent::Handled);
+            }
             if result != ResponseEvent::NotHandled {
                 return Some(result);
             }
@@ -281,7 +295,7 @@ impl ResourcesView {
             self.last_mouse_click = event.position();
         } else if let ResponseEvent::PluginAction(plugin) = response {
             if plugin.confirm {
-                self.modal = self.new_run_plugin_dialog(plugin);
+                self.modal = new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
@@ -400,58 +414,6 @@ impl ResourcesView {
             self.command_palette = build_ephemeral_container_steps(&self.app_data, resource, tags);
             self.command_palette.show();
         }
-    }
-
-    fn new_delete_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        Dialog::new(
-            "Are you sure you want to delete the selected resources?".to_owned(),
-            vec![
-                Button::new("Delete", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
-            ],
-        )
-        .with_colors(colors.modal.text)
-        .with_checkboxes(vec![
-            CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
-            CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
-        ])
-        .with_selectors(vec![Selector::new(
-            0,
-            "Propagation policy",
-            &["None", "Background", "Foreground", "Orphan"],
-            colors.modal.selector.clone(),
-            &colors.modal.checkbox,
-        )])
-        .with_highlighted_position(self.last_mouse_click.take())
-    }
-
-    /// Creates new stop port forwarding rules dialog.
-    fn new_stop_port_forwards_dialog(&mut self, resource: &str) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        Dialog::new(
-            format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
-            vec![
-                Button::new("Stop", ResponseEvent::Action("stop_port_forwards"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
-            ],
-        )
-        .with_colors(colors.modal.text)
-        .with_highlighted_position(self.last_mouse_click.take())
-    }
-
-    /// Creates new dialog for run plugin confirmation.
-    fn new_run_plugin_dialog(&mut self, plugin: PluginRef) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
-        Dialog::new(
-            format!("Are you sure you want to run '{}'?", plugin.name),
-            vec![
-                Button::new("Run", ResponseEvent::PluginAction(plugin), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
-            ],
-        )
-        .with_colors(colors.modal.text)
-        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     pub fn remember_current_resource(&mut self) {
@@ -614,7 +576,7 @@ impl View for ResourcesView {
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
             if plugin.confirm {
-                self.modal = self.new_run_plugin_dialog(plugin);
+                self.modal = new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
