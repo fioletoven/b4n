@@ -76,6 +76,12 @@ impl<T: Table> Select<T> {
         self
     }
 
+    /// Sets if filter input is required.
+    pub fn with_required(mut self, is_required: bool) -> Self {
+        self.filter.set_required(is_required);
+        self
+    }
+
     /// Adds accept button to the filter input.
     pub fn with_accept_button(mut self, visible: bool) -> Self {
         self.set_accept_button(visible);

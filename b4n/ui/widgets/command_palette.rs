@@ -456,6 +456,7 @@ impl StepBuilder {
         let list = self.actions.unwrap_or_default();
         let mut select = Select::new(list, self.colors, false, true)
             .with_prompt(DEFAULT_PROMPT)
+            .with_required(self.required)
             .with_accept_button(app_data.borrow().is_mouse_enabled);
         select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
@@ -487,6 +488,7 @@ impl Step {
         Self {
             select: Select::new(list, colors, false, true)
                 .with_prompt(DEFAULT_PROMPT)
+                .with_required(true)
                 .with_error_mode(ErrorHighlightMode::Value)
                 .with_accept_button(accept_button),
             prompt: None,
