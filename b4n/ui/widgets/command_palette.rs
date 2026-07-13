@@ -264,6 +264,10 @@ impl CommandPalette {
         self.select_mut().highlight_accept_button(is_highlighted);
         self.step_mut().validate();
 
+        if !self.step().required && self.select().value().is_empty() {
+            self.select_mut().items.unhighlight_item();
+        }
+
         true
     }
 

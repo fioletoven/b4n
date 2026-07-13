@@ -324,6 +324,12 @@ impl<T: Table> Responsive for Select<T> {
                 {
                     if !self.filter_disabled {
                         self.filter.process_event(event);
+                        if !self.filter.is_required()
+                            && (key.code == KeyCode::Delete || key.code == KeyCode::Backspace)
+                            && self.filter.value().is_empty()
+                        {
+                            self.items.unhighlight_item();
+                        }
                     }
 
                     self.update_items_filter();

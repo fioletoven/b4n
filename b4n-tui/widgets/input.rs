@@ -188,6 +188,11 @@ impl Input {
         self.show_cursor
     }
 
+    /// Returns `true` if input is required.
+    pub fn is_required(&self) -> bool {
+        self.required
+    }
+
     /// Sets error colors.
     pub fn set_error_colors(&mut self, colors: Option<TextColors>) {
         self.error = colors;
