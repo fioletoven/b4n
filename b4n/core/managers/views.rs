@@ -665,7 +665,7 @@ impl ViewsManager {
             ),
             Err(error) => self
                 .footer()
-                .show_error(format!("Ephemeral container error: {}", error), DEFAULT_ERROR_DURATION),
+                .show_error(format!("Ephemeral container error: {error}"), DEFAULT_ERROR_DURATION),
         }
     }
 

@@ -390,12 +390,10 @@ fn get_target_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String>
 
 fn get_actions_from_resource_tags(tags: Vec<ResourceTag>) -> ActionsList {
     let actions = tags.into_iter().filter_map(|t| match t {
-        ResourceTag::Container(name, kind, _) if kind != ContainerType::Ephemeral => {
-            let uid = format!("_{}:{}_", name, kind);
-            Some(
-                ActionItem::raw(uid, "container".to_owned(), name, None).with_description(&kind.to_string().to_ascii_lowercase()),
-            )
-        },
+        ResourceTag::Container(name, kind, _) if kind != ContainerType::Ephemeral => Some(
+            ActionItem::raw(format!("_{name}:{kind}_"), "container".to_owned(), name, None)
+                .with_description(&kind.to_string().to_ascii_lowercase()),
+        ),
         _ => None,
     });
 

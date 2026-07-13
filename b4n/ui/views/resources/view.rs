@@ -258,6 +258,10 @@ impl ResourcesView {
                 ));
             }
 
+            if matches!(response, ResponseEvent::InjectContainer(_, _)) {
+                return Some(response);
+            }
+
             return Some(ResponseEvent::Handled);
         }
 

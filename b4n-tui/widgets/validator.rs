@@ -44,9 +44,9 @@ impl InputValidator {
 
         match &self.kind {
             ValidatorKind::Number(min, max) => self.validate_number(input, *min, *max),
-            ValidatorKind::StringExcept(except) => self.validate_sting_except(input, except),
-            ValidatorKind::StringOneOf(one_of) => self.validate_sting_one_of(input, one_of),
-            ValidatorKind::ShellCommand => self.validate_shell_command(input),
+            ValidatorKind::StringExcept(except) => validate_sting_except(input, except),
+            ValidatorKind::StringOneOf(one_of) => validate_sting_one_of(input, one_of),
+            ValidatorKind::ShellCommand => validate_shell_command(input),
             ValidatorKind::DockerImage => self.validate_docker_image(input),
             ValidatorKind::IpAddr => self.validate_ip_address(input),
             ValidatorKind::DnsLabel => self.validate_dns_label(input),
@@ -79,22 +79,6 @@ impl InputValidator {
 
         self.last_error = Some(0);
         Err(0)
-    }
-
-    fn validate_sting_except(&self, input: &str, except: &[String]) -> Result<(), usize> {
-        if except.contains(&input.to_ascii_lowercase()) {
-            Err(0)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn validate_sting_one_of(&self, input: &str, one_of: &[String]) -> Result<(), usize> {
-        if one_of.contains(&input.to_ascii_lowercase()) {
-            Ok(())
-        } else {
-            Err(0)
-        }
     }
 
     fn validate_ip_address(&mut self, input: &str) -> Result<(), usize> {
@@ -160,11 +144,6 @@ impl InputValidator {
         Ok(())
     }
 
-    /// Validates shell command using `shlex` crate.
-    fn validate_shell_command(&mut self, input: &str) -> Result<(), usize> {
-        if shlex::split(input).is_some() { Ok(()) } else { Err(0) }
-    }
-
     /// Validates a docker container image name.\
     /// Format: `[registry/][namespace/]name[:tag][@digest]`
     fn validate_docker_image(&mut self, input: &str) -> Result<(), usize> {
@@ -183,6 +162,27 @@ impl InputValidator {
         self.last_error = result.err();
         result
     }
+}
+
+fn validate_sting_except(input: &str, except: &[String]) -> Result<(), usize> {
+    if except.contains(&input.to_ascii_lowercase()) {
+        Err(0)
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_sting_one_of(input: &str, one_of: &[String]) -> Result<(), usize> {
+    if one_of.contains(&input.to_ascii_lowercase()) {
+        Ok(())
+    } else {
+        Err(0)
+    }
+}
+
+/// Validates shell command using `shlex` crate.
+fn validate_shell_command(input: &str) -> Result<(), usize> {
+    if shlex::split(input).is_some() { Ok(()) } else { Err(0) }
 }
 
 /// Format: `[registry/][namespace/]name[:tag]`.
