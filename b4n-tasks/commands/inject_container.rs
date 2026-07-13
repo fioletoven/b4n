@@ -3,9 +3,7 @@ use b4n_kube::{Namespace, ResourceRef};
 use k8s_openapi::api::core::v1::{EphemeralContainer, Pod, SecurityContext};
 use k8s_openapi::serde_json::json;
 use kube::api::{Patch, PatchParams};
-use kube::runtime::wait::{Condition, await_condition};
 use kube::{Api, Client};
-use std::time::Duration;
 
 use crate::commands::CommandResult;
 
@@ -13,16 +11,13 @@ use crate::commands::CommandResult;
 #[derive(thiserror::Error, Debug)]
 pub enum InjectContainerError {
     /// Unable to inject container to the pod.
-    #[error("unable to inject container to the pod")]
-    KubeError(#[from] kube::Error),
-
-    /// Error while waiting for container to be ready.
-    #[error("error while waiting for container to be ready")]
-    WaitError(#[from] kube::runtime::wait::Error),
-
-    /// Waiting for container timed out.
-    #[error("waiting for container timed out")]
-    WaitTimeout(#[from] tokio::time::error::Elapsed),
+    #[error("unable to inject '{container_name}' to pod '{pod_name}': {source}")]
+    KubeError {
+        pod_name: String,
+        container_name: String,
+        #[source]
+        source: kube::Error,
+    },
 }
 
 /// Ephemeral container security profile.
@@ -38,10 +33,7 @@ pub struct EphemeralContainerConfig {
     pub image: String,
     pub target_container: Option<String>,
     pub command: String,
-    pub share_process_namespace: bool,
     pub security_context: Option<SecurityProfile>,
-    pub wait_for_container: bool,
-    pub wait_timeout: Option<u64>,
 }
 
 /// Command that injects an ephemeral container to the specified pod.
@@ -77,7 +69,11 @@ async fn inject_container(
     name: String,
     config: EphemeralContainerConfig,
 ) -> Result<ResourceRef, InjectContainerError> {
-    let pod = api.get(&name).await?;
+    let pod = api.get(&name).await.map_err(|e| InjectContainerError::KubeError {
+        pod_name: name.clone(),
+        container_name: config.name.clone(),
+        source: e,
+    })?;
 
     let mut ephemeral_containers = pod
         .spec
@@ -97,25 +93,14 @@ async fn inject_container(
             }
         })),
     )
-    .await?;
-
-    if config.wait_for_container {
-        wait_for_ephemeral_container(&api, &name, &config).await?;
-    }
+    .await
+    .map_err(|e| InjectContainerError::KubeError {
+        pod_name: name.clone(),
+        container_name: config.name.clone(),
+        source: e,
+    })?;
 
     Ok(ResourceRef::container(name, api.namespace().into(), config.name))
-}
-
-async fn wait_for_ephemeral_container(
-    api: &Api<Pod>,
-    pod_name: &str,
-    config: &EphemeralContainerConfig,
-) -> Result<Option<Pod>, InjectContainerError> {
-    let condition = await_condition(api.clone(), pod_name, ephemeral_container_running(config.name.clone()));
-    Ok(match config.wait_timeout {
-        Some(secs) => tokio::time::timeout(Duration::from_secs(secs), condition).await??,
-        None => condition.await?,
-    })
 }
 
 fn build_ephemeral_container(config: &EphemeralContainerConfig) -> EphemeralContainer {
@@ -144,16 +129,5 @@ fn build_ephemeral_container(config: &EphemeralContainerConfig) -> EphemeralCont
             ..Default::default()
         }),
         ..Default::default()
-    }
-}
-
-fn ephemeral_container_running(container_name: String) -> impl Condition<Pod> {
-    move |pod: Option<&Pod>| {
-        pod.and_then(|p| p.status.as_ref())
-            .and_then(|s| s.ephemeral_container_statuses.as_ref())
-            .and_then(|statuses| statuses.iter().find(|s| s.name == container_name))
-            .and_then(|s| s.state.as_ref())
-            .and_then(|state| state.running.as_ref())
-            .is_some()
     }
 }

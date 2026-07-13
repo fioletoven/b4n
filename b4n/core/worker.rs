@@ -539,10 +539,7 @@ impl BgWorker {
             image: container.image,
             target_container: container.target,
             command: container.command,
-            share_process_namespace: true,
             security_context: None,
-            wait_for_container: true,
-            wait_timeout: Some(120),
         };
         let command = InjectContainerCommand::new(name.to_owned(), resource.namespace.clone(), client.get_client(), config);
         Some(self.executor.run_task(Command::InjectContainer(Box::new(command))))

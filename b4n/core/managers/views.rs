@@ -650,14 +650,6 @@ impl ViewsManager {
     /// Runs command to inject ephemeral container to the specified resource.
     pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) {
         self.worker.borrow_mut().inject_container(resource, container);
-        self.footer().show_info(
-            format!(
-                "Injecting ephemeral container '{}' into '{}' pod",
-                resource.container.as_deref().unwrap_or_default(),
-                resource.name.as_deref().unwrap_or_default()
-            ),
-            DEFAULT_MESSAGE_DURATION,
-        );
     }
 
     /// Shows result from the ephemeral container injection in the footer.
