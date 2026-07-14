@@ -136,8 +136,8 @@ impl ViewsManager {
 
         let top = area.y + 2;
         let height = area.height.saturating_sub(2);
-        self.areas[0] = Rect::new(area.x, top, 4, height);
-        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), top, 4, height);
+        self.areas[0] = Rect::new(area.x + 1, top, 3, height);
+        self.areas[1] = Rect::new(area.x + area.width.saturating_sub(4), top, 3, height);
     }
 
     /// Processes single TUI event.
@@ -650,30 +650,25 @@ impl ViewsManager {
     /// Runs command to inject ephemeral container to the specified resource.
     pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) {
         self.worker.borrow_mut().inject_container(resource, container);
-        self.footer().show_info(
-            format!(
-                "Injecting ephemeral container '{}' into '{}' pod",
-                resource.container.as_deref().unwrap_or_default(),
-                resource.name.as_deref().unwrap_or_default()
-            ),
-            DEFAULT_MESSAGE_DURATION,
-        );
     }
 
     /// Shows result from the ephemeral container injection in the footer.
     pub fn show_inject_result(&mut self, result: Result<ResourceRef, InjectContainerError>) {
         match result {
-            Ok(resource) => self.footer().show_info(
-                format!(
+            Ok(resource) => {
+                let msg = format!(
                     "Ephemeral container '{}' successfully injected into '{}' pod",
                     resource.container.as_deref().unwrap_or_default(),
                     resource.name.as_deref().unwrap_or_default()
-                ),
-                DEFAULT_MESSAGE_DURATION,
-            ),
-            Err(error) => self
-                .footer()
-                .show_error(format!("Ephemeral container error: {}", error), DEFAULT_ERROR_DURATION),
+                );
+                tracing::info!("{}", msg);
+                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION)
+            },
+            Err(error) => {
+                let msg = format!("Ephemeral container error: {error}");
+                tracing::warn!("{}", msg);
+                self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
+            },
         }
     }
 

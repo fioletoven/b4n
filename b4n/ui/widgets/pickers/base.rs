@@ -138,6 +138,7 @@ impl<B: PickerBehaviour> Picker<B> {
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
         let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
             .with_prompt(behaviour.prompt())
+            .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
             .with_filter_delimiters(behaviour.filter_delimiters());
 

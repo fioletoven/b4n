@@ -38,6 +38,7 @@ pub struct Input {
     show_cursor: bool,
     cursor_colors: TextColors,
     accept_button: Option<AcceptButton>,
+    required: bool,
     areas: Option<Rc<[Rect]>>,
 }
 
@@ -87,6 +88,17 @@ impl Input {
     pub fn with_accent_characters(mut self, highlight: impl Into<String>) -> Self {
         self.accent_chars = Some(highlight.into());
         self
+    }
+
+    /// Sets if input is required.
+    pub fn with_required(mut self, is_required: bool) -> Self {
+        self.required = is_required;
+        self
+    }
+
+    /// Sets if input is required.
+    pub fn set_required(&mut self, is_required: bool) {
+        self.required = is_required;
     }
 
     /// Sets the prompt and its colors.
@@ -174,6 +186,11 @@ impl Input {
     /// Returns `true` if cursor is visible.
     pub fn is_cursor_visible(&self) -> bool {
         self.show_cursor
+    }
+
+    /// Returns `true` if input is required.
+    pub fn is_required(&self) -> bool {
+        self.required
     }
 
     /// Sets error colors.
@@ -282,12 +299,14 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let button_len = self
-            .accept_button
-            .as_ref()
-            .map(|b| b.title.chars().count())
-            .unwrap_or_default();
-        let button_len = if self.value_full().is_empty() { 0 } else { button_len };
+        let button_len = if !self.required || !self.value_full().is_empty() {
+            self.accept_button
+                .as_ref()
+                .map(|b| b.title.chars().count())
+                .unwrap_or_default()
+        } else {
+            0
+        };
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)

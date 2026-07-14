@@ -1,10 +1,10 @@
 # Change Log
 
-## WIP
+## 0.5.3 - 2026-07-14
 
 ### Features
 
-- ephemeral containers support
+- add ephemeral containers support
 - highlight command palette accept button on mouse move
 
 ### Bug fixes

@@ -138,9 +138,9 @@ impl ActionItem {
             .chars()
             .try_fold((0, 0), |(total, count), c| {
                 if count < width {
-                    Ok((total + 1, if c != '␝' { count + 1 } else { count }))
+                    Ok((total + 1, if c == '␝' { count } else { count + 1 }))
                 } else {
-                    Err((total + 1, if c != '␝' { count + 1 } else { count }))
+                    Err((total + 1, if c == '␝' { count } else { count + 1 }))
                 }
             })
             .unwrap_or_else(|x| x);

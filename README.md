@@ -50,15 +50,15 @@ The following features are currently supported:
 - View logs for the highlighted pod or container.
 - Open a shell session or attach to the highlighted container's main process.
 - Enable port forwarding for the highlighted container.
-- Simple plugin system to run external binaries.
-- Mouse support in all views.
+- Inject an ephemeral container into the highlighted pod.
+- Run external binaries configured in a simple plugin system.
+- Support mouse interactions in all views.
 
 ### Planned
 
 The following features are planned for future development:
 
 - File transfer from/to a pod.
-- Ephemeral Containers.
 
 ## Default Key Bindings
 
@@ -73,6 +73,7 @@ The following features are planned for future development:
 | Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
 | Forward container's port                   | `f`             | Works only in containers view                               |
 | Go back to namespaces; clear filter        | `ESC`           | Also clears input in the filter widget                      |
+| Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation            |
 | Navigate to the involved object            | `i`             | Works only for `events` kind                                |
 | Open / switch to edit mode                 | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
 | Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |
@@ -99,9 +100,9 @@ The following features are planned for future development:
 The resources and port forwards views support advanced filtering with prefixes:
 
 - `ns:` - filter by namespace (e.g., `ns:kube-system`)
-- `n:` - filter by resource name (e.g., `n:nginx`)
-- `a:` - filter by annotations (e.g., `a:app.kubernetes.io/name=nginx`)
-- `l:` - filter by labels (e.g., `l:app=frontend`)
+- `n:`  - filter by resource name (e.g., `n:nginx`)
+- `a:`  - filter by annotations (e.g., `a:app.kubernetes.io/name=nginx`)
+- `l:`  - filter by labels (e.g., `l:app=frontend`)
 
 Filters can be combined using logical operators: `&` (and), `|` (or), `!` (negation), and parentheses `()`.
 
@@ -219,6 +220,10 @@ terminal:
   system_cursor: false
   scrollback_lines: 1000
 theme: light
+debug_images:
+- busybox
+- alpine
+- nicolaka/netshoot
 contexts:
   test-cluster: '#43464f:#8aad81'
   production: '#d8d8d8:#e1140a'
@@ -241,6 +246,7 @@ key_bindings:
 - `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
+- `debug_images` - List of container images that are displayed during ephemeral container injection.
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
 - `aliases` - Command palette aliases.
 - `key_bindings` - Defines custom key bindings for various application actions.  

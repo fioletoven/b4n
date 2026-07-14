@@ -29,7 +29,7 @@ fn test_invalid_images() {
     assert!(validator.validate("myimage:latest!").is_err());
     assert!(validator.validate("myimage:my tag").is_err());
     assert!(validator.validate(&format!("myimage:{}", "a".repeat(129))).is_err());
-    assert!(validator.validate(&"a".repeat(256).to_string()).is_err());
+    assert!(validator.validate(&"a".repeat(256)).is_err());
     assert!(validator.validate("my::image").is_err());
     assert!(validator.validate("MyImage").is_err());
 }

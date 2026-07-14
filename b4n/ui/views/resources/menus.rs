@@ -1,5 +1,7 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
+use b4n_kube::{
+    ALL_NAMESPACES, CONTAINERS, ContainerType, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope,
+};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{EphemeralContainer, PluginsExt, ResponseEvent};
@@ -17,14 +19,18 @@ pub fn build_ephemeral_container_steps(
     resource: ResourceRef,
     tags: Vec<ResourceTag>,
 ) -> CommandPalette {
-    let containers = get_names_from_container_tags(&tags);
+    let except_names = get_all_containers_from_resource_tags(&tags);
+    let target_names = get_target_containers_from_resource_tags(&tags);
+    let target_actions = get_actions_from_resource_tags(tags);
     let images = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
-    let names = get_actions_from_container_tags(tags);
 
     CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
-        .with_header(" Ephemeral container (command and target are optional):")
+        .with_header(format!(
+            " Inject ephemeral container into '{}':",
+            resource.name.as_deref().unwrap_or_default()
+        ))
         .with_prompt("container name")
-        .with_validator(ValidatorKind::StringExcept(containers.clone()))
+        .with_validator(ValidatorKind::StringExcept(except_names))
         .with_validator(ValidatorKind::DnsLabel)
         .with_value("debug")
         .with_step(
@@ -36,16 +42,16 @@ pub fn build_ephemeral_container_steps(
         )
         .with_step(
             StepBuilder::input("")
-                .with_prompt("command")
+                .with_prompt("optional command")
                 .with_validator(ValidatorKind::ShellCommand)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
                 .with_required(false)
                 .build(app_data),
         )
         .with_step(
-            StepBuilder::actions(names)
-                .with_prompt("target")
-                .with_validator(ValidatorKind::StringOneOf(containers))
+            StepBuilder::actions(target_actions)
+                .with_prompt("optional target")
+                .with_validator(ValidatorKind::StringOneOf(target_names))
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
                 .with_required(false)
                 .build(app_data),
@@ -364,7 +370,7 @@ fn has_highlighted_item_active_port_forward(table: &ResourcesTable) -> bool {
     resource.extra_values.len() > PF_COLUMN_NO && resource.extra_values[PF_COLUMN_NO].raw_text().is_some_and(|t| !t.is_empty())
 }
 
-fn get_names_from_container_tags(tags: &[ResourceTag]) -> Vec<String> {
+fn get_all_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String> {
     tags.iter()
         .filter_map(|t| match t {
             ResourceTag::Container(name, _, _) => Some(name.to_ascii_lowercase()),
@@ -373,14 +379,21 @@ fn get_names_from_container_tags(tags: &[ResourceTag]) -> Vec<String> {
         .collect()
 }
 
-fn get_actions_from_container_tags(tags: Vec<ResourceTag>) -> ActionsList {
+fn get_target_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String> {
+    tags.iter()
+        .filter_map(|t| match t {
+            ResourceTag::Container(name, kind, _) if *kind != ContainerType::Ephemeral => Some(name.to_ascii_lowercase()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn get_actions_from_resource_tags(tags: Vec<ResourceTag>) -> ActionsList {
     let actions = tags.into_iter().filter_map(|t| match t {
-        ResourceTag::Container(name, kind, _) => {
-            let uid = format!("_{}:{}_", name, kind);
-            Some(
-                ActionItem::raw(uid, "container".to_owned(), name, None).with_description(&kind.to_string().to_ascii_lowercase()),
-            )
-        },
+        ResourceTag::Container(name, kind, _) if kind != ContainerType::Ephemeral => Some(
+            ActionItem::raw(format!("_{name}:{kind}_"), "container".to_owned(), name, None)
+                .with_description(&kind.to_string().to_ascii_lowercase()),
+        ),
         _ => None,
     });
 
