@@ -4,7 +4,7 @@
 
 ### Features
 
-- ephemeral containers support
+- add ephemeral containers support
 - highlight command palette accept button on mouse move
 
 ### Bug fixes
