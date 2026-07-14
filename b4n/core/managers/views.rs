@@ -666,7 +666,7 @@ impl ViewsManager {
             },
             Err(error) => {
                 let msg = format!("Ephemeral container error: {error}");
-                tracing::error!("{}", msg);
+                tracing::warn!("{}", msg);
                 self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
         }
