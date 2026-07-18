@@ -2,11 +2,12 @@ use crossterm::event::KeyCode;
 use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui_core::terminal::Frame;
 
-use crate::widgets::{Button, CheckBox, Selector};
+use crate::widgets::modal::{Button, CheckBox, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 pub enum Control {
     CheckBox(Box<CheckBox>),
+    TextBox(Box<TextBox>),
     Selector(Box<Selector>),
 }
 
@@ -14,6 +15,7 @@ impl Control {
     fn set_focus(&mut self, is_active: bool) {
         match self {
             Control::CheckBox(checkbox) => checkbox.set_focus(is_active),
+            Control::TextBox(textbox) => textbox.set_focus(is_active),
             Control::Selector(selector) => selector.set_focus(is_active),
         }
     }
@@ -21,6 +23,7 @@ impl Control {
     fn contains(&self, x: u16, y: u16) -> bool {
         match self {
             Control::CheckBox(checkbox) => checkbox.contains(x, y),
+            Control::TextBox(textbox) => textbox.contains(x, y),
             Control::Selector(selector) => selector.contains(x, y),
         }
     }
@@ -28,6 +31,7 @@ impl Control {
     fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
+            Control::TextBox(textbox) => textbox.click(),
             Control::Selector(selector) => selector.click(position),
         }
     }
@@ -160,6 +164,7 @@ impl ControlsGroup {
         for (i, control) in self.controls.iter_mut().enumerate() {
             match control {
                 Control::CheckBox(checkbox) => checkbox.draw(frame, layout[i]),
+                Control::TextBox(textbox) => textbox.draw(frame, layout[i]),
                 Control::Selector(selector) => selector.draw(frame, layout[i]),
             }
         }

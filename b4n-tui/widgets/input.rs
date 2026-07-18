@@ -66,12 +66,6 @@ impl Input {
         self
     }
 
-    /// Adds accept button to the [`Input`] instance.
-    pub fn with_accept_button(mut self, icon: &'static str, response: ResponseEvent) -> Self {
-        self.accept_button = Some(AcceptButton::new(icon, response));
-        self
-    }
-
     /// Adds error colors to the [`Input`] instance.
     pub fn with_error_colors(mut self, colors: Option<TextColors>) -> Self {
         self.error = colors;
@@ -135,8 +129,8 @@ impl Input {
     }
 
     /// Sets the accept button.
-    pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>) {
-        self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1));
+    pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>, colors: Option<TextColors>) {
+        self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1, colors));
     }
 
     /// Returns `true` if accept button is highlighted.
@@ -323,7 +317,11 @@ impl Input {
             && !self.has_error()
             && let Some(button) = &self.accept_button
         {
-            let colors = self.prompt.as_ref().map_or(&self.colors, |(_, color)| color);
+            let colors = button
+                .colors
+                .as_ref()
+                .or_else(|| self.prompt.as_ref().map(|(_, color)| color))
+                .unwrap_or(&self.colors);
             frame.render_widget(button.as_span(colors), layout[1]);
         }
 
@@ -499,14 +497,16 @@ impl Widget for &mut Input {
 struct AcceptButton {
     title: &'static str,
     response: ResponseEvent,
+    colors: Option<TextColors>,
     is_highlighted: bool,
 }
 
 impl AcceptButton {
-    fn new(title: &'static str, response: ResponseEvent) -> Self {
+    fn new(title: &'static str, response: ResponseEvent, colors: Option<TextColors>) -> Self {
         Self {
             title,
             response,
+            colors,
             is_highlighted: false,
         }
     }

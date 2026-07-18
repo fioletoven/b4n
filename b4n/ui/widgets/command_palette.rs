@@ -164,7 +164,7 @@ impl CommandPalette {
                 &self.app_data.borrow().theme.colors.command_palette
             };
 
-            Self::clear_area(frame, area, colors.normal.bg);
+            Self::clear_area(frame, area, colors.items.normal.bg);
 
             if area.top() > 0
                 && let Some(header) = self.header.as_deref()

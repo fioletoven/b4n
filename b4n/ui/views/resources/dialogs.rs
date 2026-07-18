@@ -26,8 +26,7 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
         0,
         "Propagation policy",
         &["None", "Background", "Foreground", "Orphan"],
-        colors.modal.selector.clone(),
-        &colors.modal.checkbox,
+        &colors.modal.selector,
     )])
     .with_highlighted_position(position)
 }

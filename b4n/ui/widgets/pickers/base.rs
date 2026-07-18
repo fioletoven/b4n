@@ -222,7 +222,7 @@ impl<B: PickerBehaviour> Picker<B> {
         self.behaviour.on_draw(&mut self.patterns, area);
 
         let colors = self.patterns.colors();
-        utils::clear_area(frame, area, colors.normal.bg);
+        utils::clear_area(frame, area, colors.items.normal.bg);
         if area.top() > 0 && self.behaviour.has_header() {
             let header_area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
             let header_style = colors.header.unwrap_or_default();

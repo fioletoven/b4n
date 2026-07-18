@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::themes::colors::SelectableLineColors;
 use crate::themes::{LineColors, TextColors, to_syntect_color};
 use crate::{Config, ConfigError, DEFAULT_THEME_NAME, Persistable};
 
@@ -72,10 +73,8 @@ impl Default for FooterColors {
 pub struct FooterDetailsColors {
     pub text: TextColors,
     pub hint: TextColors,
-    pub info: TextColors,
-    pub info_hl: TextColors,
-    pub error: TextColors,
-    pub error_hl: TextColors,
+    pub info: LineColors,
+    pub error: LineColors,
 }
 
 impl Default for FooterDetailsColors {
@@ -83,10 +82,14 @@ impl Default for FooterDetailsColors {
         Self {
             text: TextColors::dim(Color::Gray, LIGHT_TEXT, Color::DarkGray),
             hint: TextColors::bg(Color::DarkGray, Color::Gray),
-            info: TextColors::bg(Color::LightGreen, Color::DarkGray),
-            info_hl: TextColors::bg(Color::Black, Color::LightGreen),
-            error: TextColors::bg(Color::LightRed, Color::DarkGray),
-            error_hl: TextColors::bg(Color::Black, Color::LightRed),
+            info: LineColors {
+                normal: TextColors::bg(Color::LightGreen, Color::DarkGray),
+                accent: TextColors::bg(Color::Black, Color::LightGreen),
+            },
+            error: LineColors {
+                normal: TextColors::bg(Color::LightRed, Color::DarkGray),
+                accent: TextColors::bg(Color::Black, Color::LightRed),
+            },
         }
     }
 }
@@ -94,11 +97,15 @@ impl Default for FooterDetailsColors {
 /// Represents filter colors.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct FilterColors {
-    pub input: TextColors,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<TextColors>,
+    pub input: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<TextColors>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button: Option<TextColors>,
 }
 
 /// Represents list colors.
@@ -128,45 +135,52 @@ impl Default for ListHeaderColors {
 /// Represents kubernetes resource colors.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ResourceColors {
-    pub ready: LineColors,
-    pub in_progress: LineColors,
-    pub terminating: LineColors,
-    pub completed: LineColors,
-    pub dimmed: LineColors,
+    pub ready: SelectableLineColors,
+    pub in_progress: SelectableLineColors,
+    pub terminating: SelectableLineColors,
+    pub completed: SelectableLineColors,
+    pub dimmed: SelectableLineColors,
 }
 
 impl Default for ResourceColors {
     fn default() -> Self {
         Self {
-            ready: LineColors {
+            ready: SelectableLineColors {
                 normal: TextColors::new(Color::LightBlue),
-                normal_hl: TextColors::bg(Color::Black, Color::LightBlue),
-                selected: Some(TextColors::new(Color::LightGreen)),
-                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+                accent: TextColors::bg(Color::Black, Color::LightBlue),
+                selected: Some(LineColors {
+                    normal: TextColors::new(Color::LightGreen),
+                    accent: TextColors::bg(Color::Black, Color::LightGreen),
+                }),
             },
-            in_progress: LineColors {
+            in_progress: SelectableLineColors {
                 normal: TextColors::new(Color::Red),
-                normal_hl: TextColors::bg(Color::Black, Color::LightRed),
-                selected: Some(TextColors::new(Color::LightGreen)),
-                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+                accent: TextColors::bg(Color::Black, Color::LightRed),
+                selected: Some(LineColors {
+                    normal: TextColors::new(Color::LightGreen),
+                    accent: TextColors::bg(Color::Black, Color::LightGreen),
+                }),
             },
-            terminating: LineColors {
+            terminating: SelectableLineColors {
                 normal: TextColors::new(Color::Magenta),
-                normal_hl: TextColors::bg(Color::Black, Color::LightMagenta),
-                selected: Some(TextColors::new(Color::LightGreen)),
-                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+                accent: TextColors::bg(Color::Black, Color::LightMagenta),
+                selected: Some(LineColors {
+                    normal: TextColors::new(Color::LightGreen),
+                    accent: TextColors::bg(Color::Black, Color::LightGreen),
+                }),
             },
-            completed: LineColors {
+            completed: SelectableLineColors {
                 normal: TextColors::new(Color::Gray),
-                normal_hl: TextColors::bg(Color::Gray, Color::Black),
-                selected: Some(TextColors::new(Color::LightGreen)),
-                selected_hl: Some(TextColors::bg(Color::Black, Color::LightGreen)),
+                accent: TextColors::bg(Color::Gray, Color::Black),
+                selected: Some(LineColors {
+                    normal: TextColors::new(Color::LightGreen),
+                    accent: TextColors::bg(Color::Black, Color::LightGreen),
+                }),
             },
-            dimmed: LineColors {
+            dimmed: SelectableLineColors {
                 normal: TextColors::new(Color::Gray),
-                normal_hl: TextColors::new(Color::Gray),
+                accent: TextColors::new(Color::Gray),
                 selected: None,
-                selected_hl: None,
             },
         }
     }
@@ -177,19 +191,14 @@ impl ResourceColors {
         let mut colors = ResourceColors::default();
         colors.ready.normal = TextColors::new(Color::Gray);
         colors.ready.selected = None;
-        colors.ready.selected_hl = None;
         colors.in_progress.normal = TextColors::new(Color::Gray);
         colors.in_progress.selected = None;
-        colors.in_progress.selected_hl = None;
         colors.terminating.normal = TextColors::new(Color::Gray);
         colors.terminating.selected = None;
-        colors.terminating.selected_hl = None;
         colors.completed.normal = TextColors::new(Color::Gray);
         colors.completed.selected = None;
-        colors.completed.selected_hl = None;
         colors.dimmed.normal = TextColors::new(Color::Gray);
         colors.dimmed.selected = None;
-        colors.dimmed.selected_hl = None;
         colors
     }
 }
@@ -201,12 +210,60 @@ pub struct ControlColors {
     pub focused: TextColors,
 }
 
+/// Represents colors for textbox inside modal dialogs.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TextBoxModalColors {
+    pub caption: ControlColors,
+    pub input: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button: Option<TextColors>,
+}
+
+impl Default for TextBoxModalColors {
+    fn default() -> Self {
+        Self {
+            caption: ControlColors {
+                normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
+            },
+            input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+            cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
+            button: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
+        }
+    }
+}
+
+/// Represents colors for select inside modal dialogs.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SelectModalColors {
+    pub caption: ControlColors,
+    pub items: LineColors,
+}
+
+impl Default for SelectModalColors {
+    fn default() -> Self {
+        Self {
+            caption: ControlColors {
+                normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
+            },
+            items: LineColors {
+                normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+            },
+        }
+    }
+}
+
 /// Represents colors for modal dialogs.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ModalColors {
     pub text: TextColors,
-    pub selector: SelectColors,
+    pub textbox: TextBoxModalColors,
     pub checkbox: ControlColors,
+    pub selector: SelectModalColors,
     pub btn_accent: ControlColors,
     pub btn_delete: ControlColors,
     pub btn_cancel: ControlColors,
@@ -216,11 +273,12 @@ impl Default for ModalColors {
     fn default() -> Self {
         Self {
             text: TextColors::bg(Color::Gray, Color::DarkGray),
-            selector: SelectColors::default(),
+            textbox: TextBoxModalColors::default(),
             checkbox: ControlColors {
                 normal: TextColors::bg(Color::Gray, Color::DarkGray),
                 focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
             },
+            selector: SelectModalColors::default(),
             btn_accent: ControlColors {
                 normal: TextColors::bg(Color::White, Color::DarkGray),
                 focused: TextColors::bg(Color::White, Color::LightBlue),
@@ -241,26 +299,26 @@ impl Default for ModalColors {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SelectColors {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<TextColors>,
-    pub normal: TextColors,
-    pub normal_hl: TextColors,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<TextColors>,
     pub filter: FilterColors,
+    pub items: LineColors,
 }
 
 impl Default for SelectColors {
     fn default() -> Self {
         Self {
-            normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
-            normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
             header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
             filter: FilterColors {
                 input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+                cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
                 prompt: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
                 error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
+                button: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
             },
-            cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
+            items: LineColors {
+                normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+            },
         }
     }
 }
@@ -375,14 +433,15 @@ impl Default for Theme {
                 search: SelectColors::default(),
                 command_palette: SelectColors::default(),
                 side_select: SelectColors {
-                    normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
-                    normal_hl: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    header: None,
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         ..Default::default()
                     },
-                    header: None,
-                    cursor: None,
+                    items: LineColors {
+                        normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
+                        accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
+                    },
                 },
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors::default(),
