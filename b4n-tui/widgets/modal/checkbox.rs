@@ -46,7 +46,7 @@ impl CheckBox {
     /// Process checkbox click.
     pub fn click(&mut self) -> ResponseEvent {
         self.is_checked = !self.is_checked;
-        ResponseEvent::Handled
+        ResponseEvent::Changed
     }
 
     /// Draws [`CheckBox`] on the provided frame area.

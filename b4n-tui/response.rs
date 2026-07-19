@@ -68,6 +68,7 @@ pub enum ResponseEvent {
     Handled,
     Cancelled,
     Accepted,
+    Changed,
     Action(&'static str),
 
     ExitApplication,

@@ -17,7 +17,7 @@ use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::dialogs::{
-    new_delete_dialog, new_inject_container_dialog, new_run_plugin_dialog, new_stop_port_forwards_dialog,
+    new_delete_dialog, new_inject_container_dialog, new_run_plugin_dialog, new_stop_port_forwards_dialog, new_transfer_dialog,
 };
 use crate::ui::views::resources::menus::{
     build_create_resource_actions, build_ephemeral_container_steps, build_mouse_menu_actions, build_port_forward_steps,
@@ -197,6 +197,12 @@ impl ResourcesView {
             self.modal = new_inject_container_dialog(&self.app_data, self.last_mouse_click.take(), resource, container);
             self.modal.show();
         }
+    }
+
+    /// Shows transfer file dialog.
+    pub fn ask_transfer_file(&mut self, is_download: bool) {
+        self.modal = new_transfer_dialog(is_download, &self.app_data, self.last_mouse_click.take());
+        self.modal.show();
     }
 
     /// Displays a list of available contexts to choose from.
@@ -651,6 +657,16 @@ impl View for ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
             self.show_ephemeral_containers_palette();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::TransferTo) {
+            self.ask_transfer_file(false);
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
+            self.ask_transfer_file(true);
             return ResponseEvent::Handled;
         }
 

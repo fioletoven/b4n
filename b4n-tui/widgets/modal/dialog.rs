@@ -9,10 +9,10 @@ use ratatui_widgets::clear::Clear;
 use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
-use crate::widgets::{Selector, TextBox};
+use crate::widgets::{Button, CheckBox, ControlsGroup, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center};
 
-use super::{Button, CheckBox, ControlsGroup};
+type OnChangeFn = Box<dyn FnMut(&mut String, &mut ControlsGroup)>;
 
 /// UI modal dialog.
 pub struct Dialog {
@@ -22,6 +22,7 @@ pub struct Dialog {
     message: String,
     controls: ControlsGroup,
     default_button: usize,
+    on_change: Option<OnChangeFn>,
     area: Rect,
 }
 
@@ -45,6 +46,7 @@ impl Dialog {
             message,
             controls: buttons,
             default_button,
+            on_change: None,
             area: Rect::default(),
         }
     }
@@ -91,6 +93,12 @@ impl Dialog {
             self.controls.add_selector(selector);
         }
 
+        self
+    }
+
+    /// Sets `on_change` action for the dialog.
+    pub fn with_on_change<F: FnMut(&mut String, &mut ControlsGroup) + 'static>(mut self, action: F) -> Self {
+        self.on_change = Some(Box::new(action));
         self
     }
 
@@ -164,8 +172,17 @@ impl Responsive for Dialog {
             return self.controls.result(self.default_button);
         }
 
-        let result = self.controls.process_event(event);
-        if !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_)) {
+        let (result, is_button) = self.controls.process_event(event);
+        if result == ResponseEvent::Changed {
+            if let Some(ref mut callback) = self.on_change {
+                callback(&mut self.message, &mut self.controls);
+            }
+
+            return ResponseEvent::Handled;
+        }
+
+        if (is_button && result != ResponseEvent::Handled) || !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_))
+        {
             self.is_visible = false;
         }
 

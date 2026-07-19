@@ -145,6 +145,92 @@ impl ControlsGroup {
         self.focused = idx;
     }
 
+    /// Process UI key or mouse event.
+    pub fn process_event(&mut self, event: &TuiEvent) -> (ResponseEvent, bool) {
+        if self.buttons.is_empty() {
+            return (ResponseEvent::NotHandled, false);
+        }
+
+        if let Some(textbox) = self.focused_textbox() {
+            let result = textbox.process_event(event);
+            if result != ResponseEvent::NotHandled {
+                if matches!(result, ResponseEvent::Changed | ResponseEvent::Action(_)) {
+                    return (result, false);
+                } else {
+                    return (ResponseEvent::Handled, false);
+                }
+            }
+        }
+
+        if let Some(selector) = self.focused_selector()
+            && selector.is_opened()
+        {
+            let result = selector.process_event(event);
+            if !selector.is_opened()
+                && let Some(position) = event.position()
+            {
+                self.focus_element_at(position.x, position.y);
+            }
+
+            if matches!(result, ResponseEvent::Handled | ResponseEvent::Changed) {
+                return (result, false);
+            }
+        }
+
+        if let TuiEvent::Mouse(mouse) = event {
+            if mouse.kind == MouseEventKind::LeftClick {
+                for control in &mut self.controls {
+                    if control.contains(mouse.column, mouse.row) {
+                        return (control.click(Some(Position::new(mouse.column, mouse.row))), false);
+                    }
+                }
+
+                for btn in &self.buttons {
+                    if btn.contains(mouse.column, mouse.row) {
+                        return (btn.result(), true);
+                    }
+                }
+            } else if mouse.kind == MouseEventKind::Moved {
+                let is_button = self.focus_element_at(mouse.column, mouse.row);
+                return (ResponseEvent::Handled, is_button);
+            }
+        }
+
+        let event = map_to_button_event(event);
+        if event == ControlEvent::Checked
+            && let (Some(idx), None) = self.get_index(self.focused)
+        {
+            return (self.controls[idx].click(None), false);
+        }
+
+        if event == ControlEvent::Pressed {
+            let (inputs, buttons) = self.get_index(self.focused);
+            if let Some(idx) = inputs {
+                return (self.controls[idx].click(None), false);
+            } else if let Some(idx) = buttons {
+                return (self.buttons[idx].result(), true);
+            }
+        }
+
+        if event == ControlEvent::FocusPrev {
+            if self.focused == 0 {
+                self.focus_last();
+            } else {
+                self.focus_prev();
+            }
+        }
+
+        if event == ControlEvent::FocusNext {
+            if self.focused == (self.controls.len() + self.buttons.len()).saturating_sub(1) {
+                self.focus_first();
+            } else {
+                self.focus_next();
+            }
+        }
+
+        (ResponseEvent::Handled, false)
+    }
+
     /// Draws [`ControlsGroup`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let layout = Layout::default()
@@ -265,12 +351,13 @@ impl ControlsGroup {
         }
     }
 
-    fn focus_element_at(&mut self, x: u16, y: u16) {
+    /// Returns `true` if focused element was button.
+    fn focus_element_at(&mut self, x: u16, y: u16) -> bool {
         if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
             self.set_focus(self.focused, false, None);
             self.buttons[i].set_focus(true);
             self.focused = i;
-            return;
+            return true;
         }
 
         if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
@@ -278,95 +365,8 @@ impl ControlsGroup {
             self.controls[i].set_focus(true, Some(Position::new(x, y)));
             self.focused = self.buttons.len() + i;
         }
-    }
-}
 
-impl Responsive for ControlsGroup {
-    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.buttons.is_empty() {
-            return ResponseEvent::NotHandled;
-        }
-
-        if let Some(textbox) = self.focused_textbox() {
-            let result = textbox.process_event(event);
-            if result != ResponseEvent::NotHandled {
-                if matches!(result, ResponseEvent::Action(_)) {
-                    return result;
-                } else {
-                    return ResponseEvent::Handled;
-                }
-            }
-        }
-
-        if let Some(selector) = self.focused_selector()
-            && selector.is_opened()
-        {
-            let result = selector.process_event(event);
-            if !selector.is_opened()
-                && let Some(position) = event.position()
-            {
-                self.focus_element_at(position.x, position.y);
-            }
-
-            if result == ResponseEvent::Handled {
-                return ResponseEvent::Handled;
-            }
-        }
-
-        if let TuiEvent::Mouse(mouse) = event {
-            if mouse.kind == MouseEventKind::LeftClick {
-                for input in &mut self.controls {
-                    if input.contains(mouse.column, mouse.row) {
-                        return input.click(Some(Position::new(mouse.column, mouse.row)));
-                    }
-                }
-
-                for btn in &self.buttons {
-                    if btn.contains(mouse.column, mouse.row) {
-                        return btn.result();
-                    }
-                }
-            } else if mouse.kind == MouseEventKind::Moved {
-                self.focus_element_at(mouse.column, mouse.row);
-                return ResponseEvent::Handled;
-            }
-        }
-
-        let event = map_to_button_event(event);
-        if event == ControlEvent::Checked
-            && let (Some(idx), None) = self.get_index(self.focused)
-        {
-            self.controls[idx].click(None);
-            return ResponseEvent::Handled;
-        }
-
-        if event == ControlEvent::Pressed {
-            let (inputs, buttons) = self.get_index(self.focused);
-            if let Some(idx) = inputs {
-                self.controls[idx].click(None);
-                return ResponseEvent::Handled;
-            } else if let Some(idx) = buttons {
-                return self.buttons[idx].result();
-            }
-        }
-
-        if event == ControlEvent::FocusPrev {
-            if self.focused == 0 {
-                self.focus_last();
-            } else {
-                self.focus_prev();
-            }
-        }
-
-        if event == ControlEvent::FocusNext {
-            if self.focused == (self.controls.len() + self.buttons.len()).saturating_sub(1) {
-                self.focus_first();
-            } else {
-                self.focus_next();
-            }
-        }
-
-        ResponseEvent::Handled
+        false
     }
 }
 

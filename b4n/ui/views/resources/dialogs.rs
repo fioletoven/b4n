@@ -1,7 +1,7 @@
 use b4n_common::{truncate, truncate_left};
 use b4n_config::PluginRef;
 use b4n_kube::ResourceRef;
-use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector};
+use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
 use ratatui::layout::Position;
 
@@ -24,7 +24,7 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
     ])
     .with_selectors(vec![Selector::new(
         0,
-        "Propagation policy",
+        "Propagation policy:",
         &["None", "Background", "Foreground", "Orphan"],
         &colors.modal.selector,
     )])
@@ -96,4 +96,45 @@ pub fn new_inject_container_dialog(
     )
     .with_colors(colors.modal.text)
     .with_highlighted_position(position)
+}
+
+/// Creates new transfer files dialog.
+pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position: Option<Position>) -> Dialog {
+    let colors = &app_data.borrow().theme.colors;
+    Dialog::new(
+        get_transfer_dialog_title(is_download),
+        vec![
+            Button::new("Transfer", ResponseEvent::Action("transfer_file"), &colors.modal.btn_accent),
+            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+        ],
+    )
+    .with_colors(colors.modal.text)
+    .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, &colors.modal.checkbox)])
+    .with_textboxes(vec![
+        TextBox::new(0, "From:     ", 40, colors.modal.textbox.clone()).with_button("  ", "file_from"),
+        TextBox::new(0, "To:       ", 40, colors.modal.textbox.clone()).with_button("  ", "file_to"),
+    ])
+    .with_selectors(vec![Selector::new(
+        0,
+        "Container:",
+        &["first", "second", "third"],
+        &colors.modal.selector,
+    )])
+    .with_highlighted_position(position)
+    .with_on_change(|message, controls| {
+        let is_checked = controls.checkbox(0).is_some_and(|c| c.is_checked);
+        let is_download = message.starts_with("Download");
+        let is_ok = (is_checked && is_download) || (!is_checked && !is_download);
+        if !is_ok {
+            *message = get_transfer_dialog_title(is_checked);
+        }
+    })
+}
+
+fn get_transfer_dialog_title(is_download: bool) -> String {
+    if is_download {
+        "Download file from the specified container:".to_owned()
+    } else {
+        "Upload file to the specified container:".to_owned()
+    }
 }

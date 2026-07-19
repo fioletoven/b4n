@@ -172,7 +172,7 @@ impl<B: PickerBehaviour> Picker<B> {
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.behaviour.colors());
         self.patterns.set_prompt(self.behaviour.prompt());
-        self.patterns.set_accept_button(self.app_data.borrow().is_mouse_enabled);
+        self.patterns.show_accept_button(self.app_data.borrow().is_mouse_enabled);
         self.is_visible = true;
     }
 

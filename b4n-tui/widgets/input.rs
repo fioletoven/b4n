@@ -38,6 +38,7 @@ pub struct Input {
     show_cursor: bool,
     cursor_colors: TextColors,
     accept_button: Option<AcceptButton>,
+    show_button: bool,
     required: bool,
     areas: Option<Rc<[Rect]>>,
 }
@@ -81,6 +82,12 @@ impl Input {
     /// Adds a set of characters that should be accented by the [`Input`] instance.
     pub fn with_accent_characters(mut self, highlight: impl Into<String>) -> Self {
         self.accent_chars = Some(highlight.into());
+        self
+    }
+
+    /// Adds an accept button to the [`Input`] instance.
+    pub fn with_accept_button(mut self, title: &'static str, response: ResponseEvent, colors: Option<TextColors>) -> Self {
+        self.accept_button = Some(AcceptButton::new(title, response, colors));
         self
     }
 
@@ -128,8 +135,14 @@ impl Input {
         }
     }
 
+    /// Sets whether to show the accept button.
+    pub fn show_accept_button(&mut self, is_visible: bool) {
+        self.show_button = is_visible;
+    }
+
     /// Sets the accept button.
     pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>, colors: Option<TextColors>) {
+        self.show_button = button.is_some();
         self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1, colors));
     }
 
@@ -300,7 +313,7 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let button_len = if !self.required || !self.value_full().is_empty() {
+        let button_len = if self.show_button && (!self.required || !self.value_full().is_empty()) {
             self.accept_button
                 .as_ref()
                 .map(|b| b.title.chars().count())
@@ -441,7 +454,9 @@ impl Responsive for Input {
                         return ResponseEvent::Handled;
                     }
 
-                    if let Some(button) = &mut self.accept_button {
+                    if self.show_button
+                        && let Some(button) = &mut self.accept_button
+                    {
                         if event.is_left_click_in(areas[1]) {
                             return button.response.clone();
                         } else if let TuiEvent::Mouse(mouse) = event

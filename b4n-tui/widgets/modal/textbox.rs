@@ -13,6 +13,7 @@ pub struct TextBox {
     pub id: usize,
     caption: &'static str,
     input: Input,
+    prev_value: String,
     is_focused: bool,
     show_cursor: bool,
     colors: TextBoxModalColors,
@@ -31,6 +32,7 @@ impl TextBox {
             id,
             caption,
             input,
+            prev_value: String::new(),
             is_focused: false,
             show_cursor: colors.cursor.is_some(),
             colors,
@@ -54,9 +56,14 @@ impl TextBox {
         self
     }
 
+    /// Sets whether to show button.
+    pub fn show_button(&mut self, is_visible: bool) {
+        self.input.show_accept_button(is_visible);
+    }
+
     /// Returns value set in the textbox.
     pub fn value(&self) -> &str {
-        self.input.value()
+        self.input.value_full()
     }
 
     /// Returns `true` if provided `x` and `y` are inside the textbox.
@@ -122,6 +129,16 @@ impl Responsive for TextBox {
             }
         }
 
-        self.input.process_event(event)
+        let result = self.input.process_event(event);
+        if result != ResponseEvent::Handled {
+            return result;
+        }
+
+        if self.prev_value != self.input.value_full() {
+            self.prev_value = self.input.value_full().to_owned();
+            return ResponseEvent::Changed;
+        }
+
+        ResponseEvent::Handled
     }
 }

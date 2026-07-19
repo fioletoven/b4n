@@ -63,7 +63,7 @@ impl Selector {
             focused: colors.caption.focused,
             selected,
             area: Rect::default(),
-            width: u16::try_from(caption_width + options_width).unwrap_or_default() + 6,
+            width: u16::try_from(caption_width + options_width).unwrap_or_default() + 5,
         }
     }
 
@@ -113,7 +113,7 @@ impl Selector {
         let area = area.inner(Margin::new(5, 0));
         let colors = if self.is_focused { self.focused } else { self.normal };
         let icon = if self.is_opened() { '' } else { '' };
-        let text = format!(" {} {}: {} ", icon, self.caption, self.selected);
+        let text = format!(" {} {} {} ", icon, self.caption, self.selected);
         let line = Line::styled(text, &colors);
 
         frame.render_widget(Paragraph::new(line), area);
@@ -134,7 +134,7 @@ impl Selector {
 
     fn get_options_area(&self) -> Rect {
         Rect::new(
-            self.area.x + u16::try_from(self.caption_width).unwrap_or_default() + 4,
+            self.area.x + u16::try_from(self.caption_width).unwrap_or_default() + 3,
             self.area.y,
             u16::try_from(self.options_width).unwrap_or_default() + 2,
             u16::try_from(self.options.items.len()).unwrap_or_default(),
@@ -165,9 +165,16 @@ impl Responsive for Selector {
             || event.is_key(&KeyCombination::new(KeyCode::Char(' '), KeyModifiers::empty()))
             || event.is_in(MouseEventKind::LeftClick, area)
         {
-            self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
+            let new_value = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
+            let changed = new_value != self.selected;
+            self.selected = new_value;
             self.is_selecting = false;
-            return ResponseEvent::Handled;
+
+            return if changed {
+                ResponseEvent::Changed
+            } else {
+                ResponseEvent::Handled
+            };
         }
 
         self.options.process_event(event)

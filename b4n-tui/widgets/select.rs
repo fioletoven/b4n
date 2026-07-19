@@ -83,18 +83,20 @@ impl<T: Table> Select<T> {
     }
 
     /// Adds accept button to the filter input.
-    pub fn with_accept_button(mut self, visible: bool) -> Self {
-        self.set_accept_button(visible);
+    pub fn with_accept_button(mut self, is_visible: bool) -> Self {
+        if is_visible {
+            self.filter
+                .set_accept_button(Some(("  ", ResponseEvent::Accepted)), self.colors.filter.button);
+        }
+
         self
     }
 
-    /// Sets accept button in the filter input.
-    pub fn set_accept_button(&mut self, visible: bool) {
-        if visible {
-            self.filter
-                .set_accept_button(Some(("  ", ResponseEvent::Accepted)), self.colors.filter.button);
-        } else {
-            self.filter.set_accept_button(None, None);
+    /// Sets whether to show the accept button.
+    pub fn show_accept_button(&mut self, is_visible: bool) {
+        self.filter.show_accept_button(is_visible);
+        if !is_visible {
+            self.filter.highlight_accept_button(false);
         }
     }
 
