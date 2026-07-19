@@ -9,7 +9,7 @@ use ratatui_widgets::clear::Clear;
 use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
-use crate::widgets::Selector;
+use crate::widgets::{Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center};
 
 use super::{Button, CheckBox, ControlsGroup};
@@ -67,6 +67,15 @@ impl Dialog {
         self
     }
 
+    /// Sets provided textboxes for the dialog.
+    pub fn with_textboxes(mut self, textboxes: Vec<TextBox>) -> Self {
+        for textbox in textboxes {
+            self.controls.add_textbox(textbox);
+        }
+
+        self
+    }
+
     /// Sets provided checkboxes for the dialog.
     pub fn with_checkboxes(mut self, checkboxes: Vec<CheckBox>) -> Self {
         for checkbox in checkboxes {
@@ -83,6 +92,11 @@ impl Dialog {
         }
 
         self
+    }
+
+    /// Returns textbox under specified `id`.
+    pub fn textbox(&self, id: usize) -> Option<&TextBox> {
+        self.controls.textbox(id)
     }
 
     /// Returns checkbox under specified `id`.
@@ -151,7 +165,7 @@ impl Responsive for Dialog {
         }
 
         let result = self.controls.process_event(event);
-        if result != ResponseEvent::Handled {
+        if !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_)) {
             self.is_visible = false;
         }
 

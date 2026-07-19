@@ -101,7 +101,7 @@ colors:
         focused: purple:bg_black
       input: '#A3B8E1:yellow:bg_black'
       cursor: Reset:gray
-      button: blue:bg_black
+      button: purple:bg_black
     checkbox:
       normal: fg_dark:bg_black
       focused: purple:bg_black

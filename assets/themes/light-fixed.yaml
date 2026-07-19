@@ -105,7 +105,7 @@ colors:
         focused: light_purple:bg_dark
       input: '#A3B8E1:light_yellow:bg_dark'
       cursor: Reset:#747C8A
-      button: light_blue:bg_dark
+      button: light_purple:bg_dark
     checkbox:
       normal: fg_dark:bg_dark
       focused: light_purple:bg_dark

@@ -133,6 +133,13 @@ impl Input {
         self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1, colors));
     }
 
+    /// Sets accept button colors.
+    pub fn set_accept_button_colors(&mut self, colors: Option<TextColors>) {
+        if let Some(button) = &mut self.accept_button {
+            button.colors = colors;
+        }
+    }
+
     /// Returns `true` if accept button is highlighted.
     pub fn is_accept_button_highlighted(&self) -> bool {
         self.accept_button.as_ref().is_some_and(|b| b.is_highlighted)
