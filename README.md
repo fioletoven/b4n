@@ -73,7 +73,7 @@ The following features are planned for future development:
 | Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
 | Forward container's port                   | `f`             | Works only in containers view                               |
 | Go back to namespaces; clear filter        | `ESC`           | Also clears input in the filter widget                      |
-| Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation            |
+| Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation dialog     |
 | Navigate to the involved object            | `i`             | Works only for `events` kind                                |
 | Open / switch to edit mode                 | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
 | Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |

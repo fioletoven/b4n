@@ -28,14 +28,16 @@ palette:
 
 # style anchors
 filter: &filter
-  cursor: Reset:gray
-  normal: fg_dark:yellow:bg_black
-  normal_hl: fg_dark:yellow:bg_dark
   header: text_dark:#AEB1C0
   filter:
-    input: '#A3B8E1:yellow:bg_black'
     prompt: blue:bg_black
+    input: '#A3B8E1:yellow:bg_black'
+    cursor: Reset:gray
     error: red:bg_black
+    button: blue:bg_black
+  items:
+    normal: fg_dark:yellow:bg_black
+    accent: fg_dark:yellow:bg_dark
 yaml: &yaml
   normal: text:no_bg
   property: green:no_bg
@@ -81,20 +83,35 @@ colors:
     details:
       text: fg_dark:bg_black
       hint: fg_dark:bg_dark
-      info: green:bg_black
-      info_hl: text_dark:green
-      error: red:bg_black
-      error_hl: text_dark:red
+      info:
+        normal: green:bg_black
+        accent: text_dark:green
+      error:
+        normal: red:bg_black
+        accent: text_dark:red
   filter: *filter
   search: *filter
   command_palette: *filter
   mouse_menu: *filter
   modal:
     text: fg_dark:bg_black
-    selector: *filter
+    textbox:
+      caption:
+        normal: fg_dark:bg_black
+        focused: purple:bg_black
+      input: '#A3B8E1:yellow:bg_black'
+      cursor: Reset:gray
+      button: purple:bg_black
     checkbox:
       normal: fg_dark:bg_black
       focused: purple:bg_black
+    selector:
+      caption:
+        normal: fg_dark:bg_black
+        focused: purple:bg_black
+      items:
+        normal: fg_dark:yellow:bg_black
+        accent: fg_dark:yellow:bg_dark
     btn_accent:
       normal: fg_dark:bg_black
       focused: text_dark:blue
@@ -105,11 +122,12 @@ colors:
       normal: fg_dark:bg_black
       focused: text_dark:green
   side_select:
-    normal: fg_dark:yellow:bg_black
-    normal_hl: fg_dark:blue:bg_dark
     header: fg_dark:bg_black
     filter:
       input: blue:bg_black
+    items:
+      normal: fg_dark:yellow:bg_black
+      accent: fg_dark:blue:bg_dark
   list:
     header:
       focused: fg_dark:yellow:bg_dark
@@ -117,43 +135,47 @@ colors:
     line:
       ready:
         normal: blue:no_bg
-        normal_hl: text_dark:blue
-        selected: green:no_bg
-        selected_hl: text_dark:green
+        accent: text_dark:blue
+        selected:
+          normal: green:no_bg
+          accent: text_dark:green
       in_progress:
         normal: red:no_bg
-        normal_hl: text_dark:red
-        selected: green:no_bg
-        selected_hl: text_dark:green
+        accent: text_dark:red
+        selected:
+          normal: green:no_bg
+          accent: text_dark:green
       terminating:
         normal: purple:no_bg
-        normal_hl: text_dark:purple
-        selected: green:no_bg
-        selected_hl: text_dark:green
+        accent: text_dark:purple
+        selected:
+          normal: green:no_bg
+          accent: text_dark:green
       completed:
         normal: text_light:no_bg
-        normal_hl: text_dark:gray
-        selected: green:no_bg
-        selected_hl: text_dark:green
+        accent: text_dark:gray
+        selected:
+          normal: green:no_bg
+          accent: text_dark:green
       dimmed:
         normal: text_light:no_bg
-        normal_hl: text_light:no_bg
+        accent: text_light:no_bg
     line_cached:
       ready:
         normal: text:no_bg
-        normal_hl: text:blue
+        accent: text:blue
       in_progress:
         normal: text:no_bg
-        normal_hl: text:red
+        accent: text:red
       terminating:
         normal: text:no_bg
-        normal_hl: text:purple
+        accent: text:purple
       completed:
         normal: text:no_bg
-        normal_hl: text_dark:bg_dark
+        accent: text_dark:bg_dark
       dimmed:
         normal: text:no_bg
-        normal_hl: text:no_bg
+        accent: text:no_bg
   shell:
     select: select_dark
   syntax:

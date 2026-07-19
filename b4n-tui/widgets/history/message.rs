@@ -38,14 +38,14 @@ impl MessageItem {
     pub fn get_color(&self, theme: &Theme, is_active: bool) -> TextColors {
         if is_active {
             if self.is_error {
-                theme.colors.footer.details.error_hl
+                theme.colors.footer.details.error.accent
             } else {
-                theme.colors.footer.details.info_hl
+                theme.colors.footer.details.info.accent
             }
         } else if self.is_error {
-            theme.colors.footer.details.error
+            theme.colors.footer.details.error.normal
         } else {
-            theme.colors.footer.details.info
+            theme.colors.footer.details.info.normal
         }
     }
 }

@@ -26,8 +26,7 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
         0,
         "Propagation policy",
         &["None", "Background", "Foreground", "Orphan"],
-        colors.modal.selector.clone(),
-        &colors.modal.checkbox,
+        &colors.modal.selector,
     )])
     .with_highlighted_position(position)
 }
@@ -67,16 +66,19 @@ pub fn new_inject_container_dialog(
     resource: ResourceRef,
     container: EphemeralContainer,
 ) -> Dialog {
+    let len = 38;
+
     let colors = &app_data.borrow().theme.colors;
     let msg = "Are you sure you want to inject ephemeral container?";
-    let image_tr = if container.image.chars().count() > 44 { "…" } else { "" };
-    let command_tr = if container.command.chars().count() > 44 { "…" } else { "" };
+    let image_tr = if container.image.chars().count() > len { "…" } else { "" };
+    let command_tr = if container.command.chars().count() > len { "…" } else { "" };
+
     let msg = format!(
-        "{msg}\n\n  name:    {}\n  image:   {}{}\n  command: {}{}\n  target:  {}",
+        "{msg}\n\n    name:    {}\n    image:   {}{}\n    command: {}{}\n    target:  {}",
         container.name,
         image_tr,
-        truncate_left(&container.image, 44),
-        truncate(&container.command, 44),
+        truncate_left(&container.image, len),
+        truncate(&container.command, len),
         command_tr,
         container.target.as_deref().unwrap_or_default()
     );

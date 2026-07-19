@@ -32,14 +32,16 @@ palette:
 
 # style anchors
 filter: &filter
-  cursor: Reset:#747C8A
-  normal: fg_dark:yellow:bg_dark
-  normal_hl: fg_light:blue:bg_light
   header: fg_light:bg_light
   filter:
-    input: '#A3B8E1:light_yellow:bg_dark'
     prompt: light_blue:bg_dark
+    input: '#A3B8E1:light_yellow:bg_dark'
+    cursor: Reset:#747C8A
     error: light_red:bg_dark
+    button: light_blue:bg_dark
+  items:
+    normal: fg_dark:yellow:bg_dark
+    accent: fg_light:blue:bg_light
 yaml: &yaml
     normal: '#9CA2B8:no_bg'
     property: green:no_bg
@@ -85,20 +87,35 @@ colors:
     details:
       text: fg_dark:hint:bg_dark
       hint: fg_light:bg_light
-      info: light_green:bg_dark
-      info_hl: text_dark:light_green
-      error: light_red:bg_dark
-      error_hl: text_dark:light_red
+      info:
+        normal: light_green:bg_dark
+        accent: text_dark:light_green
+      error:
+        normal: light_red:bg_dark
+        accent: text_dark:light_red
   filter: *filter
   search: *filter
   command_palette: *filter
   mouse_menu: *filter
   modal:
     text: fg_dark:bg_dark
-    selector: *filter
+    textbox:
+      caption:
+        normal: fg_dark:bg_dark
+        focused: light_purple:bg_dark
+      input: '#A3B8E1:light_yellow:bg_dark'
+      cursor: Reset:#747C8A
+      button: light_purple:bg_dark
     checkbox:
       normal: fg_dark:bg_dark
       focused: light_purple:bg_dark
+    selector:
+      caption:
+        normal: fg_dark:bg_dark
+        focused: light_purple:bg_dark
+      items:
+        normal: fg_dark:yellow:bg_dark
+        accent: fg_light:blue:bg_light
     btn_accent:
       normal: white:bg_dark
       focused: white:light_blue
@@ -109,11 +126,12 @@ colors:
       normal: white:bg_dark
       focused: white:light_green
   side_select:
-    normal: fg_dark:yellow:bg_dark
-    normal_hl: fg_light:blue:bg_light
     header: fg_dark:#5F626F
     filter:
       input: light_blue:bg_dark
+    items:
+      normal: fg_dark:yellow:bg_dark
+      accent: fg_light:blue:bg_light
   list:
     header:
       focused: fg_dark:light_yellow:bg_dark
@@ -121,43 +139,47 @@ colors:
     line:
       ready:
         normal: light_blue:no_bg
-        normal_hl: text_dark:light_blue
-        selected: light_green:no_bg
-        selected_hl: text_dark:light_green
+        accent: text_dark:light_blue
+        selected:
+          normal: light_green:no_bg
+          accent: text_dark:light_green
       in_progress:
         normal: red:no_bg
-        normal_hl: text_dark:light_red
-        selected: light_green:no_bg
-        selected_hl: text_dark:light_green
+        accent: text_dark:light_red
+        selected:
+          normal: light_green:no_bg
+          accent: text_dark:light_green
       terminating:
         normal: purple:no_bg
-        normal_hl: text_dark:light_purple
-        selected: light_green:no_bg
-        selected_hl: text_dark:light_green
+        accent: text_dark:light_purple
+        selected:
+          normal: light_green:no_bg
+          accent: text_dark:light_green
       completed:
         normal: text:no_bg
-        normal_hl: text_light:bg_dark
-        selected: light_green:no_bg
-        selected_hl: text_dark:light_green
+        accent: text_light:bg_dark
+        selected:
+          normal: light_green:no_bg
+          accent: text_dark:light_green
       dimmed:
         normal: text:no_bg
-        normal_hl: text:no_bg
+        accent: text:no_bg
     line_cached:
       ready:
         normal: text_light:no_bg
-        normal_hl: text:light_blue
+        accent: text:light_blue
       in_progress:
         normal: text_light:no_bg
-        normal_hl: text:light_red
+        accent: text:light_red
       terminating:
         normal: text_light:no_bg
-        normal_hl: text:light_purple
+        accent: text:light_purple
       completed:
         normal: text_light:no_bg
-        normal_hl: text_dark:bg_dark
+        accent: text_dark:bg_dark
       dimmed:
         normal: text_light:no_bg
-        normal_hl: text_dark:bg_dark
+        accent: text_dark:bg_dark
   shell:
     select: select_light
   syntax:

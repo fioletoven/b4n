@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCombination;
-use b4n_config::themes::{ControlColors, SelectColors, TextColors};
+use b4n_config::themes::{SelectColors, SelectModalColors, TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Margin, Position, Rect};
 use ratatui_core::terminal::Frame;
@@ -30,11 +30,15 @@ pub struct Selector {
 
 impl Selector {
     /// Creates new [`Selector`] instance.
-    pub fn new(id: usize, caption: &'static str, options: &[&str], select: SelectColors, control: &ControlColors) -> Self {
+    pub fn new(id: usize, caption: &'static str, options: &[&str], colors: &SelectModalColors) -> Self {
         let mut options = ActionsListBuilder::from_strings(options).build(None);
         options.highlight_first_item();
         let selected = options.get_highlighted_item_name().unwrap_or_default().to_owned();
 
+        let select = SelectColors {
+            items: colors.items.clone(),
+            ..Default::default()
+        };
         let mut options = Select::new(options, select, false, false);
         options.disable_filter(true);
 
@@ -55,8 +59,8 @@ impl Selector {
             caption_width,
             options,
             options_width,
-            normal: control.normal,
-            focused: control.focused,
+            normal: colors.caption.normal,
+            focused: colors.caption.focused,
             selected,
             area: Rect::default(),
             width: u16::try_from(caption_width + options_width).unwrap_or_default() + 6,
@@ -123,7 +127,7 @@ impl Selector {
         if self.is_opened() {
             let area = self.get_options_area();
             frame.render_widget(Clear, area);
-            frame.render_widget(Block::new().style(&self.options.colors().normal), area);
+            frame.render_widget(Block::new().style(&self.options.colors().items.normal), area);
             self.options.draw(frame, area.inner(Margin::new(1, 0)));
         }
     }

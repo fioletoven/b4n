@@ -2,18 +2,20 @@ use crossterm::event::KeyCode;
 use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui_core::terminal::Frame;
 
-use crate::widgets::{Button, CheckBox, Selector};
+use crate::widgets::modal::{Button, CheckBox, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 pub enum Control {
     CheckBox(Box<CheckBox>),
+    TextBox(Box<TextBox>),
     Selector(Box<Selector>),
 }
 
 impl Control {
-    fn set_focus(&mut self, is_active: bool) {
+    fn set_focus(&mut self, is_active: bool, position: Option<Position>) {
         match self {
             Control::CheckBox(checkbox) => checkbox.set_focus(is_active),
+            Control::TextBox(textbox) => textbox.set_focus(is_active, position),
             Control::Selector(selector) => selector.set_focus(is_active),
         }
     }
@@ -21,6 +23,7 @@ impl Control {
     fn contains(&self, x: u16, y: u16) -> bool {
         match self {
             Control::CheckBox(checkbox) => checkbox.contains(x, y),
+            Control::TextBox(textbox) => textbox.contains(x, y),
             Control::Selector(selector) => selector.contains(x, y),
         }
     }
@@ -28,6 +31,7 @@ impl Control {
     fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
+            Control::TextBox(textbox) => textbox.click(),
             Control::Selector(selector) => selector.click(position),
         }
     }
@@ -57,14 +61,35 @@ impl ControlsGroup {
         self.highlight_position = position;
     }
 
+    /// Adds a `TextBox` to the end of controls list.
+    pub fn add_textbox(&mut self, textbox: TextBox) {
+        self.controls.push(Control::TextBox(Box::new(textbox)));
+    }
+
     /// Adds a `CheckBox` to the end of controls list.
     pub fn add_checkbox(&mut self, checkbox: CheckBox) {
         self.controls.push(Control::CheckBox(Box::new(checkbox)));
     }
 
-    /// Adds a Selector to the end of controls list.
+    /// Adds a `Selector` to the end of controls list.
     pub fn add_selector(&mut self, selector: Selector) {
         self.controls.push(Control::Selector(Box::new(selector)));
+    }
+
+    /// Gets a `TextBox` with the specified `id` from the controls list.
+    pub fn textbox(&self, id: usize) -> Option<&TextBox> {
+        self.controls.iter().find_map(|control| match control {
+            Control::TextBox(tb) if tb.id == id => Some(tb.as_ref()),
+            _ => None,
+        })
+    }
+
+    /// Gets a focused `TextBox` from the controls list.
+    pub fn focused_textbox(&mut self) -> Option<&mut TextBox> {
+        self.controls.iter_mut().find_map(|control| match control {
+            Control::TextBox(tb) if tb.is_focused() => Some(tb.as_mut()),
+            _ => None,
+        })
     }
 
     /// Gets a `CheckBox` with the specified `id` from the controls list.
@@ -75,7 +100,7 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a Selector with the specified `id` from the controls list.
+    /// Gets a `Selector` with the specified `id` from the controls list.
     pub fn selector(&self, id: usize) -> Option<&Selector> {
         self.controls.iter().find_map(|control| match control {
             Control::Selector(sel) if sel.id == id => Some(sel.as_ref()),
@@ -114,9 +139,9 @@ impl ControlsGroup {
 
     /// Focus control under provided index.
     pub fn focus(&mut self, idx: usize) {
-        self.set_focus(self.focused, false);
+        self.set_focus(self.focused, false, None);
         let idx = idx.clamp(0, (self.controls.len() + self.buttons.len()).saturating_sub(1));
-        self.set_focus(idx, true);
+        self.set_focus(idx, true, None);
         self.focused = idx;
     }
 
@@ -160,6 +185,7 @@ impl ControlsGroup {
         for (i, control) in self.controls.iter_mut().enumerate() {
             match control {
                 Control::CheckBox(checkbox) => checkbox.draw(frame, layout[i]),
+                Control::TextBox(textbox) => textbox.draw(frame, layout[i]),
                 Control::Selector(selector) => selector.draw(frame, layout[i]),
             }
         }
@@ -231,9 +257,9 @@ impl ControlsGroup {
         }
     }
 
-    fn set_focus(&mut self, idx: usize, is_active: bool) {
+    fn set_focus(&mut self, idx: usize, is_active: bool, position: Option<Position>) {
         match self.get_index(idx) {
-            (Some(idx), None) => self.controls[idx].set_focus(is_active),
+            (Some(idx), None) => self.controls[idx].set_focus(is_active, position),
             (None, Some(idx)) => self.buttons[idx].set_focus(is_active),
             _ => (),
         }
@@ -241,15 +267,15 @@ impl ControlsGroup {
 
     fn focus_element_at(&mut self, x: u16, y: u16) {
         if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
-            self.set_focus(self.focused, false);
+            self.set_focus(self.focused, false, None);
             self.buttons[i].set_focus(true);
             self.focused = i;
             return;
         }
 
         if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
-            self.set_focus(self.focused, false);
-            self.controls[i].set_focus(true);
+            self.set_focus(self.focused, false, None);
+            self.controls[i].set_focus(true, Some(Position::new(x, y)));
             self.focused = self.buttons.len() + i;
         }
     }
@@ -259,6 +285,17 @@ impl Responsive for ControlsGroup {
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.buttons.is_empty() {
             return ResponseEvent::NotHandled;
+        }
+
+        if let Some(textbox) = self.focused_textbox() {
+            let result = textbox.process_event(event);
+            if result != ResponseEvent::NotHandled {
+                if matches!(result, ResponseEvent::Action(_)) {
+                    return result;
+                } else {
+                    return ResponseEvent::Handled;
+                }
+            }
         }
 
         if let Some(selector) = self.focused_selector()

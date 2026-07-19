@@ -149,7 +149,7 @@ impl<T: Table> SideSelect<T> {
             .split(inner_area);
         let colors = &self.app_data.borrow().theme.colors;
         frame.render_widget(
-            Paragraph::new(self.header.as_str()).fg(colors.side_select.normal.fg),
+            Paragraph::new(self.header.as_str()).fg(colors.side_select.items.normal.fg),
             layout[0],
         );
 
@@ -177,7 +177,7 @@ impl<T: Table> SideSelect<T> {
         frame.render_widget(
             Paragraph::new(self.header_hover.as_str())
                 .alignment(Alignment::Center)
-                .fg(colors.header.map_or(colors.normal.fg, |h| h.fg)),
+                .fg(colors.header.map_or(colors.items.normal.fg, |h| h.fg)),
             layout[1],
         );
     }
@@ -185,9 +185,9 @@ impl<T: Table> SideSelect<T> {
     fn get_positioned_block(&mut self, is_hover: bool) -> Block<'_> {
         let colors = &self.app_data.borrow().theme.colors;
         let background_color = if is_hover {
-            colors.side_select.header.map_or(colors.side_select.normal.bg, |h| h.bg)
+            colors.side_select.header.map_or(colors.side_select.items.normal.bg, |h| h.bg)
         } else {
-            colors.side_select.normal.bg
+            colors.side_select.items.normal.bg
         };
 
         let block = Block::new()

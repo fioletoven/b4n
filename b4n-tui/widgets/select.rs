@@ -33,8 +33,8 @@ impl<T: Table> Select<T> {
     pub fn new(list: T, colors: SelectColors, filter_auto_hide: bool, filter_show_cursor: bool) -> Self {
         let filter = Input::new(colors.filter.input)
             .with_cursor(
-                filter_show_cursor && colors.cursor.is_some(),
-                colors.cursor.unwrap_or_default(),
+                filter_show_cursor && colors.filter.cursor.is_some(),
+                colors.filter.cursor.unwrap_or_default(),
             )
             .with_error_colors(colors.filter.error);
 
@@ -91,9 +91,10 @@ impl<T: Table> Select<T> {
     /// Sets accept button in the filter input.
     pub fn set_accept_button(&mut self, visible: bool) {
         if visible {
-            self.filter.set_accept_button(Some(("  ", ResponseEvent::Accepted)));
+            self.filter
+                .set_accept_button(Some(("  ", ResponseEvent::Accepted)), self.colors.filter.button);
         } else {
-            self.filter.set_accept_button(None);
+            self.filter.set_accept_button(None, None);
         }
     }
 
@@ -113,7 +114,7 @@ impl<T: Table> Select<T> {
         self.filter.set_colors(colors.filter.input);
         self.filter.set_prompt_colors(colors.filter.prompt.unwrap_or_default());
         self.filter.set_error_colors(colors.filter.error);
-        self.filter.set_cursor_colors(colors.cursor);
+        self.filter.set_cursor_colors(colors.filter.cursor);
         self.colors = colors;
     }
 
@@ -244,7 +245,7 @@ impl<T: Table> Select<T> {
         let list = self.items.get_paged_names(usize::from(self.items_area.width));
         let list = list
             .into_iter()
-            .map(|(s, is_hl)| (s, if is_hl { self.colors.normal_hl } else { self.colors.normal }))
+            .map(|(s, is_hl)| (s, self.colors.items.get(is_hl)))
             .collect::<Vec<_>>();
         frame.render_widget(&mut ListWidget { list }, self.items_area);
 

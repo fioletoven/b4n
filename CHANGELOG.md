@@ -1,5 +1,14 @@
 # Change Log
 
+## WIP
+
+- extend modal dialogs with TextBox UI control
+- add separate color for input accept buttons
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.5.3 - 2026-07-14
 
 ### Features

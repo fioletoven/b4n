@@ -106,28 +106,41 @@ impl<'de> Deserialize<'de> for TextColors {
     }
 }
 
-/// Represents colors for text line.
+// Represents colors for a line.
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LineColors {
     pub normal: TextColors,
-    pub normal_hl: TextColors,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected: Option<TextColors>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_hl: Option<TextColors>,
+    pub accent: TextColors,
 }
 
 impl LineColors {
+    /// Returns highlighted or normal color for the line.
+    #[inline]
+    pub fn get(&self, is_highlighted: bool) -> TextColors {
+        if is_highlighted { self.accent } else { self.normal }
+    }
+}
+
+/// Represents colors for a line that can be selected.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct SelectableLineColors {
+    pub normal: TextColors,
+    pub accent: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<LineColors>,
+}
+
+impl SelectableLineColors {
     /// Returns [`TextColors`] for text line that reflects its state (normal, highlighted or selected).
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
             if is_active {
-                self.selected_hl.unwrap_or(self.normal_hl)
+                self.selected.as_ref().map(|l| l.accent).unwrap_or(self.accent)
             } else {
-                self.selected.unwrap_or(self.normal)
+                self.selected.as_ref().map(|l| l.normal).unwrap_or(self.normal)
             }
         } else if is_active {
-            self.normal_hl
+            self.accent
         } else {
             self.normal
         }
