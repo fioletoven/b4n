@@ -229,8 +229,8 @@ impl CmdView {
                 self.command
             ),
             vec![
-                Button::new("Terminate", ResponseEvent::Cancelled, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Terminate", ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)

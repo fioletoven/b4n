@@ -529,8 +529,12 @@ impl YamlView {
         Dialog::new(
             format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
             vec![
-                Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new(
+                    "Overwrite",
+                    ResponseEvent::Action("overwrite"),
+                    colors.modal.btn_delete.clone(),
+                ),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)
@@ -554,20 +558,20 @@ impl YamlView {
                 && let Some(origin) = self.origin_kind.as_deref()
                 && kind.as_deref().is_some_and(|k| k == origin)
             {
-                inputs.push(CheckBox::new(2, "Include status subresource", false, &colors.checkbox));
+                inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
             }
 
             if kind.as_deref().is_some_and(|k| k == "Secret") {
-                inputs.push(CheckBox::new(3, "Do not encode data fields", false, &colors.checkbox));
+                inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
             }
         }
 
         Dialog::new(
             "Create this resource?".to_owned(),
             vec![
-                Button::new("Create", ResponseEvent::Action("create"), &colors.btn_accent),
-                Button::new("Discard", response, &colors.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
+                Button::new("Create", ResponseEvent::Action("create"), colors.btn_accent.clone()),
+                Button::new("Discard", response, colors.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.btn_cancel.clone()),
             ],
         )
         .with_colors(colors.text)
@@ -578,23 +582,23 @@ impl YamlView {
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
         let mut inputs = vec![
-            CheckBox::new(0, "Force ownership (apply only)", false, &colors.checkbox),
-            CheckBox::new(1, "Ignore resource version", false, &colors.checkbox),
+            CheckBox::new(0, "Force ownership (apply only)", false, colors.checkbox.clone()),
+            CheckBox::new(1, "Ignore resource version", false, colors.checkbox.clone()),
         ];
         if self.can_patch_status {
-            inputs.push(CheckBox::new(2, "Include status subresource", false, &colors.checkbox));
+            inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
         }
         if self.is_secret {
-            inputs.push(CheckBox::new(3, "Do not encode data fields", false, &colors.checkbox));
+            inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
         }
 
         Dialog::new(
             "You have made changes to the resource's YAML. How would you like to save them?".to_owned(),
             vec![
-                Button::new("Apply", ResponseEvent::Action("apply"), &colors.btn_accent),
-                Button::new("Patch", ResponseEvent::Action("patch"), &colors.btn_accent),
-                Button::new("Discard", response, &colors.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.btn_cancel),
+                Button::new("Apply", ResponseEvent::Action("apply"), colors.btn_accent.clone()),
+                Button::new("Patch", ResponseEvent::Action("patch"), colors.btn_accent.clone()),
+                Button::new("Discard", response, colors.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.btn_cancel.clone()),
             ],
         )
         .with_colors(colors.text)

@@ -20,6 +20,7 @@ palette:
   yellow: '#E5C07B'
   cyan: '#56B6C2'
   magenta: '#726EC2'
+  light_purple: '#CC96DD'
   purple: '#C678DD'
   gray: '#758198'
 
@@ -98,28 +99,33 @@ colors:
     textbox:
       caption:
         normal: fg_dark:bg_black
+        hovered: light_purple:bg_black
         focused: purple:bg_black
       input: '#A3B8E1:yellow:bg_black'
       cursor: Reset:gray
-      button: purple:bg_black
     checkbox:
       normal: fg_dark:bg_black
+      hovered: light_purple:bg_black
       focused: purple:bg_black
     selector:
       caption:
         normal: fg_dark:bg_black
+        hovered: light_purple:bg_black
         focused: purple:bg_black
       items:
         normal: fg_dark:yellow:bg_black
         accent: fg_dark:yellow:bg_dark
     btn_accent:
       normal: fg_dark:bg_black
+      hovered: text_light:blue
       focused: text_dark:blue
     btn_delete:
       normal: fg_dark:bg_black
+      hovered: text_dark:red
       focused: text_dark:#D4666F
     btn_cancel:
       normal: fg_dark:bg_black
+      hovered: text_light:green
       focused: text_dark:green
   side_select:
     header: fg_dark:bg_black

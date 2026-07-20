@@ -181,6 +181,9 @@ impl Responsive for Dialog {
             return ResponseEvent::Handled;
         }
 
+        // we must close dialog if:
+        //  - button returned anything else than Handled (user can configure any response)
+        //  - control returned anything else than Handled or Action (user can configure actions for TextBox buttons)
         if (is_button && result != ResponseEvent::Handled) || !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_))
         {
             self.is_visible = false;

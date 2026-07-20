@@ -13,14 +13,14 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
     Dialog::new(
         "Are you sure you want to delete the selected resources?".to_owned(),
         vec![
-            Button::new("Delete", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
-            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            Button::new("Delete", ResponseEvent::Action("delete"), colors.modal.btn_delete.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
         ],
     )
     .with_colors(colors.modal.text)
     .with_checkboxes(vec![
-        CheckBox::new(0, "Terminate immediately", false, &colors.modal.checkbox),
-        CheckBox::new(1, "Remove finalizers before deletion", false, &colors.modal.checkbox),
+        CheckBox::new(0, "Terminate immediately", false, colors.modal.checkbox.clone()),
+        CheckBox::new(1, "Remove finalizers before deletion", false, colors.modal.checkbox.clone()),
     ])
     .with_selectors(vec![Selector::new(
         0,
@@ -37,8 +37,12 @@ pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<
     Dialog::new(
         format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
         vec![
-            Button::new("Stop", ResponseEvent::Action("stop_port_forwards"), &colors.modal.btn_delete),
-            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            Button::new(
+                "Stop",
+                ResponseEvent::Action("stop_port_forwards"),
+                colors.modal.btn_delete.clone(),
+            ),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
         ],
     )
     .with_colors(colors.modal.text)
@@ -51,8 +55,8 @@ pub fn new_run_plugin_dialog(app_data: &SharedAppData, position: Option<Position
     Dialog::new(
         format!("Are you sure you want to run '{}'?", plugin.name),
         vec![
-            Button::new("Run", ResponseEvent::PluginAction(plugin), &colors.modal.btn_delete),
-            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            Button::new("Run", ResponseEvent::PluginAction(plugin), colors.modal.btn_delete.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
         ],
     )
     .with_colors(colors.modal.text)
@@ -89,9 +93,9 @@ pub fn new_inject_container_dialog(
             Button::new(
                 "Inject Container",
                 ResponseEvent::InjectContainer(resource, container),
-                &colors.modal.btn_accent,
+                colors.modal.btn_accent.clone(),
             ),
-            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
         ],
     )
     .with_colors(colors.modal.text)
@@ -104,12 +108,16 @@ pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position
     Dialog::new(
         get_transfer_dialog_title(is_download),
         vec![
-            Button::new("Transfer", ResponseEvent::Action("transfer_file"), &colors.modal.btn_accent),
-            Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+            Button::new(
+                "Transfer",
+                ResponseEvent::Action("transfer_file"),
+                colors.modal.btn_accent.clone(),
+            ),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
         ],
     )
     .with_colors(colors.modal.text)
-    .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, &colors.modal.checkbox)])
+    .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone())])
     .with_textboxes(vec![
         TextBox::new(0, "From:     ", 40, colors.modal.textbox.clone()).with_button("  ", "file_from"),
         TextBox::new(0, "To:       ", 40, colors.modal.textbox.clone()).with_button("  ", "file_to"),

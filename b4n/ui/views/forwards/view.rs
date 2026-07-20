@@ -161,8 +161,8 @@ impl ForwardsView {
         Dialog::new(
             "Are you sure you want to stop the selected port forwarding rules?".to_owned(),
             vec![
-                Button::new("Stop", ResponseEvent::Action("delete"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+                Button::new("Stop", ResponseEvent::Action("delete"), colors.modal.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
             ],
         )
         .with_colors(colors.modal.text)
@@ -201,8 +201,8 @@ impl ForwardsView {
         Dialog::new(
             format!("Are you sure you want to stop {kind} port forwarding rules for pods that no longer exist? "),
             vec![
-                Button::new("Stop", ResponseEvent::Action("cleanup"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Cancelled, &colors.modal.btn_cancel),
+                Button::new("Stop", ResponseEvent::Action("cleanup"), colors.modal.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
             ],
         )
         .with_colors(colors.modal.text)

@@ -219,8 +219,12 @@ impl ShellView {
              Do you wish to continue?"
                 .to_owned(),
             vec![
-                Button::new("Paste Anyway", ResponseEvent::Action("paste"), &colors.modal.btn_accent),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new(
+                    "Paste Anyway",
+                    ResponseEvent::Action("paste"),
+                    colors.modal.btn_accent.clone(),
+                ),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)
@@ -245,8 +249,8 @@ impl ShellView {
              It will keep running in the background until you stop it manually. Type 'exit' to close it gracefully."
                 .to_owned(),
             vec![
-                Button::new("Close Anyway", ResponseEvent::Cancelled, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Close Anyway", ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)

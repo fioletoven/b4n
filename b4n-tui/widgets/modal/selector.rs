@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCombination;
-use b4n_config::themes::{SelectColors, SelectModalColors, TextColors};
+use b4n_config::themes::{ControlColors, SelectColors, SelectModalColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Margin, Position, Rect};
 use ratatui_core::terminal::Frame;
@@ -15,15 +15,15 @@ use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 /// UI `Selector`.
 pub struct Selector {
     pub id: usize,
-    is_focused: bool,
-    is_selecting: bool,
     caption: &'static str,
     caption_width: usize,
     options: Select<ActionsList>,
     options_width: usize,
-    normal: TextColors,
-    focused: TextColors,
+    is_hovered: bool,
+    is_focused: bool,
+    is_selecting: bool,
     selected: String,
+    colors: ControlColors,
     area: Rect,
     width: u16,
 }
@@ -53,15 +53,15 @@ impl Selector {
 
         Self {
             id,
-            is_focused: false,
-            is_selecting: false,
             caption,
             caption_width,
             options,
             options_width,
-            normal: colors.caption.normal,
-            focused: colors.caption.focused,
+            is_hovered: false,
+            is_focused: false,
+            is_selecting: false,
             selected,
+            colors: colors.caption.clone(),
             area: Rect::default(),
             width: u16::try_from(caption_width + options_width).unwrap_or_default() + 5,
         }
@@ -92,6 +92,11 @@ impl Selector {
         self.is_focused = is_active;
     }
 
+    /// Sets whether selector is hovered.
+    pub fn set_hover(&mut self, is_active: bool) {
+        self.is_hovered = is_active;
+    }
+
     /// Process selector click.
     pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         self.is_selecting = true;
@@ -111,10 +116,9 @@ impl Selector {
     /// Draws [`Selector`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
-        let colors = if self.is_focused { self.focused } else { self.normal };
         let icon = if self.is_opened() { '' } else { '' };
         let text = format!(" {} {} {} ", icon, self.caption, self.selected);
-        let line = Line::styled(text, &colors);
+        let line = Line::styled(text, self.colors.get(self.is_hovered, self.is_focused));
 
         frame.render_widget(Paragraph::new(line), area);
 
