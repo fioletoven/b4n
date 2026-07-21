@@ -140,7 +140,8 @@ impl<B: PickerBehaviour> Picker<B> {
             .with_prompt(behaviour.prompt())
             .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
-            .with_filter_delimiters(behaviour.filter_delimiters());
+            .with_filter_delimiters(behaviour.filter_delimiters())
+            .with_accept_button(true);
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -173,6 +174,7 @@ impl<B: PickerBehaviour> Picker<B> {
         self.patterns.set_colors(self.behaviour.colors());
         self.patterns.set_prompt(self.behaviour.prompt());
         self.patterns.show_accept_button(self.app_data.borrow().is_mouse_enabled);
+        self.patterns.highlight_accept_button(false);
         self.is_visible = true;
     }
 
