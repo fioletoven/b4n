@@ -179,7 +179,7 @@ impl ControlsGroup {
             if !selector.is_opened()
                 && let Some(position) = event.position()
             {
-                self.focus_element_at(position.x, position.y);
+                self.hover_element_at(position.x, position.y);
             }
 
             if matches!(result, ResponseEvent::Handled | ResponseEvent::Changed) {
