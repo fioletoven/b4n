@@ -57,6 +57,11 @@ jobs:
           rust: stable
           target: x86_64-pc-windows-msvc
           target-short: x86_64-windows
+        - build: macos-x86
+          os: macos-latest
+          target: x86_64-apple-darwin
+          target-short: macos-x86_64
+          rust: stable
         - build: macos-arm
           os: macos-latest
           rust: stable
