@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux, win-msvc]
+        build: [linux, win-msvc, macos-x86, macos-arm]
         include:
         - build: linux
           os: ubuntu-24.04
@@ -60,13 +60,13 @@ jobs:
         - build: macos-x86
           os: macos-latest
           target: x86_64-apple-darwin
-          target-short: macos-x86_64
+          target-short: x86_64-macos
           rust: stable
         - build: macos-arm
           os: macos-latest
           rust: stable
           target: aarch64-apple-darwin
-          target-short: macos-aarch64
+          target-short: aarch64-macos
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
