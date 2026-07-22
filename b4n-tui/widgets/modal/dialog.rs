@@ -136,7 +136,7 @@ impl Dialog {
                 .initial_indent("  ")
                 .subsequent_indent("  "),
         );
-        let lines = u16::try_from(self.controls.controls_len()).unwrap_or_default();
+        let lines = u16::try_from(self.controls.controls().len()).unwrap_or_default();
         let lines = if lines == 0 { 3 } else { lines + 4 };
         let height = u16::try_from(text.len()).unwrap_or_default() + lines + 1;
 

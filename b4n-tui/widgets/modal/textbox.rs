@@ -58,8 +58,15 @@ impl TextBox {
         self
     }
 
+    /// Sets new caption for the textbox.
+    pub fn set_caption(&mut self, caption: &'static str) {
+        self.caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
+        self.caption = caption;
+    }
+
     /// Sets whether to show button.
     pub fn show_button(&mut self, is_visible: bool) {
+        self.input.highlight_accept_button(false);
         self.input.show_accept_button(is_visible);
     }
 

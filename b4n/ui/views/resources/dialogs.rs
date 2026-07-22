@@ -1,5 +1,6 @@
 use b4n_common::{truncate, truncate_left};
 use b4n_config::PluginRef;
+use b4n_config::themes::TextBoxModalColors;
 use b4n_kube::ResourceRef;
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
@@ -118,10 +119,7 @@ pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position
     )
     .with_colors(colors.modal.text)
     .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone())])
-    .with_textboxes(vec![
-        TextBox::new(0, "From:     ", 40, colors.modal.textbox.clone()).with_button("  ", "file_from"),
-        TextBox::new(0, "To:       ", 40, colors.modal.textbox.clone()).with_button("  ", "file_to"),
-    ])
+    .with_textboxes(get_transfer_dialog_textboxes(is_download, &colors.modal.textbox))
     .with_selectors(vec![Selector::new(
         0,
         "Container:",
@@ -135,6 +133,15 @@ pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position
         let is_ok = (is_checked && is_download) || (!is_checked && !is_download);
         if !is_ok {
             *message = get_transfer_dialog_title(is_checked);
+            controls.controls_mut().swap(1, 2);
+
+            if let Some(textbox) = controls.controls_mut()[1].as_textbox_mut() {
+                setup_transfer_dialog_textbox(textbox, is_download, true);
+            }
+
+            if let Some(textbox) = controls.controls_mut()[2].as_textbox_mut() {
+                setup_transfer_dialog_textbox(textbox, !is_download, false);
+            }
         }
     })
 }
@@ -145,4 +152,22 @@ fn get_transfer_dialog_title(is_download: bool) -> String {
     } else {
         "Upload file to the specified container:".to_owned()
     }
+}
+
+fn get_transfer_dialog_textboxes(is_download: bool, colors: &TextBoxModalColors) -> Vec<TextBox> {
+    fn get_textbox(is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
+        let mut tb = TextBox::new(usize::from(is_download), "", 40, colors.clone()).with_button("  ", "select_file");
+        setup_transfer_dialog_textbox(&mut tb, !is_download, is_first);
+        tb
+    }
+
+    vec![
+        get_textbox(is_download, true, colors),
+        get_textbox(!is_download, false, colors),
+    ]
+}
+
+fn setup_transfer_dialog_textbox(textbox: &mut TextBox, has_button: bool, is_first: bool) {
+    textbox.show_button(has_button);
+    textbox.set_caption(if is_first { "From:     " } else { "To:       " });
 }

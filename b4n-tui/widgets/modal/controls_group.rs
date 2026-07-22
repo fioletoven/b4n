@@ -5,6 +5,7 @@ use ratatui_core::terminal::Frame;
 use crate::widgets::modal::{Button, CheckBox, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
+/// One of the controls for the modal dialog.
 pub enum Control {
     CheckBox(Box<CheckBox>),
     TextBox(Box<TextBox>),
@@ -12,6 +13,14 @@ pub enum Control {
 }
 
 impl Control {
+    /// Returns mutable reference to the control if control is a textbox.
+    pub fn as_textbox_mut(&mut self) -> Option<&mut TextBox> {
+        match self {
+            Control::TextBox(textbox) => Some(textbox),
+            _ => None,
+        }
+    }
+
     fn set_hover(&mut self, is_active: bool, position: Option<Position>) {
         match self {
             Control::CheckBox(checkbox) => checkbox.set_hover(is_active),
@@ -133,9 +142,14 @@ impl ControlsGroup {
             .any(|control| matches!(control, Control::Selector(sel) if sel.is_opened()))
     }
 
-    /// Returns the number of controls on the list.
-    pub fn controls_len(&self) -> usize {
-        self.controls.len()
+    /// Returns controls as a slice.
+    pub fn controls(&self) -> &[Control] {
+        &self.controls
+    }
+
+    /// Retruns controls as a mutable slice.
+    pub fn controls_mut(&mut self) -> &mut [Control] {
+        &mut self.controls
     }
 
     /// Returns result for the control under provided index.
