@@ -1,12 +1,13 @@
 use b4n_common::{truncate, truncate_left};
 use b4n_config::PluginRef;
 use b4n_config::themes::TextBoxModalColors;
-use b4n_kube::ResourceRef;
+use b4n_kube::{ResourceRef, ResourceTag};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
 use ratatui::layout::Position;
 
 use crate::core::SharedAppData;
+use crate::ui::views::resources::utils;
 
 /// Creates new resource delete confirmation dialog.
 pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
@@ -104,7 +105,12 @@ pub fn new_inject_container_dialog(
 }
 
 /// Creates new transfer files dialog.
-pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position: Option<Position>) -> Dialog {
+pub fn new_transfer_dialog(
+    is_download: bool,
+    app_data: &SharedAppData,
+    tags: &[ResourceTag],
+    position: Option<Position>,
+) -> Dialog {
     let colors = &app_data.borrow().theme.colors;
     Dialog::new(
         get_transfer_dialog_title(is_download),
@@ -123,7 +129,7 @@ pub fn new_transfer_dialog(is_download: bool, app_data: &SharedAppData, position
     .with_selectors(vec![Selector::new(
         0,
         "Container:",
-        &["first", "second", "third"],
+        &utils::get_all_containers_from_resource_tags(tags),
         &colors.modal.selector,
     )])
     .with_highlighted_position(position)
