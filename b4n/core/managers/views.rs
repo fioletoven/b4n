@@ -682,7 +682,7 @@ impl ViewsManager {
     fn copy_footer_message(&self) {
         if let Some(message) = self.footer.get_highlighted_history_message() {
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard.set_text(message).is_ok()
+                && clipboard.borrow_mut().set_text(message).is_ok()
             {
                 self.footer.transmitter().show_info("Message copied to clipboard", 3_000);
             } else {

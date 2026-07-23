@@ -126,7 +126,7 @@ pub fn new_transfer_dialog(
     )
     .with_colors(colors.modal.text)
     .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone())])
-    .with_textboxes(get_transfer_dialog_textboxes(is_download, &colors.modal.textbox))
+    .with_textboxes(get_transfer_dialog_textboxes(app_data, is_download, &colors.modal.textbox))
     .with_selectors(vec![Selector::new(
         0,
         "Container:",
@@ -182,16 +182,18 @@ fn get_transfer_dialog_title(is_download: bool) -> String {
     }
 }
 
-fn get_transfer_dialog_textboxes(is_download: bool, colors: &TextBoxModalColors) -> Vec<TextBox> {
-    fn get_textbox(is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
-        let mut tb = TextBox::new(usize::from(is_download), "", 40, colors.clone()).with_button("  ", "select_file");
+fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, colors: &TextBoxModalColors) -> Vec<TextBox> {
+    fn get_textbox(app_data: &SharedAppData, is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
+        let mut tb = TextBox::new(usize::from(is_download), "", 40, colors.clone())
+            .with_button("  ", "select_file")
+            .with_clipboard(app_data.borrow().get_clipboard());
         setup_transfer_dialog_textbox(&mut tb, !is_download, is_first);
         tb
     }
 
     vec![
-        get_textbox(is_download, true, colors),
-        get_textbox(!is_download, false, colors),
+        get_textbox(app_data, is_download, true, colors),
+        get_textbox(app_data, !is_download, false, colors),
     ]
 }
 

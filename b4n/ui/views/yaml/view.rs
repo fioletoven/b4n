@@ -139,7 +139,7 @@ impl YamlView {
         }
 
         if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-            && let Ok(text) = clipboard.get_text()
+            && let Ok(text) = clipboard.borrow_mut().get_text()
         {
             if self.copied_line.as_ref().is_some_and(|l| *l == text) {
                 self.yaml.insert_text(vec![text, String::new()], true);

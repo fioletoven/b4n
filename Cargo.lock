@@ -326,6 +326,7 @@ name = "b4n-tui"
 version = "0.5.3"
 dependencies = [
  "anyhow",
+ "arboard",
  "b4n-common",
  "b4n-config",
  "b4n-kube",

@@ -267,8 +267,8 @@ impl<B: PickerBehaviour> Picker<B> {
     }
 
     fn insert_from_clipboard(&mut self) -> ResponseEvent {
-        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
-        if let Some(text) = text {
+        let clipboard = self.app_data.borrow().get_clipboard();
+        if let Some(text) = clipboard.and_then(|c| c.borrow_mut().get_text().ok()) {
             self.patterns.insert_value(&text);
             self.run_validation();
         }

@@ -6,6 +6,7 @@ use ratatui_core::text::Line;
 use ratatui_widgets::paragraph::Paragraph;
 
 use crate::widgets::Input;
+use crate::widgets::input::SharedClipboard;
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI `TextBox`.
@@ -55,6 +56,12 @@ impl TextBox {
         let response = ResponseEvent::Action(action);
         self.input
             .set_accept_button(Some((icon, response)), Some(self.colors.caption.normal));
+        self
+    }
+
+    /// Adds clipboard functionality to the textbox.
+    pub fn with_clipboard(mut self, clipboard: Option<SharedClipboard>) -> Self {
+        self.input.set_clipboard(clipboard);
         self
     }
 

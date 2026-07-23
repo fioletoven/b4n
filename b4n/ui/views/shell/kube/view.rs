@@ -188,8 +188,8 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
-        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
-        if let Some(text) = text {
+        let clipboard = self.app_data.borrow().get_clipboard();
+        if let Some(text) = clipboard.and_then(|c| c.borrow_mut().get_text().ok()) {
             if text.contains('\n') {
                 self.clipboard_text = Some(text.replace("\r\n", "\n"));
                 self.ask_insert_from_clipboard();

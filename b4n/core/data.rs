@@ -4,6 +4,7 @@ use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
 use b4n_config::{PluginRef, Plugins};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
+use b4n_tui::widgets::SharedClipboard;
 use b4n_tui::{ToSelectData, TuiEvent};
 use kube::discovery::Scope;
 use std::borrow::Cow;
@@ -154,7 +155,7 @@ pub struct AppData {
     pub kinds: Option<Vec<KindItem>>,
 
     /// Holds clipboard object.
-    pub clipboard: Option<Clipboard>,
+    pub clipboard: Option<SharedClipboard>,
 
     /// Indicates if application is connected to the Kubernetes API.
     pub state: ConnectionState,
@@ -169,7 +170,7 @@ impl AppData {
             key_bindings,
             history,
             theme,
-            clipboard: Clipboard::new().ok(),
+            clipboard: Clipboard::new().ok().map(|clipboard| Rc::new(RefCell::new(clipboard))),
             state: ConnectionState::Connecting,
             ..Default::default()
         }
@@ -196,6 +197,11 @@ impl AppData {
     /// Returns `true` if state indicates that app is connected.
     pub fn is_connected(&self) -> bool {
         self.state != ConnectionState::Connecting
+    }
+
+    /// Returns shared clipboard instance.
+    pub fn get_clipboard(&self) -> Option<SharedClipboard> {
+        self.clipboard.as_ref().map(Rc::clone)
     }
 }
 
@@ -270,7 +276,7 @@ impl SharedAppDataExt for SharedAppData {
         let text = text.into();
         if !text.is_empty() {
             if let Some(clipboard) = &mut self.borrow_mut().clipboard
-                && clipboard.set_text(text).is_ok()
+                && clipboard.borrow_mut().set_text(text).is_ok()
             {
                 sink.show_info(on_success_message(), 3_000);
             } else {
