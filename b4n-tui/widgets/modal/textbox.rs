@@ -75,6 +75,11 @@ impl TextBox {
         self.input.value_full()
     }
 
+    /// Sets new value for the textbox.
+    pub fn set_value(&mut self, value: impl Into<String>) {
+        self.input.set_value(value);
+    }
+
     /// Returns `true` if provided `x` and `y` are inside the textbox.
     pub fn contains(&self, x: u16, y: u16) -> bool {
         self.area.contains(Position::new(x, y))

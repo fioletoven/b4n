@@ -8,6 +8,7 @@ use ratatui::layout::Position;
 
 use crate::core::SharedAppData;
 use crate::ui::views::resources::utils;
+use crate::ui::widgets::FileSelector;
 
 /// Creates new resource delete confirmation dialog.
 pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
@@ -150,6 +151,27 @@ pub fn new_transfer_dialog(
             }
         }
     })
+}
+
+/// Updates transfer dialog textboxes with the selected path from a file picker.
+pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelector) {
+    let (path, exists) = file_picker.selected_path();
+    let is_download = dialog.checkbox(0).is_some_and(|cb| cb.is_checked);
+    if is_download || exists {
+        if let Some(textbox) = dialog.textbox_mut(0)
+            && let Ok(path) = path.clone().into_os_string().into_string()
+        {
+            textbox.set_value(path);
+        }
+
+        if let Some(textbox) = dialog.textbox_mut(1)
+            && textbox.value().is_empty()
+            && let Some(filename) = path.file_name()
+            && let Some(filename_str) = filename.to_str()
+        {
+            textbox.set_value(format!("~/{}", filename_str));
+        }
+    }
 }
 
 fn get_transfer_dialog_title(is_download: bool) -> String {

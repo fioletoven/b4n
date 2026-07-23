@@ -107,6 +107,11 @@ impl Dialog {
         self.controls.textbox(id)
     }
 
+    /// Returns textbox under specified `id`.
+    pub fn textbox_mut(&mut self, id: usize) -> Option<&mut TextBox> {
+        self.controls.textbox_mut(id)
+    }
+
     /// Returns checkbox under specified `id`.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.checkbox(id)

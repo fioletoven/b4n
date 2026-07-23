@@ -16,15 +16,9 @@ use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, 
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
-use crate::ui::views::resources::dialogs::{
-    new_delete_dialog, new_inject_container_dialog, new_run_plugin_dialog, new_stop_port_forwards_dialog, new_transfer_dialog,
-};
-use crate::ui::views::resources::menus::{
-    build_create_resource_actions, build_ephemeral_container_steps, build_mouse_menu_actions, build_port_forward_steps,
-    build_resources_actions,
-};
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
-use crate::ui::widgets::{CommandPalette, Filter, NamespaceSelector};
+use crate::ui::views::resources::{dialogs, menus};
+use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
 pub struct ResourcesView {
@@ -38,6 +32,7 @@ pub struct ResourcesView {
     command_palette: CommandPalette,
     filter: Filter,
     namespace_picker: NamespaceSelector,
+    file_picker: FileSelector,
     footer_tx: NotificationSink,
 }
 
@@ -49,6 +44,7 @@ impl ResourcesView {
         let table = ResourcesTable::new(Rc::clone(&app_data));
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
+        let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
 
         Self {
             table,
@@ -61,6 +57,7 @@ impl ResourcesView {
             command_palette: CommandPalette::default(),
             filter,
             namespace_picker,
+            file_picker,
             footer_tx,
         }
     }
@@ -178,7 +175,7 @@ impl ResourcesView {
     pub fn ask_delete_resources(&mut self) {
         if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
         {
-            self.modal = new_delete_dialog(&self.app_data, self.last_mouse_click.take());
+            self.modal = dialogs::new_delete_dialog(&self.app_data, self.last_mouse_click.take());
             self.modal.show();
         }
     }
@@ -186,7 +183,7 @@ impl ResourcesView {
     /// Shows stop port forwarding rules dialog if anything is selected.
     pub fn ask_stop_port_forwards(&mut self) {
         if let Some(resource) = self.table.list.table.get_highlighted_item_name().map(String::from) {
-            self.modal = new_stop_port_forwards_dialog(&self.app_data, self.last_mouse_click.take(), &resource);
+            self.modal = dialogs::new_stop_port_forwards_dialog(&self.app_data, self.last_mouse_click.take(), &resource);
             self.modal.show();
         }
     }
@@ -194,7 +191,7 @@ impl ResourcesView {
     /// Shows confirmation dialog for ephemeral container injection.
     pub fn ask_inject_container(&mut self, response: ResponseEvent) {
         if let ResponseEvent::InjectContainer(resource, container) = response {
-            self.modal = new_inject_container_dialog(&self.app_data, self.last_mouse_click.take(), resource, container);
+            self.modal = dialogs::new_inject_container_dialog(&self.app_data, self.last_mouse_click.take(), resource, container);
             self.modal.show();
         }
     }
@@ -203,7 +200,7 @@ impl ResourcesView {
     pub fn ask_transfer_file(&mut self, is_download: bool) {
         if let Some(resource) = self.table.list.table.get_highlighted_resource() {
             let tags = resource.data.as_ref().map(|d| d.tags.as_ref()).unwrap_or_default();
-            self.modal = new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
+            self.modal = dialogs::new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
             self.modal.show();
         }
     }
@@ -237,13 +234,21 @@ impl ResourcesView {
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         if let Some(resource) = self.table.get_resource_ref(true) {
-            self.command_palette =
-                build_port_forward_steps(&self.app_data, resource, list).with_highlighted_position(self.last_mouse_click.take());
+            self.command_palette = menus::build_port_forward_steps(&self.app_data, resource, list)
+                .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
         }
     }
 
     fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.file_picker.is_visible {
+            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                dialogs::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
         if self.modal.is_visible {
             let response = self.modal.process_event(event);
 
@@ -257,6 +262,11 @@ impl ResourcesView {
 
             if response.is_action("stop_port_forwards") {
                 return Some(self.stop_port_forwards());
+            }
+
+            if response.is_action("select_file") {
+                self.show_file_picker();
+                return Some(ResponseEvent::Handled);
             }
 
             if let ResponseEvent::PluginAction(plugin) = response {
@@ -308,7 +318,7 @@ impl ResourcesView {
             self.last_mouse_click = event.position();
         } else if let ResponseEvent::PluginAction(plugin) = response {
             if plugin.confirm {
-                self.modal = new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
+                self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
@@ -381,7 +391,7 @@ impl ResourcesView {
             return;
         }
 
-        let actions = build_resources_actions(&self.app_data, &self.table);
+        let actions = menus::build_resources_actions(&self.app_data, &self.table);
         self.open_command_palette(actions);
     }
 
@@ -397,7 +407,7 @@ impl ResourcesView {
             return;
         }
 
-        let actions = build_mouse_menu_actions(&self.table);
+        let actions = menus::build_mouse_menu_actions(&self.table);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu();
@@ -413,7 +423,7 @@ impl ResourcesView {
             return;
         }
 
-        let actions = build_create_resource_actions(&self.table);
+        let actions = menus::build_create_resource_actions(&self.table);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65)
             .with_prompt("create new resource")
             .with_first_highlighted()
@@ -424,9 +434,16 @@ impl ResourcesView {
     fn show_ephemeral_containers_palette(&mut self) {
         if let Some(resource) = self.table.get_resource_ref(true) {
             let tags = self.table.get_resource_tags();
-            self.command_palette = build_ephemeral_container_steps(&self.app_data, resource, tags);
+            self.command_palette = menus::build_ephemeral_container_steps(&self.app_data, resource, tags);
             self.command_palette.show();
         }
+    }
+
+    fn show_file_picker(&mut self) {
+        self.file_picker
+            .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.reset();
+        self.file_picker.show();
     }
 
     pub fn remember_current_resource(&mut self) {
@@ -589,7 +606,7 @@ impl View for ResourcesView {
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
             if plugin.confirm {
-                self.modal = new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
+                self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
@@ -689,6 +706,7 @@ impl View for ResourcesView {
         self.command_palette.draw(frame, area);
         self.filter.draw(frame, area);
         self.namespace_picker.draw(frame, area);
+        self.file_picker.draw(frame, area);
     }
 }
 

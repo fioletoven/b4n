@@ -427,6 +427,12 @@ impl Responsive for Input {
                 }
 
                 if key.code == KeyCode::Enter {
+                    if self.show_button
+                        && let Some(button) = &mut self.accept_button
+                    {
+                        return button.response.clone();
+                    }
+
                     return ResponseEvent::Accepted;
                 }
 

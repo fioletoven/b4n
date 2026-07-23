@@ -95,7 +95,7 @@ impl ControlsGroup {
         self.controls.push(Control::Selector(Box::new(selector)));
     }
 
-    /// Gets a `TextBox` with the specified `id` from the controls list.
+    /// Gets a reference to the `TextBox` with the specified `id` from the controls list.
     pub fn textbox(&self, id: usize) -> Option<&TextBox> {
         self.controls.iter().find_map(|control| match control {
             Control::TextBox(tb) if tb.id == id => Some(tb.as_ref()),
@@ -103,15 +103,23 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a focused `TextBox` from the controls list.
-    pub fn focused_textbox(&mut self) -> Option<&mut TextBox> {
+    /// Gets a mutable reference to the `TextBox` with the specified `id` from the controls list.
+    pub fn textbox_mut(&mut self, id: usize) -> Option<&mut TextBox> {
+        self.controls.iter_mut().find_map(|control| match control {
+            Control::TextBox(tb) if tb.id == id => Some(tb.as_mut()),
+            _ => None,
+        })
+    }
+
+    /// Gets a mutable reference to the focused `TextBox` from the controls list.
+    pub fn focused_textbox_mut(&mut self) -> Option<&mut TextBox> {
         self.controls.iter_mut().find_map(|control| match control {
             Control::TextBox(tb) if tb.is_focused() => Some(tb.as_mut()),
             _ => None,
         })
     }
 
-    /// Gets a `CheckBox` with the specified `id` from the controls list.
+    /// Gets a reference to the `CheckBox` with the specified `id` from the controls list.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.iter().find_map(|control| match control {
             Control::CheckBox(cb) if cb.id == id => Some(cb.as_ref()),
@@ -119,7 +127,7 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a `Selector` with the specified `id` from the controls list.
+    /// Gets a reference to the `Selector` with the specified `id` from the controls list.
     pub fn selector(&self, id: usize) -> Option<&Selector> {
         self.controls.iter().find_map(|control| match control {
             Control::Selector(sel) if sel.id == id => Some(sel.as_ref()),
@@ -127,8 +135,8 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a focused Selector from the controls list.
-    pub fn focused_selector(&mut self) -> Option<&mut Selector> {
+    /// Gets a mutable reference to the focused `Selector` from the controls list.
+    pub fn focused_selector_mut(&mut self) -> Option<&mut Selector> {
         self.controls.iter_mut().find_map(|control| match control {
             Control::Selector(sel) if sel.is_focused() => Some(sel.as_mut()),
             _ => None,
@@ -175,7 +183,7 @@ impl ControlsGroup {
             return (ResponseEvent::NotHandled, false);
         }
 
-        if let Some(textbox) = self.focused_textbox() {
+        if let Some(textbox) = self.focused_textbox_mut() {
             let result = textbox.process_event(event);
             if result != ResponseEvent::NotHandled {
                 if matches!(result, ResponseEvent::Changed | ResponseEvent::Action(_)) {
@@ -186,7 +194,7 @@ impl ControlsGroup {
             }
         }
 
-        if let Some(selector) = self.focused_selector()
+        if let Some(selector) = self.focused_selector_mut()
             && selector.is_opened()
         {
             let result = selector.process_event(event);
@@ -318,7 +326,7 @@ impl ControlsGroup {
     }
 
     fn draw_focused_selector(&mut self, frame: &mut Frame<'_>) {
-        if let Some(selector) = self.focused_selector() {
+        if let Some(selector) = self.focused_selector_mut() {
             selector.draw_options(frame);
         }
     }
