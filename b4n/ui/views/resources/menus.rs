@@ -36,6 +36,7 @@ pub fn build_ephemeral_container_steps(
                 .with_prompt("image")
                 .with_validator(ValidatorKind::DockerImage)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .build(app_data),
         )
         .with_step(
@@ -43,6 +44,7 @@ pub fn build_ephemeral_container_steps(
                 .with_prompt("optional command")
                 .with_validator(ValidatorKind::ShellCommand)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .with_required(false)
                 .build(app_data),
         )
@@ -72,6 +74,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .with_validator(ValidatorKind::Number(0, 65_535))
                 .with_prompt("local port")
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .with_copy_previous(true)
                 .build(app_data),
         )
@@ -80,6 +83,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .with_validator(ValidatorKind::IpAddr)
                 .with_prompt("bind address")
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .build(app_data),
         )
         .with_response(|v| build_port_forward_response(v, resource))

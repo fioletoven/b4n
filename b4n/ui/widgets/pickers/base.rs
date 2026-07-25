@@ -141,7 +141,8 @@ impl<B: PickerBehaviour> Picker<B> {
             .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
             .with_filter_delimiters(behaviour.filter_delimiters())
-            .with_accept_button(true);
+            .with_accept_button(true)
+            .with_clipboard(app_data.borrow().get_clipboard());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -266,16 +267,6 @@ impl<B: PickerBehaviour> Picker<B> {
         }
     }
 
-    fn insert_from_clipboard(&mut self) -> ResponseEvent {
-        let clipboard = self.app_data.borrow().get_clipboard();
-        if let Some(text) = clipboard.and_then(|c| c.borrow_mut().get_text().ok()) {
-            self.patterns.insert_value(&text);
-            self.run_validation();
-        }
-
-        ResponseEvent::Handled
-    }
-
     fn process_enter_key(&mut self) -> ResponseEvent {
         if !self.behaviour.on_close(&mut self.patterns, false) || (self.behaviour.blocks_on_error() && self.patterns.has_error())
         {
@@ -346,10 +337,6 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             self.patterns.items.clear();
             return ResponseEvent::Handled;
-        }
-
-        if event.is_mouse(MouseEventKind::RightClick) {
-            return self.insert_from_clipboard();
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

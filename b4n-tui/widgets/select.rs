@@ -6,7 +6,7 @@ use ratatui_core::terminal::Frame;
 use std::rc::Rc;
 
 use crate::MouseEventKind;
-use crate::widgets::{ErrorHighlightMode, Input, ListWidget};
+use crate::widgets::{ErrorHighlightMode, Input, ListWidget, SharedClipboard};
 use crate::{ResponseEvent, Responsive, TuiEvent, table::Table};
 
 const MAX_ITEMS_ON_SCREEN: u16 = 25;
@@ -79,6 +79,12 @@ impl<T: Table> Select<T> {
     /// Sets if filter input is required.
     pub fn with_required(mut self, is_required: bool) -> Self {
         self.filter.set_required(is_required);
+        self
+    }
+
+    /// Adds clipboard functionality to the select.
+    pub fn with_clipboard(mut self, clipboard: Option<SharedClipboard>) -> Self {
+        self.filter.set_clipboard(clipboard);
         self
     }
 

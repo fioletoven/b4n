@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::utils::{center_horizontal, get_proportional_width};
-use b4n_tui::widgets::{ActionsList, ErrorHighlightMode, InputValidator, Select, ValidatorKind};
+use b4n_tui::widgets::{ActionsList, ErrorHighlightMode, InputValidator, Select, SharedClipboard, ValidatorKind};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Position, Rect};
@@ -32,9 +32,10 @@ impl CommandPalette {
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
         let colors = app_data.borrow().theme.colors.command_palette.clone();
         let is_mouse_enabled = app_data.borrow().is_mouse_enabled;
+        let step = Step::new(actions, colors, is_mouse_enabled, app_data.borrow().get_clipboard());
         Self {
             app_data,
-            steps: vec![Step::new(actions, colors, is_mouse_enabled)],
+            steps: vec![step],
             width,
             ..Default::default()
         }
@@ -312,16 +313,6 @@ impl CommandPalette {
 
         ResponseEvent::Handled
     }
-
-    fn insert_from_clipboard(&mut self) -> ResponseEvent {
-        let clipboard = self.app_data.borrow().get_clipboard();
-        if let Some(text) = clipboard.and_then(|c| c.borrow_mut().get_text().ok()) {
-            self.select_mut().insert_value(&text);
-            self.step_mut().validate();
-        }
-
-        ResponseEvent::Handled
-    }
 }
 
 impl Responsive for CommandPalette {
@@ -364,10 +355,6 @@ impl Responsive for CommandPalette {
             return self.process_enter_key(true);
         }
 
-        if event.is_mouse(MouseEventKind::RightClick) && self.select().is_filter_visible() {
-            return self.insert_from_clipboard();
-        }
-
         if self.app_data.has_binding(event, KeyCommand::NavigateInto) {
             return self.process_enter_key(self.select().has_last_key_highlighted());
         }
@@ -394,6 +381,7 @@ pub struct StepBuilder {
     prompt: Option<String>,
     validators: Vec<InputValidator>,
     colors: SelectColors,
+    clipboard: Option<SharedClipboard>,
     copy_previous: bool,
     required: bool,
 }
@@ -407,6 +395,7 @@ impl StepBuilder {
             prompt: None,
             validators: Vec::new(),
             colors: SelectColors::default(),
+            clipboard: None,
             copy_previous: false,
             required: true,
         }
@@ -420,6 +409,7 @@ impl StepBuilder {
             prompt: None,
             validators: Vec::new(),
             colors: SelectColors::default(),
+            clipboard: None,
             copy_previous: false,
             required: true,
         }
@@ -455,13 +445,20 @@ impl StepBuilder {
         self
     }
 
+    /// Adds clipboard functionality to the step.
+    pub fn with_clipboard(mut self, clipboard: Option<SharedClipboard>) -> Self {
+        self.clipboard = clipboard;
+        self
+    }
+
     /// Builds [`Step`] instance.
     pub fn build(self, app_data: &SharedAppData) -> Step {
         let list = self.actions.unwrap_or_default();
         let mut select = Select::new(list, self.colors, false, true)
             .with_prompt(DEFAULT_PROMPT)
             .with_required(self.required)
-            .with_accept_button(app_data.borrow().is_mouse_enabled);
+            .with_accept_button(app_data.borrow().is_mouse_enabled)
+            .with_clipboard(self.clipboard);
         select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
             select.set_value(initial_value);
@@ -488,13 +485,14 @@ pub struct Step {
 
 impl Step {
     /// Creates new [`Step`] instance.
-    fn new(list: ActionsList, colors: SelectColors, accept_button: bool) -> Self {
+    fn new(list: ActionsList, colors: SelectColors, accept_button: bool, clipboard: Option<SharedClipboard>) -> Self {
         Self {
             select: Select::new(list, colors, false, true)
                 .with_prompt(DEFAULT_PROMPT)
                 .with_required(true)
                 .with_error_mode(ErrorHighlightMode::Value)
-                .with_accept_button(accept_button),
+                .with_accept_button(accept_button)
+                .with_clipboard(clipboard),
             prompt: None,
             validators: Vec::new(),
             copy_previous: false,
