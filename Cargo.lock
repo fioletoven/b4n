@@ -283,6 +283,7 @@ dependencies = [
  "base64",
  "delegate",
  "futures",
+ "http",
  "k8s-openapi",
  "kube",
  "pin-project",
