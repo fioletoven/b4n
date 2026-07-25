@@ -91,6 +91,16 @@ pub enum TuiEvent {
 }
 
 impl TuiEvent {
+    /// Creates new left mouse button click event from `position`.
+    pub fn click(position: Position) -> TuiEvent {
+        TuiEvent::Mouse(MouseEvent {
+            kind: MouseEventKind::LeftClick,
+            column: position.x,
+            row: position.y,
+            modifiers: KeyModifiers::empty(),
+        })
+    }
+
     /// Returns the line number if the mouse event matches the specified kind, modifiers, and is within the given area.
     pub fn get_line_no(&self, kind: MouseEventKind, modifiers: KeyModifiers, area: Rect) -> Option<u16> {
         if let TuiEvent::Mouse(mouse) = self

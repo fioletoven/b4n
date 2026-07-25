@@ -48,7 +48,7 @@ impl Control {
     fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
-            Control::TextBox(textbox) => textbox.click(),
+            Control::TextBox(textbox) => textbox.click(position),
             Control::Selector(selector) => selector.click(position),
         }
     }
