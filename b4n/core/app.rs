@@ -260,7 +260,10 @@ impl App {
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
             ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),
-            ResponseEvent::InjectContainer(resource, container) => self.views_manager.inject_container(&resource, container),
+            ResponseEvent::InjectContainer(resource, container) => {
+                self.worker.borrow_mut().inject_container(&resource, container);
+            },
+            ResponseEvent::TrnsferFile(resource, context) => self.worker.borrow_mut().transfer_file(resource, context),
             _ => (),
         }
 
@@ -282,6 +285,7 @@ impl App {
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(&list),
                 CommandResult::RunPluginOutput(result) => self.views_manager.show_plugin_output(&command.id, result),
                 CommandResult::InjectedContainer(result) => self.views_manager.show_inject_result(result),
+                CommandResult::TransferFile(result) => self.views_manager.show_transfer_file_result(result),
             }
         }
     }

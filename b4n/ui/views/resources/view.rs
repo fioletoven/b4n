@@ -269,6 +269,16 @@ impl ResourcesView {
                 return Some(ResponseEvent::Handled);
             }
 
+            if response.is_action("transfer_file") {
+                if let Some(resource) = self.table.get_resource_ref(false)
+                    && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
+                {
+                    return Some(ResponseEvent::TrnsferFile(resource, context));
+                }
+            } else {
+                return Some(ResponseEvent::Handled);
+            }
+
             if let ResponseEvent::PluginAction(plugin) = response {
                 let info = &self.app_data.borrow().current;
                 return Some(ResponseEvent::RunPlugin(

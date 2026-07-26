@@ -19,6 +19,7 @@ ratatui-core = { workspace = true }
 serde-saphyr = { workspace = true }
 shlex = { workspace = true }
 syntect = { workspace = true }
+tar = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }

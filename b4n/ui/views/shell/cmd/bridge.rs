@@ -51,6 +51,7 @@ impl CmdBridge {
         let cancellation_token = CancellationToken::new();
         let _cancellation_token = cancellation_token.clone();
         let _parser = self.parser.clone();
+        let _runtime = self.runtime.clone();
 
         let (input_tx, _input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
         let _response_tx = input_tx.clone();
@@ -102,10 +103,11 @@ impl CmdBridge {
             };
 
             let child_task = tokio::spawn({
+                let _runtime = _runtime.clone();
                 let _cancellation_token = _cancellation_token.clone();
                 let _command = command.clone();
                 async move {
-                    let ended_with_error = wait_for_child(&_command, child).await;
+                    let ended_with_error = wait_for_child(_runtime, &_command, child).await;
                     _cancellation_token.cancel();
                     ended_with_error
                 }
@@ -117,6 +119,7 @@ impl CmdBridge {
 
             let input_task = tokio::spawn(input_bridge(writer, _input_rx, _cancellation_token.clone()));
             let output_task = tokio::spawn(output_bridge(
+                _runtime,
                 reader,
                 _parser,
                 _cancellation_token.clone(),
@@ -239,8 +242,8 @@ fn get_cmd_builder(command: &str, args: &[String], cwd: Option<&str>) -> portabl
 }
 
 /// Waits for child process and returns `true` if it ended with an error.
-async fn wait_for_child(command: &str, mut child: Box<dyn Child + Send + Sync>) -> bool {
-    let exit_status = tokio::task::spawn_blocking(move || child.wait()).await;
+async fn wait_for_child(runtime: Handle, command: &str, mut child: Box<dyn Child + Send + Sync>) -> bool {
+    let exit_status = runtime.spawn_blocking(move || child.wait()).await;
     match exit_status {
         Ok(Ok(status)) if !status.success() => {
             tracing::warn!("'{}' exited with non-zero status: {}", command, status);
@@ -285,6 +288,7 @@ async fn input_bridge(
 }
 
 async fn output_bridge(
+    runtime: Handle,
     reader: Box<dyn Read + Send>,
     parser: Arc<RwLock<vt100::Parser>>,
     cancellation_token: CancellationToken,
@@ -293,7 +297,7 @@ async fn output_bridge(
 ) -> bool {
     let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
-    tokio::task::spawn_blocking(move || {
+    runtime.spawn_blocking(move || {
         let mut reader = reader;
         let mut buf = [0u8; 8192];
 

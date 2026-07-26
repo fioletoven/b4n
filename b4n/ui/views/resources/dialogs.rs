@@ -1,6 +1,7 @@
 use b4n_common::{truncate, truncate_left};
 use b4n_config::PluginRef;
 use b4n_config::themes::TextBoxModalColors;
+use b4n_kube::files::TransferContext;
 use b4n_kube::{ResourceRef, ResourceTag};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
@@ -153,6 +154,20 @@ pub fn new_transfer_dialog(
     })
 }
 
+/// Returns file transfer context for background task.
+pub fn get_transfer_dialog_context(dialog: &Dialog) -> Option<TransferContext> {
+    let is_download = dialog.checkbox(0).is_some_and(|cb| cb.is_checked);
+    let container = dialog.selector(0).map(|s| s.selected().to_owned())?;
+    let first = dialog.textbox(0).map(|tb| tb.value().to_owned())?;
+    let second = dialog.textbox(1).map(|tb| tb.value().to_owned())?;
+
+    if is_download {
+        Some(TransferContext::download(second, first, container))
+    } else {
+        Some(TransferContext::upload(first, second, container))
+    }
+}
+
 /// Updates transfer dialog textboxes with the selected path from a file picker.
 pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelector) {
     let (path, exists) = file_picker.selected_path();
@@ -184,11 +199,11 @@ fn get_transfer_dialog_title(is_download: bool) -> String {
 
 fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, colors: &TextBoxModalColors) -> Vec<TextBox> {
     fn get_textbox(app_data: &SharedAppData, is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
-        let mut tb = TextBox::new(usize::from(is_download), "", 40, colors.clone())
+        let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone())
             .with_button("  ", "select_file")
             .with_clipboard(app_data.borrow().get_clipboard());
-        setup_transfer_dialog_textbox(&mut tb, !is_download, is_first);
-        tb
+        setup_transfer_dialog_textbox(&mut textbox, !is_download, is_first);
+        textbox
     }
 
     vec![
