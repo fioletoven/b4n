@@ -216,5 +216,5 @@ fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, co
 
 fn setup_transfer_dialog_textbox(textbox: &mut TextBox, has_button: bool, is_first: bool) {
     textbox.show_button(has_button);
-    textbox.set_caption(if is_first { "From:     " } else { "To:       " });
+    textbox.set_caption(if is_first { "From:     " } else { "To (dir): " });
 }
