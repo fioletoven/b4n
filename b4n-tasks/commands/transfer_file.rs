@@ -33,6 +33,9 @@ pub enum TransferFileError {
 
     #[error("missing stderr from attached process")]
     MissingStderr,
+
+    #[error("failed to resolve home directory on remote container")]
+    HomeDirectoryResolutionError,
 }
 
 /// Result from the file transfer command.
@@ -66,7 +69,7 @@ impl TransferFileCommand {
         let pods: Api<Pod> = Api::namespaced(self.client, self.resource.namespace.as_str());
 
         let result = if self.context.is_download {
-            download_file(pods, self.resource, self.context).await
+            download_file(self.runtime, pods, self.resource, self.context).await
         } else {
             upload_file(self.runtime, pods, self.resource, self.context).await
         };
@@ -76,14 +79,17 @@ impl TransferFileCommand {
 }
 
 async fn download_file(
+    runtime: Handle,
     pods: Api<Pod>,
     resource: ResourceRef,
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
-    let source = Path::new(&context.from);
+    let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
+
+    let source = Path::new(&remote_from);
     let (dir, file) = split_path(source)?;
 
-    let attach_params = build_attach_params(&context.container, false);
+    let attach_params = build_attach_params(&context.container, false, true);
 
     let mut attached = pods
         .exec(pod_name(&resource), ["tar", "cf", "-", "-C", dir, file], &attach_params)
@@ -93,7 +99,12 @@ async fn download_file(
     let mut tar_data = Vec::new();
     stdout.read_to_end(&mut tar_data).await?;
 
-    tar::Archive::new(tar_data.as_slice()).unpack(&context.to)?;
+    runtime
+        .spawn_blocking({
+            let _destination = context.to.clone();
+            move || tar::Archive::new(tar_data.as_slice()).unpack(&_destination)
+        })
+        .await??;
 
     Ok(TransferFileResult {
         is_download: true,
@@ -109,6 +120,8 @@ async fn upload_file(
     resource: ResourceRef,
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
+    let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
+
     let file_name = get_file_name(&context.from);
     let tar_buffer = runtime
         .spawn_blocking({
@@ -118,9 +131,9 @@ async fn upload_file(
         })
         .await??;
 
-    let attach_params = build_attach_params(&context.container, true);
+    let attach_params = build_attach_params(&context.container, true, true);
     let mut attached = pods
-        .exec(pod_name(&resource), ["tar", "xf", "-", "-C", &context.to], &attach_params)
+        .exec(pod_name(&resource), ["tar", "xf", "-", "-C", &remote_to], &attach_params)
         .await?;
 
     let mut stdin = attached.stdin().ok_or(TransferFileError::MissingStdin)?;
@@ -159,21 +172,6 @@ async fn upload_file(
     })
 }
 
-fn build_attach_params(container: &str, stdin: bool) -> AttachParams {
-    AttachParams {
-        container: Some(container.to_string()),
-        stdin,
-        stdout: true,
-        stderr: true,
-        tty: false,
-        ..Default::default()
-    }
-}
-
-fn pod_name(resource: &ResourceRef) -> &str {
-    resource.name.as_deref().unwrap_or_default()
-}
-
 fn build_tar_blocking(path: String, name: String) -> Result<Vec<u8>, TransferFileError> {
     let mut buffer = Vec::new();
     let mut file = std::fs::File::open(path)?;
@@ -184,6 +182,34 @@ fn build_tar_blocking(path: String, name: String) -> Result<Vec<u8>, TransferFil
     drop(builder);
 
     Ok(buffer)
+}
+
+async fn resolve_remote_tilde(
+    pods: &Api<Pod>,
+    resource: &ResourceRef,
+    container: &str,
+    path: String,
+) -> Result<String, TransferFileError> {
+    if !path.starts_with('~') {
+        return Ok(path);
+    }
+
+    let attach_params = build_attach_params(container, false, false);
+    let mut attached = pods
+        .exec(pod_name(resource), ["sh", "-c", "echo $HOME"], &attach_params)
+        .await?;
+
+    let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
+
+    let mut home = String::new();
+    stdout.read_to_string(&mut home).await?;
+
+    let home = home.trim();
+    if home.is_empty() {
+        return Err(TransferFileError::HomeDirectoryResolutionError);
+    }
+
+    Ok(path.replacen('~', home, 1))
 }
 
 fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
@@ -198,6 +224,21 @@ fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
         .ok_or_else(|| TransferFileError::InvalidPath(path.to_path_buf()))?;
 
     Ok((dir, file_name))
+}
+
+fn build_attach_params(container: &str, stdin: bool, stderr: bool) -> AttachParams {
+    AttachParams {
+        container: Some(container.to_string()),
+        stdin,
+        stdout: true,
+        stderr,
+        tty: false,
+        ..Default::default()
+    }
+}
+
+fn pod_name(resource: &ResourceRef) -> &str {
+    resource.name.as_deref().unwrap_or_default()
 }
 
 fn get_file_name(path: &str) -> String {

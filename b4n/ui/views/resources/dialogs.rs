@@ -181,10 +181,8 @@ pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelec
 
         if let Some(textbox) = dialog.textbox_mut(1)
             && textbox.value().is_empty()
-            && let Some(filename) = path.file_name()
-            && let Some(filename_str) = filename.to_str()
         {
-            textbox.set_value(format!("~/{}", filename_str));
+            textbox.set_value("~/");
         }
     }
 }
@@ -203,6 +201,10 @@ fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, co
             .with_button("  ", "select_file")
             .with_clipboard(app_data.borrow().get_clipboard());
         setup_transfer_dialog_textbox(&mut textbox, !is_download, is_first);
+        if is_download {
+            textbox.set_value("~/");
+        }
+
         textbox
     }
 

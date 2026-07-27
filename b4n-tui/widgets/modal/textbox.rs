@@ -131,7 +131,10 @@ impl TextBox {
     /// Process textbox click.
     pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         if let Some(position) = position {
-            return self.input.process_event(&TuiEvent::click(position));
+            let response = self.input.process_event(&TuiEvent::click(position));
+            if response != ResponseEvent::NotHandled {
+                return response;
+            }
         }
 
         ResponseEvent::Handled
