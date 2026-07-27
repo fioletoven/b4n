@@ -450,6 +450,8 @@ impl ResourcesView {
     }
 
     fn show_file_picker(&mut self) {
+        let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
+        self.file_picker.set_dir_picker(is_download);
         self.file_picker
             .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
         self.file_picker.reset();

@@ -20,6 +20,7 @@ const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
 const BACK_NAME: &str = "..";
 const FILE_SELECT_HINT: &str = "Select or type a file path:";
+const DIR_SELECT_HINT: &str = "Select or type a directory path:";
 
 pub type FileSelector = Picker<FileBehaviour>;
 
@@ -27,7 +28,7 @@ impl FileSelector {
     /// Creates new [`FileSelector`] instance.
     pub fn new(app_data: SharedAppData, worker: SharedBgWorker, width: u16, initial_path: PathBuf) -> Self {
         let runtime = worker.borrow().runtime_handle().clone();
-        let behaviour = FileBehaviour::new(Rc::clone(&app_data), runtime, initial_path);
+        let behaviour = FileBehaviour::new(Rc::clone(&app_data), runtime, initial_path, false);
         Picker::new_picker(app_data, Some(worker), width, behaviour).with_highlight_on_complete(true)
     }
 
@@ -60,6 +61,11 @@ impl FileSelector {
         behaviour.lister.reset();
         behaviour.loading = true;
     }
+
+    /// Sets if this file picker is used to select a directory instead of a file.
+    pub fn set_dir_picker(&mut self, is_dir_picker: bool) {
+        self.behaviour_mut().pick_dir = is_dir_picker;
+    }
 }
 
 pub struct FileBehaviour {
@@ -72,10 +78,11 @@ pub struct FileBehaviour {
     prompt: String,
     loading: bool,
     spinner: Spinner,
+    pick_dir: bool,
 }
 
 impl FileBehaviour {
-    pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf) -> Self {
+    pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf, pick_dir: bool) -> Self {
         let prompt = build_prompt(&initial_path);
 
         Self {
@@ -88,6 +95,7 @@ impl FileBehaviour {
             prompt,
             loading: true,
             spinner: Spinner::default(),
+            pick_dir,
         }
     }
 
@@ -120,6 +128,10 @@ impl FileBehaviour {
                 DirListResult::Entry(entry) => {
                     self.current_exists = true;
 
+                    if self.pick_dir && !entry.is_dir {
+                        continue;
+                    }
+
                     let mut item = PatternItem::fixed(entry.name.clone());
                     if entry.is_dir {
                         item.set_icon(Some(if entry.name == BACK_NAME { BACK_ICON } else { DIR_ICON }));
@@ -128,7 +140,7 @@ impl FileBehaviour {
 
                     patterns.items.add_or_update(item);
 
-                    if entry.is_dir && entry.name == BACK_NAME && patterns.value_full().is_empty() {
+                    if !self.pick_dir && entry.is_dir && entry.name == BACK_NAME && patterns.value_full().is_empty() {
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     } else if !patterns.value().is_empty() {
                         patterns.highlight_item_by_filter_value();
@@ -245,8 +257,12 @@ impl PickerBehaviour for FileBehaviour {
             ResponseEvent::Accepted
         } else if value.is_empty() {
             self.selected_path = None;
-            self.selected_exists = false;
-            ResponseEvent::Handled
+            self.selected_exists = self.pick_dir;
+            if self.pick_dir {
+                ResponseEvent::Accepted
+            } else {
+                ResponseEvent::Handled
+            }
         } else {
             self.selected_path = Some(combine_values(prefix, value));
             self.selected_exists = false;
@@ -298,6 +314,10 @@ impl PickerBehaviour for FileBehaviour {
             }
 
             if patterns.value().is_empty() {
+                if self.pick_dir && patterns.value_prefix().is_empty() {
+                    return true;
+                }
+
                 if !patterns.value_prefix().is_empty() && !patterns.items.is_empty() {
                     self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())));
 
@@ -329,11 +349,8 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
-        let line = format!(
-            "{} {}",
-            if self.loading { self.spinner.tick() } else { '' },
-            FILE_SELECT_HINT
-        );
+        let hint = if self.pick_dir { DIR_SELECT_HINT } else { FILE_SELECT_HINT };
+        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { '' }, hint);
         frame.render_widget(Paragraph::new(line).style(style), area);
     }
 
