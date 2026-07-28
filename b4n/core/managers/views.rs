@@ -658,7 +658,7 @@ impl ViewsManager {
                     resource.name.as_deref().unwrap_or_default()
                 );
                 tracing::info!("{}", msg);
-                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION)
+                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
             },
             Err(error) => {
                 let msg = format!("Ephemeral container error: {error}");
@@ -680,7 +680,7 @@ impl ViewsManager {
                     result.pod,
                 );
                 tracing::info!("{}", msg);
-                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION)
+                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
             },
             Err(error) => {
                 let msg = format!("File transfer error: {error}");

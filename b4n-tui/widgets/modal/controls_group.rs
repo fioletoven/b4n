@@ -188,9 +188,9 @@ impl ControlsGroup {
             if result != ResponseEvent::NotHandled {
                 if matches!(result, ResponseEvent::Changed | ResponseEvent::Action(_)) {
                     return (result, false);
-                } else {
-                    return (ResponseEvent::Handled, false);
                 }
+
+                return (ResponseEvent::Handled, false);
             }
         }
 
@@ -332,14 +332,17 @@ impl ControlsGroup {
     }
 
     fn focus_first(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(0);
     }
 
     fn focus_prev(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(self.focused.saturating_sub(1));
     }
 
     fn focus_next(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(std::cmp::min(
             (self.controls.len() + self.buttons.len()).saturating_sub(1),
             self.focused + 1,
@@ -347,6 +350,7 @@ impl ControlsGroup {
     }
 
     fn focus_last(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus((self.controls.len() + self.buttons.len()).saturating_sub(1));
     }
 

@@ -216,8 +216,10 @@ impl ControlColors {
     pub fn get(&mut self, is_hovered: bool, is_focused: bool) -> &TextColors {
         if is_hovered {
             &self.hovered
+        } else if is_focused {
+            &self.focused
         } else {
-            if is_focused { &self.focused } else { &self.normal }
+            &self.normal
         }
     }
 }
