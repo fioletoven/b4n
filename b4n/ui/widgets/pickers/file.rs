@@ -65,6 +65,7 @@ impl FileSelector {
     /// Sets if this file picker is used to select a directory instead of a file.
     pub fn set_dir_picker(&mut self, is_dir_picker: bool) {
         self.behaviour_mut().pick_dir = is_dir_picker;
+        self.allow_empty(is_dir_picker);
     }
 }
 
@@ -239,7 +240,7 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn validate(&mut self, value: &str) -> Option<usize> {
-        if validate_path(value) { None } else { Some(0) }
+        if validate_path(value, self.pick_dir) { None } else { Some(0) }
     }
 
     fn restores_on_cancel(&self) -> bool {
@@ -378,7 +379,11 @@ fn combine_values(prefix: &str, highlighted: &str) -> String {
     result
 }
 
-fn validate_path(path_str: &str) -> bool {
+fn validate_path(path_str: &str, allow_empty: bool) -> bool {
+    if allow_empty && path_str.is_empty() {
+        return true;
+    }
+
     if path_str.is_empty() || path_str.contains('\0') {
         return false;
     }

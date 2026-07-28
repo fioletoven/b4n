@@ -2,8 +2,9 @@ use b4n_kube::{ResourceRef, files::TransferContext};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client, api::AttachParams};
 use std::path::{Path, PathBuf};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 
 use crate::commands::CommandResult;
 
@@ -85,19 +86,23 @@ async fn download_file(
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
-
     let source = Path::new(&remote_from);
     let (dir, file) = split_path(source)?;
 
-    let attach_params = build_attach_params(&context.container, false, true);
-
+    let attach_params = build_attach_params(&context.container).stderr(true);
     let mut attached = pods
         .exec(pod_name(&resource), ["tar", "cf", "-", "-C", dir, file], &attach_params)
         .await?;
 
     let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
+
+    let stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
+    let stderr_task = runtime.spawn(read_to_string(stderr));
+
     let mut tar_data = Vec::new();
     stdout.read_to_end(&mut tar_data).await?;
+
+    check_stderr(stderr_task).await?;
 
     runtime
         .spawn_blocking({
@@ -121,8 +126,8 @@ async fn upload_file(
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
-
     let file_name = get_file_name(&context.from);
+
     let tar_buffer = runtime
         .spawn_blocking({
             let _source = context.from.clone();
@@ -131,33 +136,21 @@ async fn upload_file(
         })
         .await??;
 
-    let attach_params = build_attach_params(&context.container, true, true);
+    let attach_params = build_attach_params(&context.container).stdin(true).stderr(true);
     let mut attached = pods
         .exec(pod_name(&resource), ["tar", "xf", "-", "-C", &remote_to], &attach_params)
         .await?;
 
     let mut stdin = attached.stdin().ok_or(TransferFileError::MissingStdin)?;
-    let mut stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
 
-    let stderr_task = runtime.spawn(async move {
-        let mut err_output = String::new();
-        stderr.read_to_string(&mut err_output).await?;
-        Ok::<String, std::io::Error>(err_output)
-    });
+    let stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
+    let stderr_task = runtime.spawn(read_to_string(stderr));
 
     stdin.write_all(&tar_buffer).await?;
     stdin.shutdown().await?;
-
     drop(stdin);
 
-    let stderr_output = stderr_task
-        .await
-        .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?
-        .map_err(TransferFileError::TarIoError)?;
-
-    if !stderr_output.is_empty() {
-        return Err(TransferFileError::RemoteProcessError(stderr_output));
-    }
+    check_stderr(stderr_task).await?;
 
     attached
         .join()
@@ -194,7 +187,7 @@ async fn resolve_remote_tilde(
         return Ok(path);
     }
 
-    let attach_params = build_attach_params(container, false, false);
+    let attach_params = build_attach_params(container);
     let mut attached = pods
         .exec(pod_name(resource), ["sh", "-c", "echo $HOME"], &attach_params)
         .await?;
@@ -226,12 +219,32 @@ fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
     Ok((dir, file_name))
 }
 
-fn build_attach_params(container: &str, stdin: bool, stderr: bool) -> AttachParams {
+async fn read_to_string(mut reader: impl AsyncRead + Unpin) -> Result<String, std::io::Error> {
+    let mut output = String::new();
+    reader.read_to_string(&mut output).await?;
+    Ok(output)
+}
+
+async fn check_stderr(task: JoinHandle<Result<String, std::io::Error>>) -> Result<(), TransferFileError> {
+    let output = task
+        .await
+        .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?
+        .map_err(TransferFileError::TarIoError)?;
+
+    let trimmed = output.trim();
+    if !trimmed.is_empty() {
+        return Err(TransferFileError::RemoteProcessError(trimmed.to_string()));
+    }
+
+    Ok(())
+}
+
+fn build_attach_params(container: &str) -> AttachParams {
     AttachParams {
         container: Some(container.to_string()),
-        stdin,
+        stdin: false,
         stdout: true,
-        stderr,
+        stderr: false,
         tty: false,
         ..Default::default()
     }

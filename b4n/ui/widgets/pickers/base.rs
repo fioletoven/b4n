@@ -213,6 +213,12 @@ impl<B: PickerBehaviour> Picker<B> {
         &mut self.behaviour
     }
 
+    /// Sets flag indicating if empty value is allowed.
+    pub fn allow_empty(&mut self, allow_empty: bool) {
+        self.patterns.allow_no_selection(allow_empty);
+        self.patterns.set_required(!allow_empty);
+    }
+
     /// Draws the picker on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if !self.is_visible {
