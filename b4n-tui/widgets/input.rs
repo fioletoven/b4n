@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use b4n_common::{INVISIBLE_CHARACTERS, truncate_left};
 use b4n_config::themes::TextColors;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
@@ -8,12 +9,14 @@ use ratatui_core::terminal::Frame;
 use ratatui_core::text::Span;
 use ratatui_core::widgets::Widget;
 use ratatui_widgets::block::Block;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 use tui_input::backend::crossterm::EventHandler;
 
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
 const MAX_PROMPT_LEN: usize = 30;
+
+pub type SharedClipboard = Rc<RefCell<Clipboard>>;
 
 /// Indicates how errors should be highlighted in the input field.
 #[derive(Default, PartialEq)]
@@ -38,7 +41,9 @@ pub struct Input {
     show_cursor: bool,
     cursor_colors: TextColors,
     accept_button: Option<AcceptButton>,
+    show_button: bool,
     required: bool,
+    clipboard: Option<SharedClipboard>,
     areas: Option<Rc<[Rect]>>,
 }
 
@@ -84,6 +89,19 @@ impl Input {
         self
     }
 
+    /// Adds an accept button to the [`Input`] instance.
+    pub fn with_accept_button(mut self, title: &'static str, response: ResponseEvent, colors: Option<TextColors>) -> Self {
+        self.accept_button = Some(AcceptButton::new(title, response, colors));
+        self
+    }
+
+    /// Adds shared clipboard object to this [`Input`] instance.\
+    /// **Note** that right mouse button will paste text to the input if clipboard is set.
+    pub fn with_clipboard(mut self, clipboard: SharedClipboard) -> Self {
+        self.clipboard = Some(clipboard);
+        self
+    }
+
     /// Sets if input is required.
     pub fn with_required(mut self, is_required: bool) -> Self {
         self.required = is_required;
@@ -93,6 +111,12 @@ impl Input {
     /// Sets if input is required.
     pub fn set_required(&mut self, is_required: bool) {
         self.required = is_required;
+    }
+
+    /// Sets shared clipboard object for this [`Input`] instance.\
+    /// **Note** that right mouse button will paste text to the input if clipboard is set.
+    pub fn set_clipboard(&mut self, clipboard: Option<SharedClipboard>) {
+        self.clipboard = clipboard;
     }
 
     /// Sets the prompt and its colors.
@@ -128,8 +152,14 @@ impl Input {
         }
     }
 
+    /// Sets whether to show the accept button.
+    pub fn show_accept_button(&mut self, is_visible: bool) {
+        self.show_button = is_visible;
+    }
+
     /// Sets the accept button.
     pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>, colors: Option<TextColors>) {
+        self.show_button = button.is_some();
         self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1, colors));
     }
 
@@ -300,7 +330,7 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let button_len = if !self.required || !self.value_full().is_empty() {
+        let button_len = if self.show_button && (!self.required || !self.value_full().is_empty()) {
             self.accept_button
                 .as_ref()
                 .map(|b| b.title.chars().count())
@@ -414,6 +444,12 @@ impl Responsive for Input {
                 }
 
                 if key.code == KeyCode::Enter {
+                    if self.show_button
+                        && let Some(button) = &mut self.accept_button
+                    {
+                        return button.response.clone();
+                    }
+
                     return ResponseEvent::Accepted;
                 }
 
@@ -430,19 +466,30 @@ impl Responsive for Input {
                 if let Some(areas) = &self.areas
                     && self.is_cursor_visible()
                 {
-                    if event.is_in(MouseEventKind::LeftClick, areas[0]) {
+                    let input_area = areas[0];
+                    let button_area = areas[1];
+
+                    if event.is_in(MouseEventKind::LeftClick, input_area) {
                         let prompt = self.prompt_width.unwrap_or_default();
-                        let width = areas[0].width.saturating_sub(prompt);
+                        let width = input_area.width.saturating_sub(prompt);
                         let scroll = self.value.visual_scroll(usize::from(width.saturating_sub(1)));
-                        let x = mouse.column.saturating_sub(areas[0].x).saturating_sub(prompt);
+                        let x = mouse.column.saturating_sub(input_area.x).saturating_sub(prompt);
 
                         self.value.handle(tui_input::InputRequest::SetCursor(scroll + usize::from(x)));
-
                         return ResponseEvent::Handled;
                     }
 
-                    if let Some(button) = &mut self.accept_button {
-                        if event.is_left_click_in(areas[1]) {
+                    if event.is_in(MouseEventKind::RightClick, input_area)
+                        && let Some(text) = self.clipboard.as_mut().and_then(|c| c.borrow_mut().get_text().ok())
+                    {
+                        self.insert_value(&text);
+                        return ResponseEvent::Handled;
+                    }
+
+                    if self.show_button
+                        && let Some(button) = &mut self.accept_button
+                    {
+                        if event.is_left_click_in(button_area) {
                             return button.response.clone();
                         } else if let TuiEvent::Mouse(mouse) = event
                             && mouse.kind == MouseEventKind::Moved

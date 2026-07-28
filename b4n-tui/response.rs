@@ -1,5 +1,7 @@
 use b4n_config::PluginRef;
-use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope, plugins::PluginContext};
+use b4n_kube::files::TransferContext;
+use b4n_kube::plugins::PluginContext;
+use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
 
 use crate::TuiEvent;
 
@@ -68,6 +70,7 @@ pub enum ResponseEvent {
     Handled,
     Cancelled,
     Accepted,
+    Changed,
     Action(&'static str),
 
     ExitApplication,
@@ -110,6 +113,7 @@ pub enum ResponseEvent {
 
     PluginAction(PluginRef),
     RunPlugin(String, PluginContext),
+    TrnsferFile(ResourceRef, TransferContext),
 }
 
 impl ResponseEvent {

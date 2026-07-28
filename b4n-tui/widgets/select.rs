@@ -6,7 +6,7 @@ use ratatui_core::terminal::Frame;
 use std::rc::Rc;
 
 use crate::MouseEventKind;
-use crate::widgets::{ErrorHighlightMode, Input, ListWidget};
+use crate::widgets::{ErrorHighlightMode, Input, ListWidget, SharedClipboard};
 use crate::{ResponseEvent, Responsive, TuiEvent, table::Table};
 
 const MAX_ITEMS_ON_SCREEN: u16 = 25;
@@ -22,6 +22,7 @@ pub struct Select<T: Table> {
     filter_area: Rect,
     filter_auto_hide: bool,
     filter_disabled: bool,
+    allow_no_selection: bool,
     highlight_exact: bool,
     last_key_highlighted: bool,
 }
@@ -47,6 +48,7 @@ impl<T: Table> Select<T> {
             filter_area: Rect::default(),
             filter_auto_hide,
             filter_disabled: false,
+            allow_no_selection: false,
             highlight_exact: false,
             last_key_highlighted: false,
         }
@@ -82,25 +84,43 @@ impl<T: Table> Select<T> {
         self
     }
 
-    /// Adds accept button to the filter input.
-    pub fn with_accept_button(mut self, visible: bool) -> Self {
-        self.set_accept_button(visible);
+    /// Adds clipboard functionality to the select.
+    pub fn with_clipboard(mut self, clipboard: Option<SharedClipboard>) -> Self {
+        self.filter.set_clipboard(clipboard);
         self
     }
 
-    /// Sets accept button in the filter input.
-    pub fn set_accept_button(&mut self, visible: bool) {
-        if visible {
+    /// Adds accept button to the filter input.
+    pub fn with_accept_button(mut self, is_visible: bool) -> Self {
+        if is_visible {
             self.filter
                 .set_accept_button(Some(("  ", ResponseEvent::Accepted)), self.colors.filter.button);
-        } else {
-            self.filter.set_accept_button(None, None);
+        }
+
+        self
+    }
+
+    /// Sets whether to show the accept button.
+    pub fn show_accept_button(&mut self, is_visible: bool) {
+        self.filter.show_accept_button(is_visible);
+        if !is_visible {
+            self.filter.highlight_accept_button(false);
         }
     }
 
     /// Sets flag indicating if filter is disabled for this [`Select`] instance.
     pub fn disable_filter(&mut self, disabled: bool) {
         self.filter_disabled = disabled;
+    }
+
+    /// Sets flag indicating if unhighlighting an item is allowed.
+    pub fn allow_no_selection(&mut self, allow_no_selection: bool) {
+        self.allow_no_selection = allow_no_selection;
+    }
+
+    /// Sets flag indicating if filter value is required.
+    pub fn set_required(&mut self, is_required: bool) {
+        self.filter.set_required(is_required);
     }
 
     /// Sets prompt for the filter input.
@@ -325,7 +345,7 @@ impl<T: Table> Responsive for Select<T> {
                 {
                     if !self.filter_disabled {
                         self.filter.process_event(event);
-                        if !self.filter.is_required()
+                        if (!self.filter.is_required() || self.allow_no_selection)
                             && (key.code == KeyCode::Delete || key.code == KeyCode::Backspace)
                             && self.filter.value().is_empty()
                         {
@@ -337,9 +357,13 @@ impl<T: Table> Responsive for Select<T> {
                 }
             },
             TuiEvent::Mouse(mouse) => {
-                if mouse.kind == MouseEventKind::Moved && self.items_area.contains(Position::new(mouse.column, mouse.row)) {
-                    let line = mouse.row.saturating_sub(self.items_area.y);
-                    self.items.highlight_item_by_line(line);
+                if mouse.kind == MouseEventKind::Moved {
+                    if self.items_area.contains(Position::new(mouse.column, mouse.row)) {
+                        let line = mouse.row.saturating_sub(self.items_area.y);
+                        self.items.highlight_item_by_line(line);
+                    } else if self.allow_no_selection {
+                        self.items.unhighlight_item();
+                    }
                 }
 
                 if !self.filter_disabled && self.filter.process_event(event) == ResponseEvent::Accepted {

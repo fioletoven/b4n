@@ -16,6 +16,7 @@ pub use self::save_configuration::SaveConfigurationCommand;
 pub use self::save_content::SaveContentCommand;
 pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError, SetNewResourceYamlOptions};
 pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResourceYamlError, SetResourceYamlOptions};
+pub use self::transfer_file::{TransferFileCommand, TransferFileError, TransferFileResult};
 
 mod delete_resources;
 mod get_new_yaml;
@@ -30,6 +31,7 @@ mod save_configuration;
 mod save_content;
 mod set_new_yaml;
 mod set_yaml;
+mod transfer_file;
 
 /// List of all possible commands for [`BgExecutor`](super::BgExecutor).
 pub enum Command {
@@ -47,6 +49,7 @@ pub enum Command {
     SetYaml(Box<SetResourceYamlCommand>),
     RunPlugin(Box<RunPluginCommand>),
     InjectContainer(Box<InjectContainerCommand>),
+    TransferFile(Box<TransferFileCommand>),
 }
 
 impl Command {
@@ -68,4 +71,5 @@ pub enum CommandResult {
     SetResourceYaml(Result<String, SetResourceYamlError>),
     RunPluginOutput(Result<RunPluginOutput, RunPluginError>),
     InjectedContainer(Result<ResourceRef, InjectContainerError>),
+    TransferFile(Result<TransferFileResult, TransferFileError>),
 }

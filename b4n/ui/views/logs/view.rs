@@ -213,8 +213,12 @@ impl LogsView {
         Dialog::new(
             format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
             vec![
-                Button::new("Overwrite", ResponseEvent::Action("overwrite"), &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new(
+                    "Overwrite",
+                    ResponseEvent::Action("overwrite"),
+                    colors.modal.btn_delete.clone(),
+                ),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)

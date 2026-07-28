@@ -1,7 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{
-    ALL_NAMESPACES, CONTAINERS, ContainerType, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope,
-};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{EphemeralContainer, PluginsExt, ResponseEvent};
@@ -10,7 +8,7 @@ use std::rc::Rc;
 use crate::core::SharedAppData;
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::pod::PF_COLUMN_NO;
-use crate::ui::views::resources::ResourcesTable;
+use crate::ui::views::resources::{ResourcesTable, utils};
 use crate::ui::widgets::{CommandPalette, StepBuilder};
 
 /// Builds steps required to inject ephemeral container.
@@ -19,9 +17,9 @@ pub fn build_ephemeral_container_steps(
     resource: ResourceRef,
     tags: Vec<ResourceTag>,
 ) -> CommandPalette {
-    let except_names = get_all_containers_from_resource_tags(&tags);
-    let target_names = get_target_containers_from_resource_tags(&tags);
-    let target_actions = get_actions_from_resource_tags(tags);
+    let except_names = utils::get_all_containers_from_resource_tags(&tags);
+    let target_names = utils::get_target_containers_from_resource_tags(&tags);
+    let target_actions = utils::get_actions_from_resource_tags(tags);
     let images = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
 
     CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
@@ -38,6 +36,7 @@ pub fn build_ephemeral_container_steps(
                 .with_prompt("image")
                 .with_validator(ValidatorKind::DockerImage)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .build(app_data),
         )
         .with_step(
@@ -45,6 +44,7 @@ pub fn build_ephemeral_container_steps(
                 .with_prompt("optional command")
                 .with_validator(ValidatorKind::ShellCommand)
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .with_required(false)
                 .build(app_data),
         )
@@ -74,6 +74,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .with_validator(ValidatorKind::Number(0, 65_535))
                 .with_prompt("local port")
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .with_copy_previous(true)
                 .build(app_data),
         )
@@ -82,6 +83,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .with_validator(ValidatorKind::IpAddr)
                 .with_prompt("bind address")
                 .with_colors(app_data.borrow().theme.colors.command_palette.clone())
+                .with_clipboard(app_data.borrow().get_clipboard())
                 .build(app_data),
         )
         .with_response(|v| build_port_forward_response(v, resource))
@@ -368,34 +370,4 @@ fn has_highlighted_item_active_port_forward(table: &ResourcesTable) -> bool {
     };
 
     resource.extra_values.len() > PF_COLUMN_NO && resource.extra_values[PF_COLUMN_NO].raw_text().is_some_and(|t| !t.is_empty())
-}
-
-fn get_all_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String> {
-    tags.iter()
-        .filter_map(|t| match t {
-            ResourceTag::Container(name, _, _) => Some(name.to_ascii_lowercase()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn get_target_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String> {
-    tags.iter()
-        .filter_map(|t| match t {
-            ResourceTag::Container(name, kind, _) if *kind != ContainerType::Ephemeral => Some(name.to_ascii_lowercase()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn get_actions_from_resource_tags(tags: Vec<ResourceTag>) -> ActionsList {
-    let actions = tags.into_iter().filter_map(|t| match t {
-        ResourceTag::Container(name, kind, _) if kind != ContainerType::Ephemeral => Some(
-            ActionItem::raw(format!("_{name}:{kind}_"), "container".to_owned(), name, None)
-                .with_description(&kind.to_string().to_ascii_lowercase()),
-        ),
-        _ => None,
-    });
-
-    ActionsListBuilder::new(actions.collect()).build(None)
 }

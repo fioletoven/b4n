@@ -4,6 +4,7 @@
 
 - extend modal dialogs with TextBox UI control
 - add separate color for input accept buttons
+- add files transfer from and to a pod's container
 
 ### Compatibility
 

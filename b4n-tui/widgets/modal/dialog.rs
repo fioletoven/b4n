@@ -9,10 +9,10 @@ use ratatui_widgets::clear::Clear;
 use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
-use crate::widgets::{Selector, TextBox};
+use crate::widgets::{Button, CheckBox, ControlsGroup, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils::center};
 
-use super::{Button, CheckBox, ControlsGroup};
+type OnChangeFn = Box<dyn FnMut(&mut String, &mut ControlsGroup)>;
 
 /// UI modal dialog.
 pub struct Dialog {
@@ -22,6 +22,7 @@ pub struct Dialog {
     message: String,
     controls: ControlsGroup,
     default_button: usize,
+    on_change: Option<OnChangeFn>,
     area: Rect,
 }
 
@@ -45,6 +46,7 @@ impl Dialog {
             message,
             controls: buttons,
             default_button,
+            on_change: None,
             area: Rect::default(),
         }
     }
@@ -94,9 +96,20 @@ impl Dialog {
         self
     }
 
+    /// Sets `on_change` action for the dialog.
+    pub fn with_on_change<F: FnMut(&mut String, &mut ControlsGroup) + 'static>(mut self, action: F) -> Self {
+        self.on_change = Some(Box::new(action));
+        self
+    }
+
     /// Returns textbox under specified `id`.
     pub fn textbox(&self, id: usize) -> Option<&TextBox> {
         self.controls.textbox(id)
+    }
+
+    /// Returns textbox under specified `id`.
+    pub fn textbox_mut(&mut self, id: usize) -> Option<&mut TextBox> {
+        self.controls.textbox_mut(id)
     }
 
     /// Returns checkbox under specified `id`.
@@ -128,7 +141,7 @@ impl Dialog {
                 .initial_indent("  ")
                 .subsequent_indent("  "),
         );
-        let lines = u16::try_from(self.controls.controls_len()).unwrap_or_default();
+        let lines = u16::try_from(self.controls.controls().len()).unwrap_or_default();
         let lines = if lines == 0 { 3 } else { lines + 4 };
         let height = u16::try_from(text.len()).unwrap_or_default() + lines + 1;
 
@@ -164,8 +177,20 @@ impl Responsive for Dialog {
             return self.controls.result(self.default_button);
         }
 
-        let result = self.controls.process_event(event);
-        if !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_)) {
+        let (result, is_button) = self.controls.process_event(event);
+        if result == ResponseEvent::Changed {
+            if let Some(ref mut callback) = self.on_change {
+                callback(&mut self.message, &mut self.controls);
+            }
+
+            return ResponseEvent::Handled;
+        }
+
+        // we must close dialog if:
+        //  - button returned anything else than Handled (user can configure any response)
+        //  - control returned anything else than Handled or Action (user can configure actions for TextBox buttons)
+        if (is_button && result != ResponseEvent::Handled) || !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_))
+        {
             self.is_visible = false;
         }
 

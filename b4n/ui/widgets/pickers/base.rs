@@ -140,7 +140,9 @@ impl<B: PickerBehaviour> Picker<B> {
             .with_prompt(behaviour.prompt())
             .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
-            .with_filter_delimiters(behaviour.filter_delimiters());
+            .with_filter_delimiters(behaviour.filter_delimiters())
+            .with_accept_button(true)
+            .with_clipboard(app_data.borrow().get_clipboard());
 
         if let Some(accents) = behaviour.accent_characters() {
             select = select.with_accent_characters(accents);
@@ -172,7 +174,8 @@ impl<B: PickerBehaviour> Picker<B> {
         self.patterns.update_items_filter();
         self.patterns.set_colors(self.behaviour.colors());
         self.patterns.set_prompt(self.behaviour.prompt());
-        self.patterns.set_accept_button(self.app_data.borrow().is_mouse_enabled);
+        self.patterns.show_accept_button(self.app_data.borrow().is_mouse_enabled);
+        self.patterns.highlight_accept_button(false);
         self.is_visible = true;
     }
 
@@ -208,6 +211,12 @@ impl<B: PickerBehaviour> Picker<B> {
     /// Returns mutable picker behaviour.
     pub fn behaviour_mut(&mut self) -> &mut B {
         &mut self.behaviour
+    }
+
+    /// Sets flag indicating if empty value is allowed.
+    pub fn allow_empty(&mut self, allow_empty: bool) {
+        self.patterns.allow_no_selection(allow_empty);
+        self.patterns.set_required(!allow_empty);
     }
 
     /// Draws the picker on the provided frame area.
@@ -262,16 +271,6 @@ impl<B: PickerBehaviour> Picker<B> {
             self.patterns.set_value(pattern);
             self.run_validation();
         }
-    }
-
-    fn insert_from_clipboard(&mut self) -> ResponseEvent {
-        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
-        if let Some(text) = text {
-            self.patterns.insert_value(&text);
-            self.run_validation();
-        }
-
-        ResponseEvent::Handled
     }
 
     fn process_enter_key(&mut self) -> ResponseEvent {
@@ -344,10 +343,6 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
 
             self.patterns.items.clear();
             return ResponseEvent::Handled;
-        }
-
-        if event.is_mouse(MouseEventKind::RightClick) {
-            return self.insert_from_clipboard();
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateComplete) {

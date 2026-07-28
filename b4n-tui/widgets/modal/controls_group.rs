@@ -5,6 +5,7 @@ use ratatui_core::terminal::Frame;
 use crate::widgets::modal::{Button, CheckBox, Selector, TextBox};
 use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 
+/// One of the controls for the modal dialog.
 pub enum Control {
     CheckBox(Box<CheckBox>),
     TextBox(Box<TextBox>),
@@ -12,10 +13,26 @@ pub enum Control {
 }
 
 impl Control {
-    fn set_focus(&mut self, is_active: bool, position: Option<Position>) {
+    /// Returns mutable reference to the control if control is a textbox.
+    pub fn as_textbox_mut(&mut self) -> Option<&mut TextBox> {
+        match self {
+            Control::TextBox(textbox) => Some(textbox),
+            _ => None,
+        }
+    }
+
+    fn set_hover(&mut self, is_active: bool, position: Option<Position>) {
+        match self {
+            Control::CheckBox(checkbox) => checkbox.set_hover(is_active),
+            Control::TextBox(textbox) => textbox.set_hover(is_active, position),
+            Control::Selector(selector) => selector.set_hover(is_active),
+        }
+    }
+
+    fn set_focus(&mut self, is_active: bool) {
         match self {
             Control::CheckBox(checkbox) => checkbox.set_focus(is_active),
-            Control::TextBox(textbox) => textbox.set_focus(is_active, position),
+            Control::TextBox(textbox) => textbox.set_focus(is_active),
             Control::Selector(selector) => selector.set_focus(is_active),
         }
     }
@@ -31,7 +48,7 @@ impl Control {
     fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         match self {
             Control::CheckBox(checkbox) => checkbox.click(),
-            Control::TextBox(textbox) => textbox.click(),
+            Control::TextBox(textbox) => textbox.click(position),
             Control::Selector(selector) => selector.click(position),
         }
     }
@@ -41,6 +58,7 @@ impl Control {
 pub struct ControlsGroup {
     controls: Vec<Control>,
     buttons: Vec<Button>,
+    hovered: usize,
     focused: usize,
     highlight_position: Option<Position>,
 }
@@ -51,6 +69,7 @@ impl ControlsGroup {
         Self {
             controls: Vec::default(),
             buttons,
+            hovered: 0,
             focused: 0,
             highlight_position: None,
         }
@@ -76,7 +95,7 @@ impl ControlsGroup {
         self.controls.push(Control::Selector(Box::new(selector)));
     }
 
-    /// Gets a `TextBox` with the specified `id` from the controls list.
+    /// Gets a reference to the `TextBox` with the specified `id` from the controls list.
     pub fn textbox(&self, id: usize) -> Option<&TextBox> {
         self.controls.iter().find_map(|control| match control {
             Control::TextBox(tb) if tb.id == id => Some(tb.as_ref()),
@@ -84,15 +103,23 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a focused `TextBox` from the controls list.
-    pub fn focused_textbox(&mut self) -> Option<&mut TextBox> {
+    /// Gets a mutable reference to the `TextBox` with the specified `id` from the controls list.
+    pub fn textbox_mut(&mut self, id: usize) -> Option<&mut TextBox> {
+        self.controls.iter_mut().find_map(|control| match control {
+            Control::TextBox(tb) if tb.id == id => Some(tb.as_mut()),
+            _ => None,
+        })
+    }
+
+    /// Gets a mutable reference to the focused `TextBox` from the controls list.
+    pub fn focused_textbox_mut(&mut self) -> Option<&mut TextBox> {
         self.controls.iter_mut().find_map(|control| match control {
             Control::TextBox(tb) if tb.is_focused() => Some(tb.as_mut()),
             _ => None,
         })
     }
 
-    /// Gets a `CheckBox` with the specified `id` from the controls list.
+    /// Gets a reference to the `CheckBox` with the specified `id` from the controls list.
     pub fn checkbox(&self, id: usize) -> Option<&CheckBox> {
         self.controls.iter().find_map(|control| match control {
             Control::CheckBox(cb) if cb.id == id => Some(cb.as_ref()),
@@ -100,7 +127,7 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a `Selector` with the specified `id` from the controls list.
+    /// Gets a reference to the `Selector` with the specified `id` from the controls list.
     pub fn selector(&self, id: usize) -> Option<&Selector> {
         self.controls.iter().find_map(|control| match control {
             Control::Selector(sel) if sel.id == id => Some(sel.as_ref()),
@@ -108,8 +135,8 @@ impl ControlsGroup {
         })
     }
 
-    /// Gets a focused Selector from the controls list.
-    pub fn focused_selector(&mut self) -> Option<&mut Selector> {
+    /// Gets a mutable reference to the focused `Selector` from the controls list.
+    pub fn focused_selector_mut(&mut self) -> Option<&mut Selector> {
         self.controls.iter_mut().find_map(|control| match control {
             Control::Selector(sel) if sel.is_focused() => Some(sel.as_mut()),
             _ => None,
@@ -123,9 +150,14 @@ impl ControlsGroup {
             .any(|control| matches!(control, Control::Selector(sel) if sel.is_opened()))
     }
 
-    /// Returns the number of controls on the list.
-    pub fn controls_len(&self) -> usize {
-        self.controls.len()
+    /// Returns controls as a slice.
+    pub fn controls(&self) -> &[Control] {
+        &self.controls
+    }
+
+    /// Retruns controls as a mutable slice.
+    pub fn controls_mut(&mut self) -> &mut [Control] {
+        &mut self.controls
     }
 
     /// Returns result for the control under provided index.
@@ -139,10 +171,97 @@ impl ControlsGroup {
 
     /// Focus control under provided index.
     pub fn focus(&mut self, idx: usize) {
-        self.set_focus(self.focused, false, None);
+        self.set_focus(self.focused, false);
         let idx = idx.clamp(0, (self.controls.len() + self.buttons.len()).saturating_sub(1));
-        self.set_focus(idx, true, None);
+        self.set_focus(idx, true);
         self.focused = idx;
+    }
+
+    /// Process UI key or mouse event.
+    pub fn process_event(&mut self, event: &TuiEvent) -> (ResponseEvent, bool) {
+        if self.buttons.is_empty() {
+            return (ResponseEvent::NotHandled, false);
+        }
+
+        if let Some(textbox) = self.focused_textbox_mut() {
+            let result = textbox.process_event(event);
+            if result != ResponseEvent::NotHandled {
+                if matches!(result, ResponseEvent::Changed | ResponseEvent::Action(_)) {
+                    return (result, false);
+                }
+
+                return (ResponseEvent::Handled, false);
+            }
+        }
+
+        if let Some(selector) = self.focused_selector_mut()
+            && selector.is_opened()
+        {
+            let result = selector.process_event(event);
+            if !selector.is_opened()
+                && let Some(position) = event.position()
+            {
+                self.hover_element_at(position.x, position.y);
+            }
+
+            if matches!(result, ResponseEvent::Handled | ResponseEvent::Changed) {
+                return (result, false);
+            }
+        }
+
+        if let TuiEvent::Mouse(mouse) = event {
+            if mouse.kind == MouseEventKind::LeftClick {
+                self.focus_element_at(mouse.column, mouse.row);
+                for control in &mut self.controls {
+                    if control.contains(mouse.column, mouse.row) {
+                        return (control.click(Some(Position::new(mouse.column, mouse.row))), false);
+                    }
+                }
+
+                for btn in &self.buttons {
+                    if btn.contains(mouse.column, mouse.row) {
+                        return (btn.result(), true);
+                    }
+                }
+            } else if mouse.kind == MouseEventKind::Moved {
+                let is_button = self.hover_element_at(mouse.column, mouse.row);
+                return (ResponseEvent::Handled, is_button);
+            }
+        }
+
+        let event = map_to_button_event(event);
+        if event == ControlEvent::Checked
+            && let (Some(idx), None) = self.get_index(self.focused)
+        {
+            return (self.controls[idx].click(None), false);
+        }
+
+        if event == ControlEvent::Pressed {
+            let (inputs, buttons) = self.get_index(self.focused);
+            if let Some(idx) = inputs {
+                return (self.controls[idx].click(None), false);
+            } else if let Some(idx) = buttons {
+                return (self.buttons[idx].result(), true);
+            }
+        }
+
+        if event == ControlEvent::FocusPrev {
+            if self.focused == 0 {
+                self.focus_last();
+            } else {
+                self.focus_prev();
+            }
+        }
+
+        if event == ControlEvent::FocusNext {
+            if self.focused == (self.controls.len() + self.buttons.len()).saturating_sub(1) {
+                self.focus_first();
+            } else {
+                self.focus_next();
+            }
+        }
+
+        (ResponseEvent::Handled, false)
     }
 
     /// Draws [`ControlsGroup`] on the provided frame area.
@@ -207,20 +326,23 @@ impl ControlsGroup {
     }
 
     fn draw_focused_selector(&mut self, frame: &mut Frame<'_>) {
-        if let Some(selector) = self.focused_selector() {
+        if let Some(selector) = self.focused_selector_mut() {
             selector.draw_options(frame);
         }
     }
 
     fn focus_first(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(0);
     }
 
     fn focus_prev(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(self.focused.saturating_sub(1));
     }
 
     fn focus_next(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus(std::cmp::min(
             (self.controls.len() + self.buttons.len()).saturating_sub(1),
             self.focused + 1,
@@ -228,6 +350,7 @@ impl ControlsGroup {
     }
 
     fn focus_last(&mut self) {
+        self.set_hover(self.hovered, false, None);
         self.focus((self.controls.len() + self.buttons.len()).saturating_sub(1));
     }
 
@@ -257,116 +380,55 @@ impl ControlsGroup {
         }
     }
 
-    fn set_focus(&mut self, idx: usize, is_active: bool, position: Option<Position>) {
+    fn set_hover(&mut self, idx: usize, is_active: bool, position: Option<Position>) {
         match self.get_index(idx) {
-            (Some(idx), None) => self.controls[idx].set_focus(is_active, position),
+            (Some(idx), None) => self.controls[idx].set_hover(is_active, position),
+            (None, Some(idx)) => self.buttons[idx].set_hover(is_active),
+            _ => (),
+        }
+    }
+
+    fn hover_element_at(&mut self, x: u16, y: u16) -> bool {
+        self.set_hover(self.hovered, false, None);
+
+        if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
+            self.buttons[i].set_hover(true);
+            self.hovered = i;
+            return true;
+        }
+
+        if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
+            self.controls[i].set_hover(true, Some(Position::new(x, y)));
+            self.hovered = self.buttons.len() + i;
+        }
+
+        false
+    }
+
+    fn set_focus(&mut self, idx: usize, is_active: bool) {
+        match self.get_index(idx) {
+            (Some(idx), None) => self.controls[idx].set_focus(is_active),
             (None, Some(idx)) => self.buttons[idx].set_focus(is_active),
             _ => (),
         }
     }
 
-    fn focus_element_at(&mut self, x: u16, y: u16) {
+    /// Returns `true` if focused element was button.
+    fn focus_element_at(&mut self, x: u16, y: u16) -> bool {
         if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
-            self.set_focus(self.focused, false, None);
+            self.set_focus(self.focused, false);
             self.buttons[i].set_focus(true);
             self.focused = i;
-            return;
+            return true;
         }
 
         if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
-            self.set_focus(self.focused, false, None);
-            self.controls[i].set_focus(true, Some(Position::new(x, y)));
+            self.set_focus(self.focused, false);
+            self.controls[i].set_focus(true);
             self.focused = self.buttons.len() + i;
         }
-    }
-}
 
-impl Responsive for ControlsGroup {
-    fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.buttons.is_empty() {
-            return ResponseEvent::NotHandled;
-        }
-
-        if let Some(textbox) = self.focused_textbox() {
-            let result = textbox.process_event(event);
-            if result != ResponseEvent::NotHandled {
-                if matches!(result, ResponseEvent::Action(_)) {
-                    return result;
-                } else {
-                    return ResponseEvent::Handled;
-                }
-            }
-        }
-
-        if let Some(selector) = self.focused_selector()
-            && selector.is_opened()
-        {
-            let result = selector.process_event(event);
-            if !selector.is_opened()
-                && let Some(position) = event.position()
-            {
-                self.focus_element_at(position.x, position.y);
-            }
-
-            if result == ResponseEvent::Handled {
-                return ResponseEvent::Handled;
-            }
-        }
-
-        if let TuiEvent::Mouse(mouse) = event {
-            if mouse.kind == MouseEventKind::LeftClick {
-                for input in &mut self.controls {
-                    if input.contains(mouse.column, mouse.row) {
-                        return input.click(Some(Position::new(mouse.column, mouse.row)));
-                    }
-                }
-
-                for btn in &self.buttons {
-                    if btn.contains(mouse.column, mouse.row) {
-                        return btn.result();
-                    }
-                }
-            } else if mouse.kind == MouseEventKind::Moved {
-                self.focus_element_at(mouse.column, mouse.row);
-                return ResponseEvent::Handled;
-            }
-        }
-
-        let event = map_to_button_event(event);
-        if event == ControlEvent::Checked
-            && let (Some(idx), None) = self.get_index(self.focused)
-        {
-            self.controls[idx].click(None);
-            return ResponseEvent::Handled;
-        }
-
-        if event == ControlEvent::Pressed {
-            let (inputs, buttons) = self.get_index(self.focused);
-            if let Some(idx) = inputs {
-                self.controls[idx].click(None);
-                return ResponseEvent::Handled;
-            } else if let Some(idx) = buttons {
-                return self.buttons[idx].result();
-            }
-        }
-
-        if event == ControlEvent::FocusPrev {
-            if self.focused == 0 {
-                self.focus_last();
-            } else {
-                self.focus_prev();
-            }
-        }
-
-        if event == ControlEvent::FocusNext {
-            if self.focused == (self.controls.len() + self.buttons.len()).saturating_sub(1) {
-                self.focus_first();
-            } else {
-                self.focus_next();
-            }
-        }
-
-        ResponseEvent::Handled
+        false
     }
 }
 

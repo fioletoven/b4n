@@ -8,8 +8,9 @@ use b4n_kube::{
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, InjectContainerError,
     ResourceYamlError, ResourceYamlResult, RunPluginError, RunPluginOutput, SetNewResourceYamlError, SetResourceYamlError,
+    TransferFileError, TransferFileResult,
 };
-use b4n_tui::{EphemeralContainer, MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
+use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ToSelectData, TuiEvent};
 use b4n_tui::{table::Table, table::ViewType, widgets::Footer};
 use kube::{config::NamedContext, discovery::Scope};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -647,11 +648,6 @@ impl ViewsManager {
         }
     }
 
-    /// Runs command to inject ephemeral container to the specified resource.
-    pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) {
-        self.worker.borrow_mut().inject_container(resource, container);
-    }
-
     /// Shows result from the ephemeral container injection in the footer.
     pub fn show_inject_result(&mut self, result: Result<ResourceRef, InjectContainerError>) {
         match result {
@@ -662,10 +658,32 @@ impl ViewsManager {
                     resource.name.as_deref().unwrap_or_default()
                 );
                 tracing::info!("{}", msg);
-                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION)
+                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
             },
             Err(error) => {
                 let msg = format!("Ephemeral container error: {error}");
+                tracing::warn!("{}", msg);
+                self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
+            },
+        }
+    }
+
+    /// Shows result from the file transfer in the footer.
+    pub fn show_transfer_file_result(&mut self, result: Result<TransferFileResult, TransferFileError>) {
+        match result {
+            Ok(result) => {
+                let msg = format!(
+                    "File '{}' successfully transferred {} the '{}' container, '{}' pod",
+                    result.file,
+                    if result.is_download { "from" } else { "to" },
+                    result.container,
+                    result.pod,
+                );
+                tracing::info!("{}", msg);
+                self.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+            },
+            Err(error) => {
+                let msg = format!("File transfer error: {error}");
                 tracing::warn!("{}", msg);
                 self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
@@ -682,7 +700,7 @@ impl ViewsManager {
     fn copy_footer_message(&self) {
         if let Some(message) = self.footer.get_highlighted_history_message() {
             if let Some(clipboard) = &mut self.app_data.borrow_mut().clipboard
-                && clipboard.set_text(message).is_ok()
+                && clipboard.borrow_mut().set_text(message).is_ok()
             {
                 self.footer.transmitter().show_info("Message copied to clipboard", 3_000);
             } else {

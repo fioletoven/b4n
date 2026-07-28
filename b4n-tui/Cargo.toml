@@ -14,6 +14,7 @@ b4n-config = { workspace = true }
 b4n-kube = { workspace = true }
 b4n-list = { workspace = true }
 anyhow = { workspace = true }
+arboard = { workspace = true }
 crossterm = { workspace = true }
 delegate = { workspace = true }
 http = { workspace = true }

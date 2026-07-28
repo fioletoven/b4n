@@ -1,9 +1,11 @@
+use http::Uri;
 use kube::api::{ApiResource, DynamicObject};
 use kube::config::{Kubeconfig, NamedContext};
 use kube::discovery::{ApiCapabilities, Scope};
 use kube::{Api, Client, Config};
 use std::ops::{Deref, DerefMut};
 use std::path::{self, PathBuf};
+use std::str::FromStr;
 use thiserror;
 use tokio::{fs::File, io::AsyncReadExt};
 
@@ -234,8 +236,14 @@ async fn get_client_for_context(
         user: None,
         cluster: None,
     };
+
     let mut config = Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
     config.accept_invalid_certs = allow_insecure;
+
+    let fixed_url = config.cluster_url.to_string().replace("0.0.0.0", "127.0.0.1");
+    if let Ok(uri) = Uri::from_str(&fixed_url) {
+        config.cluster_url = uri;
+    }
 
     Ok(Client::try_from(config)?)
 }

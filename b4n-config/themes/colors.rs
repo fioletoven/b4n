@@ -135,9 +135,9 @@ impl SelectableLineColors {
     pub fn get_specific(&self, is_active: bool, is_selected: bool) -> TextColors {
         if is_selected {
             if is_active {
-                self.selected.as_ref().map(|l| l.accent).unwrap_or(self.accent)
+                self.selected.as_ref().map_or(self.accent, |l| l.accent)
             } else {
-                self.selected.as_ref().map(|l| l.normal).unwrap_or(self.normal)
+                self.selected.as_ref().map_or(self.normal, |l| l.normal)
             }
         } else if is_active {
             self.accent

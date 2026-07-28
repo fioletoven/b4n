@@ -201,8 +201,8 @@ impl CmdView {
             return ResponseEvent::Handled;
         }
 
-        let text = self.app_data.borrow_mut().clipboard.as_mut().and_then(|c| c.get_text().ok());
-        if let Some(text) = text {
+        let clipboard = self.app_data.borrow().get_clipboard();
+        if let Some(text) = clipboard.and_then(|c| c.borrow_mut().get_text().ok()) {
             self.selection.reset();
             self.bridge.send(text.replace("\r\n", "\n").into_bytes());
         }
@@ -229,8 +229,8 @@ impl CmdView {
                 self.command
             ),
             vec![
-                Button::new("Terminate", ResponseEvent::Cancelled, &colors.modal.btn_delete),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), &colors.modal.btn_cancel),
+                Button::new("Terminate", ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
             ],
         )
         .with_width(65)

@@ -207,7 +207,21 @@ impl ResourceColors {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct ControlColors {
     pub normal: TextColors,
+    pub hovered: TextColors,
     pub focused: TextColors,
+}
+
+impl ControlColors {
+    /// Returns [`TextColors`] for normal, hovered or focused control.
+    pub fn get(&mut self, is_hovered: bool, is_focused: bool) -> &TextColors {
+        if is_hovered {
+            &self.hovered
+        } else if is_focused {
+            &self.focused
+        } else {
+            &self.normal
+        }
+    }
 }
 
 /// Represents colors for textbox inside modal dialogs.
@@ -217,8 +231,6 @@ pub struct TextBoxModalColors {
     pub input: TextColors,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<TextColors>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub button: Option<TextColors>,
 }
 
 impl Default for TextBoxModalColors {
@@ -226,11 +238,11 @@ impl Default for TextBoxModalColors {
         Self {
             caption: ControlColors {
                 normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                hovered: TextColors::bg(Color::LightCyan, Color::DarkGray),
                 focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
             },
             input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
             cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
-            button: Some(TextColors::bg(Color::LightBlue, Color::DarkGray)),
         }
     }
 }
@@ -247,6 +259,7 @@ impl Default for SelectModalColors {
         Self {
             caption: ControlColors {
                 normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                hovered: TextColors::bg(Color::LightCyan, Color::DarkGray),
                 focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
             },
             items: LineColors {
@@ -276,19 +289,23 @@ impl Default for ModalColors {
             textbox: TextBoxModalColors::default(),
             checkbox: ControlColors {
                 normal: TextColors::bg(Color::Gray, Color::DarkGray),
+                hovered: TextColors::bg(Color::LightCyan, Color::DarkGray),
                 focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
             },
             selector: SelectModalColors::default(),
             btn_accent: ControlColors {
                 normal: TextColors::bg(Color::White, Color::DarkGray),
+                hovered: TextColors::bg(Color::White, Color::Blue),
                 focused: TextColors::bg(Color::White, Color::LightBlue),
             },
             btn_delete: ControlColors {
                 normal: TextColors::bg(Color::White, Color::DarkGray),
+                hovered: TextColors::bg(Color::White, Color::Red),
                 focused: TextColors::bg(Color::White, Color::LightRed),
             },
             btn_cancel: ControlColors {
                 normal: TextColors::bg(Color::White, Color::DarkGray),
+                hovered: TextColors::bg(Color::White, Color::Green),
                 focused: TextColors::bg(Color::White, Color::LightGreen),
             },
         }

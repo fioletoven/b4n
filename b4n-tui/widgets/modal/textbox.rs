@@ -6,6 +6,7 @@ use ratatui_core::text::Line;
 use ratatui_widgets::paragraph::Paragraph;
 
 use crate::widgets::Input;
+use crate::widgets::input::SharedClipboard;
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI `TextBox`.
@@ -13,6 +14,8 @@ pub struct TextBox {
     pub id: usize,
     caption: &'static str,
     input: Input,
+    prev_value: String,
+    is_hovered: bool,
     is_focused: bool,
     show_cursor: bool,
     colors: TextBoxModalColors,
@@ -31,6 +34,8 @@ impl TextBox {
             id,
             caption,
             input,
+            prev_value: String::new(),
+            is_hovered: false,
             is_focused: false,
             show_cursor: colors.cursor.is_some(),
             colors,
@@ -54,9 +59,32 @@ impl TextBox {
         self
     }
 
+    /// Adds clipboard functionality to the textbox.
+    pub fn with_clipboard(mut self, clipboard: Option<SharedClipboard>) -> Self {
+        self.input.set_clipboard(clipboard);
+        self
+    }
+
+    /// Sets new caption for the textbox.
+    pub fn set_caption(&mut self, caption: &'static str) {
+        self.caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
+        self.caption = caption;
+    }
+
+    /// Sets whether to show button.
+    pub fn show_button(&mut self, is_visible: bool) {
+        self.input.highlight_accept_button(false);
+        self.input.show_accept_button(is_visible);
+    }
+
     /// Returns value set in the textbox.
     pub fn value(&self) -> &str {
-        self.input.value()
+        self.input.value_full()
+    }
+
+    /// Sets new value for the textbox.
+    pub fn set_value(&mut self, value: impl Into<String>) {
+        self.input.set_value(value);
     }
 
     /// Returns `true` if provided `x` and `y` are inside the textbox.
@@ -70,23 +98,45 @@ impl TextBox {
     }
 
     /// Activates or deactivates textbox.
-    pub fn set_focus(&mut self, is_active: bool, position: Option<Position>) {
+    pub fn set_focus(&mut self, is_active: bool) {
         self.is_focused = is_active;
         self.input.show_cursor(is_active && self.show_cursor);
+
+        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
+        self.input.set_accept_button_colors(Some(*colors));
         if is_active {
             self.input.set_colors(self.colors.input);
-            self.input.set_accept_button_colors(self.colors.button);
-            if let Some(position) = position {
-                self.input.highlight_accept_button_in(position.x, position.y);
-            }
         } else {
-            self.input.set_colors(self.colors.caption.normal);
-            self.input.set_accept_button_colors(Some(self.colors.caption.normal));
+            self.input.set_colors(*colors);
+        }
+    }
+
+    /// Sets whether textbox is hovered.
+    pub fn set_hover(&mut self, is_active: bool, position: Option<Position>) {
+        self.is_hovered = is_active;
+
+        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
+        self.input.set_accept_button_colors(Some(*colors));
+        if !self.is_focused {
+            self.input.set_colors(*colors);
+        }
+
+        if is_active && let Some(position) = position {
+            self.input.highlight_accept_button_in(position.x, position.y);
+        } else {
+            self.input.highlight_accept_button(false);
         }
     }
 
     /// Process textbox click.
-    pub fn click(&mut self) -> ResponseEvent {
+    pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
+        if let Some(position) = position {
+            let response = self.input.process_event(&TuiEvent::click(position));
+            if response != ResponseEvent::NotHandled {
+                return response;
+            }
+        }
+
         ResponseEvent::Handled
     }
 
@@ -97,12 +147,8 @@ impl TextBox {
         let caption_area = Rect::new(area.x, area.y, self.caption_width, 1);
         let input_area = Rect::new(area.x + self.caption_width, area.y, input_width, 1);
 
-        let colors = if self.is_focused {
-            self.colors.caption.focused
-        } else {
-            self.colors.caption.normal
-        };
-        let line = Line::styled(format!("  {} ", self.caption), &colors);
+        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
+        let line = Line::styled(format!("  {} ", self.caption), colors);
         frame.render_widget(Paragraph::new(line), caption_area);
         self.input.draw(frame, input_area);
 
@@ -122,6 +168,16 @@ impl Responsive for TextBox {
             }
         }
 
-        self.input.process_event(event)
+        let result = self.input.process_event(event);
+        if result != ResponseEvent::Handled {
+            return result;
+        }
+
+        if self.prev_value != self.input.value_full() {
+            self.prev_value = self.input.value_full().to_owned();
+            return ResponseEvent::Changed;
+        }
+
+        ResponseEvent::Handled
     }
 }

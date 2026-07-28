@@ -4,6 +4,7 @@ use b4n_config::themes::TextColors;
 use b4n_config::{Config, History, Plugin, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
+use b4n_kube::files::TransferContext;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
@@ -12,6 +13,7 @@ use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig, GetNewResourceYamlCommand,
     GetResourceYamlCommand, InjectContainerCommand, ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand,
     SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions,
+    TransferFileCommand,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -531,6 +533,7 @@ impl BgWorker {
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 
+    /// Injects ephemeral container to the selected pod.
     pub fn inject_container(&mut self, resource: &ResourceRef, container: EphemeralContainer) -> Option<String> {
         let client = self.client.as_ref()?;
         let name = resource.name.as_deref()?;
@@ -543,6 +546,15 @@ impl BgWorker {
         };
         let command = InjectContainerCommand::new(name.to_owned(), resource.namespace.clone(), client.get_client(), config);
         Some(self.executor.run_task(Command::InjectContainer(Box::new(command))))
+    }
+
+    /// Transfers file from/to a pod's container in the background task.
+    pub fn transfer_file(&mut self, resource: ResourceRef, context: TransferContext) {
+        if let Some(client) = &self.client {
+            let runtime = self.runtime.clone();
+            let command = TransferFileCommand::new(runtime, resource, context, client.get_client());
+            self.executor.run_task(Command::TransferFile(Box::new(command)));
+        }
     }
 }
 

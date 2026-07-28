@@ -97,28 +97,33 @@ colors:
     textbox:
       caption:
         normal: fg_dark:bg_dark
+        hovered: light_cyan:bg_dark
         focused: light_magenta:bg_dark
       input: light_cyan:light_yellow:bg_dark
       cursor: Reset:#C4C7CC
-      button: light_magenta:bg_dark
     checkbox:
       normal: fg_dark:bg_dark
+      hovered: light_cyan:bg_dark
       focused: light_magenta:bg_dark
     selector:
       caption:
         normal: fg_dark:bg_dark
+        hovered: light_cyan:bg_dark
         focused: light_magenta:bg_dark
       items:
         normal: fg_dark:yellow:bg_dark
         accent: fg_light:blue:bg_light
     btn_accent:
       normal: fg_dark:bg_dark
+      hovered: fg_light:blue
       focused: fg_light:light_blue
     btn_delete:
       normal: fg_dark:bg_dark
+      hovered: fg_light:red
       focused: fg_light:light_red
     btn_cancel:
       normal: fg_dark:bg_dark
+      hovered: fg_light:green
       focused: fg_light:light_green
   side_select:
     filter:
