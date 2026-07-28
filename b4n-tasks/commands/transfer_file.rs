@@ -104,6 +104,18 @@ async fn download_file(
 
     check_stderr(stderr_task).await?;
 
+    if let Some(status_future) = attached.take_status()
+        && let Some(status) = status_future.await
+        && status.status.as_deref() != Some("Success")
+    {
+        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
+    }
+
+    attached
+        .join()
+        .await
+        .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
+
     runtime
         .spawn_blocking({
             let _destination = context.to.clone();
@@ -151,6 +163,13 @@ async fn upload_file(
     drop(stdin);
 
     check_stderr(stderr_task).await?;
+
+    if let Some(status_future) = attached.take_status()
+        && let Some(status) = status_future.await
+        && status.status.as_deref() != Some("Success")
+    {
+        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
+    }
 
     attached
         .join()
