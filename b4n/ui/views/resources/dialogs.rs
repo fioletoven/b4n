@@ -126,7 +126,10 @@ pub fn new_transfer_dialog(
         ],
     )
     .with_colors(colors.modal.text)
-    .with_checkboxes(vec![CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone())])
+    .with_checkboxes(vec![
+        CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone()),
+        CheckBox::new(1, "Overwrite files", false, colors.modal.checkbox.clone()),
+    ])
     .with_textboxes(get_transfer_dialog_textboxes(app_data, is_download, &colors.modal.textbox))
     .with_selectors(vec![Selector::new(
         0,
@@ -141,13 +144,13 @@ pub fn new_transfer_dialog(
         let is_ok = (is_checked && is_download) || (!is_checked && !is_download);
         if !is_ok {
             *message = get_transfer_dialog_title(is_checked);
-            controls.controls_mut().swap(1, 2);
+            controls.controls_mut().swap(2, 3);
 
-            if let Some(textbox) = controls.controls_mut()[1].as_textbox_mut() {
+            if let Some(textbox) = controls.controls_mut()[2].as_textbox_mut() {
                 setup_transfer_dialog_textbox(textbox, is_download, true);
             }
 
-            if let Some(textbox) = controls.controls_mut()[2].as_textbox_mut() {
+            if let Some(textbox) = controls.controls_mut()[3].as_textbox_mut() {
                 setup_transfer_dialog_textbox(textbox, !is_download, false);
             }
         }
@@ -157,14 +160,15 @@ pub fn new_transfer_dialog(
 /// Returns file transfer context for background task.
 pub fn get_transfer_dialog_context(dialog: &Dialog) -> Option<TransferContext> {
     let is_download = dialog.checkbox(0).is_some_and(|cb| cb.is_checked);
+    let overwrite_files = dialog.checkbox(1).is_some_and(|cb| cb.is_checked);
     let container = dialog.selector(0).map(|s| s.selected().to_owned())?;
     let first = dialog.textbox(0).map(|tb| tb.value().to_owned())?;
     let second = dialog.textbox(1).map(|tb| tb.value().to_owned())?;
 
     if is_download {
-        Some(TransferContext::download(second, first, container))
+        Some(TransferContext::download(second, first, container, overwrite_files))
     } else {
-        Some(TransferContext::upload(first, second, container))
+        Some(TransferContext::upload(first, second, container, overwrite_files))
     }
 }
 

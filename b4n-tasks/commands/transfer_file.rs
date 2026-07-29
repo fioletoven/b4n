@@ -37,6 +37,9 @@ pub enum TransferFileError {
 
     #[error("failed to resolve home directory on remote container")]
     HomeDirectoryResolutionError,
+
+    #[error("destination path already exists: {0}")]
+    DestinationExists(String),
 }
 
 /// Result from the file transfer command.
@@ -85,6 +88,10 @@ async fn download_file(
     resource: ResourceRef,
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
+    if !context.overwrite_files && tokio::fs::try_exists(&context.to).await? {
+        return Err(TransferFileError::DestinationExists(context.to.clone()));
+    }
+
     let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
     let source = Path::new(&remote_from);
     let (dir, file) = split_path(source)?;
@@ -139,6 +146,13 @@ async fn upload_file(
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
     let file_name = get_file_name(&context.from);
+
+    if !context.overwrite_files {
+        let path = format!("{}/{}", remote_to.trim_end_matches('/'), file_name);
+        if remote_path_exists(&pods, &resource, &context.container, &path).await? {
+            return Err(TransferFileError::DestinationExists(path));
+        }
+    }
 
     let tar_buffer = runtime
         .spawn_blocking({
@@ -206,22 +220,46 @@ async fn resolve_remote_tilde(
         return Ok(path);
     }
 
-    let attach_params = build_attach_params(container);
-    let mut attached = pods
-        .exec(pod_name(resource), ["sh", "-c", "echo $HOME"], &attach_params)
-        .await?;
-
-    let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
-
-    let mut home = String::new();
-    stdout.read_to_string(&mut home).await?;
-
-    let home = home.trim();
+    let home = exec_capture_stdout(pods, resource, container, "echo $HOME").await?;
     if home.is_empty() {
         return Err(TransferFileError::HomeDirectoryResolutionError);
     }
 
-    Ok(path.replacen('~', home, 1))
+    Ok(path.replacen('~', &home, 1))
+}
+
+async fn remote_path_exists(
+    pods: &Api<Pod>,
+    resource: &ResourceRef,
+    container: &str,
+    path: &str,
+) -> Result<bool, TransferFileError> {
+    let command = format!("test -e '{}' && echo 1 || echo 0", path.replace('\'', "'\\''"));
+    let output = exec_capture_stdout(pods, resource, container, &command).await?;
+
+    Ok(output == "1")
+}
+
+async fn exec_capture_stdout(
+    pods: &Api<Pod>,
+    resource: &ResourceRef,
+    container: &str,
+    command: &str,
+) -> Result<String, TransferFileError> {
+    let attach_params = build_attach_params(container);
+    let mut attached = pods.exec(pod_name(resource), ["sh", "-c", command], &attach_params).await?;
+
+    let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
+
+    let mut output = String::new();
+    stdout.read_to_string(&mut output).await?;
+
+    attached
+        .join()
+        .await
+        .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
+
+    Ok(output.trim().to_string())
 }
 
 fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
