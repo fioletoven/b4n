@@ -133,6 +133,10 @@ impl TextBox {
         if let Some(position) = position {
             let response = self.input.process_event(&TuiEvent::click(position));
             if response != ResponseEvent::NotHandled {
+                if matches!(response, ResponseEvent::Action(_)) {
+                    self.input.highlight_accept_button(false);
+                }
+
                 return response;
             }
         }
@@ -166,6 +170,10 @@ impl Responsive for TextBox {
                 },
                 _ => (),
             }
+        }
+
+        if event.is_mouse(crate::MouseEventKind::LeftClick) {
+            self.input.highlight_accept_button(false);
         }
 
         let result = self.input.process_event(event);

@@ -9,6 +9,7 @@ palette:
 
   no_bg: Reset
   bg_light: '#DCDFE4'
+  bg_gray: '#414855'
   bg_dark: '#545D6D'
   bg_black: '#373D48'
 
@@ -95,36 +96,36 @@ colors:
   command_palette: *filter
   mouse_menu: *filter
   modal:
-    text: fg_dark:bg_black
+    text: fg_dark:bg_gray
     textbox:
       caption:
-        normal: fg_dark:bg_black
-        hovered: violet:bg_black
-        focused: purple:bg_black
-      input: '#A3B8E1:yellow:bg_black'
+        normal: fg_dark:bg_gray
+        hovered: violet:bg_gray
+        focused: purple:bg_gray
+      input: '#A3B8E1:yellow:bg_gray'
       cursor: Reset:gray
     checkbox:
-      normal: fg_dark:bg_black
-      hovered: violet:bg_black
-      focused: purple:bg_black
+      normal: fg_dark:bg_gray
+      hovered: violet:bg_gray
+      focused: purple:bg_gray
     selector:
       caption:
-        normal: fg_dark:bg_black
-        hovered: violet:bg_black
-        focused: purple:bg_black
+        normal: fg_dark:bg_gray
+        hovered: violet:bg_gray
+        focused: purple:bg_gray
       items:
         normal: fg_dark:yellow:bg_black
         accent: fg_dark:yellow:bg_dark
     btn_accent:
-      normal: fg_dark:bg_black
+      normal: fg_dark:bg_gray
       hovered: text_light:#5090C5
       focused: text_dark:blue
     btn_delete:
-      normal: fg_dark:bg_black
+      normal: fg_dark:bg_gray
       hovered: text_light:#B85860
       focused: text_dark:#D4666F
     btn_cancel:
-      normal: fg_dark:bg_black
+      normal: fg_dark:bg_gray
       hovered: text_light:#77995F
       focused: text_dark:green
   side_select:

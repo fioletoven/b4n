@@ -40,10 +40,6 @@ The resulting binary will be available at `./target/release/b4n`.
 
 ## Features
 
-### Currently Supported
-
-The following features are currently supported:
-
 - View and filter a list of Kubernetes resources.
 - Create, read, update, and delete Kubernetes resources.
 - View events for the highlighted resource.
@@ -52,35 +48,31 @@ The following features are currently supported:
 - Enable port forwarding for the highlighted container.
 - Inject an ephemeral container into the highlighted pod.
 - Run external binaries configured in a simple plugin system.
+- Transfer files to and from containers (requires `tar` executable on the container).
 - Support mouse interactions in all views.
-
-### Planned
-
-The following features are planned for future development:
-
-- File transfer from/to a pod.
 
 ## Default Key Bindings
 
 | Action                                     | Command         | Comments                                                    |
 |:-------------------------------------------|:----------------|:------------------------------------------------------------|
-| Attach to the container's main process     | `a`             | Works only in containers view                               |
-| Attach to the container's shell            | `s`             | Works only in containers view                               |
+| Attach to the container's main process     | `a`             | Works only in containers and pods view                      |
+| Attach to the container's shell            | `s`             | Works only in containers and pods view                      |
 | Copy YAML / logs / resources to clipboard  | `c`             | Works only in YAML, logs and resources views                |
 | Create new resource                        | `n`             |                                                             |
 | Decode highlighted secret                  | `x`             |                                                             |
 | Delete selected resources                  | `CTRL` + `d`    | Displays a confirmation dialog                              |
 | Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
-| Forward container's port                   | `f`             | Works only in containers view                               |
-| Go back to namespaces; clear filter        | `ESC`           | Also clears input in the filter widget                      |
+| Forward container's port                   | `f`             | Works only in containers and pods view                      |
+| Go back to namespace view; clear filter    | `ESC`           | Also clears input in the filter widget                      |
 | Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation dialog     |
 | Navigate to the involved object            | `i`             | Works only for `events` kind                                |
-| Open / switch to edit mode                 | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
+| Open / enter edit mode                     | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
 | Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |
 | Pin active filter across resources         | `CTRL` + `p`    | Also works in the filter dialog                             |
 | Quit the application                       | `CTRL` + `c`    | No confirmation dialog                                      |
 | Reverse selection                          | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
 | Save YAML / logs to a file                 | `s`             |                                                             |
+| Select all resources                       | `CTRL` + `a`    | Then press `CTRL` + ` ` to deselect all                     |
 | Select resource                            | ` `             | (`SPACE`)                                                   |
 | Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
 | Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |
@@ -94,6 +86,8 @@ The following features are planned for future development:
 | Show resources selector                    | `→`             | To select `pods` rapidly press `→` again                    |
 | Show YAML for the highlighted resource     | `y`             |                                                             |
 | Sort column                                | `ALT` + `[0-9]` | Also works with `ALT` + `[underlined letter]`               |
+| Transfer file from the pod's container     | `CTRL` + `t`    | Allows downloading a single file or a directory             |
+| Transfer file to the pod's container       | `t`             | Allows uploading only a single file                         |
 
 ## Advanced Filtering
 
@@ -138,6 +132,16 @@ In edit mode, the following shortcuts are available:
 - `ALT`  + `↓` - move current line down
 
 > Note: These shortcuts currently cannot be changed in the `key_bindings` configuration section.
+
+## File Transfer
+
+Feature requires a `tar` executable on the container where files are uploaded to or downloaded from.
+
+If `Overwrite files` is unchecked before the transfer, a check will be executed on the remote container that requires the presence of `sh` and `test` commands (if the container does not have these commands, as a workaround the checkbox can be checked, but be aware that files may be overwritten).
+
+If the destination path (`To (dir):` textbox) contains `~`, there will be an attempt to resolve it to the home directory (this requires `sh` and `echo` commands to be present on the container). To bypass this, simply provide the full path without `~`.
+
+> Note: Currently, the upload feature supports only uploading a single file.
 
 ## Configuration Files
 
