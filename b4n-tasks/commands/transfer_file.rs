@@ -110,13 +110,7 @@ async fn download_file(
     stdout.read_to_end(&mut tar_data).await?;
 
     check_stderr(stderr_task).await?;
-
-    if let Some(status_future) = attached.take_status()
-        && let Some(status) = status_future.await
-        && status.status.as_deref() != Some("Success")
-    {
-        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
-    }
+    check_process_status(&mut attached).await?;
 
     attached
         .join()
@@ -177,13 +171,7 @@ async fn upload_file(
     drop(stdin);
 
     check_stderr(stderr_task).await?;
-
-    if let Some(status_future) = attached.take_status()
-        && let Some(status) = status_future.await
-        && status.status.as_deref() != Some("Success")
-    {
-        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
-    }
+    check_process_status(&mut attached).await?;
 
     attached
         .join()
@@ -254,12 +242,25 @@ async fn exec_capture_stdout(
     let mut output = String::new();
     stdout.read_to_string(&mut output).await?;
 
+    check_process_status(&mut attached).await?;
+
     attached
         .join()
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
 
     Ok(output.trim().to_string())
+}
+
+async fn check_process_status(attached: &mut kube::api::AttachedProcess) -> Result<(), TransferFileError> {
+    if let Some(status_future) = attached.take_status()
+        && let Some(status) = status_future.await
+        && status.status.as_deref() != Some("Success")
+    {
+        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
+    }
+
+    Ok(())
 }
 
 fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
@@ -279,6 +280,7 @@ fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
 async fn read_to_string(mut reader: impl AsyncRead + Unpin) -> Result<String, std::io::Error> {
     let mut output = String::new();
     reader.read_to_string(&mut output).await?;
+
     Ok(output)
 }
 

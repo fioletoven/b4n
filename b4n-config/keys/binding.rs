@@ -64,7 +64,7 @@ define_key_commands! {
         SelectorRight => "selector.right" @ "Right",
         ShellEscape => "shell.escape" @ "Esc",
         ShellOpen => "shell.open" @ "S",
-        TransferFrom => "transfer.from" @ "Shift+T",
+        TransferFrom => "transfer.from" @ "Ctrl+T",
         TransferTo => "transfer.to" @ "T",
         YamlCreate => "yaml.create" @ "N",
         YamlDecode => "yaml.decode" @ "X",
