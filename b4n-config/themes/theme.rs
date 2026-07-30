@@ -228,7 +228,7 @@ impl ControlColors {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TextBoxModalColors {
     pub caption: ControlColors,
-    pub input: TextColors,
+    pub input: ControlColors,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<TextColors>,
 }
@@ -241,7 +241,11 @@ impl Default for TextBoxModalColors {
                 hovered: TextColors::bg(Color::LightCyan, Color::DarkGray),
                 focused: TextColors::bg(Color::LightMagenta, Color::DarkGray),
             },
-            input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+            input: ControlColors {
+                normal: TextColors::dim(Color::Gray, Color::LightYellow, Color::DarkGray),
+                hovered: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+                focused: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
+            },
             cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
         }
     }

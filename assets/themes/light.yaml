@@ -99,7 +99,10 @@ colors:
         normal: fg_dark:bg_dark
         hovered: light_cyan:bg_dark
         focused: light_magenta:bg_dark
-      input: light_cyan:light_yellow:bg_dark
+      input:
+        normal: fg_dark:light_yellow:bg_dark
+        hovered: light_cyan:light_yellow:bg_dark
+        focused: light_cyan:light_yellow:bg_dark
       cursor: Reset:#747C8A
     checkbox:
       normal: fg_dark:bg_dark

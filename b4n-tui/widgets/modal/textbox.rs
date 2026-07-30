@@ -101,25 +101,13 @@ impl TextBox {
     pub fn set_focus(&mut self, is_active: bool) {
         self.is_focused = is_active;
         self.input.show_cursor(is_active && self.show_cursor);
-
-        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
-        self.input.set_accept_button_colors(Some(*colors));
-        if is_active {
-            self.input.set_colors(self.colors.input);
-        } else {
-            self.input.set_colors(*colors);
-        }
+        self.update_input_colors();
     }
 
     /// Sets whether textbox is hovered.
     pub fn set_hover(&mut self, is_active: bool, position: Option<Position>) {
         self.is_hovered = is_active;
-
-        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
-        self.input.set_accept_button_colors(Some(*colors));
-        if !self.is_focused {
-            self.input.set_colors(*colors);
-        }
+        self.update_input_colors();
 
         if is_active && let Some(position) = position {
             self.input.highlight_accept_button_in(position.x, position.y);
@@ -158,6 +146,19 @@ impl TextBox {
 
         self.area = area;
         self.area.width = caption_area.width + input_area.width;
+    }
+
+    fn update_input_colors(&mut self) {
+        let mut input_colors = *self.colors.input.get(self.is_hovered, self.is_focused);
+        if self.is_focused {
+            input_colors.bg = self.colors.input.focused.bg;
+        }
+
+        let mut button_colors = *self.colors.caption.get(self.is_hovered, self.is_focused);
+        button_colors.bg = input_colors.bg;
+
+        self.input.set_colors(input_colors);
+        self.input.set_accept_button_colors(Some(button_colors));
     }
 }
 

@@ -102,7 +102,10 @@ colors:
         normal: fg_dark:bg_gray
         hovered: violet:bg_gray
         focused: purple:bg_gray
-      input: '#A3B8E1:yellow:bg_gray'
+      input:
+        normal: fg_dark:yellow:bg_gray
+        hovered: violet:yellow:bg_gray
+        focused: '#A3B8E1:yellow:bg_black'
       cursor: Reset:gray
     checkbox:
       normal: fg_dark:bg_gray
