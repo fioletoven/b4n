@@ -11,8 +11,8 @@ use crate::commands::CommandResult;
 /// Possible file transfer errors.
 #[derive(thiserror::Error, Debug)]
 pub enum TransferFileError {
-    #[error("failed to create tar buffer: {0}")]
-    TarIoError(#[from] std::io::Error),
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
 
     #[error("kube client error: {0}")]
     KubeError(#[from] kube::Error),
@@ -288,7 +288,7 @@ async fn check_stderr(task: JoinHandle<Result<String, std::io::Error>>) -> Resul
     let output = task
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?
-        .map_err(TransferFileError::TarIoError)?;
+        .map_err(TransferFileError::IoError)?;
 
     let trimmed = output.trim();
     if !trimmed.is_empty() {
