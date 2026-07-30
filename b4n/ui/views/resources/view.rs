@@ -273,7 +273,7 @@ impl ResourcesView {
                 if let Some(resource) = self.table.get_resource_ref(false)
                     && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
                 {
-                    return Some(ResponseEvent::TrnsferFile(resource, context));
+                    return Some(ResponseEvent::TransferFile(resource, context));
                 }
             } else {
                 return Some(ResponseEvent::Handled);

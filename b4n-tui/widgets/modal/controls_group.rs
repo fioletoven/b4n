@@ -155,7 +155,7 @@ impl ControlsGroup {
         &self.controls
     }
 
-    /// Retruns controls as a mutable slice.
+    /// Returns controls as a mutable slice.
     pub fn controls_mut(&mut self) -> &mut [Control] {
         &mut self.controls
     }
