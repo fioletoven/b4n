@@ -1,10 +1,12 @@
 # Change Log
 
-## WIP
+## 0.5.4 - 2026-07-30
+
+### Features
 
 - extend modal dialogs with TextBox UI control
 - add separate color for input accept buttons
-- add files transfer from and to a pod's container
+- add files transfer to and from containers
 
 ### Compatibility
 

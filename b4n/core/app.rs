@@ -263,7 +263,7 @@ impl App {
             ResponseEvent::InjectContainer(resource, container) => {
                 self.worker.borrow_mut().inject_container(&resource, container);
             },
-            ResponseEvent::TrnsferFile(resource, context) => self.worker.borrow_mut().transfer_file(resource, context),
+            ResponseEvent::TransferFile(resource, context) => self.worker.borrow_mut().transfer_file(resource, context),
             _ => (),
         }
 

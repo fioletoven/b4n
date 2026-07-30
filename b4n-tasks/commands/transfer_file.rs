@@ -11,8 +11,8 @@ use crate::commands::CommandResult;
 /// Possible file transfer errors.
 #[derive(thiserror::Error, Debug)]
 pub enum TransferFileError {
-    #[error("failed to create tar buffer: {0}")]
-    TarIoError(#[from] std::io::Error),
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
 
     #[error("kube client error: {0}")]
     KubeError(#[from] kube::Error),
@@ -37,6 +37,9 @@ pub enum TransferFileError {
 
     #[error("failed to resolve home directory on remote container")]
     HomeDirectoryResolutionError,
+
+    #[error("destination path already exists: {0}")]
+    DestinationExists(String),
 }
 
 /// Result from the file transfer command.
@@ -85,6 +88,10 @@ async fn download_file(
     resource: ResourceRef,
     context: TransferContext,
 ) -> Result<TransferFileResult, TransferFileError> {
+    if !context.overwrite_files && tokio::fs::try_exists(&context.to).await? {
+        return Err(TransferFileError::DestinationExists(context.to.clone()));
+    }
+
     let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
     let source = Path::new(&remote_from);
     let (dir, file) = split_path(source)?;
@@ -103,13 +110,7 @@ async fn download_file(
     stdout.read_to_end(&mut tar_data).await?;
 
     check_stderr(stderr_task).await?;
-
-    if let Some(status_future) = attached.take_status()
-        && let Some(status) = status_future.await
-        && status.status.as_deref() != Some("Success")
-    {
-        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
-    }
+    check_process_status(&mut attached).await?;
 
     attached
         .join()
@@ -140,6 +141,13 @@ async fn upload_file(
     let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
     let file_name = get_file_name(&context.from);
 
+    if !context.overwrite_files {
+        let path = format!("{}/{}", remote_to.trim_end_matches('/'), file_name);
+        if remote_path_exists(&pods, &resource, &context.container, &path).await? {
+            return Err(TransferFileError::DestinationExists(path));
+        }
+    }
+
     let tar_buffer = runtime
         .spawn_blocking({
             let _source = context.from.clone();
@@ -163,13 +171,7 @@ async fn upload_file(
     drop(stdin);
 
     check_stderr(stderr_task).await?;
-
-    if let Some(status_future) = attached.take_status()
-        && let Some(status) = status_future.await
-        && status.status.as_deref() != Some("Success")
-    {
-        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
-    }
+    check_process_status(&mut attached).await?;
 
     attached
         .join()
@@ -206,22 +208,59 @@ async fn resolve_remote_tilde(
         return Ok(path);
     }
 
-    let attach_params = build_attach_params(container);
-    let mut attached = pods
-        .exec(pod_name(resource), ["sh", "-c", "echo $HOME"], &attach_params)
-        .await?;
-
-    let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
-
-    let mut home = String::new();
-    stdout.read_to_string(&mut home).await?;
-
-    let home = home.trim();
+    let home = exec_capture_stdout(pods, resource, container, "echo $HOME").await?;
     if home.is_empty() {
         return Err(TransferFileError::HomeDirectoryResolutionError);
     }
 
-    Ok(path.replacen('~', home, 1))
+    Ok(path.replacen('~', &home, 1))
+}
+
+async fn remote_path_exists(
+    pods: &Api<Pod>,
+    resource: &ResourceRef,
+    container: &str,
+    path: &str,
+) -> Result<bool, TransferFileError> {
+    let command = format!("test -e '{}' && echo 1 || echo 0", path.replace('\'', "'\\''"));
+    let output = exec_capture_stdout(pods, resource, container, &command).await?;
+
+    Ok(output == "1")
+}
+
+async fn exec_capture_stdout(
+    pods: &Api<Pod>,
+    resource: &ResourceRef,
+    container: &str,
+    command: &str,
+) -> Result<String, TransferFileError> {
+    let attach_params = build_attach_params(container);
+    let mut attached = pods.exec(pod_name(resource), ["sh", "-c", command], &attach_params).await?;
+
+    let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
+
+    let mut output = String::new();
+    stdout.read_to_string(&mut output).await?;
+
+    check_process_status(&mut attached).await?;
+
+    attached
+        .join()
+        .await
+        .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
+
+    Ok(output.trim().to_string())
+}
+
+async fn check_process_status(attached: &mut kube::api::AttachedProcess) -> Result<(), TransferFileError> {
+    if let Some(status_future) = attached.take_status()
+        && let Some(status) = status_future.await
+        && status.status.as_deref() != Some("Success")
+    {
+        return Err(TransferFileError::RemoteProcessError(status.message.unwrap_or_default()));
+    }
+
+    Ok(())
 }
 
 fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
@@ -241,6 +280,7 @@ fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
 async fn read_to_string(mut reader: impl AsyncRead + Unpin) -> Result<String, std::io::Error> {
     let mut output = String::new();
     reader.read_to_string(&mut output).await?;
+
     Ok(output)
 }
 
@@ -248,7 +288,7 @@ async fn check_stderr(task: JoinHandle<Result<String, std::io::Error>>) -> Resul
     let output = task
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?
-        .map_err(TransferFileError::TarIoError)?;
+        .map_err(TransferFileError::IoError)?;
 
     let trimmed = output.trim();
     if !trimmed.is_empty() {

@@ -273,7 +273,7 @@ impl ResourcesView {
                 if let Some(resource) = self.table.get_resource_ref(false)
                     && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
                 {
-                    return Some(ResponseEvent::TrnsferFile(resource, context));
+                    return Some(ResponseEvent::TransferFile(resource, context));
                 }
             } else {
                 return Some(ResponseEvent::Handled);
@@ -369,6 +369,14 @@ impl ResourcesView {
                 "inject" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::ContainerInject))
+                },
+                "download" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::TransferFrom))
+                },
+                "upload" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::TransferTo))
                 },
                 "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
@@ -687,19 +695,21 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
-            self.show_ephemeral_containers_palette();
-            return ResponseEvent::Handled;
-        }
+        if is_highlighted && self.kind_plural() == PODS {
+            if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
+                self.show_ephemeral_containers_palette();
+                return ResponseEvent::Handled;
+            }
 
-        if self.app_data.has_binding(event, KeyCommand::TransferTo) {
-            self.ask_transfer_file(false);
-            return ResponseEvent::Handled;
-        }
+            if self.app_data.has_binding(event, KeyCommand::TransferTo) {
+                self.ask_transfer_file(false);
+                return ResponseEvent::Handled;
+            }
 
-        if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
-            self.ask_transfer_file(true);
-            return ResponseEvent::Handled;
+            if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
+                self.ask_transfer_file(true);
+                return ResponseEvent::Handled;
+            }
         }
 
         let result = self.table.process_event(event);

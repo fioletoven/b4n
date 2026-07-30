@@ -238,12 +238,12 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         );
     }
 
-    if is_containers || (is_pods && is_highlighted) {
-        builder = add_ephemeral_container_actions(builder);
-    }
-
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers);
+        if is_pods {
+            builder = add_ephemeral_container_actions(builder);
+            builder = add_file_transfer_actions(builder);
+        }
         if is_containers || is_pods {
             builder = add_container_actions(builder);
         }
@@ -295,6 +295,22 @@ fn add_ephemeral_container_actions(builder: ActionsListBuilder) -> ActionsListBu
             .with_aliases(["ephemeral"]),
         Some(KeyCommand::ContainerInject),
     )
+}
+
+fn add_file_transfer_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
+    builder
+        .with_action(
+            ActionItem::action("download file", "download")
+                .with_description("transfers file from the container")
+                .with_aliases(["file", "transfer"]),
+            Some(KeyCommand::TransferFrom),
+        )
+        .with_action(
+            ActionItem::action("upload file", "upload")
+                .with_description("transfers file to the container")
+                .with_aliases(["file", "transfer"]),
+            Some(KeyCommand::TransferTo),
+        )
 }
 
 fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {

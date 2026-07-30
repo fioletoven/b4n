@@ -113,7 +113,7 @@ pub enum ResponseEvent {
 
     PluginAction(PluginRef),
     RunPlugin(String, PluginContext),
-    TrnsferFile(ResourceRef, TransferContext),
+    TransferFile(ResourceRef, TransferContext),
 }
 
 impl ResponseEvent {
