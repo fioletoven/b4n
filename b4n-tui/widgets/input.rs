@@ -42,6 +42,7 @@ pub struct Input {
     cursor_colors: TextColors,
     accept_button: Option<AcceptButton>,
     show_button: bool,
+    show_button_on_error: bool,
     required: bool,
     clipboard: Option<SharedClipboard>,
     areas: Option<Rc<[Rect]>>,
@@ -92,6 +93,12 @@ impl Input {
     /// Adds an accept button to the [`Input`] instance.
     pub fn with_accept_button(mut self, title: &'static str, response: ResponseEvent, colors: Option<TextColors>) -> Self {
         self.accept_button = Some(AcceptButton::new(title, response, colors));
+        self
+    }
+
+    /// Sets if accept button should be visible on errors.
+    pub fn with_show_accept_button_on_errors(mut self, is_visible: bool) -> Self {
+        self.show_button_on_error = is_visible;
         self
     }
 
@@ -330,7 +337,7 @@ impl Input {
 
     /// Draws [`Input`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let button_len = if self.show_button && (!self.required || !self.value_full().is_empty()) {
+        let button_len = if self.is_accept_button_visible() {
             self.accept_button
                 .as_ref()
                 .map(|b| b.title.chars().count())
@@ -351,7 +358,6 @@ impl Input {
         frame.render_widget(&mut *self, layout[0]);
 
         if button_len > 0
-            && !self.has_error()
             && let Some(button) = &self.accept_button
         {
             let colors = button
@@ -363,6 +369,10 @@ impl Input {
         }
 
         self.areas = Some(layout);
+    }
+
+    fn is_accept_button_visible(&self) -> bool {
+        self.show_button && (self.show_button_on_error || !self.has_error()) && (!self.required || !self.value_full().is_empty())
     }
 
     fn render_prompt(&self, x: u16, y: u16, max_x: u16, buf: &mut Buffer) -> u16 {
@@ -444,7 +454,7 @@ impl Responsive for Input {
                 }
 
                 if key.code == KeyCode::Enter {
-                    if self.show_button
+                    if self.is_accept_button_visible()
                         && let Some(button) = &mut self.accept_button
                     {
                         return button.response.clone();
@@ -486,7 +496,7 @@ impl Responsive for Input {
                         return ResponseEvent::Handled;
                     }
 
-                    if self.show_button
+                    if self.is_accept_button_visible()
                         && let Some(button) = &mut self.accept_button
                     {
                         if event.is_left_click_in(button_area) {

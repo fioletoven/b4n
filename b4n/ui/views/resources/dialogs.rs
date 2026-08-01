@@ -3,7 +3,7 @@ use b4n_config::PluginRef;
 use b4n_config::themes::TextBoxModalColors;
 use b4n_kube::files::TransferContext;
 use b4n_kube::{ResourceRef, ResourceTag};
-use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox};
+use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox, ValidatorKind};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
 use ratatui::layout::Position;
 
@@ -203,7 +203,8 @@ fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, co
     fn get_textbox(app_data: &SharedAppData, is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
         let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone())
             .with_button("  ", "select_file")
-            .with_clipboard(app_data.borrow().get_clipboard());
+            .with_clipboard(app_data.borrow().get_clipboard())
+            .with_validator(ValidatorKind::Required);
         setup_transfer_dialog_textbox(&mut textbox, !is_download, is_first);
         if is_download {
             textbox.set_value("~/");

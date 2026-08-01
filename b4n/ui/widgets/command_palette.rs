@@ -500,7 +500,7 @@ impl Step {
         }
     }
 
-    /// Validates the current step using associated validator.
+    /// Validates the current step using associated validators.
     fn validate(&mut self) -> bool {
         if !self.validators.is_empty() {
             let value = self.select.value();

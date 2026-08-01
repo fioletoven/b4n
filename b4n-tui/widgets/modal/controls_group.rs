@@ -150,6 +150,14 @@ impl ControlsGroup {
             .any(|control| matches!(control, Control::Selector(sel) if sel.is_opened()))
     }
 
+    /// Returns `true` if any of the controls is in error state.
+    pub fn has_errors(&self) -> bool {
+        self.controls.iter().any(|control| match control {
+            Control::TextBox(textbox) => textbox.has_error(),
+            _ => false,
+        })
+    }
+
     /// Returns controls as a slice.
     pub fn controls(&self) -> &[Control] {
         &self.controls
@@ -177,20 +185,21 @@ impl ControlsGroup {
         self.focused = idx;
     }
 
-    /// Process UI key or mouse event.
-    pub fn process_event(&mut self, event: &TuiEvent) -> (ResponseEvent, bool) {
+    /// Process UI key or mouse event.\
+    /// Returns `ResponseEvent` and if button was clicked its `index`.
+    pub fn process_event(&mut self, event: &TuiEvent) -> (ResponseEvent, Option<usize>) {
         if self.buttons.is_empty() {
-            return (ResponseEvent::NotHandled, false);
+            return (ResponseEvent::NotHandled, None);
         }
 
         if let Some(textbox) = self.focused_textbox_mut() {
             let result = textbox.process_event(event);
             if result != ResponseEvent::NotHandled {
                 if matches!(result, ResponseEvent::Changed | ResponseEvent::Action(_)) {
-                    return (result, false);
+                    return (result, None);
                 }
 
-                return (ResponseEvent::Handled, false);
+                return (ResponseEvent::Handled, None);
             }
         }
 
@@ -205,7 +214,7 @@ impl ControlsGroup {
             }
 
             if matches!(result, ResponseEvent::Handled | ResponseEvent::Changed) {
-                return (result, false);
+                return (result, None);
             }
         }
 
@@ -214,18 +223,18 @@ impl ControlsGroup {
                 self.focus_element_at(mouse.column, mouse.row);
                 for control in &mut self.controls {
                     if control.contains(mouse.column, mouse.row) {
-                        return (control.click(Some(Position::new(mouse.column, mouse.row))), false);
+                        return (control.click(Some(Position::new(mouse.column, mouse.row))), None);
                     }
                 }
 
-                for btn in &self.buttons {
+                for (idx, btn) in self.buttons.iter().enumerate() {
                     if btn.contains(mouse.column, mouse.row) {
-                        return (btn.result(), true);
+                        return (btn.result(), Some(idx));
                     }
                 }
             } else if mouse.kind == MouseEventKind::Moved {
-                let is_button = self.hover_element_at(mouse.column, mouse.row);
-                return (ResponseEvent::Handled, is_button);
+                let button_index = self.hover_element_at(mouse.column, mouse.row);
+                return (ResponseEvent::Handled, button_index);
             }
         }
 
@@ -233,15 +242,15 @@ impl ControlsGroup {
         if event == ControlEvent::Checked
             && let (Some(idx), None) = self.get_index(self.focused)
         {
-            return (self.controls[idx].click(None), false);
+            return (self.controls[idx].click(None), None);
         }
 
         if event == ControlEvent::Pressed {
             let (inputs, buttons) = self.get_index(self.focused);
             if let Some(idx) = inputs {
-                return (self.controls[idx].click(None), false);
+                return (self.controls[idx].click(None), None);
             } else if let Some(idx) = buttons {
-                return (self.buttons[idx].result(), true);
+                return (self.buttons[idx].result(), Some(idx));
             }
         }
 
@@ -261,7 +270,7 @@ impl ControlsGroup {
             }
         }
 
-        (ResponseEvent::Handled, false)
+        (ResponseEvent::Handled, None)
     }
 
     /// Draws [`ControlsGroup`] on the provided frame area.
@@ -388,21 +397,21 @@ impl ControlsGroup {
         }
     }
 
-    fn hover_element_at(&mut self, x: u16, y: u16) -> bool {
+    fn hover_element_at(&mut self, x: u16, y: u16) -> Option<usize> {
         self.set_hover(self.hovered, false, None);
 
-        if let Some(i) = self.buttons.iter().position(|b| b.contains(x, y)) {
-            self.buttons[i].set_hover(true);
-            self.hovered = i;
-            return true;
+        if let Some(idx) = self.buttons.iter().position(|b| b.contains(x, y)) {
+            self.buttons[idx].set_hover(true);
+            self.hovered = idx;
+            return Some(idx);
         }
 
-        if let Some(i) = self.controls.iter().position(|i| i.contains(x, y)) {
-            self.controls[i].set_hover(true, Some(Position::new(x, y)));
-            self.hovered = self.buttons.len() + i;
+        if let Some(idx) = self.controls.iter().position(|i| i.contains(x, y)) {
+            self.controls[idx].set_hover(true, Some(Position::new(x, y)));
+            self.hovered = self.buttons.len() + idx;
         }
 
-        false
+        None
     }
 
     fn set_focus(&mut self, idx: usize, is_active: bool) {

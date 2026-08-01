@@ -5,9 +5,10 @@ use std::{net::IpAddr, str::FromStr};
 #[path = "./validator.tests.rs"]
 mod validator_tests;
 
-/// Validator kind that can be used for the filter input.
+/// Validator kind that can be used for the textbox or the filter input.
 pub enum ValidatorKind {
     None,
+    Required,
     Number(usize, usize),
     StringExcept(Vec<String>),
     StringOneOf(Vec<String>),
@@ -19,7 +20,7 @@ pub enum ValidatorKind {
 
 pub struct InputValidator {
     kind: ValidatorKind,
-    last_validated: String,
+    last_validated: Option<String>,
     last_error: Option<usize>,
 }
 
@@ -28,21 +29,24 @@ impl InputValidator {
     pub fn new(kind: ValidatorKind) -> Self {
         Self {
             kind,
-            last_validated: String::default(),
+            last_validated: None,
             last_error: None,
         }
     }
 
     /// Validates specified input.
     pub fn validate(&mut self, input: &str) -> Result<(), usize> {
-        if self.last_validated == input {
+        if self.last_validated.as_ref().is_some_and(|v| v == input) {
             return match self.last_error {
                 Some(idx) => Err(idx),
                 None => Ok(()),
             };
         }
 
+        self.last_validated = Some(input.to_string());
+
         match &self.kind {
+            ValidatorKind::Required => self.validate_required(input),
             ValidatorKind::Number(min, max) => self.validate_number(input, *min, *max),
             ValidatorKind::StringExcept(except) => validate_sting_except(input, except),
             ValidatorKind::StringOneOf(one_of) => validate_sting_one_of(input, one_of),
@@ -54,9 +58,17 @@ impl InputValidator {
         }
     }
 
-    fn validate_number(&mut self, input: &str, min: usize, max: usize) -> Result<(), usize> {
-        input.clone_into(&mut self.last_validated);
+    fn validate_required(&mut self, input: &str) -> Result<(), usize> {
+        if input.trim().is_empty() {
+            self.last_error = Some(0);
+            return Err(0);
+        }
 
+        self.last_error = None;
+        Ok(())
+    }
+
+    fn validate_number(&mut self, input: &str, min: usize, max: usize) -> Result<(), usize> {
         if input.is_empty() {
             self.last_error = None;
             return Ok(());
@@ -82,8 +94,6 @@ impl InputValidator {
     }
 
     fn validate_ip_address(&mut self, input: &str) -> Result<(), usize> {
-        input.clone_into(&mut self.last_validated);
-
         if input.is_empty() {
             self.last_error = None;
             return Ok(());
@@ -100,8 +110,6 @@ impl InputValidator {
 
     /// Validates a string according to RFC 1123 DNS label rules.
     fn validate_dns_label(&mut self, input: &str) -> Result<(), usize> {
-        input.clone_into(&mut self.last_validated);
-
         if input.is_empty() {
             self.last_error = None;
             return Ok(());
@@ -147,8 +155,6 @@ impl InputValidator {
     /// Validates a docker container image name.\
     /// Format: `[registry/][namespace/]name[:tag][@digest]`
     fn validate_docker_image(&mut self, input: &str) -> Result<(), usize> {
-        input.clone_into(&mut self.last_validated);
-
         let (image_and_tag, digest) = input.split_once('@').map_or((input, None), |(img, dgst)| (img, Some(dgst)));
         let result = (|| {
             validate_image_and_tag(image_and_tag)?;
