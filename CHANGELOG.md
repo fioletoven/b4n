@@ -6,6 +6,10 @@
 
 - add validation to the TextBox UI control
 
+### Bug fixes
+
+- fix modal dialog for ephemeral container injection
+
 ### Compatibility
 
 - theme YAML files must be recreated or updated to match the current schema

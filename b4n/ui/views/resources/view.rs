@@ -189,9 +189,10 @@ impl ResourcesView {
     }
 
     /// Shows confirmation dialog for ephemeral container injection.
-    pub fn ask_inject_container(&mut self, response: ResponseEvent) {
-        if let ResponseEvent::InjectContainer(resource, container) = response {
-            self.modal = dialogs::new_inject_container_dialog(&self.app_data, self.last_mouse_click.take(), resource, container);
+    pub fn ask_inject_container(&mut self) {
+        if let Some(resource) = self.table.get_resource_ref(true) {
+            let tags = self.table.get_resource_tags();
+            self.modal = dialogs::new_inject_container_dialog(&self.app_data, &resource, &tags);
             self.modal.show();
         }
     }
@@ -242,53 +243,8 @@ impl ResourcesView {
 
     fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
         if self.file_picker.is_visible {
-            if self.file_picker.process_event(event) == ResponseEvent::Accepted {
+            if self.modal.is_visible && self.file_picker.process_event(event) == ResponseEvent::Accepted {
                 dialogs::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
-            }
-
-            return Some(ResponseEvent::Handled);
-        }
-
-        if self.modal.is_visible {
-            let response = self.modal.process_event(event);
-
-            if response.is_action("delete") {
-                return Some(ResponseEvent::DeleteResources(
-                    self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
-                    self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
-                    self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
-                ));
-            }
-
-            if response.is_action("stop_port_forwards") {
-                return Some(self.stop_port_forwards());
-            }
-
-            if response.is_action("select_file") {
-                self.show_file_picker();
-                return Some(ResponseEvent::Handled);
-            }
-
-            if response.is_action("transfer_file") {
-                if let Some(resource) = self.table.get_resource_ref(false)
-                    && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
-                {
-                    return Some(ResponseEvent::TransferFile(resource, context));
-                }
-            } else {
-                return Some(ResponseEvent::Handled);
-            }
-
-            if let ResponseEvent::PluginAction(plugin) = response {
-                let info = &self.app_data.borrow().current;
-                return Some(ResponseEvent::RunPlugin(
-                    plugin.id,
-                    build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
-                ));
-            }
-
-            if matches!(response, ResponseEvent::InjectContainer(_, _)) {
-                return Some(response);
             }
 
             return Some(ResponseEvent::Handled);
@@ -296,13 +252,58 @@ impl ResourcesView {
 
         if self.command_palette.is_visible {
             let result = self.process_command_palette_event(event);
-            if matches!(result, ResponseEvent::InjectContainer(_, _)) {
-                self.ask_inject_container(result);
+            if self.modal.is_visible && result.is_action("image_selected") {
+                if let Some(textbox) = self.modal.textbox_mut(1) {
+                    textbox.set_value(self.command_palette.selected());
+                }
                 return Some(ResponseEvent::Handled);
             }
             if result != ResponseEvent::NotHandled {
                 return Some(result);
             }
+        }
+
+        if self.modal.is_visible {
+            let response = self.modal.process_event(event);
+            return match response {
+                ResponseEvent::Action(action) => match action {
+                    "delete" => Some(ResponseEvent::DeleteResources(
+                        self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                        self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                        self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
+                    )),
+                    "stop_port_forwards" => Some(self.stop_port_forwards()),
+                    "select_file" => {
+                        self.show_file_picker();
+                        Some(ResponseEvent::Handled)
+                    },
+                    "transfer_file" => {
+                        if let Some(resource) = self.table.get_resource_ref(false)
+                            && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
+                        {
+                            Some(ResponseEvent::TransferFile(resource, context))
+                        } else {
+                            Some(ResponseEvent::Handled)
+                        }
+                    },
+                    "select_image" => {
+                        self.show_image_select_palette();
+                        Some(ResponseEvent::Handled)
+                    },
+                    "inject" => Some(self.table.get_resource_ref(false).map_or(ResponseEvent::Handled, |resource| {
+                        dialogs::build_inject_container_response(&self.modal, resource)
+                    })),
+                    _ => Some(ResponseEvent::Handled),
+                },
+                ResponseEvent::PluginAction(plugin) => {
+                    let info = &self.app_data.borrow().current;
+                    Some(ResponseEvent::RunPlugin(
+                        plugin.id,
+                        build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+                    ))
+                },
+                _ => Some(ResponseEvent::Handled),
+            };
         }
 
         if self.filter.is_visible {
@@ -449,14 +450,6 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
-    fn show_ephemeral_containers_palette(&mut self) {
-        if let Some(resource) = self.table.get_resource_ref(true) {
-            let tags = self.table.get_resource_tags();
-            self.command_palette = menus::build_ephemeral_container_steps(&self.app_data, resource, tags);
-            self.command_palette.show();
-        }
-    }
-
     fn show_file_picker(&mut self) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
         self.file_picker.set_dir_picker(is_download);
@@ -464,6 +457,12 @@ impl ResourcesView {
             .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
         self.file_picker.reset();
         self.file_picker.show();
+    }
+
+    fn show_image_select_palette(&mut self) {
+        let current = self.modal.textbox(1).map_or("", |tb| tb.value());
+        self.command_palette = menus::build_image_select_palette(&self.app_data, current);
+        self.command_palette.show();
     }
 
     pub fn remember_current_resource(&mut self) {
@@ -697,7 +696,7 @@ impl View for ResourcesView {
 
         if is_highlighted && self.kind_plural() == PODS {
             if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
-                self.show_ephemeral_containers_palette();
+                self.ask_inject_container();
                 return ResponseEvent::Handled;
             }
 

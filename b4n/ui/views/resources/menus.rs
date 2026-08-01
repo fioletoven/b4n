@@ -1,63 +1,15 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
-use b4n_tui::{EphemeralContainer, PluginsExt, ResponseEvent};
+use b4n_tui::{PluginsExt, ResponseEvent};
 use std::rc::Rc;
 
 use crate::core::SharedAppData;
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::pod::PF_COLUMN_NO;
-use crate::ui::views::resources::{ResourcesTable, utils};
+use crate::ui::views::resources::ResourcesTable;
 use crate::ui::widgets::{CommandPalette, StepBuilder};
-
-/// Builds steps required to inject ephemeral container.
-pub fn build_ephemeral_container_steps(
-    app_data: &SharedAppData,
-    resource: ResourceRef,
-    tags: Vec<ResourceTag>,
-) -> CommandPalette {
-    let except_names = utils::get_all_containers_from_resource_tags(&tags);
-    let target_names = utils::get_target_containers_from_resource_tags(&tags);
-    let target_actions = utils::get_actions_from_resource_tags(tags);
-    let images = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
-
-    CommandPalette::new(Rc::clone(app_data), ActionsList::default(), 65)
-        .with_header(format!(
-            " Inject ephemeral container into '{}':",
-            resource.name.as_deref().unwrap_or_default()
-        ))
-        .with_prompt("container name")
-        .with_validator(ValidatorKind::StringExcept(except_names))
-        .with_validator(ValidatorKind::DnsLabel)
-        .with_value("debug")
-        .with_step(
-            StepBuilder::actions(images)
-                .with_prompt("image")
-                .with_validator(ValidatorKind::DockerImage)
-                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
-                .with_clipboard(app_data.borrow().get_clipboard())
-                .build(app_data),
-        )
-        .with_step(
-            StepBuilder::input("")
-                .with_prompt("optional command")
-                .with_validator(ValidatorKind::ShellCommand)
-                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
-                .with_clipboard(app_data.borrow().get_clipboard())
-                .with_required(false)
-                .build(app_data),
-        )
-        .with_step(
-            StepBuilder::actions(target_actions)
-                .with_prompt("optional target")
-                .with_validator(ValidatorKind::StringOneOf(target_names))
-                .with_colors(app_data.borrow().theme.colors.command_palette.clone())
-                .with_required(false)
-                .build(app_data),
-        )
-        .with_response(|v| build_ephemeral_container_response(v, resource))
-}
 
 /// Builds steps required to configure port forward for specified resource container.
 pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef, list: &[Port]) -> CommandPalette {
@@ -87,6 +39,17 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
                 .build(app_data),
         )
         .with_response(|v| build_port_forward_response(v, resource))
+}
+
+/// Builds command palette that allows to select container's image name.
+pub fn build_image_select_palette(app_data: &SharedAppData, highlighted: &str) -> CommandPalette {
+    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
+    CommandPalette::new(Rc::clone(app_data), actions, 65)
+        .with_header(" Format: [registry/][namespace/]name[:tag][@digest]")
+        .with_prompt("image name")
+        .with_validator(ValidatorKind::DockerImage)
+        .with_highlighted(highlighted)
+        .with_response(|_| ResponseEvent::Action("image_selected"))
 }
 
 /// Builds actions for creating new resource.
@@ -341,24 +304,6 @@ fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
                 .with_aliases(["port", "pf"]),
             Some(KeyCommand::PortForwardsCreate),
         )
-}
-
-fn build_ephemeral_container_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
-    if input.len() == 4 {
-        let target = input.remove(3);
-        let command = input.remove(2);
-        let image = input.remove(1);
-        let name = input.remove(0);
-        let container = EphemeralContainer {
-            name,
-            image,
-            command,
-            target: if target.is_empty() { None } else { Some(target) },
-        };
-        ResponseEvent::InjectContainer(resource, container)
-    } else {
-        ResponseEvent::Handled
-    }
 }
 
 fn build_port_forward_response(mut input: Vec<String>, resource: ResourceRef) -> ResponseEvent {
