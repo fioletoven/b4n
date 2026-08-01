@@ -9,6 +9,7 @@
 ### Bug fixes
 
 - fix modal dialog for ephemeral container injection
+- fix input validators behaviour
 
 ### Compatibility
 
