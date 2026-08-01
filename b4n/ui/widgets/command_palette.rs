@@ -139,6 +139,11 @@ impl CommandPalette {
         self.is_visible = false;
     }
 
+    /// Returns selected value from the current step.
+    pub fn selected(&self) -> &str {
+        self.step().select.value()
+    }
+
     /// Draws [`CommandPalette`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {
         if !self.is_visible {

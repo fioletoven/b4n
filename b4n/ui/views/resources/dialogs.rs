@@ -1,4 +1,3 @@
-use b4n_common::{truncate, truncate_left};
 use b4n_config::PluginRef;
 use b4n_config::themes::TextBoxModalColors;
 use b4n_kube::files::TransferContext;
@@ -67,43 +66,61 @@ pub fn new_run_plugin_dialog(app_data: &SharedAppData, position: Option<Position
     .with_highlighted_position(position)
 }
 
-/// Creates new inject container confirmation dialog.
-pub fn new_inject_container_dialog(
-    app_data: &SharedAppData,
-    position: Option<Position>,
-    resource: ResourceRef,
-    container: EphemeralContainer,
-) -> Dialog {
-    let len = 38;
-
-    let colors = &app_data.borrow().theme.colors;
-    let msg = "Are you sure you want to inject ephemeral container?";
-    let image_tr = if container.image.chars().count() > len { "…" } else { "" };
-    let command_tr = if container.command.chars().count() > len { "…" } else { "" };
-
-    let msg = format!(
-        "{msg}\n\n    name:    {}\n    image:   {}{}\n    command: {}{}\n    target:  {}",
-        container.name,
-        image_tr,
-        truncate_left(&container.image, len),
-        truncate(&container.command, len),
-        command_tr,
-        container.target.as_deref().unwrap_or_default()
-    );
+/// Builds modal dialog to inject ephemeral container.
+pub fn new_inject_container_dialog(app_data: &SharedAppData, resource: &ResourceRef, tags: &[ResourceTag]) -> Dialog {
+    let colors = &app_data.borrow().theme.colors.modal;
+    let image = &app_data.borrow().config.debug_images.first().cloned().unwrap_or_default();
+    let except_names = utils::get_all_containers_from_resource_tags(tags);
+    let mut target_names = utils::get_target_containers_from_resource_tags(tags);
+    target_names.insert(0, "--none--".to_string());
 
     Dialog::new(
-        msg,
+        format!(
+            "Inject ephemeral container into '{}':",
+            resource.name.as_deref().unwrap_or_default()
+        ),
         vec![
-            Button::new(
-                "Inject Container",
-                ResponseEvent::InjectContainer(resource, container),
-                colors.modal.btn_accent.clone(),
-            ),
-            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
+            Button::new("Inject Container", ResponseEvent::Action("inject"), colors.btn_accent.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
         ],
     )
-    .with_colors(colors.modal.text)
-    .with_highlighted_position(position)
+    .with_colors(colors.text)
+    .with_textboxes(vec![
+        TextBox::new(0, "Name:   ", 40, colors.textbox.clone())
+            .with_value("debug")
+            .with_clipboard(app_data.borrow().get_clipboard())
+            .with_validator(ValidatorKind::Required)
+            .with_validator(ValidatorKind::StringExcept(except_names))
+            .with_validator(ValidatorKind::DnsLabel),
+        TextBox::new(1, "Image:  ", 40, colors.textbox.clone())
+            .with_value(image)
+            .with_clipboard(app_data.borrow().get_clipboard())
+            .with_validator(ValidatorKind::DockerImage)
+            .with_button("  ", "select_image"),
+        TextBox::new(2, "Command:", 40, colors.textbox.clone())
+            .with_clipboard(app_data.borrow().get_clipboard())
+            .with_validator(ValidatorKind::ShellCommand),
+    ])
+    .with_selectors(vec![Selector::new(0, "Target: ", &target_names, &colors.selector)])
+}
+
+/// Returns new [`ResponseEvent::InjectContainer`] response built from the properties set in the modal dialog.
+pub fn build_inject_container_response(modal: &Dialog, resource: ResourceRef) -> ResponseEvent {
+    fn get_textbox_value(modal: &Dialog, idx: usize) -> String {
+        modal.textbox(idx).map_or_else(String::new, |tb| tb.value().to_string())
+    }
+
+    let container = EphemeralContainer {
+        name: get_textbox_value(modal, 0),
+        image: get_textbox_value(modal, 1),
+        command: get_textbox_value(modal, 2),
+        target: modal
+            .selector(0)
+            .map(Selector::selected)
+            .filter(|&s| s != "--none--")
+            .map(String::from),
+    };
+    ResponseEvent::InjectContainer(resource, container)
 }
 
 /// Creates new transfer files dialog.

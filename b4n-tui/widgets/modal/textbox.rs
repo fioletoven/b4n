@@ -50,6 +50,8 @@ impl TextBox {
     /// Sets initial value for the textbox.
     pub fn with_value(mut self, value: impl Into<String>) -> Self {
         self.input.set_value(value);
+        self.validate(true);
+        self.prev_value = self.input.value().to_string();
         self
     }
 
