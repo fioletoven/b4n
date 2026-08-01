@@ -177,7 +177,7 @@ impl Responsive for Dialog {
             return self.controls.result(self.default_button);
         }
 
-        let (result, is_button) = self.controls.process_event(event);
+        let (result, button_index) = self.controls.process_event(event);
         if result == ResponseEvent::Changed {
             if let Some(ref mut callback) = self.on_change {
                 callback(&mut self.message, &mut self.controls);
@@ -189,8 +189,16 @@ impl Responsive for Dialog {
         // we must close dialog if:
         //  - button returned anything else than Handled (user can configure any response)
         //  - control returned anything else than Handled or Action (user can configure actions for TextBox buttons)
-        if (is_button && result != ResponseEvent::Handled) || !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_))
+        if (button_index.is_some() && result != ResponseEvent::Handled)
+            || !matches!(result, ResponseEvent::Handled | ResponseEvent::Action(_))
         {
+            let is_default_button = button_index.is_some_and(|idx| self.default_button == idx);
+
+            // do nothing if any of the modal controls has error
+            if self.controls.has_errors() && !is_default_button {
+                return ResponseEvent::Handled;
+            }
+
             self.is_visible = false;
         }
 

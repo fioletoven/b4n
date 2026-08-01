@@ -1,12 +1,12 @@
-use b4n_config::themes::TextBoxModalColors;
+use b4n_config::themes::{TextBoxModalColors, TextColors};
 use crossterm::event::KeyCode;
 use ratatui_core::layout::{Margin, Position, Rect};
 use ratatui_core::terminal::Frame;
-use ratatui_core::text::Line;
+use ratatui_core::text::{Line, Span};
 use ratatui_widgets::paragraph::Paragraph;
 
-use crate::widgets::Input;
 use crate::widgets::input::SharedClipboard;
+use crate::widgets::{Input, InputValidator, ValidatorKind};
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI `TextBox`.
@@ -14,6 +14,7 @@ pub struct TextBox {
     pub id: usize,
     caption: &'static str,
     input: Input,
+    validators: Vec<InputValidator>,
     prev_value: String,
     is_hovered: bool,
     is_focused: bool,
@@ -27,13 +28,14 @@ pub struct TextBox {
 impl TextBox {
     /// Creates new [`TextBox`] instance.
     pub fn new(id: usize, caption: &'static str, input_width: u16, colors: TextBoxModalColors) -> Self {
-        let mut input = Input::new(colors.caption.normal);
+        let mut input = Input::new(colors.caption.normal).with_show_accept_button_on_errors(true);
         input.set_cursor_colors(colors.cursor);
 
         Self {
             id,
             caption,
             input,
+            validators: Vec::new(),
             prev_value: String::new(),
             is_hovered: false,
             is_focused: false,
@@ -65,6 +67,13 @@ impl TextBox {
         self
     }
 
+    /// Adds validator to the textbox.
+    pub fn with_validator(mut self, validator: ValidatorKind) -> Self {
+        self.validators.push(InputValidator::new(validator));
+        self.validate(true);
+        self
+    }
+
     /// Sets new caption for the textbox.
     pub fn set_caption(&mut self, caption: &'static str) {
         self.caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
@@ -85,11 +94,18 @@ impl TextBox {
     /// Sets new value for the textbox.
     pub fn set_value(&mut self, value: impl Into<String>) {
         self.input.set_value(value);
+        self.validate(true);
+        self.prev_value = self.input.value().to_string();
     }
 
     /// Returns `true` if provided `x` and `y` are inside the textbox.
     pub fn contains(&self, x: u16, y: u16) -> bool {
         self.area.contains(Position::new(x, y))
+    }
+
+    /// Returns `true` if textbox has error.
+    pub fn has_error(&self) -> bool {
+        self.input.has_error()
     }
 
     /// Returns `true` if textbox is focused.
@@ -116,6 +132,27 @@ impl TextBox {
         }
     }
 
+    /// Validates textbox using associated validators.
+    fn validate(&mut self, force_validation: bool) -> bool {
+        if !self.validators.is_empty() && (force_validation || self.prev_value != self.input.value()) {
+            self.input.set_error(None);
+
+            let value = self.input.value();
+            for validator in &mut self.validators {
+                if let Err(error_index) = validator.validate(value) {
+                    self.input.set_error(Some(error_index));
+                    self.update_input_colors();
+
+                    return true;
+                }
+            }
+
+            self.update_input_colors();
+        }
+
+        self.input.has_error()
+    }
+
     /// Process textbox click.
     pub fn click(&mut self, position: Option<Position>) -> ResponseEvent {
         if let Some(position) = position {
@@ -139,8 +176,9 @@ impl TextBox {
         let caption_area = Rect::new(area.x, area.y, self.caption_width, 1);
         let input_area = Rect::new(area.x + self.caption_width, area.y, input_width, 1);
 
-        let colors = self.colors.caption.get(self.is_hovered, self.is_focused);
-        let line = Line::styled(format!("  {} ", self.caption), colors);
+        let colors = *self.colors.caption.get(self.is_hovered, self.is_focused);
+        let spans = vec![self.get_icon(&colors), Span::styled(self.caption, &colors)];
+        let line = Line::from(spans);
         frame.render_widget(Paragraph::new(line), caption_area);
         self.input.draw(frame, input_area);
 
@@ -154,11 +192,33 @@ impl TextBox {
             input_colors.bg = self.colors.input.focused.bg;
         }
 
+        if self.input.has_error()
+            && let Some(colors) = self.colors.error
+        {
+            input_colors.fg = colors.fg;
+            input_colors.dim = colors.dim;
+        }
+
         let mut button_colors = *self.colors.caption.get(self.is_hovered, self.is_focused);
         button_colors.bg = input_colors.bg;
 
         self.input.set_colors(input_colors);
         self.input.set_accept_button_colors(Some(button_colors));
+    }
+
+    fn get_icon(&self, colors: &TextColors) -> Span<'_> {
+        if self.input.has_error()
+            && let Some(error_colors) = self.colors.error
+        {
+            let colors = TextColors {
+                fg: error_colors.fg,
+                dim: error_colors.dim,
+                bg: colors.bg,
+            };
+            Span::styled("  ", &colors)
+        } else {
+            Span::styled("  ", colors)
+        }
     }
 }
 
@@ -178,6 +238,8 @@ impl Responsive for TextBox {
         }
 
         let result = self.input.process_event(event);
+        self.validate(false);
+
         if result != ResponseEvent::Handled {
             return result;
         }

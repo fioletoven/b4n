@@ -104,6 +104,7 @@ colors:
         hovered: light_cyan:light_yellow:bg_dark
         focused: light_cyan:light_yellow:bg_dark
       cursor: Reset:#C4C7CC
+      error: light_red:bg_dark
     checkbox:
       normal: fg_dark:bg_dark
       hovered: light_cyan:bg_dark

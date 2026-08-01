@@ -1,5 +1,15 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- add validation to the TextBox UI control
+
+### Compatibility
+
+- theme YAML files must be recreated or updated to match the current schema
+
 ## 0.5.4 - 2026-07-30
 
 ### Features

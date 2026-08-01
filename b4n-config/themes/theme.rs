@@ -231,6 +231,8 @@ pub struct TextBoxModalColors {
     pub input: ControlColors,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<TextColors>,
 }
 
 impl Default for TextBoxModalColors {
@@ -247,6 +249,7 @@ impl Default for TextBoxModalColors {
                 focused: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
             },
             cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
+            error: Some(TextColors::bg(Color::LightRed, Color::DarkGray)),
         }
     }
 }
