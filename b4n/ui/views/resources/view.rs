@@ -201,7 +201,9 @@ impl ResourcesView {
 
     /// Shows transfer file dialog.
     pub fn ask_transfer_file(&mut self, is_download: bool) {
-        if let Some(resource) = self.table.list.table.get_highlighted_resource() {
+        if self.table.is_resource_running()
+            && let Some(resource) = self.table.list.table.get_highlighted_resource()
+        {
             let tags = resource.data.as_ref().map(|d| d.tags.as_ref()).unwrap_or_default();
             self.modal = dialogs::new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
             self.modal.show();

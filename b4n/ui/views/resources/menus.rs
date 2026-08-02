@@ -214,7 +214,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers);
-        if is_pods {
+        if is_pods && table.is_resource_running() {
             builder = add_ephemeral_container_actions(builder);
             builder = add_file_transfer_actions(builder);
         }
