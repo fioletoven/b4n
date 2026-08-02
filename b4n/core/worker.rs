@@ -55,6 +55,7 @@ pub struct BgWorker {
     discovery: BgDiscovery,
     discovery_list: Option<DiscoveryList>,
     client: Option<KubernetesClient>,
+    footer_tx: NotificationSink,
     is_crds_list_ready: bool,
 }
 
@@ -78,9 +79,10 @@ impl BgWorker {
             forwarder: PortForwarder::new(runtime.clone(), footer_tx.clone()),
             executor: BgExecutor::new(runtime.clone()),
             highlighter: BgHighlighter::new(syntax_data),
-            discovery: BgDiscovery::new(runtime, footer_tx),
+            discovery: BgDiscovery::new(runtime, footer_tx.clone()),
             discovery_list: None,
             client: None,
+            footer_tx,
             is_crds_list_ready: false,
         }
     }
@@ -387,8 +389,8 @@ impl BgWorker {
     }
 
     /// Saves provided text content to the specified file.
-    pub fn save_content(&mut self, path: PathBuf, text: String, footer_tx: NotificationSink) {
-        let command = SaveContentCommand::new(path, text, footer_tx);
+    pub fn save_content(&mut self, path: PathBuf, text: String) {
+        let command = SaveContentCommand::new(path, text, self.footer_tx.clone());
         self.executor.run_task(Command::SaveContent(Box::new(command)));
     }
 
@@ -399,7 +401,6 @@ impl BgWorker {
         namespace: Namespace,
         kind: &Kind,
         delete_options: DeleteResourcesOptions,
-        footer_tx: NotificationSink,
     ) {
         if let Some(client) = &self.client {
             let discovery = get_resource(self.discovery_list.as_ref(), kind);
@@ -409,7 +410,7 @@ impl BgWorker {
                 discovery,
                 client.get_client(),
                 delete_options,
-                footer_tx,
+                self.footer_tx.clone(),
             );
 
             self.executor.run_task(Command::DeleteResource(Box::new(command)));
@@ -521,15 +522,9 @@ impl BgWorker {
     }
 
     /// Runs specified plugin as a background task.
-    pub fn run_plugin(
-        &mut self,
-        plugin: Plugin,
-        context: PluginContext,
-        default_color: TextColors,
-        footer_tx: NotificationSink,
-    ) -> Option<String> {
+    pub fn run_plugin(&mut self, plugin: Plugin, context: PluginContext, default_color: TextColors) -> Option<String> {
         let sender = self.highlighter.get_sender()?;
-        let command = RunPluginCommand::new(plugin, context, sender, default_color, footer_tx);
+        let command = RunPluginCommand::new(plugin, context, sender, default_color, self.footer_tx.clone());
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 
@@ -552,7 +547,7 @@ impl BgWorker {
     pub fn transfer_file(&mut self, resource: ResourceRef, context: TransferContext) {
         if let Some(client) = &self.client {
             let runtime = self.runtime.clone();
-            let command = TransferFileCommand::new(runtime, resource, context, client.get_client());
+            let command = TransferFileCommand::new(runtime, resource, context, client.get_client(), self.footer_tx.clone());
             self.executor.run_task(Command::TransferFile(Box::new(command)));
         }
     }

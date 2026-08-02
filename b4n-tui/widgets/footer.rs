@@ -272,7 +272,7 @@ impl Footer {
             }
         }
 
-        self.icons.sort_by_key(|i| i.id);
+        self.icons.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
     /// Gets the last message from unbounded channel and sets it as active.

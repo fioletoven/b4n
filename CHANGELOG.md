@@ -5,6 +5,7 @@
 ### Features
 
 - add validation to the TextBox UI control
+- show downloaded / uploaded bytes for the file transfers
 
 ### Bug fixes
 

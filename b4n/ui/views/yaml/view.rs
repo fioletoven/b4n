@@ -515,7 +515,7 @@ impl YamlView {
                 .content()
                 .map(|content| content.to_plain_text(None))
                 .unwrap_or_default();
-            self.worker.borrow_mut().save_content(path, text, self.footer.clone());
+            self.worker.borrow_mut().save_content(path, text);
         }
     }
 
