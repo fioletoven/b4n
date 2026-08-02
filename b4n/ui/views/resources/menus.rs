@@ -107,20 +107,24 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         if is_containers || is_pods {
             builder = builder
                 .with_menu_action(ActionItem::menu(3, " logs", "show_logs"))
-                .with_menu_action(ActionItem::menu(4, " logs ␝previous␝", "show_plogs"))
-                .with_menu_action(ActionItem::menu(6, " attach", "attach"))
-                .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
-                .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+                .with_menu_action(ActionItem::menu(4, " logs ␝previous␝", "show_plogs"));
+
+            if table.is_resource_running() {
+                builder = builder
+                    .with_menu_action(ActionItem::menu(6, " attach", "attach"))
+                    .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+
+                if is_pods {
+                    builder = builder
+                        .with_menu_action(ActionItem::menu(10, " inject container", "inject"))
+                        .with_menu_action(ActionItem::menu(11, " download files", "download"))
+                        .with_menu_action(ActionItem::menu(11, " upload file", "upload"));
+                }
+            }
 
             if is_pods && has_highlighted_item_active_port_forward(table) {
                 builder.add_menu_action(ActionItem::menu(9, " stop ␝port forwards␝", "ask_stop_port_forwards"));
-            }
-
-            if is_pods {
-                builder = builder
-                    .with_menu_action(ActionItem::menu(10, " inject container", "inject"))
-                    .with_menu_action(ActionItem::menu(11, " download files", "download"))
-                    .with_menu_action(ActionItem::menu(11, " upload file", "upload"));
             }
         }
 

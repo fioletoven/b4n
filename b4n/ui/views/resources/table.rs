@@ -195,6 +195,14 @@ impl ResourcesTable {
         }
     }
 
+    /// Returns `true` if currently highlighted resource is in running state.
+    pub fn is_resource_running(&self) -> bool {
+        self.list
+            .table
+            .get_highlighted_resource()
+            .is_some_and(ResourceItem::is_running)
+    }
+
     /// Returns tags for currently highlighted item.
     pub fn get_resource_tags(&self) -> Vec<ResourceTag> {
         self.list
