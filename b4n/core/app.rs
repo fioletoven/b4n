@@ -563,7 +563,7 @@ impl App {
 
     fn update_mouse_state(&self) {
         let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
-        self.views_manager.footer().set_icon("001_mouse", icon, IconKind::Default);
+        self.views_manager.footer().set_icon("050_mouse", icon, IconKind::Default);
         self.data.borrow_mut().is_mouse_enabled = self.tui.is_mouse_enabled();
     }
 }

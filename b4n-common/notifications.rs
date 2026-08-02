@@ -17,12 +17,12 @@ pub enum IconKind {
 /// Defines possible actions for managing notification icons.
 pub enum IconAction {
     Add(Icon),
-    Remove(&'static str),
+    Remove(String),
 }
 
 /// Notification icon to show.
 pub struct Icon {
-    pub id: &'static str,
+    pub id: String,
     pub icon: Option<char>,
     pub text: Option<String>,
     pub kind: IconKind,
@@ -30,9 +30,9 @@ pub struct Icon {
 
 impl Icon {
     /// Creates new [`Icon`] instance.
-    fn new(id: &'static str) -> Self {
+    fn new(id: impl Into<String>) -> Self {
         Self {
-            id,
+            id: id.into(),
             icon: None,
             text: None,
             kind: IconKind::Default,
@@ -135,28 +135,28 @@ impl NotificationSink {
     }
 
     /// Adds, updates, or removes an icon in the sink by its `id`.
-    pub fn set_icon(&self, id: &'static str, icon: Option<char>, kind: IconKind) {
+    pub fn set_icon(&self, id: impl Into<String>, icon: Option<char>, kind: IconKind) {
         let action = if let Some(icon) = icon {
             IconAction::Add(Icon::new(id).with_icon(icon).with_kind(kind))
         } else {
-            IconAction::Remove(id)
+            IconAction::Remove(id.into())
         };
         let _ = self.icons.send(action);
     }
 
     /// Adds, updates, or removes a text label in the sink by its `id`.
-    pub fn set_text(&self, id: &'static str, text: Option<impl Into<String>>, kind: IconKind) {
+    pub fn set_text(&self, id: impl Into<String>, text: Option<impl Into<String>>, kind: IconKind) {
         let action = if let Some(text) = text {
             IconAction::Add(Icon::new(id).with_text(text).with_kind(kind))
         } else {
-            IconAction::Remove(id)
+            IconAction::Remove(id.into())
         };
         let _ = self.icons.send(action);
     }
 
     /// Removes an icon or a text label from the sink by its `id`.
-    pub fn reset(&self, id: &'static str) {
-        let _ = self.icons.send(IconAction::Remove(id));
+    pub fn reset(&self, id: impl Into<String>) {
+        let _ = self.icons.send(IconAction::Remove(id.into()));
     }
 
     /// Sets breadcrumb trail data.

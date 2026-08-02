@@ -1,12 +1,17 @@
+use b4n_common::{IconKind, NotificationSink};
 use b4n_kube::{ResourceRef, files::TransferContext};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client, api::AttachParams};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::commands::CommandResult;
+
+static COUNTER: AtomicU8 = AtomicU8::new(0);
+const CHUNK_SIZE: usize = 128 * 1024;
 
 /// Possible file transfer errors.
 #[derive(thiserror::Error, Debug)]
@@ -56,28 +61,39 @@ pub struct TransferFileCommand {
     resource: ResourceRef,
     context: TransferContext,
     client: Client,
+    footer: NotificationSink,
 }
 
 impl TransferFileCommand {
     /// Creates new file transfer command.
-    pub fn new(runtime: Handle, resource: ResourceRef, context: TransferContext, client: Client) -> Self {
+    pub fn new(
+        runtime: Handle,
+        resource: ResourceRef,
+        context: TransferContext,
+        client: Client,
+        footer: NotificationSink,
+    ) -> Self {
         Self {
             runtime,
             resource,
             context,
             client,
+            footer,
         }
     }
 
     pub async fn execute(self) -> Option<CommandResult> {
         let pods: Api<Pod> = Api::namespaced(self.client, self.resource.namespace.as_str());
+        let transfer_id = format!("200_{}", COUNTER.fetch_add(1, Ordering::Relaxed));
+        let sink = self.footer.clone();
 
         let result = if self.context.is_download {
-            download_file(self.runtime, pods, self.resource, self.context).await
+            download_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id).await
         } else {
-            upload_file(self.runtime, pods, self.resource, self.context).await
+            upload_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id).await
         };
 
+        self.footer.set_text(&transfer_id, None::<String>, IconKind::Default);
         Some(CommandResult::TransferFile(result))
     }
 }
@@ -87,6 +103,8 @@ async fn download_file(
     pods: Api<Pod>,
     resource: ResourceRef,
     context: TransferContext,
+    sink: NotificationSink,
+    text_id: &str,
 ) -> Result<TransferFileResult, TransferFileError> {
     if !context.overwrite_files && tokio::fs::try_exists(&context.to).await? {
         return Err(TransferFileError::DestinationExists(context.to.clone()));
@@ -107,7 +125,19 @@ async fn download_file(
     let stderr_task = runtime.spawn(read_to_string(stderr));
 
     let mut tar_data = Vec::new();
-    stdout.read_to_end(&mut tar_data).await?;
+    let mut buf = [0u8; CHUNK_SIZE];
+    let mut transferred = 0;
+    loop {
+        let n = stdout.read(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+
+        tar_data.extend_from_slice(&buf[..n]);
+        transferred += n;
+
+        sink.set_text(text_id, Some(format_size('󰶡', transferred)), IconKind::Default);
+    }
 
     check_stderr(stderr_task).await?;
     check_process_status(&mut attached).await?;
@@ -137,6 +167,8 @@ async fn upload_file(
     pods: Api<Pod>,
     resource: ResourceRef,
     context: TransferContext,
+    sink: NotificationSink,
+    text_id: &str,
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
     let file_name = get_file_name(&context.from);
@@ -166,7 +198,14 @@ async fn upload_file(
     let stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
     let stderr_task = runtime.spawn(read_to_string(stderr));
 
-    stdin.write_all(&tar_buffer).await?;
+    let mut transferred = 0;
+    for chunk in tar_buffer.chunks(CHUNK_SIZE) {
+        stdin.write_all(chunk).await?;
+        transferred += chunk.len();
+
+        sink.set_text(text_id, Some(format_size('󰶣', transferred)), IconKind::Default);
+    }
+
     stdin.shutdown().await?;
     drop(stdin);
 
@@ -319,4 +358,17 @@ fn get_file_name(path: &str) -> String {
         .and_then(|f| f.to_str())
         .unwrap_or(path)
         .to_string()
+}
+
+fn format_size(icon: char, bytes: usize) -> String {
+    const KB: usize = 1_024;
+    const MB: usize = 1_024 * KB;
+    const GB: usize = 1_024 * MB;
+
+    match bytes {
+        b if b < KB => format!("{}B{}", b, icon),
+        b if b < MB => format!("{:.1}KB{}", b as f64 / KB as f64, icon),
+        b if b < GB => format!("{:.1}MB{}", b as f64 / MB as f64, icon),
+        b => format!("{:.1}GB{}", b as f64 / GB as f64, icon),
+    }
 }
