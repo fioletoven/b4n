@@ -65,7 +65,7 @@ impl Dialog {
 
     /// Highlights item under the specified mouse position on the first dialog draw.
     pub fn with_highlighted_position(mut self, position: Option<Position>) -> Self {
-        self.controls.highlighted_position(position);
+        self.controls.hover_position(position);
         self
     }
 

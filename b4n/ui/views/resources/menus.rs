@@ -266,7 +266,7 @@ fn add_ephemeral_container_actions(builder: ActionsListBuilder) -> ActionsListBu
     builder.with_action(
         ActionItem::action("inject container", "inject")
             .with_description("injects ephemeral container")
-            .with_aliases(["ephemeral"]),
+            .with_aliases(["ephemeral", "debug"]),
         Some(KeyCommand::ContainerInject),
     )
 }
