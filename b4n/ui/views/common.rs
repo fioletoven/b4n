@@ -4,7 +4,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use std::rc::Rc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tui_term::vt100::Screen;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
@@ -94,44 +94,67 @@ impl ScreenExt for Screen {
     }
 }
 
-/// Tracks `ESC` key press count.
-pub struct EscPressTracker {
-    esc_count: u8,
-    esc_time: Instant,
-}
-
-impl Default for EscPressTracker {
-    fn default() -> Self {
-        Self {
-            esc_count: 0,
-            esc_time: Instant::now(),
-        }
-    }
-}
-
-impl EscPressTracker {
-    /// Checks if `ESC` key was pressed quickly `x` times.
-    pub fn is_pressed_times(&mut self, times: u8) -> bool {
-        if self.esc_time.elapsed().as_millis() < (200 * u128::from(times)) {
-            self.esc_count += 1;
-        } else {
-            self.esc_count = 1;
-            self.esc_time = Instant::now();
-        }
-
-        if self.esc_count == times {
-            self.esc_count = 0;
-            true
-        } else {
-            false
-        }
-    }
-}
-
 /// Calculates layout for view with header.
 pub fn get_layout_with_header(area: Rect) -> Rc<[Rect]> {
     Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Length(1), Constraint::Fill(1)])
         .split(area)
+}
+
+/// Allowed time between two key presses that will still activate the escape sequence mode.
+pub const ESCAPE_SEQUENCE_TIMEOUT: Duration = Duration::from_millis(250);
+
+/// Tracks whether the user triggered an escape sequence by pressing the same key twice.
+/// Once active, the next key press is treated as an alternate command.
+pub struct EscapeSequenceTracker {
+    timeout: Duration,
+    recorded_event: Option<TuiEvent>,
+    last_press_time: Option<Instant>,
+    is_active: bool,
+}
+
+impl EscapeSequenceTracker {
+    /// Creates a new [`EscapeSequenceTracker`] with the given timeout between key presses.
+    pub fn new(timeout: Duration) -> Self {
+        Self {
+            timeout,
+            recorded_event: None,
+            last_press_time: None,
+            is_active: false,
+        }
+    }
+
+    /// Records the trigger key event for the escape sequence. If the same key is pressed again
+    /// within the allowed timeout, the escape sequence becomes active.
+    pub fn record_event(&mut self, event: &TuiEvent) -> Option<TuiEvent> {
+        if self.last_press_time.is_none_or(|t| t.elapsed() > self.timeout) {
+            let prev_event = self.recorded_event.take();
+            self.recorded_event = Some(event.clone());
+            self.last_press_time = Some(Instant::now());
+            self.is_active = false;
+            prev_event
+        } else {
+            self.recorded_event = None;
+            self.last_press_time = None;
+            self.is_active = true;
+            None
+        }
+    }
+
+    /// Returns the recorded event if the escape sequence window has expired or if `force` is true.
+    pub fn get_recorded_event(&mut self, force: bool) -> Option<TuiEvent> {
+        if force || (self.recorded_event.is_some() && self.last_press_time.is_none_or(|t| t.elapsed() > self.timeout)) {
+            self.recorded_event.take()
+        } else {
+            None
+        }
+    }
+
+    /// Returns whether the escape sequence is currently active and resets the flag.
+    pub fn consume_active(&mut self) -> bool {
+        let was_active = self.is_active;
+        self.is_active = false;
+        was_active
+    }
 }
