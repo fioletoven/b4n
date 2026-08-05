@@ -1,6 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::Plugin;
-use b4n_config::keys::{KeyCombination, KeyCommand};
+use b4n_config::keys::KeyCommand;
 use b4n_kube::ResourceRef;
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -75,7 +75,7 @@ impl CmdView {
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx);
+        set_hint(&app_data, &footer_tx, false);
 
         Self {
             app_data,
@@ -270,8 +270,9 @@ impl CmdView {
         if is_enabled {
             self.footer_tx.show_hint(" Double right-click to open mouse menu");
         } else {
-            set_hint(&self.app_data, &self.footer_tx);
+            set_hint(&self.app_data, &self.footer_tx, self.alt_mode.is_active());
         }
+
         ResponseEvent::Handled
     }
 
@@ -391,8 +392,11 @@ impl View for CmdView {
             }
         }
 
-        if self.alt_mode.consume_active() && event.is_key(&KeyCombination::new(KeyCode::Char('Q'), KeyModifiers::empty())) {
-            return self.ask_close_forcibly();
+        if self.alt_mode.consume_active() {
+            set_hint(&self.app_data, &self.footer_tx, self.alt_mode.is_active());
+            if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
+                return self.ask_close_forcibly();
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
@@ -400,6 +404,7 @@ impl View for CmdView {
                 return self.process_cmd_event(&prev_event);
             }
 
+            set_hint(&self.app_data, &self.footer_tx, self.alt_mode.is_active());
             return ResponseEvent::Handled;
         }
 
@@ -487,7 +492,11 @@ impl Drop for CmdView {
     }
 }
 
-fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink) {
+fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to close"));
+    if is_alt_mode {
+        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to close"));
+    } else {
+        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+    }
 }

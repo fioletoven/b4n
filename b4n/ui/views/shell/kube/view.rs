@@ -1,5 +1,5 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
-use b4n_config::keys::{KeyCombination, KeyCommand};
+use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, PODS};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
@@ -80,7 +80,7 @@ impl ShellView {
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx, is_attach);
+        set_hint(&app_data, &footer_tx, is_attach, false);
 
         Self {
             app_data,
@@ -295,7 +295,7 @@ impl ShellView {
         if is_enabled {
             self.footer_tx.show_hint(" Double right-click to open mouse menu");
         } else {
-            set_hint(&self.app_data, &self.footer_tx, self.is_attach);
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
         }
 
         ResponseEvent::Handled
@@ -389,12 +389,15 @@ impl View for ShellView {
             });
         }
 
-        if self.alt_mode.consume_active() && event.is_key(&KeyCombination::new(KeyCode::Char('Q'), KeyModifiers::empty())) {
-            return if self.is_attach {
-                ResponseEvent::Cancelled
-            } else {
-                self.ask_close_shell_forcibly()
-            };
+        if self.alt_mode.consume_active() {
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
+                return if self.is_attach {
+                    ResponseEvent::Cancelled
+                } else {
+                    self.ask_close_shell_forcibly()
+                };
+            }
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
@@ -402,6 +405,7 @@ impl View for ShellView {
                 return self.process_shell_event(&prev_event);
             }
 
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
             return ResponseEvent::Handled;
         }
 
@@ -486,8 +490,12 @@ impl Drop for ShellView {
     }
 }
 
-fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool) {
+fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-    let action = if is_attach { "close attach view" } else { "detach shell" };
-    footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
+    if is_alt_mode {
+        let action = if is_attach { "close attach view" } else { "detach shell" };
+        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to {action}"));
+    } else {
+        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+    }
 }

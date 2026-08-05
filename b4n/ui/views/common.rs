@@ -151,6 +151,11 @@ impl EscapeSequenceTracker {
         }
     }
 
+    /// Returns whether the escape sequence is currently active.
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+
     /// Returns whether the escape sequence is currently active and resets the flag.
     pub fn consume_active(&mut self) -> bool {
         let was_active = self.is_active;
