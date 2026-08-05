@@ -83,55 +83,66 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
     let copy = if is_selected { "selected" } else { "all" };
     let mut builder = ActionsListBuilder::default()
         .with_menu_action(ActionItem::command_palette())
-        .with_menu_action(ActionItem::menu(11, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        .with_menu_action(ActionItem::menu(16, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
     if table.kind_plural() != NAMESPACES {
         builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
     }
 
     if table.list.table.is_anything_selected() && table.list.table.data.is_deletable {
-        let action = ActionItem::menu(12, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+        let action = ActionItem::menu(14, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
         builder.add_menu_action(action);
-    }
-
-    if !is_containers && !is_events {
-        if table.list.table.data.is_creatable {
-            builder.add_menu_action(ActionItem::menu(9, "󰐕 create new", "create"));
-        }
-        if is_highlighted {
-            builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
-        }
-    }
-
-    if has_involved_object(table) {
-        builder.add_menu_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
     }
 
     if is_highlighted {
         builder = builder
-            .with_menu_action(ActionItem::menu(4, " describe", "describe"))
             .with_menu_action(ActionItem::menu(1, " YAML", "show_yaml"))
-            .with_menu_action(ActionItem::menu(11, "󰆏 copy ␝name␝", "copy_name"));
+            .with_menu_action(ActionItem::menu(5, " describe", "describe"))
+            .with_menu_action(ActionItem::menu(15, "󰆏 copy ␝name␝", "copy_name"));
+
+        if table.kind_plural() == SECRETS {
+            builder.add_menu_action(ActionItem::menu(2, " YAML ␝decoded␝", "decode_yaml"));
+        }
 
         if is_containers || is_pods {
             builder = builder
-                .with_menu_action(ActionItem::menu(2, " logs", "show_logs"))
-                .with_menu_action(ActionItem::menu(3, " logs ␝previous␝", "show_plogs"))
-                .with_menu_action(ActionItem::menu(6, " attach", "attach"))
-                .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
-                .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+                .with_menu_action(ActionItem::menu(3, " logs", "show_logs"))
+                .with_menu_action(ActionItem::menu(4, " logs ␝previous␝", "show_plogs"));
+
+            if table.is_resource_running() {
+                builder = builder
+                    .with_menu_action(ActionItem::menu(6, " attach", "attach"))
+                    .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+
+                if is_pods {
+                    builder = builder
+                        .with_menu_action(ActionItem::menu(10, " inject container", "inject"))
+                        .with_menu_action(ActionItem::menu(11, " download files", "download"))
+                        .with_menu_action(ActionItem::menu(11, " upload file", "upload"));
+                }
+            }
 
             if is_pods && has_highlighted_item_active_port_forward(table) {
-                builder.add_menu_action(ActionItem::menu(8, " stop ␝port forwards␝", "ask_stop_port_forwards"));
+                builder.add_menu_action(ActionItem::menu(9, " stop ␝port forwards␝", "ask_stop_port_forwards"));
             }
         }
 
-        if table.kind_plural() == SECRETS {
-            builder.add_menu_action(ActionItem::menu(5, " YAML ␝decoded␝", "decode_yaml"));
+        if table.list.table.data.is_editable {
+            builder.add_menu_action(ActionItem::menu(12, " edit", "edit_yaml"));
         }
 
-        if table.list.table.data.is_editable {
-            builder.add_menu_action(ActionItem::menu(10, " edit", "edit_yaml"));
+        if !is_containers && !is_events {
+            if table.list.table.data.is_creatable {
+                builder.add_menu_action(ActionItem::menu(13, "󰐕 create new", "create"));
+            }
+            if is_highlighted {
+                builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
+            }
+        }
+
+        if has_involved_object(table) {
+            builder.add_menu_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
         }
     }
 
@@ -203,7 +214,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers);
-        if is_pods {
+        if is_pods && table.is_resource_running() {
             builder = add_ephemeral_container_actions(builder);
             builder = add_file_transfer_actions(builder);
         }
@@ -255,7 +266,7 @@ fn add_ephemeral_container_actions(builder: ActionsListBuilder) -> ActionsListBu
     builder.with_action(
         ActionItem::action("inject container", "inject")
             .with_description("injects ephemeral container")
-            .with_aliases(["ephemeral"]),
+            .with_aliases(["ephemeral", "debug"]),
         Some(KeyCommand::ContainerInject),
     )
 }

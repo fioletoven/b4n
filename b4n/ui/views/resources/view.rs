@@ -17,7 +17,7 @@ use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::View;
 use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
-use crate::ui::views::resources::{dialogs, menus};
+use crate::ui::views::resources::{dialogs, menus, utils};
 use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
@@ -190,7 +190,9 @@ impl ResourcesView {
 
     /// Shows confirmation dialog for ephemeral container injection.
     pub fn ask_inject_container(&mut self) {
-        if let Some(resource) = self.table.get_resource_ref(true) {
+        if self.table.is_resource_running()
+            && let Some(resource) = self.table.get_resource_ref(false)
+        {
             let tags = self.table.get_resource_tags();
             self.modal = dialogs::new_inject_container_dialog(&self.app_data, &resource, &tags);
             self.modal.show();
@@ -199,7 +201,9 @@ impl ResourcesView {
 
     /// Shows transfer file dialog.
     pub fn ask_transfer_file(&mut self, is_download: bool) {
-        if let Some(resource) = self.table.list.table.get_highlighted_resource() {
+        if self.table.is_resource_running()
+            && let Some(resource) = self.table.list.table.get_highlighted_resource()
+        {
             let tags = resource.data.as_ref().map(|d| d.tags.as_ref()).unwrap_or_default();
             self.modal = dialogs::new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
             self.modal.show();
@@ -452,9 +456,11 @@ impl ResourcesView {
 
     fn show_file_picker(&mut self) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
+        let current_path = self.modal.textbox(0).map(|tb| tb.value()).unwrap_or_default();
+        let current_path = utils::get_path_for_file_picker(current_path, is_download);
+
         self.file_picker.set_dir_picker(is_download);
-        self.file_picker
-            .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
+        self.file_picker.set_current_path(current_path);
         self.file_picker.reset();
         self.file_picker.show();
     }

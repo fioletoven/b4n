@@ -1,4 +1,4 @@
-pub use self::common::{EscPressTracker, ScreenExt, View, get_layout_with_header};
+pub use self::common::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, View, get_layout_with_header};
 pub use self::describe::DescribeView;
 pub use self::forwards::{ForwardsView, PortForwardItem, PortForwardsList};
 pub use self::logs::LogsView;

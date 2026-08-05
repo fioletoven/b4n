@@ -60,7 +60,7 @@ pub struct ControlsGroup {
     buttons: Vec<Button>,
     hovered: usize,
     focused: usize,
-    highlight_position: Option<Position>,
+    hover_position: Option<Position>,
 }
 
 impl ControlsGroup {
@@ -71,13 +71,13 @@ impl ControlsGroup {
             buttons,
             hovered: 0,
             focused: 0,
-            highlight_position: None,
+            hover_position: None,
         }
     }
 
-    /// Highlights item under the specified mouse position on the first controls group draw.
-    pub fn highlighted_position(&mut self, position: Option<Position>) {
-        self.highlight_position = position;
+    /// Hovers item under the specified mouse position on the first controls group draw.
+    pub fn hover_position(&mut self, position: Option<Position>) {
+        self.hover_position = position;
     }
 
     /// Adds a `TextBox` to the end of controls list.
@@ -285,14 +285,14 @@ impl ControlsGroup {
             ])
             .split(area);
 
-        if let Some(position) = self.highlight_position.take()
+        if let Some(position) = self.hover_position.take()
             && area.contains(position)
         {
-            // we need to draw all before focusing element to get controls positions
+            // we need to draw all before hovering element to get controls positions
             self.draw_controls(frame, layout[1]);
             self.draw_buttons(frame, layout[2]);
 
-            self.focus_element_at(position.x, position.y);
+            self.hover_element_at(position.x, position.y);
         }
 
         self.draw_controls(frame, layout[1]);

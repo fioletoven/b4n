@@ -15,11 +15,10 @@ use tui_term::{vt100, widget::PseudoTerminal};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
-use crate::ui::views::common::get_layout_with_header;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::views::shell::kube::bridge::ShellBridge;
 use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt};
-use crate::ui::views::{EscPressTracker, ScreenExt};
+use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, get_layout_with_header};
 use crate::ui::widgets::CommandPalette;
 use crate::ui::{presentation::ContentHeader, views::View};
 
@@ -41,7 +40,7 @@ pub struct ShellView {
     command_palette: CommandPalette,
     selection: ScreenSelection,
     area: Rect,
-    esc_tracker: EscPressTracker,
+    alt_mode: EscapeSequenceTracker,
     clipboard_text: Option<String>,
     is_attach: bool,
     is_app_mode: bool,
@@ -81,7 +80,7 @@ impl ShellView {
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx, is_attach);
+        set_hint(&app_data, &footer_tx, is_attach, false);
 
         Self {
             app_data,
@@ -96,7 +95,7 @@ impl ShellView {
             command_palette: CommandPalette::default(),
             selection,
             area,
-            esc_tracker: EscPressTracker::default(),
+            alt_mode: EscapeSequenceTracker::new(ESCAPE_SEQUENCE_TIMEOUT),
             clipboard_text: None,
             is_attach,
             is_app_mode: false,
@@ -296,7 +295,7 @@ impl ShellView {
         if is_enabled {
             self.footer_tx.show_hint(" Double right-click to open mouse menu");
         } else {
-            set_hint(&self.app_data, &self.footer_tx, self.is_attach);
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
         }
 
         ResponseEvent::Handled
@@ -304,6 +303,35 @@ impl ShellView {
 
     fn hide_cursor(&self) -> bool {
         self.bridge.is_finished() || self.command_palette.is_visible || self.modal.is_visible
+    }
+
+    fn process_shell_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let TuiEvent::Key(key) = event else {
+            return ResponseEvent::Handled;
+        };
+
+        if key.modifiers == KeyModifiers::CONTROL {
+            match key.code {
+                KeyCode::Home => return self.reset_scrollback(true),
+                KeyCode::Up => return self.set_scrollback(1, true),
+                KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
+                KeyCode::Down => return self.set_scrollback(1, false),
+                KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
+                KeyCode::End => return self.reset_scrollback(false),
+                _ => (),
+            }
+        }
+
+        let is_app_mode = self.bridge.is_application_mode().unwrap_or(self.is_app_mode);
+        if let Some(bytes) = encode_key(key.code, key.modifiers, is_app_mode) {
+            self.bridge.send(bytes);
+
+            if self.scrollback_rows > 0 {
+                self.reset_scrollback(false);
+            }
+        }
+
+        ResponseEvent::Handled
     }
 }
 
@@ -328,6 +356,10 @@ impl View for ShellView {
             }
         } else if self.is_mouse_enabled && self.bridge.is_application_mode().is_some_and(|m| !m) {
             return self.enable_mouse(false);
+        }
+
+        if let Some(event) = self.alt_mode.get_recorded_event(false) {
+            self.process_shell_event(&event);
         }
 
         ResponseEvent::Handled
@@ -357,12 +389,24 @@ impl View for ShellView {
             });
         }
 
-        if self.app_data.has_binding(event, KeyCommand::ShellEscape) && self.esc_tracker.is_pressed_times(3) {
-            return if self.is_attach {
-                ResponseEvent::Cancelled
-            } else {
-                self.ask_close_shell_forcibly()
-            };
+        if self.alt_mode.consume_active() {
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
+                return if self.is_attach {
+                    ResponseEvent::Cancelled
+                } else {
+                    self.ask_close_shell_forcibly()
+                };
+            }
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
+            if let Some(prev_event) = self.alt_mode.record_event(event) {
+                return self.process_shell_event(&prev_event);
+            }
+
+            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            return ResponseEvent::Handled;
         }
 
         if !self.is_mouse_enabled
@@ -393,30 +437,11 @@ impl View for ShellView {
             };
         }
 
-        if let TuiEvent::Key(key) = event {
-            if key.modifiers == KeyModifiers::CONTROL {
-                match key.code {
-                    KeyCode::Home => return self.reset_scrollback(true),
-                    KeyCode::Up => return self.set_scrollback(1, true),
-                    KeyCode::PageUp => return self.set_scrollback(self.size.height, true),
-                    KeyCode::Down => return self.set_scrollback(1, false),
-                    KeyCode::PageDown => return self.set_scrollback(self.size.height, false),
-                    KeyCode::End => return self.reset_scrollback(false),
-                    _ => (),
-                }
-            }
-
-            let is_app_mode = self.bridge.is_application_mode().unwrap_or(self.is_app_mode);
-            if let Some(bytes) = encode_key(key.code, key.modifiers, is_app_mode) {
-                self.bridge.send(bytes);
-
-                if self.scrollback_rows > 0 {
-                    self.reset_scrollback(false);
-                }
-            }
+        if let Some(prev_event) = self.alt_mode.get_recorded_event(true) {
+            self.process_shell_event(&prev_event);
         }
 
-        ResponseEvent::Handled
+        self.process_shell_event(event)
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, has_focus: bool) {
@@ -465,8 +490,12 @@ impl Drop for ShellView {
     }
 }
 
-fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool) {
+fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-    let action = if is_attach { "close attach view" } else { "detach shell" };
-    footer_tx.show_hint(format!(" Press ␝{key}␝ rapidly ␝3␝ times to {action}"));
+    if is_alt_mode {
+        let action = if is_attach { "close attach view" } else { "detach shell" };
+        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to {action}"));
+    } else {
+        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+    }
 }

@@ -210,7 +210,7 @@ pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelec
 
 fn get_transfer_dialog_title(is_download: bool) -> String {
     if is_download {
-        "Download file from the specified container:".to_owned()
+        "Download files from the specified container:".to_owned()
     } else {
         "Upload file to the specified container:".to_owned()
     }

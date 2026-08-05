@@ -11,6 +11,7 @@
 
 - fix modal dialog for ephemeral container injection
 - fix input validators behaviour
+- do not propagate keys to the shell or attach views that are consumed to enable shell escape mode
 
 ### Compatibility
 

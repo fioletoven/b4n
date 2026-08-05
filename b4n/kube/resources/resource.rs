@@ -223,6 +223,13 @@ impl ResourceItem {
             .unwrap_or_default()
     }
 
+    /// Returns `true` if resource is ready and not completed or terminating.
+    pub fn is_running(&self) -> bool {
+        self.data
+            .as_ref()
+            .is_some_and(|d| d.is_ready && !d.is_completed && !d.is_terminating)
+    }
+
     fn get_extra_values(&self) -> Option<&[Cell]> {
         self.data.as_ref().map(|data| &*data.extra_values)
     }
