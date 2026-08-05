@@ -120,6 +120,8 @@ impl ShellView {
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
+            .with_menu_action(ActionItem::menu(5, " download files", "download"))
+            .with_menu_action(ActionItem::menu(5, " upload file", "upload"))
             .with_menu_action(ActionItem::menu(100, detach, "detach"));
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
@@ -164,6 +166,14 @@ impl ShellView {
                 "app_mode" => self.toggle_app_mode(),
                 "mouse_on" => self.enable_mouse(true),
                 "mouse_off" => self.enable_mouse(false),
+                "download" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_transfer_file(true)
+                },
+                "upload" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_transfer_file(false)
+                },
                 "detach" => {
                     if self.is_attach {
                         ResponseEvent::Cancelled
@@ -269,12 +279,14 @@ impl ShellView {
     }
 
     /// Shows transfer file dialog.
-    fn ask_transfer_file(&mut self, is_download: bool) {
+    fn ask_transfer_file(&mut self, is_download: bool) -> ResponseEvent {
         if let Some(container) = &self.pod.container {
             let tags = [ResourceTag::Container(container.to_owned(), self.pod.kind, None)];
             self.modal = transfer::new_transfer_dialog(is_download, &self.app_data, &tags, self.last_mouse_click.take());
             self.modal.show();
         }
+
+        ResponseEvent::Handled
     }
 
     fn show_file_picker(&mut self) {
@@ -466,13 +478,11 @@ impl View for ShellView {
             }
 
             if self.app_data.has_binding(event, KeyCommand::TransferTo) {
-                self.ask_transfer_file(false);
-                return ResponseEvent::Handled;
+                return self.ask_transfer_file(false);
             }
 
             if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
-                self.ask_transfer_file(true);
-                return ResponseEvent::Handled;
+                return self.ask_transfer_file(true);
             }
         }
 
