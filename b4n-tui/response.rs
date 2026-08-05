@@ -1,7 +1,7 @@
 use b4n_config::PluginRef;
 use b4n_kube::files::TransferContext;
 use b4n_kube::plugins::PluginContext;
-use b4n_kube::{PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
+use b4n_kube::{ContainerRef, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
 
 use crate::TuiEvent;
 
@@ -113,7 +113,7 @@ pub enum ResponseEvent {
 
     PluginAction(PluginRef),
     RunPlugin(String, PluginContext),
-    TransferFile(ResourceRef, TransferContext),
+    TransferFile(ContainerRef, TransferContext),
 }
 
 impl ResponseEvent {

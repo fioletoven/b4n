@@ -13,4 +13,5 @@ mod forwards;
 mod logs;
 mod resources;
 mod shell;
+mod transfer;
 mod yaml;

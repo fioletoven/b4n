@@ -1,5 +1,5 @@
 use b4n_common::{IconKind, NotificationSink};
-use b4n_kube::{ResourceRef, files::TransferContext};
+use b4n_kube::{ContainerRef, files::TransferContext};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client, api::AttachParams};
 use std::path::{Path, PathBuf};
@@ -58,7 +58,7 @@ pub struct TransferFileResult {
 /// File transfer command that sends/downloads file from/to a pod's container.
 pub struct TransferFileCommand {
     runtime: Handle,
-    resource: ResourceRef,
+    resource: ContainerRef,
     context: TransferContext,
     client: Client,
     footer: NotificationSink,
@@ -68,7 +68,7 @@ impl TransferFileCommand {
     /// Creates new file transfer command.
     pub fn new(
         runtime: Handle,
-        resource: ResourceRef,
+        resource: ContainerRef,
         context: TransferContext,
         client: Client,
         footer: NotificationSink,
@@ -101,7 +101,7 @@ impl TransferFileCommand {
 async fn download_file(
     runtime: Handle,
     pods: Api<Pod>,
-    resource: ResourceRef,
+    resource: ContainerRef,
     context: TransferContext,
     sink: NotificationSink,
     text_id: &str,
@@ -116,7 +116,7 @@ async fn download_file(
 
     let attach_params = build_attach_params(&context.container).stderr(true);
     let mut attached = pods
-        .exec(pod_name(&resource), ["tar", "cf", "-", "-C", dir, file], &attach_params)
+        .exec(&resource.name, ["tar", "cf", "-", "-C", dir, file], &attach_params)
         .await?;
 
     let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
@@ -156,7 +156,7 @@ async fn download_file(
 
     Ok(TransferFileResult {
         is_download: true,
-        pod: resource.name.unwrap_or_default(),
+        pod: resource.name,
         container: context.container,
         file: file.to_owned(),
     })
@@ -165,7 +165,7 @@ async fn download_file(
 async fn upload_file(
     runtime: Handle,
     pods: Api<Pod>,
-    resource: ResourceRef,
+    resource: ContainerRef,
     context: TransferContext,
     sink: NotificationSink,
     text_id: &str,
@@ -190,7 +190,7 @@ async fn upload_file(
 
     let attach_params = build_attach_params(&context.container).stdin(true).stderr(true);
     let mut attached = pods
-        .exec(pod_name(&resource), ["tar", "xf", "-", "-C", &remote_to], &attach_params)
+        .exec(&resource.name, ["tar", "xf", "-", "-C", &remote_to], &attach_params)
         .await?;
 
     let mut stdin = attached.stdin().ok_or(TransferFileError::MissingStdin)?;
@@ -219,7 +219,7 @@ async fn upload_file(
 
     Ok(TransferFileResult {
         is_download: false,
-        pod: resource.name.unwrap_or_default(),
+        pod: resource.name,
         container: context.container,
         file: file_name,
     })
@@ -239,7 +239,7 @@ fn build_tar_blocking(path: String, name: String) -> Result<Vec<u8>, TransferFil
 
 async fn resolve_remote_tilde(
     pods: &Api<Pod>,
-    resource: &ResourceRef,
+    resource: &ContainerRef,
     container: &str,
     path: String,
 ) -> Result<String, TransferFileError> {
@@ -257,7 +257,7 @@ async fn resolve_remote_tilde(
 
 async fn remote_path_exists(
     pods: &Api<Pod>,
-    resource: &ResourceRef,
+    resource: &ContainerRef,
     container: &str,
     path: &str,
 ) -> Result<bool, TransferFileError> {
@@ -269,12 +269,12 @@ async fn remote_path_exists(
 
 async fn exec_capture_stdout(
     pods: &Api<Pod>,
-    resource: &ResourceRef,
+    resource: &ContainerRef,
     container: &str,
     command: &str,
 ) -> Result<String, TransferFileError> {
     let attach_params = build_attach_params(container);
-    let mut attached = pods.exec(pod_name(resource), ["sh", "-c", command], &attach_params).await?;
+    let mut attached = pods.exec(&resource.name, ["sh", "-c", command], &attach_params).await?;
 
     let mut stdout = attached.stdout().ok_or(TransferFileError::MissingStdout)?;
 
@@ -346,10 +346,6 @@ fn build_attach_params(container: &str) -> AttachParams {
         tty: false,
         ..Default::default()
     }
-}
-
-fn pod_name(resource: &ResourceRef) -> &str {
-    resource.name.as_deref().unwrap_or_default()
 }
 
 fn get_file_name(path: &str) -> String {
