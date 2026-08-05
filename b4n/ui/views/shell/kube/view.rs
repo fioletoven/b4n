@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ContainerRef, PODS, ResourceTag};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, TextBox};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
@@ -80,7 +80,7 @@ impl ShellView {
         bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
         let parser = bridge.get_parser();
         let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
-        let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
+        let file_picker = FileSelector::new(Rc::clone(&app_data), worker, 65, PathBuf::from("."));
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -291,7 +291,7 @@ impl ShellView {
 
     fn show_file_picker(&mut self) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
-        let current_path = self.modal.textbox(0).map(|tb| tb.value()).unwrap_or_default();
+        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
         let current_path = common::get_path_for_file_picker(current_path, is_download);
 
         self.file_picker.set_dir_picker(is_download);

@@ -125,7 +125,7 @@ async fn download_file(
     let stderr_task = runtime.spawn(read_to_string(stderr));
 
     let mut tar_data = Vec::new();
-    let mut buf = [0u8; CHUNK_SIZE];
+    let mut buf = vec![0u8; CHUNK_SIZE];
     let mut transferred = 0;
     loop {
         let n = stdout.read(&mut buf).await?;
@@ -362,7 +362,7 @@ fn format_size(icon: char, bytes: usize) -> String {
     const GB: usize = 1_024 * MB;
 
     match bytes {
-        b if b < KB => format!("{}B{}", b, icon),
+        b if b < KB => format!("{b}B{icon}"),
         b if b < MB => format!("{:.1}KB{}", b as f64 / KB as f64, icon),
         b if b < GB => format!("{:.1}MB{}", b as f64 / MB as f64, icon),
         b => format!("{:.1}GB{}", b as f64 / GB as f64, icon),

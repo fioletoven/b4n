@@ -4,7 +4,7 @@ use b4n_kube::plugins::PluginContext;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
-use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
+use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog, TextBox};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -456,7 +456,7 @@ impl ResourcesView {
 
     fn show_file_picker(&mut self) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
-        let current_path = self.modal.textbox(0).map(|tb| tb.value()).unwrap_or_default();
+        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
         let current_path = common::get_path_for_file_picker(current_path, is_download);
 
         self.file_picker.set_dir_picker(is_download);
