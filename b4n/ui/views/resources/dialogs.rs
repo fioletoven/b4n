@@ -70,6 +70,7 @@ pub fn new_inject_container_dialog(app_data: &SharedAppData, resource: &Resource
     let except_names = common::get_all_containers_from_resource_tags(tags);
     let mut target_names = common::get_target_containers_from_resource_tags(tags);
     target_names.insert(0, "--none--".to_string());
+    let idx_to_select = if target_names.len() > 1 { 1 } else { 0 };
 
     Dialog::new(
         format!(
@@ -98,7 +99,9 @@ pub fn new_inject_container_dialog(app_data: &SharedAppData, resource: &Resource
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::ShellCommand),
     ])
-    .with_selectors(vec![Selector::new(0, "Target: ", &target_names, &colors.selector)])
+    .with_selectors(vec![
+        Selector::new(0, "Target: ", &target_names, &colors.selector).with_selected(idx_to_select),
+    ])
 }
 
 /// Returns new [`ResponseEvent::InjectContainer`] response built from the properties set in the modal dialog.

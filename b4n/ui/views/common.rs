@@ -114,14 +114,30 @@ pub fn get_all_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String
         .collect()
 }
 
-/// Gets names for all non-ephemeral containers in the list of resource tags.
+/// Gets names for all non-ephemeral containers in the list of resource tags.\
+/// **Note** that it sorts results by container type and then by name.
 pub fn get_target_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<String> {
-    tags.iter()
+    let mut containers: Vec<(ContainerType, String)> = tags
+        .iter()
         .filter_map(|t| match t {
-            ResourceTag::Container(name, kind, _) if *kind != ContainerType::Ephemeral => Some(name.to_ascii_lowercase()),
+            ResourceTag::Container(name, kind, _) if *kind != ContainerType::Ephemeral => {
+                Some((*kind, name.to_ascii_lowercase()))
+            },
             _ => None,
         })
-        .collect()
+        .collect();
+
+    containers.sort_by(|(kind_a, name_a), (kind_b, name_b)| {
+        let kind_order = |k: &ContainerType| match k {
+            ContainerType::Regular => 0,
+            ContainerType::Init => 1,
+            ContainerType::Ephemeral => 2,
+        };
+
+        kind_order(kind_a).cmp(&kind_order(kind_b)).then(name_a.cmp(name_b))
+    });
+
+    containers.into_iter().map(|(_, name)| name).collect()
 }
 
 /// Tries to guess selected path for the file picker basing on the `is_download` flag.

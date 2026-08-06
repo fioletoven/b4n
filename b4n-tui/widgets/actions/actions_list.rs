@@ -25,6 +25,11 @@ impl ActionsList {
             .max()
             .unwrap_or_default()
     }
+
+    /// Highlights element on list by index.
+    pub fn highlight_item_by_index(&mut self, index: usize) -> bool {
+        self.list.highlight_item_by_index(index)
+    }
 }
 
 impl Responsive for ActionsList {
