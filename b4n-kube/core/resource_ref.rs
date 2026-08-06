@@ -5,7 +5,7 @@ use std::fmt::Display;
 use super::{Kind, Namespace, PODS};
 
 /// Reference to the pods container in a k8s cluster.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContainerRef {
     pub name: String,
     pub namespace: Namespace,

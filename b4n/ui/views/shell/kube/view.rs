@@ -1,25 +1,25 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::client::KubernetesClient;
-use b4n_kube::{ContainerRef, PODS};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
+use b4n_kube::{ContainerRef, PODS, ResourceTag};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, TextBox};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
+use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use tokio::runtime::Handle;
 use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
-use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::views::shell::kube::bridge::ShellBridge;
 use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt};
-use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, get_layout_with_header};
-use crate::ui::widgets::CommandPalette;
+use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, common, get_layout_with_header, transfer};
+use crate::ui::widgets::{CommandPalette, FileSelector};
 use crate::ui::{presentation::ContentHeader, views::View};
 
 const DEFAULT_SHELL: &str = "bash";
@@ -36,8 +36,10 @@ pub struct ShellView {
     client: Client,
     pod: ContainerRef,
     scrollback_rows: usize,
+    last_mouse_click: Option<Position>,
     modal: Dialog,
     command_palette: CommandPalette,
+    file_picker: FileSelector,
     selection: ScreenSelection,
     area: Rect,
     alt_mode: EscapeSequenceTracker,
@@ -53,14 +55,15 @@ pub struct ShellView {
 impl ShellView {
     /// Creates new [`ShellView`] instance.
     pub fn new(
-        runtime: Handle,
         app_data: SharedAppData,
-        client: &KubernetesClient,
+        worker: SharedBgWorker,
+        client: Client,
         pod: ContainerRef,
         is_attach: bool,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
+        let runtime = worker.borrow().runtime_handle().clone();
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(if is_attach { " attach" } else { " shell" });
         header.set_data(
@@ -74,9 +77,10 @@ impl ShellView {
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let scrollback = app_data.borrow().config.terminal.scrollback_lines.unwrap_or(SCROLLBACK_LEN);
         let mut bridge = ShellBridge::new(runtime, area, scrollback, is_attach);
-        bridge.start(client.get_client(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
         let parser = bridge.get_parser();
         let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
+        let file_picker = FileSelector::new(Rc::clone(&app_data), worker, 65, PathBuf::from("."));
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -88,11 +92,13 @@ impl ShellView {
             bridge,
             parser,
             size: area.to_terminal_size(),
-            client: client.get_client(),
+            client,
             pod,
             scrollback_rows: 0,
+            last_mouse_click: None,
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
+            file_picker,
             selection,
             area,
             alt_mode: EscapeSequenceTracker::new(ESCAPE_SEQUENCE_TIMEOUT),
@@ -114,6 +120,8 @@ impl ShellView {
         let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
+            .with_menu_action(ActionItem::menu(5, " download files", "download"))
+            .with_menu_action(ActionItem::menu(5, " upload file", "upload"))
             .with_menu_action(ActionItem::menu(100, detach, "detach"));
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
@@ -150,15 +158,27 @@ impl ShellView {
         let response = self.command_palette.process_event(event);
         if let ResponseEvent::Action(action) = response {
             return match action {
-                "paste" => self.insert_from_clipboard(),
+                "paste" => {
+                    self.last_mouse_click = event.position();
+                    self.insert_from_clipboard()
+                },
                 "copy" => self.copy_to_clipboard(),
                 "app_mode" => self.toggle_app_mode(),
                 "mouse_on" => self.enable_mouse(true),
                 "mouse_off" => self.enable_mouse(false),
+                "download" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_transfer_file(true)
+                },
+                "upload" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_transfer_file(false)
+                },
                 "detach" => {
                     if self.is_attach {
                         ResponseEvent::Cancelled
                     } else {
+                        self.last_mouse_click = event.position();
                         self.ask_close_shell_forcibly()
                     }
                 },
@@ -228,6 +248,7 @@ impl ShellView {
         )
         .with_width(65)
         .with_colors(colors.modal.text)
+        .with_highlighted_position(self.last_mouse_click.take())
     }
 
     /// Displays a confirmation dialog to forcibly close the shell view.
@@ -254,6 +275,29 @@ impl ShellView {
         )
         .with_width(65)
         .with_colors(colors.modal.text)
+        .with_highlighted_position(self.last_mouse_click.take())
+    }
+
+    /// Shows transfer file dialog.
+    fn ask_transfer_file(&mut self, is_download: bool) -> ResponseEvent {
+        if let Some(container) = &self.pod.container {
+            let tags = [ResourceTag::Container(container.to_owned(), self.pod.kind, None)];
+            self.modal = transfer::new_transfer_dialog(is_download, &self.app_data, &tags, self.last_mouse_click.take());
+            self.modal.show();
+        }
+
+        ResponseEvent::Handled
+    }
+
+    fn show_file_picker(&mut self) {
+        let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
+        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
+        let current_path = common::get_path_for_file_picker(current_path, is_download);
+
+        self.file_picker.set_dir_picker(is_download);
+        self.file_picker.set_current_path(current_path);
+        self.file_picker.reset();
+        self.file_picker.show();
     }
 
     fn set_scrollback(&mut self, offset: u16, is_up: bool) -> ResponseEvent {
@@ -303,6 +347,55 @@ impl ShellView {
 
     fn hide_cursor(&self) -> bool {
         self.bridge.is_finished() || self.command_palette.is_visible || self.modal.is_visible
+    }
+
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.file_picker.is_visible {
+            if self.modal.is_visible && self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                transfer::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if result != ResponseEvent::NotHandled
+                || (event.is_mouse(MouseEventKind::LeftClick) && self.selection.sorted().is_some())
+            {
+                return Some(result);
+            }
+        }
+
+        if self.modal.is_visible {
+            let response = self.modal.process_event(event);
+            return Some(match response {
+                ResponseEvent::Action(action) => match action {
+                    "paste" => {
+                        if let Some(text) = self.clipboard_text.take() {
+                            self.selection.reset();
+                            self.bridge.send(text.into_bytes());
+                        }
+                        ResponseEvent::Handled
+                    },
+                    "select_file" => {
+                        self.show_file_picker();
+                        ResponseEvent::Handled
+                    },
+                    "transfer_file" => {
+                        if let Some(context) = transfer::get_transfer_dialog_context(&self.modal) {
+                            ResponseEvent::TransferFile(self.pod.clone(), context)
+                        } else {
+                            ResponseEvent::Handled
+                        }
+                    },
+                    _ => ResponseEvent::Handled,
+                },
+                _ => ResponseEvent::Handled,
+            });
+        }
+
+        None
     }
 
     fn process_shell_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -370,23 +463,8 @@ impl View for ShellView {
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if result != ResponseEvent::NotHandled
-                || (event.is_mouse(MouseEventKind::LeftClick) && self.selection.sorted().is_some())
-            {
-                return result;
-            }
-        }
-
-        if self.modal.is_visible {
-            return self.modal.process_event(event).when_action_then("paste", || {
-                if let Some(text) = self.clipboard_text.take() {
-                    self.selection.reset();
-                    self.bridge.send(text.into_bytes());
-                }
-                ResponseEvent::Handled
-            });
+        if let Some(value) = self.process_widget_event(event) {
+            return value;
         }
 
         if self.alt_mode.consume_active() {
@@ -397,6 +475,14 @@ impl View for ShellView {
                 } else {
                     self.ask_close_shell_forcibly()
                 };
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::TransferTo) {
+                return self.ask_transfer_file(false);
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
+                return self.ask_transfer_file(true);
             }
         }
 
@@ -478,6 +564,7 @@ impl View for ShellView {
 
         self.command_palette.draw(frame, frame.area());
         self.modal.draw(frame, frame.area());
+        self.file_picker.draw(frame, frame.area());
     }
 }
 
@@ -494,7 +581,11 @@ fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: b
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
     if is_alt_mode {
         let action = if is_attach { "close attach view" } else { "detach shell" };
-        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to {action}"));
+        let transfer_to = app_data.get_key_name(KeyCommand::TransferTo).to_ascii_uppercase();
+        let transfer_from = app_data.get_key_name(KeyCommand::TransferFrom).to_ascii_uppercase();
+        footer_tx.show_hint(format!(
+            " Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
+        ));
     } else {
         footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
     }

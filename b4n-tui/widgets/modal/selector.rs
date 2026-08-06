@@ -67,6 +67,13 @@ impl Selector {
         }
     }
 
+    /// Sets selected option by index.
+    pub fn with_selected(mut self, idx: usize) -> Self {
+        self.options.items.highlight_item_by_index(idx);
+        self.selected = self.options.items.get_highlighted_item_name().unwrap_or_default().to_owned();
+        self
+    }
+
     /// Returns selected option.
     pub fn selected(&self) -> &str {
         &self.selected

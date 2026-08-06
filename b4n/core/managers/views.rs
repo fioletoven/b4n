@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
+use b4n_kube::client::KubernetesClient;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
     ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
@@ -554,11 +555,11 @@ impl ViewsManager {
 
     /// Opens shell / attach to the main process of the specified container.
     pub fn open_shell(&mut self, resource: ResourceRef, is_attach: bool) {
-        if let Some(client) = self.worker.borrow().kubernetes_client() {
+        if let Some(client) = self.worker.borrow().kubernetes_client().map(KubernetesClient::get_client) {
             self.footer().hide_hint();
             let view = ShellView::new(
-                self.worker.borrow().runtime_handle().clone(),
                 Rc::clone(&self.app_data),
+                Rc::clone(&self.worker),
                 client,
                 resource.into(),
                 is_attach,

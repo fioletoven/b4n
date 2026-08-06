@@ -1,17 +1,18 @@
 # Change Log
 
-## WIP
+## 0.5.5 - 2026-08-06
 
 ### Features
 
 - add validation to the TextBox UI control
-- show downloaded / uploaded bytes for the file transfers
+- show downloaded / uploaded bytes for file transfers
+- allow opening the transfer file dialog in shell and attach views
 
 ### Bug fixes
 
 - fix modal dialog for ephemeral container injection
-- fix input validators behaviour
-- do not propagate keys to the shell or attach views that are consumed to enable shell escape mode
+- fix input validator behaviour
+- do not propagate key events to shell or attach views that are consumed to enable shell escape mode
 
 ### Compatibility
 

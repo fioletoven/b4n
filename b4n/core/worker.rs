@@ -544,10 +544,10 @@ impl BgWorker {
     }
 
     /// Transfers file from/to a pod's container in the background task.
-    pub fn transfer_file(&mut self, resource: ResourceRef, context: TransferContext) {
+    pub fn transfer_file(&mut self, container: ContainerRef, context: TransferContext) {
         if let Some(client) = &self.client {
             let runtime = self.runtime.clone();
-            let command = TransferFileCommand::new(runtime, resource, context, client.get_client(), self.footer_tx.clone());
+            let command = TransferFileCommand::new(runtime, container, context, client.get_client(), self.footer_tx.clone());
             self.executor.run_task(Command::TransferFile(Box::new(command)));
         }
     }

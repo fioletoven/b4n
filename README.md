@@ -47,8 +47,8 @@ The resulting binary will be available at `./target/release/b4n`.
 - Open a shell session or attach to the highlighted container's main process.
 - Enable port forwarding for the highlighted container.
 - Inject an ephemeral container into the highlighted pod.
-- Run external binaries configured in a simple plugin system.
 - Transfer files to and from containers (requires `tar` executable on the container).
+- Run external binaries configured in a simple plugin system.
 - Support mouse interactions in all views.
 
 ## Default Key Bindings

@@ -4,7 +4,7 @@ use b4n_kube::plugins::PluginContext;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
-use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
+use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog, TextBox};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -15,9 +15,9 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
-use crate::ui::views::View;
-use crate::ui::views::resources::{NextRefreshActions, table::ResourcesTable};
-use crate::ui::views::resources::{dialogs, menus, utils};
+use crate::ui::views::resources::table::ResourcesTable;
+use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
+use crate::ui::views::{View, common, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
@@ -205,7 +205,7 @@ impl ResourcesView {
             && let Some(resource) = self.table.list.table.get_highlighted_resource()
         {
             let tags = resource.data.as_ref().map(|d| d.tags.as_ref()).unwrap_or_default();
-            self.modal = dialogs::new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
+            self.modal = transfer::new_transfer_dialog(is_download, &self.app_data, tags, self.last_mouse_click.take());
             self.modal.show();
         }
     }
@@ -248,7 +248,7 @@ impl ResourcesView {
     fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
         if self.file_picker.is_visible {
             if self.modal.is_visible && self.file_picker.process_event(event) == ResponseEvent::Accepted {
-                dialogs::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
+                transfer::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
             }
 
             return Some(ResponseEvent::Handled);
@@ -283,9 +283,9 @@ impl ResourcesView {
                     },
                     "transfer_file" => {
                         if let Some(resource) = self.table.get_resource_ref(false)
-                            && let Some(context) = dialogs::get_transfer_dialog_context(&self.modal)
+                            && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
                         {
-                            Some(ResponseEvent::TransferFile(resource, context))
+                            Some(ResponseEvent::TransferFile(resource.into(), context))
                         } else {
                             Some(ResponseEvent::Handled)
                         }
@@ -456,8 +456,8 @@ impl ResourcesView {
 
     fn show_file_picker(&mut self) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
-        let current_path = self.modal.textbox(0).map(|tb| tb.value()).unwrap_or_default();
-        let current_path = utils::get_path_for_file_picker(current_path, is_download);
+        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
+        let current_path = common::get_path_for_file_picker(current_path, is_download);
 
         self.file_picker.set_dir_picker(is_download);
         self.file_picker.set_current_path(current_path);
