@@ -1,3 +1,4 @@
+use b4n_config::keys::KeyCommand;
 use b4n_config::{keys::KeyCombination, themes::TextColors};
 use b4n_tui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -6,6 +7,7 @@ use ratatui::style::Color;
 use ratatui::widgets::Widget;
 use std::time::Instant;
 
+use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::Selection;
 use crate::ui::presentation::content::{Content, search::ContentPosition};
 
@@ -14,19 +16,21 @@ pub struct EditContext {
     pub is_enabled: bool,
     pub is_modified: bool,
     pub cursor: ContentPosition,
-    color: TextColors,
+    cursor_color: TextColors,
+    app_data: SharedAppData,
     last_set_x: usize,
     last_key_press: Instant,
 }
 
 impl EditContext {
     /// Creates new [`EditContext`] instance.
-    pub fn new(color: TextColors) -> Self {
+    pub fn new(app_data: SharedAppData, cursor_color: TextColors) -> Self {
         Self {
             is_enabled: false,
             is_modified: false,
             cursor: ContentPosition::default(),
-            color,
+            cursor_color,
+            app_data,
             last_set_x: 0,
             last_key_press: Instant::now(),
         }
@@ -67,7 +71,7 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> ResponseEvent {
-        if event.is_key(&KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL)) {
+        if self.app_data.has_binding(event, KeyCommand::EditSelectAll) {
             let last = content.len().saturating_sub(1);
             self.cursor = ContentPosition::new(content.line_size(last), last);
             self.last_key_press = Instant::now();
@@ -76,9 +80,9 @@ impl EditContext {
 
         match event {
             TuiEvent::Key(key) => {
-                let pos = if key == &KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL) {
+                let pos = if self.app_data.has_key_binding(key, KeyCommand::EditUndo) {
                     content.undo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
-                } else if key == &KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL) {
+                } else if self.app_data.has_key_binding(key, KeyCommand::EditRedo) {
                     content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
                 } else {
                     self.process_key(key, content, selection, area)
@@ -121,22 +125,22 @@ impl EditContext {
             }
         }
 
-        let is_ctrl_x = key == &KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
-        if (is_hiding_selection_key(key) || is_ctrl_x)
+        let is_cut = self.app_data.has_key_binding(key, KeyCommand::EditCut);
+        if (is_hiding_selection_key(key) || is_cut)
             && let Some(selection) = selection
         {
             let start = selection.sorted().0;
             content.remove_text(selection);
 
-            if key.code == KeyCode::Backspace || key.code == KeyCode::Delete || is_ctrl_x {
+            if key.code == KeyCode::Backspace || key.code == KeyCode::Delete || is_cut {
                 return (Some(Some(start.x)), Some(start.y));
             }
 
             self.cursor = start;
         }
 
-        let is_ctrl_d = key == &KeyCombination::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
-        if is_ctrl_x || is_ctrl_d {
+        let is_del_line = self.app_data.has_key_binding(key, KeyCommand::EditDeleteLine);
+        if is_cut || is_del_line {
             let range = Selection::from_line_end(content.line_size(self.cursor.y), self.cursor.y);
             content.remove_text(range);
             return (None, None);
@@ -321,9 +325,9 @@ impl Widget for ContentEditWidget<'_> {
             if area.contains(cursor)
                 && let Some(cell) = buf.cell_mut(cursor)
             {
-                cell.bg = self.context.color.bg;
-                if self.context.color.fg != Color::Reset {
-                    cell.fg = self.context.color.fg;
+                cell.bg = self.context.cursor_color.bg;
+                if self.context.cursor_color.fg != Color::Reset {
+                    cell.fg = self.context.cursor_color.fg;
                 }
             }
         }

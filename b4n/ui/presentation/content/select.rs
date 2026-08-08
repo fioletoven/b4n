@@ -1,8 +1,9 @@
-use b4n_config::keys::KeyCombination;
+use b4n_config::keys::{KeyCombination, KeyCommand};
 use b4n_tui::{MouseEvent, MouseEventKind, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{layout::Rect, style::Color, widgets::Widget};
 
+use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::{Content, content::search::ContentPosition};
 
 /// Represents a text selection defined by a `start` and `end` position in the content.
@@ -38,15 +39,26 @@ impl Selection {
 }
 
 /// Context for the selected text.
-#[derive(Default)]
 pub struct SelectContext {
     pub start: Option<ContentPosition>,
     pub end: Option<ContentPosition>,
+    app_data: SharedAppData,
     init: Option<ContentPosition>,
     had_double_click: bool,
 }
 
 impl SelectContext {
+    /// Creates new [`SelectContext`] instance.
+    pub fn new(app_data: SharedAppData) -> Self {
+        Self {
+            start: None,
+            end: None,
+            app_data,
+            init: None,
+            had_double_click: false,
+        }
+    }
+
     /// Clears the current selection.
     pub fn clear_selection(&mut self) {
         self.start = None;
@@ -112,13 +124,13 @@ impl SelectContext {
                 self.start = Some(decrement_cursor_x(init, content));
                 self.end = Some(cursor);
             }
-        } else if key != &KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL) {
+        } else if !self.app_data.has_key_binding(key, KeyCommand::EditSelectAll) {
             self.clear_selection();
         }
     }
 
     fn process_key_event<T: Content>(&mut self, key: &KeyCombination, content: &T, cursor: Option<ContentPosition>) {
-        if key == &KeyCombination::new(KeyCode::Char('a'), KeyModifiers::CONTROL) {
+        if self.app_data.has_key_binding(key, KeyCommand::EditSelectAll) {
             let last = content.len().saturating_sub(1);
             self.init = Some(ContentPosition::new(0, 0));
             self.start = Some(ContentPosition::new(0, 0));

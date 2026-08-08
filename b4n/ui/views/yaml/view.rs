@@ -1,5 +1,5 @@
 use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, sanitize_and_split};
-use b4n_config::keys::{KeyCombination, KeyCommand};
+use b4n_config::keys::KeyCommand;
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
 use b4n_tasks::commands::{
@@ -7,7 +7,6 @@ use b4n_tasks::commands::{
 };
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, CheckBox, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
-use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::path::{Path, PathBuf};
@@ -302,16 +301,16 @@ impl YamlView {
         }
 
         if self.yaml.is_in_edit_mode() {
-            if event.is_key(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL)) {
+            if self.app_data.has_binding(event, KeyCommand::EditPaste) {
                 self.insert_from_clipboard();
                 self.yaml.scroll_to_cursor();
                 return ResponseEvent::Handled;
             }
 
-            let is_ctrl_c = event.is_key(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-            if is_ctrl_c || event.is_key(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL)) {
+            let is_copy = self.app_data.has_binding(event, KeyCommand::EditCopy);
+            if is_copy || self.app_data.has_binding(event, KeyCommand::EditCut) {
                 self.copy_to_clipboard(true);
-                if is_ctrl_c {
+                if is_copy {
                     return ResponseEvent::Handled;
                 }
             }
@@ -393,15 +392,15 @@ impl YamlView {
             self.show_file_picker();
             return ResponseEvent::Handled;
         } else if response.is_action("copy_2") {
-            return self.process_event(&KeyCombination::new(KeyCode::Char('c'), KeyModifiers::CONTROL).into());
+            return self.process_event(&TuiEvent::Command(KeyCommand::EditCopy));
         } else if response.is_action("paste") {
-            return self.process_event(&KeyCombination::new(KeyCode::Char('v'), KeyModifiers::CONTROL).into());
+            return self.process_event(&TuiEvent::Command(KeyCommand::EditPaste));
         } else if response.is_action("cut") {
-            return self.process_event(&KeyCombination::new(KeyCode::Char('x'), KeyModifiers::CONTROL).into());
+            return self.process_event(&TuiEvent::Command(KeyCommand::EditCut));
         } else if response.is_action("undo") {
-            return self.process_event(&KeyCombination::new(KeyCode::Char('z'), KeyModifiers::CONTROL).into());
+            return self.process_event(&TuiEvent::Command(KeyCommand::EditUndo));
         } else if response.is_action("redo") {
-            return self.process_event(&KeyCombination::new(KeyCode::Char('y'), KeyModifiers::CONTROL).into());
+            return self.process_event(&TuiEvent::Command(KeyCommand::EditRedo));
         } else if response.is_action("decode") {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;

@@ -1,4 +1,4 @@
-use b4n_config::keys::KeyCombination;
+use b4n_config::keys::KeyCommand;
 use b4n_kube::{Kind, Namespace};
 use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, widgets::Spinner};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -41,15 +41,16 @@ impl<T: Content> ContentViewer<T> {
     /// Creates a new content viewer.
     pub fn new(app_data: SharedAppData, select_color: Color, search_color: Color, area: Rect) -> Self {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
-        let cursor_color = app_data.borrow().theme.colors.cursor;
+        let edit = EditContext::new(Rc::clone(&app_data), app_data.borrow().theme.colors.cursor);
+        let select = SelectContext::new(Rc::clone(&app_data));
 
         Self {
             header,
             app_data,
             content: None,
             hash: None,
-            edit: EditContext::new(cursor_color),
-            select: SelectContext::default(),
+            edit,
+            select,
             select_color,
             search: SearchData::default(),
             search_color,
@@ -163,7 +164,7 @@ impl<T: Content> ContentViewer<T> {
             }
 
             self.scroll_to_cursor();
-            self.disable_keys(true);
+            self.disable_commands(true);
             true
         } else {
             false
@@ -181,7 +182,7 @@ impl<T: Content> ContentViewer<T> {
                 self.header.set_edit(' ', "");
             }
 
-            self.disable_keys(false);
+            self.disable_commands(false);
             true
         } else {
             false
@@ -566,16 +567,14 @@ impl<T: Content> ContentViewer<T> {
         }
     }
 
-    fn disable_keys(&self, is_disabled: bool) {
-        for ch in ['x', 'c', 'v', 'd', 'a', 'y', 'z'] {
-            self.app_data
-                .disable_key(KeyCombination::new(KeyCode::Char(ch), KeyModifiers::CONTROL), is_disabled);
-        }
+    fn disable_commands(&self, is_disabled: bool) {
+        self.app_data.disable_command(KeyCommand::ApplicationExit, is_disabled);
+        self.app_data.disable_command(KeyCommand::MouseSupportToggle, is_disabled);
     }
 }
 
 impl<T: Content> Drop for ContentViewer<T> {
     fn drop(&mut self) {
-        self.disable_keys(false);
+        self.disable_commands(false);
     }
 }
