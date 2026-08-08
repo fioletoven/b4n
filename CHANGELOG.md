@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+## Features
+
+- separate option for plugins to color `kubectl describe` output
+
 ## 0.5.5 - 2026-08-06
 
 ### Features

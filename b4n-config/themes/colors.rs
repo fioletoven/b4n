@@ -44,6 +44,18 @@ impl From<&TextColors> for Style {
     }
 }
 
+impl PartialEq<TextColors> for Style {
+    fn eq(&self, other: &TextColors) -> bool {
+        self.fg == Some(other.fg) && self.bg == Some(other.bg)
+    }
+}
+
+impl PartialEq<Style> for TextColors {
+    fn eq(&self, other: &Style) -> bool {
+        other == self
+    }
+}
+
 impl Serialize for TextColors {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let text_colors = if self.bg == Color::Reset && self.dim == Color::Reset {

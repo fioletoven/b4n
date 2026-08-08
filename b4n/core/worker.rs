@@ -1,6 +1,6 @@
 use anyhow::Result;
 use b4n_common::NotificationSink;
-use b4n_config::themes::TextColors;
+use b4n_config::themes::YamlSyntaxColors;
 use b4n_config::{Config, History, Plugin, SyntaxData};
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::crds::{CrdObserver, SharedCrdsList};
@@ -522,9 +522,9 @@ impl BgWorker {
     }
 
     /// Runs specified plugin as a background task.
-    pub fn run_plugin(&mut self, plugin: Plugin, context: PluginContext, default_color: TextColors) -> Option<String> {
+    pub fn run_plugin(&mut self, plugin: Plugin, context: PluginContext, colors: YamlSyntaxColors) -> Option<String> {
         let sender = self.highlighter.get_sender()?;
-        let command = RunPluginCommand::new(plugin, context, sender, default_color, self.footer_tx.clone());
+        let command = RunPluginCommand::new(plugin, context, sender, colors, self.footer_tx.clone());
         Some(self.executor.run_task(Command::RunPlugin(Box::new(command))))
     }
 

@@ -1,6 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink};
-use b4n_config::Plugin;
-use b4n_config::themes::TextColors;
+use b4n_config::themes::YamlSyntaxColors;
+use b4n_config::{Plugin, PluginOutputType};
 use b4n_kube::plugins::PluginContext;
 use ratatui_core::style::Style;
 use std::sync::Arc;
@@ -9,7 +9,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
-use crate::{HighlightRequest, highlight_yaml};
+use crate::{HighlightRequest, HighlightResponse, highlight_yaml};
 
 /// Indicates error while running command.\
 /// Used only to signal that view should be closed.
@@ -26,7 +26,7 @@ pub struct RunPluginCommand {
     plugin: Plugin,
     context: PluginContext,
     highlighter: UnboundedSender<HighlightRequest>,
-    default_color: TextColors,
+    colors: YamlSyntaxColors,
     footer_tx: NotificationSink,
 }
 
@@ -36,14 +36,14 @@ impl RunPluginCommand {
         plugin: Plugin,
         context: PluginContext,
         highlighter: UnboundedSender<HighlightRequest>,
-        default_color: TextColors,
+        colors: YamlSyntaxColors,
         footer_tx: NotificationSink,
     ) -> Self {
         Self {
             plugin,
             context,
             highlighter,
-            default_color,
+            colors,
             footer_tx,
         }
     }
@@ -60,7 +60,7 @@ impl RunPluginCommand {
         let highlighter = self.highlighter;
 
         if keep_output {
-            let result = execute_output(plugin, context, footer_tx, highlighter, &self.default_color, once_index).await;
+            let result = execute_output(plugin, context, footer_tx, highlighter, self.colors, once_index).await;
             Some(CommandResult::RunPluginOutput(result))
         } else if for_each {
             execute_for_each(plugin, context, footer_tx).await;
@@ -78,7 +78,7 @@ async fn execute_output(
     context: Arc<PluginContext>,
     footer_tx: NotificationSink,
     highlighter: UnboundedSender<HighlightRequest>,
-    default_color: &TextColors,
+    colors: YamlSyntaxColors,
     row_index: Option<usize>,
 ) -> Result<RunPluginOutput, RunPluginError> {
     let resource_name = get_resource_name(&context, row_index);
@@ -108,12 +108,20 @@ async fn execute_output(
         return Err(RunPluginError);
     };
 
-    if plugin.yaml_output {
+    if plugin.output_type == PluginOutputType::Plain {
+        let plain = raw.lines().map(String::from).collect::<Vec<_>>();
+        let styled = plain
+            .iter()
+            .map(|l| vec![((&colors.string).into(), l.clone())])
+            .collect::<Vec<_>>();
+        Ok(RunPluginOutput { output: plain, styled })
+    } else {
         match highlight_yaml(&highlighter, raw).await {
-            Ok(result) => Ok(RunPluginOutput {
-                output: result.plain,
-                styled: result.styled,
-            }),
+            Ok(result) => Ok(process_highlight_result(
+                result,
+                &colors,
+                plugin.output_type == PluginOutputType::Describe,
+            )),
             Err(error) => {
                 let msg = format!("'{}' ({}) cannot highlight output: {}", plugin.name, resource_name, error);
                 tracing::error!("{}", msg);
@@ -122,13 +130,6 @@ async fn execute_output(
                 Err(RunPluginError)
             },
         }
-    } else {
-        let plain = raw.lines().map(String::from).collect::<Vec<_>>();
-        let styled = plain
-            .iter()
-            .map(|l| vec![(default_color.into(), l.clone())])
-            .collect::<Vec<_>>();
-        Ok(RunPluginOutput { output: plain, styled })
     }
 }
 
@@ -207,4 +208,79 @@ fn show_error(plugin_name: &str, resource_name: &str, output: &std::process::Out
     );
     tracing::error!("{}", msg);
     footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
+}
+
+fn process_highlight_result(mut result: HighlightResponse, colors: &YamlSyntaxColors, is_describe: bool) -> RunPluginOutput {
+    if is_describe {
+        fix_describe_result(&mut result, colors);
+    }
+
+    RunPluginOutput {
+        output: result.plain,
+        styled: result.styled,
+    }
+}
+
+/// Fixes YAML highlight result to match `kubectl describe` output.
+fn fix_describe_result(result: &mut HighlightResponse, colors: &YamlSyntaxColors) {
+    let mut plain_mode = false;
+    let mut last_key_indent: Option<usize> = None;
+
+    for (line, plain) in result.styled.iter_mut().zip(result.plain.iter()) {
+        if plain_mode {
+            for (style, _) in line.iter_mut() {
+                *style = (&colors.string).into();
+            }
+            continue;
+        }
+
+        if plain.starts_with("Events:") {
+            plain_mode = true;
+            continue;
+        }
+
+        let current_indent = plain.len() - plain.trim_start().len();
+
+        let is_continuation = last_key_indent.is_some_and(|key_indent| current_indent > key_indent + 2);
+        if is_continuation {
+            fix_continuation_line_spans(line, colors);
+        } else {
+            let has_property = fix_line_spans(line, colors);
+            if has_property {
+                last_key_indent = Some(current_indent);
+            }
+        }
+    }
+}
+
+/// Recolors all spans that are colored as properties if they are after the first property color.\
+/// Returns `true` if there was at least one span with the property color.
+fn fix_line_spans(line: &mut [(Style, String)], colors: &YamlSyntaxColors) -> bool {
+    let mut has_property = false;
+    let mut has_colon = false;
+
+    for (style, text) in line {
+        if has_property {
+            if has_colon {
+                if *style == colors.property || (*style == colors.normal && text.trim() == ":") {
+                    *style = (&colors.string).into();
+                }
+            } else if *style == colors.normal && text.trim() == ":" {
+                has_colon = true;
+            }
+        } else if *style == colors.property {
+            has_property = true;
+        }
+    }
+
+    has_property && has_colon
+}
+
+/// Recolors all spans that are colored as properties.
+fn fix_continuation_line_spans(line: &mut [(Style, String)], colors: &YamlSyntaxColors) {
+    for (style, text) in line.iter_mut() {
+        if *style == colors.property || (*style == colors.normal && text.trim() == ":") {
+            *style = (&colors.string).into();
+        }
+    }
 }

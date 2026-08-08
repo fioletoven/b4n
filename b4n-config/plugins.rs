@@ -27,6 +27,16 @@ pub enum PluginError {
     DeserializationError(#[from] serde_saphyr::Error),
 }
 
+/// Output type for the non-interactive plugins.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginOutputType {
+    #[default]
+    Plain,
+    Yaml,
+    Describe,
+}
+
 /// Holds particular plugin configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
@@ -46,7 +56,7 @@ pub struct Plugin {
     pub interactive: bool,
     pub keep_output: bool,
     pub keep_error: bool,
-    pub yaml_output: bool,
+    pub output_type: PluginOutputType,
     pub auto_mouse: bool,
     pub pin_to_top: bool,
     pub highlighted: bool,
