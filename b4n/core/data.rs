@@ -241,7 +241,7 @@ impl SharedAppDataExt for SharedAppData {
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         match event {
             TuiEvent::Key(key) => self.has_key_binding(key, command),
-            TuiEvent::Command(cmd) => command == *cmd,
+            TuiEvent::Command(cmd) => command == *cmd && !self.borrow().disabled_commands.contains(&command),
             TuiEvent::Mouse(_) => false,
         }
     }
