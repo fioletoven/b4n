@@ -13,6 +13,6 @@ args:
 excluded_scopes:
   - containers
 keep_output: true
-yaml_output: true
+output_type: describe
 pin_to_top: true
 highlighted: true
