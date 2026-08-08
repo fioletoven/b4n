@@ -131,8 +131,6 @@ In edit mode, the following shortcuts are available:
 - `ALT`  + `↑` - move current line up
 - `ALT`  + `↓` - move current line down
 
-> Note: These shortcuts currently cannot be changed in the `key_bindings` configuration section.
-
 ## File Transfer
 
 Feature requires a `tar` executable on the container where files are uploaded to or downloaded from.

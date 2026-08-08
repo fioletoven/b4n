@@ -211,6 +211,10 @@ pub trait SharedAppDataExt {
     /// the [`KeyBindings`] stored in [`SharedAppData`].
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool;
 
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`] within
+    /// the [`KeyBindings`] stored in [`SharedAppData`].
+    fn has_key_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool;
+
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
     fn disable_command(&self, command: KeyCommand, disable: bool);
 
@@ -236,15 +240,17 @@ pub trait SharedAppDataExt {
 impl SharedAppDataExt for SharedAppData {
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         match event {
-            TuiEvent::Key(key) => {
-                let data = self.borrow();
-                !data.disabled_keys.contains(key)
-                    && !data.disabled_commands.contains(&command)
-                    && data.key_bindings.has_binding(key, command)
-            },
+            TuiEvent::Key(key) => self.has_key_binding(key, command),
             TuiEvent::Command(cmd) => command == *cmd,
             TuiEvent::Mouse(_) => false,
         }
+    }
+
+    fn has_key_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
+        let data = self.borrow();
+        !data.disabled_keys.contains(key)
+            && !data.disabled_commands.contains(&command)
+            && data.key_bindings.has_binding(key, command)
     }
 
     fn disable_command(&self, command: KeyCommand, hide: bool) {
