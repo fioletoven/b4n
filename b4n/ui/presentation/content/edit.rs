@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::{keys::KeyCombination, themes::TextColors};
 use b4n_tui::{MouseEvent, MouseEventKind, ResponseEvent, TuiEvent};
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Color;
 use ratatui::widgets::Widget;
@@ -116,11 +116,11 @@ impl EditContext {
         area: Rect,
     ) -> NewCursorPosition {
         if selection.is_none() {
-            if key == &KeyCombination::new(KeyCode::Up, KeyModifiers::ALT) && self.cursor.y > 0 {
+            if self.app_data.has_key_binding(key, KeyCommand::EditMoveUp) && self.cursor.y > 0 {
                 content.swap_lines(self.cursor.y.saturating_sub(1), self.cursor.y);
             }
 
-            if key == &KeyCombination::new(KeyCode::Down, KeyModifiers::ALT) && self.cursor.y + 1 < content.len() {
+            if self.app_data.has_key_binding(key, KeyCommand::EditMoveDown) && self.cursor.y + 1 < content.len() {
                 content.swap_lines(self.cursor.y, self.cursor.y + 1);
             }
         }
