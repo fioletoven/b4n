@@ -8,6 +8,7 @@ pub use self::tasks::{BgExecutor, BgTask, TaskResult};
 pub mod commands;
 pub mod dir_lister;
 
+mod describe;
 mod forwarder;
 mod highlighter;
 mod tasks;
