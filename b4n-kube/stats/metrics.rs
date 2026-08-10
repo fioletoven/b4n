@@ -26,7 +26,7 @@ const PIB: u64 = TIB * 1_024;
 const EB: u64 = PB * 1_000;
 const EIB: u64 = PIB * 1_024;
 const DECIMAL_BASE: [u64; 6] = [EB, PB, TB, GB, MB, KB];
-const DECIMAL_STR: [&str; 6] = ["EB", "PB", "TB", "GB", "MB", "KB"];
+const DECIMAL_STR: [&str; 6] = ["E", "P", "T", "G", "M", "k"];
 const BINARY_BASE: [u64; 6] = [EIB, PIB, TIB, GIB, MIB, KIB];
 const BINARY_STR: [&str; 6] = ["Ei", "Pi", "Ti", "Gi", "Mi", "Ki"];
 
@@ -88,20 +88,21 @@ impl FromStr for MemoryMetrics {
             return Err(MetricsError::ParseError);
         };
 
-        match unit.to_ascii_lowercase().as_str() {
-            "" | "b" => Ok(MemoryMetrics::new(value, false)),
-            "kb" => Ok(MemoryMetrics::new(value * KB, false)),
-            "ki" | "kib" => Ok(MemoryMetrics::new(value * KIB, true)),
-            "mb" => Ok(MemoryMetrics::new(value * MB, false)),
-            "mi" | "mib" => Ok(MemoryMetrics::new(value * MIB, true)),
-            "gb" => Ok(MemoryMetrics::new(value * GB, false)),
-            "gi" | "gib" => Ok(MemoryMetrics::new(value * GIB, true)),
-            "tb" => Ok(MemoryMetrics::new(value * TB, false)),
-            "ti" | "tib" => Ok(MemoryMetrics::new(value * TIB, true)),
-            "pb" => Ok(MemoryMetrics::new(value * PB, false)),
-            "pi" | "pib" => Ok(MemoryMetrics::new(value * PIB, true)),
-            "eb" => Ok(MemoryMetrics::new(value * EB, false)),
-            "ei" | "eib" => Ok(MemoryMetrics::new(value * EIB, true)),
+        match unit {
+            "" | "B" => Ok(MemoryMetrics::new(value, false)),
+            "m" => Ok(MemoryMetrics::new(value / 1_000, false)),
+            "k" => Ok(MemoryMetrics::new(value * KB, false)),
+            "M" => Ok(MemoryMetrics::new(value * MB, false)),
+            "G" => Ok(MemoryMetrics::new(value * GB, false)),
+            "T" => Ok(MemoryMetrics::new(value * TB, false)),
+            "P" => Ok(MemoryMetrics::new(value * PB, false)),
+            "E" => Ok(MemoryMetrics::new(value * EB, false)),
+            "Ki" => Ok(MemoryMetrics::new(value * KIB, true)),
+            "Mi" => Ok(MemoryMetrics::new(value * MIB, true)),
+            "Gi" => Ok(MemoryMetrics::new(value * GIB, true)),
+            "Ti" => Ok(MemoryMetrics::new(value * TIB, true)),
+            "Pi" => Ok(MemoryMetrics::new(value * PIB, true)),
+            "Ei" => Ok(MemoryMetrics::new(value * EIB, true)),
 
             _ => Err(MetricsError::ParseError),
         }
@@ -156,7 +157,7 @@ impl FromStr for CpuMetrics {
             return Err(MetricsError::ParseError);
         };
 
-        match unit.to_ascii_lowercase().as_str() {
+        match unit {
             "" => Ok(CpuMetrics::new(value.saturating_mul(1_000_000_000))),
             "m" => Ok(CpuMetrics::new(value.saturating_mul(1_000_000))),
             "n" => Ok(CpuMetrics::new(value)),

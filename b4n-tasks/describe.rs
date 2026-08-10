@@ -102,7 +102,7 @@ fn is_number(s: &str) -> bool {
 
 fn is_k8s_quantity(s: &str) -> bool {
     const SUFFIXES: &[&str] = &[
-        "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "k", "M", "G", "T", "P", "E", "m", "n", "s", "b",
+        "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "B", "k", "M", "G", "T", "P", "E", "m", "n", "s",
     ];
 
     match SUFFIXES.iter().find_map(|&sfx| s.strip_suffix(sfx)) {
