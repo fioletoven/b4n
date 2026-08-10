@@ -9,6 +9,7 @@ mod context_tests;
 /// Execution context for a plugin.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct PluginContext {
+    pub kubeconfig: String,
     pub context: String,
     pub kind: Kind,
     pub namespace: Namespace,
@@ -43,6 +44,7 @@ impl PluginContext {
     fn try_resolve_placeholder<'a>(&'a self, s: &str, row_index: Option<usize>) -> Option<(Cow<'a, str>, usize)> {
         type PlaceholderResolver = (&'static str, fn(&PluginContext) -> &str);
         let simple: &[PlaceholderResolver] = &[
+            ("$KUBECONFIG", |ctx: &PluginContext| ctx.kubeconfig.as_str()),
             ("$CONTEXT", |ctx: &PluginContext| ctx.context.as_str()),
             ("$PLURAL", |ctx: &PluginContext| ctx.kind.name()),
             ("$GROUP", |ctx: &PluginContext| ctx.kind.group()),
