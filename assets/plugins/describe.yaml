@@ -10,6 +10,10 @@ args:
   - $COL[NAME]
   - --namespace
   - $COL[NAMESPACE]
+  - --context
+  - $CONTEXT
+  - --kubeconfig
+  - $KUBECONFIG
 excluded_scopes:
   - containers
 keep_output: true

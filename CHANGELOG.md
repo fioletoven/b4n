@@ -7,6 +7,10 @@
 - separate option for plugins to color `kubectl describe` output
 - configurable key bindings in edit mode
 
+### Bug fixes
+
+- fix `kubectl describe` plugin run
+
 ## 0.5.5 - 2026-08-06
 
 ### Features

@@ -9,7 +9,8 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinSet;
 
 use crate::commands::CommandResult;
-use crate::{HighlightRequest, HighlightResponse, highlight_yaml};
+use crate::describe::highlight_describe;
+use crate::{HighlightRequest, highlight_yaml};
 
 /// Indicates error while running command.\
 /// Used only to signal that view should be closed.
@@ -115,18 +116,20 @@ async fn execute_output(
             .map(|l| vec![((&colors.string).into(), l.clone())])
             .collect::<Vec<_>>();
         Ok(RunPluginOutput { output: plain, styled })
+    } else if plugin.output_type == PluginOutputType::Describe {
+        let plain = raw.lines().map(String::from).collect::<Vec<_>>();
+        let styled = highlight_describe(&plain, &colors);
+        Ok(RunPluginOutput { output: plain, styled })
     } else {
         match highlight_yaml(&highlighter, raw).await {
-            Ok(result) => Ok(process_highlight_result(
-                result,
-                &colors,
-                plugin.output_type == PluginOutputType::Describe,
-            )),
+            Ok(result) => Ok(RunPluginOutput {
+                output: result.plain,
+                styled: result.styled,
+            }),
             Err(error) => {
                 let msg = format!("'{}' ({}) cannot highlight output: {}", plugin.name, resource_name, error);
                 tracing::error!("{}", msg);
                 footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-
                 Err(RunPluginError)
             },
         }
@@ -208,79 +211,4 @@ fn show_error(plugin_name: &str, resource_name: &str, output: &std::process::Out
     );
     tracing::error!("{}", msg);
     footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-}
-
-fn process_highlight_result(mut result: HighlightResponse, colors: &YamlSyntaxColors, is_describe: bool) -> RunPluginOutput {
-    if is_describe {
-        fix_describe_result(&mut result, colors);
-    }
-
-    RunPluginOutput {
-        output: result.plain,
-        styled: result.styled,
-    }
-}
-
-/// Fixes YAML highlight result to match `kubectl describe` output.
-fn fix_describe_result(result: &mut HighlightResponse, colors: &YamlSyntaxColors) {
-    let mut plain_mode = false;
-    let mut last_key_indent: Option<usize> = None;
-
-    for (line, plain) in result.styled.iter_mut().zip(result.plain.iter()) {
-        if plain_mode {
-            for (style, _) in line.iter_mut() {
-                *style = (&colors.string).into();
-            }
-            continue;
-        }
-
-        if plain.starts_with("Events:") {
-            plain_mode = true;
-            continue;
-        }
-
-        let current_indent = plain.len() - plain.trim_start().len();
-
-        let is_continuation = last_key_indent.is_some_and(|key_indent| current_indent > key_indent + 2);
-        if is_continuation {
-            fix_continuation_line_spans(line, colors);
-        } else {
-            let has_property = fix_line_spans(line, colors);
-            if has_property {
-                last_key_indent = Some(current_indent);
-            }
-        }
-    }
-}
-
-/// Recolors all spans that are colored as properties if they are after the first property color.\
-/// Returns `true` if there was at least one span with the property color.
-fn fix_line_spans(line: &mut [(Style, String)], colors: &YamlSyntaxColors) -> bool {
-    let mut has_property = false;
-    let mut has_colon = false;
-
-    for (style, text) in line {
-        if has_property {
-            if has_colon {
-                if *style == colors.property || (*style == colors.normal && text.trim() == ":") {
-                    *style = (&colors.string).into();
-                }
-            } else if *style == colors.normal && text.trim() == ":" {
-                has_colon = true;
-            }
-        } else if *style == colors.property {
-            has_property = true;
-        }
-    }
-
-    has_property && has_colon
-}
-
-/// Recolors all spans that are colored as properties.
-fn fix_continuation_line_spans(line: &mut [(Style, String)], colors: &YamlSyntaxColors) {
-    for (style, text) in line.iter_mut() {
-        if *style == colors.property || (*style == colors.normal && text.trim() == ":") {
-            *style = (&colors.string).into();
-        }
-    }
 }

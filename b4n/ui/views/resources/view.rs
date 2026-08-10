@@ -12,7 +12,7 @@ use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
-use crate::core::{PreviousData, ResourcesInfo, SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::core::{AppData, PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::resources::table::ResourcesTable;
@@ -300,10 +300,10 @@ impl ResourcesView {
                     _ => Some(ResponseEvent::Handled),
                 },
                 ResponseEvent::PluginAction(plugin) => {
-                    let info = &self.app_data.borrow().current;
+                    let app_data = &self.app_data.borrow();
                     Some(ResponseEvent::RunPlugin(
                         plugin.id,
-                        build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+                        build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
                     ))
                 },
                 _ => Some(ResponseEvent::Handled),
@@ -337,10 +337,10 @@ impl ResourcesView {
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
-            let info = &self.app_data.borrow().current;
+            let app_data = &self.app_data.borrow();
             return ResponseEvent::RunPlugin(
                 plugin.id,
-                build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+                build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
             );
         } else if let ResponseEvent::Action(action) = response {
             return match action {
@@ -636,10 +636,10 @@ impl View for ResourcesView {
                 return ResponseEvent::Handled;
             }
 
-            let info = &self.app_data.borrow().current;
+            let app_data = &self.app_data.borrow();
             return ResponseEvent::RunPlugin(
                 plugin.id,
-                build_plugin_context(info, &self.table, plugin.highlighted, plugin.selected),
+                build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
             );
         }
 
@@ -737,7 +737,7 @@ impl View for ResourcesView {
     }
 }
 
-fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlighted: bool, is_selected: bool) -> PluginContext {
+fn build_plugin_context(app_data: &AppData, table: &ResourcesTable, is_highlighted: bool, is_selected: bool) -> PluginContext {
     let mut resources = Vec::new();
     let mut values = Vec::new();
 
@@ -757,9 +757,10 @@ fn build_plugin_context(info: &ResourcesInfo, table: &ResourcesTable, is_highlig
     }
 
     PluginContext {
-        context: info.context.clone(),
-        kind: info.resource.kind.clone(),
-        namespace: info.namespace.clone(),
+        kubeconfig: app_data.history.kube_config_path().map(String::from).unwrap_or_default(),
+        context: app_data.current.context.clone(),
+        kind: app_data.current.resource.kind.clone(),
+        namespace: app_data.current.namespace.clone(),
         resources,
         columns: table.get_column_names(),
         values,

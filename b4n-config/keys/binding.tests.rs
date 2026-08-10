@@ -16,7 +16,7 @@ fn merge_bindings_test() {
     let bindings = KeyBindings::default();
     assert_eq!(
         bindings.bindings[&"Ctrl+C".into()],
-        once(KeyCommand::ApplicationExit).collect()
+        [KeyCommand::ApplicationExit, KeyCommand::EditCopy].into_iter().collect()
     );
 
     let other = KeyBindings::empty()
@@ -27,7 +27,9 @@ fn merge_bindings_test() {
     assert!(bindings.bindings.contains_key(&"Ctrl+C".into()));
     assert_eq!(
         bindings.bindings[&"Ctrl+C".into()],
-        [KeyCommand::FilterOpen, KeyCommand::ApplicationExit].into_iter().collect()
+        [KeyCommand::ApplicationExit, KeyCommand::EditCopy, KeyCommand::FilterOpen]
+            .into_iter()
+            .collect()
     );
 
     assert!(bindings.bindings.contains_key(&"Alt+A".into()));

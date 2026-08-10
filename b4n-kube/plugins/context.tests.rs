@@ -2,6 +2,7 @@ use super::*;
 
 fn make_context() -> PluginContext {
     PluginContext {
+        kubeconfig: "config/path".to_string(),
         context: "my-cluster".to_string(),
         kind: Kind::new("deployments", "apps", "v1"),
         namespace: Namespace::from("default"),

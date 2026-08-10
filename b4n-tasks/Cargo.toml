@@ -21,6 +21,7 @@ shlex = { workspace = true }
 syntect = { workspace = true }
 tar = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = {workspace = true }
