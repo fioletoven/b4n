@@ -4,10 +4,10 @@ use super::*;
 fn from_str_test() {
     assert_eq!(555, MemoryMetrics::from_str("555").unwrap().value);
 
-    assert_eq!(100_000, MemoryMetrics::from_str("100KB").unwrap().value);
-    assert_eq!(250_000_000_000, MemoryMetrics::from_str("250Gb").unwrap().value);
+    assert_eq!(100_000, MemoryMetrics::from_str("100k").unwrap().value);
+    assert_eq!(250_000_000_000, MemoryMetrics::from_str("250G").unwrap().value);
 
-    assert_eq!(102_400, MemoryMetrics::from_str("100KiB").unwrap().value);
+    assert_eq!(102_400, MemoryMetrics::from_str("100Ki").unwrap().value);
     assert_eq!(17_825_792, MemoryMetrics::from_str("17Mi").unwrap().value);
 
     assert_eq!(555_000_000_000, CpuMetrics::from_str("555").unwrap().value);
@@ -35,9 +35,9 @@ fn display_test() {
     let b = MemoryMetrics::from_str("2Gi").unwrap();
     assert_eq!("3Gi", format!("{}", a + b));
 
-    let a = MemoryMetrics::from_str("500GB").unwrap();
-    let b = MemoryMetrics::from_str("500gb").unwrap();
-    assert_eq!("1TB", format!("{}", a + b));
+    let a = MemoryMetrics::from_str("500G").unwrap();
+    let b = MemoryMetrics::from_str("500000M").unwrap();
+    assert_eq!("1T", format!("{}", a + b));
 
     let a = MemoryMetrics::from_str("128Mi").unwrap();
     let b = MemoryMetrics::from_str("2Gi").unwrap();
