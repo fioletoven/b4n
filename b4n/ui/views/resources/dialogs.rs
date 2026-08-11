@@ -1,11 +1,14 @@
 use b4n_config::{PluginInputType, PluginRef};
+use b4n_kube::plugins::PluginContext;
 use b4n_kube::{ResourceRef, ResourceTag};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox, ValidatorKind};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
 use ratatui::layout::Position;
+use std::collections::HashMap;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::views::common;
+use crate::ui::views::resources::ResourcesTable;
 
 /// Creates new resource delete confirmation dialog.
 pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
@@ -53,9 +56,14 @@ pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<
 pub fn new_run_plugin_dialog(app_data: &SharedAppData, position: Option<Position>, plugin: PluginRef) -> Dialog {
     let colors = &app_data.borrow().theme.colors;
     let inputs = plugin.inputs.then(|| app_data.get_plugin_inputs(&plugin.id)).flatten();
+    let message = if plugin.inputs {
+        format!("Provide additional data for '{}':", plugin.name)
+    } else {
+        format!("Are you sure you want to run '{}'?", plugin.name)
+    };
 
     let mut dialog = Dialog::new(
-        format!("Are you sure you want to run '{}'?", plugin.name),
+        message,
         vec![
             Button::new("Run", ResponseEvent::PluginAction(plugin), colors.modal.btn_delete.clone()),
             Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
@@ -94,6 +102,64 @@ pub fn new_run_plugin_dialog(app_data: &SharedAppData, position: Option<Position
     }
 
     dialog
+}
+
+/// Builds plugin context enriched by the dialog inputs.
+pub fn build_plugin_context(
+    app_data: &SharedAppData,
+    table: &ResourcesTable,
+    dialog: &Dialog,
+    plugin: &PluginRef,
+) -> PluginContext {
+    let mut resources = Vec::new();
+    let mut values = Vec::new();
+    let mut inputs = HashMap::new();
+
+    if plugin.highlighted {
+        if let Some(resource) = table.get_resource_ref(false) {
+            resources.push(resource);
+        }
+
+        if let Some(result) = table.get_column_values() {
+            values.push(result);
+        }
+    }
+
+    if plugin.selected {
+        resources.append(&mut table.get_selected_resources_ref(false));
+        values.append(&mut table.get_selected_column_values());
+    }
+
+    if plugin.inputs
+        && let Some(config) = app_data.get_plugin_inputs(&plugin.id)
+    {
+        for (idx, mut input) in config.into_iter().enumerate() {
+            let value = match input.kind {
+                PluginInputType::CheckBox => dialog.checkbox(idx).map(|cb| match input.options.as_slice() {
+                    [_, _] => input.options.remove(usize::from(cb.is_checked)),
+                    _ => cb.is_checked.to_string(),
+                }),
+                PluginInputType::TextBox => dialog.textbox(idx).map(|tb| tb.value().to_owned()),
+                PluginInputType::Select => dialog.selector(idx).map(|sel| sel.selected().to_owned()),
+            };
+
+            if let Some(value) = value {
+                inputs.insert(input.name.to_ascii_uppercase(), value);
+            }
+        }
+    }
+
+    let app_data = app_data.borrow();
+    PluginContext {
+        kubeconfig: app_data.history.kube_config_path().map(String::from).unwrap_or_default(),
+        context: app_data.current.context.clone(),
+        kind: app_data.current.resource.kind.clone(),
+        namespace: app_data.current.namespace.clone(),
+        resources,
+        columns: table.get_column_names(),
+        values,
+        inputs,
+    }
 }
 
 /// Builds modal dialog to inject ephemeral container.

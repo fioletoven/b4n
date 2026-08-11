@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{Kind, Namespace, ResourceRef};
 
@@ -16,6 +16,7 @@ pub struct PluginContext {
     pub resources: Vec<ResourceRef>,
     pub columns: Vec<String>,
     pub values: Vec<Vec<String>>,
+    pub inputs: HashMap<String, String>,
 }
 
 impl PluginContext {
@@ -62,20 +63,20 @@ impl PluginContext {
             return Some((Cow::Owned(self.resources.len().to_string()), 6));
         }
 
-        if s.starts_with("$COL[") {
-            let close_pos = s.find(']')?;
-            let col_name = &s["$COL[".len()..close_pos];
+        if let Some((col_name, end)) = extract_name(s, "$COL[") {
             let value = self.resolve_col(col_name, row_index);
-
-            return Some((value, close_pos + 1));
+            return Some((value, end));
         }
 
-        if s.starts_with("$RES[") {
-            let close_pos = s.find(']')?;
-            let field_name = &s["$RES[".len()..close_pos];
+        if let Some((field_name, end)) = extract_name(s, "$RES[") {
             let value = self.resolve_res(field_name, row_index);
+            return Some((value, end));
+        }
 
-            return Some((value, close_pos + 1));
+        if let Some((input_name, end)) = extract_name(s, "$INPUT[")
+            && let Some(value) = self.inputs.get(input_name)
+        {
+            return Some((value.into(), end));
         }
 
         None
@@ -120,5 +121,15 @@ impl PluginContext {
             let joined = self.resources.iter().filter_map(extract).collect::<Vec<_>>().join(",");
             Cow::Owned(joined)
         }
+    }
+}
+
+fn extract_name<'a>(s: &'a str, prefix: &str) -> Option<(&'a str, usize)> {
+    if s.starts_with(prefix) {
+        let close_pos = s.find(']')?;
+        let name = &s[prefix.len()..close_pos];
+        Some((name, close_pos + 1))
+    } else {
+        None
     }
 }
