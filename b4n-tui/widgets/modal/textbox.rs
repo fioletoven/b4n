@@ -12,7 +12,7 @@ use crate::{ResponseEvent, Responsive, TuiEvent};
 /// UI `TextBox`.
 pub struct TextBox {
     pub id: usize,
-    caption: &'static str,
+    caption: String,
     input: Input,
     validators: Vec<InputValidator>,
     prev_value: String,
@@ -27,7 +27,9 @@ pub struct TextBox {
 
 impl TextBox {
     /// Creates new [`TextBox`] instance.
-    pub fn new(id: usize, caption: &'static str, input_width: u16, colors: TextBoxModalColors) -> Self {
+    pub fn new(id: usize, caption: impl Into<String>, input_width: u16, colors: TextBoxModalColors) -> Self {
+        let caption = caption.into();
+        let caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
         let mut input = Input::new(colors.caption.normal).with_show_accept_button_on_errors(true);
         input.set_cursor_colors(colors.cursor);
 
@@ -42,7 +44,7 @@ impl TextBox {
             show_cursor: colors.cursor.is_some(),
             colors,
             area: Rect::default(),
-            caption_width: u16::try_from(caption.chars().count()).unwrap_or_default() + 4,
+            caption_width,
             input_width,
         }
     }
@@ -77,9 +79,9 @@ impl TextBox {
     }
 
     /// Sets new caption for the textbox.
-    pub fn set_caption(&mut self, caption: &'static str) {
-        self.caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
-        self.caption = caption;
+    pub fn set_caption(&mut self, caption: impl Into<String>) {
+        self.caption = caption.into();
+        self.caption_width = u16::try_from(self.caption.chars().count()).unwrap_or_default() + 4;
     }
 
     /// Sets whether to show button.
@@ -179,7 +181,7 @@ impl TextBox {
         let input_area = Rect::new(area.x + self.caption_width, area.y, input_width, 1);
 
         let colors = *self.colors.caption.get(self.is_hovered, self.is_focused);
-        let spans = vec![self.get_icon(&colors), Span::styled(self.caption, &colors)];
+        let spans = vec![self.get_icon(&colors), Span::styled(&self.caption, &colors)];
         let line = Line::from(spans);
         frame.render_widget(Paragraph::new(line), caption_area);
         self.input.draw(frame, input_area);

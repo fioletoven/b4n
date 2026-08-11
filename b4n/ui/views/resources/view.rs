@@ -630,7 +630,7 @@ impl View for ResourcesView {
             .app_data
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
-            if plugin.confirm {
+            if plugin.confirm || plugin.inputs {
                 self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;

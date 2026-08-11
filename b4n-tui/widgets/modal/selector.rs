@@ -15,7 +15,7 @@ use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 /// UI `Selector`.
 pub struct Selector {
     pub id: usize,
-    caption: &'static str,
+    caption: String,
     caption_width: usize,
     options: Select<ActionsList>,
     options_width: usize,
@@ -30,7 +30,7 @@ pub struct Selector {
 
 impl Selector {
     /// Creates new [`Selector`] instance.
-    pub fn new<S: AsRef<str>>(id: usize, caption: &'static str, options: &[S], colors: &SelectModalColors) -> Self {
+    pub fn new<S: AsRef<str>>(id: usize, caption: impl Into<String>, options: &[S], colors: &SelectModalColors) -> Self {
         let mut options = ActionsListBuilder::from_strings(options).build(None);
         options.highlight_first_item();
         let selected = options.get_highlighted_item_name().unwrap_or_default().to_owned();
@@ -42,6 +42,7 @@ impl Selector {
         let mut options = Select::new(options, select, false, false);
         options.disable_filter(true);
 
+        let caption = caption.into();
         let caption_width = caption.chars().count();
         let options_width = options
             .items
