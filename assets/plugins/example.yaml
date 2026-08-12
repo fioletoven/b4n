@@ -27,7 +27,7 @@ scopes:
 inputs:
   - kind: checkbox
     name: test1
-    label: Some checkbox (should be checked on dialog open)
+    label: Some checkbox
     value: true1  # will be pre-checked -> matches value for checked
     options:
       - falseA    # first value is for unchecked
