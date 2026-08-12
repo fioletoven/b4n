@@ -6,6 +6,7 @@
 
 - separate option for plugins to color `kubectl describe` output
 - configurable key bindings in edit mode
+- add inputs to the plugins configuration
 
 ### Bug fixes
 

@@ -174,6 +174,13 @@ args: []             # command arguments; see the available variables below
 scopes:
   - pods             # scopes where the plugin will be visible; empty means all (format: 'plural[.group/version]')
 excluded_scopes: []  # scopes where the plugin will be hidden; empty means none
+inputs:              # list of inputs to show in the modal dialog before plugin run
+  - name: name       # used in $INPUT[] placeholders to get input's value (in this case $INPUT[NAME])
+    kind: checkbox   # type of the input: `checkbox`, `textbox` or `select`
+    label: caption   # caption for the input
+    value: text      # initial value for the input
+    options: []      # array of possible options (used only in `select` and `checkbox` inputs)
+    required: false  # requires user to provide a value (used only in `textbox` input)
 confirm: false       # show run confirmation dialog
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
@@ -198,6 +205,7 @@ for_each: false      # run each selected resource separately (if interactive: fa
 | `$RES[UID]`         | UID of the highlighted or selected resource                        |
 | `$RES[CONTAINER]`   | container name of the highlighted or selected resource (pods only) |
 | `$COL[COLUMN_NAME]` | any visible column value from the highlighted or selected resource |
+| `$INPUT[NAME]`      | input's value provided by the user                                 |
 
 Example plugins are available in the `plugins` folder.
 

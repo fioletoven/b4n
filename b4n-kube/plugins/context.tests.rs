@@ -21,6 +21,11 @@ fn make_context() -> PluginContext {
             vec!["my-pod".to_string(), "nginx:latest".to_string(), "Running".to_string()],
             vec!["other-pod".to_string(), "alpine:3".to_string(), "Pending".to_string()],
         ],
+        inputs: HashMap::from([
+            ("CHECKBOX".to_string(), "true".to_string()),
+            ("TEXTBOX".to_string(), "some text".to_string()),
+            ("SELECT".to_string(), "option 1".to_string()),
+        ]),
     }
 }
 
@@ -153,6 +158,7 @@ fn test_res_missing_closing_bracket_kept_literal() {
 #[test]
 fn test_simple_placeholders() {
     let ctx = make_context();
+    assert_eq!(ctx.resolve_arg("$KUBECONFIG", Some(0)), "config/path");
     assert_eq!(ctx.resolve_arg("$CONTEXT", Some(0)), "my-cluster");
     assert_eq!(ctx.resolve_arg("$NAMESPACE", Some(0)), "default");
     assert_eq!(ctx.resolve_arg("$PLURAL", Some(0)), "deployments");

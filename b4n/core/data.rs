@@ -2,7 +2,7 @@ use arboard::Clipboard;
 use b4n_common::NotificationSink;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::{Config, History, themes::Theme};
-use b4n_config::{PluginRef, Plugins};
+use b4n_config::{PluginInput, PluginRef, Plugins};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
 use b4n_tui::widgets::SharedClipboard;
 use b4n_tui::{ToSelectData, TuiEvent};
@@ -235,6 +235,9 @@ pub trait SharedAppDataExt {
 
     /// Returns a [`PluginRef`] if the given [`TuiEvent`] is a key event and is bound to one of the discovered `Plugin`s.
     fn get_plugin_binding(&self, event: &TuiEvent, scope: &str, is_highlighted: bool, is_selected: bool) -> Option<PluginRef>;
+
+    /// Returns inputs for the specified plugin ID.
+    fn get_plugin_inputs(&self, id: &str) -> Option<Vec<PluginInput>>;
 }
 
 impl SharedAppDataExt for SharedAppData {
@@ -302,5 +305,12 @@ impl SharedAppDataExt for SharedAppData {
             .find(|p| p.in_scope_for(scope, is_highlighted, is_selected) && &p.shortcut == key)?;
 
         Some(plugin.into())
+    }
+
+    fn get_plugin_inputs(&self, id: &str) -> Option<Vec<PluginInput>> {
+        let plugins = &self.borrow().plugins;
+        let plugin = plugins.iter().find(|p| p.id == id)?;
+
+        Some(plugin.inputs.clone())
     }
 }

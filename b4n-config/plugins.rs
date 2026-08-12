@@ -18,12 +18,12 @@ use crate::{APP_NAME, keys::KeyCombination};
 /// Possible errors from plugins loading.
 #[derive(thiserror::Error, Debug)]
 pub enum PluginError {
-    /// Cannot load plugins.
-    #[error("cannot load plugins")]
+    /// I/O error.
+    #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
     /// Cannot deserialize plugin.
-    #[error("cannot deserialize plugin")]
+    #[error("cannot deserialize plugin: {0}")]
     DeserializationError(#[from] serde_saphyr::Error),
 }
 
@@ -49,6 +49,7 @@ pub struct Plugin {
     pub shortcut: KeyCombination,
     pub command: String,
     pub args: Vec<String>,
+    pub inputs: Vec<PluginInput>,
     pub current_dir: Option<String>,
     pub scopes: Vec<String>,
     pub excluded_scopes: Vec<String>,
@@ -74,12 +75,38 @@ impl Plugin {
     }
 }
 
+/// Possible types for a plugin input.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginInputType {
+    CheckBox,
+    #[default]
+    TextBox,
+    Select,
+}
+
+/// Plugin input configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PluginInput {
+    pub name: String,
+    pub label: String,
+    #[serde(default)]
+    pub kind: PluginInputType,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub options: Vec<String>,
+}
+
 /// Holds minimal set of a plugin configuration.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PluginRef {
     pub id: String,
     pub name: String,
     pub confirm: bool,
+    pub inputs: bool,
     pub highlighted: bool,
     pub selected: bool,
 }
@@ -90,6 +117,7 @@ impl From<&Plugin> for PluginRef {
             id: plugin.id.clone(),
             name: plugin.name.clone(),
             confirm: plugin.confirm,
+            inputs: !plugin.inputs.is_empty(),
             highlighted: plugin.highlighted,
             selected: plugin.selected,
         }
@@ -109,7 +137,7 @@ impl Deref for Plugins {
 }
 
 impl Plugins {
-    /// Returns the default plugins path: `HOME/b4n/plugins/`.
+    /// Returns the default plugins path: `$HOME/.b4n/plugins/`.
     pub fn default_path() -> PathBuf {
         match std::env::home_dir() {
             Some(path) => path.join(format!(".{APP_NAME}")).join("plugins"),
@@ -126,20 +154,34 @@ impl Plugins {
             if let Some(extension) = path.extension()
                 && extension.eq_ignore_ascii_case("yaml")
             {
-                let metadata = fs::metadata(&path).await?;
-                if metadata.is_file() {
-                    let mut file = File::open(path).await?;
-
-                    let mut plugin_str = String::new();
-                    file.read_to_string(&mut plugin_str).await?;
-
-                    plugins.push(serde_saphyr::from_str::<Plugin>(&plugin_str)?);
+                match load_plugin(&path).await {
+                    Ok(Some(plugin)) => plugins.push(plugin),
+                    Ok(None) => (),
+                    Err(error) => tracing::error!(
+                        "Cannot load plugin '{}': {}",
+                        path.file_name().and_then(|f| f.to_str()).unwrap_or_default(),
+                        error
+                    ),
                 }
             }
         }
 
         Ok(Self(plugins))
     }
+}
+
+async fn load_plugin(path: &PathBuf) -> Result<Option<Plugin>, PluginError> {
+    let metadata = fs::metadata(path).await?;
+    if metadata.is_file() {
+        let mut file = File::open(path).await?;
+
+        let mut plugin_str = String::new();
+        file.read_to_string(&mut plugin_str).await?;
+
+        return Ok(Some(serde_saphyr::from_str::<Plugin>(&plugin_str)?));
+    }
+
+    Ok(None)
 }
 
 /// Observes for changes in the plugins directory.

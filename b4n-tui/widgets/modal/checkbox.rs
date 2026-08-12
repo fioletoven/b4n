@@ -10,7 +10,7 @@ use crate::ResponseEvent;
 pub struct CheckBox {
     pub id: usize,
     pub is_checked: bool,
-    caption: &'static str,
+    caption: String,
     is_hovered: bool,
     is_focused: bool,
     colors: ControlColors,
@@ -20,7 +20,10 @@ pub struct CheckBox {
 
 impl CheckBox {
     /// Creates new [`CheckBox`] instance.
-    pub fn new(id: usize, caption: &'static str, is_checked: bool, colors: ControlColors) -> Self {
+    pub fn new(id: usize, caption: impl Into<String>, is_checked: bool, colors: ControlColors) -> Self {
+        let caption = caption.into();
+        let width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
+
         Self {
             id,
             is_checked,
@@ -29,7 +32,7 @@ impl CheckBox {
             is_focused: false,
             colors,
             area: Rect::default(),
-            width: u16::try_from(caption.chars().count()).unwrap_or_default() + 4,
+            width,
         }
     }
 

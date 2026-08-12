@@ -1,6 +1,5 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::plugins::PluginContext;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
@@ -12,7 +11,7 @@ use ratatui::layout::Position;
 use ratatui::{Frame, layout::Rect};
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
-use crate::core::{AppData, PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
+use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::resources::table::ResourcesTable;
@@ -299,12 +298,10 @@ impl ResourcesView {
                     })),
                     _ => Some(ResponseEvent::Handled),
                 },
+
                 ResponseEvent::PluginAction(plugin) => {
-                    let app_data = &self.app_data.borrow();
-                    Some(ResponseEvent::RunPlugin(
-                        plugin.id,
-                        build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
-                    ))
+                    let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+                    Some(ResponseEvent::RunPlugin(plugin.id, context))
                 },
                 _ => Some(ResponseEvent::Handled),
             };
@@ -332,16 +329,13 @@ impl ResourcesView {
         if response == ResponseEvent::AskDeleteResources {
             self.last_mouse_click = event.position();
         } else if let ResponseEvent::PluginAction(plugin) = response {
-            if plugin.confirm {
+            if plugin.confirm | plugin.inputs {
                 self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
-            let app_data = &self.app_data.borrow();
-            return ResponseEvent::RunPlugin(
-                plugin.id,
-                build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
-            );
+            let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+            return ResponseEvent::RunPlugin(plugin.id, context);
         } else if let ResponseEvent::Action(action) = response {
             return match action {
                 "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
@@ -630,17 +624,13 @@ impl View for ResourcesView {
             .app_data
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
-            if plugin.confirm {
+            if plugin.confirm || plugin.inputs {
                 self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
-
-            let app_data = &self.app_data.borrow();
-            return ResponseEvent::RunPlugin(
-                plugin.id,
-                build_plugin_context(app_data, &self.table, plugin.highlighted, plugin.selected),
-            );
+            let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+            return ResponseEvent::RunPlugin(plugin.id, context);
         }
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
@@ -734,35 +724,5 @@ impl View for ResourcesView {
         self.filter.draw(frame, area);
         self.namespace_picker.draw(frame, area);
         self.file_picker.draw(frame, area);
-    }
-}
-
-fn build_plugin_context(app_data: &AppData, table: &ResourcesTable, is_highlighted: bool, is_selected: bool) -> PluginContext {
-    let mut resources = Vec::new();
-    let mut values = Vec::new();
-
-    if is_highlighted {
-        if let Some(resource) = table.get_resource_ref(false) {
-            resources.push(resource);
-        }
-
-        if let Some(result) = table.get_column_values() {
-            values.push(result);
-        }
-    }
-
-    if is_selected {
-        resources.append(&mut table.get_selected_resources_ref(false));
-        values.append(&mut table.get_selected_column_values());
-    }
-
-    PluginContext {
-        kubeconfig: app_data.history.kube_config_path().map(String::from).unwrap_or_default(),
-        context: app_data.current.context.clone(),
-        kind: app_data.current.resource.kind.clone(),
-        namespace: app_data.current.namespace.clone(),
-        resources,
-        columns: table.get_column_names(),
-        values,
     }
 }

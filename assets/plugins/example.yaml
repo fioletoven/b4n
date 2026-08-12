@@ -1,0 +1,60 @@
+# Example plugin that prints some resource information and data entered by user for the highlighted resource
+# Requires `echo` command
+
+name: echo
+aliases: []
+description: "echoes resource details"
+shortcut: Shift+E
+
+command: echo
+args:
+  - "name=$RES[NAME]"
+  - "namespace=$RES[NAMESPACE]"
+  - "uid=$RES[UID]"
+  - "\nimage=$COL[IMAGE]"
+  - "status=$COL[STATUS]"
+  - "\ncheckbox=$INPUT[TEST1]"
+  - "select=$INPUT[TEST4]"
+  - "\ntext1=$INPUT[TEST2]"
+  - "\ntext2=$INPUT[TEST3]"
+  - "\ntext3=$INPUT[TEST5]"
+
+scopes:
+  - pods
+  - nodes
+  - containers
+
+inputs:
+  - kind: checkbox
+    name: test1
+    label: Some checkbox
+    value: true1  # will be pre-checked -> matches value for checked
+    options:
+      - falseA    # first value is for unchecked
+      - true1     # second value is for checked
+
+  - kind: textbox
+    name: test2
+    label: 'Enter name:'
+
+  - kind: textbox
+    name: test3
+    label: 'Command:   '
+    value: sh -c "echo 'ok'"
+
+  - kind: select
+    name: test4
+    label: 'Fav food:  '
+    value: just bread  # second option will be pre-selected
+    options:
+      - ice-cream
+      - just bread
+      - fancy jelly beans
+
+  - kind: textbox
+    name: test5
+    label: 'Required:  '
+    required: true  # cannot run plugin until value is provided
+
+highlighted: true
+keep_output: true   # to actually see `echo` output with user data

@@ -1,4 +1,4 @@
-# Example plugin that executes `dive` for the highlighted container
+# Executes `dive` for the highlighted container
 # Requires: https://github.com/wagoodman/dive
 
 name: dive
@@ -11,6 +11,7 @@ args:
 scopes:
   - containers
 excluded_scopes: []
+inputs: []
 confirm: false
 interactive: true
 keep_output: false
