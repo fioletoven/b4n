@@ -2,7 +2,7 @@ use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
-use b4n_config::{Config, ConfigWatcher, History, Plugins, PluginsWatcher, SyntaxData};
+use b4n_config::{Config, ConfigError, ConfigWatcher, History, Plugins, PluginsWatcher, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
@@ -51,7 +51,7 @@ impl App {
     /// Creates new [`App`] instance.
     pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
         let is_mouse_enabled = config.mouse;
-        let theme_path = config.theme_path().0;
+        let theme_path = config.theme_path();
         let syntax_data = SyntaxData::new(&theme);
         let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
         let footer = Footer::default();
@@ -117,7 +117,12 @@ impl App {
         Ok(())
     }
 
-    /// Shows error in the app footer with optional icon.
+    /// Shows error in the app footer.
+    pub fn show_error(&self, error: String) {
+        self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);
+    }
+
+    /// Shows theme error in the app footer.
     pub fn show_theme_error(&self, error: String) {
         self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);
         self.views_manager
@@ -128,14 +133,7 @@ impl App {
     /// Process all waiting events.
     pub fn process_events(&mut self) -> Result<ExecutionFlow> {
         if let Some(Ok(config)) = self.config_watcher.try_next() {
-            if let (theme_path, false) = config.theme_path() {
-                self.theme_watcher.change_file(theme_path)?;
-            } else {
-                self.show_theme_error(format!(
-                    "Error loading '{}' theme: configuration file not found",
-                    config.theme
-                ));
-            }
+            self.theme_watcher.change_file(config.theme_path())?;
 
             {
                 let mut data = self.data.borrow_mut();
@@ -156,7 +154,9 @@ impl App {
                 self.data.borrow_mut().theme = theme;
                 self.views_manager.footer().set_icon("000_notheme", None, IconKind::Error);
             },
-            Some(Err(error)) => {
+            Some(Err(error))
+                if (!self.data.borrow().config.is_default_theme() || matches!(error, ConfigError::DeserializationError(_))) =>
+            {
                 let theme = &self.data.borrow().config.theme;
                 self.show_theme_error(format!("Error loading '{theme}' theme: {error}"));
             },
@@ -165,10 +165,7 @@ impl App {
 
         match self.plugins_watcher.try_next() {
             Some(Ok(plugins)) => self.data.borrow_mut().plugins = plugins,
-            Some(Err(error)) => {
-                let msg = format!("Error loading plugins: {error}");
-                self.views_manager.footer().show_error(msg, DEFAULT_ERROR_DURATION);
-            },
+            Some(Err(error)) => self.show_error(format!("Error loading plugins: {error}")),
             _ => (),
         }
 
@@ -186,10 +183,7 @@ impl App {
                         return Ok(ExecutionFlow::Stop);
                     }
                 },
-                Err(error) => self
-                    .views_manager
-                    .footer()
-                    .show_error(error.to_string(), DEFAULT_ERROR_DURATION),
+                Err(error) => self.show_error(error.to_string()),
             }
         }
 
@@ -481,21 +475,13 @@ impl App {
     /// Changes application theme.
     fn process_theme_change(&mut self, theme: String) {
         if self.data.borrow().config.theme != theme {
-            let old_theme = std::mem::replace(&mut self.data.borrow_mut().config.theme, theme);
-            if let (theme_path, false) = self.data.borrow().config.theme_path() {
-                let _ = self.theme_watcher.change_file(theme_path);
-                self.config_watcher.skip_next();
-                self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
-                let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
-                self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
-            } else {
-                let msg = format!(
-                    "Error loading '{}' theme: configuration file not found",
-                    self.data.borrow().config.theme
-                );
-                self.show_theme_error(msg);
-                self.data.borrow_mut().config.theme = old_theme;
-            }
+            self.data.borrow_mut().config.theme = theme;
+            let theme_path = self.data.borrow().config.theme_path();
+            let _ = self.theme_watcher.change_file(theme_path);
+            self.config_watcher.skip_next();
+            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+            let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
+            self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
         }
     }
 

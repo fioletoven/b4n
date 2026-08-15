@@ -152,7 +152,7 @@ impl Plugins {
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
             if let Some(extension) = path.extension()
-                && extension.eq_ignore_ascii_case("yaml")
+                && (extension.eq_ignore_ascii_case("yaml") || extension.eq_ignore_ascii_case("yml"))
             {
                 match load_plugin(&path).await {
                     Ok(Some(plugin)) => plugins.push(plugin),
@@ -230,7 +230,10 @@ impl PluginsWatcher {
         let task = self.runtime.spawn(async move {
             while !_cancellation_token.is_cancelled() {
                 if watcher.watch(&_path, RecursiveMode::NonRecursive).is_err() {
-                    sleep(Duration::from_secs(5)).await;
+                    tokio::select! {
+                        () = sleep(Duration::from_secs(15)) => {}
+                        () = _cancellation_token.cancelled() => {}
+                    }
                     continue;
                 }
 

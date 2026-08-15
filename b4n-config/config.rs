@@ -157,38 +157,28 @@ impl Config {
 
     /// Loads the configuration from a file or creates a default one if the file does not exist.
     pub async fn load_or_create() -> (Self, Option<ConfigError>) {
-        load_or_create_default(&Self::default_path()).await
+        load_configuration(&Self::default_path(), false, false).await
     }
 
-    /// Loads the theme specified in the configuration.\
-    /// **Note**, if the theme does not exist, a default one is created.
-    pub async fn load_or_create_theme(&self) -> (Theme, Option<ConfigError>) {
-        if let Err(error) = tokio::fs::create_dir_all(Config::themes_dir()).await {
-            tracing::error!("Cannot create themes directory: {}", error);
-        }
-        let (theme_path, not_found) = self.theme_path();
-        let (theme, error) = load_or_create_default(&theme_path).await;
-        if error.is_none() && not_found {
-            (theme, Some(ConfigError::NotFound))
-        } else {
-            (theme, error)
-        }
+    /// Loads the theme specified in the configuration.
+    pub async fn load_theme(&self) -> (Theme, Option<ConfigError>) {
+        let theme_path = self.theme_path();
+        load_configuration(&theme_path, true, self.is_default_theme()).await
     }
 
-    /// Returns path to the [`Theme`] set in the configuration or to the default one.\
-    /// **Note** that it returns also bool value indicating if the default one is used.
-    pub fn theme_path(&self) -> (PathBuf, bool) {
-        let path = Config::themes_dir().join(format!("{}.yaml", self.theme));
-        if path.exists() {
-            (path, false)
-        } else {
-            (Config::themes_dir().join(format!("{DEFAULT_THEME_NAME}.yaml")), true)
-        }
+    /// Returns path to the [`Theme`] set in the configuration.
+    pub fn theme_path(&self) -> PathBuf {
+        Config::themes_dir().join(format!("{}.yaml", self.theme))
+    }
+
+    /// Returns `true` if the currently set theme is a default one.
+    pub fn is_default_theme(&self) -> bool {
+        self.theme == default_theme_name()
     }
 }
 
 impl Persistable<Config> for Config {
-    /// Returns the default configuration path: `HOME/b4n/config.yaml`.
+    /// Returns the default configuration path: `$HOME/.b4n/config.yaml`.
     fn default_path() -> PathBuf {
         match std::env::home_dir() {
             Some(path) => path.join(format!(".{APP_NAME}")).join("config.yaml"),
@@ -216,19 +206,26 @@ impl Persistable<Config> for Config {
     }
 }
 
-async fn load_or_create_default<T: Persistable<T> + Default>(path: &Path) -> (T, Option<ConfigError>) {
+async fn load_configuration<T: Persistable<T> + Default>(
+    path: &Path,
+    is_theme: bool,
+    is_default: bool,
+) -> (T, Option<ConfigError>) {
+    let kind = if is_theme { "theme" } else { "config" };
     let configuration = T::load(path).await;
     match configuration {
         Ok(configuration) => (configuration, None),
         Err(ConfigError::DeserializationError(error)) => {
-            tracing::error!("Cannot deserialize config: {}", error);
+            tracing::error!("Cannot deserialize {}: {}", kind, error);
             (T::default(), Some(ConfigError::DeserializationError(error)))
         },
         Err(error) => {
-            tracing::error!("Cannot load config: {}", error);
             let configuration = T::default();
-            if let Err(error) = configuration.save(path).await {
-                tracing::error!("Cannot save config: {}", error);
+            if !is_default {
+                tracing::error!("Cannot load {}: {}", kind, error);
+            }
+            if !is_theme && let Err(error) = configuration.save(path).await {
+                tracing::error!("Cannot save {}: {}", kind, error);
             }
             (configuration, Some(error))
         },
