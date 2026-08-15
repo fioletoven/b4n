@@ -509,7 +509,7 @@ impl Theme {
 }
 
 impl Persistable<Theme> for Theme {
-    /// Returns the default theme file path: `$HOME/.b4n/themes/default.yaml`.
+    /// Returns the default theme file path.
     fn default_path() -> PathBuf {
         Config::themes_dir().join(format!("{DEFAULT_THEME_NAME}.yaml"))
     }

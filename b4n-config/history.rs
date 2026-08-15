@@ -10,7 +10,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
-use crate::{ConfigError, ConfigWatcher, Persistable};
+use crate::{Config, ConfigError, ConfigWatcher, Persistable};
 
 /// Keeps context configuration.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -267,12 +267,9 @@ impl History {
 }
 
 impl Persistable<History> for History {
-    /// Returns the default history file path: `$HOME/.b4n/history.yaml`.
+    /// Returns the default history file path.
     fn default_path() -> PathBuf {
-        match std::env::home_dir() {
-            Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),
-            None => PathBuf::from("history.yaml"),
-        }
+        Config::data_dir().join("history.yaml")
     }
 
     async fn load(path: &Path) -> Result<History, ConfigError> {

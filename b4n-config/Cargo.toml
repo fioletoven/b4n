@@ -12,6 +12,7 @@ path = "./lib.rs"
 b4n-common = { workspace = true }
 anyhow = { workspace = true }
 crossterm = { workspace = true }
+directories = { workspace = true }
 notify = { workspace = true }
 ratatui-core = { workspace = true }
 serde = { workspace = true }

@@ -17,7 +17,8 @@ pub mod ui;
 fn main() -> Result<()> {
     let args = cli::Args::parse();
 
-    let _logging_guard = b4n_common::logging::initialize(b4n_config::APP_NAME)?;
+    Config::init_dirs()?;
+    let _logging_guard = b4n_common::logging::initialize(b4n_config::APP_NAME, Config::data_dir())?;
     info!("{} v{} started", b4n_config::APP_NAME, b4n_config::APP_VERSION);
 
     if let Err(error) = run_application(&args) {

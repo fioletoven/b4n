@@ -2,7 +2,7 @@ use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
-use b4n_config::{Config, ConfigError, ConfigWatcher, History, Plugins, PluginsWatcher, SyntaxData};
+use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, SyntaxData};
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
@@ -73,7 +73,7 @@ impl App {
             config_watcher: Config::watcher(runtime.clone()),
             history_watcher: History::watcher(runtime.clone()),
             theme_watcher: ConfigWatcher::new(runtime.clone(), theme_path),
-            plugins_watcher: PluginsWatcher::new(runtime, Plugins::default_path()),
+            plugins_watcher: PluginsWatcher::new(runtime, Config::data_dir().join("plugins")),
             client_manager,
             views_manager,
         })

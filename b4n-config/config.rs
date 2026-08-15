@@ -1,7 +1,9 @@
 use anyhow::Result;
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
@@ -12,6 +14,9 @@ use crate::{ConfigWatcher, Persistable, keys::KeyBindings, utils::sorted_map};
 pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_THEME_NAME: &str = "default";
+
+static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
+static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// Possible errors from configuration files manipulation.
 #[derive(thiserror::Error, Debug)]
@@ -142,22 +147,51 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Initialises project directories.\
+    /// **Note** that it must be called once on the app start.
+    pub fn init_dirs() -> Result<()> {
+        let (config_dir, data_dir) = if let Some(dirs) = ProjectDirs::from("", "", APP_NAME) {
+            (dirs.config_local_dir().to_path_buf(), dirs.data_local_dir().to_path_buf())
+        } else if let Some(home) = std::env::home_dir() {
+            let app_dir = home.join(format!(".{APP_NAME}"));
+            (app_dir.clone(), app_dir)
+        } else {
+            let app_dir = PathBuf::from(".");
+            (app_dir.clone(), app_dir)
+        };
+
+        std::fs::create_dir_all(&config_dir)?;
+        std::fs::create_dir_all(&data_dir)?;
+
+        let _ = CONFIG_PATH.set(config_dir.join("config.yaml"));
+        let _ = DATA_DIR.set(data_dir);
+
+        Ok(())
+    }
+
     /// Returns watcher for configuration.
     pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
         ConfigWatcher::new(runtime, Config::default_path())
     }
 
+    /// Returns path to the configuration file.
+    pub fn config_path() -> &'static Path {
+        CONFIG_PATH.get().expect("init_dirs was not called")
+    }
+
+    /// Retruns path to the data directory.
+    pub fn data_dir() -> &'static Path {
+        DATA_DIR.get().expect("init_dirs was not called")
+    }
+
     /// Returns path to the themes directory.
     pub fn themes_dir() -> PathBuf {
-        match std::env::home_dir() {
-            Some(path) => path.join(format!(".{APP_NAME}")).join("themes"),
-            None => PathBuf::from("themes"),
-        }
+        Self::data_dir().join("themes")
     }
 
     /// Loads the configuration from a file or creates a default one if the file does not exist.
     pub async fn load_or_create() -> (Self, Option<ConfigError>) {
-        load_configuration(&Self::default_path(), false, false).await
+        load_configuration(Self::config_path(), false, false).await
     }
 
     /// Loads the theme specified in the configuration.
@@ -178,12 +212,9 @@ impl Config {
 }
 
 impl Persistable<Config> for Config {
-    /// Returns the default configuration path: `$HOME/.b4n/config.yaml`.
+    /// Returns the default configuration path.
     fn default_path() -> PathBuf {
-        match std::env::home_dir() {
-            Some(path) => path.join(format!(".{APP_NAME}")).join("config.yaml"),
-            None => PathBuf::from("config.yaml"),
-        }
+        Self::config_path().to_path_buf()
     }
 
     async fn load(path: &Path) -> Result<Config, ConfigError> {
