@@ -267,7 +267,7 @@ impl History {
 }
 
 impl Persistable<History> for History {
-    /// Returns the default history file path: `HOME/b4n/history.yaml`.
+    /// Returns the default history file path: `$HOME/.b4n/history.yaml`.
     fn default_path() -> PathBuf {
         match std::env::home_dir() {
             Some(path) => path.join(format!(".{}", super::APP_NAME)).join("history.yaml"),

@@ -55,15 +55,20 @@ fn run_application(args: &cli::Args) -> Result<()> {
     let namespace = history.get_namespace(&context.name).or(context.namespace.as_deref());
     let namespace = args.namespace(namespace).map(String::from).into();
 
-    let (config, _) = rt.block_on(Config::load_or_create());
-    let (theme, theme_error) = rt.block_on(config.load_or_create_theme());
-    let theme_name = config.theme.clone();
+    let (config, config_error) = rt.block_on(Config::load_or_create());
+    let (theme, theme_error) = rt.block_on(config.load_theme());
 
     let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
     app.start(context.name, kind, namespace)?;
 
+    if let Some(error) = config_error
+        && matches!(error, ConfigError::DeserializationError(_))
+    {
+        app.show_error(format!("Error loading configuration: {error}"));
+    }
+
     if let Some(error) = theme_error
-        && !(theme_name == "default" && matches!(error, ConfigError::IoError(_)))
+        && matches!(error, ConfigError::DeserializationError(_))
     {
         app.show_theme_error(format!("Error loading theme: {error}"));
     }

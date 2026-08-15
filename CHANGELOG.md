@@ -11,6 +11,7 @@
 ### Bug fixes
 
 - fix `kubectl describe` plugin run
+- do not create `default.yaml` theme file if it does not exist
 
 ## 0.5.5 - 2026-08-06
 
