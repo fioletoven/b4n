@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_config::{Config, ConfigError, History};
 use b4n_kube::PODS;
-use b4n_kube::client::get_context;
+use b4n_kube::client::{get_context, resolve_kube_config_path};
 use clap::Parser;
 use core::{App, ExecutionFlow};
 use std::thread::sleep;
@@ -15,9 +15,13 @@ pub mod kube;
 pub mod ui;
 
 fn main() -> Result<()> {
-    let args = cli::Args::parse();
-
     Config::init_dirs()?;
+    let args = cli::Args::parse();
+    if args.show_dirs {
+        Config::print_dirs(resolve_kube_config_path(args.kube_config.as_deref()).ok());
+        return Ok(());
+    }
+
     let _logging_guard = b4n_common::logging::initialize(b4n_config::APP_NAME, Config::data_dir())?;
     info!("{} v{} started", b4n_config::APP_NAME, b4n_config::APP_VERSION);
 

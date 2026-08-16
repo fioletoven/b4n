@@ -73,7 +73,7 @@ impl App {
             config_watcher: Config::watcher(runtime.clone()),
             history_watcher: History::watcher(runtime.clone()),
             theme_watcher: ConfigWatcher::new(runtime.clone(), theme_path),
-            plugins_watcher: PluginsWatcher::new(runtime, Config::data_dir().join("plugins")),
+            plugins_watcher: PluginsWatcher::new(runtime, Config::plugins_dir()),
             client_manager,
             views_manager,
         })

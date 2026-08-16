@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::style::Stylize;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,6 +9,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
+use crate::History;
 use crate::themes::{TextColors, Theme};
 use crate::{ConfigWatcher, Persistable, keys::KeyBindings, utils::sorted_map};
 
@@ -169,9 +171,19 @@ impl Config {
         Ok(())
     }
 
-    /// Returns watcher for configuration.
-    pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
-        ConfigWatcher::new(runtime, Config::default_path())
+    /// Prints configuration paths used by the application.
+    pub fn print_dirs(kube_config: Option<PathBuf>) {
+        println!("Resolved {} configuration paths:", APP_NAME.blue());
+        println!("{}:     {}", "config".cyan(), Self::config_path().display());
+        println!("{}:    {}", "history".cyan(), History::default_path().display());
+        println!("{}:       {}", "logs".cyan(), Self::data_dir().join("logs").display());
+        println!("{}:     {}", "themes".cyan(), Self::themes_dir().display());
+        println!("{}:    {}", "plugins".cyan(), Self::plugins_dir().display());
+        if let Some(kube_config) = kube_config {
+            println!("{}: {}", "kubeconfig".cyan(), kube_config.display());
+        } else {
+            println!("{}: {}", "kubeconfig".cyan(), "not found".grey());
+        }
     }
 
     /// Returns path to the configuration file.
@@ -187,6 +199,16 @@ impl Config {
     /// Returns path to the themes directory.
     pub fn themes_dir() -> PathBuf {
         Self::data_dir().join("themes")
+    }
+
+    /// Returns path to the plugins directory.
+    pub fn plugins_dir() -> PathBuf {
+        Self::data_dir().join("plugins")
+    }
+
+    /// Returns watcher for configuration.
+    pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
+        ConfigWatcher::new(runtime, Config::default_path())
     }
 
     /// Loads the configuration from a file or creates a default one if the file does not exist.

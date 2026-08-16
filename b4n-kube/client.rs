@@ -147,6 +147,22 @@ impl DerefMut for KubernetesClient {
     }
 }
 
+/// Resolves `kubeconfig` path and checks if it exists.
+pub fn resolve_kube_config_path(kube_config_path: Option<&str>) -> Result<PathBuf, ClientError> {
+    let path = kube_config_path.map_or(
+        std::env::home_dir()
+            .map(|h| h.join(".kube").join("config"))
+            .ok_or(ClientError::HomeDirNotFound)?,
+        PathBuf::from,
+    );
+
+    if !path.exists() {
+        return Err(ClientError::KubeConfigNotFound);
+    }
+
+    Ok(path::absolute(path)?)
+}
+
 /// Returns matching context from the kube config for the provided one.\
 /// **Note** that it can `fallback_to_default` if the provided context is not found in kube config.
 pub async fn get_context(
@@ -260,18 +276,7 @@ fn get_context_internal(kube_config: &Kubeconfig, kube_context: Option<&str>) ->
 
 /// Returns kube config.
 async fn get_kube_config(kube_config_path: Option<&str>) -> Result<(Kubeconfig, Option<String>), ClientError> {
-    let path = kube_config_path.map_or(
-        std::env::home_dir()
-            .map(|h| h.join(".kube").join("config"))
-            .ok_or(ClientError::HomeDirNotFound)?,
-        PathBuf::from,
-    );
-
-    if !path.exists() {
-        return Err(ClientError::KubeConfigNotFound);
-    }
-
-    let path = path::absolute(path)?;
+    let path = resolve_kube_config_path(kube_config_path)?;
     let path_result = if kube_config_path.is_some() {
         Some(path.to_str().unwrap_or_default().to_string())
     } else {
