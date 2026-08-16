@@ -150,8 +150,8 @@ impl Default for Config {
 
 impl Config {
     /// Initialises project directories.\
-    /// **Note** that it must be called once on the app start.
-    pub fn init_dirs() -> Result<()> {
+    /// **Note** that it must be called once on app start.
+    pub fn init_dirs(create: bool) -> Result<()> {
         let (config_dir, data_dir) = if let Some(dirs) = ProjectDirs::from("", "", APP_NAME) {
             (dirs.config_local_dir().to_path_buf(), dirs.data_local_dir().to_path_buf())
         } else if let Some(home) = std::env::home_dir() {
@@ -162,8 +162,10 @@ impl Config {
             (app_dir.clone(), app_dir)
         };
 
-        std::fs::create_dir_all(&config_dir)?;
-        std::fs::create_dir_all(&data_dir)?;
+        if create {
+            std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(&data_dir)?;
+        }
 
         let _ = CONFIG_PATH.set(config_dir.join("config.yaml"));
         let _ = DATA_DIR.set(data_dir);
@@ -173,7 +175,6 @@ impl Config {
 
     /// Prints configuration paths used by the application.
     pub fn print_dirs(kube_config: Option<PathBuf>) {
-        println!("Resolved {} configuration paths:", APP_NAME.blue());
         println!("{}:     {}", "config".cyan(), Self::config_path().display());
         println!("{}:    {}", "history".cyan(), History::default_path().display());
         println!("{}:       {}", "logs".cyan(), Self::data_dir().join("logs").display());

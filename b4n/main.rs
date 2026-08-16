@@ -15,13 +15,14 @@ pub mod kube;
 pub mod ui;
 
 fn main() -> Result<()> {
-    Config::init_dirs()?;
     let args = cli::Args::parse();
     if args.show_dirs {
+        Config::init_dirs(false)?;
         Config::print_dirs(resolve_kube_config_path(args.kube_config.as_deref()).ok());
         return Ok(());
     }
 
+    Config::init_dirs(true)?;
     let _logging_guard = b4n_common::logging::initialize(b4n_config::APP_NAME, Config::data_dir())?;
     info!("{} v{} started", b4n_config::APP_NAME, b4n_config::APP_VERSION);
 

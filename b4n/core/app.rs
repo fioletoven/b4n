@@ -155,11 +155,11 @@ impl App {
                 self.views_manager.footer().set_icon("000_notheme", None, IconKind::Error);
             },
             Some(Err(error))
-                if (!self.data.borrow().config.is_default_theme() || matches!(error, ConfigError::DeserializationError(_))) =>
+                if !self.data.borrow().config.is_default_theme() || matches!(error, ConfigError::DeserializationError(_)) =>
             {
                 let theme = &self.data.borrow().config.theme;
                 self.show_theme_error(format!("Error loading '{theme}' theme: {error}"));
-            },
+            }
             _ => (),
         }
 

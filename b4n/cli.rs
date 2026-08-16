@@ -29,7 +29,7 @@ pub struct Args {
     #[arg(long)]
     pub insecure: bool,
 
-    /// Print configuration paths used by the application, then exit.
+    /// Print configuration paths used by the application.
     #[arg(long)]
     pub show_dirs: bool,
 }
