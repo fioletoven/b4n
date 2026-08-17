@@ -1,17 +1,11 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initializes new logging to file and returns worker guard that will flush logs on drop.
-pub fn initialize(app_name: &str) -> Result<tracing_appender::non_blocking::WorkerGuard> {
-    let home_dir = match std::env::home_dir() {
-        Some(mut path) => {
-            path.push(format!(".{app_name}/logs"));
-            path
-        },
-        None => PathBuf::from("logs"),
-    };
+pub fn initialize(app_name: &str, data_dir: &Path) -> Result<tracing_appender::non_blocking::WorkerGuard> {
+    let home_dir = data_dir.join("logs");
     let appender = tracing_appender::rolling::daily(home_dir, format!("{app_name}.log"));
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(appender);
 

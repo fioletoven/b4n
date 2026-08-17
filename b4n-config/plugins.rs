@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::{APP_NAME, keys::KeyCombination};
+use crate::keys::KeyCombination;
 
 /// Possible errors from plugins loading.
 #[derive(thiserror::Error, Debug)]
@@ -137,14 +137,6 @@ impl Deref for Plugins {
 }
 
 impl Plugins {
-    /// Returns the default plugins path: `$HOME/.b4n/plugins/`.
-    pub fn default_path() -> PathBuf {
-        match std::env::home_dir() {
-            Some(path) => path.join(format!(".{APP_NAME}")).join("plugins"),
-            None => PathBuf::from("plugins"),
-        }
-    }
-
     /// Loads plugins from the specified directory.
     pub async fn from_directory(path: &Path) -> Result<Self, PluginError> {
         let mut plugins = Vec::new();

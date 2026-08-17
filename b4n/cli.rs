@@ -28,6 +28,10 @@ pub struct Args {
     /// Skip TLS certificate verification (insecure).
     #[arg(long)]
     pub insecure: bool,
+
+    /// Print configuration paths used by the application.
+    #[arg(long)]
+    pub show_dirs: bool,
 }
 
 impl Args {

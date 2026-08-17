@@ -13,7 +13,7 @@
   </a>
 </div>
 
-`b4n` is a terminal user interface (TUI) for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily based on the [`k9s` project](https://k9scli.io) and built using the [`kube-rs`](https://kube.rs) and [`ratatui`](https://ratatui.rs) crates.
+`b4n` is a terminal user interface (TUI) for the Kubernetes API, created mainly for learning the Rust programming language. It is heavily inspired by the [`k9s` project](https://k9scli.io) and built using the [`kube-rs`](https://kube.rs) and [`ratatui`](https://ratatui.rs) crates.
 
 ![b4n demo](assets/b4n_048.gif?raw=true "b4n")
 
@@ -143,15 +143,39 @@ If the destination path (`To (dir):` textbox) contains `~`, there will be an att
 
 ## Configuration Files
 
-Configuration files are stored in the `$HOME/.b4n` directory. The layout looks like this:
+Configuration files are stored in platform-specific directories. The exact paths depend on your operating system:
+
+**Windows**
+```
+%LOCALAPPDATA%\b4n\config\config.yaml
+%LOCALAPPDATA%\b4n\data\history.yaml
+```
+> Example: `C:\Users\<user>\AppData\Local\b4n\`
+
+**macOS**
+```
+~/Library/Application Support/b4n/config/config.yaml
+~/Library/Application Support/b4n/data/history.yaml
+```
+
+**Linux**
+```
+~/.config/b4n/config.yaml
+~/.local/share/b4n/history.yaml
+```
+
+> Note: If the platform-specific directories cannot be determined, `b4n` falls back to `$HOME/.b4n/`.  
+> To list paths expected by the application: `b4n --show-dirs`
+
+The layout is as follows:
 
 ```
-.b4n/
+<config_dir>/
+└─ config.yaml
+<data_dir>/
 ├─ logs/
 ├─ plugins/
 ├─ themes/
-│  └─ default.yaml
-├─ config.yaml
 └─ history.yaml
 ```
 
@@ -207,14 +231,11 @@ for_each: false      # run each selected resource separately (if interactive: fa
 | `$COL[COLUMN_NAME]` | any visible column value from the highlighted or selected resource |
 | `$INPUT[NAME]`      | input's value provided by the user                                 |
 
-Example plugins are available in the `plugins` folder.
+The plugins folder is not created automatically. Example plugins are available in the `assets/plugins` folder.
 
 ### themes/
 
-This folder stores all TUI themes.  
-If `default.yaml` does not exist, the application will create it automatically.
-
-You can add more theme files here by copying the ones from the repository `themes` folder or by creating your own.
+This folder stores TUI themes. It is not created automatically. Place theme files here to make them available in the application - either by copying themes from the `assets/themes` folder or by creating your own.
 
 ### config.yaml
 

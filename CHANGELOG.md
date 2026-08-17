@@ -1,8 +1,8 @@
 # Change Log
 
-## WIP
+## 0.5.6 - 2026-08-17
 
-## Features
+### Features
 
 - separate option for plugins to color `kubectl describe` output
 - configurable key bindings in edit mode
@@ -12,6 +12,18 @@
 
 - fix `kubectl describe` plugin run
 - do not create `default.yaml` theme file if it does not exist
+
+### Breaking changes
+
+- configuration files moved from `$HOME/.b4n/` to platform-specific directories:
+
+  | Platform | Config | Data |
+  |----------|--------|------|
+  | Windows | `%LOCALAPPDATA%\b4n\config\config.yaml` | `%LOCALAPPDATA%\b4n\data\` |
+  | macOS | `~/Library/Application Support/b4n/config/config.yaml` | `~/Library/Application Support/b4n/data/` |
+  | Linux | `~/.config/b4n/config.yaml` | `~/.local/share/b4n/` |
+
+  Migrate by copying your data (themes, plugins, etc.) from `$HOME/.b4n/` to the appropriate new locations, then delete the old directory. Run `b4n --show-dirs` to see the exact paths on your system.
 
 ## 0.5.5 - 2026-08-06
 
