@@ -105,6 +105,12 @@ impl SelectContext {
     /// Updates selection end to the current cursor position only for appropriate key combinations.\
     /// **Note** that it must be executed only in edit mode and after processing edit events.
     pub fn process_event_final<T: Content>(&mut self, event: &TuiEvent, content: &T, cursor: ContentPosition) {
+        if let TuiEvent::Command(command) = event
+            && matches!(command, KeyCommand::EditCut | KeyCommand::EditUndo | KeyCommand::EditRedo)
+        {
+            self.clear_selection();
+        }
+
         let TuiEvent::Key(key) = event else {
             return;
         };

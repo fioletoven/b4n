@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug fixes
+
+- fix mouse menu not working properly in YAML edit mode
+
 ## 0.5.6 - 2026-08-17
 
 ### Features
