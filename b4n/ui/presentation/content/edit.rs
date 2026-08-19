@@ -102,10 +102,38 @@ impl EditContext {
                     return ResponseEvent::NotHandled;
                 }
             },
-            TuiEvent::Command(_) => (),
+            TuiEvent::Command(command) => {
+                if let Some(pos) = self.process_command(command, content, selection) {
+                    self.update_cursor_position(pos, content, false);
+                }
+            },
         }
 
         ResponseEvent::Handled
+    }
+
+    fn process_command<T: Content>(
+        &mut self,
+        command: &KeyCommand,
+        content: &mut T,
+        selection: Option<Selection>,
+    ) -> Option<NewCursorPosition> {
+        match command {
+            KeyCommand::EditUndo => Some(content.undo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))),
+            KeyCommand::EditRedo => Some(content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))),
+            KeyCommand::EditCut => {
+                if let Some(selection) = selection {
+                    let start = selection.sorted().0;
+                    content.remove_text(selection);
+                    Some((Some(Some(start.x)), Some(start.y)))
+                } else {
+                    let range = Selection::from_line_end(content.line_size(self.cursor.y), self.cursor.y);
+                    content.remove_text(range);
+                    Some((None, None))
+                }
+            },
+            _ => None,
+        }
     }
 
     fn process_key<T: Content>(
