@@ -353,7 +353,7 @@ impl<T: Content> ContentViewer<T> {
     pub fn insert_text(&mut self, text: Vec<String>, on_line_start: bool) {
         if let Some(content) = &mut self.content {
             if let Some(range) = self.select.get_selection() {
-                self.edit.cursor = range.start;
+                self.edit.cursor = range.sorted().0;
                 content.remove_text(range);
             }
 
