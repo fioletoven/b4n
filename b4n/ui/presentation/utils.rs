@@ -225,7 +225,7 @@ fn remove_lines(lines: &mut Vec<String>, start_line: usize, end_line: usize, sta
     let last = if let Some(end) = char_to_index(&lines[end_line], end + 1) {
         lines[end_line].drain(..end).collect()
     } else {
-        lines[end_line].drain(..).collect()
+        std::mem::take(&mut lines[end_line])
     };
 
     if is_end_eol {

@@ -103,7 +103,7 @@ impl EditContext {
                 }
             },
             TuiEvent::Command(command) => {
-                if let Some(pos) = self.process_command(command, content, selection) {
+                if let Some(pos) = self.process_command(*command, content, selection) {
                     self.update_cursor_position(pos, content, false);
                 }
             },
@@ -114,7 +114,7 @@ impl EditContext {
 
     fn process_command<T: Content>(
         &mut self,
-        command: &KeyCommand,
+        command: KeyCommand,
         content: &mut T,
         selection: Option<Selection>,
     ) -> Option<NewCursorPosition> {
