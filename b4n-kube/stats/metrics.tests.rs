@@ -50,5 +50,5 @@ fn display_test() {
     let a = CpuMetrics::from_str("366455n").unwrap();
     let b = CpuMetrics::from_str("15m").unwrap();
     assert_eq!("15366455n", format!("{}", a + b));
-    assert_eq!("15m", format!("{}", (a + b).millicores()));
+    assert_eq!("15m", (a + b).millicores());
 }

@@ -19,7 +19,7 @@ pub enum SetResourceYamlError {
     SerializationError {
         resource: String,
         #[source]
-        source: serde_saphyr::Error,
+        source: Box<serde_saphyr::Error>,
     },
 
     /// Failed to patch or apply YAML to the Kubernetes resource.
@@ -28,7 +28,7 @@ pub enum SetResourceYamlError {
         action: SetResourceYamlAction,
         resource: String,
         #[source]
-        source: kube::Error,
+        source: Box<kube::Error>,
     },
 }
 
@@ -132,7 +132,7 @@ impl SetResourceYamlCommand {
         let mut resource = serde_saphyr::from_str::<k8s_openapi::serde_json::Value>(&self.yaml).map_err(|e| {
             SetResourceYamlError::SerializationError {
                 resource: self.name.clone(),
-                source: e,
+                source: Box::new(e),
             }
         })?;
 
@@ -160,7 +160,7 @@ impl SetResourceYamlCommand {
             .map_err(|e| SetResourceYamlError::PatchError {
                 action: self.options.action,
                 resource: self.name.clone(),
-                source: e,
+                source: Box::new(e),
             })?;
 
         if let Some(status) = status_part
@@ -177,7 +177,7 @@ impl SetResourceYamlCommand {
                 .map_err(|e| SetResourceYamlError::PatchError {
                     action: self.options.action,
                     resource: self.name.clone(),
-                    source: e,
+                    source: Box::new(e),
                 })?;
         }
 

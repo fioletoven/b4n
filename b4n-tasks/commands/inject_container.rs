@@ -16,7 +16,7 @@ pub enum InjectContainerError {
         pod_name: String,
         container_name: String,
         #[source]
-        source: kube::Error,
+        source: Box<kube::Error>,
     },
 }
 
@@ -72,7 +72,7 @@ async fn inject_container(
     let pod = api.get(&name).await.map_err(|e| InjectContainerError::KubeError {
         pod_name: name.clone(),
         container_name: config.name.clone(),
-        source: e,
+        source: Box::new(e),
     })?;
 
     let mut ephemeral_containers = pod
@@ -97,7 +97,7 @@ async fn inject_container(
     .map_err(|e| InjectContainerError::KubeError {
         pod_name: name.clone(),
         container_name: config.name.clone(),
-        source: e,
+        source: Box::new(e),
     })?;
 
     Ok(ResourceRef::container(name, api.namespace().into(), config.name))

@@ -13,6 +13,7 @@ use crate::ui::presentation::content::{Content, search::ContentPosition};
 
 /// Context for the content edit mode.
 pub struct EditContext {
+    pub was_enabled: bool,
     pub is_enabled: bool,
     pub is_modified: bool,
     pub cursor: ContentPosition,
@@ -26,6 +27,7 @@ impl EditContext {
     /// Creates new [`EditContext`] instance.
     pub fn new(app_data: SharedAppData, cursor_color: TextColors) -> Self {
         Self {
+            was_enabled: false,
             is_enabled: false,
             is_modified: false,
             cursor: ContentPosition::default(),
@@ -45,6 +47,7 @@ impl EditContext {
         page_size: u16,
         content: &mut T,
     ) {
+        self.was_enabled = true;
         self.is_enabled = true;
         if let Some(selection) = selection {
             self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
@@ -103,7 +106,7 @@ impl EditContext {
                 }
             },
             TuiEvent::Command(command) => {
-                if let Some(pos) = self.process_command(command, content, selection) {
+                if let Some(pos) = self.process_command(*command, content, selection) {
                     self.update_cursor_position(pos, content, false);
                 }
             },
@@ -114,7 +117,7 @@ impl EditContext {
 
     fn process_command<T: Content>(
         &mut self,
-        command: &KeyCommand,
+        command: KeyCommand,
         content: &mut T,
         selection: Option<Selection>,
     ) -> Option<NewCursorPosition> {

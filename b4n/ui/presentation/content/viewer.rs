@@ -137,14 +137,17 @@ impl<T: Content> ContentViewer<T> {
             return false;
         }
 
-        let cursor_start = if is_new && let Some(content) = self.content() {
-            content
-                .search_first("  name: \"\"")
-                .or_else(|| content.search_first("  name: ''"))
-                .map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
-        } else {
-            self.current_match_position()
-        };
+        let cursor_start = self.current_match_position().or_else(|| {
+            let is_new_first_time = is_new && !self.edit.was_enabled;
+            if is_new_first_time && let Some(content) = self.content() {
+                content
+                    .search_first("  name: \"\"")
+                    .or_else(|| content.search_first("  name: ''"))
+                    .map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
+            } else {
+                None
+            }
+        });
         if let Some(content) = &mut self.content
             && content.is_editable()
         {

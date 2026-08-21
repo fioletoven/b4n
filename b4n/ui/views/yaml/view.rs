@@ -276,14 +276,8 @@ impl YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
-            if self.is_new {
-                return self.process_view_close_event(ResponseEvent::Cancelled, false);
-            }
-
             let is_modified = self.yaml.is_modified();
-            if self.is_edit && !is_modified {
-                return ResponseEvent::Cancelled;
-            } else if self.yaml.disable_edit_mode() {
+            if self.yaml.disable_edit_mode() {
                 if is_modified {
                     self.show_edit_hint(true);
                 } else {
@@ -709,16 +703,11 @@ impl YamlView {
     fn show_edit_hint(&mut self, is_modified: bool) {
         self.is_hint_visible = true;
         let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
-        if self.is_new {
-            self.footer
-                .show_hint(format!(" Press ␝{key}␝ to open save dialog (if modified)"));
+        self.footer.show_hint(if is_modified {
+            format!(" Press ␝{key}␝ for save dialog")
         } else {
-            self.footer.show_hint(if is_modified {
-                format!(" Press ␝{key}␝ for save dialog")
-            } else {
-                format!(" Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
-            });
-        }
+            format!(" Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
+        });
     }
 
     fn hide_edit_hint(&mut self) {
