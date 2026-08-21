@@ -281,9 +281,7 @@ impl YamlView {
             }
 
             let is_modified = self.yaml.is_modified();
-            if self.is_edit && !is_modified {
-                return ResponseEvent::Cancelled;
-            } else if self.yaml.disable_edit_mode() {
+            if self.yaml.disable_edit_mode() {
                 if is_modified {
                     self.show_edit_hint(true);
                 } else {
