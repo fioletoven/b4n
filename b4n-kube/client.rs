@@ -38,12 +38,26 @@ pub enum ClientError {
 }
 
 /// Options for the Kubernetes client.
+#[derive(Clone)]
 pub struct ClientOptions {
-    /// Fallback to the default context in case of an error.
-    pub fallback_to_default: bool,
+    /// Cluster to use instead of the one set in context.
+    pub cluster: Option<String>,
+
+    /// User to use instead of the one set in context
+    pub user: Option<String>,
 
     /// Allow insecure connections (do not verify TLS certificate).
     pub allow_insecure: bool,
+}
+
+impl ClientOptions {
+    pub fn new(allow_insecure: bool) -> Self {
+        Self {
+            cluster: None,
+            user: None,
+            allow_insecure,
+        }
+    }
 }
 
 /// Holds simplified context info.
@@ -67,7 +81,7 @@ pub struct KubernetesClient {
     client: Client,
 
     /// Kube config path.
-    kube_config_path: Option<String>,
+    kubeconfig_path: Option<String>,
 
     /// Context used by the kubernetes client.
     context: String,
@@ -78,27 +92,24 @@ pub struct KubernetesClient {
 
 impl KubernetesClient {
     /// Creates new [`KubernetesClient`] instance.
-    pub async fn new(
-        kube_config_path: Option<&str>,
-        kube_context: Option<&str>,
-        options: ClientOptions,
-    ) -> Result<Self, ClientError> {
-        let (kube_config, kube_config_path) = get_kube_config(kube_config_path).await?;
-        let (client, context) = get_client_fallback(kube_config, kube_context, options).await?;
+    pub async fn new(kubeconfig_path: Option<&str>, context: Option<&str>, options: ClientOptions) -> Result<Self, ClientError> {
+        let (kubeconfig, kubeconfig_path) = get_kubeconfig(kubeconfig_path).await?;
+        let (client, context) = get_client(kubeconfig, context, options).await?;
         let k8s_version = client.apiserver_version().await?.git_version.clone();
 
         Ok(Self {
             client,
-            kube_config_path,
+            kubeconfig_path,
             context,
             k8s_version,
         })
     }
 
-    /// Changes kube context for [`KubernetesClient`] which results in creating new kubernetes client.
+    /// Changes kube context for [`KubernetesClient`] which results in creating new kubernetes client.\
+    /// **Note** that it do not preserve `cluster` or `user` options.
     pub async fn change_context(&mut self, new_kube_context: Option<&str>, allow_insecure: bool) -> Result<(), ClientError> {
-        let (kube_config, _) = get_kube_config(self.kube_config_path.as_deref()).await?;
-        let (client, context) = get_client(kube_config, new_kube_context, allow_insecure).await?;
+        let (kubeconfig, _) = get_kubeconfig(self.kubeconfig_path.as_deref()).await?;
+        let (client, context) = get_client(kubeconfig, new_kube_context, ClientOptions::new(allow_insecure)).await?;
 
         self.k8s_version.clone_from(&client.apiserver_version().await?.git_version);
         self.context = context;
@@ -118,8 +129,8 @@ impl KubernetesClient {
     }
 
     /// Returns path to kube config used to create this client.
-    pub fn kube_config_path(&self) -> Option<&str> {
-        self.kube_config_path.as_deref()
+    pub fn kubeconfig_path(&self) -> Option<&str> {
+        self.kubeconfig_path.as_deref()
     }
 
     /// Returns kube context name for the currently held kubernetes client.
@@ -148,8 +159,8 @@ impl DerefMut for KubernetesClient {
 }
 
 /// Resolves `kubeconfig` path and checks if it exists.
-pub fn resolve_kube_config_path(kube_config_path: Option<&str>) -> Result<PathBuf, ClientError> {
-    let path = kube_config_path.map_or(
+pub fn resolve_kubeconfig_path(kubeconfig_path: Option<&str>) -> Result<PathBuf, ClientError> {
+    let path = kubeconfig_path.map_or(
         std::env::home_dir()
             .map(|h| h.join(".kube").join("config"))
             .ok_or(ClientError::HomeDirNotFound)?,
@@ -166,29 +177,29 @@ pub fn resolve_kube_config_path(kube_config_path: Option<&str>) -> Result<PathBu
 /// Returns matching context from the kube config for the provided one.\
 /// **Note** that it can `fallback_to_default` if the provided context is not found in kube config.
 pub async fn get_context(
-    kube_config_path: Option<&str>,
-    kube_context: Option<&str>,
+    kubeconfig_path: Option<&str>,
+    context: Option<&str>,
     fallback_to_default: bool,
 ) -> Result<(Option<ContextInfo>, Option<String>), ClientError> {
-    let (kube_config, kube_config_path) = get_kube_config(kube_config_path).await?;
-    if let Some(context_name) = kube_context
-        && let Some(context) = kube_config.contexts.iter().find(|c| c.name == context_name)
+    let (kubeconfig, kubeconfig_path) = get_kubeconfig(kubeconfig_path).await?;
+    if let Some(context_name) = context
+        && let Some(context) = kubeconfig.contexts.iter().find(|c| c.name == context_name)
     {
-        Ok((Some(context.into()), kube_config_path))
+        Ok((Some(context.into()), kubeconfig_path))
     } else if fallback_to_default
-        && let Some(context_name) = kube_config.current_context.as_deref()
-        && let Some(context) = kube_config.contexts.iter().find(|c| c.name == context_name)
+        && let Some(context_name) = kubeconfig.current_context.as_deref()
+        && let Some(context) = kubeconfig.contexts.iter().find(|c| c.name == context_name)
     {
-        Ok((Some(context.into()), kube_config_path))
+        Ok((Some(context.into()), kubeconfig_path))
     } else {
-        Ok((None, kube_config_path))
+        Ok((None, kubeconfig_path))
     }
 }
 
 /// Returns contexts from the kube config.
-pub async fn list_contexts(kube_config_path: Option<&str>) -> Result<Vec<NamedContext>, ClientError> {
-    let (kube_config, _) = get_kube_config(kube_config_path).await?;
-    Ok(kube_config.contexts)
+pub async fn list_contexts(kubeconfig_path: Option<&str>) -> Result<Vec<NamedContext>, ClientError> {
+    let (kubeconfig, _) = get_kubeconfig(kubeconfig_path).await?;
+    Ok(kubeconfig.contexts)
 }
 
 /// Gets dynamic api client for given `resource` and `namespace`.
@@ -208,53 +219,29 @@ pub fn get_dynamic_api(
     }
 }
 
-/// Creates kubernetes client and returns it together with used context.\
-/// If provided context is not valid it can try the default one.
-async fn get_client_fallback(
-    kube_config: Kubeconfig,
-    kube_context: Option<&str>,
-    options: ClientOptions,
-) -> Result<(Client, String), ClientError> {
-    if let Some(context) = get_context_internal(&kube_config, kube_context) {
-        Ok((
-            get_client_for_context(kube_config, &context, options.allow_insecure).await?,
-            context,
-        ))
-    } else if options.fallback_to_default {
-        tracing::error!("context '{:?}' not found, fallback to the default one", kube_context);
-        get_client(kube_config, None, options.allow_insecure).await
-    } else {
-        Err(ClientError::ContextNotFound)
-    }
-}
-
 /// Creates kubernetes client and returns it together with used context.
 async fn get_client(
-    kube_config: Kubeconfig,
-    kube_context: Option<&str>,
-    allow_insecure: bool,
+    kubeconfig: Kubeconfig,
+    context: Option<&str>,
+    options: ClientOptions,
 ) -> Result<(Client, String), ClientError> {
-    if let Some(context) = get_context_internal(&kube_config, kube_context) {
-        Ok((get_client_for_context(kube_config, &context, allow_insecure).await?, context))
+    if let Some(context) = get_context_internal(&kubeconfig, context) {
+        Ok((get_client_for_context(kubeconfig, &context, options).await?, context))
     } else {
         Err(ClientError::ContextNotFound)
     }
 }
 
 /// Creates kubernetes client for the provided [`Kubeconfig`] and context.
-async fn get_client_for_context(
-    kube_config: Kubeconfig,
-    kube_context: &str,
-    allow_insecure: bool,
-) -> Result<Client, ClientError> {
-    let kube_config_options = kube::config::KubeConfigOptions {
-        context: Some(String::from(kube_context)),
-        user: None,
-        cluster: None,
+async fn get_client_for_context(kubeconfig: Kubeconfig, context: &str, options: ClientOptions) -> Result<Client, ClientError> {
+    let kubeconfig_options = kube::config::KubeConfigOptions {
+        context: Some(String::from(context)),
+        user: options.user,
+        cluster: options.cluster,
     };
 
-    let mut config = Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
-    config.accept_invalid_certs = allow_insecure;
+    let mut config = Config::from_custom_kubeconfig(kubeconfig, &kubeconfig_options).await?;
+    config.accept_invalid_certs = options.allow_insecure;
 
     let fixed_url = config.cluster_url.to_string().replace("0.0.0.0", "127.0.0.1");
     if let Ok(uri) = Uri::from_str(&fixed_url) {
@@ -265,27 +252,27 @@ async fn get_client_for_context(
 }
 
 /// Returns provided context (or default one if `None` specified).
-fn get_context_internal(kube_config: &Kubeconfig, kube_context: Option<&str>) -> Option<String> {
-    let Some(context) = kube_context else {
-        return kube_config.current_context.as_ref().map(String::from);
+fn get_context_internal(kubeconfig: &Kubeconfig, context: Option<&str>) -> Option<String> {
+    let Some(context) = context else {
+        return kubeconfig.current_context.as_ref().map(String::from);
     };
 
-    let context = kube_config.contexts.iter().find(|c| c.name == context);
+    let context = kubeconfig.contexts.iter().find(|c| c.name == context);
     context.map(|context| context.name.clone())
 }
 
 /// Returns kube config.
-async fn get_kube_config(kube_config_path: Option<&str>) -> Result<(Kubeconfig, Option<String>), ClientError> {
-    let path = resolve_kube_config_path(kube_config_path)?;
-    let path_result = if kube_config_path.is_some() {
+async fn get_kubeconfig(kubeconfig_path: Option<&str>) -> Result<(Kubeconfig, Option<String>), ClientError> {
+    let path = resolve_kubeconfig_path(kubeconfig_path)?;
+    let path_result = if kubeconfig_path.is_some() {
         Some(path.to_str().unwrap_or_default().to_string())
     } else {
         None
     };
     let mut file = File::open(path).await?;
 
-    let mut kube_config_str = String::new();
-    file.read_to_string(&mut kube_config_str).await?;
+    let mut kubeconfig_str = String::new();
+    file.read_to_string(&mut kubeconfig_str).await?;
 
-    Ok((Kubeconfig::from_yaml(&kube_config_str)?, path_result))
+    Ok((Kubeconfig::from_yaml(&kubeconfig_str)?, path_result))
 }

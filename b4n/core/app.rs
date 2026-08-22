@@ -3,6 +3,7 @@ use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, SyntaxData};
+use b4n_kube::client::ClientOptions;
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
     Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
@@ -15,6 +16,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
+use crate::cli::Args;
 use crate::core::{
     AppData, BgWorker, BgWorkerError, KubernetesClientManager, SharedAppData, SharedAppDataExt, SharedBgWorker, ViewsManager,
 };
@@ -49,7 +51,7 @@ pub struct App {
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, allow_insecure: bool) -> Result<Self> {
+    pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, args: &Args) -> Result<Self> {
         let is_mouse_enabled = config.mouse;
         let theme_path = config.theme_path();
         let syntax_data = SyntaxData::new(&theme);
@@ -61,8 +63,13 @@ impl App {
             syntax_data,
         )));
         let resources = ResourcesView::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter());
+        let options = ClientOptions {
+            cluster: args.cluster.as_deref().map(String::from),
+            user: args.user.as_deref().map(String::from),
+            allow_insecure: args.insecure,
+        };
         let client_manager =
-            KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), allow_insecure);
+            KubernetesClientManager::new(Rc::clone(&data), Rc::clone(&worker), footer.get_transmitter(), options);
         let mut views_manager = ViewsManager::new(Rc::clone(&data), Rc::clone(&worker), resources, footer);
         views_manager.set_message_history_hint();
 
@@ -159,7 +166,7 @@ impl App {
             {
                 let theme = &self.data.borrow().config.theme;
                 self.show_theme_error(format!("Error loading '{theme}' theme: {error}"));
-            }
+            },
             _ => (),
         }
 

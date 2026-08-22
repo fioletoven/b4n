@@ -35,9 +35,9 @@ pub struct KubernetesClientResult {
 pub struct NewKubernetesClientCommand {
     pub kube_config_path: Option<String>,
     pub context: String,
+    pub options: ClientOptions,
     pub kind: Kind,
     pub namespace: Namespace,
-    pub allow_insecure: bool,
 }
 
 impl NewKubernetesClientCommand {
@@ -45,30 +45,22 @@ impl NewKubernetesClientCommand {
     pub fn new(
         kube_config_path: Option<String>,
         context: String,
+        options: ClientOptions,
         kind: Kind,
         namespace: Namespace,
-        allow_insecure: bool,
     ) -> Self {
         Self {
             kube_config_path,
             context,
+            options,
             kind,
             namespace,
-            allow_insecure,
         }
     }
 
     /// Creates new kubernetes client and returns it.
     pub async fn execute(self) -> Option<CommandResult> {
-        let client = KubernetesClient::new(
-            self.kube_config_path.as_deref(),
-            Some(&self.context),
-            ClientOptions {
-                fallback_to_default: false,
-                allow_insecure: self.allow_insecure,
-            },
-        )
-        .await;
+        let client = KubernetesClient::new(self.kube_config_path.as_deref(), Some(&self.context), self.options).await;
         let client = match client {
             Ok(client) => client,
             Err(err) => return Some(CommandResult::KubernetesClient(Err(err.into()))),

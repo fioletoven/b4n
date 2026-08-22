@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_config::{Config, ConfigError, History};
 use b4n_kube::PODS;
-use b4n_kube::client::{get_context, resolve_kube_config_path};
+use b4n_kube::client::{get_context, resolve_kubeconfig_path};
 use clap::Parser;
 use core::{App, ExecutionFlow};
 use std::thread::sleep;
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let args = cli::Args::parse();
     if args.show_dirs {
         Config::init_dirs(false)?;
-        Config::print_dirs(resolve_kube_config_path(args.kube_config.as_deref()).ok());
+        Config::print_dirs(resolve_kubeconfig_path(args.kube_config.as_deref()).ok());
         return Ok(());
     }
 
@@ -64,7 +64,7 @@ fn run_application(args: &cli::Args) -> Result<()> {
     let (config, config_error) = rt.block_on(Config::load_or_create());
     let (theme, theme_error) = rt.block_on(config.load_theme());
 
-    let mut app = App::new(rt.handle().clone(), config, history, theme, args.insecure)?;
+    let mut app = App::new(rt.handle().clone(), config, history, theme, args)?;
     app.start(context.name, kind, namespace)?;
 
     if let Some(error) = config_error

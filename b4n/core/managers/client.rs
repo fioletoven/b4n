@@ -1,5 +1,5 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink, StateChangeTracker};
-use b4n_kube::{Kind, Namespace};
+use b4n_kube::{Kind, Namespace, client::ClientOptions};
 use b4n_tasks::commands::{Command, KubernetesClientError, KubernetesClientResult, NewKubernetesClientCommand};
 use std::time::Instant;
 use tracing::warn;
@@ -11,6 +11,7 @@ struct RequestInfo {
     request_time: Instant,
     request_id: Option<String>,
     context: String,
+    options: ClientOptions,
     kind: Kind,
     namespace: Namespace,
 }
@@ -34,31 +35,36 @@ pub struct KubernetesClientManager {
     request: Option<RequestInfo>,
     footer_tx: NotificationSink,
     connection_state: StateChangeTracker<bool>,
-    allow_insecure: bool,
+    options: ClientOptions,
 }
 
 impl KubernetesClientManager {
     /// Creates new [`KubernetesClientManager`] instance.
-    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink, allow_insecure: bool) -> Self {
+    pub fn new(app_data: SharedAppData, worker: SharedBgWorker, footer_tx: NotificationSink, options: ClientOptions) -> Self {
         Self {
             app_data,
             worker,
             request: None,
             footer_tx,
             connection_state: StateChangeTracker::new(Some(false)),
-            allow_insecure,
+            options,
         }
     }
 
-    /// Sends command to create new Kubernetes client to the background executor.
+    /// Sends command to create new Kubernetes client to the background executor.\
+    /// **Note** that when the client is requested for the first time it uses `self.options` that are then replaced
+    /// with the default options.
     pub fn request_new_client(&mut self, context: String, kind: Kind, namespace: Namespace) {
         if let Some(connecting) = &self.request {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());
         }
 
+        let new_options = ClientOptions::new(self.options.allow_insecure);
+        let options = std::mem::replace(&mut self.options, new_options);
         let msg = format!("Requested kubernetes client for '{context}'");
+
+        self.request = Some(self.new_kubernetes_client(context, options, kind, namespace));
         self.footer_tx.show_info(msg, DEFAULT_MESSAGE_DURATION);
-        self.request = Some(self.new_kubernetes_client(context, kind, namespace));
     }
 
     /// Clears the current Kubernetes request data.\
@@ -89,7 +95,8 @@ impl KubernetesClientManager {
             let msg = format!("Request is overdue, resending for '{}'", connecting.context);
             warn!("{}", msg);
             self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
-            self.request = Some(self.new_kubernetes_client(connecting.context, connecting.kind, connecting.namespace));
+            self.request =
+                Some(self.new_kubernetes_client(connecting.context, connecting.options, connecting.kind, connecting.namespace));
         }
     }
 
@@ -139,14 +146,20 @@ impl KubernetesClientManager {
     }
 
     /// Sends command to create new Kubernetes client to the background executor.
-    fn new_kubernetes_client(&mut self, context: String, kind: Kind, namespace: Namespace) -> RequestInfo {
+    fn new_kubernetes_client(
+        &mut self,
+        context: String,
+        options: ClientOptions,
+        kind: Kind,
+        namespace: Namespace,
+    ) -> RequestInfo {
         let kube_config_path = self.app_data.borrow().history.kube_config_path().map(String::from);
         let cmd = NewKubernetesClientCommand::new(
             kube_config_path,
             context.clone(),
+            options.clone(),
             kind.clone(),
             namespace.clone(),
-            self.allow_insecure,
         );
 
         RequestInfo {
@@ -157,6 +170,7 @@ impl KubernetesClientManager {
             ),
             request_time: Instant::now(),
             context,
+            options,
             kind,
             namespace,
         }

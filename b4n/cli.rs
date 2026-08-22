@@ -5,14 +5,6 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// Path to the kubeconfig file (defaults to $HOME/.kube/config).
-    #[arg(long, env = "KUBECONFIG")]
-    pub kube_config: Option<String>,
-
-    /// Context to use from the kubeconfig file.
-    #[arg(long)]
-    pub context: Option<String>,
-
     /// Kubernetes resource kind to show (e.g. pods, deployments, services).
     #[arg()]
     pub resource: Option<String>,
@@ -25,6 +17,22 @@ pub struct Args {
     #[arg(long, short = 'A')]
     pub all_namespaces: bool,
 
+    /// Path to the kubeconfig file (defaults to $HOME/.kube/config).
+    #[arg(long, env = "KUBECONFIG")]
+    pub kube_config: Option<String>,
+
+    /// Context to use from the kubeconfig file.
+    #[arg(long)]
+    pub context: Option<String>,
+
+    /// Cluster to use from the kubeconfig file.
+    #[arg(long)]
+    pub cluster: Option<String>,
+
+    /// User to use from the kubeconfig file.
+    #[arg(long)]
+    pub user: Option<String>,
+
     /// Skip TLS certificate verification (insecure).
     #[arg(long)]
     pub insecure: bool,
@@ -35,13 +43,12 @@ pub struct Args {
 }
 
 impl Args {
-    /// Returns context or default if context is `None`.
-    pub fn context<'a>(&'a self, default: Option<&'a str>) -> Option<&'a str> {
-        if self.context.is_some() {
-            self.context.as_deref()
-        } else {
-            default
-        }
+    /// Returns context or `last_used` from the history if context is `None`.
+    pub fn context<'a>(&'a self, last_used: Option<&'a str>) -> Option<&'a str> {
+        self.context.as_deref().or_else(|| {
+            let allow_last_used = self.cluster.is_none() && self.user.is_none();
+            if allow_last_used { last_used } else { None }
+        })
     }
 
     /// Returns the namespace option respecting `--all-namespaces` switch.
