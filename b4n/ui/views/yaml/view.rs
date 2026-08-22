@@ -245,6 +245,22 @@ impl YamlView {
         );
     }
 
+    fn show_search(&mut self, position: Option<Position>) -> ResponseEvent {
+        if self.search.value().is_empty()
+            && let Some(selection) = self.yaml.get_selection()
+            && selection.start.y == selection.end.y
+            && let Some(text) = self.yaml.get_text(Some(selection))
+        {
+            self.yaml.search(&text, false);
+            self.search.set_value(text);
+            self.update_search_count();
+        }
+
+        self.search.highlight_position(position);
+        self.search.show();
+        ResponseEvent::Handled
+    }
+
     fn clear_search(&mut self) {
         self.yaml.search("", false);
         self.search.reset();
@@ -325,8 +341,7 @@ impl YamlView {
         }
 
         if self.app_data.has_binding(event, KeyCommand::SearchOpen) {
-            self.search.show();
-            return ResponseEvent::Handled;
+            return self.show_search(None);
         }
 
         if self.app_data.has_binding(event, KeyCommand::SearchReset) && !self.search.value().is_empty() {
@@ -399,9 +414,7 @@ impl YamlView {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
         } else if response.is_action("search") {
-            self.search.highlight_position(event.position());
-            self.search.show();
-            return ResponseEvent::Handled;
+            return self.show_search(event.position());
         } else if response.is_action("describe") {
             return self.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen));
         } else if response.is_action("edit") && self.enable_edit_mode() {

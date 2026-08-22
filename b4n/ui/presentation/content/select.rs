@@ -4,6 +4,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{layout::Rect, style::Color, widgets::Widget};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::presentation::MatchPosition;
 use crate::ui::presentation::{Content, content::search::ContentPosition};
 
 /// Represents a text selection defined by a `start` and `end` position in the content.
@@ -38,6 +39,15 @@ impl Selection {
     }
 }
 
+impl From<&MatchPosition> for Selection {
+    fn from(value: &MatchPosition) -> Self {
+        Self {
+            start: ContentPosition::new(value.x, value.y),
+            end: ContentPosition::new(value.x.saturating_add(value.length.saturating_sub(1)), value.y),
+        }
+    }
+}
+
 /// Context for the selected text.
 pub struct SelectContext {
     pub start: Option<ContentPosition>,
@@ -60,11 +70,11 @@ impl SelectContext {
     }
 
     /// Updates current selection only if `range` is specified.
-    pub fn update_selection(&mut self, range: Option<(ContentPosition, ContentPosition)>) {
-        if let Some((start, end)) = range {
-            self.start = Some(start);
-            self.end = Some(end);
-            self.init = Some(start);
+    pub fn update_selection(&mut self, range: Option<Selection>) {
+        if let Some(selection) = range {
+            self.start = Some(selection.start);
+            self.end = Some(selection.end);
+            self.init = Some(selection.start);
         }
     }
 
