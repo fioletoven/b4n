@@ -16,20 +16,28 @@ pub enum ClientError {
     #[error("failed to determine user's home directory")]
     HomeDirNotFound,
 
-    /// Kube config file not found.
-    #[error("kube config file not found")]
+    /// Kubeconfig file not found.
+    #[error("kubeconfig file not found")]
     KubeConfigNotFound,
 
-    /// Context not found in kube config.
-    #[error("context not found in kube config")]
-    ContextNotFound,
+    /// Context not found in kubeconfig.
+    #[error("Kube context '{0}' not found in configuration.")]
+    ContextNotFound(String),
+
+    /// Cluster not found in kubeconfig.
+    #[error("Kube cluster '{0}' not found in configuration.")]
+    ClusterNotFound(String),
+
+    /// User not found in kubeconfig.
+    #[error("Kube user '{0}' not found in configuration.")]
+    UserNotFound(String),
 
     /// Failed to read kube configuration.
-    #[error("cannot read kube config: {0}")]
+    #[error("cannot read kubeconfig: {0}")]
     IoError(#[from] std::io::Error),
 
     /// Failed to process kube configuration.
-    #[error("cannot build kube config: {0}")]
+    #[error("cannot build kubeconfig: {0}")]
     KubeconfigError(#[from] kube::config::KubeconfigError),
 
     /// Failed to build kubernetes client.
@@ -80,7 +88,7 @@ pub struct KubernetesClient {
     /// Kubernetes client.
     client: Client,
 
-    /// Kube config path.
+    /// Kubeconfig path.
     kubeconfig_path: Option<String>,
 
     /// Context used by the kubernetes client.
@@ -128,7 +136,7 @@ impl KubernetesClient {
         get_dynamic_api(ar, caps, self.client.clone(), ns, all)
     }
 
-    /// Returns path to kube config used to create this client.
+    /// Returns path to kubeconfig used to create this client.
     pub fn kubeconfig_path(&self) -> Option<&str> {
         self.kubeconfig_path.as_deref()
     }
@@ -174,29 +182,44 @@ pub fn resolve_kubeconfig_path(kubeconfig_path: Option<&str>) -> Result<PathBuf,
     Ok(path::absolute(path)?)
 }
 
-/// Returns matching context from the kube config for the provided one.\
-/// **Note** that it can `fallback_to_default` if the provided context is not found in kube config.
-pub async fn get_context(
+/// Validates provided configuration and returns matching context from the kubeconfig.\
+/// **Note** that it can `fallback_to_default` if the provided context is not found in kubeconfig.
+pub async fn validate_and_resolve_context(
     kubeconfig_path: Option<&str>,
     context: Option<&str>,
+    cluster: Option<&str>,
+    user: Option<&str>,
     fallback_to_default: bool,
-) -> Result<(Option<ContextInfo>, Option<String>), ClientError> {
+) -> Result<(ContextInfo, Option<String>), ClientError> {
     let (kubeconfig, kubeconfig_path) = get_kubeconfig(kubeconfig_path).await?;
+
+    if let Some(cluster_name) = cluster
+        && kubeconfig.clusters.iter().find(|c| c.name == cluster_name).is_none()
+    {
+        return Err(ClientError::ClusterNotFound(cluster_name.to_string()));
+    }
+
+    if let Some(user_name) = user
+        && kubeconfig.auth_infos.iter().find(|c| c.name == user_name).is_none()
+    {
+        return Err(ClientError::UserNotFound(user_name.to_string()));
+    }
+
     if let Some(context_name) = context
         && let Some(context) = kubeconfig.contexts.iter().find(|c| c.name == context_name)
     {
-        Ok((Some(context.into()), kubeconfig_path))
+        Ok((context.into(), kubeconfig_path))
     } else if fallback_to_default
         && let Some(context_name) = kubeconfig.current_context.as_deref()
         && let Some(context) = kubeconfig.contexts.iter().find(|c| c.name == context_name)
     {
-        Ok((Some(context.into()), kubeconfig_path))
+        Ok((context.into(), kubeconfig_path))
     } else {
-        Ok((None, kubeconfig_path))
+        Err(ClientError::ContextNotFound(context.unwrap_or("default").to_string()))
     }
 }
 
-/// Returns contexts from the kube config.
+/// Returns contexts from the kubeconfig.
 pub async fn list_contexts(kubeconfig_path: Option<&str>) -> Result<Vec<NamedContext>, ClientError> {
     let (kubeconfig, _) = get_kubeconfig(kubeconfig_path).await?;
     Ok(kubeconfig.contexts)
@@ -228,7 +251,7 @@ async fn get_client(
     if let Some(context) = get_context_internal(&kubeconfig, context) {
         Ok((get_client_for_context(kubeconfig, &context, options).await?, context))
     } else {
-        Err(ClientError::ContextNotFound)
+        Err(ClientError::ContextNotFound(context.unwrap_or("default").to_string()))
     }
 }
 
@@ -261,7 +284,7 @@ fn get_context_internal(kubeconfig: &Kubeconfig, context: Option<&str>) -> Optio
     context.map(|context| context.name.clone())
 }
 
-/// Returns kube config.
+/// Returns kubeconfig.
 async fn get_kubeconfig(kubeconfig_path: Option<&str>) -> Result<(Kubeconfig, Option<String>), ClientError> {
     let path = resolve_kubeconfig_path(kubeconfig_path)?;
     let path_result = if kubeconfig_path.is_some() {

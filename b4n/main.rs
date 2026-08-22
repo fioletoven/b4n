@@ -1,7 +1,7 @@
 use anyhow::Result;
 use b4n_config::{Config, ConfigError, History};
 use b4n_kube::PODS;
-use b4n_kube::client::{get_context, resolve_kubeconfig_path};
+use b4n_kube::client::{resolve_kubeconfig_path, validate_and_resolve_context};
 use clap::Parser;
 use core::{App, ExecutionFlow};
 use std::thread::sleep;
@@ -44,17 +44,13 @@ fn run_application(args: &cli::Args) -> Result<()> {
     let rt = Builder::new_multi_thread().enable_all().build()?;
 
     let mut history = rt.block_on(History::load_or_create())?;
-    let (context, kube_config_path) = rt.block_on(get_context(
+    let (context, kube_config_path) = rt.block_on(validate_and_resolve_context(
         args.kube_config.as_deref(),
         args.context(history.current_context()),
+        args.cluster.as_deref(),
+        args.user.as_deref(),
         args.context.is_none(),
     ))?;
-    let Some(context) = context else {
-        return Err(anyhow::anyhow!(format!(
-            "Kube context '{}' not found in configuration.",
-            args.context(history.current_context()).unwrap_or("default")
-        )));
-    };
     history.set_kube_config_path(kube_config_path);
 
     let kind = args.kind(history.get_kind(&context.name)).unwrap_or(PODS).into();

@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add `--cluster` and `--user` options to overwrite context configuration
+
 ### Bug fixes
 
 - fix mouse menu not working properly in YAML edit mode

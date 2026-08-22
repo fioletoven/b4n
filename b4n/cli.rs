@@ -43,7 +43,7 @@ pub struct Args {
 }
 
 impl Args {
-    /// Returns context or `last_used` from the history if context is `None`.
+    /// Returns context or `last_used` if context is `None` and cluster or user is not provided.
     pub fn context<'a>(&'a self, last_used: Option<&'a str>) -> Option<&'a str> {
         self.context.as_deref().or_else(|| {
             let allow_last_used = self.cluster.is_none() && self.user.is_none();
