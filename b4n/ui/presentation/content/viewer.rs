@@ -10,11 +10,11 @@ use ratatui::widgets::{Block, Paragraph};
 use std::{rc::Rc, time::Instant};
 
 use crate::core::{SharedAppData, SharedAppDataExt};
-use crate::ui::presentation::Content;
 use crate::ui::presentation::content::edit::{ContentEditWidget, EditContext};
 use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
 use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
+use crate::ui::presentation::{Content, MatchPosition};
 use crate::ui::views::get_layout_with_header;
 
 /// Content viewer with header.
@@ -113,6 +113,11 @@ impl<T: Content> ContentViewer<T> {
         self.content.is_some() && self.select.start.is_some() && self.select.end.is_some()
     }
 
+    /// Returns selected text as a string.
+    pub fn get_text(&self, range: Option<Selection>) -> Option<String> {
+        self.content.as_ref().map(|c| c.to_plain_text(range))
+    }
+
     /// Returns `true` if viewer is in edit mode.
     pub fn is_in_edit_mode(&self) -> bool {
         self.edit.is_enabled
@@ -137,20 +142,18 @@ impl<T: Content> ContentViewer<T> {
             return false;
         }
 
-        let cursor_start = self.current_match_position().or_else(|| {
-            let is_new_first_time = is_new && !self.edit.was_enabled;
-            if is_new_first_time && let Some(content) = self.content() {
+        self.select.update_selection(self.current_match().map(Into::into));
+        if let Some(content) = &mut self.content
+            && content.is_editable()
+        {
+            let cursor_start = if is_new && !self.edit.was_enabled {
                 content
                     .search_first("  name: \"\"")
                     .or_else(|| content.search_first("  name: ''"))
                     .map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
             } else {
                 None
-            }
-        });
-        if let Some(content) = &mut self.content
-            && content.is_editable()
-        {
+            };
             self.select.adjust_selection();
             self.edit.enable(
                 self.page_start,
@@ -301,17 +304,12 @@ impl<T: Content> ContentViewer<T> {
         self.search.current
     }
 
-    /// Returns currently highlighted match position.\
+    /// Returns currently highlighted match.\
     /// **Note** that it returns first match if all are highlighted.
-    pub fn current_match_position(&self) -> Option<ContentPosition> {
+    pub fn current_match(&self) -> Option<&MatchPosition> {
         let matches = self.search.matches.as_ref()?;
         let current = self.search.current.unwrap_or_default();
-        let current = &matches[current.saturating_sub(1)];
-
-        Some(ContentPosition {
-            x: current.x,
-            y: current.y,
-        })
+        Some(&matches[current.saturating_sub(1)])
     }
 
     /// Updates the current match index in the search results based on navigation direction.\
