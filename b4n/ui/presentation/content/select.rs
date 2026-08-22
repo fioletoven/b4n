@@ -59,6 +59,15 @@ impl SelectContext {
         }
     }
 
+    /// Updates current selection only if `range` is specified.
+    pub fn update_selection(&mut self, range: Option<(ContentPosition, ContentPosition)>) {
+        if let Some((start, end)) = range {
+            self.start = Some(start);
+            self.end = Some(end);
+            self.init = Some(start);
+        }
+    }
+
     /// Clears the current selection.
     pub fn clear_selection(&mut self) {
         self.start = None;

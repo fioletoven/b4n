@@ -137,20 +137,18 @@ impl<T: Content> ContentViewer<T> {
             return false;
         }
 
-        let cursor_start = self.current_match_position().or_else(|| {
-            let is_new_first_time = is_new && !self.edit.was_enabled;
-            if is_new_first_time && let Some(content) = self.content() {
+        self.select.update_selection(self.current_match_positions());
+        if let Some(content) = &mut self.content
+            && content.is_editable()
+        {
+            let cursor_start = if is_new && !self.edit.was_enabled {
                 content
                     .search_first("  name: \"\"")
                     .or_else(|| content.search_first("  name: ''"))
                     .map(|start| ContentPosition::new(start.x + start.length.saturating_sub(1), start.y))
             } else {
                 None
-            }
-        });
-        if let Some(content) = &mut self.content
-            && content.is_editable()
-        {
+            };
             self.select.adjust_selection();
             self.edit.enable(
                 self.page_start,
@@ -301,17 +299,17 @@ impl<T: Content> ContentViewer<T> {
         self.search.current
     }
 
-    /// Returns currently highlighted match position.\
+    /// Returns currently highlighted match as a range (start, end).\
     /// **Note** that it returns first match if all are highlighted.
-    pub fn current_match_position(&self) -> Option<ContentPosition> {
+    pub fn current_match_positions(&self) -> Option<(ContentPosition, ContentPosition)> {
         let matches = self.search.matches.as_ref()?;
         let current = self.search.current.unwrap_or_default();
         let current = &matches[current.saturating_sub(1)];
 
-        Some(ContentPosition {
-            x: current.x,
-            y: current.y,
-        })
+        Some((
+            ContentPosition::new(current.x, current.y),
+            ContentPosition::new(current.x.saturating_add(current.length.saturating_sub(1)), current.y),
+        ))
     }
 
     /// Updates the current match index in the search results based on navigation direction.\
