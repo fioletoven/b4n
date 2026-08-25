@@ -87,6 +87,13 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
 
     if table.kind_plural() != NAMESPACES {
         builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
+    } else {
+        builder.add_menu_action(
+            ActionItem::new("␝󱈸␝ quit")
+                .with_response(ResponseEvent::ExitApplication)
+                .with_sort_id(100)
+                .with_icon(None),
+        );
     }
 
     if table.list.table.is_anything_selected() && table.list.table.data.is_deletable {
@@ -133,17 +140,16 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         }
 
         if !is_containers && !is_events {
-            if table.list.table.data.is_creatable {
-                builder.add_menu_action(ActionItem::menu(13, "󰐕 create new", "create"));
-            }
-            if is_highlighted {
-                builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
-            }
+            builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
         }
 
         if has_involved_object(table) {
             builder.add_menu_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
         }
+    }
+
+    if !is_containers && !is_events && table.list.table.data.is_creatable {
+        builder.add_menu_action(ActionItem::menu(13, "󰐕 create new", "create"));
     }
 
     builder.build(None)

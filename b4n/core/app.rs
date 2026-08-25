@@ -6,7 +6,8 @@ use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, Sy
 use b4n_kube::client::ClientOptions;
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
-    Command, CommandResult, KubernetesClientError, KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
+    Command, CommandResult, KubernetesClientError, KubernetesClientInfo, KubernetesClientResult, ListKubeContextsCommand,
+    ListThemesCommand,
 };
 use b4n_tui::widgets::Footer;
 use b4n_tui::{ResponseEvent, ScopeData, ToSelectData, Tui, TuiEvent};
@@ -506,6 +507,7 @@ impl App {
         }
 
         self.client_manager.erase_request(true);
+        self.data.borrow_mut().client_info = KubernetesClientInfo::default();
         self.worker.borrow_mut().stop();
 
         let (kind, namespace) = self.data.borrow().get_namespaced_resource_from_config(&context, namespace);
