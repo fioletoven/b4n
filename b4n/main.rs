@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let args = cli::Args::parse();
     if args.show_dirs {
         Config::init_dirs(false)?;
-        Config::print_dirs(resolve_kubeconfig_path(args.kube_config.as_deref()).ok());
+        Config::print_dirs(resolve_kubeconfig_path(args.kubeconfig.as_deref()).ok());
         return Ok(());
     }
 
@@ -45,7 +45,7 @@ fn run_application(args: &cli::Args) -> Result<()> {
 
     let mut history = rt.block_on(History::load_or_create())?;
     let (context, kubeconfig_path) = rt.block_on(validate_and_resolve_context(
-        args.kube_config.as_deref(),
+        args.kubeconfig.as_deref(),
         args.context(history.current_context()),
         args.cluster.as_deref(),
         args.user.as_deref(),

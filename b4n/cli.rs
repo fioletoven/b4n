@@ -17,9 +17,9 @@ pub struct Args {
     #[arg(long, short = 'A')]
     pub all_namespaces: bool,
 
-    /// Path to the kubeconfig file (defaults to $KUBECONFIG or ~/.kube/config).
-    #[arg(long, env = "KUBECONFIG")]
-    pub kube_config: Option<String>,
+    /// Path to the kubeconfig file (defaults to ~/.kube/config).
+    #[arg(long, alias = "kube-config", env = "KUBECONFIG")]
+    pub kubeconfig: Option<String>,
 
     /// Context to use from the kubeconfig file.
     #[arg(long)]
@@ -33,7 +33,7 @@ pub struct Args {
     #[arg(long)]
     pub user: Option<String>,
 
-    /// Username to impersonate during the session.
+    /// User to impersonate during the session.
     #[arg(long = "as")]
     pub as_user: Option<String>,
 
@@ -49,7 +49,7 @@ pub struct Args {
     #[arg(long, requires = "client_cert")]
     pub client_key: Option<String>,
 
-    /// Path to a CA file for server TLS verification.
+    /// Path to a CA file for server TLS certificate verification.
     #[arg(long = "ca")]
     pub certificate_authority: Option<String>,
 

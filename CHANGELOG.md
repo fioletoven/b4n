@@ -7,10 +7,12 @@
 - add `--cluster` and `--user` options to override context configuration
 - add `--as` and `--as-group` options to impersonate a user during the session
 - add `--client-cert`, `--client-key`, and `--ca` options for custom TLS authentication
+- allow to quit app using mouse menu (namespaces view)
 
 ### Bug Fixes
 
 - fix mouse menu not working in YAML edit mode
+- select shortest match when filtering command palette
 
 ## 0.5.6 - 2026-08-17
 
