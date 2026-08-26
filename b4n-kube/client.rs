@@ -232,7 +232,7 @@ pub fn resolve_kubeconfig_path(kubeconfig_path: Option<&str>) -> Result<PathBuf,
     Ok(path::absolute(path)?)
 }
 
-/// Validates all provided certificate paths if they exists.
+/// Validates all provided certificate paths if they exist.
 pub fn validate_certificate_paths(paths: &[Option<&str>]) -> Result<(), ClientError> {
     paths
         .iter()
