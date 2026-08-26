@@ -7,7 +7,8 @@
 - add `--cluster` and `--user` options to override context configuration
 - add `--as` and `--as-group` options to impersonate a user during the session
 - add `--client-cert`, `--client-key`, and `--ca` options for custom TLS authentication
-- allow to quit app using mouse menu (namespaces view)
+- allow quitting the app using the mouse menu (namespaces view)
+- enter key in CRDs view switches to the highlighted CRD's resources
 
 ### Bug Fixes
 
