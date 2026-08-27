@@ -585,12 +585,16 @@ impl ResourcesTable {
     }
 
     fn process_view_crds(resource: &ResourceItem) -> ResponseEvent {
-        ResponseEvent::ViewScoped(
-            resource.name.clone(),
-            None,
-            ToSelectData::None,
-            ScopeData::namespace_visible(ResourceRefFilter::default()),
-        )
+        let scope = if resource
+            .data
+            .as_ref()
+            .is_some_and(|d| d.tags.iter().any(|t| matches!(t, ResourceTag::Scope(Scope::Cluster))))
+        {
+            Scope::Cluster
+        } else {
+            Scope::Namespaced
+        };
+        ResponseEvent::ViewScoped(resource.name.clone(), None, ToSelectData::None, ScopeData::scope(scope))
     }
 
     fn process_view_selector(&self, resource: &ResourceItem, target: &str) -> ResponseEvent {

@@ -1,3 +1,4 @@
+use b4n_kube::{ResourceTag, Scope};
 use b4n_tui::table::{Column, Header, NAMESPACE};
 use kube::api::DynamicObject;
 use std::rc::Rc;
@@ -10,6 +11,11 @@ pub fn data(object: &DynamicObject) -> ResourceData {
     let versions = spec["versions"]
         .as_array()
         .map(|v| v.iter().filter_map(|v| v["name"].as_str()).collect::<Vec<_>>().join(","));
+    let scope = if spec["scope"].as_str().is_none_or(|scope| scope == "Namespaced") {
+        Scope::Namespaced
+    } else {
+        Scope::Cluster
+    };
     let is_terminating = object.metadata.deletion_timestamp.is_some();
 
     let values: [Cell; 4] = [
@@ -19,7 +25,13 @@ pub fn data(object: &DynamicObject) -> ResourceData {
         spec["scope"].as_str().into(),
     ];
 
-    ResourceData::new(Box::new(values), is_terminating)
+    ResourceData {
+        extra_values: Box::new(values),
+        is_ready: !is_terminating,
+        is_terminating,
+        tags: Box::new([ResourceTag::Scope(scope)]),
+        ..Default::default()
+    }
 }
 
 /// Returns [`Header`] for the `customresourcedefinition` kubernetes resource.

@@ -14,6 +14,7 @@
 
 - fix mouse menu not working in YAML edit mode
 - select shortest match when filtering command palette
+- fix namespace not always being restored when switching to previous resource
 
 ## 0.5.6 - 2026-08-17
 

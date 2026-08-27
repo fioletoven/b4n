@@ -241,4 +241,5 @@ pub enum ResourceTag {
     Container(String, ContainerType, Option<Timestamp>),
     CpuStatistics(String),
     MemoryStatistics(String),
+    Scope(Scope),
 }
