@@ -85,15 +85,15 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         .with_menu_action(ActionItem::command_palette())
         .with_menu_action(ActionItem::menu(16, &format!("󰆏 copy ␝{copy}␝"), "copy"));
 
-    if table.kind_plural() != NAMESPACES {
-        builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
-    } else {
+    if table.kind_plural() == NAMESPACES {
         builder.add_menu_action(
             ActionItem::new("␝󱈸␝ quit")
                 .with_response(ResponseEvent::ExitApplication)
                 .with_sort_id(100)
                 .with_icon(None),
         );
+    } else {
+        builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
     }
 
     if table.list.table.is_anything_selected() && table.list.table.data.is_deletable {

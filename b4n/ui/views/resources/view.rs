@@ -469,8 +469,10 @@ impl ResourcesView {
         let highlighted = self.table.list.table.get_highlighted_item_name_and_group();
         let highlighted = highlighted.map_or(ToSelectData::None, |(i, g)| ToSelectData::Some(i.to_owned(), g.to_owned()));
         let header = self.table.header.get_scope();
-        let namespace = self.app_data.borrow().current.namespace.clone();
-        let resource = self.app_data.borrow().current.resource.clone();
+        let (namespace, resource) = {
+            let data = self.app_data.borrow();
+            (data.current.get_namespace(), data.current.resource.clone())
+        };
         self.app_data.borrow_mut().previous.push(PreviousData {
             list: self.scope().clone(),
             header,

@@ -1,18 +1,20 @@
 # Change Log
 
-## WIP
+## 0.5.7 - 2026-08-27
 
 ### Features
 
 - add `--cluster` and `--user` options to override context configuration
 - add `--as` and `--as-group` options to impersonate a user during the session
 - add `--client-cert`, `--client-key`, and `--ca` options for custom TLS authentication
-- allow to quit app using mouse menu (namespaces view)
+- allow quitting the app using the mouse menu (namespaces view)
+- enter key in CRDs view switches to the highlighted CRD's resources
 
 ### Bug Fixes
 
 - fix mouse menu not working in YAML edit mode
 - select shortest match when filtering command palette
+- fix namespace not always being restored when switching to previous resource
 
 ## 0.5.6 - 2026-08-17
 

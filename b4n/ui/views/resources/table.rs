@@ -1,8 +1,8 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{
-    ALL_NAMESPACES, CONTAINERS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, ObserverResult, PODS,
-    REPLICA_SETS, ResourceRef, ResourceRefFilter, ResourceTag, SECRETS, SERVICES, STATEFUL_SETS,
+    ALL_NAMESPACES, CONTAINERS, CRDS, DAEMON_SETS, DEPLOYMENTS, EVENTS, JOBS, Kind, NAMESPACES, NODES, Namespace, ObserverResult,
+    PODS, REPLICA_SETS, ResourceRef, ResourceRefFilter, ResourceTag, SECRETS, SERVICES, STATEFUL_SETS,
 };
 use b4n_list::Row;
 use b4n_tui::ToSelectData;
@@ -485,6 +485,7 @@ impl ResourcesTable {
             NAMESPACES => ResponseEvent::Change(PODS.to_owned(), resource.name.clone()),
             PODS => ResponseEvent::ViewContainers(resource.name.clone(), resource.namespace.clone().unwrap_or_default()),
             CONTAINERS => self.process_view_logs(resource, true, false),
+            CRDS => Self::process_view_crds(resource),
             _ => self.process_view_yaml(resource, false, false),
         }
     }
@@ -581,6 +582,19 @@ impl ResourcesTable {
             filter: ResourceRefFilter::job(resource.name.clone(), &resource.name),
         };
         ResponseEvent::ViewScoped(PODS.to_owned(), resource.namespace.clone(), ToSelectData::None, scope)
+    }
+
+    fn process_view_crds(resource: &ResourceItem) -> ResponseEvent {
+        let scope = if resource
+            .data
+            .as_ref()
+            .is_some_and(|d| d.tags.iter().any(|t| matches!(t, ResourceTag::Scope(Scope::Cluster))))
+        {
+            Scope::Cluster
+        } else {
+            Scope::Namespaced
+        };
+        ResponseEvent::ViewScoped(resource.name.clone(), None, ToSelectData::None, ScopeData::scope(scope))
     }
 
     fn process_view_selector(&self, resource: &ResourceItem, target: &str) -> ResponseEvent {

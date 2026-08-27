@@ -20,6 +20,15 @@ pub struct ScopeData {
 }
 
 impl ScopeData {
+    /// Creates new [`ScopeData`] instance with the same scope for both header and list.
+    pub fn scope(scope: Scope) -> Self {
+        Self {
+            header: scope.clone(),
+            list: scope,
+            filter: ResourceRefFilter::default(),
+        }
+    }
+
     /// Creates new [`ScopeData`] instance that shows namespace column.
     pub fn namespace_visible(filter: ResourceRefFilter) -> Self {
         Self {
