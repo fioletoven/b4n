@@ -405,6 +405,36 @@ impl Content for YamlContent {
         self.undo.push(Undo::swap(first_line, second_line));
     }
 
+    fn move_line(&mut self, line: usize, offset: i32) {
+        if offset == 0 || line >= self.plain.len() {
+            return;
+        }
+
+        let target = if offset < 0 {
+            line.saturating_sub(offset.unsigned_abs() as usize)
+        } else {
+            (line + offset as usize).min(self.plain.len() - 1)
+        };
+
+        if target == line {
+            return;
+        }
+
+        self.redo.clear();
+
+        if target < line {
+            for i in (target..line).rev() {
+                self.swap_lines_internal(i, i + 1);
+                self.undo.push(Undo::swap(i, i + 1));
+            }
+        } else {
+            for i in line..target {
+                self.swap_lines_internal(i, i + 1);
+                self.undo.push(Undo::swap(i, i + 1));
+            }
+        }
+    }
+
     fn undo(&mut self) -> Option<ContentPosition> {
         let mut actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
         if actions.is_empty() {

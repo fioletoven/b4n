@@ -105,6 +105,12 @@ pub trait Content {
         let _ = second_line;
     }
 
+    /// Moves line by the specified offset.
+    fn move_line(&mut self, line: usize, offset: i32) {
+        let _ = line;
+        let _ = offset;
+    }
+
     /// Reverts most recent changes done in edit mode.
     fn undo(&mut self) -> Option<ContentPosition> {
         None
