@@ -146,7 +146,9 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        self.handle_lines_move(key, content, &selection);
+        if let Some(pos) = self.handle_lines_move(key, content, &selection) {
+            return pos;
+        }
 
         let is_cut = self.app_data.has_key_binding(key, KeyCommand::EditCut);
         if (is_hiding_selection_key(key) || is_cut)
@@ -246,12 +248,17 @@ impl EditContext {
         (None, None)
     }
 
-    fn handle_lines_move<T: Content>(&mut self, key: &KeyCombination, content: &mut T, selection: &Option<Selection>) {
+    fn handle_lines_move<T: Content>(
+        &mut self,
+        key: &KeyCombination,
+        content: &mut T,
+        selection: &Option<Selection>,
+    ) -> Option<NewCursorPosition> {
         let move_up = self.app_data.has_key_binding(key, KeyCommand::EditMoveUp);
         let move_down = self.app_data.has_key_binding(key, KeyCommand::EditMoveDown);
 
         if !move_up && !move_down {
-            return;
+            return None;
         }
 
         match selection.as_ref().map(Selection::sorted) {
@@ -259,18 +266,24 @@ impl EditContext {
                 let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
                 if move_up && sorted.0.y > 0 {
                     content.move_line(sorted.0.y - 1, line_count);
+                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
                 } else if move_down && sorted.1.y + 1 < content.len() {
                     content.move_line(sorted.1.y + 1, -line_count);
+                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
                 }
             },
             None => {
                 if move_up && self.cursor.y > 0 {
                     content.swap_lines(self.cursor.y - 1, self.cursor.y);
+                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
                 } else if move_down && self.cursor.y + 1 < content.len() {
                     content.swap_lines(self.cursor.y, self.cursor.y + 1);
+                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
                 }
             },
         }
+
+        Some((None, None))
     }
 
     fn update_cursor_position<T: Content>(&mut self, mut pos: NewCursorPosition, content: &mut T, is_mouse: bool) {
