@@ -85,6 +85,28 @@ impl SelectContext {
         self.init = None;
     }
 
+    /// Moves selection vertically by specified `delta`.
+    pub fn move_selection_vertical(&mut self, delta: isize, content_len: usize) {
+        let (Some(start), Some(end)) = (&mut self.start, &mut self.end) else {
+            return;
+        };
+
+        let content_len = content_len.saturating_sub(1);
+        let would_underflow = delta < 0 && (start.y == 0 || end.y == 0);
+        let would_overflow = delta > 0 && (start.y >= content_len || end.y >= content_len);
+
+        if would_underflow || would_overflow {
+            return;
+        }
+
+        start.offset_y(delta);
+        end.offset_y(delta);
+
+        if let Some(init) = &mut self.init {
+            init.offset_y(delta);
+        }
+    }
+
     /// Clears the current selection start (if end is not set) or adjusts the `init` of the selection
     /// to match situation when cursor is after selection start.
     pub fn adjust_selection(&mut self) {
@@ -149,6 +171,10 @@ impl SelectContext {
                 self.start = Some(decrement_cursor_x(init, content));
                 self.end = Some(cursor);
             }
+        } else if self.app_data.has_key_binding(key, KeyCommand::EditMoveUp) {
+            self.move_selection_vertical(-1, content.len());
+        } else if self.app_data.has_key_binding(key, KeyCommand::EditMoveDown) {
+            self.move_selection_vertical(1, content.len());
         } else if !self.app_data.has_key_binding(key, KeyCommand::EditSelectAll) {
             self.clear_selection();
         }
