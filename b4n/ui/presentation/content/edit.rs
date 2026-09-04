@@ -261,26 +261,34 @@ impl EditContext {
             return None;
         }
 
-        match selection.as_ref().map(Selection::sorted) {
-            Some(sorted) => {
-                let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
-                if move_up && sorted.0.y > 0 {
-                    content.move_line(sorted.0.y - 1, line_count);
-                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
-                } else if move_down && sorted.1.y + 1 < content.len() {
-                    content.move_line(sorted.1.y + 1, -line_count);
-                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
+        if let Some(selection) = &selection {
+            let mut cursor = selection.end;
+            if cursor.x >= content.line_size(cursor.y) {
+                cursor.x = 0;
+                cursor.y += 1;
+            }
+
+            let sorted = selection.sorted();
+            let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
+            if move_up && sorted.0.y > 0 {
+                content.move_line(sorted.0.y - 1, line_count);
+                return Some((Some(Some(cursor.x)), Some(cursor.y.saturating_sub(1))));
+            } else if move_down && sorted.1.y + 1 < content.len() {
+                content.move_line(sorted.1.y + 1, -line_count);
+                if cursor.y + 1 < content.len() {
+                    return Some((Some(Some(cursor.x)), Some(cursor.y + 1)));
+                } else {
+                    return Some((Some(Some(content.line_size(cursor.y))), Some(cursor.y)));
                 }
-            },
-            None => {
-                if move_up && self.cursor.y > 0 {
-                    content.swap_lines(self.cursor.y - 1, self.cursor.y);
-                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
-                } else if move_down && self.cursor.y + 1 < content.len() {
-                    content.swap_lines(self.cursor.y, self.cursor.y + 1);
-                    return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
-                }
-            },
+            }
+        } else {
+            if move_up && self.cursor.y > 0 {
+                content.swap_lines(self.cursor.y - 1, self.cursor.y);
+                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
+            } else if move_down && self.cursor.y + 1 < content.len() {
+                content.swap_lines(self.cursor.y, self.cursor.y + 1);
+                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
+            }
         }
 
         Some((None, None))

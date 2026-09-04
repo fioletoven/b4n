@@ -394,6 +394,12 @@ impl Content for YamlContent {
     }
 
     fn remove_text(&mut self, range: Selection) {
+        let sorted = range.sorted();
+        let range = if sorted.1.y + 1 == self.len() && sorted.1.x == self.line_size(sorted.1.y) {
+            Selection::new(sorted.0, ContentPosition::new(sorted.1.x.saturating_sub(1), sorted.1.y))
+        } else {
+            range
+        };
         let removed = self.remove_text_internal(&range);
         self.redo.clear();
         self.undo.push(Undo::cut(&range, removed));

@@ -1,5 +1,15 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- `ALT+↑` and `ALT+↓` now works with selections
+
+### Bug Fixes
+
+- fix undo for whole line selection removal when the last line is deleted
+
 ## 0.5.7 - 2026-08-27
 
 ### Features
