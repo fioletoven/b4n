@@ -95,29 +95,36 @@ pub trait Content {
     }
 
     /// Removes the specified `range` from the content.
-    fn remove_text(&mut self, range: Selection) {
+    fn remove_text(&mut self, range: Selection, selection: Option<Selection>) {
         let _ = range;
+        let _ = selection;
     }
 
     /// Swaps two lines in the content.
-    fn swap_lines(&mut self, first_line: usize, second_line: usize) {
+    fn swap_lines(&mut self, first_line: usize, second_line: usize, selection: Option<Selection>) {
         let _ = first_line;
         let _ = second_line;
+        let _ = selection;
     }
 
     /// Moves line by the specified offset.
-    fn move_line(&mut self, line: usize, offset: i32) {
+    fn move_line(&mut self, line: usize, offset: i32, selection: Option<Selection>) {
         let _ = line;
         let _ = offset;
+        let _ = selection;
     }
 
-    /// Reverts most recent changes done in edit mode.
-    fn undo(&mut self) -> Option<ContentPosition> {
+    /// Reverts most recent changes done in edit mode.\
+    /// Returns cursor position and the selection that was active before the change.
+    fn undo(&mut self, selection: Option<Selection>) -> Option<(ContentPosition, Option<Selection>)> {
+        let _ = selection;
         None
     }
 
-    /// Re-applies an action that was previously undone.
-    fn redo(&mut self) -> Option<ContentPosition> {
+    /// Re-applies an action that was previously undone.\
+    /// Returns cursor position and the selection that was active before the change.
+    fn redo(&mut self, selection: Option<Selection>) -> Option<(ContentPosition, Option<Selection>)> {
+        let _ = selection;
         None
     }
 
