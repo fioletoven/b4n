@@ -4,7 +4,8 @@
 
 ### Features
 
-- `ALT+↑` and `ALT+↓` now works with selections
+- `Alt+↑` and `Alt+↓` now works with selections
+- remember selection for undo and redo actions in edit mode
 
 ### Bug Fixes
 

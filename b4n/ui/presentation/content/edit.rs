@@ -286,9 +286,16 @@ impl EditContext {
         }
 
         if let Some(selection) = &selection {
-            let cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
             let sorted = selection.sorted();
             let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
+            let mut cursor = selection.end;
+            if cursor.x >= content.line_size(cursor.y) {
+                cursor.x = 0;
+                cursor.y += 1;
+            } else {
+                cursor.x += 1;
+            }
+
             if move_up && sorted.0.y > 0 {
                 content.move_line(sorted.0.y - 1, line_count, Some(selection.clone()));
                 return Some((Some(Some(cursor.x)), Some(cursor.y.saturating_sub(1))));
