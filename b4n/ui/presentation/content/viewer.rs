@@ -355,7 +355,7 @@ impl<T: Content> ContentViewer<T> {
         if let Some(content) = &mut self.content {
             if let Some(range) = self.select.get_selection() {
                 self.edit.cursor = range.sorted().0;
-                content.remove_text(range);
+                content.remove_text(range.clone(), Some(range));
             }
 
             self.select.clear_selection();
@@ -432,11 +432,15 @@ impl<T: Content> ContentViewer<T> {
                 .process_event(event, content, &mut self.page_start, cursor, self.page_area);
 
             if self.edit.is_enabled {
-                let response =
+                let (response, restored_selection) =
                     self.edit
                         .process_event(event, content, self.page_start, self.select.get_selection(), self.page_area);
                 if response != ResponseEvent::NotHandled {
-                    self.select.process_event_final(event, content, self.edit.cursor);
+                    if let Some(selection) = restored_selection {
+                        self.select.update_selection(Some(selection));
+                    } else {
+                        self.select.process_event_final(event, content, self.edit.cursor);
+                    }
                     let (y, x) = (self.edit.cursor.y, self.edit.cursor.x);
                     self.scroll_to(y, x, 1);
                     return response;

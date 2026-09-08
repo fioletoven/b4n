@@ -39,6 +39,15 @@ impl ContentPosition {
     pub fn sub_y(&mut self, value: usize) {
         self.y = self.y.saturating_sub(value);
     }
+
+    // Moves content vertically by specified `delta`.
+    pub fn offset_y(&mut self, delta: isize) {
+        if delta > 0 {
+            self.y = self.y.saturating_add(delta as usize);
+        } else {
+            self.y = self.y.saturating_sub(delta.unsigned_abs());
+        }
+    }
 }
 
 #[derive(Default)]

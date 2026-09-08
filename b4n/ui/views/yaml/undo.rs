@@ -21,11 +21,12 @@ pub struct Undo {
     pub text: Option<Vec<String>>,
     pub mode: UndoMode,
     pub when: Instant,
+    pub selection: Option<Selection>,
 }
 
 impl Undo {
     /// Creates a new undo/redo entry representing an inserted character.
-    pub fn insert(pos: ContentPosition, ch: char) -> Self {
+    pub fn insert(pos: ContentPosition, ch: char, selection: Option<Selection>) -> Self {
         Self {
             pos,
             end: None,
@@ -33,11 +34,12 @@ impl Undo {
             text: None,
             mode: UndoMode::Insert,
             when: Instant::now(),
+            selection,
         }
     }
 
     /// Creates a new undo/redo entry representing a removed character.
-    pub fn remove(pos: ContentPosition, ch: char) -> Self {
+    pub fn remove(pos: ContentPosition, ch: char, selection: Option<Selection>) -> Self {
         Self {
             pos,
             end: None,
@@ -45,11 +47,12 @@ impl Undo {
             text: None,
             mode: UndoMode::Remove,
             when: Instant::now(),
+            selection,
         }
     }
 
     /// Creates a new undo/redo entry representing a cut (range removal).
-    pub fn cut(range: &Selection, removed_text: Vec<String>) -> Self {
+    pub fn cut(range: &Selection, removed_text: Vec<String>, selection: Option<Selection>) -> Self {
         let (start, end) = range.sorted();
         Self {
             pos: start,
@@ -58,11 +61,12 @@ impl Undo {
             text: Some(removed_text),
             mode: UndoMode::Cut,
             when: Instant::now(),
+            selection,
         }
     }
 
     /// Creates a new undo/redo entry representing a paste (range insertion).
-    pub fn paste(range: &Selection) -> Self {
+    pub fn paste(range: &Selection, selection: Option<Selection>) -> Self {
         let (start, end) = range.sorted();
         Self {
             pos: start,
@@ -71,11 +75,12 @@ impl Undo {
             text: None,
             mode: UndoMode::Paste,
             when: Instant::now(),
+            selection,
         }
     }
 
     /// Creates a new undo/redo entry representing a lines swap.
-    pub fn swap(first_line: usize, second_line: usize) -> Self {
+    pub fn swap(first_line: usize, second_line: usize, selection: Option<Selection>) -> Self {
         Self {
             pos: ContentPosition::new(0, first_line),
             end: Some(ContentPosition::new(0, second_line)),
@@ -83,6 +88,7 @@ impl Undo {
             text: None,
             mode: UndoMode::Swap,
             when: Instant::now(),
+            selection,
         }
     }
 }

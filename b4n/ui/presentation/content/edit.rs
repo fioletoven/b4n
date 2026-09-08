@@ -73,25 +73,37 @@ impl EditContext {
         page_start: ContentPosition,
         selection: Option<Selection>,
         area: Rect,
-    ) -> ResponseEvent {
+    ) -> (ResponseEvent, Option<Selection>) {
         if self.app_data.has_binding(event, KeyCommand::EditSelectAll) {
             let last = content.len().saturating_sub(1);
             self.cursor = ContentPosition::new(content.line_size(last), last);
             self.last_key_press = Instant::now();
-            return ResponseEvent::Handled;
+            return (ResponseEvent::Handled, None);
         }
 
         match event {
             TuiEvent::Key(key) => {
-                let pos = if self.app_data.has_key_binding(key, KeyCommand::EditUndo) {
-                    content.undo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
+                let (pos, restored_selection) = if self.app_data.has_key_binding(key, KeyCommand::EditUndo) {
+                    let Some(result) = content.undo(selection) else {
+                        return (ResponseEvent::NotHandled, None);
+                    };
+                    ((Some(Some(result.0.x)), Some(result.0.y)), result.1)
                 } else if self.app_data.has_key_binding(key, KeyCommand::EditRedo) {
-                    content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))
+                    let Some(result) = content.redo(selection) else {
+                        return (ResponseEvent::NotHandled, None);
+                    };
+                    ((Some(Some(result.0.x)), Some(result.0.y)), result.1)
                 } else {
-                    self.process_key(key, content, selection, area)
+                    (self.process_key(key, content, selection, area), None)
                 };
-                self.update_cursor_position(pos, content, false);
+                if let Some(selection) = &restored_selection {
+                    let pos = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
+                    self.update_cursor_position((Some(Some(pos.x)), Some(pos.y)), content, false);
+                } else {
+                    self.update_cursor_position(pos, content, false);
+                }
                 self.last_key_press = Instant::now();
+                return (ResponseEvent::Handled, restored_selection);
             },
             TuiEvent::Mouse(mouse) => {
                 if mouse.kind == MouseEventKind::LeftClick {
@@ -102,17 +114,23 @@ impl EditContext {
                         self.cursor = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
                     }
 
-                    return ResponseEvent::NotHandled;
+                    return (ResponseEvent::NotHandled, None);
                 }
             },
             TuiEvent::Command(command) => {
-                if let Some(pos) = self.process_command(*command, content, selection) {
-                    self.update_cursor_position(pos, content, false);
+                if let Some((pos, restored_selection)) = self.process_command(*command, content, selection) {
+                    if let Some(selection) = &restored_selection {
+                        let pos = get_cursor_pos_for_selection(content, selection.end, selection.is_end_after_start());
+                        self.update_cursor_position((Some(Some(pos.x)), Some(pos.y)), content, false);
+                    } else {
+                        self.update_cursor_position(pos, content, false);
+                    }
+                    return (ResponseEvent::Handled, restored_selection);
                 }
             },
         }
 
-        ResponseEvent::Handled
+        (ResponseEvent::Handled, None)
     }
 
     fn process_command<T: Content>(
@@ -120,19 +138,25 @@ impl EditContext {
         command: KeyCommand,
         content: &mut T,
         selection: Option<Selection>,
-    ) -> Option<NewCursorPosition> {
+    ) -> Option<(NewCursorPosition, Option<Selection>)> {
         match command {
-            KeyCommand::EditUndo => Some(content.undo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))),
-            KeyCommand::EditRedo => Some(content.redo().map_or((None, None), |pos| (Some(Some(pos.x)), Some(pos.y)))),
+            KeyCommand::EditUndo => {
+                let (pos, sel) = content.undo(selection)?;
+                Some(((Some(Some(pos.x)), Some(pos.y)), sel))
+            },
+            KeyCommand::EditRedo => {
+                let (pos, sel) = content.redo(selection)?;
+                Some(((Some(Some(pos.x)), Some(pos.y)), sel))
+            },
             KeyCommand::EditCut => {
                 if let Some(selection) = selection {
                     let start = selection.sorted().0;
-                    content.remove_text(selection);
-                    Some((Some(Some(start.x)), Some(start.y)))
+                    content.remove_text(selection.clone(), Some(selection));
+                    Some(((Some(Some(start.x)), Some(start.y)), None))
                 } else {
                     let range = Selection::from_line_end(content.line_size(self.cursor.y), self.cursor.y);
-                    content.remove_text(range);
-                    Some((None, None))
+                    content.remove_text(range, None);
+                    Some(((None, None), None))
                 }
             },
             _ => None,
@@ -146,14 +170,8 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        if selection.is_none() {
-            if self.app_data.has_key_binding(key, KeyCommand::EditMoveUp) && self.cursor.y > 0 {
-                content.swap_lines(self.cursor.y.saturating_sub(1), self.cursor.y);
-            }
-
-            if self.app_data.has_key_binding(key, KeyCommand::EditMoveDown) && self.cursor.y + 1 < content.len() {
-                content.swap_lines(self.cursor.y, self.cursor.y + 1);
-            }
+        if let Some(pos) = self.handle_lines_move(key, content, &selection) {
+            return pos;
         }
 
         let is_cut = self.app_data.has_key_binding(key, KeyCommand::EditCut);
@@ -161,7 +179,7 @@ impl EditContext {
             && let Some(selection) = selection
         {
             let start = selection.sorted().0;
-            content.remove_text(selection);
+            content.remove_text(selection.clone(), Some(selection));
 
             if key.code == KeyCode::Backspace || key.code == KeyCode::Delete || is_cut {
                 return (Some(Some(start.x)), Some(start.y));
@@ -173,7 +191,7 @@ impl EditContext {
         let is_del_line = self.app_data.has_key_binding(key, KeyCommand::EditDeleteLine);
         if is_cut || is_del_line {
             let range = Selection::from_line_end(content.line_size(self.cursor.y), self.cursor.y);
-            content.remove_text(range);
+            content.remove_text(range, None);
             return (None, None);
         }
 
@@ -252,6 +270,54 @@ impl EditContext {
         }
 
         (None, None)
+    }
+
+    fn handle_lines_move<T: Content>(
+        &mut self,
+        key: &KeyCombination,
+        content: &mut T,
+        selection: &Option<Selection>,
+    ) -> Option<NewCursorPosition> {
+        let move_up = self.app_data.has_key_binding(key, KeyCommand::EditMoveUp);
+        let move_down = self.app_data.has_key_binding(key, KeyCommand::EditMoveDown);
+
+        if !move_up && !move_down {
+            return None;
+        }
+
+        if let Some(selection) = &selection {
+            let sorted = selection.sorted();
+            let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
+            let mut cursor = selection.end;
+            if cursor.x >= content.line_size(cursor.y) {
+                cursor.x = 0;
+                cursor.y += 1;
+            } else {
+                cursor.x += 1;
+            }
+
+            if move_up && sorted.0.y > 0 {
+                content.move_line(sorted.0.y - 1, line_count, Some(selection.clone()));
+                return Some((Some(Some(cursor.x)), Some(cursor.y.saturating_sub(1))));
+            } else if move_down && sorted.1.y + 1 < content.len() {
+                content.move_line(sorted.1.y + 1, -line_count, Some(selection.clone()));
+                if cursor.y + 1 < content.len() {
+                    return Some((Some(Some(cursor.x)), Some(cursor.y + 1)));
+                } else {
+                    return Some((Some(Some(content.line_size(cursor.y))), Some(cursor.y)));
+                }
+            }
+        } else {
+            if move_up && self.cursor.y > 0 {
+                content.swap_lines(self.cursor.y - 1, self.cursor.y, None);
+                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
+            } else if move_down && self.cursor.y + 1 < content.len() {
+                content.swap_lines(self.cursor.y, self.cursor.y + 1, None);
+                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
+            }
+        }
+
+        Some((None, None))
     }
 
     fn update_cursor_position<T: Content>(&mut self, mut pos: NewCursorPosition, content: &mut T, is_mouse: bool) {

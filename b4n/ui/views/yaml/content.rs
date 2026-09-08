@@ -214,7 +214,7 @@ impl YamlContent {
 
     fn track_remove(&mut self, pos: ContentPosition, ch: char, track: bool) -> ContentPosition {
         if track {
-            self.undo.push(Undo::remove(pos, ch));
+            self.undo.push(Undo::remove(pos, ch, None));
         }
 
         pos
@@ -376,7 +376,7 @@ impl Content for YamlContent {
 
     fn insert_char(&mut self, position: ContentPosition, ch: char) {
         self.redo.clear();
-        self.undo.push(Undo::insert(position, ch));
+        self.undo.push(Undo::insert(position, ch, None));
         self.insert_char_internal(position, ch);
     }
 
@@ -384,7 +384,7 @@ impl Content for YamlContent {
         self.redo.clear();
         let end = self.insert_text_internal(position, text);
         self.undo
-            .push(Undo::paste(&Selection::new(position, self.move_position_left(end))));
+            .push(Undo::paste(&Selection::new(position, self.move_position_left(end)), None));
         end
     }
 
@@ -393,37 +393,75 @@ impl Content for YamlContent {
         self.remove_char_internal(position, is_backspace, true)
     }
 
-    fn remove_text(&mut self, range: Selection) {
+    fn remove_text(&mut self, range: Selection, selection: Option<Selection>) {
+        let sorted = range.sorted();
+        let range = if sorted.1.y + 1 == self.len() && sorted.1.x == self.line_size(sorted.1.y) {
+            Selection::new(sorted.0, ContentPosition::new(sorted.1.x.saturating_sub(1), sorted.1.y))
+        } else {
+            range
+        };
         let removed = self.remove_text_internal(&range);
         self.redo.clear();
-        self.undo.push(Undo::cut(&range, removed));
+        self.undo.push(Undo::cut(&range, removed, selection));
     }
 
-    fn swap_lines(&mut self, first_line: usize, second_line: usize) {
+    fn swap_lines(&mut self, first_line: usize, second_line: usize, selection: Option<Selection>) {
         self.swap_lines_internal(first_line, second_line);
         self.redo.clear();
-        self.undo.push(Undo::swap(first_line, second_line));
+        self.undo.push(Undo::swap(first_line, second_line, selection));
     }
 
-    fn undo(&mut self) -> Option<ContentPosition> {
+    fn move_line(&mut self, line: usize, offset: i32, selection: Option<Selection>) {
+        if offset == 0 || line >= self.plain.len() {
+            return;
+        }
+
+        let target = if offset < 0 {
+            line.saturating_sub(offset.unsigned_abs() as usize)
+        } else {
+            (line + offset as usize).min(self.plain.len() - 1)
+        };
+
+        if target == line {
+            return;
+        }
+
+        self.redo.clear();
+
+        if target < line {
+            for i in (target..line).rev() {
+                self.swap_lines_internal(i, i + 1);
+                self.undo.push(Undo::swap(i, i + 1, selection.clone()));
+            }
+        } else {
+            for i in line..target {
+                self.swap_lines_internal(i, i + 1);
+                self.undo.push(Undo::swap(i, i + 1, selection.clone()));
+            }
+        }
+    }
+
+    fn undo(&mut self, selection: Option<Selection>) -> Option<(ContentPosition, Option<Selection>)> {
         let mut actions = pop_recent_group(&mut self.undo, Duration::from_millis(300));
         if actions.is_empty() {
             return None;
         }
 
-        let mut result = None;
+        let restored_selection = actions.last().and_then(|u| u.selection.clone());
+
+        let mut cursor = actions[0].pos;
         for action in &mut actions {
             match action.mode {
                 UndoMode::Insert => {
                     self.remove_char_internal(action.pos, false, false);
-                    result = Some(action.pos);
+                    cursor = action.pos;
                 },
                 UndoMode::Remove => {
                     self.insert_char_internal(action.pos, action.ch);
                     if action.ch == '\n' {
-                        result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
+                        cursor = ContentPosition::new(0, action.pos.y.saturating_add(1));
                     } else {
-                        result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
+                        cursor = ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y);
                     }
                 },
                 UndoMode::Cut => {
@@ -431,7 +469,7 @@ impl Content for YamlContent {
                         let text = action.text.take();
                         if let Some(text) = text {
                             self.insert_text_internal(action.pos, text);
-                            result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                            cursor = ContentPosition { x: end.x + 1, y: end.y };
                         }
                     }
                 },
@@ -439,46 +477,52 @@ impl Content for YamlContent {
                     if let Some(end) = action.end {
                         let range = Selection::new(action.pos, end);
                         action.text = Some(self.remove_text_internal(&range));
-                        result = Some(action.pos);
+                        cursor = action.pos;
                     }
                 },
                 UndoMode::Swap => {
                     if let Some(end) = action.end {
                         self.swap_lines_internal(action.pos.y, end.y);
-                        result = Some(end);
+                        cursor = end;
                     }
                 },
             }
         }
 
+        actions[0].selection = selection;
         self.redo.push(actions);
-        result
+        Some((cursor, restored_selection))
     }
 
-    fn redo(&mut self) -> Option<ContentPosition> {
+    fn redo(&mut self, selection: Option<Selection>) -> Option<(ContentPosition, Option<Selection>)> {
         let mut actions = self.redo.pop()?;
-        let mut result = None;
+        if actions.is_empty() {
+            return None;
+        }
 
+        let restored_selection = actions.first().and_then(|u| u.selection.clone());
         actions.reverse();
+
+        let mut cursor = actions[0].pos;
         for action in &mut actions {
             match action.mode {
                 UndoMode::Insert => {
                     self.insert_char_internal(action.pos, action.ch);
                     if action.ch == '\n' {
-                        result = Some(ContentPosition::new(0, action.pos.y.saturating_add(1)));
+                        cursor = ContentPosition::new(0, action.pos.y.saturating_add(1));
                     } else {
-                        result = Some(ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y));
+                        cursor = ContentPosition::new(action.pos.x.saturating_add(1), action.pos.y);
                     }
                 },
                 UndoMode::Remove => {
                     self.remove_char_internal(action.pos, false, false);
-                    result = Some(action.pos);
+                    cursor = action.pos;
                 },
                 UndoMode::Cut => {
                     if let Some(end) = action.end {
                         let range = Selection::new(action.pos, end);
                         action.text = Some(self.remove_text_internal(&range));
-                        result = Some(action.pos);
+                        cursor = action.pos;
                     }
                 },
                 UndoMode::Paste => {
@@ -486,21 +530,22 @@ impl Content for YamlContent {
                         let text = action.text.take();
                         if let Some(text) = text {
                             self.insert_text_internal(action.pos, text);
-                            result = Some(ContentPosition { x: end.x + 1, y: end.y });
+                            cursor = ContentPosition { x: end.x + 1, y: end.y };
                         }
                     }
                 },
                 UndoMode::Swap => {
                     if let Some(end) = action.end {
                         self.swap_lines_internal(action.pos.y, end.y);
-                        result = Some(end);
+                        cursor = end;
                     }
                 },
             }
         }
 
+        actions[0].selection = selection;
         self.undo.extend(actions);
-        result
+        Some((cursor, restored_selection))
     }
 
     fn process_tick(&mut self) -> ResponseEvent {

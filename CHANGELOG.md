@@ -1,5 +1,16 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- `Alt+↑` and `Alt+↓` now works with selections
+- remember selection for undo and redo actions in edit mode
+
+### Bug Fixes
+
+- fix undo for whole line selection removal when the last line is deleted
+
 ## 0.5.7 - 2026-08-27
 
 ### Features
