@@ -405,6 +405,52 @@ impl Content for YamlContent {
         self.undo.push(Undo::cut(&range, removed, selection));
     }
 
+    fn word_start_left(&self, x: usize, y: usize) -> usize {
+        let Some(line) = self.plain.get(y) else { return 0 };
+        if x == 0 {
+            return 0;
+        }
+
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = x.min(chars.len()).saturating_sub(1);
+
+        while i > 0 && char_class(chars[i]) == CharClass::Whitespace {
+            i -= 1;
+        }
+
+        if char_class(chars[i]) == CharClass::Word {
+            while i > 0 && char_class(chars[i - 1]) == CharClass::Word {
+                i -= 1;
+            }
+        }
+
+        i
+    }
+
+    fn word_start_right(&self, x: usize, y: usize) -> usize {
+        let Some(line) = self.plain.get(y) else { return 0 };
+        let chars: Vec<char> = line.chars().collect();
+        let len = chars.len();
+        if x >= len {
+            return len;
+        }
+
+        let mut i = x;
+        if char_class(chars[i]) == CharClass::Punctuation {
+            i += 1;
+        } else {
+            while i < len && char_class(chars[i]) == CharClass::Word {
+                i += 1;
+            }
+        }
+
+        while i < len && char_class(chars[i]) == CharClass::Whitespace {
+            i += 1;
+        }
+
+        i
+    }
+
     fn swap_lines(&mut self, first_line: usize, second_line: usize, selection: Option<Selection>) {
         self.swap_lines_internal(first_line, second_line);
         self.redo.clear();
@@ -613,4 +659,21 @@ fn get_longest_line(plain: &[String]) -> (usize, usize) {
         .map(|(i, l)| (i, l.chars().count()))
         .max_by_key(|&(_, count)| count)
         .unwrap_or((0, 0))
+}
+
+#[derive(PartialEq)]
+enum CharClass {
+    Whitespace,
+    Word,
+    Punctuation,
+}
+
+fn char_class(c: char) -> CharClass {
+    if c.is_whitespace() {
+        CharClass::Whitespace
+    } else if c.is_alphanumeric() || c == '_' || c == '-' {
+        CharClass::Word
+    } else {
+        CharClass::Punctuation
+    }
 }

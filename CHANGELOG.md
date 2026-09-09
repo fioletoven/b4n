@@ -5,6 +5,7 @@
 ### Features
 
 - `Alt+↑` and `Alt+↓` now works with selections
+- `Ctrl+→` and `Ctrl+←` now jumps to the start of the word
 - remember selection for undo and redo actions in edit mode
 
 ### Bug Fixes

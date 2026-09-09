@@ -156,9 +156,9 @@ impl SelectContext {
             return;
         };
 
-        if key.modifiers == KeyModifiers::SHIFT
+        if key.modifiers.contains(KeyModifiers::SHIFT)
             && let Some(init) = self.init
-            && is_allowed_key_code(key.code)
+            && is_allowed_key(key, &self.app_data)
         {
             if is_sorted(init, cursor) {
                 self.start = self.init;
@@ -194,11 +194,11 @@ impl SelectContext {
             return;
         };
 
-        if key.modifiers != KeyModifiers::SHIFT {
+        if !key.modifiers.contains(KeyModifiers::SHIFT) {
             return;
         }
 
-        if is_allowed_key_code(key.code) && self.init.is_none() {
+        if is_allowed_key(key, &self.app_data) && self.init.is_none() {
             self.init = Some(cursor);
             self.start = Some(cursor);
         }
@@ -437,9 +437,9 @@ fn sort(p1: ContentPosition, p2: ContentPosition) -> (ContentPosition, ContentPo
     if is_sorted(p1, p2) { (p1, p2) } else { (p2, p1) }
 }
 
-fn is_allowed_key_code(key_code: KeyCode) -> bool {
-    matches!(
-        key_code,
+fn is_allowed_key(key: &KeyCombination, app_data: &SharedAppData) -> bool {
+    if matches!(
+        key.code,
         KeyCode::Left
             | KeyCode::Right
             | KeyCode::Home
@@ -448,5 +448,10 @@ fn is_allowed_key_code(key_code: KeyCode) -> bool {
             | KeyCode::Down
             | KeyCode::PageUp
             | KeyCode::PageDown
-    )
+    ) {
+        return true;
+    }
+
+    app_data.has_key_binding_ignore_shift(key, KeyCommand::EditWordLeft)
+        || app_data.has_key_binding_ignore_shift(key, KeyCommand::EditWordRight)
 }

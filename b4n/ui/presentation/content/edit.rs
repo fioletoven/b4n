@@ -174,6 +174,16 @@ impl EditContext {
             return pos;
         }
 
+        if self.app_data.has_key_binding_ignore_shift(key, KeyCommand::EditWordLeft) {
+            let new_x = content.word_start_left(self.cursor.x, self.cursor.y);
+            return (Some(Some(new_x)), None);
+        }
+
+        if self.app_data.has_key_binding_ignore_shift(key, KeyCommand::EditWordRight) {
+            let new_x = content.word_start_right(self.cursor.x, self.cursor.y);
+            return (Some(Some(new_x)), None);
+        }
+
         let is_cut = self.app_data.has_key_binding(key, KeyCommand::EditCut);
         if (is_hiding_selection_key(key) || is_cut)
             && let Some(selection) = selection

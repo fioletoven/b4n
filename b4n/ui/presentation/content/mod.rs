@@ -100,6 +100,20 @@ pub trait Content {
         let _ = selection;
     }
 
+    /// Returns the start position of the previous word from `x` on line `y`.
+    fn word_start_left(&self, x: usize, y: usize) -> usize {
+        let _ = x;
+        let _ = y;
+        0
+    }
+
+    /// Returns the start position of the next word from `x` on line `y`.
+    fn word_start_right(&self, x: usize, y: usize) -> usize {
+        let _ = x;
+        let _ = y;
+        0
+    }
+
     /// Swaps two lines in the content.
     fn swap_lines(&mut self, first_line: usize, second_line: usize, selection: Option<Selection>) {
         let _ = first_line;
