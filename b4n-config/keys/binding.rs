@@ -1,3 +1,4 @@
+use crossterm::event::KeyModifiers;
 use serde::de::{self, Unexpected, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -43,6 +44,8 @@ define_key_commands! {
         EditRedo => "edit.redo" @ "Ctrl+Y",
         EditSelectAll => "edit.select-all" @ "Ctrl+A",
         EditUndo => "edit.undo" @ "Ctrl+Z",
+        EditWordLeft => "edit.word-left" @ "Ctrl+Left",
+        EditWordRight => "edit.word-right" @ "Ctrl+Right",
         EventsShow => "events.show" @ "E",
         FilterOpen => "filter.open" @ "/", "Shift+/",
         FilterPin => "filter.pin" @ "Ctrl+P",
@@ -164,6 +167,13 @@ impl KeyBindings {
         } else {
             false
         }
+    }
+
+    /// Returns `true` if the given [`KeyCombination`] is bound to the specified [`KeyCommand`],
+    /// ignoring the SHIFT modifier when matching.
+    pub fn has_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool {
+        let key = KeyCombination::new(key.code, key.modifiers.difference(KeyModifiers::SHIFT));
+        self.has_binding(&key, command)
     }
 
     /// Returns the first [`KeyCombination`] name associated with the specified [`KeyCommand`].
