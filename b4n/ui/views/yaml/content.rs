@@ -214,7 +214,7 @@ impl YamlContent {
 
     fn track_remove(&mut self, pos: ContentPosition, ch: char, track: bool) -> ContentPosition {
         if track {
-            self.undo.push(Undo::remove(pos, ch, None));
+            self.undo.push(Undo::remove(pos, ch));
         }
 
         pos
@@ -376,7 +376,7 @@ impl Content for YamlContent {
 
     fn insert_char(&mut self, position: ContentPosition, ch: char) {
         self.redo.clear();
-        self.undo.push(Undo::insert(position, ch, None));
+        self.undo.push(Undo::insert(position, ch));
         self.insert_char_internal(position, ch);
     }
 
@@ -384,7 +384,7 @@ impl Content for YamlContent {
         self.redo.clear();
         let end = self.insert_text_internal(position, text);
         self.undo
-            .push(Undo::paste(&Selection::new(position, self.move_position_left(end)), None));
+            .push(Undo::paste(&Selection::new(position, self.move_position_left(end))));
         end
     }
 
@@ -457,7 +457,7 @@ impl Content for YamlContent {
         self.undo.push(Undo::swap(first_line, second_line, selection));
     }
 
-    fn move_line(&mut self, line: usize, offset: i32, selection: Option<Selection>) {
+    fn move_line(&mut self, line: usize, offset: i32, mut selection: Option<Selection>) {
         if offset == 0 || line >= self.plain.len() {
             return;
         }
@@ -477,12 +477,12 @@ impl Content for YamlContent {
         if target < line {
             for i in (target..line).rev() {
                 self.swap_lines_internal(i, i + 1);
-                self.undo.push(Undo::swap(i, i + 1, selection.clone()));
+                self.undo.push(Undo::swap(i, i + 1, selection.take()));
             }
         } else {
             for i in line..target {
                 self.swap_lines_internal(i, i + 1);
-                self.undo.push(Undo::swap(i, i + 1, selection.clone()));
+                self.undo.push(Undo::swap(i, i + 1, selection.take()));
             }
         }
     }
