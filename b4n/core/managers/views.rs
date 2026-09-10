@@ -427,6 +427,11 @@ impl ViewsManager {
             .show_info("Selected resources marked for deletion", 3_000);
     }
 
+    /// Displays modal dialog for copying initial resources.
+    pub fn show_missing_resources_dialog(&mut self) {
+        self.resources.ask_copy_missing_resources();
+    }
+
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         self.resources.show_contexts_list(list);

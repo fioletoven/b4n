@@ -118,6 +118,13 @@ impl App {
         Ok(())
     }
 
+    /// Checks if `themes` and `plugins` directories exist.
+    pub fn check_resources_dir(&mut self) {
+        if Config::are_resource_dirs_missing() {
+            self.views_manager.show_missing_resources_dialog();
+        }
+    }
+
     /// Shows error in the app footer.
     pub fn show_error(&self, error: String) {
         self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);

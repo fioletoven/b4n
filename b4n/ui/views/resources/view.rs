@@ -209,6 +209,12 @@ impl ResourcesView {
         }
     }
 
+    /// Displays modal dialog for copying initial resources.
+    pub fn ask_copy_missing_resources(&mut self) {
+        self.modal = dialogs::new_missing_resources_dialog(&self.app_data, self.last_mouse_click.take());
+        self.modal.show();
+    }
+
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         let actions_list = ActionsListBuilder::from_kube_contexts(list).build(None);

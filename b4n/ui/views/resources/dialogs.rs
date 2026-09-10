@@ -52,6 +52,21 @@ pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<
     .with_highlighted_position(position)
 }
 
+/// Creates a dialog asking the user whether to copy missing resource directories.
+pub fn new_missing_resources_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
+    let colors = &app_data.borrow().theme.colors;
+    Dialog::new(
+        "Resource directories 'themes' and 'plugins' are missing or empty.\nWould you like to copy the bundled assets?"
+            .to_owned(),
+        vec![
+            Button::new("Yes", ResponseEvent::Action("init_copy"), colors.modal.btn_accent.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.modal.text)
+    .with_highlighted_position(position)
+}
+
 /// Creates new dialog for run plugin confirmation.
 pub fn new_run_plugin_dialog(app_data: &SharedAppData, position: Option<Position>, plugin: PluginRef) -> Dialog {
     let colors = &app_data.borrow().theme.colors;
