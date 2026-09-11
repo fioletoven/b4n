@@ -302,6 +302,7 @@ impl ResourcesView {
                     "inject" => Some(self.table.get_resource_ref(false).map_or(ResponseEvent::Handled, |resource| {
                         dialogs::build_inject_container_response(&self.modal, resource)
                     })),
+                    "install_assets" => Some(self.install_assets()),
                     _ => Some(ResponseEvent::Handled),
                 },
 
@@ -557,6 +558,17 @@ impl ResourcesView {
             .table
             .table
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
+    }
+
+    fn install_assets(&self) -> ResponseEvent {
+        let selected = self
+            .modal
+            .selector(0)
+            .map(|s| s.selected_index().unwrap_or_default())
+            .unwrap_or_default();
+
+        self.worker.borrow_mut().install_assets(selected == 1, selected == 2);
+        ResponseEvent::Handled
     }
 
     fn update_port_forwards(&mut self) {

@@ -80,6 +80,11 @@ impl Selector {
         &self.selected
     }
 
+    /// Returns selected option index.
+    pub fn selected_index(&self) -> Option<usize> {
+        self.options.get_highlighted_item_index()
+    }
+
     /// Returns `true` if provided `x` and `y` are inside the selector.
     pub fn contains(&self, x: u16, y: u16) -> bool {
         self.area.contains(Position::new(x, y))

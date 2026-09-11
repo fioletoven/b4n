@@ -11,9 +11,9 @@ use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
     Command, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig, GetNewResourceYamlCommand,
-    GetResourceYamlCommand, InjectContainerCommand, ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand,
-    SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions,
-    TransferFileCommand,
+    GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand, ListResourcePortsCommand, RunPluginCommand,
+    SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand,
+    SetResourceYamlOptions, TransferFileCommand,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -550,6 +550,12 @@ impl BgWorker {
             let command = TransferFileCommand::new(runtime, container, context, client.get_client(), self.footer_tx.clone());
             self.executor.run_task(Command::TransferFile(Box::new(command)));
         }
+    }
+
+    /// Copies missing resources to the `themes` and `plugins` directories from the bundled assets.
+    pub fn install_assets(&mut self, prefer_dark_theme: bool, prefer_light_theme: bool) {
+        let command = InstallMissingResourcesCommand::new(prefer_dark_theme, prefer_light_theme);
+        self.executor.run_task(Command::InstallMissingResources(command));
     }
 }
 

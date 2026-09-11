@@ -212,6 +212,19 @@ impl Config {
         Self::is_missing_or_empty(&Self::themes_dir()) && Self::is_missing_or_empty(&Self::plugins_dir())
     }
 
+    /// Checks if bundled `themes` or `plugins` directories exist and are non-empty next to the executable.
+    pub fn are_bundled_resources_available() -> bool {
+        let Ok(exe_path) = std::env::current_exe() else {
+            return false;
+        };
+
+        let Some(exe_dir) = exe_path.parent() else {
+            return false;
+        };
+
+        !Self::is_missing_or_empty(&exe_dir.join("themes")) || !Self::is_missing_or_empty(&exe_dir.join("plugins"))
+    }
+
     /// Returns watcher for configuration.
     pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
         ConfigWatcher::new(runtime, Config::default_path())

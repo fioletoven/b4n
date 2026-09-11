@@ -6,8 +6,8 @@ use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, Sy
 use b4n_kube::client::ClientOptions;
 use b4n_kube::{Kind, NAMESPACES, Namespace, ResourceRef};
 use b4n_tasks::commands::{
-    Command, CommandResult, KubernetesClientError, KubernetesClientInfo, KubernetesClientResult, ListKubeContextsCommand,
-    ListThemesCommand,
+    Command, CommandResult, InstallationError, InstallationResult, KubernetesClientError, KubernetesClientInfo,
+    KubernetesClientResult, ListKubeContextsCommand, ListThemesCommand,
 };
 use b4n_tui::widgets::Footer;
 use b4n_tui::{ResponseEvent, ScopeData, ToSelectData, Tui, TuiEvent};
@@ -120,7 +120,7 @@ impl App {
 
     /// Checks if `themes` and `plugins` directories exist.
     pub fn check_resources_dir(&mut self) {
-        if Config::are_resource_dirs_missing() {
+        if Config::are_resource_dirs_missing() && Config::are_bundled_resources_available() {
             self.views_manager.show_missing_resources_dialog();
         }
     }
@@ -277,6 +277,7 @@ impl App {
         let commands = self.worker.borrow_mut().get_all_waiting_results();
         for command in commands {
             match command.result {
+                CommandResult::InstallMissingResources(result) => self.process_assets_installation_result(result),
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
                 CommandResult::GetNewResourceYaml(result) => self.views_manager.new_yaml_result(&command.id, result),
                 CommandResult::GetResourceYaml(result) => self.views_manager.show_yaml_result(&command.id, result),
@@ -491,6 +492,24 @@ impl App {
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
             let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
             self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+        }
+    }
+
+    /// Performs all necessary actions after copying missing resources from the bundled assets.
+    pub fn process_assets_installation_result(&mut self, result: Result<InstallationResult, InstallationError>) {
+        match result {
+            Ok(result) => {
+                self.views_manager
+                    .footer()
+                    .show_info("Bundled assets copied successfully", DEFAULT_MESSAGE_DURATION);
+                if let InstallationResult { theme: Some(theme) } = result {
+                    self.process_theme_change(theme);
+                }
+            },
+            Err(error) => self
+                .views_manager
+                .footer()
+                .show_error(error.to_string(), DEFAULT_ERROR_DURATION),
         }
     }
 
