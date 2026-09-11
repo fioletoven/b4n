@@ -26,7 +26,7 @@ ansi-to-tui = { version = "8.0" }
 anyhow = { version = "1.0" }
 arboard = { version = "3.6", default-features = false }
 base16ct = { version = "1.0" }
-base64 = { version = "0.22" }
+base64 = { version = "0.23" }
 clap = { version = "4.6", features = ["derive", "env"] }
 crossterm = { version = "0.29", features = ["event-stream"] }
 delegate = { version = "0.13" }
@@ -99,7 +99,7 @@ tracing = { workspace = true }
 tui-term = { workspace = true }
 
 [dev-dependencies]
-rstest = { version = "0.26" }
+rstest = { version = "0.27" }
 
 [build-dependencies]
 syntect = { workspace = true }

@@ -2,6 +2,9 @@
 
 ## WIP
 
+This is the 1.0.0 release of `b4n` app, from now on SemVer will be used for versioning.  
+I think `b4n` reached Minimum Viable Product some time ago and it has all features that I need for daily use.
+
 ### Features
 
 - `Alt+↑` and `Alt+↓` now works with selections
