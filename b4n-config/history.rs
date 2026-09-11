@@ -69,6 +69,7 @@ static EMPTY_LIST: Vec<HistoryItem> = Vec::new();
 /// Application history.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct History {
+    pub ignore_missing_resources: bool,
     pub kubeconfigs: HashMap<String, KubeConfig>,
     #[serde(skip_serializing)]
     current_kubeconfig: Option<String>,

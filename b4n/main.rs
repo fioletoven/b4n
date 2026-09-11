@@ -81,6 +81,8 @@ fn run_application(args: &cli::Args) -> Result<()> {
         app.show_theme_error(format!("Error loading theme: {error}"));
     }
 
+    app.check_resources_dir();
+
     application_loop(&mut app)?;
     app.stop()?;
 

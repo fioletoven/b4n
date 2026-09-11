@@ -73,7 +73,7 @@ impl KubernetesClientManager {
     }
 
     /// Clears the current Kubernetes request data.\
-    /// **Note** that the request can be canceled first with `cancel_first`.
+    /// **Note** that the request can be cancelled first with `cancel_first`.
     pub fn erase_request(&mut self, cancel_first: bool) {
         if cancel_first && let Some(connecting) = &self.request {
             self.worker.borrow_mut().cancel_command(connecting.request_id.as_deref());

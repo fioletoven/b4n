@@ -207,6 +207,24 @@ impl Config {
         Self::data_dir().join("plugins")
     }
 
+    /// Checks if `themes` and `plugins` directories exist and are non-empty.
+    pub fn are_resource_dirs_missing() -> bool {
+        Self::is_missing_or_empty(&Self::themes_dir()) && Self::is_missing_or_empty(&Self::plugins_dir())
+    }
+
+    /// Checks if bundled `themes` or `plugins` directories exist and are non-empty.
+    pub fn are_bundled_resources_available() -> bool {
+        let Ok(exe_path) = std::env::current_exe() else {
+            return false;
+        };
+
+        let Some(exe_dir) = exe_path.parent() else {
+            return false;
+        };
+
+        !Self::is_missing_or_empty(&exe_dir.join("themes")) || !Self::is_missing_or_empty(&exe_dir.join("plugins"))
+    }
+
     /// Returns watcher for configuration.
     pub fn watcher(runtime: Handle) -> ConfigWatcher<Config> {
         ConfigWatcher::new(runtime, Config::default_path())
@@ -231,6 +249,17 @@ impl Config {
     /// Returns `true` if the currently set theme is a default one.
     pub fn is_default_theme(&self) -> bool {
         self.theme == default_theme_name()
+    }
+
+    /// Returns `true` if the directory does not exist, cannot be accessed, or exists but contains no entries.
+    fn is_missing_or_empty(path: &Path) -> bool {
+        match path.try_exists() {
+            Ok(true) => match std::fs::read_dir(path) {
+                Ok(mut entries) => entries.next().is_none(),
+                Err(_) => true,
+            },
+            Ok(false) | Err(_) => true,
+        }
     }
 }
 

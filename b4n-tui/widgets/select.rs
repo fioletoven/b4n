@@ -218,6 +218,11 @@ impl<T: Table> Select<T> {
         self.items.get_highlighted_item_name().is_some()
     }
 
+    /// Gets highlighted element index.
+    pub fn get_highlighted_item_index(&self) -> Option<usize> {
+        self.items.get_highlighted_item_index()
+    }
+
     /// Gets highlighted element name.
     pub fn get_highlighted_item_name(&self) -> Option<&str> {
         self.items.get_highlighted_item_name()

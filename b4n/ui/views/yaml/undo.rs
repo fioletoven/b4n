@@ -26,7 +26,7 @@ pub struct Undo {
 
 impl Undo {
     /// Creates a new undo/redo entry representing an inserted character.
-    pub fn insert(pos: ContentPosition, ch: char, selection: Option<Selection>) -> Self {
+    pub fn insert(pos: ContentPosition, ch: char) -> Self {
         Self {
             pos,
             end: None,
@@ -34,12 +34,12 @@ impl Undo {
             text: None,
             mode: UndoMode::Insert,
             when: Instant::now(),
-            selection,
+            selection: None,
         }
     }
 
     /// Creates a new undo/redo entry representing a removed character.
-    pub fn remove(pos: ContentPosition, ch: char, selection: Option<Selection>) -> Self {
+    pub fn remove(pos: ContentPosition, ch: char) -> Self {
         Self {
             pos,
             end: None,
@@ -47,7 +47,7 @@ impl Undo {
             text: None,
             mode: UndoMode::Remove,
             when: Instant::now(),
-            selection,
+            selection: None,
         }
     }
 
@@ -66,7 +66,7 @@ impl Undo {
     }
 
     /// Creates a new undo/redo entry representing a paste (range insertion).
-    pub fn paste(range: &Selection, selection: Option<Selection>) -> Self {
+    pub fn paste(range: &Selection) -> Self {
         let (start, end) = range.sorted();
         Self {
             pos: start,
@@ -75,7 +75,7 @@ impl Undo {
             text: None,
             mode: UndoMode::Paste,
             when: Instant::now(),
-            selection,
+            selection: None,
         }
     }
 

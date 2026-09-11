@@ -46,7 +46,7 @@ impl NamespaceBehaviour {
 }
 
 impl PickerBehaviour for NamespaceBehaviour {
-    fn prompt(&self) -> &str {
+    fn prompt(&self) -> &'static str {
         "namespace "
     }
 

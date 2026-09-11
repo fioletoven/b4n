@@ -209,6 +209,12 @@ impl ResourcesView {
         }
     }
 
+    /// Displays modal dialog for copying initial resources.
+    pub fn ask_copy_missing_resources(&mut self) {
+        self.modal = dialogs::new_missing_resources_dialog(&self.app_data, self.last_mouse_click.take());
+        self.modal.show();
+    }
+
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
         let actions_list = ActionsListBuilder::from_kube_contexts(list).build(None);
@@ -296,6 +302,8 @@ impl ResourcesView {
                     "inject" => Some(self.table.get_resource_ref(false).map_or(ResponseEvent::Handled, |resource| {
                         dialogs::build_inject_container_response(&self.modal, resource)
                     })),
+                    "install_assets" => Some(self.install_assets(true)),
+                    "install_cancel" => Some(self.install_assets(false)),
                     _ => Some(ResponseEvent::Handled),
                 },
 
@@ -551,6 +559,23 @@ impl ResourcesView {
             .table
             .table
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
+    }
+
+    fn install_assets(&self, install: bool) -> ResponseEvent {
+        if install {
+            let selected = self
+                .modal
+                .selector(0)
+                .map(|s| s.selected_index().unwrap_or_default())
+                .unwrap_or_default();
+
+            self.worker.borrow_mut().install_assets(selected == 1, selected == 2);
+        } else {
+            self.app_data.borrow_mut().history.ignore_missing_resources = true;
+            self.worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
+        }
+
+        ResponseEvent::Handled
     }
 
     fn update_port_forwards(&mut self) {

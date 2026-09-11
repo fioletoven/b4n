@@ -89,7 +89,7 @@ impl Row for PatternItem {
         &self.value
     }
 
-    fn group(&self) -> &str {
+    fn group(&self) -> &'static str {
         "n/a"
     }
 

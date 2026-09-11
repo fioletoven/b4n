@@ -170,7 +170,7 @@ impl EditContext {
         selection: Option<Selection>,
         area: Rect,
     ) -> NewCursorPosition {
-        if let Some(pos) = self.handle_lines_move(key, content, &selection) {
+        if let Some(pos) = self.handle_lines_move(key, content, selection.as_ref()) {
             return pos;
         }
 
@@ -286,7 +286,7 @@ impl EditContext {
         &mut self,
         key: &KeyCombination,
         content: &mut T,
-        selection: &Option<Selection>,
+        selection: Option<&Selection>,
     ) -> Option<NewCursorPosition> {
         let move_up = self.app_data.has_key_binding(key, KeyCommand::EditMoveUp);
         let move_down = self.app_data.has_key_binding(key, KeyCommand::EditMoveDown);
@@ -295,7 +295,7 @@ impl EditContext {
             return None;
         }
 
-        if let Some(selection) = &selection {
+        if let Some(selection) = selection {
             let sorted = selection.sorted();
             let line_count = i32::try_from(sorted.1.y - sorted.0.y + 1).unwrap_or_default();
             let mut cursor = selection.end;
@@ -313,18 +313,15 @@ impl EditContext {
                 content.move_line(sorted.1.y + 1, -line_count, Some(selection.clone()));
                 if cursor.y + 1 < content.len() {
                     return Some((Some(Some(cursor.x)), Some(cursor.y + 1)));
-                } else {
-                    return Some((Some(Some(content.line_size(cursor.y))), Some(cursor.y)));
                 }
+                return Some((Some(Some(content.line_size(cursor.y))), Some(cursor.y)));
             }
-        } else {
-            if move_up && self.cursor.y > 0 {
-                content.swap_lines(self.cursor.y - 1, self.cursor.y, None);
-                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
-            } else if move_down && self.cursor.y + 1 < content.len() {
-                content.swap_lines(self.cursor.y, self.cursor.y + 1, None);
-                return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
-            }
+        } else if move_up && self.cursor.y > 0 {
+            content.swap_lines(self.cursor.y - 1, self.cursor.y, None);
+            return Some((Some(Some(self.cursor.x)), Some(self.cursor.y.saturating_sub(1))));
+        } else if move_down && self.cursor.y + 1 < content.len() {
+            content.swap_lines(self.cursor.y, self.cursor.y + 1, None);
+            return Some((Some(Some(self.cursor.x)), Some(self.cursor.y + 1)));
         }
 
         Some((None, None))

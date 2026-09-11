@@ -46,7 +46,7 @@ impl BgExecutor {
     }
 
     /// Creates a task with the specified command and runs it.\
-    /// **Note** that it returns a unique task ID by which the task can be canceled.
+    /// **Note** that it returns a unique task ID by which the task can be cancelled.
     pub fn run_task(&mut self, command: Command) -> String {
         if command.is_sequential() {
             return self.enqueue_sequential(command);

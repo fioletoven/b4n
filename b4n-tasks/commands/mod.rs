@@ -7,6 +7,7 @@ pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions}
 pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
 pub use self::inject_container::{EphemeralContainerConfig, InjectContainerCommand, InjectContainerError, SecurityProfile};
+pub use self::install_missing_resources::{InstallMissingResourcesCommand, InstallationError, InstallationResult};
 pub use self::list_contexts::ListKubeContextsCommand;
 pub use self::list_resource_ports::ListResourcePortsCommand;
 pub use self::list_themes::ListThemesCommand;
@@ -24,6 +25,7 @@ mod delete_resources;
 mod get_new_yaml;
 mod get_yaml;
 mod inject_container;
+mod install_missing_resources;
 mod list_contexts;
 mod list_resource_ports;
 mod list_themes;
@@ -41,6 +43,7 @@ pub enum Command {
     ListResourcePorts(Box<ListResourcePortsCommand>),
     ListThemes(ListThemesCommand),
     NewKubernetesClient(Box<NewKubernetesClientCommand>),
+    InstallMissingResources(InstallMissingResourcesCommand),
     SaveConfig(Box<SaveConfigurationCommand<Config>>),
     SaveHistory(Box<SaveConfigurationCommand<History>>),
     SaveContent(Box<SaveContentCommand>),
@@ -67,6 +70,7 @@ pub enum CommandResult {
     ResourcePortsList(Vec<Port>),
     ThemesList(Vec<PathBuf>),
     KubernetesClient(Result<KubernetesClientResult, KubernetesClientError>),
+    InstallMissingResources(Result<InstallationResult, InstallationError>),
     GetNewResourceYaml(Result<GetNewResourceYamlResult, GetNewResourceYamlError>),
     GetResourceYaml(Result<ResourceYamlResult, ResourceYamlError>),
     SetNewResourceYaml(Result<String, SetNewResourceYamlError>),

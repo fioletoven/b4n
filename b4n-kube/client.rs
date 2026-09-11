@@ -225,21 +225,22 @@ pub fn resolve_kubeconfig_path(kubeconfig_path: Option<&str>) -> Result<PathBuf,
         PathBuf::from,
     );
 
-    if !path.exists() {
-        return Err(ClientError::KubeConfigNotFound);
+    match path.try_exists() {
+        Ok(true) => Ok(path::absolute(path)?),
+        Ok(false) => Err(ClientError::KubeConfigNotFound),
+        Err(error) => Err(ClientError::IoError(error)),
     }
-
-    Ok(path::absolute(path)?)
 }
 
 /// Validates all provided certificate paths if they exist.
 pub fn validate_certificate_paths(paths: &[Option<&str>]) -> Result<(), ClientError> {
-    paths
-        .iter()
-        .flatten()
-        .map(std::path::Path::new)
-        .filter(|path| !path.exists() || !path.is_file())
-        .try_for_each(|path| Err(ClientError::CertificateNotFound(path.display().to_string())))
+    paths.iter().flatten().map(std::path::Path::new).try_for_each(|path| {
+        let exists = path.try_exists().map_err(ClientError::IoError)?;
+        if !exists || !path.is_file() {
+            return Err(ClientError::CertificateNotFound(path.display().to_string()));
+        }
+        Ok(())
+    })
 }
 
 /// Validates provided configuration and returns matching context from the kubeconfig.\

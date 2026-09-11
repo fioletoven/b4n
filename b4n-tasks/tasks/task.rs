@@ -103,6 +103,7 @@ pub async fn run_command(command: Command) -> Option<CommandResult> {
         Command::ListThemes(command) => command.execute().await,
         Command::ListResourcePorts(command) => command.execute().await,
         Command::NewKubernetesClient(command) => command.execute().await,
+        Command::InstallMissingResources(command) => command.execute().await,
         Command::SaveConfig(command) => command.execute().await,
         Command::SaveHistory(command) => command.execute().await,
         Command::SaveContent(command) => command.execute().await,

@@ -76,7 +76,7 @@ impl SearchBehaviour {
 }
 
 impl PickerBehaviour for SearchBehaviour {
-    fn prompt(&self) -> &str {
+    fn prompt(&self) -> &'static str {
         " "
     }
 
