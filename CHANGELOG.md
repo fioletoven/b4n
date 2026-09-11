@@ -7,6 +7,7 @@
 - `Alt+↑` and `Alt+↓` now works with selections
 - `Ctrl+→` and `Ctrl+←` now jumps to the start of the word
 - remember selection for undo and redo actions in edit mode
+- ask user to copy assets if there are no `themes` and `plugins` directories
 
 ### Bug Fixes
 

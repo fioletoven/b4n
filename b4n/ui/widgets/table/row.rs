@@ -26,7 +26,7 @@ impl Row for BasicRow {
         &self.uid
     }
 
-    fn group(&self) -> &str {
+    fn group(&self) -> &'static str {
         ""
     }
 

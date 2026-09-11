@@ -571,8 +571,8 @@ impl ResourcesView {
 
             self.worker.borrow_mut().install_assets(selected == 1, selected == 2);
         } else {
-            self.app_data.borrow_mut().config.ignore_missing_resources = true;
-            self.worker.borrow_mut().save_config(self.app_data.borrow().config.clone());
+            self.app_data.borrow_mut().history.ignore_missing_resources = true;
+            self.worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
         }
 
         ResponseEvent::Handled

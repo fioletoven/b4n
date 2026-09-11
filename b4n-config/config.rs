@@ -81,8 +81,6 @@ pub struct Config {
     #[serde(default = "default_mouse")]
     pub mouse: bool,
 
-    pub ignore_missing_resources: bool,
-
     #[serde(default)]
     pub terminal: Terminal,
 
@@ -140,7 +138,6 @@ impl Default for Config {
         Self {
             logs: Logs::default(),
             mouse: default_mouse(),
-            ignore_missing_resources: false,
             terminal: Terminal::default(),
             theme: default_theme_name(),
             debug_images: default_images_list(),
@@ -261,8 +258,7 @@ impl Config {
                 Ok(mut entries) => entries.next().is_none(),
                 Err(_) => true,
             },
-            Ok(false) => true,
-            Err(_) => true,
+            Ok(false) | Err(_) => true,
         }
     }
 }
