@@ -56,20 +56,26 @@ pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<
 pub fn new_missing_resources_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
     let colors = &app_data.borrow().theme.colors;
     Dialog::new(
-        "Resource directories 'themes' and 'plugins' are missing or empty. Would you like to copy and configure the bundled assets?"
+        "The 'themes' and 'plugins' directories are missing from your data folder. \
+         Would you like to initialize them with the default assets?"
             .to_owned(),
         vec![
-            Button::new("Yes", ResponseEvent::Action("install_assets"), colors.modal.btn_accent.clone()),
-            Button::new("Cancel", ResponseEvent::Cancelled, colors.modal.btn_cancel.clone()),
+            Button::new(
+                "Yes",
+                ResponseEvent::Action("install_assets"),
+                colors.modal.btn_accent.clone(),
+            ),
+            Button::new(
+                "Cancel",
+                ResponseEvent::Action("install_cancel"),
+                colors.modal.btn_cancel.clone(),
+            ),
         ],
     )
     .with_colors(colors.modal.text)
-    .with_selectors(vec![Selector::new(
-        0,
-        "Theme:",
-        &["leave default", "prefer dark", "prefer light"],
-        &colors.modal.selector,
-    ).with_selected(1)])
+    .with_selectors(vec![
+        Selector::new(0, "Preferred theme:", &["default", "dark", "light"], &colors.modal.selector).with_selected(1),
+    ])
     .with_highlighted_position(position)
 }
 

@@ -120,7 +120,10 @@ impl App {
 
     /// Checks if `themes` and `plugins` directories exist.
     pub fn check_resources_dir(&mut self) {
-        if Config::are_resource_dirs_missing() && Config::are_bundled_resources_available() {
+        if !self.data.borrow().config.ignore_missing_resources
+            && Config::are_resource_dirs_missing()
+            && Config::are_bundled_resources_available()
+        {
             self.views_manager.show_missing_resources_dialog();
         }
     }

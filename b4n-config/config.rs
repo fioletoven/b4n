@@ -81,6 +81,8 @@ pub struct Config {
     #[serde(default = "default_mouse")]
     pub mouse: bool,
 
+    pub ignore_missing_resources: bool,
+
     #[serde(default)]
     pub terminal: Terminal,
 
@@ -138,6 +140,7 @@ impl Default for Config {
         Self {
             logs: Logs::default(),
             mouse: default_mouse(),
+            ignore_missing_resources: false,
             terminal: Terminal::default(),
             theme: default_theme_name(),
             debug_images: default_images_list(),
@@ -212,7 +215,7 @@ impl Config {
         Self::is_missing_or_empty(&Self::themes_dir()) && Self::is_missing_or_empty(&Self::plugins_dir())
     }
 
-    /// Checks if bundled `themes` or `plugins` directories exist and are non-empty next to the executable.
+    /// Checks if bundled `themes` or `plugins` directories exist and are non-empty.
     pub fn are_bundled_resources_available() -> bool {
         let Ok(exe_path) = std::env::current_exe() else {
             return false;
