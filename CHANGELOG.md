@@ -1,20 +1,20 @@
 # Change Log
 
-## WIP
+## 1.0.0 - 2026-09-12
 
-This is the 1.0.0 release of `b4n` app, from now on SemVer will be used for versioning.  
-I think `b4n` reached Minimum Viable Product some time ago and it has all features that I need for daily use.
+This is the 1.0.0 release of the `b4n` app. From now on, SemVer will be used for versioning.
+I believe `b4n` reached Minimum Viable Product some time ago and now has all the features I need for daily use.
 
 ### Features
 
-- `Alt+↑` and `Alt+↓` now works with selections
-- `Ctrl+→` and `Ctrl+←` now jumps to the start of the word
+- `Alt+↑` and `Alt+↓` now work with selections
+- `Ctrl+→` and `Ctrl+←` now jump to the start of the word
 - remember selection for undo and redo actions in edit mode
 - ask user to copy assets if there are no `themes` and `plugins` directories
 
 ### Bug Fixes
 
-- fix undo for whole line selection removal when the last line is deleted
+- fix undo for whole-line selection removal when the last line is deleted
 
 ## 0.5.7 - 2026-08-27
 
