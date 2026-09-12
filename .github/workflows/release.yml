@@ -45,18 +45,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux, win-msvc, macos-x86, macos-arm]
+        build: [linux-x86, linux-arm, win-msvc-x86, win-msvc-arm, macos-x86, macos-arm]
         include:
-        - build: linux
+        - build: linux-x86
           os: ubuntu-24.04
           rust: stable
           target: x86_64-unknown-linux-gnu
           target-short: x86_64-linux
-        - build: win-msvc
+        - build: linux-arm
+          os: ubuntu-24.04-arm
+          rust: stable
+          target: aarch64-unknown-linux-gnu
+          target-short: aarch64-linux
+        - build: win-msvc-x86
           os: windows-2022
           rust: stable
           target: x86_64-pc-windows-msvc
           target-short: x86_64-windows
+        - build: win-msvc-arm
+          os: windows-11-arm
+          rust: stable
+          target: aarch64-pc-windows-msvc
+          target-short: aarch64-windows
         - build: macos-x86
           os: macos-latest
           target: x86_64-apple-darwin
@@ -93,7 +103,7 @@ jobs:
         cp {README.md,LICENSE,CHANGELOG.md} "$staging/"
         cp assets/themes/* "$staging/themes/"
         cp assets/plugins/* "$staging/plugins/"
-        if [ "${{ matrix.os }}" = "windows-2022" ]; then
+        if [[ "${{ matrix.os }}" == windows-* ]]; then
           cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe" "$staging/"
           ls -l "$staging"
           cd "$staging"
