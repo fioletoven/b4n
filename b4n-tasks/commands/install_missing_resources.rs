@@ -50,6 +50,7 @@ impl InstallMissingResourcesCommand {
 
     async fn install_resources(&self) -> Result<Option<&'static str>, InstallationError> {
         let exe_path = std::env::current_exe().map_err(|_| InstallationError::ExecutablePathError)?;
+        let exe_path = exe_path.canonicalize().unwrap_or(exe_path);
         let exe_dir = exe_path.parent().ok_or(InstallationError::ExecutableDirError)?;
 
         copy_dir(&exe_dir.join("themes"), &Config::themes_dir()).await?;
