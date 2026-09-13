@@ -76,6 +76,7 @@ pub fn new_missing_resources_dialog(app_data: &SharedAppData, position: Option<P
     .with_selectors(vec![
         Selector::new(0, "Preferred theme:", &["default", "dark", "light"], &colors.modal.selector).with_selected(1),
     ])
+    .with_backdrop_cancels(false)
     .with_highlighted_position(position)
 }
 

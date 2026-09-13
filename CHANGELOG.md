@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - fix `themes` and `plugins` directories detection when b4n is installed via WinGet
+- clicking on backdrop while asking user about copying assets no longer counts as a decision
 
 ## 1.0.0 - 2026-09-12
 
