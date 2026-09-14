@@ -22,6 +22,7 @@ pub struct Dialog {
     message: String,
     controls: ControlsGroup,
     default_button: usize,
+    backdrop_cancels: bool,
     on_change: Option<OnChangeFn>,
     area: Rect,
 }
@@ -46,6 +47,7 @@ impl Dialog {
             message,
             controls: buttons,
             default_button,
+            backdrop_cancels: true,
             on_change: None,
             area: Rect::default(),
         }
@@ -60,6 +62,12 @@ impl Dialog {
     /// Sets dialog colors.
     pub fn with_colors(mut self, colors: TextColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Enables or disables the behaviour where clicking outside the dialog acts as the default button or Esc key.
+    pub fn with_backdrop_cancels(mut self, enabled: bool) -> Self {
+        self.backdrop_cancels = enabled;
         self
     }
 
@@ -169,12 +177,16 @@ impl Responsive for Dialog {
             return ResponseEvent::NotHandled;
         }
 
-        if !self.controls.has_opened_selector()
-            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc)
-                || event.is_out(MouseEventKind::LeftClick, self.area))
-        {
-            self.is_visible = false;
-            return self.controls.result(self.default_button);
+        if !self.controls.has_opened_selector() {
+            let is_esc = matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Esc);
+            if is_esc || event.is_out(MouseEventKind::LeftClick, self.area) {
+                self.is_visible = false;
+                return if self.backdrop_cancels || is_esc {
+                    self.controls.result(self.default_button)
+                } else {
+                    ResponseEvent::Handled
+                };
+            }
         }
 
         let (result, button_index) = self.controls.process_event(event);

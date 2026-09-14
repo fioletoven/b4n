@@ -218,6 +218,7 @@ impl Config {
             return false;
         };
 
+        let exe_path = exe_path.canonicalize().unwrap_or(exe_path);
         let Some(exe_dir) = exe_path.parent() else {
             return false;
         };

@@ -128,8 +128,8 @@ In edit mode, the following shortcuts are available:
 - `CTRL` + `d` - delete current line
 - `CTRL` + `z` - undo
 - `CTRL` + `y` - redo
-- `ALT`  + `↑` - move current line up
-- `ALT`  + `↓` - move current line down
+- `ALT`  + `↑` - move current line or selection up
+- `ALT`  + `↓` - move current line or selection down
 
 ## File Transfer
 

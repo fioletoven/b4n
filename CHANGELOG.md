@@ -1,8 +1,15 @@
 # Change Log
 
+## 1.0.1 - 2026-09-14
+
+### Bug Fixes
+
+- fix `themes` and `plugins` directories detection when b4n is installed via WinGet
+- clicking on backdrop while asking user about copying assets no longer counts as a decision
+
 ## 1.0.0 - 2026-09-12
 
-This is the 1.0.0 release of the `b4n` app. From now on, SemVer will be used for versioning.
+This is the 1.0.0 release of the `b4n` app. From now on, SemVer will be used for versioning.  
 I believe `b4n` reached Minimum Viable Product some time ago and now has all the features I need for daily use.
 
 ### Features
