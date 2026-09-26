@@ -39,9 +39,6 @@ pub trait PickerBehaviour {
     /// Gets response event when back/cancel is triggered.
     fn cancel_response(&self) -> ResponseEvent;
 
-    /// Loads items when the picker is shown.
-    fn load_items(&mut self) -> PatternsList;
-
     /// Adds an item to the configuration history.
     fn add_item(&self, item: &str);
 
@@ -80,8 +77,14 @@ pub trait PickerBehaviour {
         ResponseEvent::Handled
     }
 
-    /// Executes code when the picker is about to reset filter, code should return `true` if filter can be reset.
-    fn on_reset(&mut self, _patterns: &mut Select<PatternsList>) -> bool {
+    /// Executes code when the picker is about to show.
+    fn on_show(&mut self, _patterns: &mut Select<PatternsList>) -> bool {
+        true
+    }
+
+    /// Executes code when the picker is about to reset filter, code should return `true` if reset was handled.
+    fn on_reset(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        patterns.reset();
         true
     }
 
@@ -170,13 +173,18 @@ impl<B: PickerBehaviour> Picker<B> {
 
     /// Marks the picker as visible and loads items.
     pub fn show(&mut self) {
-        self.patterns.items = self.behaviour.load_items();
-        self.patterns.update_items_filter();
-        self.patterns.set_colors(self.behaviour.colors());
-        self.patterns.set_prompt(self.behaviour.prompt());
-        self.patterns.show_accept_button(self.app_data.borrow().is_mouse_enabled);
-        self.patterns.highlight_accept_button(false);
-        self.is_visible = true;
+        if self.behaviour.on_show(&mut self.patterns) {
+            if self.current != self.patterns.value() {
+                self.set_value(self.patterns.value().into());
+            }
+
+            self.patterns.update_items_filter();
+            self.patterns.set_colors(self.behaviour.colors());
+            self.patterns.set_prompt(self.behaviour.prompt());
+            self.patterns.show_accept_button(self.app_data.borrow().is_mouse_enabled);
+            self.patterns.highlight_accept_button(false);
+            self.is_visible = true;
+        }
     }
 
     /// Copies `self` value into a new `Option`.
@@ -300,7 +308,6 @@ impl<B: PickerBehaviour> Responsive for Picker<B> {
             && !self.patterns.value_full().is_empty()
             && self.behaviour.on_reset(&mut self.patterns)
         {
-            self.patterns.reset();
             return ResponseEvent::Handled;
         }
 

@@ -66,6 +66,7 @@ pub struct FilterBehaviour {
     app_data: SharedAppData,
     last_validated: String,
     last_error: Option<usize>,
+    modified_filter: Option<String>,
 }
 
 impl FilterBehaviour {
@@ -74,6 +75,7 @@ impl FilterBehaviour {
             app_data,
             last_validated: String::new(),
             last_error: None,
+            modified_filter: None,
         }
     }
 }
@@ -99,13 +101,11 @@ impl PickerBehaviour for FilterBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&mut self) -> PatternsList {
-        let context = &self.app_data.borrow().current.context;
-        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        PatternsList::from(self.app_data.borrow().history.filter_history(context), Some(&key_name))
-    }
-
     fn add_item(&self, item: &str) {
+        if item.trim().is_empty() || self.modified_filter.as_deref().is_some_and(|p| p == item) {
+            return;
+        }
+
         let context = self.app_data.borrow().current.context.clone();
         self.app_data
             .borrow_mut()
@@ -146,6 +146,46 @@ impl PickerBehaviour for FilterBehaviour {
     }
 
     fn blocks_on_error(&self) -> bool {
+        true
+    }
+
+    fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        let context = &self.app_data.borrow().current.context;
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
+        patterns.items = PatternsList::from(self.app_data.borrow().history.filter_history(context), Some(&key_name));
+
+        if self.modified_filter.is_none() && self.app_data.borrow().is_pinned {
+            let value = patterns.value().trim();
+            if !value.is_empty() && !value.starts_with('(') && !value.ends_with('&') {
+                let value = format!("( {value} ) & ");
+                patterns.set_value(value.clone());
+                self.modified_filter = Some(value);
+            }
+        }
+
+        true
+    }
+
+    fn on_reset(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        if let Some(pattern) = &self.modified_filter
+            && patterns.value().len() > pattern.len()
+        {
+            patterns.set_value(pattern);
+            return true;
+        }
+
+        patterns.reset();
+        true
+    }
+
+    fn on_close(&mut self, patterns: &mut Select<PatternsList>, is_cancel: bool) -> bool {
+        if !is_cancel
+            && let Some(len) = self.modified_filter.as_deref().map(str::len)
+            && patterns.value().len() < len
+        {
+            self.modified_filter = None;
+        }
+
         true
     }
 

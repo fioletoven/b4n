@@ -92,12 +92,6 @@ impl PickerBehaviour for SearchBehaviour {
         ResponseEvent::Handled
     }
 
-    fn load_items(&mut self) -> PatternsList {
-        let context = &self.app_data.borrow().current.context;
-        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        PatternsList::from(self.app_data.borrow().history.search_history(context), Some(&key_name))
-    }
-
     fn add_item(&self, item: &str) {
         let context = self.app_data.borrow().current.context.clone();
         self.app_data
@@ -117,6 +111,14 @@ impl PickerBehaviour for SearchBehaviour {
 
     fn restores_on_cancel(&self) -> bool {
         false
+    }
+
+    fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        let context = &self.app_data.borrow().current.context;
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
+        patterns.items = PatternsList::from(self.app_data.borrow().history.search_history(context), Some(&key_name));
+
+        true
     }
 
     fn on_draw(&mut self, patterns: &mut Select<PatternsList>, area: Rect) {

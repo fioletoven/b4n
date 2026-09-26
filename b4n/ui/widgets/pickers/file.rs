@@ -219,12 +219,6 @@ impl PickerBehaviour for FileBehaviour {
         ResponseEvent::Handled
     }
 
-    fn load_items(&mut self) -> PatternsList {
-        self.lister.reset();
-        self.lister.list_dir(self.current_path.clone(), true);
-        PatternsList::default()
-    }
-
     fn add_item(&self, _item: &str) {}
 
     fn remove_item(&self, _item: &str) -> bool {
@@ -271,12 +265,20 @@ impl PickerBehaviour for FileBehaviour {
         }
     }
 
+    fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        self.lister.reset();
+        self.lister.list_dir(self.current_path.clone(), true);
+        patterns.items = PatternsList::default();
+
+        true
+    }
+
     fn on_reset(&mut self, patterns: &mut Select<PatternsList>) -> bool {
         if !patterns.value_prefix().is_empty() && self.navigate_to_dir(self.current_path.clone()) {
             patterns.items.clear();
-            patterns.reset();
         }
 
+        patterns.reset();
         true
     }
 
