@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::ResponseEvent;
-use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, ValidatorKind};
+use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind};
 use std::rc::Rc;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -62,21 +62,6 @@ impl PickerBehaviour for NamespaceBehaviour {
         ResponseEvent::Cancelled
     }
 
-    fn load_items(&mut self) -> PatternsList {
-        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
-        let context = &self.app_data.borrow().current.context;
-        let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
-        for item in items.list.full_iter_mut() {
-            item.data.set_icon(Some(""));
-        }
-
-        for ns in &self.discovered {
-            items.add_or_update(PatternItem::fixed(ns.clone()));
-        }
-
-        items
-    }
-
     fn add_item(&self, item: &str) {
         let context = self.app_data.borrow().current.context.clone();
         self.app_data
@@ -124,6 +109,23 @@ impl PickerBehaviour for NamespaceBehaviour {
         } else {
             ResponseEvent::Handled
         }
+    }
+
+    fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
+        let context = &self.app_data.borrow().current.context;
+        let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
+        for item in items.list.full_iter_mut() {
+            item.data.set_icon(Some(""));
+        }
+
+        for ns in &self.discovered {
+            items.add_or_update(PatternItem::fixed(ns.clone()));
+        }
+
+        patterns.items = items;
+
+        true
     }
 
     fn has_header(&self) -> bool {

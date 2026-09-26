@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- wrap pinned filter in `( ... ) & ` to allow quick results narrowing with an additional filter expression
+
 ## 1.0.1 - 2026-09-14
 
 ### Bug Fixes
