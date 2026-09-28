@@ -14,15 +14,27 @@ pub enum LineKind {
     Error,
 }
 
+/// Represents a log message.
+pub struct LogMessage {
+    styled: StyledLine,
+    lowercase: String,
+    len: usize,
+}
+
+impl PartialEq for LogMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len && self.lowercase == other.lowercase
+    }
+}
+
 /// Represents one log line.
 pub struct LogLine {
-    pub datetime: Timestamp,
-    pub container: Option<String>,
-    pub message: StyledLine,
-    pub lowercase: String,
     pub kind: LineKind,
+    pub datetime: Timestamp,
+    pub message: LogMessage,
+    pub json: Option<LogMessage>,
+    pub container: Option<String>,
     container_len: usize,
-    message_len: usize,
 }
 
 impl PartialEq for LogLine {
@@ -30,7 +42,7 @@ impl PartialEq for LogLine {
         self.datetime == other.datetime
             && self.container == other.container
             && self.kind == other.kind
-            && self.lowercase == other.lowercase
+            && self.message == other.message
     }
 }
 
@@ -52,51 +64,63 @@ impl LogLine {
             lowercase.push_str(&text.to_ascii_lowercase());
         }
 
-        let (container, container_len) = get_container(container);
-        Self {
-            datetime,
-            container_len,
-            container,
-            message_len: lowercase.chars().count(),
-            message: message.into(),
+        let message = LogMessage {
+            len: lowercase.chars().count(),
+            styled: message.into(),
             lowercase,
+        };
+
+        let (container, container_len) = get_container(container);
+
+        Self {
             kind: LineKind::LogLine,
+            datetime,
+            message,
+            json: None,
+            container,
+            container_len,
         }
     }
 
     /// Returns new error [`LogLine`] instance.
     pub fn error(datetime: Timestamp, container: Option<&str>, error: String) -> Self {
         let (container, container_len) = get_container(container);
-        let (message, message_len) = get_message(error);
         Self {
-            datetime,
-            container_len,
-            container,
-            message_len,
-            message,
-            lowercase: String::new(),
             kind: LineKind::Error,
+            datetime,
+            message: get_message(error),
+            json: None,
+            container,
+            container_len,
         }
     }
 
     /// Returns new info [`LogLine`] instance.
     pub fn info(datetime: Timestamp, container: Option<&str>, info: String) -> Self {
         let (container, container_len) = get_container(container);
-        let (message, message_len) = get_message(info);
         Self {
-            datetime,
-            container_len,
-            container,
-            message_len,
-            message,
-            lowercase: String::new(),
             kind: LineKind::FetchInfo,
+            datetime,
+            message: get_message(info),
+            json: None,
+            container,
+            container_len,
         }
+    }
+
+    /// Returns a reference to the log message segments.
+    pub fn segments(&self) -> &[(Style, String)] {
+        self.message.styled.segments()
+    }
+
+    /// Returns a reference to the lowercase version of the log message.
+    pub fn lowercase(&self) -> &str {
+        &self.message.lowercase
     }
 
     /// Returns whole line chars count (together with container part).
     pub fn width(&self) -> usize {
-        self.message_len + self.container_width()
+        self.message.len + self.container_width()
     }
 
     /// Returns container's part chars count.
@@ -134,7 +158,7 @@ impl LogLine {
             result.push_str(": ");
         }
 
-        for (_, text) in self.message.segments() {
+        for (_, text) in self.segments() {
             result.push_str(text);
         }
 
@@ -149,8 +173,14 @@ fn get_container(container: Option<&str>) -> (Option<String>, usize) {
     )
 }
 
-fn get_message(text: String) -> (StyledLine, usize) {
+fn get_message(text: String) -> LogMessage {
     let name = format!("[{APP_NAME}] ");
     let len = name.chars().count() + text.chars().count();
-    (vec![(Style::default(), name), (Style::default(), text)].into(), len)
+    let message = vec![(Style::default(), name), (Style::default(), text)].into();
+
+    LogMessage {
+        styled: message,
+        lowercase: String::new(),
+        len,
+    }
 }

@@ -427,7 +427,7 @@ impl LogsView {
         if let Some(first_dt) = content.get_first_timestamp()
             && let Some(last_dt) = content.get_last_timestamp()
             && let Some(client) = self.worker.borrow().kubernetes_client()
-            && let Some(stop_on) = content.get_first_line().map(|l| (l.datetime, l.lowercase.clone()))
+            && let Some(stop_on) = content.get_first_line().map(|l| (l.datetime, l.lowercase().to_owned()))
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());

@@ -165,10 +165,10 @@ impl LogsContent {
 
         let style: Style = log_colors.into();
         if line.kind == LineKind::LogLine {
-            result.extend(line.message.segments().iter().map(|(s, t)| (style.patch(*s), t.clone())));
-        } else if !line.message.is_empty() {
+            result.extend(line.segments().iter().map(|(s, t)| (style.patch(*s), t.clone())));
+        } else if !line.segments().is_empty() {
             let info_style: Style = (&self.colors.info).into();
-            let segments = line.message.segments();
+            let segments = line.segments();
             result.push((info_style.patch(segments[0].0), segments[0].1.clone()));
             result.extend(segments.iter().skip(1).map(|(s, t)| (style.patch(*s), t.clone())));
         }
@@ -245,7 +245,7 @@ impl Content for LogsContent {
                     result.push_str(": ");
                 }
 
-                for (_, text) in line.message.segments() {
+                for (_, text) in line.segments() {
                     result.push_str(text);
                 }
 
@@ -259,7 +259,7 @@ impl Content for LogsContent {
     fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         for (y, line) in self.lines.iter().enumerate() {
-            if let Some(x) = line.lowercase.find(&pattern) {
+            if let Some(x) = line.lowercase().find(&pattern) {
                 return Some(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
@@ -271,7 +271,7 @@ impl Content for LogsContent {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
         for (y, line) in self.lines.iter().enumerate() {
-            for (x, _) in line.lowercase.match_indices(&pattern) {
+            for (x, _) in line.lowercase().match_indices(&pattern) {
                 matches.push(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
@@ -297,10 +297,10 @@ impl Content for LogsContent {
             let position = line.map_position(position);
             if self.show_timestamps {
                 let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-                let bounds = line.map_bounds(b4n_common::word_bounds(&line.lowercase, idx));
+                let bounds = line.map_bounds(b4n_common::word_bounds(line.lowercase(), idx));
                 bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
             } else {
-                line.map_bounds(b4n_common::word_bounds(&line.lowercase, position.x))
+                line.map_bounds(b4n_common::word_bounds(line.lowercase(), position.x))
             }
         } else {
             None
