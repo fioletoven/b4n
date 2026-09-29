@@ -1,7 +1,7 @@
+use serde_json::Value;
 use std::str::FromStr;
 
 use crate::logs::formats::serilog;
-use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {
@@ -11,6 +11,19 @@ pub enum LogLevel {
     Warn,
     Error,
     Fatal,
+}
+
+impl std::fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Trace => write!(f, "TRACE"),
+            Self::Debug => write!(f, "DEBUG"),
+            Self::Info => write!(f, "INFO"),
+            Self::Warn => write!(f, "WARN"),
+            Self::Error => write!(f, "ERROR"),
+            Self::Fatal => write!(f, "FATAL"),
+        }
+    }
 }
 
 impl FromStr for LogLevel {
@@ -25,19 +38,6 @@ impl FromStr for LogLevel {
             "error" | "err" => Ok(Self::Error),
             "fatal" | "critical" | "crit" | "panic" => Ok(Self::Fatal),
             _ => Err(()),
-        }
-    }
-}
-
-impl std::fmt::Display for LogLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Trace => write!(f, "TRACE"),
-            Self::Debug => write!(f, "DEBUG"),
-            Self::Info => write!(f, "INFO"),
-            Self::Warn => write!(f, "WARN"),
-            Self::Error => write!(f, "ERROR"),
-            Self::Fatal => write!(f, "FATAL"),
         }
     }
 }

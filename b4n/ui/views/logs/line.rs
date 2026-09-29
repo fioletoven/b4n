@@ -48,35 +48,14 @@ impl PartialEq for LogLine {
 
 impl LogLine {
     /// Creates new [`LogLine`] instance.
-    pub fn new(datetime: Timestamp, container: Option<&str>, message: String) -> Self {
-        let mut lowercase = String::with_capacity(message.len());
-        let message = match message.into_text() {
-            Ok(text) => text
-                .lines
-                .iter()
-                .flat_map(|line| line.spans.iter())
-                .map(|span| (span.style, span.content.to_string()))
-                .collect(),
-            Err(_) => vec![(Style::default(), message)],
-        };
-
-        for (_, text) in &message {
-            lowercase.push_str(&text.to_ascii_lowercase());
-        }
-
-        let message = LogMessage {
-            len: lowercase.chars().count(),
-            styled: message.into(),
-            lowercase,
-        };
-
+    pub fn new(datetime: Timestamp, container: Option<&str>, message: String, json: Option<String>) -> Self {
         let (container, container_len) = get_container(container);
 
         Self {
             kind: LineKind::LogLine,
             datetime,
-            message,
-            json: None,
+            message: get_plain_message(message),
+            json: json.map(get_json_message),
             container,
             container_len,
         }
@@ -88,7 +67,7 @@ impl LogLine {
         Self {
             kind: LineKind::Error,
             datetime,
-            message: get_message(error),
+            message: get_ui_message(error),
             json: None,
             container,
             container_len,
@@ -101,7 +80,7 @@ impl LogLine {
         Self {
             kind: LineKind::FetchInfo,
             datetime,
-            message: get_message(info),
+            message: get_ui_message(info),
             json: None,
             container,
             container_len,
@@ -173,13 +152,44 @@ fn get_container(container: Option<&str>) -> (Option<String>, usize) {
     )
 }
 
-fn get_message(text: String) -> LogMessage {
-    let name = format!("[{APP_NAME}] ");
-    let len = name.chars().count() + text.chars().count();
-    let message = vec![(Style::default(), name), (Style::default(), text)].into();
+fn get_plain_message(text: String) -> LogMessage {
+    let mut lowercase = String::with_capacity(text.len());
+    let message = match text.into_text() {
+        Ok(text) => text
+            .lines
+            .iter()
+            .flat_map(|line| line.spans.iter())
+            .map(|span| (span.style, span.content.to_string()))
+            .collect(),
+        Err(_) => vec![(Style::default(), text)],
+    };
+
+    for (_, text) in &message {
+        lowercase.push_str(&text.to_ascii_lowercase());
+    }
 
     LogMessage {
-        styled: message,
+        len: lowercase.chars().count(),
+        styled: message.into(),
+        lowercase,
+    }
+}
+
+fn get_json_message(text: String) -> LogMessage {
+    let lowercase = text.to_ascii_lowercase();
+    let len = lowercase.chars().count();
+    let styled = vec![(Style::default(), text)].into();
+
+    LogMessage { styled, lowercase, len }
+}
+
+fn get_ui_message(text: String) -> LogMessage {
+    let name = format!("[{APP_NAME}] ");
+    let len = name.chars().count() + text.chars().count();
+    let styled = vec![(Style::default(), name), (Style::default(), text)].into();
+
+    LogMessage {
+        styled,
         lowercase: String::new(),
         len,
     }

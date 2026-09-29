@@ -1,3 +1,4 @@
+use b4n_common::parse_line;
 use b4n_kube::ContainerRef;
 use b4n_kube::client::KubernetesClient;
 use futures::{AsyncBufReadExt, TryStreamExt};
@@ -268,8 +269,9 @@ fn process_line(container: Option<&str>, line: &str) -> Option<LogLine> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
     let msg = split.next()?.replace('\t', "    ");
+    let json = parse_line(&msg);
 
-    Some(LogLine::new(dt, container, msg))
+    Some(LogLine::new(dt, container, msg, json))
 }
 
 fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) -> LogLine {

@@ -5,11 +5,16 @@ use k8s_openapi::jiff::Timestamp;
 use crate::ui::views::logs::line::LogLine;
 
 fn make_line(datetime: &str, message: &str) -> LogLine {
-    LogLine::new(datetime.parse::<Timestamp>().unwrap(), None, message.to_owned())
+    LogLine::new(datetime.parse::<Timestamp>().unwrap(), None, message.to_owned(), None)
 }
 
 fn make_line_with_container(datetime: &str, container: &str, message: &str) -> LogLine {
-    LogLine::new(datetime.parse::<Timestamp>().unwrap(), Some(container), message.to_owned())
+    LogLine::new(
+        datetime.parse::<Timestamp>().unwrap(),
+        Some(container),
+        message.to_owned(),
+        None,
+    )
 }
 
 fn make_error_line(datetime: &str, message: &str) -> LogLine {
