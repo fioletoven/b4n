@@ -18,6 +18,7 @@ pub struct ContentHeader {
     pub name: Option<String>,
     pub descr: Option<String>,
     app_data: SharedAppData,
+    name_icon: char,
     edit_icon: char,
     edit_mode: &'static str,
     show_coordinates: bool,
@@ -25,6 +26,7 @@ pub struct ContentHeader {
     position_y: usize,
     is_busy: bool,
     spinner: Spinner,
+    path_cache: Option<Paragraph<'static>>,
 }
 
 impl ContentHeader {
@@ -34,6 +36,7 @@ impl ContentHeader {
             icon: ' ',
             namespace: Namespace::all(),
             app_data,
+            name_icon: ' ',
             edit_icon: ' ',
             show_coordinates,
             spinner: Spinner::default(),
@@ -47,16 +50,25 @@ impl ContentHeader {
         self.kind = kind;
         self.name = name;
         self.descr = descr;
+        self.path_cache = None;
     }
 
     /// Sets header title.
     pub fn set_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
+        self.path_cache = None;
     }
 
     /// Sets header icon.
     pub fn set_icon(&mut self, icon: char) {
         self.icon = icon;
+        self.path_cache = None;
+    }
+
+    /// Sets name icon.
+    pub fn set_name_icon(&mut self, icon: char) {
+        self.name_icon = icon;
+        self.path_cache = None;
     }
 
     /// Sets header coordinates.
@@ -75,6 +87,7 @@ impl ContentHeader {
     pub fn set_edit(&mut self, icon: char, mode: &'static str) {
         self.edit_icon = icon;
         self.edit_mode = mode;
+        self.path_cache = None;
     }
 
     /// Sets busy flag.
@@ -105,18 +118,26 @@ impl ContentHeader {
             ])
             .split(area);
 
-        let text = &self.app_data.borrow().theme.colors.text;
-        frame.render_widget(Paragraph::new(self.get_path()).style(text), layout[0]);
+        if self.path_cache.is_none() {
+            self.path_cache = Some(self.build_path());
+        }
+
+        if let Some(path) = self.path_cache.as_ref() {
+            frame.render_widget(path, layout[0]);
+        }
+
         if self.show_coordinates {
+            let text = &self.app_data.borrow().theme.colors.text;
             frame.render_widget(Paragraph::new(self.get_right_text(coordinates)).style(text), layout[1]);
         }
     }
 
-    /// Returns formatted header path as breadcrumbs:\
+    /// Builds formatted header path as breadcrumbs:\
     /// \> `title` \[`icon`\] \> `namespace` \> `kind` \> `name` \> \[ `descr` \> \]
-    fn get_path(&self) -> Line<'_> {
+    fn build_path(&self) -> Paragraph<'static> {
         let bg = self.app_data.borrow().theme.colors.text.bg;
         let colors = &self.app_data.borrow().theme.colors.header;
+
         let title = if self.icon == ' ' && self.edit_icon == ' ' {
             format!(" {} ", self.title)
         } else if self.edit_icon != ' ' {
@@ -136,24 +157,35 @@ impl ContentHeader {
 
         let mut end_bg_color = colors.resource.bg;
         if let Some(name) = &self.name {
+            let has_icon = self.descr.is_none() && self.name_icon != ' ';
+            let name = if has_icon {
+                format!(" {} {} ", name.to_lowercase(), self.name_icon)
+            } else {
+                format!(" {} ", name.to_lowercase())
+            };
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
-                Span::styled(format!(" {} ", name.to_lowercase()), &colors.name),
+                Span::styled(name, &colors.name),
             ]);
             end_bg_color = colors.name.bg;
         }
 
         if let Some(descr) = &self.descr {
+            let descr = if self.name_icon != ' ' {
+                format!(" {descr} {} ", self.name_icon)
+            } else {
+                format!(" {descr} ")
+            };
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),
-                Span::styled(format!(" {descr} "), &colors.count),
+                Span::styled(descr, &colors.count),
                 Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {
             path.push(Span::styled("", Style::new().fg(end_bg_color).bg(bg)));
         }
 
-        Line::from(path)
+        Paragraph::new(Line::from(path)).style(&self.app_data.borrow().theme.colors.text)
     }
 
     /// Returns formatted text as right breadcrumbs:\

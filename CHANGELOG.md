@@ -5,6 +5,7 @@
 ### Features
 
 - wrap pinned filter in `( ... ) & ` to allow quick results narrowing with an additional filter expression
+- add JSON logs parser to display human readable logs
 
 ## 1.0.1 - 2026-09-14
 
