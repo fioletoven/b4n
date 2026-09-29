@@ -18,8 +18,8 @@ impl std::fmt::Display for LogLevel {
         match self {
             Self::Trace => write!(f, "TRACE"),
             Self::Debug => write!(f, "DEBUG"),
-            Self::Info => write!(f, "INFO"),
-            Self::Warn => write!(f, "WARN"),
+            Self::Info => write!(f, " INFO"),
+            Self::Warn => write!(f, " WARN"),
             Self::Error => write!(f, "ERROR"),
             Self::Fatal => write!(f, "FATAL"),
         }
@@ -48,10 +48,10 @@ pub fn parse_line(line: &str) -> Option<String> {
         return None;
     }
 
-    if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed) {
-        if serilog::detect(&map) {
-            return serilog::parse(map);
-        }
+    if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed)
+        && serilog::detect(&map)
+    {
+        return serilog::parse(&map);
     }
 
     None

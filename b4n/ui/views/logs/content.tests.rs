@@ -22,7 +22,7 @@ fn make_error_line(datetime: &str, message: &str) -> LogLine {
 }
 
 fn messages(content: &LogsContent) -> Vec<&str> {
-    content.lines.iter().map(|l| l.lowercase()).collect()
+    content.lines.iter().map(|l| l.lowercase(false)).collect()
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn get_first_line_skips_non_log_lines() {
     content.add_log_line(make_line("2024-01-01T00:00:02Z", "real log"));
 
     let first = content.get_first_line().unwrap();
-    assert_eq!(first.lowercase(), "real log");
+    assert_eq!(first.lowercase(false), "real log");
 }
 
 #[test]

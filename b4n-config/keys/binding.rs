@@ -52,6 +52,7 @@ define_key_commands! {
         FilterReset => "filter.reset" @ "Esc",
         HistoryOpen => "history.open" @ "H",
         InvolvedObjectShow => "involved-object.show" @ "I",
+        LogsJson => "logs.json" @ "J",
         LogsOpen => "logs.open" @ "L",
         LogsTimestamps => "logs.timestamps" @ "T",
         MatchNext => "match.next" @ "N",

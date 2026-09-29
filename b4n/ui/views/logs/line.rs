@@ -88,17 +88,26 @@ impl LogLine {
     }
 
     /// Returns a reference to the log message segments.
-    pub fn segments(&self) -> &[(Style, String)] {
+    pub fn segments(&self, prefer_parsed: bool) -> &[(Style, String)] {
+        if prefer_parsed && let Some(json) = &self.json {
+            return json.styled.segments();
+        }
         self.message.styled.segments()
     }
 
     /// Returns a reference to the lowercase version of the log message.
-    pub fn lowercase(&self) -> &str {
+    pub fn lowercase(&self, prefer_parsed: bool) -> &str {
+        if prefer_parsed && let Some(json) = &self.json {
+            return &json.lowercase;
+        }
         &self.message.lowercase
     }
 
     /// Returns whole line chars count (together with container part).
-    pub fn width(&self) -> usize {
+    pub fn width(&self, prefer_parsed: bool) -> usize {
+        if prefer_parsed && let Some(json) = &self.json {
+            return json.len + self.container_width();
+        }
         self.message.len + self.container_width()
     }
 
@@ -126,8 +135,8 @@ impl LogLine {
     }
 
     /// Returns full line together with optional prefix.
-    pub fn get_text(&self, prefix: Option<impl Display>, prefix_len: usize) -> String {
-        let mut result = String::with_capacity(self.width() + if prefix.is_some() { prefix_len } else { 0 });
+    pub fn get_text(&self, prefix: Option<impl Display>, prefix_len: usize, prefer_parsed: bool) -> String {
+        let mut result = String::with_capacity(self.width(prefer_parsed) + if prefix.is_some() { prefix_len } else { 0 });
         if let Some(prefix) = prefix {
             write!(result, "{prefix}").unwrap();
         }
@@ -137,7 +146,7 @@ impl LogLine {
             result.push_str(": ");
         }
 
-        for (_, text) in self.segments() {
+        for (_, text) in self.segments(prefer_parsed) {
             result.push_str(text);
         }
 

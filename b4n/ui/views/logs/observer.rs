@@ -280,7 +280,7 @@ fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) 
 }
 
 fn should_stop_on(current: &LogLine, dt: Timestamp, log: &str) -> bool {
-    current.datetime == dt && current.lowercase() == log
+    current.datetime == dt && current.lowercase(false) == log
 }
 
 /// Tracks error state to avoid showing timeout errors on first occurrence.
