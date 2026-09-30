@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::str::FromStr;
 
-use crate::logs::formats::serilog;
+use crate::logs::formats::{ecs, log4j2, logstash, serilog, zap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {
@@ -54,10 +54,26 @@ pub fn parse_line(line: &str) -> Option<ParsedLogLine> {
         return None;
     }
 
-    if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed)
-        && serilog::detect(&map)
-    {
-        return serilog::parse(&map);
+    if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed) {
+        if serilog::detect(&map) {
+            return serilog::parse(&map);
+        }
+
+        if logstash::detect(&map) {
+            return logstash::parse(&map);
+        }
+
+        if log4j2::detect(&map) {
+            return log4j2::parse(&map);
+        }
+
+        if zap::detect(&map) {
+            return zap::parse(&map);
+        }
+
+        if ecs::detect(&map) {
+            return ecs::parse(&map);
+        }
     }
 
     None

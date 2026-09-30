@@ -1,11 +1,23 @@
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
+use crate::logs::formats::{build_context, push_value};
 use crate::logs::parser::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
 #[path = "./serilog.tests.rs"]
 mod content_tests;
+
+const CONTEXT_FIELDS: [(&str, &str); 8] = [
+    ("SourceContext", ""),
+    ("EnvironmentName", "env"),
+    ("MachineName", "machine"),
+    ("ThreadId", "thread"),
+    ("TraceId", "trace"),
+    ("SpanId", "span"),
+    ("RequestId", "request"),
+    ("ParentId", "parent"),
+];
 
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.contains_key("@m") || map.contains_key("@mt")
@@ -27,7 +39,7 @@ pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     Some(ParsedLogLine {
         level,
         message: msg,
-        context: build_context(map),
+        context: build_context(map, &CONTEXT_FIELDS),
     })
 }
 
@@ -86,55 +98,4 @@ fn build_from_template(template: &str, map: &Map<String, Value>) -> String {
 
     rendered.push_str(remaining);
     rendered
-}
-
-fn build_context(map: &Map<String, Value>) -> Option<String> {
-    let mut context = String::new();
-
-    if let Some(source_context) = map.get("SourceContext") {
-        push_context_value(source_context, None, &mut context);
-    }
-
-    for (key, label) in [
-        ("EnvironmentName", "env"),
-        ("MachineName", "machine"),
-        ("ThreadId", "thread"),
-        ("TraceId", "trace"),
-        ("SpanId", "span"),
-        ("RequestId", "request"),
-        ("ParentId", "parent"),
-    ] {
-        if let Some(value) = map.get(key) {
-            push_context_value(value, Some(label), &mut context);
-        }
-    }
-
-    (!context.is_empty()).then_some(context)
-}
-
-fn push_value(value: &Value, out: &mut String) {
-    match value {
-        Value::String(s) => out.push_str(s),
-        Value::Null => out.push_str("null"),
-        _ => out.push_str(&value.to_string()),
-    }
-}
-
-fn push_context_value(value: &Value, label: Option<&str>, out: &mut String) {
-    match value {
-        Value::Null => return,
-        Value::String(s) if s.is_empty() => return,
-        _ => {},
-    }
-
-    if !out.is_empty() {
-        out.push_str(", ");
-    }
-
-    if let Some(label) = label {
-        out.push_str(label);
-        out.push('=');
-    }
-
-    push_value(value, out);
 }
