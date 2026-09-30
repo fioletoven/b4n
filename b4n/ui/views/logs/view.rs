@@ -92,7 +92,8 @@ impl LogsView {
         let mut observers = Vec::with_capacity(containers.len());
         for pod in containers {
             let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous);
+            let colors = app_data.borrow().theme.colors.syntax.logs.clone();
+            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous, colors);
             observer.start(client, pod, options);
             observers.push(observer);
         }
@@ -465,7 +466,8 @@ impl LogsView {
             self.logs.set_page_start(1);
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
-            let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous);
+            let colors = self.app_data.borrow().theme.colors.syntax.logs.clone();
+            let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous, colors);
             observer.start(client, container, options);
             self.fetch_observer = Some(observer);
         }

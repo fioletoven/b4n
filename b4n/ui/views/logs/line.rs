@@ -1,5 +1,6 @@
 use ansi_to_tui::IntoText;
-use b4n_config::APP_NAME;
+use b4n_common::{LogLevel, ParsedLogLine};
+use b4n_config::{APP_NAME, themes::LogsSyntaxColors};
 use k8s_openapi::jiff::Timestamp;
 use ratatui::style::Style;
 use std::fmt::{Display, Write};
@@ -48,14 +49,20 @@ impl PartialEq for LogLine {
 
 impl LogLine {
     /// Creates new [`LogLine`] instance.
-    pub fn new(datetime: Timestamp, container: Option<&str>, message: String, json: Option<String>) -> Self {
+    pub fn new(
+        datetime: Timestamp,
+        container: Option<&str>,
+        message: String,
+        json: Option<ParsedLogLine>,
+        colors: &LogsSyntaxColors,
+    ) -> Self {
         let (container, container_len) = get_container(container);
 
         Self {
             kind: LineKind::LogLine,
             datetime,
             message: get_plain_message(message),
-            json: json.map(get_json_message),
+            json: json.map(|j| get_json_message(j, colors)),
             container,
             container_len,
         }
@@ -184,12 +191,36 @@ fn get_plain_message(text: String) -> LogMessage {
     }
 }
 
-fn get_json_message(text: String) -> LogMessage {
-    let lowercase = text.to_ascii_lowercase();
-    let len = lowercase.chars().count();
-    let styled = vec![(Style::default(), text)].into();
+fn get_json_message(line: ParsedLogLine, colors: &LogsSyntaxColors) -> LogMessage {
+    let ParsedLogLine { level, message, context } = line;
+    let is_error_level = matches!(level, LogLevel::Error | LogLevel::Fatal);
 
-    LogMessage { styled, lowercase, len }
+    let mut lowercase = format!("[{level}] {message}").to_ascii_lowercase();
+    if let Some(context) = context.as_deref() {
+        lowercase.push_str(" <");
+        lowercase.push_str(&context.to_ascii_lowercase());
+        lowercase.push('>');
+    }
+
+    let len = lowercase.chars().count();
+
+    let level_color = if is_error_level { &colors.error } else { &colors.string };
+    let mut styled = vec![
+        ((&colors.info).into(), "[".to_owned()),
+        (level_color.into(), level.to_string()),
+        ((&colors.info).into(), "] ".to_owned()),
+        ((&colors.string).into(), message),
+    ];
+
+    if let Some(context) = context {
+        styled.push(((&colors.info).into(), format!(" <{context}>")));
+    }
+
+    LogMessage {
+        styled: styled.into(),
+        lowercase,
+        len,
+    }
 }
 
 fn get_ui_message(text: String) -> LogMessage {

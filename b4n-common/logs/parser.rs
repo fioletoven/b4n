@@ -42,7 +42,13 @@ impl FromStr for LogLevel {
     }
 }
 
-pub fn parse_line(line: &str) -> Option<String> {
+pub struct ParsedLogLine {
+    pub level: LogLevel,
+    pub message: String,
+    pub context: Option<String>,
+}
+
+pub fn parse_line(line: &str) -> Option<ParsedLogLine> {
     let trimmed = line.trim();
     if !trimmed.starts_with('{') {
         return None;
