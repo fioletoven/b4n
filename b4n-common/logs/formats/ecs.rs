@@ -1,6 +1,7 @@
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
+use crate::logs::formats::{build_context_from_values, is_blank};
 use crate::logs::parser::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
@@ -9,12 +10,25 @@ mod content_tests;
 
 const ECS_NAMESPACES: [&str; 5] = ["ecs", "log", "service", "process", "trace"];
 
-const CONTEXT_FIELDS: [(&str, &str); 6] = [
+const CONTEXT_FIELDS: [(&str, &str); 19] = [
     ("log.logger", ""),
-    ("service.name", "service"),
+    ("error.message", "error"),
+    ("error.stack_trace", "stack"),
+    ("error.type", "error_type"),
+    ("event.dataset", "dataset"),
+    ("host.name", "host"),
+    ("log.origin.file.line", "line"),
+    ("log.origin.file.name", "file"),
+    ("log.origin.function", "function"),
+    ("process.pid", "pid"),
+    ("process.thread.id", "tid"),
     ("process.thread.name", "thread"),
-    ("trace.id", "trace"),
+    ("service.environment", "env"),
+    ("service.name", "service"),
+    ("service.node.name", "node"),
+    ("service.version", "version"),
     ("span.id", "span"),
+    ("trace.id", "trace"),
     ("transaction.id", "transaction"),
 ];
 
@@ -45,12 +59,13 @@ fn has_ecs_marker(map: &Map<String, Value>) -> bool {
 
 fn extract_level(map: &Map<String, Value>) -> Option<&str> {
     field(map, "log.level")
+        .and_then(Value::as_str)
         .or_else(|| map.get("level").and_then(Value::as_str))
         .or_else(|| map.get("severity").and_then(Value::as_str))
 }
 
-fn field<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a str> {
-    if let Some(value) = map.get(key).and_then(Value::as_str) {
+fn field<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {
+    if let Some(value) = map.get(key).filter(|value| !is_blank(value)) {
         return Some(value);
     }
 
@@ -61,34 +76,10 @@ fn field<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a str> {
         value = value.as_object()?.get(part)?;
     }
 
-    value.as_str()
+    Some(value)
 }
 
 fn build_context(map: &Map<String, Value>) -> Option<String> {
-    let parts = CONTEXT_FIELDS.map(|(key, label)| field(map, key).filter(|value| !value.is_empty()).map(|value| (label, value)));
-    let capacity: usize = parts
-        .iter()
-        .flatten()
-        .map(|(label, value)| 3 + label.len() + value.len())
-        .sum();
-
-    if capacity == 0 {
-        return None;
-    }
-
-    let mut out = String::with_capacity(capacity);
-    for (label, value) in parts.into_iter().flatten() {
-        if !out.is_empty() {
-            out.push_str(", ");
-        }
-
-        if !label.is_empty() {
-            out.push_str(label);
-            out.push('=');
-        }
-
-        out.push_str(value);
-    }
-
-    Some(out)
+    let fields = CONTEXT_FIELDS.map(|(key, label)| field(map, key).filter(|value| !is_blank(value)).map(|value| (label, value)));
+    build_context_from_values(fields)
 }

@@ -10,6 +10,10 @@ use std::fmt::Write;
 fn build_context<const N: usize>(map: &Map<String, Value>, fields: &[(&str, &str); N]) -> Option<String> {
     let fields: [Option<(&str, &Value)>; N] =
         fields.map(|(key, label)| map.get(key).filter(|value| !is_blank(value)).map(|value| (label, value)));
+    build_context_from_values(fields)
+}
+
+fn build_context_from_values<const N: usize>(fields: [Option<(&str, &Value)>; N]) -> Option<String> {
     let capacity: usize = fields
         .iter()
         .flatten()
@@ -63,6 +67,8 @@ fn is_blank(value: &Value) -> bool {
     match value {
         Value::Null => true,
         Value::String(s) => s.is_empty(),
+        Value::Array(values) => values.is_empty(),
+        Value::Object(values) => values.is_empty(),
         _ => false,
     }
 }

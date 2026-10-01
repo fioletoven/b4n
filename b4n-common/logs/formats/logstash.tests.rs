@@ -19,7 +19,7 @@ fn parses_logstash_logback_layout() {
 
     assert_eq!(LogLevel::Info, parsed.level);
     assert_eq!("HTTP server started", parsed.message);
-    assert_eq!(Some("com.example.HttpServer, thread=main".to_owned()), parsed.context);
+    assert_eq!(Some("com.example.HttpServer, thread=main"), parsed.context.as_deref());
 }
 
 #[test]
@@ -42,8 +42,8 @@ fn parses_context_with_trace_identifiers() {
 
     assert_eq!(LogLevel::Warn, parsed.level);
     assert_eq!(
-        Some("com.example.Requests, thread=http-nio-8080-exec-4, trace=abc123, span=def456, request=req-7".to_owned()),
-        parsed.context,
+        Some("com.example.Requests, request=req-7, span=def456, thread=http-nio-8080-exec-4, trace=abc123"),
+        parsed.context.as_deref(),
     );
 }
 
@@ -64,5 +64,64 @@ fn skips_empty_context_values() {
     .unwrap();
 
     assert_eq!(LogLevel::Debug, parsed.level);
-    assert_eq!(Some("trace=trace-1".to_owned()), parsed.context);
+    assert_eq!(Some("trace=trace-1"), parsed.context.as_deref());
+}
+
+#[test]
+fn collects_logstash_tags_caller_and_stacktrace() {
+    let parsed = parse(
+        json!({
+            "message": "failed",
+            "level": "ERROR",
+            "HOSTNAME": "worker-0",
+            "tags": ["audit", "http"],
+            "caller_class_name": "com.example.Worker",
+            "caller_method_name": "run",
+            "caller_file_name": "Worker.java",
+            "caller_line_number": 27,
+            "stack_hash": "abc123",
+            "stack_trace": "Exception: failed\n at Worker.run()"
+        })
+        .as_object()
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        Some(concat!(
+            "class=com.example.Worker, file=Worker.java, line=27, method=run, host=worker-0, stack_hash=abc123, ",
+            "stack=Exception: failed\n at Worker.run(), tags=[\"audit\",\"http\"]"
+        )),
+        parsed.context.as_deref(),
+    );
+}
+
+#[test]
+fn supports_snake_case_correlation_ids_without_duplicates() {
+    let parsed = parse(
+        json!({
+            "message": "failed",
+            "level": "ERROR",
+            "traceId": "preferred-trace",
+            "trace_id": "alternate-trace",
+            "spanId": "",
+            "span_id": "span-1",
+            "requestId": null,
+            "request_id": "req-1",
+            "correlation_id": "correlation-1",
+            "tags": [],
+            "stack_trace": ["Exception: failed", "at Worker.run()"]
+        })
+        .as_object()
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        Some(concat!(
+            "correlation=correlation-1, request=req-1, span=span-1, ",
+            "stack=[\"Exception: failed\",\"at Worker.run()\"], trace=preferred-trace"
+        )),
+        parsed.context.as_deref(),
+    );
 }

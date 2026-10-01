@@ -1,22 +1,29 @@
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
-use crate::logs::formats::{build_context, push_value};
+use crate::logs::formats::{build_context, is_blank, push_value};
 use crate::logs::parser::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
 #[path = "./serilog.tests.rs"]
 mod content_tests;
 
-const CONTEXT_FIELDS: [(&str, &str); 8] = [
+const CONTEXT_FIELDS: [(&str, &str); 15] = [
     ("SourceContext", ""),
+    ("Application", "app"),
+    ("CorrelationId", "correlation"),
     ("EnvironmentName", "env"),
+    ("@x", "error"),
+    ("@i", "event"),
     ("MachineName", "machine"),
-    ("ThreadId", "thread"),
-    ("TraceId", "trace"),
-    ("SpanId", "span"),
-    ("RequestId", "request"),
     ("ParentId", "parent"),
+    ("ProcessId", "pid"),
+    ("RequestId", "request"),
+    ("RequestPath", "path"),
+    ("@sp", "span"),
+    ("ThreadId", "tid"),
+    ("ThreadName", "thread"),
+    ("@tr", "trace"),
 ];
 
 pub fn detect(map: &Map<String, Value>) -> bool {
@@ -36,10 +43,23 @@ pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
             .map(|template| build_from_template(template, map))
     })?;
 
+    let context_fields = CONTEXT_FIELDS.map(|(key, label)| {
+        if map.get(key).is_some_and(|value| !is_blank(value)) {
+            (key, label)
+        } else {
+            let alternate_key = match key {
+                "@tr" => "TraceId",
+                "@sp" => "SpanId",
+                _ => return (key, label),
+            };
+            (alternate_key, label)
+        }
+    });
+
     Some(ParsedLogLine {
         level,
         message: msg,
-        context: build_context(map, &CONTEXT_FIELDS),
+        context: build_context(map, &context_fields),
     })
 }
 

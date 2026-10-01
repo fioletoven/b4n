@@ -8,12 +8,18 @@ use crate::logs::parser::{LogLevel, ParsedLogLine};
 #[path = "./log4j2.tests.rs"]
 mod content_tests;
 
-const CONTEXT_FIELDS: [(&str, &str); 5] = [
+const CONTEXT_FIELDS: [(&str, &str); 11] = [
     ("loggerName", ""),
-    ("thread", "thread"),
-    ("threadId", "thread_id"),
+    ("contextMap", "mdc"),
+    ("contextStack", "ndc"),
     ("endOfBatch", "batch"),
     ("loggerFqcn", "fqcn"),
+    ("marker", "marker"),
+    ("source", "source"),
+    ("thread", "thread"),
+    ("threadId", "tid"),
+    ("threadPriority", "priority"),
+    ("thrown", "error"),
 ];
 
 pub fn detect(map: &Map<String, Value>) -> bool {

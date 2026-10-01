@@ -8,12 +8,31 @@ use crate::logs::parser::{LogLevel, ParsedLogLine};
 #[path = "./zap.tests.rs"]
 mod content_tests;
 
-const CONTEXT_FIELDS: [(&str, &str); 3] = [("logger", ""), ("caller", "caller"), ("stacktrace", "stack")];
+const CONTEXT_FIELDS: [(&str, &str); 18] = [
+    ("logger", ""),
+    ("addr", "addr"),
+    ("bindAddress", "bind"),
+    ("caller", "caller"),
+    ("controller", "controller"),
+    ("controllerGroup", "group"),
+    ("controllerKind", "kind"),
+    ("error", "error"),
+    ("kind", "kind"),
+    ("name", "name"),
+    ("namespace", "ns"),
+    ("pod", "pod"),
+    ("reconcileID", "reconcile"),
+    ("request_id", "request"),
+    ("source", "source"),
+    ("span_id", "span"),
+    ("stacktrace", "stack"),
+    ("trace_id", "trace"),
+];
 
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.get("msg").is_some_and(Value::is_string)
         && map.get("level").is_some_and(Value::is_string)
-        && (map.contains_key("ts") || map.contains_key("logger") || map.contains_key("caller"))
+        && (map.contains_key("ts") || map.contains_key("time") || map.contains_key("logger") || map.contains_key("caller"))
 }
 
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {

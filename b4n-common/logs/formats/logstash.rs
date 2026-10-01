@@ -1,19 +1,28 @@
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
-use crate::logs::formats::build_context;
+use crate::logs::formats::{build_context, is_blank};
 use crate::logs::parser::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
 #[path = "./logstash.tests.rs"]
 mod content_tests;
 
-const CONTEXT_FIELDS: [(&str, &str); 5] = [
+const CONTEXT_FIELDS: [(&str, &str); 14] = [
     ("logger_name", ""),
+    ("caller_class_name", "class"),
+    ("caller_file_name", "file"),
+    ("caller_line_number", "line"),
+    ("caller_method_name", "method"),
+    ("correlationId", "correlation"),
+    ("HOSTNAME", "host"),
+    ("requestId", "request"),
+    ("spanId", "span"),
+    ("stack_hash", "stack_hash"),
+    ("stack_trace", "stack"),
+    ("tags", "tags"),
     ("thread_name", "thread"),
     ("traceId", "trace"),
-    ("spanId", "span"),
-    ("requestId", "request"),
 ];
 
 pub fn detect(map: &Map<String, Value>) -> bool {
@@ -31,9 +40,25 @@ pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
 
     let message = map.get("message")?.as_str()?.to_owned();
 
+    let context_fields = CONTEXT_FIELDS.map(|(key, label)| {
+        if map.get(key).is_some_and(|value| !is_blank(value)) {
+            (key, label)
+        } else {
+            let alternate_key = match key {
+                "traceId" => "trace_id",
+                "spanId" => "span_id",
+                "requestId" => "request_id",
+                "correlationId" => "correlation_id",
+                "HOSTNAME" => "host",
+                _ => return (key, label),
+            };
+            (alternate_key, label)
+        }
+    });
+
     Some(ParsedLogLine {
         level,
         message,
-        context: build_context(map, &CONTEXT_FIELDS),
+        context: build_context(map, &context_fields),
     })
 }

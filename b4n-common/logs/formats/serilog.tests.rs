@@ -19,7 +19,7 @@ fn uses_rendered_message_as_is() {
 
     assert_eq!(LogLevel::Warn, parsed.level);
     assert_eq!("plain rendered message", parsed.message);
-    assert_eq!(Some("Api.Worker, thread=9".to_owned()), parsed.context);
+    assert_eq!(Some("Api.Worker, tid=9"), parsed.context.as_deref());
 }
 
 #[test]
@@ -114,8 +114,8 @@ fn collects_common_serilog_context_fields() {
     .unwrap();
 
     assert_eq!(
-        Some("Test.Namespace, env=Production, machine=some-pod-0, thread=1, trace=abc123, span=def456".to_owned()),
-        parsed.context,
+        Some("Test.Namespace, env=Production, machine=some-pod-0, span=def456, tid=1, trace=abc123"),
+        parsed.context.as_deref(),
     );
 }
 
@@ -133,5 +133,56 @@ fn skips_empty_context_values() {
     )
     .unwrap();
 
-    assert_eq!(Some("thread=4".to_owned()), parsed.context);
+    assert_eq!(Some("tid=4"), parsed.context.as_deref());
+}
+
+#[test]
+fn collects_compact_correlation_and_exception_fields() {
+    let parsed = parse(
+        json!({
+            "@m": "Failed",
+            "@tr": "compact-trace",
+            "@sp": "compact-span",
+            "TraceId": "enriched-trace",
+            "SpanId": "enriched-span",
+            "Application": "api",
+            "ProcessId": 42,
+            "ThreadName": "worker",
+            "CorrelationId": "correlation-1",
+            "RequestPath": "/orders",
+            "@i": "event-1",
+            "@x": "System.Exception: failed\n at Worker.Run()"
+        })
+        .as_object()
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        Some(concat!(
+            "app=api, correlation=correlation-1, error=System.Exception: failed\n at Worker.Run(), event=event-1, ",
+            "pid=42, path=/orders, span=compact-span, thread=worker, trace=compact-trace"
+        )),
+        parsed.context.as_deref(),
+    );
+}
+
+#[test]
+fn falls_back_to_enriched_ids_when_compact_ids_are_blank() {
+    let parsed = parse(
+        json!({
+            "@m": "Started",
+            "@tr": "",
+            "@sp": null,
+            "TraceId": "trace-1",
+            "SpanId": "span-1",
+            "@x": null,
+            "ProcessId": null
+        })
+        .as_object()
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(Some("span=span-1, trace=trace-1"), parsed.context.as_deref());
 }
