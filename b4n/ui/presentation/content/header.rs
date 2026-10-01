@@ -171,10 +171,10 @@ impl ContentHeader {
         }
 
         if let Some(descr) = &self.descr {
-            let descr = if self.name_icon != ' ' {
-                format!(" {descr} {} ", self.name_icon)
-            } else {
+            let descr = if self.name_icon == ' ' {
                 format!(" {descr} ")
+            } else {
+                format!(" {descr} {} ", self.name_icon)
             };
             path.append(&mut vec![
                 Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),

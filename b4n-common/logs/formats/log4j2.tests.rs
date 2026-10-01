@@ -5,7 +5,7 @@ use serde_json::json;
 fn parses_log4j2_json_layout() {
     let parsed = parse(
         json!({
-            "instant": { "epochSecond": 1727604000, "nanoOfSecond": 0 },
+            "instant": { "epochSecond": 1_727_604_000, "nanoOfSecond": 0 },
             "thread": "main",
             "level": "ERROR",
             "loggerName": "com.example.Startup",

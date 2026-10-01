@@ -26,10 +26,12 @@ const CONTEXT_FIELDS: [(&str, &str); 15] = [
     ("@tr", "trace"),
 ];
 
+/// Detects whether the given JSON map follows the Serilog format.
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.contains_key("@m") || map.contains_key("@mt")
 }
 
+/// Parses a JSON map following the Serilog format into a `ParsedLogLine`.
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     let level = map
         .get("@l")

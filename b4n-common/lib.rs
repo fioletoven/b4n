@@ -1,4 +1,4 @@
-pub use self::logs::{LogLevel, ParsedLogLine, parse_line};
+pub use self::logs::{LogLevel, LogParser, ParsedLogLine, parse_line};
 pub use self::notifications::{
     DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, Icon, IconAction, IconKind, Notification, NotificationKind,
     NotificationSink,

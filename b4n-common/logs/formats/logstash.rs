@@ -25,12 +25,14 @@ const CONTEXT_FIELDS: [(&str, &str); 14] = [
     ("traceId", "trace"),
 ];
 
+/// Detects whether the given JSON map follows the Logstash format.
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.get("message").is_some_and(Value::is_string)
         && map.get("level").is_some_and(Value::is_string)
         && (map.contains_key("logger_name") || map.contains_key("thread_name") || map.contains_key("@timestamp"))
 }
 
+/// Parses a JSON map following the Logstash format into a `ParsedLogLine`.
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     let level = map
         .get("level")

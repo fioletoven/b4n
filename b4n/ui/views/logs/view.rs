@@ -520,7 +520,7 @@ impl View for LogsView {
         self.logs.header.set_busy(self.fetch_observer.is_some());
 
         if needs_update {
-            if self.logs.content().is_some_and(|c| c.has_valid_json()) {
+            if self.logs.content().is_some_and(LogsContent::has_valid_json) {
                 self.logs.header.set_name_icon('');
             }
 

@@ -1,4 +1,4 @@
-pub use self::parser::{LogLevel, ParsedLogLine, parse_line};
+pub use self::parser::{LogLevel, LogParser, ParsedLogLine, parse_line};
 
 mod formats;
 mod parser;

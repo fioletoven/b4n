@@ -22,12 +22,14 @@ const CONTEXT_FIELDS: [(&str, &str); 11] = [
     ("thrown", "error"),
 ];
 
+/// Detects whether the given JSON map follows the Log4j2 format.
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.get("message").is_some_and(Value::is_string)
         && map.get("level").is_some_and(Value::is_string)
         && (map.contains_key("loggerName") || map.contains_key("thread") || map.contains_key("instant"))
 }
 
+/// Parses a JSON map following the Log4j2 format into a `ParsedLogLine`.
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     let level = map
         .get("level")

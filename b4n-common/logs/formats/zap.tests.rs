@@ -6,7 +6,7 @@ fn parses_zap_json_logs() {
     let parsed = parse(
         json!({
             "level": "info",
-            "ts": 1727604000.123,
+            "ts": 1_727_604_000.123,
             "logger": "http.server",
             "caller": "server/main.go:42",
             "msg": "listening"
@@ -26,7 +26,7 @@ fn includes_stacktrace_in_context() {
     let parsed = parse(
         json!({
             "level": "error",
-            "ts": 1727604000.123,
+            "ts": 1_727_604_000.123,
             "logger": "worker",
             "caller": "worker/run.go:10",
             "stacktrace": "main.main\nworker.run",
@@ -49,7 +49,7 @@ fn skips_empty_context_values() {
     let parsed = parse(
         json!({
             "level": "debug",
-            "ts": 1727604000.123,
+            "ts": 1_727_604_000.123,
             "logger": "",
             "caller": null,
             "msg": "tick"
@@ -118,7 +118,7 @@ fn collects_zap_pod_and_correlation_fields() {
         json!({
             "msg": "request failed",
             "level": "error",
-            "ts": 1727604000.123,
+            "ts": 1_727_604_000.123,
             "pod": "api-0",
             "trace_id": "trace-1",
             "span_id": "span-1",

@@ -1,8 +1,9 @@
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::str::FromStr;
 
 use crate::logs::formats::{ecs, log4j2, logstash, serilog, zap};
 
+/// Level of a log message.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {
     Trace,
@@ -42,38 +43,61 @@ impl FromStr for LogLevel {
     }
 }
 
+/// Parsed log line.
 pub struct ParsedLogLine {
     pub level: LogLevel,
     pub message: String,
     pub context: Option<String>,
 }
 
-pub fn parse_line(line: &str) -> Option<ParsedLogLine> {
+/// Log parsers that can be used to parse structured log lines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogParser {
+    Ecs,
+    Log4j2,
+    Logstash,
+    Serilog,
+    Zap,
+}
+
+impl LogParser {
+    /// Parses a JSON map into a `ParsedLogLine` using the specific log parser.
+    fn parse(self, map: &Map<String, Value>) -> Option<ParsedLogLine> {
+        match self {
+            Self::Ecs => ecs::parse(map),
+            Self::Log4j2 => log4j2::parse(map),
+            Self::Logstash => logstash::parse(map),
+            Self::Serilog => serilog::parse(map),
+            Self::Zap => zap::parse(map),
+        }
+    }
+}
+
+/// Attempts to parse a single log line using the specified or detected log parser.
+pub fn parse_line(line: &str, parser: Option<LogParser>) -> Option<(ParsedLogLine, LogParser)> {
     let trimmed = line.trim();
     if !trimmed.starts_with('{') {
         return None;
     }
 
     if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed) {
-        if serilog::detect(&map) {
-            return serilog::parse(&map);
-        }
+        let parser = parser.or_else(|| {
+            if serilog::detect(&map) {
+                Some(LogParser::Serilog)
+            } else if logstash::detect(&map) {
+                Some(LogParser::Logstash)
+            } else if log4j2::detect(&map) {
+                Some(LogParser::Log4j2)
+            } else if zap::detect(&map) {
+                Some(LogParser::Zap)
+            } else if ecs::detect(&map) {
+                Some(LogParser::Ecs)
+            } else {
+                None
+            }
+        })?;
 
-        if logstash::detect(&map) {
-            return logstash::parse(&map);
-        }
-
-        if log4j2::detect(&map) {
-            return log4j2::parse(&map);
-        }
-
-        if zap::detect(&map) {
-            return zap::parse(&map);
-        }
-
-        if ecs::detect(&map) {
-            return ecs::parse(&map);
-        }
+        return parser.parse(&map).map(|line| (line, parser));
     }
 
     None

@@ -32,10 +32,12 @@ const CONTEXT_FIELDS: [(&str, &str); 19] = [
     ("transaction.id", "transaction"),
 ];
 
+/// Detects whether the given JSON map follows the ECS (Elastic Common Schema) format.
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.get("message").is_some_and(Value::is_string) && extract_level(map).is_some() && has_ecs_marker(map)
 }
 
+/// Parses a JSON map following the ECS format into a `ParsedLogLine`.
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     let level = extract_level(map)
         .and_then(|level| LogLevel::from_str(level).ok())

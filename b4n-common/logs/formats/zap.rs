@@ -29,12 +29,14 @@ const CONTEXT_FIELDS: [(&str, &str); 18] = [
     ("trace_id", "trace"),
 ];
 
+/// Detects whether the given JSON map follows the Zap format.
 pub fn detect(map: &Map<String, Value>) -> bool {
     map.get("msg").is_some_and(Value::is_string)
         && map.get("level").is_some_and(Value::is_string)
         && (map.contains_key("ts") || map.contains_key("time") || map.contains_key("logger") || map.contains_key("caller"))
 }
 
+/// Parses a JSON map following the Zap format into a `ParsedLogLine`.
 pub fn parse(map: &Map<String, Value>) -> Option<ParsedLogLine> {
     let message = map.get("msg")?.as_str()?.to_owned();
 

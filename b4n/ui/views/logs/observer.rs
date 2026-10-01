@@ -1,4 +1,4 @@
-use b4n_common::parse_line;
+use b4n_common::{LogParser, parse_line};
 use b4n_config::themes::LogsSyntaxColors;
 use b4n_kube::ContainerRef;
 use b4n_kube::client::KubernetesClient;
@@ -102,9 +102,10 @@ impl LogsObserver {
 
             let mut backoff = DefaultBackoff::default();
             let mut since_time = options.since_time;
+            let mut parser = None;
             let mut should_continue = ObserveResult::Continue;
             while !_cancellation_token.is_cancelled() {
-                (should_continue, since_time) = observe(since_time, &context, &options.colors).await;
+                (should_continue, since_time) = observe(since_time, &context, &options.colors, &mut parser).await;
                 if _cancellation_token.is_cancelled() || should_continue != ObserveResult::Continue {
                     break;
                 }
@@ -205,6 +206,7 @@ async fn observe(
     since_time: Option<Timestamp>,
     context: &ObserverContext<'_>,
     colors: &LogsSyntaxColors,
+    parser: &mut Option<LogParser>,
 ) -> (ObserveResult, Option<Timestamp>) {
     let mut params = LogParams {
         follow: true,
@@ -244,7 +246,7 @@ async fn observe(
                 match line {
                     Ok(Some(line)) => {
                         error_state.reset();
-                        if let Some(line) = process_line(container, &line, colors) {
+                        if let Some(line) = process_line(container, &line, colors, parser) {
                             last_message_time = Some(line.datetime);
 
                             if context.stop_on.as_ref().is_some_and(|s| should_stop_on(&line, s.0, &s.1)) {
@@ -273,11 +275,19 @@ async fn observe(
     (result, last_message_time)
 }
 
-fn process_line(container: Option<&str>, line: &str, colors: &LogsSyntaxColors) -> Option<LogLine> {
+fn process_line(
+    container: Option<&str>,
+    line: &str,
+    colors: &LogsSyntaxColors,
+    parser: &mut Option<LogParser>,
+) -> Option<LogLine> {
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
     let msg = split.next()?.replace('\t', "    ");
-    let json = parse_line(&msg);
+    let json = parse_line(&msg, *parser).map(|(line, detected)| {
+        *parser = Some(detected);
+        line
+    });
 
     Some(LogLine::new(dt, container, msg, json, colors))
 }
