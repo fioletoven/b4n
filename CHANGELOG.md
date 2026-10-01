@@ -4,7 +4,8 @@
 
 ### Features
 
-- wrap pinned filter in `( ... ) & ` to allow quick results narrowing with an additional filter expression
+- add structured JSON log parsers to display formatted, human-readable logs
+- wrap the pinned filter in `( ... ) &` to allow quickly narrowing results with an additional filter expression
 
 ## 1.0.1 - 2026-09-14
 

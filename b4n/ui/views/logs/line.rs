@@ -1,5 +1,6 @@
 use ansi_to_tui::IntoText;
-use b4n_config::APP_NAME;
+use b4n_common::{LogLevel, ParsedLogLine};
+use b4n_config::{APP_NAME, themes::LogsSyntaxColors};
 use k8s_openapi::jiff::Timestamp;
 use ratatui::style::Style;
 use std::fmt::{Display, Write};
@@ -14,15 +15,27 @@ pub enum LineKind {
     Error,
 }
 
+/// Represents a log message.
+pub struct LogMessage {
+    styled: StyledLine,
+    lowercase: String,
+    len: usize,
+}
+
+impl PartialEq for LogMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len && self.lowercase == other.lowercase
+    }
+}
+
 /// Represents one log line.
 pub struct LogLine {
-    pub datetime: Timestamp,
-    pub container: Option<String>,
-    pub message: StyledLine,
-    pub lowercase: String,
     pub kind: LineKind,
+    pub datetime: Timestamp,
+    pub message: LogMessage,
+    pub json: Option<LogMessage>,
+    pub container: Option<String>,
     container_len: usize,
-    message_len: usize,
 }
 
 impl PartialEq for LogLine {
@@ -30,73 +43,79 @@ impl PartialEq for LogLine {
         self.datetime == other.datetime
             && self.container == other.container
             && self.kind == other.kind
-            && self.lowercase == other.lowercase
+            && self.message == other.message
     }
 }
 
 impl LogLine {
     /// Creates new [`LogLine`] instance.
-    pub fn new(datetime: Timestamp, container: Option<&str>, message: String) -> Self {
-        let mut lowercase = String::with_capacity(message.len());
-        let message = match message.into_text() {
-            Ok(text) => text
-                .lines
-                .iter()
-                .flat_map(|line| line.spans.iter())
-                .map(|span| (span.style, span.content.to_string()))
-                .collect(),
-            Err(_) => vec![(Style::default(), message)],
-        };
-
-        for (_, text) in &message {
-            lowercase.push_str(&text.to_ascii_lowercase());
-        }
-
+    pub fn new(
+        datetime: Timestamp,
+        container: Option<&str>,
+        message: String,
+        json: Option<ParsedLogLine>,
+        colors: &LogsSyntaxColors,
+    ) -> Self {
         let (container, container_len) = get_container(container);
+
         Self {
-            datetime,
-            container_len,
-            container,
-            message_len: lowercase.chars().count(),
-            message: message.into(),
-            lowercase,
             kind: LineKind::LogLine,
+            datetime,
+            message: get_plain_message(message),
+            json: json.map(|j| get_json_message(j, colors)),
+            container,
+            container_len,
         }
     }
 
     /// Returns new error [`LogLine`] instance.
     pub fn error(datetime: Timestamp, container: Option<&str>, error: String) -> Self {
         let (container, container_len) = get_container(container);
-        let (message, message_len) = get_message(error);
         Self {
-            datetime,
-            container_len,
-            container,
-            message_len,
-            message,
-            lowercase: String::new(),
             kind: LineKind::Error,
+            datetime,
+            message: get_ui_message(error),
+            json: None,
+            container,
+            container_len,
         }
     }
 
     /// Returns new info [`LogLine`] instance.
     pub fn info(datetime: Timestamp, container: Option<&str>, info: String) -> Self {
         let (container, container_len) = get_container(container);
-        let (message, message_len) = get_message(info);
         Self {
-            datetime,
-            container_len,
-            container,
-            message_len,
-            message,
-            lowercase: String::new(),
             kind: LineKind::FetchInfo,
+            datetime,
+            message: get_ui_message(info),
+            json: None,
+            container,
+            container_len,
         }
     }
 
+    /// Returns a reference to the log message segments.
+    pub fn segments(&self, prefer_parsed: bool) -> &[(Style, String)] {
+        if prefer_parsed && let Some(json) = &self.json {
+            return json.styled.segments();
+        }
+        self.message.styled.segments()
+    }
+
+    /// Returns a reference to the lowercase version of the log message.
+    pub fn lowercase(&self, prefer_parsed: bool) -> &str {
+        if prefer_parsed && let Some(json) = &self.json {
+            return &json.lowercase;
+        }
+        &self.message.lowercase
+    }
+
     /// Returns whole line chars count (together with container part).
-    pub fn width(&self) -> usize {
-        self.message_len + self.container_width()
+    pub fn width(&self, prefer_parsed: bool) -> usize {
+        if prefer_parsed && let Some(json) = &self.json {
+            return json.len + self.container_width();
+        }
+        self.message.len + self.container_width()
     }
 
     /// Returns container's part chars count.
@@ -123,8 +142,8 @@ impl LogLine {
     }
 
     /// Returns full line together with optional prefix.
-    pub fn get_text(&self, prefix: Option<impl Display>, prefix_len: usize) -> String {
-        let mut result = String::with_capacity(self.width() + if prefix.is_some() { prefix_len } else { 0 });
+    pub fn get_text(&self, prefix: Option<impl Display>, prefix_len: usize, prefer_parsed: bool) -> String {
+        let mut result = String::with_capacity(self.width(prefer_parsed) + if prefix.is_some() { prefix_len } else { 0 });
         if let Some(prefix) = prefix {
             write!(result, "{prefix}").unwrap();
         }
@@ -134,7 +153,7 @@ impl LogLine {
             result.push_str(": ");
         }
 
-        for (_, text) in self.message.segments() {
+        for (_, text) in self.segments(prefer_parsed) {
             result.push_str(text);
         }
 
@@ -149,8 +168,69 @@ fn get_container(container: Option<&str>) -> (Option<String>, usize) {
     )
 }
 
-fn get_message(text: String) -> (StyledLine, usize) {
+fn get_plain_message(text: String) -> LogMessage {
+    let mut lowercase = String::with_capacity(text.len());
+    let message = match text.into_text() {
+        Ok(text) => text
+            .lines
+            .iter()
+            .flat_map(|line| line.spans.iter())
+            .map(|span| (span.style, span.content.to_string()))
+            .collect(),
+        Err(_) => vec![(Style::default(), text)],
+    };
+
+    for (_, text) in &message {
+        lowercase.push_str(&text.to_ascii_lowercase());
+    }
+
+    LogMessage {
+        len: lowercase.chars().count(),
+        styled: message.into(),
+        lowercase,
+    }
+}
+
+fn get_json_message(line: ParsedLogLine, colors: &LogsSyntaxColors) -> LogMessage {
+    let ParsedLogLine { level, message, context } = line;
+    let is_error_level = matches!(level, LogLevel::Error | LogLevel::Fatal);
+
+    let mut lowercase = format!("[{level}] {message}").to_ascii_lowercase();
+    if let Some(context) = context.as_deref() {
+        lowercase.push_str(" <");
+        lowercase.push_str(&context.to_ascii_lowercase());
+        lowercase.push('>');
+    }
+
+    let len = lowercase.chars().count();
+
+    let level_color = if is_error_level { &colors.error } else { &colors.string };
+    let mut styled = vec![
+        ((&colors.info).into(), "[".to_owned()),
+        (level_color.into(), level.to_string()),
+        ((&colors.info).into(), "] ".to_owned()),
+        ((&colors.string).into(), message),
+    ];
+
+    if let Some(context) = context {
+        styled.push(((&colors.info).into(), format!(" <{context}>")));
+    }
+
+    LogMessage {
+        styled: styled.into(),
+        lowercase,
+        len,
+    }
+}
+
+fn get_ui_message(text: String) -> LogMessage {
     let name = format!("[{APP_NAME}] ");
     let len = name.chars().count() + text.chars().count();
-    (vec![(Style::default(), name), (Style::default(), text)].into(), len)
+    let styled = vec![(Style::default(), name), (Style::default(), text)].into();
+
+    LogMessage {
+        styled,
+        lowercase: String::new(),
+        len,
+    }
 }

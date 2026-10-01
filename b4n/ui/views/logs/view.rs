@@ -92,7 +92,8 @@ impl LogsView {
         let mut observers = Vec::with_capacity(containers.len());
         for pod in containers {
             let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
-            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous);
+            let colors = app_data.borrow().theme.colors.syntax.logs.clone();
+            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous, colors);
             observer.start(client, pod, options);
             observers.push(observer);
         }
@@ -121,7 +122,7 @@ impl LogsView {
     }
 
     fn show_command_palette(&mut self) {
-        let builder = ActionsListBuilder::default()
+        let mut builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
             .with_action(
@@ -140,6 +141,14 @@ impl LogsView {
                 ActionItem::action("search", "search").with_description("searches logs using the provided query"),
                 Some(KeyCommand::SearchOpen),
             );
+
+        if self.logs.content().is_some_and(LogsContent::has_valid_json) {
+            builder = builder.with_action(
+                ActionItem::action("json", "json").with_description("toggles the display of JSON"),
+                Some(KeyCommand::LogsJson),
+            );
+        }
+
         let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
@@ -149,13 +158,18 @@ impl LogsView {
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) {
         let copy = if self.logs.has_selection() { "selection" } else { "all" };
-        let builder = ActionsListBuilder::default()
+        let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette())
             .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
             .with_menu_action(ActionItem::menu(2, " save to file", "save"))
             .with_menu_action(ActionItem::menu(3, " search", "search"))
-            .with_menu_action(ActionItem::menu(4, " timestamps", "timestamps"));
+            .with_menu_action(ActionItem::menu(5, " timestamps", "timestamps"));
+
+        if self.logs.content().is_some_and(LogsContent::has_valid_json) {
+            builder = builder.with_menu_action(ActionItem::menu(4, " json", "json"));
+        }
+
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
@@ -165,6 +179,14 @@ impl LogsView {
             .set_current_path(std::env::current_dir().unwrap_or(PathBuf::from(".")));
         self.file_picker.reset();
         self.file_picker.show();
+    }
+
+    fn toggle_json(&mut self) {
+        self.logs.clear_selection();
+        if let Some(content) = self.logs.content_mut() {
+            content.toggle_json();
+            self.logs.reset_horizontal_scroll();
+        }
     }
 
     fn toggle_timestamps(&mut self) {
@@ -267,6 +289,9 @@ impl LogsView {
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
             return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
+        } else if response.is_action("json") {
+            self.toggle_json();
+            return ResponseEvent::Handled;
         } else if response.is_action("timestamps") {
             self.toggle_timestamps();
             return ResponseEvent::Handled;
@@ -349,6 +374,11 @@ impl LogsView {
             return Some(ResponseEvent::Cancelled);
         }
 
+        if self.app_data.has_binding(event, KeyCommand::LogsJson) {
+            self.toggle_json();
+            return Some(ResponseEvent::Handled);
+        }
+
         if self.app_data.has_binding(event, KeyCommand::LogsTimestamps) {
             self.toggle_timestamps();
             return Some(ResponseEvent::Handled);
@@ -427,7 +457,7 @@ impl LogsView {
         if let Some(first_dt) = content.get_first_timestamp()
             && let Some(last_dt) = content.get_last_timestamp()
             && let Some(client) = self.worker.borrow().kubernetes_client()
-            && let Some(stop_on) = content.get_first_line().map(|l| (l.datetime, l.lowercase.clone()))
+            && let Some(stop_on) = content.get_first_line().map(|l| (l.datetime, l.lowercase(false).to_owned()))
             && let Some(container) = self.container.clone()
         {
             let since_ts = estimate_since_time(first_dt, last_dt, content.len());
@@ -436,7 +466,8 @@ impl LogsView {
             self.logs.set_page_start(1);
 
             let mut observer = LogsObserver::new(self.worker.borrow().runtime_handle().clone());
-            let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous);
+            let colors = self.app_data.borrow().theme.colors.syntax.logs.clone();
+            let options = LogsObserverOptions::stop_on(since_ts, stop_on, self.previous, colors);
             observer.start(client, container, options);
             self.fetch_observer = Some(observer);
         }
@@ -488,8 +519,14 @@ impl View for LogsView {
 
         self.logs.header.set_busy(self.fetch_observer.is_some());
 
-        if needs_update && self.logs.search(self.search.value(), true) {
-            self.update_search_count();
+        if needs_update {
+            if self.logs.content().is_some_and(LogsContent::has_valid_json) {
+                self.logs.header.set_name_icon('');
+            }
+
+            if self.logs.search(self.search.value(), true) {
+                self.update_search_count();
+            }
         }
 
         ResponseEvent::Handled

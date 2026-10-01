@@ -18,12 +18,15 @@ mod content_tests;
 
 /// Logs content for [`LogsView`].
 pub struct LogsContent {
+    has_valid_json: bool,
+    show_json: bool,
     show_timestamps: bool,
     colors: LogsSyntaxColors,
     container_colors: HashMap<String, usize>,
     lines: Vec<LogLine>,
     page: Vec<StyledLine>,
-    max_size: usize,
+    max_size_plain: usize,
+    max_size_json: usize,
     start: usize,
     count: usize,
 }
@@ -32,12 +35,15 @@ impl LogsContent {
     /// Returns new [`LogsContent`] instance.
     pub fn new(colors: LogsSyntaxColors) -> Self {
         Self {
+            has_valid_json: false,
+            show_json: true,
             show_timestamps: true,
             colors,
             container_colors: HashMap::new(),
             lines: Vec::with_capacity(INITIAL_LOGS_VEC_SIZE),
             page: Vec::default(),
-            max_size: 0,
+            max_size_plain: 0,
+            max_size_json: 0,
             start: 0,
             count: 0,
         }
@@ -51,15 +57,30 @@ impl LogsContent {
         }
     }
 
+    /// Retruns `true` if content has valid JSON lines.
+    pub fn has_valid_json(&self) -> bool {
+        self.has_valid_json
+    }
+
+    /// Toggles showing JSON logs.
+    pub fn toggle_json(&mut self) {
+        if self.has_valid_json {
+            self.show_json = !self.show_json;
+            self.count = 0;
+        }
+    }
+
     /// Toggles showing timestamps.
     pub fn toggle_timestamps(&mut self) {
         self.show_timestamps = !self.show_timestamps;
         self.count = 0;
 
         if self.show_timestamps {
-            self.max_size = self.max_size.saturating_add(TIMESTAMP_TEXT_LENGTH);
+            self.max_size_plain = self.max_size_plain.saturating_add(TIMESTAMP_TEXT_LENGTH);
+            self.max_size_json = self.max_size_json.saturating_add(TIMESTAMP_TEXT_LENGTH);
         } else {
-            self.max_size = self.max_size.saturating_sub(TIMESTAMP_TEXT_LENGTH);
+            self.max_size_plain = self.max_size_plain.saturating_sub(TIMESTAMP_TEXT_LENGTH);
+            self.max_size_json = self.max_size_json.saturating_sub(TIMESTAMP_TEXT_LENGTH);
         }
     }
 
@@ -86,7 +107,7 @@ impl LogsContent {
     /// Add a single log line, maintaining sorted order and deduplicating.
     /// Returns position where this line was added.
     pub fn add_log_line(&mut self, line: LogLine) -> Option<usize> {
-        self.update_max_size(&line);
+        self.update_content_data(&line);
 
         if self.lines.is_empty() {
             self.lines.push(line);
@@ -133,12 +154,16 @@ impl LogsContent {
         None
     }
 
-    fn update_max_size(&mut self, line: &LogLine) {
-        let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
-        let size = line.width() + timestamp_extra;
-
+    fn update_content_data(&mut self, line: &LogLine) {
         self.count = 0; // force re-render current logs page
-        self.max_size = self.max_size.max(size);
+
+        let timestamp_extra = if self.show_timestamps { TIMESTAMP_TEXT_LENGTH } else { 0 };
+        self.max_size_plain = self.max_size_plain.max(line.width(false) + timestamp_extra);
+        self.max_size_json = self.max_size_json.max(line.width(true) + timestamp_extra);
+
+        if !self.has_valid_json && line.json.is_some() {
+            self.has_valid_json = true;
+        }
     }
 
     fn style_log_line(&self, line: &LogLine) -> StyledLine {
@@ -165,10 +190,14 @@ impl LogsContent {
 
         let style: Style = log_colors.into();
         if line.kind == LineKind::LogLine {
-            result.extend(line.message.segments().iter().map(|(s, t)| (style.patch(*s), t.clone())));
-        } else if !line.message.is_empty() {
+            result.extend(
+                line.segments(self.show_json)
+                    .iter()
+                    .map(|(s, t)| (style.patch(*s), t.clone())),
+            );
+        } else if !line.segments(self.show_json).is_empty() {
             let info_style: Style = (&self.colors.info).into();
-            let segments = line.message.segments();
+            let segments = line.segments(self.show_json);
             result.push((info_style.patch(segments[0].0), segments[0].1.clone()));
             result.extend(segments.iter().skip(1).map(|(s, t)| (style.patch(*s), t.clone())));
         }
@@ -219,7 +248,7 @@ impl Content for LogsContent {
             let line = &self.lines[i];
             if i == start_line || i == end_line {
                 let dt = self.show_timestamps.then(|| line.datetime.strftime(TIMESTAMP_TEXT_FORMAT));
-                let text = line.get_text(dt, TIMESTAMP_TEXT_LENGTH);
+                let text = line.get_text(dt, TIMESTAMP_TEXT_LENGTH, self.show_json);
 
                 if i == start_line && i == end_line {
                     result.push_str(substring(&text, start_x, (end_x + 1).saturating_sub(start_x)));
@@ -245,7 +274,7 @@ impl Content for LogsContent {
                     result.push_str(": ");
                 }
 
-                for (_, text) in line.message.segments() {
+                for (_, text) in line.segments(self.show_json) {
                     result.push_str(text);
                 }
 
@@ -259,7 +288,7 @@ impl Content for LogsContent {
     fn search_first(&self, pattern: &str) -> Option<MatchPosition> {
         let pattern = pattern.to_ascii_lowercase();
         for (y, line) in self.lines.iter().enumerate() {
-            if let Some(x) = line.lowercase.find(&pattern) {
+            if let Some(x) = line.lowercase(self.show_json).find(&pattern) {
                 return Some(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
@@ -271,7 +300,7 @@ impl Content for LogsContent {
         let pattern = pattern.to_ascii_lowercase();
         let mut matches = Vec::new();
         for (y, line) in self.lines.iter().enumerate() {
-            for (x, _) in line.lowercase.match_indices(&pattern) {
+            for (x, _) in line.lowercase(self.show_json).match_indices(&pattern) {
                 matches.push(MatchPosition::new(x + line.container_width(), y, pattern.len()));
             }
         }
@@ -280,11 +309,19 @@ impl Content for LogsContent {
     }
 
     fn max_size(&self) -> usize {
-        self.max_size
+        if self.has_valid_json && self.show_json {
+            self.max_size_json
+        } else {
+            self.max_size_plain
+        }
     }
 
     fn line_size(&self, line_no: usize) -> usize {
-        let size = self.lines.get(line_no).map(LogLine::width).unwrap_or_default();
+        let size = self
+            .lines
+            .get(line_no)
+            .map(|line| line.width(self.show_json))
+            .unwrap_or_default();
         if self.show_timestamps {
             size + TIMESTAMP_TEXT_LENGTH
         } else {
@@ -297,10 +334,10 @@ impl Content for LogsContent {
             let position = line.map_position(position);
             if self.show_timestamps {
                 let idx = position.x.saturating_sub(TIMESTAMP_TEXT_LENGTH);
-                let bounds = line.map_bounds(b4n_common::word_bounds(&line.lowercase, idx));
+                let bounds = line.map_bounds(b4n_common::word_bounds(line.lowercase(self.show_json), idx));
                 bounds.map(|(x, y)| (x + TIMESTAMP_TEXT_LENGTH, y + TIMESTAMP_TEXT_LENGTH))
             } else {
-                line.map_bounds(b4n_common::word_bounds(&line.lowercase, position.x))
+                line.map_bounds(b4n_common::word_bounds(line.lowercase(self.show_json), position.x))
             }
         } else {
             None

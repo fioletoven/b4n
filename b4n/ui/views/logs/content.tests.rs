@@ -5,11 +5,25 @@ use k8s_openapi::jiff::Timestamp;
 use crate::ui::views::logs::line::LogLine;
 
 fn make_line(datetime: &str, message: &str) -> LogLine {
-    LogLine::new(datetime.parse::<Timestamp>().unwrap(), None, message.to_owned())
+    let colors = LogsSyntaxColors::default();
+    LogLine::new(
+        datetime.parse::<Timestamp>().unwrap(),
+        None,
+        message.to_owned(),
+        None,
+        &colors,
+    )
 }
 
 fn make_line_with_container(datetime: &str, container: &str, message: &str) -> LogLine {
-    LogLine::new(datetime.parse::<Timestamp>().unwrap(), Some(container), message.to_owned())
+    let colors = LogsSyntaxColors::default();
+    LogLine::new(
+        datetime.parse::<Timestamp>().unwrap(),
+        Some(container),
+        message.to_owned(),
+        None,
+        &colors,
+    )
 }
 
 fn make_error_line(datetime: &str, message: &str) -> LogLine {
@@ -17,7 +31,7 @@ fn make_error_line(datetime: &str, message: &str) -> LogLine {
 }
 
 fn messages(content: &LogsContent) -> Vec<&str> {
-    content.lines.iter().map(|l| l.lowercase.as_str()).collect()
+    content.lines.iter().map(|l| l.lowercase(false)).collect()
 }
 
 #[test]
@@ -129,7 +143,7 @@ fn get_first_line_skips_non_log_lines() {
     content.add_log_line(make_line("2024-01-01T00:00:02Z", "real log"));
 
     let first = content.get_first_line().unwrap();
-    assert_eq!(first.lowercase, "real log");
+    assert_eq!(first.lowercase(false), "real log");
 }
 
 #[test]
