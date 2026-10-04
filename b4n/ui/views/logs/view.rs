@@ -142,10 +142,10 @@ impl LogsView {
                 Some(KeyCommand::SearchOpen),
             );
 
-        if self.logs.content().is_some_and(LogsContent::has_valid_json) {
+        if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
             builder = builder.with_action(
-                ActionItem::action("json", "json").with_description("toggles the display of JSON"),
-                Some(KeyCommand::LogsJson),
+                ActionItem::action("format", "format").with_description("toggles display of structured logs (JSON/klog)"),
+                Some(KeyCommand::LogsFormat),
             );
         }
 
@@ -166,8 +166,8 @@ impl LogsView {
             .with_menu_action(ActionItem::menu(3, " search", "search"))
             .with_menu_action(ActionItem::menu(5, " timestamps", "timestamps"));
 
-        if self.logs.content().is_some_and(LogsContent::has_valid_json) {
-            builder = builder.with_menu_action(ActionItem::menu(4, " json", "json"));
+        if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
+            builder = builder.with_menu_action(ActionItem::menu(4, " logs format", "format"));
         }
 
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
@@ -181,10 +181,10 @@ impl LogsView {
         self.file_picker.show();
     }
 
-    fn toggle_json(&mut self) {
+    fn toggle_logs_format(&mut self) {
         self.logs.clear_selection();
         if let Some(content) = self.logs.content_mut() {
-            content.toggle_json();
+            content.toggle_logs_format();
             self.logs.reset_horizontal_scroll();
         }
     }
@@ -289,8 +289,8 @@ impl LogsView {
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
             return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
-        } else if response.is_action("json") {
-            self.toggle_json();
+        } else if response.is_action("format") {
+            self.toggle_logs_format();
             return ResponseEvent::Handled;
         } else if response.is_action("timestamps") {
             self.toggle_timestamps();
@@ -374,8 +374,8 @@ impl LogsView {
             return Some(ResponseEvent::Cancelled);
         }
 
-        if self.app_data.has_binding(event, KeyCommand::LogsJson) {
-            self.toggle_json();
+        if self.app_data.has_binding(event, KeyCommand::LogsFormat) {
+            self.toggle_logs_format();
             return Some(ResponseEvent::Handled);
         }
 
@@ -520,7 +520,7 @@ impl View for LogsView {
         self.logs.header.set_busy(self.fetch_observer.is_some());
 
         if needs_update {
-            if self.logs.content().is_some_and(LogsContent::has_valid_json) {
+            if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
                 self.logs.header.set_name_icon('');
             }
 

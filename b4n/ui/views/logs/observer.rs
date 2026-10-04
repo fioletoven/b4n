@@ -284,12 +284,12 @@ fn process_line(
     let mut split = line.splitn(2, ' ');
     let dt = split.next()?.parse().ok()?;
     let msg = split.next()?.replace('\t', "    ");
-    let json = parse_line(&msg, *parser).map(|(line, detected)| {
+    let fmt = parse_line(&msg, *parser).map(|(line, detected)| {
         *parser = Some(detected);
         line
     });
 
-    Some(LogLine::new(dt, container, msg, json, colors))
+    Some(LogLine::new(dt, container, msg, fmt, colors))
 }
 
 fn process_error(container: Option<&str>, error: String, dt: Option<Timestamp>) -> LogLine {
