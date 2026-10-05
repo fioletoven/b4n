@@ -144,7 +144,7 @@ impl LogsView {
 
         if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
             builder = builder.with_action(
-                ActionItem::action("format", "format").with_description("toggles display of structured logs (JSON/klog)"),
+                ActionItem::action("format", "format").with_description("toggles display of structured logs (JSON/klog/logfmt)"),
                 Some(KeyCommand::LogsFormat),
             );
         }

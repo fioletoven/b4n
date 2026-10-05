@@ -92,6 +92,39 @@ fn field_value_with_bracketed_spaces_is_kept_as_single_field() {
 }
 
 #[test]
+fn field_value_with_nested_quoted_strings_is_kept_as_single_field() {
+    for field in [
+        r#"items=["it's fine","a] b"]"#,
+        r#"items=["a[ b","c{ d","e} f"]"#,
+        r#"items=["a\" ] b","c\\","d[ e"]"#,
+        r#"meta={"items":["a] b"],"text":"c} d"}"#,
+    ] {
+        let line = format!(r#"I1003 20:16:48.502874 1 controller.go:838] "applying patch" {field} name=foo"#);
+        let parsed = parse(&line).unwrap();
+
+        assert_eq!(
+            Some(format!("controller.go:838, tid=1, {field}, name=foo")),
+            parsed.context,
+            "{field}",
+        );
+    }
+}
+
+#[test]
+fn finds_value_boundaries_for_quoted_and_incomplete_values() {
+    for (input, expected) in [
+        ("", ""),
+        (r#""a"suffix"#, r#""a""#),
+        (r#""a\" b" name=foo"#, r#""a\" b""#),
+        (r#""unfinished name=foo"#, r#""unfinished name=foo"#),
+        (r#"["unfinished] name=foo"#, r#"["unfinished] name=foo"#),
+        ("[\"\u{00e9}] text\"] name=foo", "[\"\u{00e9}] text\"]"),
+    ] {
+        assert_eq!(expected.len(), find_value_end(input), "{input}");
+    }
+}
+
+#[test]
 fn field_value_with_nested_go_map_is_kept_as_single_field() {
     let line = r#"I1003 20:16:48.502874 1 controller.go:838] "applying patch" meta=map[key:val other:map[k:v]]"#;
     let parsed = parse(line).unwrap();

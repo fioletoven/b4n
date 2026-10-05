@@ -1,7 +1,7 @@
 use serde_json::{Map, Value};
 use std::str::FromStr;
 
-use crate::logs::formats::{ecs, klog, log4j2, logstash, serilog, zap};
+use crate::logs::formats::{ecs, klog, log4j2, logfmt, logstash, serilog, zap};
 
 /// Level of a log message.
 #[derive(Debug, Clone, PartialEq)]
@@ -56,6 +56,7 @@ pub enum LogParser {
     Ecs,
     Klog,
     Log4j2,
+    Logfmt,
     Logstash,
     Serilog,
     Zap,
@@ -64,7 +65,7 @@ pub enum LogParser {
 impl LogParser {
     /// Returns `true` if this parser operates on JSON objects.
     fn is_json(self) -> bool {
-        !matches!(self, Self::Klog)
+        !matches!(self, Self::Klog | Self::Logfmt)
     }
 
     /// Parses a JSON map into a `ParsedLogLine` using the specific log parser.
@@ -75,7 +76,16 @@ impl LogParser {
             Self::Logstash => logstash::parse(map),
             Self::Serilog => serilog::parse(map),
             Self::Zap => zap::parse(map),
-            Self::Klog => None,
+            Self::Klog | Self::Logfmt => None,
+        }
+    }
+
+    /// Parses structured log line into a `ParsedLogLine`.
+    fn parse_text(self, line: &str) -> Option<ParsedLogLine> {
+        match self {
+            Self::Klog => klog::parse(line),
+            Self::Logfmt => logfmt::parse(line),
+            _ => None,
         }
     }
 }
@@ -118,12 +128,18 @@ fn parse_json_line(trimmed: &str, parser: Option<LogParser>) -> Option<(ParsedLo
 }
 
 fn parse_text_line(trimmed: &str, parser: Option<LogParser>) -> Option<(ParsedLogLine, LogParser)> {
-    if matches!(parser, Some(LogParser::Klog)) {
-        return klog::parse(trimmed).map(|line| (line, LogParser::Klog));
+    if let Some(parser) = parser.filter(|parser| !parser.is_json())
+        && let Some(line) = parser.parse_text(trimmed)
+    {
+        return Some((line, parser));
     }
 
-    if let Some(line) = klog::parse(trimmed) {
-        return Some((line, LogParser::Klog));
+    for candidate in [LogParser::Klog, LogParser::Logfmt] {
+        if Some(candidate) != parser
+            && let Some(line) = candidate.parse_text(trimmed)
+        {
+            return Some((line, candidate));
+        }
     }
 
     None

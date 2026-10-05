@@ -57,12 +57,12 @@ impl LogsContent {
         }
     }
 
-    /// Retruns `true` if content has valid JSON or klog lines.
+    /// Returns `true` if content has valid JSON, klog, or logfmt lines.
     pub fn has_valid_fmt(&self) -> bool {
         self.has_valid_fmt
     }
 
-    /// Toggles display of structured logs in JSON or klog.
+    /// Toggles display of structured logs in JSON, klog, or logfmt.
     pub fn toggle_logs_format(&mut self) {
         if self.has_valid_fmt {
             self.show_fmt = !self.show_fmt;

@@ -1,6 +1,7 @@
 pub mod ecs;
 pub mod klog;
 pub mod log4j2;
+pub mod logfmt;
 pub mod logstash;
 pub mod serilog;
 pub mod zap;

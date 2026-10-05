@@ -178,16 +178,25 @@ fn find_value_end(s: &str) -> usize {
     }
 
     let mut stack: Vec<char> = Vec::new();
-    for (idx, ch) in s.char_indices() {
+    let mut offset = 0;
+    while let Some(ch) = s[offset..].chars().next() {
         match ch {
+            '"' => {
+                let Some(end) = find_closing_quote(&s[offset + 1..]) else {
+                    return s.len();
+                };
+                offset += end + 2;
+                continue;
+            },
             '[' => stack.push(']'),
             '{' => stack.push('}'),
             c @ (']' | '}') if stack.last() == Some(&c) => {
                 stack.pop();
             },
-            c if c.is_whitespace() && stack.is_empty() => return idx,
+            c if c.is_whitespace() && stack.is_empty() => return offset,
             _ => {},
         }
+        offset += ch.len_utf8();
     }
 
     s.len()
@@ -195,15 +204,15 @@ fn find_value_end(s: &str) -> usize {
 
 fn find_closing_quote(s: &str) -> Option<usize> {
     let mut escaped = false;
-    for (idx, ch) in s.char_indices() {
+    for (idx, byte) in s.bytes().enumerate() {
         if escaped {
             escaped = false;
             continue;
         }
 
-        match ch {
-            '\\' => escaped = true,
-            '"' => return Some(idx),
+        match byte {
+            b'\\' => escaped = true,
+            b'"' => return Some(idx),
             _ => {},
         }
     }
