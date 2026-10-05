@@ -396,6 +396,8 @@ pub struct LogsSyntaxColors {
     pub info: TextColors,
     pub error: TextColors,
     pub timestamp: TextColors,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parsed: Option<ParsedLogsSyntaxColors>,
     pub search: Color,
     pub select: Color,
     pub containers: Vec<TextColors>,
@@ -416,6 +418,31 @@ impl Default for LogsSyntaxColors {
                 TextColors::new(Color::Cyan),
                 TextColors::new(Color::Yellow),
             ],
+            parsed: Some(ParsedLogsSyntaxColors::default()),
+        }
+    }
+}
+
+/// Represents colors for parsed logs syntax highlighting.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ParsedLogsSyntaxColors {
+    pub debug: TextColors,
+    pub info: TextColors,
+    pub warn: TextColors,
+    pub error: TextColors,
+    pub message: TextColors,
+    pub context: TextColors,
+}
+
+impl Default for ParsedLogsSyntaxColors {
+    fn default() -> Self {
+        Self {
+            debug: TextColors::new(Color::DarkGray),
+            info: TextColors::new(Color::Gray),
+            warn: TextColors::new(Color::Yellow),
+            error: TextColors::new(Color::Red),
+            message: TextColors::new(Color::Gray),
+            context: TextColors::new(Color::DarkGray),
         }
     }
 }

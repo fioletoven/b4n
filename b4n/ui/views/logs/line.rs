@@ -204,16 +204,27 @@ fn get_fmt_message(line: ParsedLogLine, colors: &LogsSyntaxColors) -> LogMessage
 
     let len = lowercase.chars().count();
 
-    let level_color = if is_error_level { &colors.error } else { &colors.string };
+    let (level_color, message_color, context_color) = if let Some(parsed) = &colors.parsed {
+        let level_color = match level {
+            LogLevel::Trace | LogLevel::Debug => &parsed.debug,
+            LogLevel::Info => &parsed.info,
+            LogLevel::Warn => &parsed.warn,
+            LogLevel::Error | LogLevel::Fatal => &parsed.error,
+        };
+        (level_color, &parsed.message, &parsed.context)
+    } else {
+        let level_color = if is_error_level { &colors.error } else { &colors.string };
+        (level_color, &colors.string, &colors.info)
+    };
     let mut styled = vec![
-        ((&colors.info).into(), "[".to_owned()),
+        (context_color.into(), "[".to_owned()),
         (level_color.into(), level.to_string()),
-        ((&colors.info).into(), "] ".to_owned()),
-        ((&colors.string).into(), message),
+        (context_color.into(), "] ".to_owned()),
+        (message_color.into(), message),
     ];
 
     if let Some(context) = context {
-        styled.push(((&colors.info).into(), format!(" <{context}>")));
+        styled.push((context_color.into(), format!(" <{context}>")));
     }
 
     LogMessage {
