@@ -1,12 +1,9 @@
-use nom::branch::alt;
-use nom::bytes::complete::{escaped_transform, take_while, take_while1};
+use nom::bytes::complete::{take_while, take_while1};
 use nom::character::complete::char;
-use nom::combinator::{map, opt, value};
-use nom::sequence::delimited;
 use nom::{IResult, Parser};
-use std::borrow::Cow;
 use std::str::FromStr;
 
+use crate::logs::formats::parse_quoted;
 use crate::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
@@ -23,9 +20,9 @@ pub fn parse(line: &str) -> Option<ParsedLogLine> {
     while !rest.is_empty() {
         let (remainder, (key, value)) = parse_field(rest).ok()?;
         match key {
-            "level" => level = Some(LogLevel::from_str(&value).ok()?),
-            "msg" => message = Some(value.into_owned()),
-            "ts" | "time" | "timestamp" => {},
+            "level" => level = Some(LogLevel::from_str(value).ok()?),
+            "msg" => message = Some(value.to_owned()),
+            "t" | "ts" | "time" | "timestamp" => {},
             _ => fields.push(&rest[..rest.len() - remainder.len()]),
         }
 
@@ -43,7 +40,7 @@ pub fn parse(line: &str) -> Option<ParsedLogLine> {
     })
 }
 
-fn parse_field(input: &str) -> IResult<&str, (&str, Cow<'_, str>)> {
+fn parse_field(input: &str) -> IResult<&str, (&str, &str)> {
     let (rest, key) = take_while1(|ch: char| !ch.is_whitespace() && !ch.is_control() && ch != '=' && ch != '"').parse(input)?;
     let (rest, _) = char('=').parse(rest)?;
     let (rest, value) = parse_value(rest)?;
@@ -51,41 +48,10 @@ fn parse_field(input: &str) -> IResult<&str, (&str, Cow<'_, str>)> {
     Ok((rest, (key, value)))
 }
 
-fn parse_value(input: &str) -> IResult<&str, Cow<'_, str>> {
+fn parse_value(input: &str) -> IResult<&str, &str> {
     if input.starts_with('"') {
-        map(parse_quoted_value, Cow::Owned).parse(input)
+        parse_quoted(input)
     } else {
-        map(
-            take_while(|ch: char| !ch.is_whitespace() && !ch.is_control() && ch != '"'),
-            Cow::Borrowed,
-        )
-        .parse(input)
+        take_while(|ch: char| !ch.is_whitespace() && !ch.is_control() && ch != '"').parse(input)
     }
-}
-
-fn parse_quoted_value(input: &str) -> IResult<&str, String> {
-    delimited(
-        char('"'),
-        map(
-            opt(escaped_transform(
-                take_while1(|ch: char| ch != '\\' && ch != '"' && !ch.is_control()),
-                '\\',
-                parse_escape,
-            )),
-            Option::unwrap_or_default,
-        ),
-        char('"'),
-    )
-    .parse(input)
-}
-
-fn parse_escape(input: &str) -> IResult<&str, &str> {
-    alt((
-        value("\n", char('n')),
-        value("\r", char('r')),
-        value("\t", char('t')),
-        value("\\", char('\\')),
-        value("\"", char('"')),
-    ))
-    .parse(input)
 }

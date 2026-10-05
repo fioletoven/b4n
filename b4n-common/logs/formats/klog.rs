@@ -4,6 +4,7 @@ use nom::character::complete::{char, digit1, space1};
 use nom::combinator::{map, opt, recognize, value};
 use nom::{IResult, Parser};
 
+use crate::logs::formats::parse_quoted;
 use crate::{LogLevel, ParsedLogLine};
 
 #[cfg(test)]
@@ -135,9 +136,9 @@ fn parse_message_and_fields(rest: &str) -> (&str, Vec<&str>) {
     let rest = rest.trim_start();
 
     let (message, remainder) = if let Some(stripped) = rest.strip_prefix('"') {
-        match find_closing_quote(stripped) {
-            Some(end) => (&stripped[..end], &stripped[end + 1..]),
-            None => (stripped, ""),
+        match parse_quoted(rest) {
+            Ok((remainder, message)) => (message, remainder),
+            Err(_) => (stripped, ""),
         }
     } else {
         (rest, "")
@@ -170,10 +171,10 @@ fn parse_fields(input: &str) -> Vec<&str> {
 
 /// Returns the end index of the value starting at `s`.
 fn find_value_end(s: &str) -> usize {
-    if let Some(stripped) = s.strip_prefix('"') {
-        return match find_closing_quote(stripped) {
-            Some(end) => end + 2, // opening quote + content + closing quote
-            None => s.len(),
+    if s.starts_with('"') {
+        return match parse_quoted(s) {
+            Ok((remainder, _)) => s.len() - remainder.len(),
+            Err(_) => s.len(),
         };
     }
 
@@ -181,12 +182,12 @@ fn find_value_end(s: &str) -> usize {
     let mut offset = 0;
     while let Some(ch) = s[offset..].chars().next() {
         match ch {
-            '"' => {
-                let Some(end) = find_closing_quote(&s[offset + 1..]) else {
-                    return s.len();
-                };
-                offset += end + 2;
-                continue;
+            '"' => match parse_quoted(&s[offset..]) {
+                Ok((remainder, _)) => {
+                    offset = s.len() - remainder.len();
+                    continue;
+                },
+                Err(_) => return s.len(),
             },
             '[' => stack.push(']'),
             '{' => stack.push('}'),
@@ -200,22 +201,4 @@ fn find_value_end(s: &str) -> usize {
     }
 
     s.len()
-}
-
-fn find_closing_quote(s: &str) -> Option<usize> {
-    let mut escaped = false;
-    for (idx, byte) in s.bytes().enumerate() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-
-        match byte {
-            b'\\' => escaped = true,
-            b'"' => return Some(idx),
-            _ => {},
-        }
-    }
-
-    None
 }

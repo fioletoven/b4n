@@ -45,6 +45,7 @@ pub enum ConfigError {
 pub struct Logs {
     pub lines: Option<i64>,
     pub timestamps: Option<bool>,
+    pub format: Option<bool>,
 }
 
 impl Default for Logs {
@@ -52,6 +53,7 @@ impl Default for Logs {
         Self {
             lines: Some(800),
             timestamps: Some(true),
+            format: Some(true),
         }
     }
 }

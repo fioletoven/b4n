@@ -483,6 +483,7 @@ impl View for LogsView {
                 if !self.logs.has_content() {
                     let mut content = LogsContent::new(self.app_data.borrow().theme.colors.syntax.logs.clone());
                     content.set_timestamps(self.app_data.borrow().config.logs.timestamps.is_none_or(|t| t));
+                    content.set_logs_format(self.app_data.borrow().config.logs.format.is_none_or(|f| f));
                     self.logs.set_content(content);
                 }
 

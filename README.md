@@ -246,6 +246,7 @@ Example structure:
 logs:
   lines: 800
   timestamps: true
+  format: true
 mouse: true
 terminal:
   system_cursor: false
