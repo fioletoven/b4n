@@ -126,7 +126,7 @@ impl LogsView {
             .with_back()
             .with_quit()
             .with_action(
-                ActionItem::action("timestamps", "timestamps").with_description("toggles the display of timestamps"),
+                ActionItem::action("timestamps", "timestamps").with_description("toggles timestamp display"),
                 Some(KeyCommand::LogsTimestamps),
             )
             .with_action(
@@ -134,17 +134,17 @@ impl LogsView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
-                ActionItem::action("save", "save").with_description("saves logs to a file"),
+                ActionItem::action("save", "save").with_description("saves logs to file"),
                 Some(KeyCommand::ContentSave),
             )
             .with_action(
-                ActionItem::action("search", "search").with_description("searches logs using the provided query"),
+                ActionItem::action("search", "search").with_description("searches logs using query"),
                 Some(KeyCommand::SearchOpen),
             );
 
         if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
             builder = builder.with_action(
-                ActionItem::action("format", "format").with_description("toggles display of structured logs (JSON/klog/logfmt)"),
+                ActionItem::action("format", "format").with_description("toggles structured log display"),
                 Some(KeyCommand::LogsFormat),
             );
         }

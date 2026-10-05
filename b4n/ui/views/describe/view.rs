@@ -102,7 +102,7 @@ impl DescribeView {
             )
             .with_action(
                 ActionItem::action("show YAML", "yaml")
-                    .with_description("shows YAML of the current resource")
+                    .with_description("shows YAML for current resource")
                     .with_aliases(["yaml", "yml"]),
                 Some(KeyCommand::YamlOpen),
             )
