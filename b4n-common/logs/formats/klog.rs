@@ -27,15 +27,15 @@ pub fn parse(line: &str) -> Option<ParsedLogLine> {
 
 fn build_context(file: &str, line_no: &str, thread_id: &str, fields: &[&str]) -> Option<String> {
     let capacity = fields.iter().filter(|f| !f.is_empty()).map(|f| 2 + f.len()).sum::<usize>();
-    let capacity = if !file.is_empty() {
+    let capacity = if file.is_empty() {
+        capacity
+    } else {
         file.len() + line_no.len() + 3 + capacity
-    } else {
-        capacity
     };
-    let capacity = if !thread_id.is_empty() {
-        "tid=".len() + thread_id.len() + 2 + capacity
-    } else {
+    let capacity = if thread_id.is_empty() {
         capacity
+    } else {
+        "tid=".len() + thread_id.len() + 2 + capacity
     };
 
     if capacity == 0 {
