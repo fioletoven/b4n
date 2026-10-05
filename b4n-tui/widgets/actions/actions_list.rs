@@ -176,7 +176,7 @@ impl ActionsListBuilder {
     /// Adds filter action.
     pub fn with_filter_action(self, action: &'static str) -> Self {
         self.with_action(
-            ActionItem::action("filter", action).with_description("shows resources filter input"),
+            ActionItem::action("filter", action).with_description("opens resource filter input"),
             Some(KeyCommand::FilterOpen),
         )
     }
@@ -184,7 +184,7 @@ impl ActionsListBuilder {
     /// Adds pin filter action.
     pub fn with_pin_filter_action(self, action: &'static str) -> Self {
         self.with_action(
-            ActionItem::action("pin filter", action).with_description("toggles pin for resources filter"),
+            ActionItem::action("pin filter", action).with_description("toggles resource filter pinning"),
             Some(KeyCommand::FilterPin),
         )
     }
@@ -234,7 +234,7 @@ impl ActionsListBuilder {
     pub fn with_quit(mut self) -> Self {
         self.actions.push(
             ActionItem::new("quit")
-                .with_description("exits the application")
+                .with_description("exits application")
                 .with_aliases(["q", "exit"])
                 .with_response(ResponseEvent::ExitApplication),
         );
@@ -246,7 +246,7 @@ impl ActionsListBuilder {
     pub fn with_back(mut self) -> Self {
         self.actions.push(
             ActionItem::new("back")
-                .with_description("closes the current view")
+                .with_description("closes current view")
                 .with_aliases(["cancel", "close"])
                 .with_response(ResponseEvent::Cancelled),
         );
@@ -258,7 +258,7 @@ impl ActionsListBuilder {
     pub fn with_context(mut self) -> Self {
         self.actions.push(
             ActionItem::new("context")
-                .with_description("changes the current kube context")
+                .with_description("changes current Kubernetes context")
                 .with_aliases(["ctx", "change"])
                 .with_response(ResponseEvent::ListKubeContexts),
         );
@@ -270,7 +270,7 @@ impl ActionsListBuilder {
     pub fn with_theme(mut self) -> Self {
         self.actions.push(
             ActionItem::new("theme")
-                .with_description("selects the theme used by the application")
+                .with_description("changes application theme")
                 .with_aliases(["change"])
                 .with_response(ResponseEvent::ListThemes),
         );
@@ -282,7 +282,7 @@ impl ActionsListBuilder {
     pub fn with_namespace(mut self) -> Self {
         self.actions.push(
             ActionItem::new("namespace")
-                .with_description("changes the current namespace")
+                .with_description("changes current namespace")
                 .with_aliases(["change"])
                 .with_response(ResponseEvent::ListNamespaces),
         );

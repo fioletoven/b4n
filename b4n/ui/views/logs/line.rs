@@ -33,7 +33,7 @@ pub struct LogLine {
     pub kind: LineKind,
     pub datetime: Timestamp,
     pub message: LogMessage,
-    pub json: Option<LogMessage>,
+    pub parsed: Option<LogMessage>,
     pub container: Option<String>,
     container_len: usize,
 }
@@ -53,7 +53,7 @@ impl LogLine {
         datetime: Timestamp,
         container: Option<&str>,
         message: String,
-        json: Option<ParsedLogLine>,
+        parsed: Option<ParsedLogLine>,
         colors: &LogsSyntaxColors,
     ) -> Self {
         let (container, container_len) = get_container(container);
@@ -62,7 +62,7 @@ impl LogLine {
             kind: LineKind::LogLine,
             datetime,
             message: get_plain_message(message),
-            json: json.map(|j| get_json_message(j, colors)),
+            parsed: parsed.map(|j| get_fmt_message(j, colors)),
             container,
             container_len,
         }
@@ -75,7 +75,7 @@ impl LogLine {
             kind: LineKind::Error,
             datetime,
             message: get_ui_message(error),
-            json: None,
+            parsed: None,
             container,
             container_len,
         }
@@ -88,7 +88,7 @@ impl LogLine {
             kind: LineKind::FetchInfo,
             datetime,
             message: get_ui_message(info),
-            json: None,
+            parsed: None,
             container,
             container_len,
         }
@@ -96,24 +96,24 @@ impl LogLine {
 
     /// Returns a reference to the log message segments.
     pub fn segments(&self, prefer_parsed: bool) -> &[(Style, String)] {
-        if prefer_parsed && let Some(json) = &self.json {
-            return json.styled.segments();
+        if prefer_parsed && let Some(parsed) = &self.parsed {
+            return parsed.styled.segments();
         }
         self.message.styled.segments()
     }
 
     /// Returns a reference to the lowercase version of the log message.
     pub fn lowercase(&self, prefer_parsed: bool) -> &str {
-        if prefer_parsed && let Some(json) = &self.json {
-            return &json.lowercase;
+        if prefer_parsed && let Some(parsed) = &self.parsed {
+            return &parsed.lowercase;
         }
         &self.message.lowercase
     }
 
     /// Returns whole line chars count (together with container part).
     pub fn width(&self, prefer_parsed: bool) -> usize {
-        if prefer_parsed && let Some(json) = &self.json {
-            return json.len + self.container_width();
+        if prefer_parsed && let Some(parsed) = &self.parsed {
+            return parsed.len + self.container_width();
         }
         self.message.len + self.container_width()
     }
@@ -191,7 +191,7 @@ fn get_plain_message(text: String) -> LogMessage {
     }
 }
 
-fn get_json_message(line: ParsedLogLine, colors: &LogsSyntaxColors) -> LogMessage {
+fn get_fmt_message(line: ParsedLogLine, colors: &LogsSyntaxColors) -> LogMessage {
     let ParsedLogLine { level, message, context } = line;
     let is_error_level = matches!(level, LogLevel::Error | LogLevel::Fatal);
 

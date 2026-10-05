@@ -90,12 +90,12 @@ impl ForwardsView {
 
         if !self.list.table.is_empty() {
             builder.add_action(
-                ActionItem::action("stop stale", "cleanup").with_description("stops all stale port forwarding rules"),
+                ActionItem::action("stop stale", "cleanup").with_description("stops all stale port forwards"),
                 Some(KeyCommand::PortForwardsCleanup),
             );
             if self.list.table.is_anything_selected() {
                 builder.add_action(
-                    ActionItem::action("stop", "stop_selected").with_description("stops selected port forwarding rules"),
+                    ActionItem::action("stop", "stop_selected").with_description("stops selected port forwards"),
                     Some(KeyCommand::NavigateDelete),
                 );
             }

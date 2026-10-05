@@ -161,17 +161,17 @@ impl YamlView {
                 Some(KeyCommand::ContentCopy),
             )
             .with_action(
-                ActionItem::action("save", "save").with_description("saves content to a file"),
+                ActionItem::action("save", "save").with_description("saves content to file"),
                 Some(KeyCommand::ContentSave),
             )
             .with_action(
-                ActionItem::action("search", "search").with_description("searches content using the provided query"),
+                ActionItem::action("search", "search").with_description("searches content using query"),
                 Some(KeyCommand::SearchOpen),
             );
         if self.yaml.content().is_some_and(Content::is_editable) {
             builder.add_action(
                 ActionItem::action("edit", "edit")
-                    .with_description("switches to the edit mode")
+                    .with_description("switches to edit mode")
                     .with_aliases(["insert"]),
                 Some(KeyCommand::YamlEdit),
             );
@@ -179,7 +179,7 @@ impl YamlView {
         if self.can_encode_decode() {
             let action = if self.is_decoded { "encode" } else { "decode" };
             builder.add_action(
-                ActionItem::action(action, "decode").with_description(&format!("{action}s the resource's data")),
+                ActionItem::action(action, "decode").with_description(&format!("{action}s resource data")),
                 Some(KeyCommand::YamlDecode),
             );
         }

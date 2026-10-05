@@ -55,15 +55,15 @@ pub fn build_image_select_palette(app_data: &SharedAppData, highlighted: &str) -
 /// Builds actions for creating new resource.
 pub fn build_create_resource_actions(table: &ResourcesTable) -> ActionsList {
     let mut builder = ActionsListBuilder::default()
-        .with_menu_action(ActionItem::action("full", "new_full").with_description("get all possible fields for the spec"))
-        .with_menu_action(ActionItem::action("minimal", "new_minimal").with_description("get only required fields for the spec"));
+        .with_menu_action(ActionItem::action("full", "new_full").with_description("includes all available spec fields"))
+        .with_menu_action(ActionItem::action("minimal", "new_minimal").with_description("includes only required spec fields"));
 
     if let Some(name) = table.list.table.get_highlighted_item_name()
         && (table.kind_plural() != NAMESPACES || name != ALL_NAMESPACES)
     {
         builder = builder.with_menu_action(
             ActionItem::action("duplicate", "new_clone")
-                .with_description("use the spec of the highlighted resource")
+                .with_description("uses highlighted resource spec")
                 .with_aliases(["clone"]),
         );
     }
@@ -178,7 +178,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     if table.kind_plural() != NAMESPACES {
         builder.add_action(
-            ActionItem::action("back", "back").with_description("returns to the previous view"),
+            ActionItem::action("back", "back").with_description("returns to previous view"),
             Some(KeyCommand::NavigateBack),
         );
     }
@@ -196,7 +196,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     if !is_containers && !is_events {
         if is_highlighted {
             builder.add_action(
-                ActionItem::action("show events", "show_events").with_description("shows events for the selected resource"),
+                ActionItem::action("show events", "show_events").with_description("shows events for highlighted resource"),
                 Some(KeyCommand::EventsShow),
             );
         }
@@ -213,7 +213,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     if has_involved_object(table) {
         builder.add_action(
-            ActionItem::action("involved object", "show_involved").with_description("navigates to the involved object"),
+            ActionItem::action("involved object", "show_involved").with_description("navigates to involved object"),
             Some(KeyCommand::InvolvedObjectShow),
         );
     }
@@ -237,7 +237,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable, is_containers: bool) -> ActionsListBuilder {
     if table.kind_plural() == SECRETS {
         builder.add_action(
-            ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML of the highlighted secret"),
+            ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML for highlighted secret"),
             Some(KeyCommand::YamlDecode),
         );
     }
@@ -245,7 +245,7 @@ fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable,
     if table.list.table.data.is_editable {
         builder.add_action(
             ActionItem::action("edit YAML", "edit_yaml")
-                .with_description("displays YAML and switches to edit mode")
+                .with_description("shows YAML and switches to edit mode")
                 .with_aliases(["yaml", "yml", "patch"]),
             Some(KeyCommand::YamlEdit),
         );
@@ -255,15 +255,15 @@ fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable,
         .with_action(
             ActionItem::action("show YAML", "show_yaml")
                 .with_description(if is_containers {
-                    "shows YAML of the container's resource"
+                    "shows YAML for container's resource"
                 } else {
-                    "shows YAML of the highlighted resource"
+                    "shows YAML for highlighted resource"
                 })
                 .with_aliases(["yaml", "yml", "view"]),
             Some(KeyCommand::YamlOpen),
         )
         .with_action(
-            ActionItem::action("describe", "describe").with_description("shows resource describe view"),
+            ActionItem::action("describe", "describe").with_description("describes highlighted resource"),
             Some(KeyCommand::DescribeOpen),
         )
 }
@@ -281,13 +281,13 @@ fn add_file_transfer_actions(builder: ActionsListBuilder) -> ActionsListBuilder 
     builder
         .with_action(
             ActionItem::action("download file", "download")
-                .with_description("transfers file from the container")
+                .with_description("downloads file from container")
                 .with_aliases(["file", "transfer"]),
             Some(KeyCommand::TransferFrom),
         )
         .with_action(
             ActionItem::action("upload file", "upload")
-                .with_description("transfers file to the container")
+                .with_description("uploads file to container")
                 .with_aliases(["file", "transfer"]),
             Some(KeyCommand::TransferTo),
         )
@@ -303,12 +303,12 @@ fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
         )
         .with_action(
             ActionItem::action("show previous logs", "show_plogs")
-                .with_description("shows container previous logs")
+                .with_description("shows previous container logs")
                 .with_aliases(["previous"]),
             Some(KeyCommand::PreviousLogsOpen),
         )
         .with_action(
-            ActionItem::action("attach", "attach").with_description("attaches to container main process"),
+            ActionItem::action("attach", "attach").with_description("attaches to container's main process"),
             Some(KeyCommand::ContainerAttach),
         )
         .with_action(

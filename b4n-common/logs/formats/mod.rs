@@ -1,9 +1,16 @@
 pub mod ecs;
+pub mod klog;
 pub mod log4j2;
+pub mod logfmt;
 pub mod logstash;
 pub mod serilog;
 pub mod zap;
 
+use nom::bytes::complete::{escaped, take_while1};
+use nom::character::complete::{anychar, char};
+use nom::combinator::{map, opt};
+use nom::sequence::delimited;
+use nom::{IResult, Parser};
 use serde_json::{Map, Value};
 use std::fmt::Write;
 
@@ -71,4 +78,21 @@ fn is_blank(value: &Value) -> bool {
         Value::Object(values) => values.is_empty(),
         _ => false,
     }
+}
+
+/// Parses a double-quoted string and returns the inner content and the remainder after the closing quote.
+fn parse_quoted(input: &str) -> IResult<&str, &str> {
+    map(
+        delimited(
+            char('"'),
+            opt(escaped(
+                take_while1(|ch: char| ch != '\\' && ch != '"' && !ch.is_control()),
+                '\\',
+                anychar,
+            )),
+            char('"'),
+        ),
+        Option::unwrap_or_default,
+    )
+    .parse(input)
 }
