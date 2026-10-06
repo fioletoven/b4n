@@ -51,6 +51,13 @@ logs: &logs
   info: text_light:no_bg
   error: red:no_bg
   timestamp: magenta:no_bg
+  parsed:
+    debug: text_light:no_bg
+    info: text:no_bg
+    warn: yellow:no_bg
+    error: red:no_bg
+    message: text:no_bg
+    context: text_light:no_bg
   search: select_yellow
   select: select_light
   containers:

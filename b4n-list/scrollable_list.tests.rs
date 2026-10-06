@@ -114,9 +114,9 @@ fn operations_on_empty_list() {
     assert!(!list.is_anything_selected());
     assert!(!list.is_anything_highlighted());
     assert!(list.get_selected_items().is_empty());
-    assert!(list.get_selected_uids().is_empty());
+    assert_eq!(0, list.get_selected_uids().len());
     assert_eq!(0, list.get_page().count());
-    assert!(list.get_paged_names(80).is_empty());
+    assert_eq!(0, list.get_paged_names(80).len());
 }
 
 #[test]

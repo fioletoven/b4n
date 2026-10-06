@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.1"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT"
@@ -35,7 +35,7 @@ futures = { version = "0.3" }
 http = { version = "1" }
 jsonpath-rust = { version = "1" }
 k8s-openapi = { version = "0.28", features = ["latest"] }
-kube = { version = "4.2", features = ["client", "derive", "runtime", "ws"] }
+kube = { version = "4.2", features = ["client", "runtime", "ws"] }
 nom = { version = "8.0" }
 notify = { version = "8.2" }
 pin-project = { version = "1.1" }
@@ -49,7 +49,7 @@ serde_json = { version = "1.0" }
 serde-saphyr = { version = "0.0.29" }
 sha1 = { version = "0.11" }
 shlex = { version = "2" }
-syntect = { version = "5.3" }
+syntect = { version = "5.3", default-features = false, features = ["parsing", "yaml-load", "regex-onig"] }
 tar = { version = "0.4" }
 textwrap = { version = "0.16" }
 thiserror = { version = "2.0" }
