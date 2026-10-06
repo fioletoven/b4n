@@ -75,6 +75,7 @@ The resulting binary will be available at `./target/release/b4n`.
 | Select all resources                       | `CTRL` + `a`    | Then press `CTRL` + ` ` to deselect all                     |
 | Select resource                            | ` `             | (`SPACE`)                                                   |
 | Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
+| Show / hide formatted logs                 | `f`             | Works only in logs view                                     |
 | Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |
 | Show command palette                       | `:`, `>`        | For example, entering `:q`↲ quits the application           |
 | Show describe for the highlighted resource | `d`             |                                                             |
@@ -274,6 +275,7 @@ key_bindings:
 
 - `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
 - `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
+- `logs.format` - Whether formatting structured logs is enabled by default. You can still toggle formatting while viewing logs.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
 - `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
