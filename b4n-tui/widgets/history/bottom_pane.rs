@@ -102,8 +102,8 @@ impl Responsive for BottomPane {
 fn get_block(bg: Color, app_bg: Color, symbols: &Symbols) -> Block<'static> {
     Block::new()
         .border_set(border::Set {
-            vertical_left: symbols.left_end,
-            vertical_right: symbols.right_end,
+            vertical_left: symbols.left_end.raw,
+            vertical_right: symbols.right_end.raw,
             ..border::EMPTY
         })
         .borders(Borders::LEFT | Borders::RIGHT)

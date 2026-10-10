@@ -36,12 +36,12 @@ pub fn get_left_breadcrumbs<'a>(
     is_filtered: bool,
 ) -> Line<'a> {
     let colors = &app_data.theme.colors.header;
-    let icons = &app_data.config.icons;
+    let icons = &app_data.config.symbols;
     let context = get_context_color(app_data);
     let data = &app_data.current;
 
     let mut path = vec![
-        Span::styled(icons.left_end, Style::new().fg(context.bg).bg(app_data.theme.colors.text.bg)),
+        Span::styled(&icons.left_end, Style::new().fg(context.bg).bg(app_data.theme.colors.text.bg)),
         Span::styled(get_context_display(app_data), &context),
     ];
 
@@ -49,13 +49,13 @@ pub fn get_left_breadcrumbs<'a>(
     let scope = if let Some(scope) = scope { scope } else { &data.scope };
     if !namespace.is_empty() && (*scope == Scope::Namespaced || kind == PODS) {
         path.append(&mut vec![
-            Span::styled(icons.left_sep, Style::new().fg(context.bg).bg(colors.namespace.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(context.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {namespace} "), &colors.namespace),
-            Span::styled(icons.left_sep, Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
         ]);
     } else {
         path.push(Span::styled(
-            icons.left_sep,
+            &icons.left_sep,
             Style::new().fg(context.bg).bg(colors.resource.bg),
         ));
     }
@@ -64,29 +64,33 @@ pub fn get_left_breadcrumbs<'a>(
 
     if let Some(name) = name {
         path.append(&mut vec![
-            Span::styled(icons.left_sep, Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
             Span::styled(format!(" {name} "), &colors.name),
-            Span::styled(icons.left_sep, Style::new().fg(colors.name.bg).bg(colors.count.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(colors.name.bg).bg(colors.count.bg)),
         ]);
     } else {
         path.push(Span::styled(
-            icons.left_sep,
+            &icons.left_sep,
             Style::new().fg(colors.resource.bg).bg(colors.count.bg),
         ));
     }
 
     let count_icon = if is_filtered {
-        if app_data.is_pinned { icons.pinned } else { icons.filtered }
+        if app_data.is_pinned {
+            icons.pinned.raw
+        } else {
+            icons.filtered.raw
+        }
     } else if data.resource.is_container() {
-        icons.container
+        icons.container.raw
     } else {
-        icons.pod
+        icons.pod.raw
     };
 
     path.append(&mut vec![
         Span::styled(format!(" {count_icon}{count} "), &colors.count),
         Span::styled(
-            icons.left_sep,
+            &icons.left_sep,
             Style::new().fg(colors.count.bg).bg(app_data.theme.colors.text.bg),
         ),
     ]);
@@ -98,9 +102,9 @@ pub fn get_left_breadcrumbs<'a>(
 /// \< `text` \<
 pub fn get_right_breadcrumbs<'a>(text: String, symbols: &Symbols, colors: &TextColors, bg: Color) -> Line<'a> {
     Line::from(vec![
-        Span::styled(symbols.right_sep, Style::new().fg(colors.bg).bg(bg)),
+        Span::styled(&symbols.right_sep, Style::new().fg(colors.bg).bg(bg)),
         Span::styled(text, colors),
-        Span::styled(symbols.right_end, Style::new().fg(colors.bg).bg(bg)),
+        Span::styled(&symbols.right_end, Style::new().fg(colors.bg).bg(bg)),
     ])
     .right_aligned()
 }

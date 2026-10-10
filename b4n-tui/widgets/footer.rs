@@ -188,7 +188,7 @@ impl Footer {
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled(" ", &colors.footer.text),
-                Span::styled(symbols.right_end, Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
+                Span::styled(&symbols.right_end, Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
             ])),
             layout[3],
         );
@@ -328,7 +328,7 @@ impl Footer {
         let mut spans = Vec::with_capacity(10);
 
         spans.push(Span::styled(
-            symbols.left_end,
+            &symbols.left_end,
             Style::new().fg(colors.footer.text.bg).bg(colors.text.bg),
         ));
         spans.push(Span::styled(" ", &colors.footer.text));

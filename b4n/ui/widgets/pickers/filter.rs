@@ -82,7 +82,11 @@ impl FilterBehaviour {
 
 impl PickerBehaviour for FilterBehaviour {
     fn prompt(&self) -> &str {
-        if self.app_data.borrow().is_pinned { "󰐃 " } else { " " }
+        if self.app_data.borrow().is_pinned {
+            self.app_data.borrow().config.symbols.pinned.right
+        } else {
+            self.app_data.borrow().config.symbols.filtered.right
+        }
     }
 
     fn colors(&self) -> SelectColors {

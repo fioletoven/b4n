@@ -1,13 +1,13 @@
 #[macro_export]
 macro_rules! define_symbols_set {
-    ($($field:ident : $nerd:expr $(, $extra:expr)* ;)+) => {
+    ($($field:ident : $nerd:literal $(, $extra:literal)* ;)+) => {
         pub struct SymbolsSet {
-            $(pub $field: &'static str,)+
+            $(pub $field: $crate::symbols::Symbol,)+
         }
 
         impl Symbols {
             pub const NF: SymbolsSet = SymbolsSet {
-                $($field: $nerd,)+
+                $($field: $crate::define_symbols_set!(@make $nerd),)+
             };
             pub const PL: SymbolsSet = SymbolsSet {
                 $($field: $crate::define_symbols_set!(@pl $($extra),*),)+
@@ -18,10 +18,18 @@ macro_rules! define_symbols_set {
         }
     };
 
-    (@pl) => { "" };
-    (@pl $a:expr $(, $rest:expr)*) => { $a };
+    (@make $c:literal) => {
+        $crate::symbols::Symbol { ch: $c, raw: concat!($c), right: concat!($c, ' ') }
+    };
 
-    (@plain) => { "" };
-    (@plain $a:expr) => { "" };
-    (@plain $a:expr, $b:expr $(, $rest:expr)*) => { $b };
+    (@none) => {
+        $crate::symbols::Symbol { ch: ' ', raw: "", right: "" }
+    };
+
+    (@pl) => { $crate::define_symbols_set!(@none) };
+    (@pl $a:literal $(, $rest:literal)*) => { $crate::define_symbols_set!(@make $a) };
+
+    (@plain) => { $crate::define_symbols_set!(@none) };
+    (@plain $a:literal) => { $crate::define_symbols_set!(@none) };
+    (@plain $a:literal, $b:literal $(, $rest:literal)*) => { $crate::define_symbols_set!(@make $b) };
 }

@@ -137,7 +137,7 @@ impl<T: Table> ListViewer<T> {
         let mut header = HeaderWidget {
             header: self.table.get_header(self.view, usize::from(self.area.width)),
             offset,
-            symbols: &self.app_data.borrow().config.icons,
+            symbols: &self.app_data.borrow().config.symbols,
             colors,
             background: theme.colors.text.bg,
             view: self.view,
@@ -267,10 +267,7 @@ impl Widget for &mut HeaderWidget<'_> {
         let max_x = min((area.left() + area.width).saturating_sub(1), buf.area.width.saturating_sub(1));
 
         let (left, right) = if self.show_border {
-            (
-                self.symbols.left_end.chars().next().unwrap_or(' '),
-                self.symbols.right_end.chars().next().unwrap_or(' '),
-            )
+            (self.symbols.left_end.ch, self.symbols.right_end.ch)
         } else {
             (' ', ' ')
         };

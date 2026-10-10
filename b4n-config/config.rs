@@ -88,7 +88,7 @@ pub struct Config {
     pub terminal: Terminal,
 
     #[serde(default)]
-    pub icons: Symbols,
+    pub symbols: Symbols,
 
     #[serde(default = "default_theme_name")]
     pub theme: String,
@@ -145,7 +145,7 @@ impl Default for Config {
             logs: Logs::default(),
             mouse: default_mouse(),
             terminal: Terminal::default(),
-            icons: Symbols::default(),
+            symbols: Symbols::default(),
             theme: default_theme_name(),
             debug_images: default_images_list(),
             contexts: None,

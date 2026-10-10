@@ -114,7 +114,7 @@ impl ViewsManager {
             frame,
             layout[1],
             &self.app_data.borrow().theme,
-            &self.app_data.borrow().config.icons,
+            &self.app_data.borrow().config.symbols,
         );
 
         let has_focus =
@@ -130,7 +130,7 @@ impl ViewsManager {
             frame,
             layout[0],
             &self.app_data.borrow().theme,
-            &self.app_data.borrow().config.icons,
+            &self.app_data.borrow().config.symbols,
         );
     }
 
