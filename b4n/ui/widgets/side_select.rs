@@ -192,8 +192,8 @@ impl<T: Table> SideSelect<T> {
 
         let block = Block::new()
             .border_set(border::Set {
-                vertical_left: "",
-                vertical_right: "",
+                vertical_left: self.app_data.borrow().config.icons.left_end,
+                vertical_right: self.app_data.borrow().config.icons.right_end,
                 ..border::EMPTY
             })
             .border_style(Style::default().fg(background_color).bg(colors.text.bg))

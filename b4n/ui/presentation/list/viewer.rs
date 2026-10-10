@@ -1,6 +1,7 @@
 use std::cmp::min;
 
 use b4n_common::DelayedTrueTracker;
+use b4n_config::icons::Icons;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
 use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType, utils::center};
@@ -137,6 +138,7 @@ impl<T: Table> ListViewer<T> {
         let mut header = HeaderWidget {
             header: self.table.get_header(self.view, usize::from(self.area.width)),
             offset,
+            icons: &self.app_data.borrow().config.icons,
             colors,
             background: theme.colors.text.bg,
             view: self.view,
@@ -247,6 +249,7 @@ impl<T: Table> Responsive for ListViewer<T> {
 struct HeaderWidget<'a> {
     header: &'a str,
     offset: usize,
+    icons: &'a Icons,
     colors: &'a TextColors,
     background: Color,
     view: ViewType,
@@ -264,13 +267,17 @@ impl Widget for &mut HeaderWidget<'_> {
         let y = area.top();
         let max_x = min((area.left() + area.width).saturating_sub(1), buf.area.width.saturating_sub(1));
 
-        if self.show_border {
-            buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
-            buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        let (left, right) = if self.show_border {
+            (
+                self.icons.left_end.chars().next().unwrap_or(' '),
+                self.icons.right_end.chars().next().unwrap_or(' '),
+            )
         } else {
-            buf[(x - 1, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
-            buf[(max_x, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
-        }
+            (' ', ' ')
+        };
+
+        buf[(x - 1, y)].set_char(left).set_fg(self.colors.bg).set_bg(self.background);
+        buf[(max_x, y)].set_char(right).set_fg(self.colors.bg).set_bg(self.background);
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;

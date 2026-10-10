@@ -137,6 +137,7 @@ impl ContentHeader {
     fn build_path(&self) -> Paragraph<'static> {
         let bg = self.app_data.borrow().theme.colors.text.bg;
         let colors = &self.app_data.borrow().theme.colors.header;
+        let icons = &self.app_data.borrow().config.icons;
 
         let title = if self.icon == ' ' && self.edit_icon == ' ' {
             format!(" {} ", self.title)
@@ -147,11 +148,11 @@ impl ContentHeader {
         };
 
         let mut path = vec![
-            Span::styled("", Style::new().fg(colors.text.bg).bg(bg)),
+            Span::styled(icons.left_end, Style::new().fg(colors.text.bg).bg(bg)),
             Span::styled(title, &colors.text),
-            Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
+            Span::styled(icons.left_sep, Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
-            Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
+            Span::styled(icons.left_sep, Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             Span::styled(format!(" {} ", self.kind.name().to_lowercase()), &colors.resource),
         ];
 
@@ -164,7 +165,7 @@ impl ContentHeader {
                 format!(" {} ", name.to_lowercase())
             };
             path.append(&mut vec![
-                Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
+                Span::styled(icons.left_sep, Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
                 Span::styled(name, &colors.name),
             ]);
             end_bg_color = colors.name.bg;
@@ -177,12 +178,12 @@ impl ContentHeader {
                 format!(" {descr} {} ", self.name_icon)
             };
             path.append(&mut vec![
-                Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),
+                Span::styled(icons.left_sep, Style::new().fg(end_bg_color).bg(colors.count.bg)),
                 Span::styled(descr, &colors.count),
-                Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
+                Span::styled(icons.left_sep, Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {
-            path.push(Span::styled("", Style::new().fg(end_bg_color).bg(bg)));
+            path.push(Span::styled(icons.left_sep, Style::new().fg(end_bg_color).bg(bg)));
         }
 
         Paragraph::new(Line::from(path)).style(&self.app_data.borrow().theme.colors.text)
@@ -197,6 +198,11 @@ impl ContentHeader {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
+        get_right_breadcrumbs(
+            text,
+            &self.app_data.borrow().config.icons,
+            colors,
+            self.app_data.borrow().theme.colors.text.bg,
+        )
     }
 }

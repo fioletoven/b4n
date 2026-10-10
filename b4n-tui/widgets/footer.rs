@@ -1,4 +1,5 @@
 use b4n_common::{Icon, IconAction, IconKind, Notification, NotificationKind, NotificationSink};
+use b4n_config::icons::Icons;
 use b4n_config::themes::{Theme, ThemeColors};
 use ratatui_core::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
 use ratatui_core::style::Style;
@@ -124,12 +125,12 @@ impl Footer {
     }
 
     /// Draws [`Footer`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, icons: &Icons) {
         self.area = area;
         self.update_current_message();
 
         let has_message = self.has_message_to_show();
-        self.draw_footer(frame, area, theme, !self.is_message_history_visible() && !has_message);
+        self.draw_footer(frame, area, theme, icons, !self.is_message_history_visible() && !has_message);
 
         if has_message
             && !self.is_message_history_visible()
@@ -144,24 +145,24 @@ impl Footer {
     }
 
     /// Draws messages history on the bottom of the specified area.
-    pub fn draw_history(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
+    pub fn draw_history(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, icons: &Icons) {
         if let Some(pane) = &mut self.history_pane {
-            pane.draw(frame, area, theme);
+            pane.draw(frame, area, theme, icons);
         }
     }
 
-    fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, draw_hint: bool) {
+    fn draw_footer(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, icons: &Icons, draw_hint: bool) {
         self.update_current_icons();
         self.update_current_trail();
 
         let colors = &theme.colors;
-        let (icons, icons_len) = self.get_icons(colors);
+        let (active_icons, active_icons_len) = self.get_icons(colors);
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Min(1),
                 Constraint::Length(self.get_hint_length(draw_hint)),
-                Constraint::Length(u16::try_from(icons_len).unwrap_or_default()),
+                Constraint::Length(u16::try_from(active_icons_len).unwrap_or_default()),
                 Constraint::Length(2),
             ])
             .split(area);
@@ -178,12 +179,12 @@ impl Footer {
             frame.render_widget(Block::new().style(&colors.footer.text), layout[1]);
         }
 
-        frame.render_widget(Paragraph::new(self.get_left_text(layout[0].width, colors)), layout[0]);
-        frame.render_widget(Paragraph::new(icons), layout[2]);
+        frame.render_widget(Paragraph::new(self.get_left_text(layout[0].width, colors, icons)), layout[0]);
+        frame.render_widget(Paragraph::new(active_icons), layout[2]);
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled(" ", &colors.footer.text),
-                Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
+                Span::styled(icons.right_end, Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)),
             ])),
             layout[3],
         );
@@ -317,12 +318,15 @@ impl Footer {
     }
 
     /// Renders left text: app version or breadcrumb trail if one is available.
-    fn get_left_text(&self, width: u16, colors: &ThemeColors) -> Line<'_> {
+    fn get_left_text(&self, width: u16, colors: &ThemeColors, icons: &Icons) -> Line<'_> {
         let width = usize::from(width);
         let mut rendered = 0;
         let mut spans = Vec::with_capacity(10);
 
-        spans.push(Span::styled("", Style::new().fg(colors.footer.text.bg).bg(colors.text.bg)));
+        spans.push(Span::styled(
+            icons.left_end,
+            Style::new().fg(colors.footer.text.bg).bg(colors.text.bg),
+        ));
         spans.push(Span::styled(" ", &colors.footer.text));
 
         let mut total = if self.is_message_history_visible() {

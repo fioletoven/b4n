@@ -157,7 +157,7 @@ impl ListHeader {
         let has_api_error = self.has_api_error.value();
 
         let (text, colors) = get_version_text(data, &mut self.spinner, has_api_error);
-        get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
+        get_right_breadcrumbs(text, &self.app_data.borrow().config.icons, colors, data.theme.colors.text.bg)
     }
 }
 

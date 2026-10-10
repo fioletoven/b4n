@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Handle;
 
 use crate::History;
+use crate::icons::Icons;
 use crate::themes::{TextColors, Theme};
 use crate::{ConfigWatcher, Persistable, keys::KeyBindings, utils::sorted_map};
 
@@ -86,6 +87,9 @@ pub struct Config {
     #[serde(default)]
     pub terminal: Terminal,
 
+    #[serde(default)]
+    pub icons: Icons,
+
     #[serde(default = "default_theme_name")]
     pub theme: String,
 
@@ -141,6 +145,7 @@ impl Default for Config {
             logs: Logs::default(),
             mouse: default_mouse(),
             terminal: Terminal::default(),
+            icons: Icons::default(),
             theme: default_theme_name(),
             debug_images: default_images_list(),
             contexts: None,
