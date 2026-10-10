@@ -1,19 +1,19 @@
 #[macro_export]
-macro_rules! define_icons_set {
+macro_rules! define_symbols_set {
     ($($field:ident : $nerd:expr $(, $extra:expr)* ;)+) => {
-        pub struct IconsSet {
+        pub struct SymbolsSet {
             $(pub $field: &'static str,)+
         }
 
-        impl Icons {
-            pub const NF: IconsSet = IconsSet {
+        impl Symbols {
+            pub const NF: SymbolsSet = SymbolsSet {
                 $($field: $nerd,)+
             };
-            pub const PL: IconsSet = IconsSet {
-                $($field: $crate::define_icons_set!(@pl $($extra),*),)+
+            pub const PL: SymbolsSet = SymbolsSet {
+                $($field: $crate::define_symbols_set!(@pl $($extra),*),)+
             };
-            pub const PLAIN: IconsSet = IconsSet {
-                $($field: $crate::define_icons_set!(@plain $($extra),*),)+
+            pub const PLAIN: SymbolsSet = SymbolsSet {
+                $($field: $crate::define_symbols_set!(@plain $($extra),*),)+
             };
         }
     };

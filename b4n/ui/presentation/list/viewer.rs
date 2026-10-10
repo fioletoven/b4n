@@ -1,7 +1,5 @@
-use std::cmp::min;
-
 use b4n_common::DelayedTrueTracker;
-use b4n_config::icons::Icons;
+use b4n_config::symbols::Symbols;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
 use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType, utils::center};
@@ -10,6 +8,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Widget};
+use std::cmp::min;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 
@@ -138,7 +137,7 @@ impl<T: Table> ListViewer<T> {
         let mut header = HeaderWidget {
             header: self.table.get_header(self.view, usize::from(self.area.width)),
             offset,
-            icons: &self.app_data.borrow().config.icons,
+            symbols: &self.app_data.borrow().config.icons,
             colors,
             background: theme.colors.text.bg,
             view: self.view,
@@ -249,7 +248,7 @@ impl<T: Table> Responsive for ListViewer<T> {
 struct HeaderWidget<'a> {
     header: &'a str,
     offset: usize,
-    icons: &'a Icons,
+    symbols: &'a Symbols,
     colors: &'a TextColors,
     background: Color,
     view: ViewType,
@@ -269,8 +268,8 @@ impl Widget for &mut HeaderWidget<'_> {
 
         let (left, right) = if self.show_border {
             (
-                self.icons.left_end.chars().next().unwrap_or(' '),
-                self.icons.right_end.chars().next().unwrap_or(' '),
+                self.symbols.left_end.chars().next().unwrap_or(' '),
+                self.symbols.right_end.chars().next().unwrap_or(' '),
             )
         } else {
             (' ', ' ')

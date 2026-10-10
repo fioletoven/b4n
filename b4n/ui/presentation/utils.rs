@@ -1,4 +1,4 @@
-use b4n_config::icons::Icons;
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::TextColors;
 use b4n_kube::{ALL_NAMESPACES, EVENTS, PODS};
 use kube::discovery::Scope;
@@ -76,11 +76,11 @@ pub fn get_left_breadcrumbs<'a>(
     }
 
     let count_icon = if is_filtered {
-        if app_data.is_pinned { "󰐃" } else { "" }
+        if app_data.is_pinned { icons.pinned } else { icons.filtered }
     } else if data.resource.is_container() {
-        ""
+        icons.container
     } else {
-        ""
+        icons.pod
     };
 
     path.append(&mut vec![
@@ -96,11 +96,11 @@ pub fn get_left_breadcrumbs<'a>(
 
 /// Returns formatted text as right breadcrumbs:\
 /// \< `text` \<
-pub fn get_right_breadcrumbs<'a>(text: String, icons: &Icons, colors: &TextColors, bg: Color) -> Line<'a> {
+pub fn get_right_breadcrumbs<'a>(text: String, symbols: &Symbols, colors: &TextColors, bg: Color) -> Line<'a> {
     Line::from(vec![
-        Span::styled(icons.right_sep, Style::new().fg(colors.bg).bg(bg)),
+        Span::styled(symbols.right_sep, Style::new().fg(colors.bg).bg(bg)),
         Span::styled(text, colors),
-        Span::styled(icons.right_end, Style::new().fg(colors.bg).bg(bg)),
+        Span::styled(symbols.right_end, Style::new().fg(colors.bg).bg(bg)),
     ])
     .right_aligned()
 }

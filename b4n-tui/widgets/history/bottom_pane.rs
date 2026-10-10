@@ -1,5 +1,5 @@
-use b4n_config::icons::Icons;
 use b4n_config::keys::KeyCombination;
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::Theme;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Constraint, Direction, Layout, Margin, Rect};
@@ -43,7 +43,7 @@ impl BottomPane {
     }
 
     /// Draws [`BottomPane`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, icons: &Icons) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, symbols: &Symbols) {
         let hint_lines = if let Some(text) = self.history.items.list.get_highlighted_item() {
             let width = area.width.saturating_sub(4);
             let text = textwrap::wrap(&text.data.raw_message, Options::new(width.into()).initial_indent(" "));
@@ -70,14 +70,14 @@ impl BottomPane {
         self.area = layout[1].union(layout[2]);
 
         if show_hint {
-            let block = get_block(theme.colors.footer.details.hint.bg, theme.colors.text.bg, icons);
+            let block = get_block(theme.colors.footer.details.hint.bg, theme.colors.text.bg, symbols);
             let inner_area = block.inner(layout[1]).inner(Margin::new(1, 0));
             frame.render_widget(Clear, layout[1]);
             frame.render_widget(block, layout[1]);
             frame.render_widget(Paragraph::new(hint_lines).fg(theme.colors.footer.details.hint.fg), inner_area);
         }
 
-        let block = get_block(theme.colors.footer.details.text.bg, theme.colors.text.bg, icons);
+        let block = get_block(theme.colors.footer.details.text.bg, theme.colors.text.bg, symbols);
         let inner_area = block.inner(layout[2]).inner(Margin::new(1, 0));
 
         frame.render_widget(Clear, layout[2]);
@@ -99,11 +99,11 @@ impl Responsive for BottomPane {
     }
 }
 
-fn get_block(bg: Color, app_bg: Color, icons: &Icons) -> Block<'static> {
+fn get_block(bg: Color, app_bg: Color, symbols: &Symbols) -> Block<'static> {
     Block::new()
         .border_set(border::Set {
-            vertical_left: icons.left_end,
-            vertical_right: icons.right_end,
+            vertical_left: symbols.left_end,
+            vertical_right: symbols.right_end,
             ..border::EMPTY
         })
         .borders(Borders::LEFT | Borders::RIGHT)

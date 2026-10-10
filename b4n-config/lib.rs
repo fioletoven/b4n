@@ -6,8 +6,8 @@ pub use self::plugins::{
 pub use self::syntax::SyntaxData;
 pub use self::watcher::{ConfigWatcher, Persistable};
 
-pub mod icons;
 pub mod keys;
+pub mod symbols;
 pub mod themes;
 
 mod config;
