@@ -8,6 +8,8 @@ define_symbols_set! {
     right_sep: '', '', '▒';
     left_end: '', '', '░';
     right_end: '', '', '░';
+    error: '', '⨯', 'x';
+    back: '󰕍', '←', '←';
     filtered: '', '▽', '▪';
     pinned: '󰐃', '▼', '▾';
     pod: '', '▤';
@@ -34,7 +36,7 @@ impl From<&Symbol> for Cow<'_, str> {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Symbols {
     #[default]

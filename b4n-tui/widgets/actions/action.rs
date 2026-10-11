@@ -19,17 +19,19 @@ pub struct ActionItem {
     pub id: Option<usize>,
     description: Option<String>,
     icon: Option<&'static str>,
+    menu_icon: Option<char>,
+    show_menu_icon: bool,
     aliases: Option<Vec<String>>,
     key: Option<String>,
 }
 
 impl ActionItem {
     /// Creates new [`ActionItem`] instance.
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
             uid: random_uuid(),
             group: "action".to_owned(),
-            name: name.to_owned(),
+            name: name.into(),
             icon: Some(""),
             ..Default::default()
         }
@@ -52,32 +54,42 @@ impl ActionItem {
     }
 
     /// Creates new [`ActionItem`] instance for mouse menu.
-    pub fn menu(id: usize, name: &str, action: &'static str) -> Self {
+    pub fn menu(id: usize, icon: char, name: impl Into<String>, action: &'static str) -> Self {
         ActionItem::new(name)
             .with_response(ResponseEvent::Action(action))
             .with_sort_id(id)
+            .with_menu_icon(Some(icon))
             .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `command palette` for mouse menu.
     pub fn command_palette() -> Self {
-        ActionItem::new(" command palette")
+        ActionItem::new("command palette")
             .with_response(ResponseEvent::Action("palette"))
             .with_sort_id(50)
+            .with_menu_icon(Some(''))
             .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `back` for mouse menu.
     pub fn back() -> Self {
-        ActionItem::new("󰕍 back")
+        ActionItem::new("back")
             .with_response(ResponseEvent::Cancelled)
             .with_sort_id(100)
+            .with_menu_icon(Some('󰕍'))
             .with_icon(None)
     }
 
     /// Sets icon for this action instance.
     pub fn with_icon(mut self, icon: Option<&'static str>) -> Self {
         self.icon = icon;
+        self
+    }
+
+    /// Sets menu icon for this action instance.
+    pub fn with_menu_icon(mut self, icon: Option<char>) -> Self {
+        self.menu_icon = icon;
+        self.show_menu_icon = true;
         self
     }
 
@@ -122,14 +134,26 @@ impl ActionItem {
         self.key = key;
     }
 
+    /// Sets visibility for menu icon.
+    pub fn show_menu_icon(&mut self, is_visible: bool) {
+        self.show_menu_icon = is_visible;
+    }
+
     fn get_text_width(&self, width: usize) -> usize {
         let width = self
             .key
             .as_ref()
             .map_or(width, |k| width.saturating_sub(k.chars().count() + 4));
-        self.icon
+        let width = self
+            .icon
             .as_ref()
-            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
+            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1));
+
+        if self.show_menu_icon && self.menu_icon.is_some() {
+            width.saturating_sub(2)
+        } else {
+            width
+        }
     }
 
     fn get_name_width(&self, width: usize) -> (usize, usize) {
@@ -159,6 +183,15 @@ impl ActionItem {
             text.push_str("  ␝❬␝");
             text.push_str(key);
             text.push_str("␝❭␝");
+        }
+    }
+
+    fn add_menu_icon(&self, text: &mut String) {
+        if self.show_menu_icon
+            && let Some(icon) = self.menu_icon
+        {
+            text.push(icon);
+            text.push(' ');
         }
     }
 }
@@ -206,7 +239,9 @@ impl Row for ActionItem {
         let text_width = self.get_text_width(width);
         let (name_width, invisible_chars) = self.get_name_width(text_width);
 
-        let mut text = String::with_capacity(text_width + invisible_chars + 2);
+        let mut text = String::with_capacity(text_width + invisible_chars + 4);
+        self.add_menu_icon(&mut text);
+
         text.push_str(truncate(&self.name, text_width + invisible_chars));
 
         if let Some(descr) = &self.description {

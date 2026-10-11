@@ -161,16 +161,17 @@ impl LogsView {
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette())
-            .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-            .with_menu_action(ActionItem::menu(2, " save to file", "save"))
-            .with_menu_action(ActionItem::menu(3, " search", "search"))
-            .with_menu_action(ActionItem::menu(5, " timestamps", "timestamps"));
+            .with_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"))
+            .with_menu_action(ActionItem::menu(2, '', "save to file", "save"))
+            .with_menu_action(ActionItem::menu(3, '', "search", "search"))
+            .with_menu_action(ActionItem::menu(5, '', "timestamps", "timestamps"));
 
         if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
-            builder = builder.with_menu_action(ActionItem::menu(4, " logs format", "format"));
+            builder = builder.with_menu_action(ActionItem::menu(4, '', "logs format", "format"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

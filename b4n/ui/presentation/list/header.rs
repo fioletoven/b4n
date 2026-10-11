@@ -144,7 +144,9 @@ impl ListHeader {
         if !self.hide_previous
             && let Some(previous) = self.app_data.borrow().previous.last()
         {
-            line.push_span(Span::from(format!(" 󰕍 {}", previous.resource.kind.name())).style(&data.theme.colors.header.previous));
+            let back_icon = self.app_data.borrow().config.symbols.back.right;
+            let prev = format!(" {}{}", back_icon, previous.resource.kind.name());
+            line.push_span(Span::from(prev).style(&data.theme.colors.header.previous));
         }
 
         line
@@ -174,11 +176,8 @@ fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, has_api_error:
         &data.theme.colors.header.disconnected
     };
     let text = if !data.current.version.is_empty() && data.state == ConnectionState::Ready {
-        if has_api_error {
-            format!("  {} ", data.current.version)
-        } else {
-            format!(" {} ", data.current.version)
-        }
+        let error_ch = if has_api_error { data.config.symbols.error.right } else { "" };
+        format!(" {}{} ", error_ch, data.current.version)
     } else if data.current.version.is_empty() {
         format!(" {} connecting… ", spinner.tick())
     } else {

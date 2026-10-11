@@ -203,30 +203,34 @@ impl YamlView {
         if self.yaml.is_in_edit_mode() {
             size = 17;
             builder = builder
-                .with_menu_action(ActionItem::menu(1, "󰆏 copy", "copy_2"))
-                .with_menu_action(ActionItem::menu(2, "󰆐 cut", "cut"))
-                .with_menu_action(ActionItem::menu(3, "󰆒 paste", "paste"))
-                .with_menu_action(ActionItem::menu(4, "󰕌 undo", "undo"))
-                .with_menu_action(ActionItem::menu(5, "󰑎 redo", "redo"))
-                .with_menu_action(ActionItem::menu(100, " close edit", "back"));
+                .with_menu_action(ActionItem::menu(1, '󰆏', "copy", "copy_2"))
+                .with_menu_action(ActionItem::menu(2, '󰆐', "cut", "cut"))
+                .with_menu_action(ActionItem::menu(3, '󰆒', "paste", "paste"))
+                .with_menu_action(ActionItem::menu(4, '󰕌', "undo", "undo"))
+                .with_menu_action(ActionItem::menu(5, '󰑎', "redo", "redo"))
+                .with_menu_action(ActionItem::menu(100, '', "close edit", "back"));
         } else {
             let copy = if self.yaml.has_selection() { "selection" } else { "all" };
             builder = builder
                 .with_menu_action(ActionItem::back())
                 .with_menu_action(ActionItem::command_palette())
-                .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-                .with_menu_action(ActionItem::menu(2, " save to file", "save"))
-                .with_menu_action(ActionItem::menu(3, " search", "search"));
+                .with_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"))
+                .with_menu_action(ActionItem::menu(2, '', "save to file", "save"))
+                .with_menu_action(ActionItem::menu(3, '', "search", "search"));
             if self.yaml.content().is_some_and(Content::is_editable) {
-                builder.add_menu_action(ActionItem::menu(5, " edit", "edit"));
+                builder.add_menu_action(ActionItem::menu(5, '', "edit", "edit"));
             }
             if self.can_encode_decode() {
-                let action = if self.is_decoded { " encode" } else { " decode" };
-                builder.add_menu_action(ActionItem::menu(4, action, "decode"));
+                if self.is_decoded {
+                    builder.add_menu_action(ActionItem::menu(4, '', "encode", "decode"));
+                } else {
+                    builder.add_menu_action(ActionItem::menu(4, '', "decode", "decode"));
+                }
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

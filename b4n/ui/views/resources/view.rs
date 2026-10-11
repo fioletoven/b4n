@@ -435,7 +435,8 @@ impl ResourcesView {
         let actions = menus::build_mouse_menu_actions(&self.table);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

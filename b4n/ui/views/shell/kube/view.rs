@@ -117,38 +117,46 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
-        let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
-            .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-            .with_menu_action(ActionItem::menu(5, " download files", "download"))
-            .with_menu_action(ActionItem::menu(5, " upload file", "upload"))
-            .with_menu_action(ActionItem::menu(100, detach, "detach"));
+            .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
+            .with_menu_action(ActionItem::menu(5, '', "download files", "download"))
+            .with_menu_action(ActionItem::menu(5, '', "upload file", "upload"));
+
+        if self.is_attach {
+            builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach"));
+        } else {
+            builder.add_menu_action(ActionItem::menu(100, '', "detach shell", "detach"));
+        }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
         let is_selected = self.selection.sorted().is_some();
 
         if !self.is_mouse_enabled {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         }
 
         if self.is_attach && self.bridge.is_application_mode().is_none() {
-            let mode = if self.is_app_mode { " normal" } else { " app." };
-            builder.add_menu_action(ActionItem::menu(3, &format!("{mode} cursor key mode"), "app_mode"));
+            if self.is_app_mode {
+                builder.add_menu_action(ActionItem::menu(3, '', "normal cursor key mode", "app_mode"));
+            } else {
+                builder.add_menu_action(ActionItem::menu(3, '', "app. cursor key mode", "app_mode"));
+            }
         }
 
         if is_mouse_allowed {
             if self.is_mouse_enabled {
-                builder.add_menu_action(ActionItem::menu(4, "󰍾 release mouse", "mouse_off"));
+                builder.add_menu_action(ActionItem::menu(4, '󰍾', "release mouse", "mouse_off"));
             } else {
-                builder.add_menu_action(ActionItem::menu(4, "󰍽 capture mouse", "mouse_on"));
+                builder.add_menu_action(ActionItem::menu(4, '󰍽', "capture mouse", "mouse_on"));
             }
         }
 
         let actions = builder.build(None);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled

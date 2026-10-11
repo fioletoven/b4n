@@ -1,6 +1,7 @@
 use arboard::Clipboard;
 use b4n_common::NotificationSink;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_config::{Config, History, themes::Theme};
 use b4n_config::{PluginInput, PluginRef, Plugins};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
@@ -221,6 +222,9 @@ pub trait SharedAppDataExt {
     /// Like [`has_key_binding`] but ignores the SHIFT modifier when matching.
     fn has_key_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool;
 
+    /// Returns `true` if app can use NerdFont symbols.
+    fn has_nerd_font(&self) -> bool;
+
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
     fn disable_command(&self, command: KeyCommand, disable: bool);
 
@@ -267,6 +271,10 @@ impl SharedAppDataExt for SharedAppData {
         !data.disabled_keys.contains(key)
             && !data.disabled_commands.contains(&command)
             && data.key_bindings.has_binding_ignore_shift(key, command)
+    }
+
+    fn has_nerd_font(&self) -> bool {
+        self.borrow().config.symbols == Symbols::NerdFont
     }
 
     fn disable_command(&self, command: KeyCommand, hide: bool) {

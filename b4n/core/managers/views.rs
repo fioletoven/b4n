@@ -306,7 +306,8 @@ impl ViewsManager {
         if is_connected {
             self.footer().reset("100_disconnected");
         } else {
-            self.footer().set_icon("100_disconnected", Some(''), IconKind::Error);
+            let error_ch = self.app_data.borrow().config.symbols.error.ch;
+            self.footer().set_icon("100_disconnected", Some(error_ch), IconKind::Error);
             self.ns_selector.hide();
             self.res_selector.hide();
 

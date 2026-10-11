@@ -128,12 +128,13 @@ impl DescribeView {
         let is_selected = self.selection.sorted().is_some();
         if self.content.is_in_scroll_mode() {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         } else {
-            builder.add_menu_action(ActionItem::menu(1, "󰆏 copy ␝table␝", "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', "copy ␝table␝", "copy"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

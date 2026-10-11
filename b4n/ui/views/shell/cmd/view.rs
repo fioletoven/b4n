@@ -138,11 +138,11 @@ impl CmdView {
 
         let mut builder = ActionsListBuilder::default();
         if self.bridge.is_finished() {
-            builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
+            builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "back"));
         } else {
             builder = builder
-                .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-                .with_menu_action(ActionItem::menu(100, " close", "close"));
+                .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
+                .with_menu_action(ActionItem::menu(100, '', "close", "close"));
         }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(false);
@@ -150,18 +150,19 @@ impl CmdView {
 
         if !self.is_mouse_enabled {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         }
 
         if is_mouse_allowed {
             if self.is_mouse_enabled {
-                builder.add_menu_action(ActionItem::menu(3, "󰍾 release mouse", "mouse_off"));
+                builder.add_menu_action(ActionItem::menu(3, '󰍾', "release mouse", "mouse_off"));
             } else {
-                builder.add_menu_action(ActionItem::menu(3, "󰍽 capture mouse", "mouse_on"));
+                builder.add_menu_action(ActionItem::menu(3, '󰍽', "capture mouse", "mouse_on"));
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled

@@ -121,18 +121,19 @@ impl ForwardsView {
 
         if !self.list.table.is_empty() {
             if self.list.table.is_anything_selected() {
-                builder.add_menu_action(ActionItem::menu(1, " stop ␝selected␝", "stop_selected"));
+                builder.add_menu_action(ActionItem::menu(1, '', "stop ␝selected␝", "stop_selected"));
             }
 
-            let caption = if self.list.table.is_filtered() {
-                " stop ␝stale␝     "
+            if self.list.table.is_filtered() {
+                let icon = self.app_data.borrow().config.symbols.filtered.raw;
+                builder.add_menu_action(ActionItem::menu(2, '', format!("stop ␝stale␝     {}", icon), "cleanup"));
             } else {
-                " stop ␝stale␝"
-            };
-            builder.add_menu_action(ActionItem::menu(2, caption, "cleanup"));
+                builder.add_menu_action(ActionItem::menu(2, '', "stop ␝stale␝", "cleanup"));
+            }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 

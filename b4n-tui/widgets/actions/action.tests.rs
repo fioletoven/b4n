@@ -18,9 +18,13 @@ fn get_name_test() {
     action.set_key(Some("Ctrl+C".to_owned()));
     assert_eq!("text ␝descr␝  ␝❬␝Ctrl+C␝❭␝ ".to_owned(), action.get_name(22));
 
-    let action = ActionItem::menu(9, " delete ␝selected␝", "");
+    let action = ActionItem::menu(9, '', "delete ␝selected␝", "");
     assert_eq!(" delete ␝selected␝     ".to_owned(), action.get_name(22));
 
-    let action = ActionItem::menu(9, " logs ␝previous␝", "");
+    let action = ActionItem::menu(9, '', "logs ␝previous␝", "");
     assert_eq!(" logs ␝previous␝".to_owned(), action.get_name(15));
+
+    let mut action = ActionItem::menu(9, '', "close", "close");
+    action.show_menu_icon(false);
+    assert_eq!("close".to_owned(), action.get_name(5));
 }

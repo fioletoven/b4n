@@ -109,13 +109,17 @@ impl CommandPalette {
     }
 
     /// Sets this command palette to behave as mouse menu.
-    pub fn to_mouse_menu(mut self) -> Self {
+    pub fn to_mouse_menu(mut self, show_icons: bool) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.disable_filter(true);
         self.steps[index]
             .select
             .set_colors(self.app_data.borrow().theme.colors.mouse_menu.clone());
         self.is_mouse_menu = true;
+        for item in self.steps[index].select.items.list.iter_mut() {
+            item.data.show_menu_icon(show_icons);
+        }
+
         self
     }
 
