@@ -277,5 +277,6 @@ impl Drop for DescribeView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink) {
     let key = app_data.get_key_name(KeyCommand::NavigateNext).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press ␝{key}␝ to change active section"));
+    let icon = app_data.borrow().config.symbols.hint.right;
+    footer_tx.show_hint(format!("{icon}Press ␝{key}␝ to change active section"));
 }

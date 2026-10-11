@@ -720,10 +720,11 @@ impl YamlView {
     fn show_edit_hint(&mut self, is_modified: bool) {
         self.is_hint_visible = true;
         let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
+        let icon = self.app_data.borrow().config.symbols.hint.right;
         self.footer.show_hint(if is_modified {
-            format!(" Press ␝{key}␝ for save dialog")
+            format!("{icon}Press ␝{key}␝ for save dialog")
         } else {
-            format!(" Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
+            format!("{icon}Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
         });
     }
 

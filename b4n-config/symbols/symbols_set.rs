@@ -10,10 +10,12 @@ define_symbols_set! {
     right_end: '', '', '░';
     error: '', '⨯', 'x';
     back: '󰕍', '←', '←';
-    filtered: '', '▽', '▪';
-    pinned: '󰐃', '▼', '▾';
+    enter: '', '⏎', '→';
+    hint: '', '☼', '☼';
+    filtered: '', '▼', '▼';
+    pinned: '󰐃', '•', '•';
     pod: '', '▤';
-    container: '', '▭';
+    container: '', '▢';
 }
 
 #[derive(Debug, Clone)]

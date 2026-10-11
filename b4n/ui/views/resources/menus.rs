@@ -13,10 +13,11 @@ use crate::ui::widgets::{CommandPalette, StepBuilder};
 
 /// Builds steps required to configure port forward for specified resource container.
 pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef, list: &[Port]) -> CommandPalette {
+    let icon = app_data.borrow().config.symbols.hint.right;
     let actions_list = ActionsListBuilder::from_resource_ports(list).build(None);
     CommandPalette::new(Rc::clone(app_data), actions_list, 65)
         .with_header(format!(
-            " Add port forward for '{}' container:",
+            "{icon}Add port forward for '{}' container:",
             resource.container.as_deref().unwrap_or_default()
         ))
         .with_prompt("container port")
@@ -43,9 +44,10 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
 
 /// Builds command palette that allows to select container's image name.
 pub fn build_image_select_palette(app_data: &SharedAppData, highlighted: &str) -> CommandPalette {
+    let icon = app_data.borrow().config.symbols.hint.right;
     let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
     CommandPalette::new(Rc::clone(app_data), actions, 65)
-        .with_header(" Format: [registry/][namespace/]name[:tag][@digest]")
+        .with_header(format!("{icon}Format: [registry/][namespace/]name[:tag][@digest]"))
         .with_prompt("image name")
         .with_validator(ValidatorKind::DockerImage)
         .with_highlighted(highlighted)

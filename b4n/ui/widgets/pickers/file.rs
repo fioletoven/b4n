@@ -353,7 +353,8 @@ impl PickerBehaviour for FileBehaviour {
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         let hint = if self.pick_dir { DIR_SELECT_HINT } else { FILE_SELECT_HINT };
-        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { '' }, hint);
+        let icon = self.app_data.borrow().config.symbols.hint.ch;
+        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { icon }, hint);
         frame.render_widget(Paragraph::new(line).style(style), area);
     }
 

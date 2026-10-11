@@ -495,9 +495,10 @@ impl Drop for CmdView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let icon = app_data.borrow().config.symbols.hint.right;
     if is_alt_mode {
-        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to close"));
+        footer_tx.show_hint(format!("{icon}Escape mode: press ␝{key}␝ to close"));
     } else {
-        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+        footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
 }

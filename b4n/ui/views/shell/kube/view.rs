@@ -345,7 +345,9 @@ impl ShellView {
     fn enable_mouse(&mut self, is_enabled: bool) -> ResponseEvent {
         self.is_mouse_enabled = is_enabled;
         if is_enabled {
-            self.footer_tx.show_hint(" Double right-click to open mouse menu");
+            let icon = self.app_data.borrow().config.symbols.hint.right;
+            self.footer_tx
+                .show_hint(format!("{icon}Double right-click to open mouse menu"));
         } else {
             set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
         }
@@ -587,14 +589,15 @@ impl Drop for ShellView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let icon = app_data.borrow().config.symbols.hint.right;
     if is_alt_mode {
         let action = if is_attach { "close attach view" } else { "detach shell" };
         let transfer_to = app_data.get_key_name(KeyCommand::TransferTo).to_ascii_uppercase();
         let transfer_from = app_data.get_key_name(KeyCommand::TransferFrom).to_ascii_uppercase();
         footer_tx.show_hint(format!(
-            " Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
+            "{icon}Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
         ));
     } else {
-        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+        footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
 }

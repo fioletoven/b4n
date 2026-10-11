@@ -708,7 +708,8 @@ impl ViewsManager {
     /// Updates footer message history pane hint with current key binding.
     pub fn set_message_history_hint(&mut self) {
         let copy_key = self.app_data.get_key_name(KeyCommand::ContentCopy).to_ascii_uppercase();
-        let hint = format!(" Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
+        let icon = self.app_data.borrow().config.symbols.hint.right;
+        let hint = format!("{icon}Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
         self.footer.set_message_history_hint(hint);
     }
 
@@ -729,5 +730,6 @@ impl ViewsManager {
 
 fn set_command_palette_hint(footer_tx: &NotificationSink, app_data: &SharedAppData) {
     let command_palette_key = app_data.get_key_name(KeyCommand::CommandPaletteOpen).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press ␝{command_palette_key}␝ to open command palette"));
+    let icon = app_data.borrow().config.symbols.hint.right;
+    footer_tx.show_hint(format!("{icon}Press ␝{command_palette_key}␝ to open command palette"));
 }
