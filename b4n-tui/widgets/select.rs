@@ -91,10 +91,10 @@ impl<T: Table> Select<T> {
     }
 
     /// Adds accept button to the filter input.
-    pub fn with_accept_button(mut self, is_visible: bool) -> Self {
+    pub fn with_accept_button(mut self, caption: impl Into<String>, is_visible: bool) -> Self {
         if is_visible {
             self.filter
-                .set_accept_button(Some(("  ", ResponseEvent::Accepted)), self.colors.filter.button);
+                .set_accept_button(Some((caption, ResponseEvent::Accepted)), self.colors.filter.button);
         }
 
         self

@@ -165,7 +165,7 @@ impl Input {
     }
 
     /// Sets the accept button.
-    pub fn set_accept_button(&mut self, button: Option<(&'static str, ResponseEvent)>, colors: Option<TextColors>) {
+    pub fn set_accept_button(&mut self, button: Option<(impl Into<String>, ResponseEvent)>, colors: Option<TextColors>) {
         self.show_button = button.is_some();
         self.accept_button = button.map(|b| AcceptButton::new(b.0, b.1, colors));
     }
@@ -559,16 +559,16 @@ impl Widget for &mut Input {
 }
 
 struct AcceptButton {
-    title: &'static str,
+    title: String,
     response: ResponseEvent,
     colors: Option<TextColors>,
     is_highlighted: bool,
 }
 
 impl AcceptButton {
-    fn new(title: &'static str, response: ResponseEvent, colors: Option<TextColors>) -> Self {
+    fn new(title: impl Into<String>, response: ResponseEvent, colors: Option<TextColors>) -> Self {
         Self {
-            title,
+            title: title.into(),
             response,
             colors,
             is_highlighted: false,
@@ -577,9 +577,9 @@ impl AcceptButton {
 
     fn as_span(&self, colors: &TextColors) -> Span<'_> {
         if self.is_highlighted {
-            Span::styled(self.title, &colors.to_reverted())
+            Span::styled(&self.title, &colors.to_reverted())
         } else {
-            Span::styled(self.title, colors)
+            Span::styled(&self.title, colors)
         }
     }
 }

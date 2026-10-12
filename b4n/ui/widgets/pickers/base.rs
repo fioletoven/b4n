@@ -140,12 +140,13 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
+        let caption = format!(" {} ", app_data.borrow().config.symbols.enter.raw);
         let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
             .with_prompt(behaviour.prompt())
             .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
             .with_filter_delimiters(behaviour.filter_delimiters())
-            .with_accept_button(true)
+            .with_accept_button(caption, true)
             .with_clipboard(app_data.borrow().get_clipboard());
 
         if let Some(accents) = behaviour.accent_characters() {
