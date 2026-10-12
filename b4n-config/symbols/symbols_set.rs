@@ -12,8 +12,9 @@ define_symbols_set! {
     back: '󰕍', '←', '←';
     enter: '', '⏎', '→';
     hint: '', '☼', '☼';
-    filtered: '', '▼', '▼';
-    pinned: '󰐃', '•', '•';
+    prompt: '', '❭', '❯';
+    filter: '', '▼', '▼';
+    pin: '󰐃', '•', '•';
     pod: '', '▤';
     container: '', '▢';
 }

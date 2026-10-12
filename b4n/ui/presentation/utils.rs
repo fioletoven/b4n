@@ -76,11 +76,7 @@ pub fn get_left_breadcrumbs<'a>(
     }
 
     let count_icon = if is_filtered {
-        if app_data.is_pinned {
-            icons.pinned.raw
-        } else {
-            icons.filtered.raw
-        }
+        if app_data.is_pinned { icons.pin.raw } else { icons.filter.raw }
     } else if data.resource.is_container() {
         icons.container.raw
     } else {

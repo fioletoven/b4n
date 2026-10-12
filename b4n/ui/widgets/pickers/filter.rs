@@ -6,7 +6,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::pickers::base::PickerBehaviour;
@@ -80,11 +80,11 @@ impl FilterBehaviour {
 }
 
 impl PickerBehaviour for FilterBehaviour {
-    fn prompt(&self) -> &str {
+    fn prompt(&self) -> Cow<'_, str> {
         if self.app_data.borrow().is_pinned {
-            self.app_data.borrow().config.symbols.pinned.right
+            self.app_data.borrow().config.symbols.pin.right.into()
         } else {
-            self.app_data.borrow().config.symbols.filtered.right
+            self.app_data.borrow().config.symbols.filter.right.into()
         }
     }
 

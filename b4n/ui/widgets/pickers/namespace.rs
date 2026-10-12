@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::ResponseEvent;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind};
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
@@ -46,8 +46,8 @@ impl NamespaceBehaviour {
 }
 
 impl PickerBehaviour for NamespaceBehaviour {
-    fn prompt(&self) -> &'static str {
-        "namespace "
+    fn prompt(&self) -> Cow<'_, str> {
+        format!("namespace{}", self.app_data.borrow().config.symbols.prompt.right).into()
     }
 
     fn colors(&self) -> SelectColors {

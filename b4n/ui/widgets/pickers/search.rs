@@ -5,7 +5,7 @@ use b4n_tui::{ResponseEvent, table::Table};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternsList, Picker, PickerBehaviour};
@@ -77,8 +77,8 @@ impl SearchBehaviour {
 }
 
 impl PickerBehaviour for SearchBehaviour {
-    fn prompt(&self) -> &'static str {
-        " "
+    fn prompt(&self) -> Cow<'_, str> {
+        " ".into()
     }
 
     fn colors(&self) -> SelectColors {

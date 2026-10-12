@@ -8,6 +8,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
+use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
 use std::rc::Rc;
 use tokio::runtime::Handle;
@@ -15,7 +16,6 @@ use tokio::runtime::Handle;
 use crate::core::{SharedAppData, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
-const PROMPT_END: &str = " ";
 const DIR_ICON: &str = "";
 const BACK_ICON: &str = "󰕍";
 const BACK_NAME: &str = "..";
@@ -56,7 +56,6 @@ impl FileSelector {
         }
 
         let behaviour = self.behaviour_mut();
-        behaviour.prompt = build_prompt(&path);
         behaviour.current_path = path;
         behaviour.lister.reset();
         behaviour.loading = true;
@@ -76,7 +75,6 @@ pub struct FileBehaviour {
     current_exists: bool,
     selected_path: Option<String>,
     selected_exists: bool,
-    prompt: String,
     loading: bool,
     spinner: Spinner,
     pick_dir: bool,
@@ -84,8 +82,6 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf, pick_dir: bool) -> Self {
-        let prompt = build_prompt(&initial_path);
-
         Self {
             app_data,
             lister: DirLister::new(runtime, 100),
@@ -93,7 +89,6 @@ impl FileBehaviour {
             current_exists: false,
             selected_path: None,
             selected_exists: false,
-            prompt,
             loading: true,
             spinner: Spinner::default(),
             pick_dir,
@@ -101,7 +96,6 @@ impl FileBehaviour {
     }
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
-        self.prompt = build_prompt(&dir_path);
         self.current_path.clone_from(&dir_path);
         self.current_exists = false;
         self.loading = self.lister.list_dir(dir_path, true);
@@ -179,8 +173,9 @@ impl FileBehaviour {
 }
 
 impl PickerBehaviour for FileBehaviour {
-    fn prompt(&self) -> &str {
-        &self.prompt
+    fn prompt(&self) -> Cow<'_, str> {
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
+        format!("{}{}", self.current_path.display(), prompt_end).into()
     }
 
     fn colors(&self) -> SelectColors {
@@ -365,10 +360,6 @@ impl PickerBehaviour for FileBehaviour {
 
         ResponseEvent::NotHandled
     }
-}
-
-fn build_prompt(path: &Path) -> String {
-    format!("{}{}", path.display(), PROMPT_END)
 }
 
 fn normalize(path: &str) -> PathBuf {
