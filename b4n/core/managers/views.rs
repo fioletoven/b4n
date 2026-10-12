@@ -453,6 +453,11 @@ impl ViewsManager {
         self.resources.show_themes_list(list);
     }
 
+    /// Displays a list of available symbols to choose from.
+    pub fn show_symbols_list(&mut self) {
+        self.resources.show_symbols_list();
+    }
+
     /// Displays a list of known namespaces to choose from.
     pub fn show_namespaces_list(&mut self) {
         self.resources.show_namespaces_list(self.ns_selector.select.items.get_names());

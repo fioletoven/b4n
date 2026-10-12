@@ -1,4 +1,5 @@
 use b4n_config::keys::{KeyBindings, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, Row, ScrollableList};
 use delegate::delegate;
@@ -128,6 +129,17 @@ impl ActionsListBuilder {
         }
     }
 
+    /// Creates new [`ActionsListBuilder`] instance from the list of available symbols.
+    pub fn from_symbols() -> Self {
+        let symbols = Symbols::ALL.into_iter().enumerate().map(|(index, symbols)| {
+            ActionItem::new(symbols.as_str())
+                .with_icon(None)
+                .with_sort_id(index)
+                .with_response(ResponseEvent::ChangeSymbols(symbols))
+        });
+        Self::new(symbols.collect())
+    }
+
     /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
     pub fn from_resource_ports(ports: &[Port]) -> Self {
         Self {
@@ -226,7 +238,7 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_theme().with_quit();
+        let builder = self.with_context().with_theme().with_symbols().with_quit();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
@@ -276,6 +288,17 @@ impl ActionsListBuilder {
         );
         self.commands.push(None);
         self
+    }
+
+    /// Adds `symbols` action.
+    pub fn with_symbols(self) -> Self {
+        self.with_action(
+            ActionItem::new("symbols")
+                .with_description("changes configured TUI symbols")
+                .with_aliases(["change"])
+                .with_response(ResponseEvent::ListSymbols),
+            None,
+        )
     }
 
     /// Adds `namespace` action.

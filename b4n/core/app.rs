@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, SyntaxData};
 use b4n_kube::client::ClientOptions;
@@ -249,10 +250,12 @@ impl App {
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
+            ResponseEvent::ListSymbols => self.views_manager.show_symbols_list(),
             ResponseEvent::ListNamespaces => self.views_manager.show_namespaces_list(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
             ResponseEvent::ChangeContext(context, namespace) => self.request_kubernetes_client(context, namespace.as_deref()),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
+            ResponseEvent::ChangeSymbols(symbols) => self.process_symbols_change(symbols),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
@@ -494,6 +497,18 @@ impl App {
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
             let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
+            self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+        }
+    }
+
+    /// Changes application symbols configuration.
+    fn process_symbols_change(&mut self, symbols: Symbols) {
+        if self.data.borrow().config.symbols != symbols {
+            self.data.borrow_mut().config.symbols = symbols;
+            self.views_manager.set_message_history_hint();
+            self.config_watcher.skip_next();
+            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+            let msg = format!("Symbols changed to '{}'", self.data.borrow().config.symbols.as_str());
             self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
         }
     }

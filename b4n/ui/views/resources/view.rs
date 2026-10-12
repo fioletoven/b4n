@@ -233,6 +233,15 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
+    /// Displays a list of available symbols to choose from.
+    pub fn show_symbols_list(&mut self) {
+        let actions_list = ActionsListBuilder::from_symbols().build(None);
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
+            .with_prompt("symbols")
+            .with_highlighted(self.app_data.borrow().config.symbols.as_str());
+        self.command_palette.show();
+    }
+
     /// Displays a list of known namespaces to choose from.
     pub fn show_namespaces_list(&mut self, discovered: Vec<String>) {
         self.namespace_picker.set_discovered(discovered);

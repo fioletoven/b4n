@@ -1,4 +1,5 @@
 use b4n_config::PluginRef;
+use b4n_config::symbols::Symbols;
 use b4n_kube::files::TransferContext;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{ContainerRef, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
@@ -92,6 +93,7 @@ pub enum ResponseEvent {
     ChangeNamespace(String),
     ChangeContext(String, Option<String>),
     ChangeTheme(String),
+    ChangeSymbols(Symbols),
 
     ViewPreviousResource,
     ViewContainers(String, String),
@@ -103,6 +105,7 @@ pub enum ResponseEvent {
 
     ListKubeContexts,
     ListThemes,
+    ListSymbols,
     ListResourcePorts(ResourceRef),
 
     AskDeleteResources,
