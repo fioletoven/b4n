@@ -152,7 +152,7 @@ impl ShellView {
             }
         }
 
-        let actions = builder.build(None);
+        let actions = builder.build(None, None);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
         self.command_palette =

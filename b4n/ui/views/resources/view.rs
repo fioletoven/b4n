@@ -217,7 +217,7 @@ impl ResourcesView {
 
     /// Displays a list of available contexts to choose from.
     pub fn show_contexts_list(&mut self, list: &[NamedContext]) {
-        let actions_list = ActionsListBuilder::from_kube_contexts(list).build(None);
+        let actions_list = ActionsListBuilder::from_kube_contexts(list).build(None, None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("context")
             .with_highlighted(&self.app_data.borrow().current.context);
@@ -226,7 +226,7 @@ impl ResourcesView {
 
     /// Displays a list of available themes to choose from.
     pub fn show_themes_list(&mut self, list: Vec<PathBuf>) {
-        let actions_list = ActionsListBuilder::from_paths(list).build(None);
+        let actions_list = ActionsListBuilder::from_paths(list).build(None, None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("theme")
             .with_highlighted(&self.app_data.borrow().config.theme);
@@ -235,7 +235,7 @@ impl ResourcesView {
 
     /// Displays a list of available symbols to choose from.
     pub fn show_symbols_list(&mut self) {
-        let actions_list = ActionsListBuilder::from_symbols().build(None);
+        let actions_list = ActionsListBuilder::from_symbols().build(None, None);
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions_list, 65)
             .with_prompt("symbols")
             .with_highlighted(self.app_data.borrow().config.symbols.as_str());
@@ -417,9 +417,10 @@ impl ResourcesView {
 
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected() {
-            let actions = ActionsListBuilder::default()
-                .with_resources_actions(false)
-                .build(Some(&self.app_data.borrow().key_bindings));
+            let actions = ActionsListBuilder::default().with_resources_actions(false).build(
+                Some(&self.app_data.borrow().key_bindings),
+                Some(&self.app_data.borrow().config.symbols),
+            );
 
             self.open_command_palette(actions);
             return;

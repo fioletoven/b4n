@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, SECRETS, Scope};
 use b4n_tui::table::Table;
-use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
+use b4n_tui::widgets::{ActionItem, ActionItemKind, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
 use std::rc::Rc;
 
@@ -14,7 +14,7 @@ use crate::ui::widgets::{CommandPalette, StepBuilder};
 /// Builds steps required to configure port forward for specified resource container.
 pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef, list: &[Port]) -> CommandPalette {
     let icon = app_data.borrow().config.symbols.hint.right;
-    let actions_list = ActionsListBuilder::from_resource_ports(list).build(None);
+    let actions_list = ActionsListBuilder::from_resource_ports(list).build(None, None);
     CommandPalette::new(Rc::clone(app_data), actions_list, 65)
         .with_header(format!(
             "{icon}Add port forward for '{}' container:",
@@ -45,7 +45,7 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
 /// Builds command palette that allows to select container's image name.
 pub fn build_image_select_palette(app_data: &SharedAppData, highlighted: &str) -> CommandPalette {
     let icon = app_data.borrow().config.symbols.hint.right;
-    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
+    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None, None);
     CommandPalette::new(Rc::clone(app_data), actions, 65)
         .with_header(format!("{icon}Format: [registry/][namespace/]name[:tag][@digest]"))
         .with_prompt("image name")
@@ -70,7 +70,7 @@ pub fn build_create_resource_actions(table: &ResourcesTable) -> ActionsList {
         );
     }
 
-    builder.build(None)
+    builder.build(None, None)
 }
 
 /// Builds actions for mouse menu.
@@ -89,7 +89,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
 
     if table.kind_plural() == NAMESPACES {
         builder.add_menu_action(
-            ActionItem::new("quit ␝‼␝")
+            ActionItem::new("quit ␝‼␝", ActionItemKind::Menu)
                 .with_response(ResponseEvent::ExitApplication)
                 .with_sort_id(100)
                 .with_menu_icon(Some(''))
@@ -155,7 +155,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         builder.add_menu_action(ActionItem::menu(13, '󰐕', "create new", "create"));
     }
 
-    builder.build(None)
+    builder.build(None, None)
 }
 
 /// Builds actions for highlighted resource.
@@ -234,7 +234,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     builder
         .with_aliases(&app_data.borrow().config.aliases)
-        .build(Some(&app_data.borrow().key_bindings))
+        .build(Some(&app_data.borrow().key_bindings), Some(&app_data.borrow().config.symbols))
 }
 
 fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable, is_containers: bool) -> ActionsListBuilder {

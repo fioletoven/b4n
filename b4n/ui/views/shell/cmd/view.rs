@@ -126,7 +126,10 @@ impl CmdView {
             ActionItem::action("copy", "copy").with_description(copy_description),
             Some(KeyCommand::ContentCopy),
         );
-        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        let actions = builder.build(
+            Some(&self.app_data.borrow().key_bindings),
+            Some(&self.app_data.borrow().config.symbols),
+        );
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65);
         self.command_palette.show();
     }
@@ -161,8 +164,8 @@ impl CmdView {
             }
         }
 
-        self.command_palette =
-            CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu(self.app_data.has_nerd_font());
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None, None), 22)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled

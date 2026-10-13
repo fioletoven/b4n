@@ -1,6 +1,7 @@
 use b4n_config::Plugins;
 
-use crate::{ResponseEvent, widgets::ActionItem};
+use crate::ResponseEvent;
+use crate::widgets::{ActionItem, ActionItemKind};
 
 /// Plugins extension trait.
 pub trait PluginsExt {
@@ -14,11 +15,10 @@ impl PluginsExt for Plugins {
         let plugins = self.iter().filter(|p| p.in_scope_for(scope, is_highlighted, is_selected));
 
         for plugin in plugins {
-            let mut action = ActionItem::new(&plugin.name)
+            let mut action = ActionItem::new(&plugin.name, ActionItemKind::Plugin)
                 .with_description(&plugin.description)
                 .with_aliases(&plugin.aliases)
-                .with_response(ResponseEvent::PluginAction(plugin.into()))
-                .with_icon(Some(""));
+                .with_response(ResponseEvent::PluginAction(plugin.into()));
 
             if !plugin.shortcut.is_default() {
                 action.set_key(Some(plugin.shortcut.to_string()));

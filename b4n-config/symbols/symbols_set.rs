@@ -17,6 +17,8 @@ define_symbols_set! {
     pin: '󰐃', '•', '•';
     pod: '', '▤';
     container: '', '▢';
+    action: '';
+    plugin: '';
 }
 
 /// A single symbol representation.
