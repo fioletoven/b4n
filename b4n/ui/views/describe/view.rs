@@ -1,6 +1,5 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_config::symbols::Symbols;
 use b4n_kube::utils::get_resource;
 use b4n_kube::{BgObserver, EVENTS, ObserverResult, ResourceRefFilter};
 use b4n_kube::{Kind, ResourceRef};
@@ -62,7 +61,7 @@ impl DescribeView {
         events.start(client, events_res, events_dis, true).ok()?;
 
         let mut header = ContentHeader::new(Rc::clone(&app_data), true);
-        if app_data.borrow().config.symbols == Symbols::NerdFont {
+        if app_data.has_nerd_font() {
             header.set_title(" describe");
         } else {
             header.set_title("describe");

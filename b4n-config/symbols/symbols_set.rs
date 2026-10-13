@@ -23,7 +23,7 @@ define_symbols_set! {
     external: '';
     structure: '', '≈', '≈';
     bound: '', '≡', '≡';
-    unbound: '', '≢', '≠';
+    unbound: '', '≠', '≠';
     mouse: '󰍽', '⬉', '⬉';
     theme: '', 'ᵀ', 'ᵀ';
     download: '󰶡', '↓', '↓';

@@ -273,7 +273,7 @@ impl App {
             ResponseEvent::TransferFile(container, context) => {
                 self.worker
                     .borrow_mut()
-                    .transfer_file(container, context, &self.data.borrow().config.symbols)
+                    .transfer_file(container, context, &self.data.borrow().config.symbols);
             },
             _ => (),
         }

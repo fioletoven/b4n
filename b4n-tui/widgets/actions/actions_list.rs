@@ -370,7 +370,7 @@ impl ActionsListBuilder {
     }
 
     fn update_symbols(&mut self, symbols: &Symbols) {
-        for action in self.actions.iter_mut() {
+        for action in &mut self.actions {
             action.update_icon(symbols);
         }
     }

@@ -129,7 +129,7 @@ impl ForwardsView {
 
             if self.list.table.is_filtered() {
                 let icon = self.app_data.borrow().config.symbols.filter.raw;
-                builder.add_menu_action(ActionItem::menu(2, '', format!("stop ␝stale␝     {}", icon), "cleanup"));
+                builder.add_menu_action(ActionItem::menu(2, '', format!("stop ␝stale␝     {icon}"), "cleanup"));
             } else {
                 builder.add_menu_action(ActionItem::menu(2, '', "stop ␝stale␝", "cleanup"));
             }

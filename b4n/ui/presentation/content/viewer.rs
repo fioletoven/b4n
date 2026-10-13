@@ -489,6 +489,7 @@ impl<T: Content> ContentViewer<T> {
                 x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(1),
                 x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(1),
 
+                x if x.kind == MouseEventKind::LeftDrag => (),
                 _ => return ResponseEvent::NotHandled,
             },
             TuiEvent::Command(_) => return ResponseEvent::NotHandled,

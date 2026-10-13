@@ -222,7 +222,7 @@ pub trait SharedAppDataExt {
     /// Like [`has_key_binding`] but ignores the SHIFT modifier when matching.
     fn has_key_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool;
 
-    /// Returns `true` if app can use NerdFont symbols.
+    /// Returns `true` if app can use `NerdFont` symbols.
     fn has_nerd_font(&self) -> bool;
 
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.

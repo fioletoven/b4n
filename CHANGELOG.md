@@ -1,5 +1,15 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- allow to select symbols set used in TUI: `NerdFont`, `Powerline` and `Plain`
+
+### Bug Fixes
+
+- scroll while selecting logs do not update `bound to bottom` icon
+
 ## 1.1.0 - 2026-10-06
 
 ### Features
