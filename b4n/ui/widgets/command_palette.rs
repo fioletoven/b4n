@@ -462,7 +462,7 @@ impl StepBuilder {
     pub fn build(self, app_data: &SharedAppData) -> Step {
         let prompt_end = app_data.borrow().config.symbols.prompt.right;
         let prompt = self.prompt.map(|label| format!("{label}{prompt_end}"));
-        let caption = format!(" {} ", app_data.borrow().config.symbols.enter.raw);
+        let caption = format!(" {} ", app_data.borrow().config.symbols.accept.raw);
         let list = self.actions.unwrap_or_default();
         let mut select = Select::new(list, self.colors, false, true)
             .with_prompt(prompt_end)
@@ -497,7 +497,7 @@ impl Step {
     /// Creates new [`Step`] instance.
     fn new(app_data: &AppData, list: ActionsList) -> Self {
         let colors = app_data.theme.colors.command_palette.clone();
-        let caption = format!(" {} ", app_data.config.symbols.enter.raw);
+        let caption = format!(" {} ", app_data.config.symbols.accept.raw);
         Self {
             select: Select::new(list, colors, false, true)
                 .with_prompt(app_data.config.symbols.prompt.right)

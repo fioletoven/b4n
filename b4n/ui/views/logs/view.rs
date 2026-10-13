@@ -79,7 +79,7 @@ impl LogsView {
         let container = (regular.len() == 1).then(|| regular[0].container.clone()).flatten();
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
-            '',
+            app_data.borrow().config.symbols.bound.ch,
             containers[0].namespace.clone(),
             PODS.into(),
             Some(containers[0].name.clone()),
@@ -253,7 +253,11 @@ impl LogsView {
 
     fn update_bound_to_bottom(&mut self) {
         self.bound_to_bottom = self.search.value().is_empty() && self.logs.is_at_end();
-        self.logs.header.set_icon(if self.bound_to_bottom { '' } else { '' });
+        self.logs.header.set_icon(if self.bound_to_bottom {
+            self.app_data.borrow().config.symbols.bound.ch
+        } else {
+            self.app_data.borrow().config.symbols.unbound.ch
+        });
     }
 
     fn clear_search(&mut self) {
@@ -526,7 +530,9 @@ impl View for LogsView {
 
         if needs_update {
             if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
-                self.logs.header.set_name_icon('');
+                self.logs
+                    .header
+                    .set_name_icon(self.app_data.borrow().config.symbols.structure.ch);
             }
 
             if self.logs.search(self.search.value(), true) {

@@ -78,7 +78,7 @@ impl SearchBehaviour {
 
 impl PickerBehaviour for SearchBehaviour {
     fn prompt(&self) -> Cow<'_, str> {
-        " ".into()
+        self.app_data.borrow().config.symbols.search.right.into()
     }
 
     fn colors(&self) -> SelectColors {

@@ -62,7 +62,7 @@ impl CmdView {
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(plugin.name);
-        header.set_icon('');
+        header.set_icon(app_data.borrow().config.symbols.external.ch);
 
         let area = get_layout_with_header(workspace)[1];
         let command = plugin.command;

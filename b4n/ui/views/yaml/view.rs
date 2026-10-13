@@ -60,7 +60,7 @@ impl YamlView {
         let area = ContentViewer::<YamlContent>::get_content_area(workspace);
         let yaml = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if is_new { "create new resource" } else { "YAML" },
-            '',
+            app_data.borrow().config.symbols.view.ch,
             resource.namespace.clone(),
             resource.kind.clone(),
             name,
@@ -669,7 +669,11 @@ impl YamlView {
             return;
         };
         let name = if self.is_new { None } else { Some(result.name) };
-        let icon = if result.is_decoded { '' } else { '' };
+        let icon = if result.is_decoded {
+            self.app_data.borrow().config.symbols.decoded.ch
+        } else {
+            self.app_data.borrow().config.symbols.view.ch
+        };
         let styles = {
             let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
             StyleFallback {

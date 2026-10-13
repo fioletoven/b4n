@@ -1,5 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
+use b4n_config::symbols::Symbols;
 use b4n_kube::{ContainerRef, PODS, ResourceTag};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, TextBox};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
@@ -65,7 +66,11 @@ impl ShellView {
     ) -> Self {
         let runtime = worker.borrow().runtime_handle().clone();
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(if is_attach { " attach" } else { " shell" });
+        if app_data.borrow().config.symbols == Symbols::NerdFont {
+            header.set_title(if is_attach { " attach" } else { " shell" });
+        } else {
+            header.set_title(if is_attach { "attach" } else { "shell" });
+        }
         header.set_data(
             pod.namespace.clone(),
             PODS.into(),

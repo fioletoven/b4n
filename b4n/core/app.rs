@@ -136,10 +136,9 @@ impl App {
 
     /// Shows theme error in the app footer.
     pub fn show_theme_error(&self, error: String) {
+        let icon = Some(self.data.borrow().config.symbols.theme.ch);
         self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);
-        self.views_manager
-            .footer()
-            .set_icon("000_notheme", Some(''), IconKind::Error);
+        self.views_manager.footer().set_icon("000_notheme", icon, IconKind::Error);
     }
 
     /// Process all waiting events.
@@ -271,7 +270,11 @@ impl App {
             ResponseEvent::InjectContainer(resource, container) => {
                 self.worker.borrow_mut().inject_container(&resource, container);
             },
-            ResponseEvent::TransferFile(container, context) => self.worker.borrow_mut().transfer_file(container, context),
+            ResponseEvent::TransferFile(container, context) => {
+                self.worker
+                    .borrow_mut()
+                    .transfer_file(container, context, &self.data.borrow().config.symbols)
+            },
             _ => (),
         }
 
@@ -506,6 +509,7 @@ impl App {
         if self.data.borrow().config.symbols != symbols {
             self.data.borrow_mut().config.symbols = symbols;
             self.views_manager.set_message_history_hint();
+            self.update_mouse_state();
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
             let msg = format!("Symbols changed to '{}'", self.data.borrow().config.symbols.as_str());
@@ -595,7 +599,11 @@ impl App {
     }
 
     fn update_mouse_state(&self) {
-        let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
+        let icon = if self.tui.is_mouse_enabled() {
+            Some(self.data.borrow().config.symbols.mouse.ch)
+        } else {
+            None
+        };
         self.views_manager.footer().set_icon("050_mouse", icon, IconKind::Default);
         self.data.borrow_mut().is_mouse_enabled = self.tui.is_mouse_enabled();
     }

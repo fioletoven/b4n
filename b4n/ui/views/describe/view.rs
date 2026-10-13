@@ -1,5 +1,6 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
+use b4n_config::symbols::Symbols;
 use b4n_kube::utils::get_resource;
 use b4n_kube::{BgObserver, EVENTS, ObserverResult, ResourceRefFilter};
 use b4n_kube::{Kind, ResourceRef};
@@ -61,7 +62,11 @@ impl DescribeView {
         events.start(client, events_res, events_dis, true).ok()?;
 
         let mut header = ContentHeader::new(Rc::clone(&app_data), true);
-        header.set_title(" describe");
+        if app_data.borrow().config.symbols == Symbols::NerdFont {
+            header.set_title(" describe");
+        } else {
+            header.set_title("describe");
+        }
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource.clone());
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.syntax.describe.select);

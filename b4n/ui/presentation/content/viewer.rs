@@ -162,7 +162,7 @@ impl<T: Content> ContentViewer<T> {
                 self.page_area.height,
                 content,
             );
-            self.header.set_edit('', "[INS]  ");
+            self.header.set_edit(self.app_data.borrow().config.symbols.edit.ch, "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
             {
@@ -393,13 +393,15 @@ impl<T: Content> ContentViewer<T> {
 
     /// Gets footer icon text for the current search state.
     pub fn get_footer_text(&self) -> Option<String> {
+        let icon = self.app_data.borrow().config.symbols.search.right;
         if let Some(count) = self.matches_count() {
             if let Some(current) = self.current_match_index() {
-                Some(format!(" {current}:{count}"))
+                Some(format!("{icon}{current}:{count}"))
             } else if count == 0 {
-                Some(format!(" {count}"))
+                Some(format!("{icon}{count}"))
             } else {
-                Some(format!(" :{count}"))
+                let all = self.app_data.borrow().config.symbols.all.raw;
+                Some(format!("{icon}{all}:{count}"))
             }
         } else {
             None

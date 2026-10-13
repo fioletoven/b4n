@@ -140,7 +140,7 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
-        let caption = format!(" {} ", app_data.borrow().config.symbols.enter.raw);
+        let caption = format!(" {} ", app_data.borrow().config.symbols.accept.raw);
         let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
             .with_prompt(behaviour.prompt())
             .with_required(true)

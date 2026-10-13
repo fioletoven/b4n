@@ -1,4 +1,5 @@
 use b4n_common::{IconKind, NotificationSink};
+use b4n_config::symbols::Symbols;
 use b4n_kube::{ContainerRef, files::TransferContext};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client, api::AttachParams};
@@ -62,6 +63,7 @@ pub struct TransferFileCommand {
     context: TransferContext,
     client: Client,
     footer: NotificationSink,
+    icons: (char, char),
 }
 
 impl TransferFileCommand {
@@ -72,13 +74,16 @@ impl TransferFileCommand {
         context: TransferContext,
         client: Client,
         footer: NotificationSink,
+        symbols: &Symbols,
     ) -> Self {
+        let icons = (symbols.download.ch, symbols.upload.ch);
         Self {
             runtime,
             resource,
             context,
             client,
             footer,
+            icons,
         }
     }
 
@@ -88,9 +93,11 @@ impl TransferFileCommand {
         let sink = self.footer.clone();
 
         let result = if self.context.is_download {
-            download_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id).await
+            let icon = self.icons.0;
+            download_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id, icon).await
         } else {
-            upload_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id).await
+            let icon = self.icons.1;
+            upload_file(self.runtime, pods, self.resource, self.context, sink, &transfer_id, icon).await
         };
 
         self.footer.set_text(&transfer_id, None::<String>, IconKind::Default);
@@ -105,6 +112,7 @@ async fn download_file(
     context: TransferContext,
     sink: NotificationSink,
     text_id: &str,
+    icon: char,
 ) -> Result<TransferFileResult, TransferFileError> {
     if !context.overwrite_files && tokio::fs::try_exists(&context.to).await? {
         return Err(TransferFileError::DestinationExists(context.to.clone()));
@@ -136,7 +144,7 @@ async fn download_file(
         tar_data.extend_from_slice(&buf[..n]);
         transferred += n;
 
-        sink.set_text(text_id, Some(format_size('󰶡', transferred)), IconKind::Default);
+        sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
     }
 
     check_stderr(stderr_task).await?;
@@ -169,6 +177,7 @@ async fn upload_file(
     context: TransferContext,
     sink: NotificationSink,
     text_id: &str,
+    icon: char,
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_to = resolve_remote_tilde(&pods, &resource, &context.container, context.to).await?;
     let file_name = get_file_name(&context.from);
@@ -203,7 +212,7 @@ async fn upload_file(
         stdin.write_all(chunk).await?;
         transferred += chunk.len();
 
-        sink.set_text(text_id, Some(format_size('󰶣', transferred)), IconKind::Default);
+        sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
     }
 
     stdin.shutdown().await?;

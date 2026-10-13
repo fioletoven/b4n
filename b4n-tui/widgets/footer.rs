@@ -346,9 +346,10 @@ impl Footer {
             total += 2;
 
             let separator_style = Style::new().fg(colors.footer.trail.dim).bg(colors.footer.trail.bg);
+            let separator_icon = &symbols.separator.raw;
             for (i, element) in self.trail.iter().enumerate() {
                 if i != 0 {
-                    spans.push(Span::styled("  ", separator_style));
+                    spans.push(Span::styled(format!(" {} ", separator_icon), separator_style));
                     total += 3;
                 }
 
