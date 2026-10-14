@@ -9,6 +9,7 @@
 ### Bug Fixes
 
 - scroll while selecting logs do not update `bound to bottom` icon
+- limit entries processed per tick to avoid UI freezing on large directories
 
 ## 1.1.0 - 2026-10-06
 

@@ -112,6 +112,10 @@ impl FileBehaviour {
     }
 
     fn process_dir_results(&mut self, patterns: &mut Select<PatternsList>) {
+        const MAX_PER_TICK: usize = 400;
+        let mut processed = 0;
+        let mut needs_highlight = false;
+
         while let Some(result) = self.lister.try_recv() {
             match result {
                 DirListResult::Init => {
@@ -139,7 +143,12 @@ impl FileBehaviour {
                     if !self.pick_dir && entry.is_dir && entry.name == BACK_NAME && patterns.value_full().is_empty() {
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     } else if !patterns.value().is_empty() {
-                        patterns.highlight_item_by_filter_value();
+                        needs_highlight = true;
+                    }
+
+                    processed += 1;
+                    if processed >= MAX_PER_TICK {
+                        break;
                     }
                 },
                 DirListResult::Complete => {
@@ -151,6 +160,10 @@ impl FileBehaviour {
                     self.current_exists = false;
                 },
             }
+        }
+
+        if needs_highlight {
+            patterns.highlight_item_by_filter_value();
         }
     }
 
