@@ -1,4 +1,5 @@
 use b4n_config::keys::KeyCombination;
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::{ControlColors, SelectColors, SelectModalColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Margin, Position, Rect};
@@ -24,13 +25,20 @@ pub struct Selector {
     is_selecting: bool,
     selected: String,
     colors: ControlColors,
+    symbols: (char, char),
     area: Rect,
     width: u16,
 }
 
 impl Selector {
     /// Creates new [`Selector`] instance.
-    pub fn new<S: AsRef<str>>(id: usize, caption: impl Into<String>, options: &[S], colors: &SelectModalColors) -> Self {
+    pub fn new<S: AsRef<str>>(
+        id: usize,
+        caption: impl Into<String>,
+        options: &[S],
+        colors: &SelectModalColors,
+        symbols: &Symbols,
+    ) -> Self {
         let mut options = ActionsListBuilder::from_strings(options).build(None, None);
         options.highlight_first_item();
         let selected = options.get_highlighted_item_name().unwrap_or_default().to_owned();
@@ -63,6 +71,7 @@ impl Selector {
             is_selecting: false,
             selected,
             colors: colors.caption.clone(),
+            symbols: (symbols.opened.ch, symbols.closed.ch),
             area: Rect::default(),
             width: u16::try_from(caption_width + options_width).unwrap_or_default() + 5,
         }
@@ -129,7 +138,7 @@ impl Selector {
     /// Draws [`Selector`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
-        let icon = if self.is_opened() { '' } else { '' };
+        let icon = if self.is_opened() { self.symbols.0 } else { self.symbols.1 };
         let text = format!(" {} {} {} ", icon, self.caption, self.selected);
         let line = Line::styled(text, self.colors.get(self.is_hovered, self.is_focused));
 

@@ -566,16 +566,19 @@ impl YamlView {
         let colors = &self.app_data.borrow().theme.colors.modal;
         let mut inputs = Vec::new();
         if let Some(content) = self.yaml.content() {
+            let symbols = &self.app_data.borrow().config.symbols;
             let kind = deserialize_kind(&content.plain);
             if self.can_patch_status
                 && let Some(origin) = self.origin_kind.as_deref()
                 && kind.as_deref().is_some_and(|k| k == origin)
             {
-                inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
+                let cb = CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone(), symbols);
+                inputs.push(cb);
             }
 
             if kind.as_deref().is_some_and(|k| k == "Secret") {
-                inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
+                let cb = CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone(), symbols);
+                inputs.push(cb);
             }
         }
 
@@ -594,15 +597,18 @@ impl YamlView {
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
+        let symbols = &self.app_data.borrow().config.symbols;
         let mut inputs = vec![
-            CheckBox::new(0, "Force ownership (apply only)", false, colors.checkbox.clone()),
-            CheckBox::new(1, "Ignore resource version", false, colors.checkbox.clone()),
+            CheckBox::new(0, "Force ownership (apply only)", false, colors.checkbox.clone(), symbols),
+            CheckBox::new(1, "Ignore resource version", false, colors.checkbox.clone(), symbols),
         ];
         if self.can_patch_status {
-            inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
+            let cb = CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone(), symbols);
+            inputs.push(cb);
         }
         if self.is_secret {
-            inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
+            let cb = CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone(), symbols);
+            inputs.push(cb);
         }
 
         Dialog::new(

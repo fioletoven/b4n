@@ -1,3 +1,4 @@
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::TextBoxModalColors;
 use b4n_kube::ResourceTag;
 use b4n_kube::files::TransferContext;
@@ -17,6 +18,7 @@ pub fn new_transfer_dialog(
     position: Option<Position>,
 ) -> Dialog {
     let colors = &app_data.borrow().theme.colors;
+    let symbols = &app_data.borrow().config.symbols;
     Dialog::new(
         get_transfer_dialog_title(is_download),
         vec![
@@ -30,15 +32,21 @@ pub fn new_transfer_dialog(
     )
     .with_colors(colors.modal.text)
     .with_checkboxes(vec![
-        CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone()),
-        CheckBox::new(1, "Overwrite files", false, colors.modal.checkbox.clone()),
+        CheckBox::new(0, "Download", is_download, colors.modal.checkbox.clone(), symbols),
+        CheckBox::new(1, "Overwrite files", false, colors.modal.checkbox.clone(), symbols),
     ])
-    .with_textboxes(get_transfer_dialog_textboxes(app_data, is_download, &colors.modal.textbox))
+    .with_textboxes(get_transfer_dialog_textboxes(
+        app_data,
+        is_download,
+        &colors.modal.textbox,
+        symbols,
+    ))
     .with_selectors(vec![Selector::new(
         0,
         "Container:",
         &common::get_all_containers_from_resource_tags(tags),
         &colors.modal.selector,
+        symbols,
     )])
     .with_highlighted_position(position)
     .with_on_change(|message, controls| {
@@ -102,9 +110,20 @@ fn get_transfer_dialog_title(is_download: bool) -> String {
     }
 }
 
-fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, colors: &TextBoxModalColors) -> Vec<TextBox> {
-    fn get_textbox(app_data: &SharedAppData, is_download: bool, is_first: bool, colors: &TextBoxModalColors) -> TextBox {
-        let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone())
+fn get_transfer_dialog_textboxes(
+    app_data: &SharedAppData,
+    is_download: bool,
+    colors: &TextBoxModalColors,
+    symbols: &Symbols,
+) -> Vec<TextBox> {
+    fn get_textbox(
+        app_data: &SharedAppData,
+        is_download: bool,
+        is_first: bool,
+        colors: &TextBoxModalColors,
+        symbols: &Symbols,
+    ) -> TextBox {
+        let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone(), symbols)
             .with_button("  ", "select_file")
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::Required);
@@ -117,8 +136,8 @@ fn get_transfer_dialog_textboxes(app_data: &SharedAppData, is_download: bool, co
     }
 
     vec![
-        get_textbox(app_data, is_download, true, colors),
-        get_textbox(app_data, !is_download, false, colors),
+        get_textbox(app_data, is_download, true, colors, symbols),
+        get_textbox(app_data, !is_download, false, colors, symbols),
     ]
 }
 

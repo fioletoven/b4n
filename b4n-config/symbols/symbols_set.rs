@@ -8,14 +8,14 @@ define_symbols_set! {
     right_sep: '', '', '▒';
     left_end: '', '', '░';
     right_end: '', '', '░';
-    error: '', '⨯', 'x';
+    error: '', '⨯', '⨯';
     back: '󰕍', '←', '←';
     accept: '', '⏎', '→';
     hint: '', '☼', '☼';
-    prompt: '', '❭', '❯';
+    prompt: '', '❭', '›';
     separator: '', '❭', '›';
     filter: '', '▽', '▼';
-    pin: '󰐃', '▼', '†';
+    pin: '󰐃', '▼', '●';
     pod: '', '▤';
     container: '', '▢';
     action: '';
@@ -33,6 +33,11 @@ define_symbols_set! {
     edit: '', '±', '±';
     view: '', '◉', ' ';
     decoded: '', '⨯', 'x';
+    checked: '󰄵', '■', '■';
+    unchecked: '', '□', '□';
+    opened: '', '▾', '▾';
+    closed: '', '▸', '▸';
+    input: '';
 }
 
 /// A single symbol representation.

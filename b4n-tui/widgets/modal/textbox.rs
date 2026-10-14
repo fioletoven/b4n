@@ -1,3 +1,4 @@
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::{TextBoxModalColors, TextColors};
 use crossterm::event::KeyCode;
 use ratatui_core::layout::{Margin, Position, Rect};
@@ -20,6 +21,7 @@ pub struct TextBox {
     is_focused: bool,
     show_cursor: bool,
     colors: TextBoxModalColors,
+    symbols: (char, char),
     area: Rect,
     caption_width: u16,
     input_width: u16,
@@ -27,7 +29,7 @@ pub struct TextBox {
 
 impl TextBox {
     /// Creates new [`TextBox`] instance.
-    pub fn new(id: usize, caption: impl Into<String>, input_width: u16, colors: TextBoxModalColors) -> Self {
+    pub fn new(id: usize, caption: impl Into<String>, input_width: u16, colors: TextBoxModalColors, symbols: &Symbols) -> Self {
         let caption = caption.into();
         let caption_width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
         let mut input = Input::new(colors.caption.normal).with_show_accept_button_on_errors(true);
@@ -43,6 +45,7 @@ impl TextBox {
             is_focused: false,
             show_cursor: colors.cursor.is_some(),
             colors,
+            symbols: (symbols.input.ch, symbols.error.ch),
             area: Rect::default(),
             caption_width,
             input_width,
@@ -219,9 +222,9 @@ impl TextBox {
                 dim: error_colors.dim,
                 bg: colors.bg,
             };
-            Span::styled("  ", &colors)
+            Span::styled(format!(" {} ", self.symbols.1), &colors)
         } else {
-            Span::styled("  ", colors)
+            Span::styled(format!(" {} ", self.symbols.0), colors)
         }
     }
 }
