@@ -114,9 +114,10 @@ impl PickerBehaviour for NamespaceBehaviour {
     fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
         let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         let context = &self.app_data.borrow().current.context;
+        let icon = self.app_data.borrow().config.symbols.user.ch;
         let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
         for item in items.list.full_iter_mut() {
-            item.data.set_icon(Some(""));
+            item.data.set_icon(Some(icon));
         }
 
         for ns in &self.discovered {

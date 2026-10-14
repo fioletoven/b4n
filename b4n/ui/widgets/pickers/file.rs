@@ -16,8 +16,6 @@ use tokio::runtime::Handle;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
-const DIR_ICON: &str = "";
-const BACK_ICON: &str = "󰕍";
 const BACK_NAME: &str = "..";
 const FILE_SELECT_HINT: &str = "Select or type a file path:";
 const DIR_SELECT_HINT: &str = "Select or type a directory path:";
@@ -83,6 +81,7 @@ pub struct FileBehaviour {
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf, pick_dir: bool) -> Self {
         let use_plain_symbols = app_data.use_plain_symbols();
+
         Self {
             app_data,
             lister: DirLister::new(runtime, 100),
@@ -115,6 +114,8 @@ impl FileBehaviour {
         const MAX_PER_TICK: usize = 400;
         let mut processed = 0;
         let mut needs_highlight = false;
+        let dir_icon = self.app_data.borrow().config.symbols.dir.ch;
+        let back_icon = self.app_data.borrow().config.symbols.back.ch;
 
         while let Some(result) = self.lister.try_recv() {
             match result {
@@ -134,7 +135,7 @@ impl FileBehaviour {
 
                     let mut item = PatternItem::fixed(entry.name.clone());
                     if entry.is_dir {
-                        item.set_icon(Some(if entry.name == BACK_NAME { BACK_ICON } else { DIR_ICON }));
+                        item.set_icon(Some(if entry.name == BACK_NAME { back_icon } else { dir_icon }));
                         item.set_sort_value(Some(format!("...-{}", entry.name)));
                     }
 
@@ -300,8 +301,11 @@ impl PickerBehaviour for FileBehaviour {
             return false;
         }
 
+        let dir_icon = self.app_data.borrow().config.symbols.dir.ch;
+        let back_icon = self.app_data.borrow().config.symbols.back.ch;
+
         if let Some(item) = patterns.items.get_highlighted() {
-            if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
+            if item.icon().is_some_and(|i| i == dir_icon || i == back_icon) {
                 if item.name() == BACK_NAME {
                     self.navigate_up();
                 } else {
@@ -338,8 +342,8 @@ impl PickerBehaviour for FileBehaviour {
 
                     if self.current_path.parent().is_some() {
                         let mut item = PatternItem::fixed(BACK_NAME.to_owned());
-                        item.set_icon(Some(BACK_ICON));
-                        item.set_sort_value(Some("...-..".to_string()));
+                        item.set_icon(Some(back_icon));
+                        item.set_sort_value(Some("   -..".to_string()));
                         patterns.items.add_or_update(item);
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     }

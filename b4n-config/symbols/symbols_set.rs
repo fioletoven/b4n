@@ -18,9 +18,11 @@ define_symbols_set! {
     pin: '󰐃', '▼', '●';
     pod: '', '▤';
     container: '', '▢';
+    dir: '', '⬓', '▫';
+    user: '', '☻', '☻';
     action: '';
     plugin: '';
-    external: '';
+    extension: '';
     structure: '', '≈', '≈';
     bound: '', '≡', '≡';
     unbound: '', '≠', '≠';

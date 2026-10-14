@@ -651,7 +651,7 @@ impl ViewsManager {
                     false,
                     self.workspace,
                 );
-                let icon = self.app_data.borrow().config.symbols.external.ch;
+                let icon = self.app_data.borrow().config.symbols.extension.ch;
                 self.view = Some(Box::new(view.with_title(title, icon)));
             }
         }
