@@ -43,6 +43,7 @@ impl<T: Content> ContentViewer<T> {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
         let edit = EditContext::new(Rc::clone(&app_data), app_data.borrow().theme.colors.cursor);
         let select = SelectContext::new(Rc::clone(&app_data));
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         Self {
             header,
@@ -57,7 +58,7 @@ impl<T: Content> ContentViewer<T> {
             page_start: ContentPosition::default(),
             page_area: area,
             creation_time: Instant::now(),
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
         }
     }
 

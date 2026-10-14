@@ -7,7 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::{AppData, ConnectionState, SharedAppData};
+use crate::core::{AppData, ConnectionState, SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
@@ -27,6 +27,7 @@ impl ListHeader {
     /// Creates new UI header pane.\
     /// **Note** that setting `fixed_kind` to Some will prevent header from displaying name.
     pub fn new(app_data: SharedAppData, count: usize) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         Self {
             app_data,
             count,
@@ -36,7 +37,7 @@ impl ListHeader {
             has_api_error: DelayedTrueTracker::default(),
             is_filtered: false,
             hide_previous: false,
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
         }
     }
 

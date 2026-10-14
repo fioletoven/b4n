@@ -225,6 +225,9 @@ pub trait SharedAppDataExt {
     /// Returns `true` if app can use `NerdFont` symbols.
     fn has_nerd_font(&self) -> bool;
 
+    /// Returns `true` if app should use plain symbols instead of `NerdFont` or `Powerline` ones.
+    fn use_plain_symbols(&self) -> bool;
+
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
     fn disable_command(&self, command: KeyCommand, disable: bool);
 
@@ -275,6 +278,10 @@ impl SharedAppDataExt for SharedAppData {
 
     fn has_nerd_font(&self) -> bool {
         self.borrow().config.symbols == Symbols::NerdFont
+    }
+
+    fn use_plain_symbols(&self) -> bool {
+        self.borrow().config.symbols == Symbols::Plain
     }
 
     fn disable_command(&self, command: KeyCommand, hide: bool) {

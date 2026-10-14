@@ -51,6 +51,7 @@ impl DescribeContent {
         let (conditions, conditions_header) = Self::create_conditions(&app_data);
         let (events, events_header) = Self::create_events(&app_data);
         let sections = data::create_additional_sections(&resource, &app_data);
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         Self {
             app_data,
@@ -65,7 +66,7 @@ impl DescribeContent {
             creation_time: Instant::now(),
             has_data: false,
             is_deleted: false,
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
             page_start: ContentPosition::new(0, 0),
             max_height: 0,
             max_width: 0,

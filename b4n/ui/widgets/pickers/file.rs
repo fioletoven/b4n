@@ -13,7 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::core::{SharedAppData, SharedBgWorker};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
 const DIR_ICON: &str = "";
@@ -82,6 +82,7 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf, pick_dir: bool) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         Self {
             app_data,
             lister: DirLister::new(runtime, 100),
@@ -90,7 +91,7 @@ impl FileBehaviour {
             selected_path: None,
             selected_exists: false,
             loading: true,
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
             pick_dir,
         }
     }

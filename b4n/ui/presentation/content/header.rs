@@ -5,11 +5,10 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::ConnectionState;
+use crate::core::{ConnectionState, SharedAppDataExt};
 use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
-#[derive(Default)]
 pub struct ContentHeader {
     pub title: String,
     pub icon: char,
@@ -32,15 +31,24 @@ pub struct ContentHeader {
 impl ContentHeader {
     /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData, show_coordinates: bool) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         Self {
+            title: String::new(),
             icon: ' ',
             namespace: Namespace::all(),
+            kind: Kind::default(),
+            name: None,
+            descr: None,
             app_data,
             name_icon: ' ',
             edit_icon: ' ',
+            edit_mode: "",
             show_coordinates,
-            spinner: Spinner::default(),
-            ..Default::default()
+            position_x: 0,
+            position_y: 0,
+            is_busy: false,
+            spinner: Spinner::new(use_plain_symbols),
+            path_cache: None,
         }
     }
 

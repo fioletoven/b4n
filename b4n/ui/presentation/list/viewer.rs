@@ -29,6 +29,7 @@ pub struct ListViewer<T: Table> {
 impl<T: Table> ListViewer<T> {
     /// Creates new [`ListViewer`] instance.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         ListViewer {
             table: list,
             view,
@@ -38,7 +39,7 @@ impl<T: Table> ListViewer<T> {
             is_focused: true,
             has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
             show_border: true,
         }
     }
