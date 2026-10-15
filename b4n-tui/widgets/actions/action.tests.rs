@@ -7,7 +7,12 @@ fn update_symbols_test() {
     for symbols in Symbols::ALL {
         let mut action = ActionItem::new("action", ActionItemKind::Action);
         action.update_icon(&symbols);
-        assert_eq!(action.icon, Some(symbols.action.ch));
+        let expected = if symbols.action.raw.is_empty() {
+            None
+        } else {
+            Some(symbols.action.ch)
+        };
+        assert_eq!(action.icon, expected);
 
         let mut plugin = ActionItem::new("plugin", ActionItemKind::Plugin);
         plugin.update_icon(&symbols);
@@ -35,18 +40,29 @@ fn update_symbols_test() {
 #[test]
 fn get_name_test() {
     let action = ActionItem::new("some long text that should be truncated", ActionItemKind::Action);
+    assert_eq!("some long text t".to_owned(), action.get_name(16));
+
+    let action = action.with_icon(Some(''));
     assert_eq!("some long text ".to_owned(), action.get_name(16));
 
-    let action = ActionItem::new("some long text that should be truncated", ActionItemKind::Action).with_description("descr");
+    let action = ActionItem::new("some long text that should be truncated", ActionItemKind::Action)
+        .with_icon(Some(''))
+        .with_description("descr");
     assert_eq!("some long text ".to_owned(), action.get_name(16));
 
-    let action = ActionItem::new("some text", ActionItemKind::Action).with_description("descr");
+    let action = ActionItem::new("some text", ActionItemKind::Action)
+        .with_icon(Some(''))
+        .with_description("descr");
     assert_eq!("some text ␝desc␝ ".to_owned(), action.get_name(16));
 
-    let action = ActionItem::new("text", ActionItemKind::Action).with_description("descr");
+    let action = ActionItem::new("text", ActionItemKind::Action)
+        .with_icon(Some(''))
+        .with_description("descr");
     assert_eq!("text     ␝descr␝ ".to_owned(), action.get_name(16));
 
-    let mut action = ActionItem::new("text", ActionItemKind::Action).with_description("descr");
+    let mut action = ActionItem::new("text", ActionItemKind::Action)
+        .with_icon(Some(''))
+        .with_description("descr");
     action.set_key(Some("Ctrl+C".to_owned()));
     assert_eq!("text ␝descr␝  ␝❬␝Ctrl+C␝❭␝ ".to_owned(), action.get_name(22));
 

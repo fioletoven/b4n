@@ -214,7 +214,7 @@ pub fn new_inject_container_dialog(app_data: &SharedAppData, resource: &Resource
             .with_value(image)
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::DockerImage)
-            .with_button("  ", "select_image"),
+            .with_button(format!(" {} ", sym.select.ch), "select_image"),
         TextBox::new(2, "Command:", 40, colors.textbox.clone(), sym)
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::ShellCommand),

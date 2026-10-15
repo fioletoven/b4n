@@ -115,7 +115,7 @@ impl FileBehaviour {
         let back_icon = self.app_data.borrow().config.symbols.back.ch;
 
         let mut needs_highlight = false;
-        while self.app_data.has_frame_time_remaining()
+        while self.app_data.has_frame_budget()
             && let Some(result) = self.lister.try_recv()
         {
             match result {

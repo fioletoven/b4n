@@ -193,7 +193,7 @@ impl App {
             return Ok(ExecutionFlow::Stop);
         }
 
-        while self.data.has_frame_time_remaining()
+        while self.data.has_frame_budget()
             && let Ok(event) = self.tui.event_rx.try_recv()
         {
             match self.process_event(&event) {
@@ -291,7 +291,7 @@ impl App {
 
     /// Processes results from commands execution.
     fn process_commands_results(&mut self) {
-        while self.data.has_frame_time_remaining()
+        while self.data.has_frame_budget()
             && let Some(command) = { self.worker.borrow_mut().check_command_result() }
         {
             match command.result {

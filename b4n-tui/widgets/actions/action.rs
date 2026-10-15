@@ -151,6 +151,7 @@ impl ActionItem {
         self.show_menu_icon = is_visible;
     }
 
+    /// Updates the action's icon if it hasn't been set already.
     pub fn update_icon(&mut self, symbols: &Symbols) {
         if self.icon.is_some() {
             return;

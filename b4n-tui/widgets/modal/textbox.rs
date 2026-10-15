@@ -61,7 +61,7 @@ impl TextBox {
     }
 
     /// Adds button to the textbox.
-    pub fn with_button(mut self, icon: &'static str, action: &'static str) -> Self {
+    pub fn with_button(mut self, icon: impl Into<String>, action: &'static str) -> Self {
         let response = ResponseEvent::Action(action);
         self.input
             .set_accept_button(Some((icon, response)), Some(self.colors.caption.normal));

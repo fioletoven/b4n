@@ -175,8 +175,8 @@ impl AppData {
         self.frame_deadline = Some(start + work_budget);
     }
 
-    /// Returns whether optional work can continue in this frame.
-    pub fn has_frame_time_remaining(&self) -> bool {
+    /// Returns `true` if there is a budget for more work in this frame.
+    pub fn has_frame_budget(&self) -> bool {
         self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
     }
 
@@ -225,8 +225,8 @@ impl AppData {
 
 /// Extension methods for the [`SharedAppData`] type.
 pub trait SharedAppDataExt {
-    /// Returns whether optional work can continue in this frame.
-    fn has_frame_time_remaining(&self) -> bool;
+    /// Returns `true` if there is a budget for more work in this frame.
+    fn has_frame_budget(&self) -> bool;
 
     /// Returns `true` if the given [`TuiEvent`] is a key event and is bound to the specified [`KeyCommand`] within
     /// the [`KeyBindings`] stored in [`SharedAppData`].
@@ -271,8 +271,8 @@ pub trait SharedAppDataExt {
 }
 
 impl SharedAppDataExt for SharedAppData {
-    fn has_frame_time_remaining(&self) -> bool {
-        self.borrow().has_frame_time_remaining()
+    fn has_frame_budget(&self) -> bool {
+        self.borrow().has_frame_budget()
     }
 
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {

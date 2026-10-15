@@ -19,6 +19,8 @@ define_symbols_set! {
     pod: '', '▤';
     container: '', '▢';
     dir: '', '⬓', '▫';
+    dir2: '', '⬓', '▪';
+    select: '', '⬒', '▴';
     user: '', '☻', '☻';
     action: '';
     plugin: '';
