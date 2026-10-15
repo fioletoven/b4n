@@ -16,6 +16,7 @@ use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 use tokio::runtime::Handle;
 
 use crate::core::managers::{KubernetesClientManager, ViewsManager};
@@ -119,6 +120,11 @@ impl App {
         Ok(())
     }
 
+    /// Starts the shared budget for optional work during this frame.
+    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
+        self.data.borrow_mut().begin_frame(start, work_budget);
+    }
+
     /// Checks if `themes` and `plugins` directories exist.
     pub fn check_resources_dir(&mut self) {
         if !self.data.borrow().history.ignore_missing_resources
@@ -187,7 +193,9 @@ impl App {
             return Ok(ExecutionFlow::Stop);
         }
 
-        while let Ok(event) = self.tui.event_rx.try_recv() {
+        while self.data.has_frame_time_remaining()
+            && let Ok(event) = self.tui.event_rx.try_recv()
+        {
             match self.process_event(&event) {
                 Ok(response) => {
                     if response == ResponseEvent::ExitApplication {
@@ -283,8 +291,9 @@ impl App {
 
     /// Processes results from commands execution.
     fn process_commands_results(&mut self) {
-        let commands = self.worker.borrow_mut().get_all_waiting_results();
-        for command in commands {
+        while self.data.has_frame_time_remaining()
+            && let Some(command) = { self.worker.borrow_mut().check_command_result() }
+        {
             match command.result {
                 CommandResult::InstallMissingResources(result) => self.process_assets_installation_result(result),
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),

@@ -355,15 +355,6 @@ impl BgWorker {
         self.executor.try_next()
     }
 
-    /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
-        let mut commands = Vec::new();
-        while let Some(command) = self.check_command_result() {
-            commands.push(*command);
-        }
-        commands
-    }
-
     /// Returns connection state.
     pub fn get_connection_state(&self) -> ConnectionState {
         if self.resources.is_connected() {

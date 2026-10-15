@@ -10,6 +10,7 @@ use b4n_tui::widgets::SharedClipboard;
 use b4n_tui::{ToSelectData, TuiEvent};
 use kube::discovery::Scope;
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use crate::kube::kinds::KindItem;
@@ -126,6 +127,9 @@ pub enum ConnectionState {
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
+    /// Deadline for the current frame's optional work budget.
+    frame_deadline: Option<Instant>,
+
     /// Application configuration.
     pub config: Config,
 
@@ -166,6 +170,16 @@ pub struct AppData {
 }
 
 impl AppData {
+    /// Starts a shared budget for cooperative UI work.
+    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
+        self.frame_deadline = Some(start + work_budget);
+    }
+
+    /// Returns whether optional work can continue in this frame.
+    pub fn has_frame_time_remaining(&self) -> bool {
+        self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
+    }
+
     /// Creates new [`AppData`] instance.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
         let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
@@ -211,6 +225,9 @@ impl AppData {
 
 /// Extension methods for the [`SharedAppData`] type.
 pub trait SharedAppDataExt {
+    /// Returns whether optional work can continue in this frame.
+    fn has_frame_time_remaining(&self) -> bool;
+
     /// Returns `true` if the given [`TuiEvent`] is a key event and is bound to the specified [`KeyCommand`] within
     /// the [`KeyBindings`] stored in [`SharedAppData`].
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool;
@@ -254,6 +271,10 @@ pub trait SharedAppDataExt {
 }
 
 impl SharedAppDataExt for SharedAppData {
+    fn has_frame_time_remaining(&self) -> bool {
+        self.borrow().has_frame_time_remaining()
+    }
+
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         match event {
             TuiEvent::Key(key) => self.has_key_binding(key, command),

@@ -92,9 +92,11 @@ fn run_application(args: &cli::Args) -> Result<()> {
 fn application_loop(app: &mut App) -> Result<(), anyhow::Error> {
     const FPS: u64 = 20;
     const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / FPS);
+    const RENDER_DURATION: Duration = Duration::from_nanos(FRAME_DURATION.as_nanos() as u64 / 10);
 
     loop {
         let frame_start = Instant::now();
+        app.begin_frame(frame_start, FRAME_DURATION - RENDER_DURATION);
         if app.process_events()? == ExecutionFlow::Stop {
             break;
         }
