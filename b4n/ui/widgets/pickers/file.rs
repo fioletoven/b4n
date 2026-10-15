@@ -8,16 +8,14 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
+use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
 use std::rc::Rc;
 use tokio::runtime::Handle;
 
-use crate::core::{SharedAppData, SharedBgWorker};
+use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 
-const PROMPT_END: &str = " ";
-const DIR_ICON: &str = "";
-const BACK_ICON: &str = "󰕍";
 const BACK_NAME: &str = "..";
 const FILE_SELECT_HINT: &str = "Select or type a file path:";
 const DIR_SELECT_HINT: &str = "Select or type a directory path:";
@@ -56,7 +54,6 @@ impl FileSelector {
         }
 
         let behaviour = self.behaviour_mut();
-        behaviour.prompt = build_prompt(&path);
         behaviour.current_path = path;
         behaviour.lister.reset();
         behaviour.loading = true;
@@ -76,7 +73,6 @@ pub struct FileBehaviour {
     current_exists: bool,
     selected_path: Option<String>,
     selected_exists: bool,
-    prompt: String,
     loading: bool,
     spinner: Spinner,
     pick_dir: bool,
@@ -84,7 +80,7 @@ pub struct FileBehaviour {
 
 impl FileBehaviour {
     pub fn new(app_data: SharedAppData, runtime: Handle, initial_path: PathBuf, pick_dir: bool) -> Self {
-        let prompt = build_prompt(&initial_path);
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         Self {
             app_data,
@@ -93,15 +89,13 @@ impl FileBehaviour {
             current_exists: false,
             selected_path: None,
             selected_exists: false,
-            prompt,
             loading: true,
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
             pick_dir,
         }
     }
 
     fn navigate_to_dir(&mut self, dir_path: PathBuf) -> bool {
-        self.prompt = build_prompt(&dir_path);
         self.current_path.clone_from(&dir_path);
         self.current_exists = false;
         self.loading = self.lister.list_dir(dir_path, true);
@@ -117,7 +111,13 @@ impl FileBehaviour {
     }
 
     fn process_dir_results(&mut self, patterns: &mut Select<PatternsList>) {
-        while let Some(result) = self.lister.try_recv() {
+        let dir_icon = self.app_data.borrow().config.symbols.dir.ch;
+        let back_icon = self.app_data.borrow().config.symbols.back.ch;
+
+        let mut needs_highlight = false;
+        while self.app_data.has_frame_budget()
+            && let Some(result) = self.lister.try_recv()
+        {
             match result {
                 DirListResult::Init => {
                     self.loading = true;
@@ -133,18 +133,18 @@ impl FileBehaviour {
                         continue;
                     }
 
-                    let mut item = PatternItem::fixed(entry.name.clone());
-                    if entry.is_dir {
-                        item.set_icon(Some(if entry.name == BACK_NAME { BACK_ICON } else { DIR_ICON }));
-                        item.set_sort_value(Some(format!("...-{}", entry.name)));
-                    }
+                    let item = if entry.is_dir {
+                        directory_item(entry.name.clone(), dir_icon, back_icon)
+                    } else {
+                        PatternItem::fixed(entry.name.clone())
+                    };
 
                     patterns.items.add_or_update(item);
 
                     if !self.pick_dir && entry.is_dir && entry.name == BACK_NAME && patterns.value_full().is_empty() {
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     } else if !patterns.value().is_empty() {
-                        patterns.highlight_item_by_filter_value();
+                        needs_highlight = true;
                     }
                 },
                 DirListResult::Complete => {
@@ -156,6 +156,10 @@ impl FileBehaviour {
                     self.current_exists = false;
                 },
             }
+        }
+
+        if needs_highlight {
+            patterns.highlight_item_by_filter_value();
         }
     }
 
@@ -179,8 +183,9 @@ impl FileBehaviour {
 }
 
 impl PickerBehaviour for FileBehaviour {
-    fn prompt(&self) -> &str {
-        &self.prompt
+    fn prompt(&self) -> Cow<'_, str> {
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
+        format!("{}{}", self.current_path.display(), prompt_end).into()
     }
 
     fn colors(&self) -> SelectColors {
@@ -291,8 +296,11 @@ impl PickerBehaviour for FileBehaviour {
             return false;
         }
 
+        let dir_icon = self.app_data.borrow().config.symbols.dir.ch;
+        let back_icon = self.app_data.borrow().config.symbols.back.ch;
+
         if let Some(item) = patterns.items.get_highlighted() {
-            if item.icon().is_some_and(|i| i == DIR_ICON || i == BACK_ICON) {
+            if item.icon().is_some_and(|i| i == dir_icon || i == back_icon) {
                 if item.name() == BACK_NAME {
                     self.navigate_up();
                 } else {
@@ -328,9 +336,7 @@ impl PickerBehaviour for FileBehaviour {
                     patterns.reset();
 
                     if self.current_path.parent().is_some() {
-                        let mut item = PatternItem::fixed(BACK_NAME.to_owned());
-                        item.set_icon(Some(BACK_ICON));
-                        item.set_sort_value(Some("...-..".to_string()));
+                        let item = directory_item(BACK_NAME.to_owned(), dir_icon, back_icon);
                         patterns.items.add_or_update(item);
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     }
@@ -353,7 +359,8 @@ impl PickerBehaviour for FileBehaviour {
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         let hint = if self.pick_dir { DIR_SELECT_HINT } else { FILE_SELECT_HINT };
-        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { '' }, hint);
+        let icon = self.app_data.borrow().config.symbols.hint.ch;
+        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { icon }, hint);
         frame.render_widget(Paragraph::new(line).style(style), area);
     }
 
@@ -366,8 +373,13 @@ impl PickerBehaviour for FileBehaviour {
     }
 }
 
-fn build_prompt(path: &Path) -> String {
-    format!("{}{}", path.display(), PROMPT_END)
+fn directory_item(name: String, dir_icon: char, back_icon: char) -> PatternItem {
+    let is_back = name == BACK_NAME;
+    let sort_value = if is_back { String::new() } else { format!("...-{name}") };
+    let mut item = PatternItem::fixed(name);
+    item.set_icon(Some(if is_back { back_icon } else { dir_icon }));
+    item.set_sort_value(Some(sort_value));
+    item
 }
 
 fn normalize(path: &str) -> PathBuf {

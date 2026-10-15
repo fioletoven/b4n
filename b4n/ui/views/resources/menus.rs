@@ -1,7 +1,7 @@
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, SECRETS, Scope};
 use b4n_tui::table::Table;
-use b4n_tui::widgets::{ActionItem, ActionsList, ActionsListBuilder, ValidatorKind};
+use b4n_tui::widgets::{ActionItem, ActionItemKind, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
 use std::rc::Rc;
 
@@ -13,10 +13,11 @@ use crate::ui::widgets::{CommandPalette, StepBuilder};
 
 /// Builds steps required to configure port forward for specified resource container.
 pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef, list: &[Port]) -> CommandPalette {
-    let actions_list = ActionsListBuilder::from_resource_ports(list).build(None);
+    let icon = app_data.borrow().config.symbols.hint.right;
+    let actions_list = ActionsListBuilder::from_resource_ports(list).build(None, None);
     CommandPalette::new(Rc::clone(app_data), actions_list, 65)
         .with_header(format!(
-            " Add port forward for '{}' container:",
+            "{icon}Add port forward for '{}' container:",
             resource.container.as_deref().unwrap_or_default()
         ))
         .with_prompt("container port")
@@ -43,9 +44,10 @@ pub fn build_port_forward_steps(app_data: &SharedAppData, resource: ResourceRef,
 
 /// Builds command palette that allows to select container's image name.
 pub fn build_image_select_palette(app_data: &SharedAppData, highlighted: &str) -> CommandPalette {
-    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None);
+    let icon = app_data.borrow().config.symbols.hint.right;
+    let actions = ActionsListBuilder::from_strings(&app_data.borrow().config.debug_images).build(None, None);
     CommandPalette::new(Rc::clone(app_data), actions, 65)
-        .with_header(" Format: [registry/][namespace/]name[:tag][@digest]")
+        .with_header(format!("{icon}Format: [registry/][namespace/]name[:tag][@digest]"))
         .with_prompt("image name")
         .with_validator(ValidatorKind::DockerImage)
         .with_highlighted(highlighted)
@@ -68,7 +70,7 @@ pub fn build_create_resource_actions(table: &ResourcesTable) -> ActionsList {
         );
     }
 
-    builder.build(None)
+    builder.build(None, None)
 }
 
 /// Builds actions for mouse menu.
@@ -83,76 +85,77 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
     let copy = if is_selected { "selected" } else { "all" };
     let mut builder = ActionsListBuilder::default()
         .with_menu_action(ActionItem::command_palette())
-        .with_menu_action(ActionItem::menu(16, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+        .with_menu_action(ActionItem::menu(16, '󰆏', format!("copy ␝{copy}␝"), "copy"));
 
     if table.kind_plural() == NAMESPACES {
         builder.add_menu_action(
-            ActionItem::new("␝󱈸␝ quit")
+            ActionItem::new("quit ␝‼␝", ActionItemKind::Menu)
                 .with_response(ResponseEvent::ExitApplication)
                 .with_sort_id(100)
+                .with_menu_icon(Some(''))
                 .with_icon(None),
         );
     } else {
-        builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
+        builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "back"));
     }
 
     if table.list.table.is_anything_selected() && table.list.table.data.is_deletable {
-        let action = ActionItem::menu(14, " delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
+        let action = ActionItem::menu(14, '', "delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
         builder.add_menu_action(action);
     }
 
     if is_highlighted {
         builder = builder
-            .with_menu_action(ActionItem::menu(1, " YAML", "show_yaml"))
-            .with_menu_action(ActionItem::menu(5, " describe", "describe"))
-            .with_menu_action(ActionItem::menu(15, "󰆏 copy ␝name␝", "copy_name"));
+            .with_menu_action(ActionItem::menu(1, '', "YAML", "show_yaml"))
+            .with_menu_action(ActionItem::menu(5, '', "describe", "describe"))
+            .with_menu_action(ActionItem::menu(15, '󰆏', "copy ␝name␝", "copy_name"));
 
         if table.kind_plural() == SECRETS {
-            builder.add_menu_action(ActionItem::menu(2, " YAML ␝decoded␝", "decode_yaml"));
+            builder.add_menu_action(ActionItem::menu(2, '', "YAML ␝decoded␝", "decode_yaml"));
         }
 
         if is_containers || is_pods {
             builder = builder
-                .with_menu_action(ActionItem::menu(3, " logs", "show_logs"))
-                .with_menu_action(ActionItem::menu(4, " logs ␝previous␝", "show_plogs"));
+                .with_menu_action(ActionItem::menu(3, '', "logs", "show_logs"))
+                .with_menu_action(ActionItem::menu(4, '', "logs ␝previous␝", "show_plogs"));
 
             if table.is_resource_running() {
                 builder = builder
-                    .with_menu_action(ActionItem::menu(6, " attach", "attach"))
-                    .with_menu_action(ActionItem::menu(7, " shell", "open_shell"))
-                    .with_menu_action(ActionItem::menu(8, "󱘖 forward port", "port_forward"));
+                    .with_menu_action(ActionItem::menu(6, '', "attach", "attach"))
+                    .with_menu_action(ActionItem::menu(7, '', "shell", "open_shell"))
+                    .with_menu_action(ActionItem::menu(8, '󱘖', "forward port", "port_forward"));
 
                 if is_pods {
                     builder = builder
-                        .with_menu_action(ActionItem::menu(10, " inject container", "inject"))
-                        .with_menu_action(ActionItem::menu(11, " download files", "download"))
-                        .with_menu_action(ActionItem::menu(11, " upload file", "upload"));
+                        .with_menu_action(ActionItem::menu(10, '', "inject container", "inject"))
+                        .with_menu_action(ActionItem::menu(11, '', "download files", "download"))
+                        .with_menu_action(ActionItem::menu(11, '', "upload file", "upload"));
                 }
             }
 
             if is_pods && has_highlighted_item_active_port_forward(table) {
-                builder.add_menu_action(ActionItem::menu(9, " stop ␝port forwards␝", "ask_stop_port_forwards"));
+                builder.add_menu_action(ActionItem::menu(9, '', "stop ␝port forwards␝", "ask_stop_port_forwards"));
             }
         }
 
         if table.list.table.data.is_editable {
-            builder.add_menu_action(ActionItem::menu(12, " edit", "edit_yaml"));
+            builder.add_menu_action(ActionItem::menu(12, '', "edit", "edit_yaml"));
         }
 
         if !is_containers && !is_events {
-            builder.add_menu_action(ActionItem::menu(98, "󰑏 events", "show_events"));
+            builder.add_menu_action(ActionItem::menu(98, '󰑏', "events", "show_events"));
         }
 
         if has_involved_object(table) {
-            builder.add_menu_action(ActionItem::menu(99, "󰑏 involved object", "show_involved"));
+            builder.add_menu_action(ActionItem::menu(99, '󰑏', "involved object", "show_involved"));
         }
     }
 
     if !is_containers && !is_events && table.list.table.data.is_creatable {
-        builder.add_menu_action(ActionItem::menu(13, "󰐕 create new", "create"));
+        builder.add_menu_action(ActionItem::menu(13, '󰐕', "create new", "create"));
     }
 
-    builder.build(None)
+    builder.build(None, None)
 }
 
 /// Builds actions for highlighted resource.
@@ -231,7 +234,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     builder
         .with_aliases(&app_data.borrow().config.aliases)
-        .build(Some(&app_data.borrow().key_bindings))
+        .build(Some(&app_data.borrow().key_bindings), Some(&app_data.borrow().config.symbols))
 }
 
 fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable, is_containers: bool) -> ActionsListBuilder {

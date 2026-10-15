@@ -5,7 +5,7 @@ use b4n_tui::{ResponseEvent, table::Table};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternsList, Picker, PickerBehaviour};
@@ -50,10 +50,11 @@ impl SearchBehaviour {
         let enter = app_data.get_key_name(KeyCommand::NavigateInto).to_ascii_uppercase();
         let next = app_data.get_key_name(KeyCommand::MatchNext).to_ascii_uppercase();
         let prev = app_data.get_key_name(KeyCommand::MatchPrevious).to_ascii_uppercase();
+        let icon = app_data.borrow().config.symbols.hint.right;
 
         Self {
             app_data,
-            hint: format!(" {enter} to accept, {next} and {prev} to navigate."),
+            hint: format!("{icon}{enter} to accept, {next} and {prev} to navigate."),
             matches: None,
             highlight_position: None,
         }
@@ -76,8 +77,8 @@ impl SearchBehaviour {
 }
 
 impl PickerBehaviour for SearchBehaviour {
-    fn prompt(&self) -> &'static str {
-        " "
+    fn prompt(&self) -> Cow<'_, str> {
+        self.app_data.borrow().config.symbols.search.right.into()
     }
 
     fn colors(&self) -> SelectColors {
@@ -135,7 +136,8 @@ impl PickerBehaviour for SearchBehaviour {
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
         if let Some(matches) = self.matches {
-            let text = format!(" Total matches: {matches}");
+            let icon = self.app_data.borrow().config.symbols.hint.right;
+            let text = format!("{icon}Total matches: {matches}");
             frame.render_widget(Paragraph::new(text).style(style), area);
         } else {
             frame.render_widget(Paragraph::new(self.hint.as_str()).style(style), area);

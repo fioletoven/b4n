@@ -61,7 +61,11 @@ impl DescribeView {
         events.start(client, events_res, events_dis, true).ok()?;
 
         let mut header = ContentHeader::new(Rc::clone(&app_data), true);
-        header.set_title(" describe");
+        if app_data.has_nerd_font() {
+            header.set_title(" describe");
+        } else {
+            header.set_title("describe");
+        }
         header.set_data(resource.namespace.clone(), resource.kind.clone(), resource.name.clone(), None);
         let content = DescribeContent::new(Rc::clone(&app_data), resource.clone());
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.syntax.describe.select);
@@ -107,7 +111,10 @@ impl DescribeView {
                 Some(KeyCommand::YamlOpen),
             )
             .with_aliases(&self.app_data.borrow().config.aliases);
-        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        let actions = builder.build(
+            Some(&self.app_data.borrow().key_bindings),
+            Some(&self.app_data.borrow().config.symbols),
+        );
 
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
@@ -128,12 +135,13 @@ impl DescribeView {
         let is_selected = self.selection.sorted().is_some();
         if self.content.is_in_scroll_mode() {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         } else {
-            builder.add_menu_action(ActionItem::menu(1, "󰆏 copy ␝table␝", "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', "copy ␝table␝", "copy"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None, None), 22)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -276,5 +284,6 @@ impl Drop for DescribeView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink) {
     let key = app_data.get_key_name(KeyCommand::NavigateNext).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press ␝{key}␝ to change active section"));
+    let icon = app_data.borrow().config.symbols.hint.right;
+    footer_tx.show_hint(format!("{icon}Press ␝{key}␝ to change active section"));
 }

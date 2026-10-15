@@ -60,7 +60,7 @@ impl YamlView {
         let area = ContentViewer::<YamlContent>::get_content_area(workspace);
         let yaml = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if is_new { "create new resource" } else { "YAML" },
-            '',
+            app_data.borrow().config.symbols.view.ch,
             resource.namespace.clone(),
             resource.kind.clone(),
             name,
@@ -190,7 +190,10 @@ impl YamlView {
             );
         }
 
-        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        let actions = builder.build(
+            Some(&self.app_data.borrow().key_bindings),
+            Some(&self.app_data.borrow().config.symbols),
+        );
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -203,30 +206,34 @@ impl YamlView {
         if self.yaml.is_in_edit_mode() {
             size = 17;
             builder = builder
-                .with_menu_action(ActionItem::menu(1, "󰆏 copy", "copy_2"))
-                .with_menu_action(ActionItem::menu(2, "󰆐 cut", "cut"))
-                .with_menu_action(ActionItem::menu(3, "󰆒 paste", "paste"))
-                .with_menu_action(ActionItem::menu(4, "󰕌 undo", "undo"))
-                .with_menu_action(ActionItem::menu(5, "󰑎 redo", "redo"))
-                .with_menu_action(ActionItem::menu(100, " close edit", "back"));
+                .with_menu_action(ActionItem::menu(1, '󰆏', "copy", "copy_2"))
+                .with_menu_action(ActionItem::menu(2, '󰆐', "cut", "cut"))
+                .with_menu_action(ActionItem::menu(3, '󰆒', "paste", "paste"))
+                .with_menu_action(ActionItem::menu(4, '󰕌', "undo", "undo"))
+                .with_menu_action(ActionItem::menu(5, '󰑎', "redo", "redo"))
+                .with_menu_action(ActionItem::menu(100, '', "close edit", "back"));
         } else {
             let copy = if self.yaml.has_selection() { "selection" } else { "all" };
             builder = builder
                 .with_menu_action(ActionItem::back())
                 .with_menu_action(ActionItem::command_palette())
-                .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-                .with_menu_action(ActionItem::menu(2, " save to file", "save"))
-                .with_menu_action(ActionItem::menu(3, " search", "search"));
+                .with_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"))
+                .with_menu_action(ActionItem::menu(2, '', "save to file", "save"))
+                .with_menu_action(ActionItem::menu(3, '', "search", "search"));
             if self.yaml.content().is_some_and(Content::is_editable) {
-                builder.add_menu_action(ActionItem::menu(5, " edit", "edit"));
+                builder.add_menu_action(ActionItem::menu(5, '', "edit", "edit"));
             }
             if self.can_encode_decode() {
-                let action = if self.is_decoded { " encode" } else { " decode" };
-                builder.add_menu_action(ActionItem::menu(4, action, "decode"));
+                if self.is_decoded {
+                    builder.add_menu_action(ActionItem::menu(4, '', "encode", "decode"));
+                } else {
+                    builder.add_menu_action(ActionItem::menu(4, '', "decode", "decode"));
+                }
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), size).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None, None), size)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -559,16 +566,19 @@ impl YamlView {
         let colors = &self.app_data.borrow().theme.colors.modal;
         let mut inputs = Vec::new();
         if let Some(content) = self.yaml.content() {
+            let symbols = &self.app_data.borrow().config.symbols;
             let kind = deserialize_kind(&content.plain);
             if self.can_patch_status
                 && let Some(origin) = self.origin_kind.as_deref()
                 && kind.as_deref().is_some_and(|k| k == origin)
             {
-                inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
+                let cb = CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone(), symbols);
+                inputs.push(cb);
             }
 
             if kind.as_deref().is_some_and(|k| k == "Secret") {
-                inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
+                let cb = CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone(), symbols);
+                inputs.push(cb);
             }
         }
 
@@ -587,15 +597,18 @@ impl YamlView {
 
     fn new_save_existing_dialog(&mut self, response: ResponseEvent) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
+        let symbols = &self.app_data.borrow().config.symbols;
         let mut inputs = vec![
-            CheckBox::new(0, "Force ownership (apply only)", false, colors.checkbox.clone()),
-            CheckBox::new(1, "Ignore resource version", false, colors.checkbox.clone()),
+            CheckBox::new(0, "Force ownership (apply only)", false, colors.checkbox.clone(), symbols),
+            CheckBox::new(1, "Ignore resource version", false, colors.checkbox.clone(), symbols),
         ];
         if self.can_patch_status {
-            inputs.push(CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone()));
+            let cb = CheckBox::new(2, "Include status subresource", false, colors.checkbox.clone(), symbols);
+            inputs.push(cb);
         }
         if self.is_secret {
-            inputs.push(CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone()));
+            let cb = CheckBox::new(3, "Do not encode data fields", false, colors.checkbox.clone(), symbols);
+            inputs.push(cb);
         }
 
         Dialog::new(
@@ -662,7 +675,11 @@ impl YamlView {
             return;
         };
         let name = if self.is_new { None } else { Some(result.name) };
-        let icon = if result.is_decoded { '' } else { '' };
+        let icon = if result.is_decoded {
+            self.app_data.borrow().config.symbols.decoded.ch
+        } else {
+            self.app_data.borrow().config.symbols.view.ch
+        };
         let styles = {
             let colors = &self.app_data.borrow().theme.colors.syntax.yaml;
             StyleFallback {
@@ -716,10 +733,11 @@ impl YamlView {
     fn show_edit_hint(&mut self, is_modified: bool) {
         self.is_hint_visible = true;
         let key = self.app_data.get_key_name(KeyCommand::NavigateBack).to_ascii_uppercase();
+        let icon = self.app_data.borrow().config.symbols.hint.right;
         self.footer.show_hint(if is_modified {
-            format!(" Press ␝{key}␝ for save dialog")
+            format!("{icon}Press ␝{key}␝ for save dialog")
         } else {
-            format!(" Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
+            format!("{icon}Press ␝{key}␝ to close edit mode, then ␝{key}␝ for save dialog (if modified)")
         });
     }
 

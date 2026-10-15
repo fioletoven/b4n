@@ -1,6 +1,7 @@
 use arboard::Clipboard;
 use b4n_common::NotificationSink;
 use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_config::{Config, History, themes::Theme};
 use b4n_config::{PluginInput, PluginRef, Plugins};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
@@ -9,6 +10,7 @@ use b4n_tui::widgets::SharedClipboard;
 use b4n_tui::{ToSelectData, TuiEvent};
 use kube::discovery::Scope;
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use crate::kube::kinds::KindItem;
@@ -125,6 +127,9 @@ pub enum ConnectionState {
 /// Contains all data that can be shared in the application.
 #[derive(Default)]
 pub struct AppData {
+    /// Deadline for the current frame's optional work budget.
+    frame_deadline: Option<Instant>,
+
     /// Application configuration.
     pub config: Config,
 
@@ -165,6 +170,16 @@ pub struct AppData {
 }
 
 impl AppData {
+    /// Starts a shared budget for cooperative UI work.
+    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
+        self.frame_deadline = Some(start + work_budget);
+    }
+
+    /// Returns `true` if there is a budget for more work in this frame.
+    pub fn has_frame_budget(&self) -> bool {
+        self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
+    }
+
     /// Creates new [`AppData`] instance.
     pub fn new(config: Config, history: History, theme: Theme) -> Self {
         let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
@@ -210,6 +225,9 @@ impl AppData {
 
 /// Extension methods for the [`SharedAppData`] type.
 pub trait SharedAppDataExt {
+    /// Returns `true` if there is a budget for more work in this frame.
+    fn has_frame_budget(&self) -> bool;
+
     /// Returns `true` if the given [`TuiEvent`] is a key event and is bound to the specified [`KeyCommand`] within
     /// the [`KeyBindings`] stored in [`SharedAppData`].
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool;
@@ -220,6 +238,12 @@ pub trait SharedAppDataExt {
 
     /// Like [`has_key_binding`] but ignores the SHIFT modifier when matching.
     fn has_key_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool;
+
+    /// Returns `true` if app can use `NerdFont` symbols.
+    fn has_nerd_font(&self) -> bool;
+
+    /// Returns `true` if app should use plain symbols instead of `NerdFont` or `Powerline` ones.
+    fn use_plain_symbols(&self) -> bool;
 
     /// Temporarily disables or enables the given [`KeyCommand`] from being matched by `has_binding`.
     fn disable_command(&self, command: KeyCommand, disable: bool);
@@ -247,6 +271,10 @@ pub trait SharedAppDataExt {
 }
 
 impl SharedAppDataExt for SharedAppData {
+    fn has_frame_budget(&self) -> bool {
+        self.borrow().has_frame_budget()
+    }
+
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         match event {
             TuiEvent::Key(key) => self.has_key_binding(key, command),
@@ -267,6 +295,14 @@ impl SharedAppDataExt for SharedAppData {
         !data.disabled_keys.contains(key)
             && !data.disabled_commands.contains(&command)
             && data.key_bindings.has_binding_ignore_shift(key, command)
+    }
+
+    fn has_nerd_font(&self) -> bool {
+        self.borrow().config.symbols == Symbols::NerdFont
+    }
+
+    fn use_plain_symbols(&self) -> bool {
+        self.borrow().config.symbols == Symbols::Plain
     }
 
     fn disable_command(&self, command: KeyCommand, hide: bool) {

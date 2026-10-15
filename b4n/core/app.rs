@@ -1,6 +1,7 @@
 use anyhow::Result;
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, IconKind};
 use b4n_config::keys::{KeyBindings, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::Theme;
 use b4n_config::{Config, ConfigError, ConfigWatcher, History, PluginsWatcher, SyntaxData};
 use b4n_kube::client::ClientOptions;
@@ -15,6 +16,7 @@ use kube::discovery::Scope;
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 use tokio::runtime::Handle;
 
 use crate::core::managers::{KubernetesClientManager, ViewsManager};
@@ -118,6 +120,11 @@ impl App {
         Ok(())
     }
 
+    /// Starts the shared budget for optional work during this frame.
+    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
+        self.data.borrow_mut().begin_frame(start, work_budget);
+    }
+
     /// Checks if `themes` and `plugins` directories exist.
     pub fn check_resources_dir(&mut self) {
         if !self.data.borrow().history.ignore_missing_resources
@@ -135,10 +142,9 @@ impl App {
 
     /// Shows theme error in the app footer.
     pub fn show_theme_error(&self, error: String) {
+        let icon = Some(self.data.borrow().config.symbols.theme.ch);
         self.views_manager.footer().show_error(error, DEFAULT_ERROR_DURATION);
-        self.views_manager
-            .footer()
-            .set_icon("000_notheme", Some(''), IconKind::Error);
+        self.views_manager.footer().set_icon("000_notheme", icon, IconKind::Error);
     }
 
     /// Process all waiting events.
@@ -187,7 +193,9 @@ impl App {
             return Ok(ExecutionFlow::Stop);
         }
 
-        while let Ok(event) = self.tui.event_rx.try_recv() {
+        while self.data.has_frame_budget()
+            && let Ok(event) = self.tui.event_rx.try_recv()
+        {
             match self.process_event(&event) {
                 Ok(response) => {
                     if response == ResponseEvent::ExitApplication {
@@ -249,10 +257,12 @@ impl App {
             ResponseEvent::ViewNamespaces => self.view_namespaces()?,
             ResponseEvent::ListKubeContexts => self.list_kube_contexts(),
             ResponseEvent::ListThemes => self.list_app_themes(),
+            ResponseEvent::ListSymbols => self.views_manager.show_symbols_list(),
             ResponseEvent::ListNamespaces => self.views_manager.show_namespaces_list(),
             ResponseEvent::ListResourcePorts(resource) => self.worker.borrow_mut().list_resource_ports(resource),
             ResponseEvent::ChangeContext(context, namespace) => self.request_kubernetes_client(context, namespace.as_deref()),
             ResponseEvent::ChangeTheme(theme) => self.process_theme_change(theme),
+            ResponseEvent::ChangeSymbols(symbols) => self.process_symbols_change(symbols),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
@@ -268,7 +278,11 @@ impl App {
             ResponseEvent::InjectContainer(resource, container) => {
                 self.worker.borrow_mut().inject_container(&resource, container);
             },
-            ResponseEvent::TransferFile(container, context) => self.worker.borrow_mut().transfer_file(container, context),
+            ResponseEvent::TransferFile(container, context) => {
+                self.worker
+                    .borrow_mut()
+                    .transfer_file(container, context, &self.data.borrow().config.symbols);
+            },
             _ => (),
         }
 
@@ -277,8 +291,9 @@ impl App {
 
     /// Processes results from commands execution.
     fn process_commands_results(&mut self) {
-        let commands = self.worker.borrow_mut().get_all_waiting_results();
-        for command in commands {
+        while self.data.has_frame_budget()
+            && let Some(command) = { self.worker.borrow_mut().check_command_result() }
+        {
             match command.result {
                 CommandResult::InstallMissingResources(result) => self.process_assets_installation_result(result),
                 CommandResult::KubernetesClient(result) => self.change_client(&command.id, result),
@@ -498,6 +513,19 @@ impl App {
         }
     }
 
+    /// Changes application symbols configuration.
+    fn process_symbols_change(&mut self, symbols: Symbols) {
+        if self.data.borrow().config.symbols != symbols {
+            self.data.borrow_mut().config.symbols = symbols;
+            self.views_manager.set_message_history_hint();
+            self.update_mouse_state();
+            self.config_watcher.skip_next();
+            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+            let msg = format!("Symbols changed to '{}'", self.data.borrow().config.symbols.as_str());
+            self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+        }
+    }
+
     /// Performs all necessary actions after copying missing resources from the bundled assets.
     pub fn process_assets_installation_result(&mut self, result: Result<InstallationResult, InstallationError>) {
         match result {
@@ -580,7 +608,11 @@ impl App {
     }
 
     fn update_mouse_state(&self) {
-        let icon = if self.tui.is_mouse_enabled() { Some('󰍽') } else { None };
+        let icon = if self.tui.is_mouse_enabled() {
+            Some(self.data.borrow().config.symbols.mouse.ch)
+        } else {
+            None
+        };
         self.views_manager.footer().set_icon("050_mouse", icon, IconKind::Default);
         self.data.borrow_mut().is_mouse_enabled = self.tui.is_mouse_enabled();
     }

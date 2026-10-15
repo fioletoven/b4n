@@ -79,7 +79,7 @@ impl LogsView {
         let container = (regular.len() == 1).then(|| regular[0].container.clone()).flatten();
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
             if previous { "previous logs" } else { "logs" },
-            '',
+            app_data.borrow().config.symbols.bound.ch,
             containers[0].namespace.clone(),
             PODS.into(),
             Some(containers[0].name.clone()),
@@ -149,7 +149,10 @@ impl LogsView {
             );
         }
 
-        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        let actions = builder.build(
+            Some(&self.app_data.borrow().key_bindings),
+            Some(&self.app_data.borrow().config.symbols),
+        );
         self.command_palette =
             CommandPalette::new(Rc::clone(&self.app_data), actions, 65).with_highlighted_position(self.last_mouse_click.take());
         self.command_palette.show();
@@ -161,16 +164,17 @@ impl LogsView {
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::back())
             .with_menu_action(ActionItem::command_palette())
-            .with_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"))
-            .with_menu_action(ActionItem::menu(2, " save to file", "save"))
-            .with_menu_action(ActionItem::menu(3, " search", "search"))
-            .with_menu_action(ActionItem::menu(5, " timestamps", "timestamps"));
+            .with_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"))
+            .with_menu_action(ActionItem::menu(2, '', "save to file", "save"))
+            .with_menu_action(ActionItem::menu(3, '', "search", "search"))
+            .with_menu_action(ActionItem::menu(5, '', "timestamps", "timestamps"));
 
         if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
-            builder = builder.with_menu_action(ActionItem::menu(4, " logs format", "format"));
+            builder = builder.with_menu_action(ActionItem::menu(4, '', "logs format", "format"));
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None, None), 22)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
     }
 
@@ -249,7 +253,11 @@ impl LogsView {
 
     fn update_bound_to_bottom(&mut self) {
         self.bound_to_bottom = self.search.value().is_empty() && self.logs.is_at_end();
-        self.logs.header.set_icon(if self.bound_to_bottom { '' } else { '' });
+        self.logs.header.set_icon(if self.bound_to_bottom {
+            self.app_data.borrow().config.symbols.bound.ch
+        } else {
+            self.app_data.borrow().config.symbols.unbound.ch
+        });
     }
 
     fn clear_search(&mut self) {
@@ -522,7 +530,9 @@ impl View for LogsView {
 
         if needs_update {
             if self.logs.content().is_some_and(LogsContent::has_valid_fmt) {
-                self.logs.header.set_name_icon('');
+                self.logs
+                    .header
+                    .set_name_icon(self.app_data.borrow().config.symbols.structure.ch);
             }
 
             if self.logs.search(self.search.value(), true) {

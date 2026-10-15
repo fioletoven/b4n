@@ -5,11 +5,10 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::ConnectionState;
+use crate::core::{ConnectionState, SharedAppDataExt};
 use crate::{core::SharedAppData, ui::presentation::utils::get_right_breadcrumbs};
 
 /// Header pane that shows resource namespace, kind and name.
-#[derive(Default)]
 pub struct ContentHeader {
     pub title: String,
     pub icon: char,
@@ -32,15 +31,24 @@ pub struct ContentHeader {
 impl ContentHeader {
     /// Creates new UI header pane.
     pub fn new(app_data: SharedAppData, show_coordinates: bool) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         Self {
+            title: String::new(),
             icon: ' ',
             namespace: Namespace::all(),
+            kind: Kind::default(),
+            name: None,
+            descr: None,
             app_data,
             name_icon: ' ',
             edit_icon: ' ',
+            edit_mode: "",
             show_coordinates,
-            spinner: Spinner::default(),
-            ..Default::default()
+            position_x: 0,
+            position_y: 0,
+            is_busy: false,
+            spinner: Spinner::new(use_plain_symbols),
+            path_cache: None,
         }
     }
 
@@ -137,6 +145,7 @@ impl ContentHeader {
     fn build_path(&self) -> Paragraph<'static> {
         let bg = self.app_data.borrow().theme.colors.text.bg;
         let colors = &self.app_data.borrow().theme.colors.header;
+        let icons = &self.app_data.borrow().config.symbols;
 
         let title = if self.icon == ' ' && self.edit_icon == ' ' {
             format!(" {} ", self.title)
@@ -147,11 +156,11 @@ impl ContentHeader {
         };
 
         let mut path = vec![
-            Span::styled("", Style::new().fg(colors.text.bg).bg(bg)),
+            Span::styled(&icons.left_end, Style::new().fg(colors.text.bg).bg(bg)),
             Span::styled(title, &colors.text),
-            Span::styled("", Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(colors.text.bg).bg(colors.namespace.bg)),
             Span::styled(format!(" {} ", self.namespace.as_str().to_lowercase()), &colors.namespace),
-            Span::styled("", Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
+            Span::styled(&icons.left_sep, Style::new().fg(colors.namespace.bg).bg(colors.resource.bg)),
             Span::styled(format!(" {} ", self.kind.name().to_lowercase()), &colors.resource),
         ];
 
@@ -164,7 +173,7 @@ impl ContentHeader {
                 format!(" {} ", name.to_lowercase())
             };
             path.append(&mut vec![
-                Span::styled("", Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
+                Span::styled(&icons.left_sep, Style::new().fg(colors.resource.bg).bg(colors.name.bg)),
                 Span::styled(name, &colors.name),
             ]);
             end_bg_color = colors.name.bg;
@@ -177,12 +186,12 @@ impl ContentHeader {
                 format!(" {descr} {} ", self.name_icon)
             };
             path.append(&mut vec![
-                Span::styled("", Style::new().fg(end_bg_color).bg(colors.count.bg)),
+                Span::styled(&icons.left_sep, Style::new().fg(end_bg_color).bg(colors.count.bg)),
                 Span::styled(descr, &colors.count),
-                Span::styled("", Style::new().fg(colors.count.bg).bg(bg)),
+                Span::styled(&icons.left_sep, Style::new().fg(colors.count.bg).bg(bg)),
             ]);
         } else {
-            path.push(Span::styled("", Style::new().fg(end_bg_color).bg(bg)));
+            path.push(Span::styled(&icons.left_sep, Style::new().fg(end_bg_color).bg(bg)));
         }
 
         Paragraph::new(Line::from(path)).style(&self.app_data.borrow().theme.colors.text)
@@ -197,6 +206,11 @@ impl ContentHeader {
             &self.app_data.borrow().theme.colors.header.disconnected
         };
 
-        get_right_breadcrumbs(text, colors, self.app_data.borrow().theme.colors.text.bg)
+        get_right_breadcrumbs(
+            text,
+            &self.app_data.borrow().config.symbols,
+            colors,
+            self.app_data.borrow().theme.colors.text.bg,
+        )
     }
 }

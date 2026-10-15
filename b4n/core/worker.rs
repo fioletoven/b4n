@@ -1,5 +1,6 @@
 use anyhow::Result;
 use b4n_common::NotificationSink;
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::YamlSyntaxColors;
 use b4n_config::{Config, History, Plugin, SyntaxData};
 use b4n_kube::client::KubernetesClient;
@@ -354,15 +355,6 @@ impl BgWorker {
         self.executor.try_next()
     }
 
-    /// Returns all waiting command results from the background executor.
-    pub fn get_all_waiting_results(&mut self) -> Vec<TaskResult> {
-        let mut commands = Vec::new();
-        while let Some(command) = self.check_command_result() {
-            commands.push(*command);
-        }
-        commands
-    }
-
     /// Returns connection state.
     pub fn get_connection_state(&self) -> ConnectionState {
         if self.resources.is_connected() {
@@ -544,10 +536,17 @@ impl BgWorker {
     }
 
     /// Transfers file from/to a pod's container in the background task.
-    pub fn transfer_file(&mut self, container: ContainerRef, context: TransferContext) {
+    pub fn transfer_file(&mut self, container: ContainerRef, context: TransferContext, symbols: &Symbols) {
         if let Some(client) = &self.client {
             let runtime = self.runtime.clone();
-            let command = TransferFileCommand::new(runtime, container, context, client.get_client(), self.footer_tx.clone());
+            let command = TransferFileCommand::new(
+                runtime,
+                container,
+                context,
+                client.get_client(),
+                self.footer_tx.clone(),
+                symbols,
+            );
             self.executor.run_task(Command::TransferFile(Box::new(command)));
         }
     }

@@ -62,7 +62,7 @@ impl CmdView {
     ) -> Self {
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
         header.set_title(plugin.name);
-        header.set_icon('');
+        header.set_icon(app_data.borrow().config.symbols.extension.ch);
 
         let area = get_layout_with_header(workspace)[1];
         let command = plugin.command;
@@ -126,7 +126,10 @@ impl CmdView {
             ActionItem::action("copy", "copy").with_description(copy_description),
             Some(KeyCommand::ContentCopy),
         );
-        let actions = builder.build(Some(&self.app_data.borrow().key_bindings));
+        let actions = builder.build(
+            Some(&self.app_data.borrow().key_bindings),
+            Some(&self.app_data.borrow().config.symbols),
+        );
         self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, 65);
         self.command_palette.show();
     }
@@ -138,11 +141,11 @@ impl CmdView {
 
         let mut builder = ActionsListBuilder::default();
         if self.bridge.is_finished() {
-            builder.add_menu_action(ActionItem::menu(100, "󰕍 back", "back"));
+            builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "back"));
         } else {
             builder = builder
-                .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-                .with_menu_action(ActionItem::menu(100, " close", "close"));
+                .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
+                .with_menu_action(ActionItem::menu(100, '', "close", "close"));
         }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(false);
@@ -150,18 +153,19 @@ impl CmdView {
 
         if !self.is_mouse_enabled {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         }
 
         if is_mouse_allowed {
             if self.is_mouse_enabled {
-                builder.add_menu_action(ActionItem::menu(3, "󰍾 release mouse", "mouse_off"));
+                builder.add_menu_action(ActionItem::menu(3, '󰍾', "release mouse", "mouse_off"));
             } else {
-                builder.add_menu_action(ActionItem::menu(3, "󰍽 capture mouse", "mouse_on"));
+                builder.add_menu_action(ActionItem::menu(3, '󰍽', "capture mouse", "mouse_on"));
             }
         }
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None), 22).to_mouse_menu();
+        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), builder.build(None, None), 22)
+            .to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled
@@ -494,9 +498,10 @@ impl Drop for CmdView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let icon = app_data.borrow().config.symbols.hint.right;
     if is_alt_mode {
-        footer_tx.show_hint(format!(" Escape mode: press ␝{key}␝ to close"));
+        footer_tx.show_hint(format!("{icon}Escape mode: press ␝{key}␝ to close"));
     } else {
-        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+        footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
 }

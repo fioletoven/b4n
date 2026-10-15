@@ -110,7 +110,12 @@ impl ViewsManager {
         let layout = Footer::get_layout(frame.area());
         self.workspace = layout[0];
         self.footer.show_breadcrumb_trail(self.view.is_none());
-        self.footer.draw(frame, layout[1], &self.app_data.borrow().theme);
+        self.footer.draw(
+            frame,
+            layout[1],
+            &self.app_data.borrow().theme,
+            &self.app_data.borrow().config.symbols,
+        );
 
         let has_focus =
             !self.footer.is_message_history_visible() && !self.ns_selector.is_visible() && !self.res_selector.is_visible();
@@ -121,7 +126,12 @@ impl ViewsManager {
         }
 
         self.draw_selectors(frame, layout[0]);
-        self.footer.draw_history(frame, layout[0], &self.app_data.borrow().theme);
+        self.footer.draw_history(
+            frame,
+            layout[0],
+            &self.app_data.borrow().theme,
+            &self.app_data.borrow().config.symbols,
+        );
     }
 
     /// Draws namespace / resource selector located on the left / right of the views.
@@ -296,7 +306,8 @@ impl ViewsManager {
         if is_connected {
             self.footer().reset("100_disconnected");
         } else {
-            self.footer().set_icon("100_disconnected", Some(''), IconKind::Error);
+            let error_ch = self.app_data.borrow().config.symbols.error.ch;
+            self.footer().set_icon("100_disconnected", Some(error_ch), IconKind::Error);
             self.ns_selector.hide();
             self.res_selector.hide();
 
@@ -440,6 +451,11 @@ impl ViewsManager {
     /// Displays a list of available themes to choose from.
     pub fn show_themes_list(&mut self, list: Vec<std::path::PathBuf>) {
         self.resources.show_themes_list(list);
+    }
+
+    /// Displays a list of available symbols to choose from.
+    pub fn show_symbols_list(&mut self) {
+        self.resources.show_symbols_list();
     }
 
     /// Displays a list of known namespaces to choose from.
@@ -635,7 +651,8 @@ impl ViewsManager {
                     false,
                     self.workspace,
                 );
-                self.view = Some(Box::new(view.with_title(title, '')));
+                let icon = self.app_data.borrow().config.symbols.extension.ch;
+                self.view = Some(Box::new(view.with_title(title, icon)));
             }
         }
     }
@@ -697,7 +714,8 @@ impl ViewsManager {
     /// Updates footer message history pane hint with current key binding.
     pub fn set_message_history_hint(&mut self) {
         let copy_key = self.app_data.get_key_name(KeyCommand::ContentCopy).to_ascii_uppercase();
-        let hint = format!(" Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
+        let icon = self.app_data.borrow().config.symbols.hint.right;
+        let hint = format!("{icon}Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
         self.footer.set_message_history_hint(hint);
     }
 
@@ -718,5 +736,6 @@ impl ViewsManager {
 
 fn set_command_palette_hint(footer_tx: &NotificationSink, app_data: &SharedAppData) {
     let command_palette_key = app_data.get_key_name(KeyCommand::CommandPaletteOpen).to_ascii_uppercase();
-    footer_tx.show_hint(format!(" Press ␝{command_palette_key}␝ to open command palette"));
+    let icon = app_data.borrow().config.symbols.hint.right;
+    footer_tx.show_hint(format!("{icon}Press ␝{command_palette_key}␝ to open command palette"));
 }

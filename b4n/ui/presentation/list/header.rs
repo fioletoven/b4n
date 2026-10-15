@@ -7,7 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::core::{AppData, ConnectionState, SharedAppData};
+use crate::core::{AppData, ConnectionState, SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::utils::{get_left_breadcrumbs, get_right_breadcrumbs};
 
 /// Header pane that shows context, namespace, kind and number of items as a breadcrumbs.
@@ -27,6 +27,7 @@ impl ListHeader {
     /// Creates new UI header pane.\
     /// **Note** that setting `fixed_kind` to Some will prevent header from displaying name.
     pub fn new(app_data: SharedAppData, count: usize) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         Self {
             app_data,
             count,
@@ -36,7 +37,7 @@ impl ListHeader {
             has_api_error: DelayedTrueTracker::default(),
             is_filtered: false,
             hide_previous: false,
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
         }
     }
 
@@ -144,7 +145,9 @@ impl ListHeader {
         if !self.hide_previous
             && let Some(previous) = self.app_data.borrow().previous.last()
         {
-            line.push_span(Span::from(format!(" 󰕍 {}", previous.resource.kind.name())).style(&data.theme.colors.header.previous));
+            let back_icon = self.app_data.borrow().config.symbols.back.right;
+            let prev = format!(" {}{}", back_icon, previous.resource.kind.name());
+            line.push_span(Span::from(prev).style(&data.theme.colors.header.previous));
         }
 
         line
@@ -157,7 +160,12 @@ impl ListHeader {
         let has_api_error = self.has_api_error.value();
 
         let (text, colors) = get_version_text(data, &mut self.spinner, has_api_error);
-        get_right_breadcrumbs(text, colors, data.theme.colors.text.bg)
+        get_right_breadcrumbs(
+            text,
+            &self.app_data.borrow().config.symbols,
+            colors,
+            data.theme.colors.text.bg,
+        )
     }
 }
 
@@ -169,11 +177,8 @@ fn get_version_text<'a>(data: &'a AppData, spinner: &mut Spinner, has_api_error:
         &data.theme.colors.header.disconnected
     };
     let text = if !data.current.version.is_empty() && data.state == ConnectionState::Ready {
-        if has_api_error {
-            format!("  {} ", data.current.version)
-        } else {
-            format!(" {} ", data.current.version)
-        }
+        let error_ch = if has_api_error { data.config.symbols.error.right } else { "" };
+        format!(" {}{} ", error_ch, data.current.version)
     } else if data.current.version.is_empty() {
         format!(" {} connecting… ", spinner.tick())
     } else {

@@ -1,4 +1,5 @@
 use b4n_common::{random_uuid, truncate};
+use b4n_config::symbols::Symbols;
 use b4n_kube::Port;
 use b4n_list::{BasicFilterContext, Filterable, Row};
 use std::{borrow::Cow, path::PathBuf};
@@ -9,6 +10,16 @@ use crate::ResponseEvent;
 #[path = "./action.tests.rs"]
 mod action_tests;
 
+/// Kind of an action item.
+#[derive(Default, Clone)]
+pub enum ActionItemKind {
+    #[default]
+    Default,
+    Action,
+    Plugin,
+    Menu,
+}
+
 /// Command palette action.
 #[derive(Default, Clone)]
 pub struct ActionItem {
@@ -17,67 +28,80 @@ pub struct ActionItem {
     pub name: String,
     pub response: ResponseEvent,
     pub id: Option<usize>,
+    kind: ActionItemKind,
     description: Option<String>,
-    icon: Option<&'static str>,
+    icon: Option<char>,
+    menu_icon: Option<char>,
+    show_menu_icon: bool,
     aliases: Option<Vec<String>>,
     key: Option<String>,
 }
 
 impl ActionItem {
     /// Creates new [`ActionItem`] instance.
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: impl Into<String>, kind: ActionItemKind) -> Self {
         Self {
             uid: random_uuid(),
             group: "action".to_owned(),
-            name: name.to_owned(),
-            icon: Some(""),
+            name: name.into(),
+            kind,
             ..Default::default()
         }
     }
 
     /// Creates new raw [`ActionItem`] instance.
-    pub fn raw(uid: String, group: String, name: String, icon: Option<&'static str>) -> Self {
+    pub fn raw(uid: String, group: String, name: String, kind: Option<ActionItemKind>) -> Self {
         Self {
             uid,
             group,
             name,
-            icon,
+            kind: kind.unwrap_or_default(),
             ..Default::default()
         }
     }
 
     /// Creates new [`ActionItem`] instance with action response.
     pub fn action(name: &str, action: &'static str) -> Self {
-        ActionItem::new(name).with_response(ResponseEvent::Action(action))
+        ActionItem::new(name, ActionItemKind::Action).with_response(ResponseEvent::Action(action))
     }
 
     /// Creates new [`ActionItem`] instance for mouse menu.
-    pub fn menu(id: usize, name: &str, action: &'static str) -> Self {
-        ActionItem::new(name)
+    pub fn menu(id: usize, icon: char, name: impl Into<String>, action: &'static str) -> Self {
+        ActionItem::new(name, ActionItemKind::Menu)
             .with_response(ResponseEvent::Action(action))
             .with_sort_id(id)
+            .with_menu_icon(Some(icon))
             .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `command palette` for mouse menu.
     pub fn command_palette() -> Self {
-        ActionItem::new(" command palette")
+        ActionItem::new("command palette", ActionItemKind::Menu)
             .with_response(ResponseEvent::Action("palette"))
             .with_sort_id(50)
+            .with_menu_icon(Some(''))
             .with_icon(None)
     }
 
     /// Creates new [`ActionItem`] instance `back` for mouse menu.
     pub fn back() -> Self {
-        ActionItem::new("󰕍 back")
+        ActionItem::new("back", ActionItemKind::Menu)
             .with_response(ResponseEvent::Cancelled)
             .with_sort_id(100)
+            .with_menu_icon(Some('󰕍'))
             .with_icon(None)
     }
 
     /// Sets icon for this action instance.
-    pub fn with_icon(mut self, icon: Option<&'static str>) -> Self {
+    pub fn with_icon(mut self, icon: Option<char>) -> Self {
         self.icon = icon;
+        self
+    }
+
+    /// Sets menu icon for this action instance.
+    pub fn with_menu_icon(mut self, icon: Option<char>) -> Self {
+        self.menu_icon = icon;
+        self.show_menu_icon = true;
         self
     }
 
@@ -122,14 +146,38 @@ impl ActionItem {
         self.key = key;
     }
 
+    /// Sets visibility for menu icon.
+    pub fn show_menu_icon(&mut self, is_visible: bool) {
+        self.show_menu_icon = is_visible;
+    }
+
+    /// Updates the action's icon if it hasn't been set already.
+    pub fn update_icon(&mut self, symbols: &Symbols) {
+        if self.icon.is_some() {
+            return;
+        }
+
+        let symbol = match self.kind {
+            ActionItemKind::Action => &symbols.action,
+            ActionItemKind::Plugin => &symbols.plugin,
+            _ => return,
+        };
+
+        self.icon = if symbol.raw.is_empty() { None } else { Some(symbol.ch) };
+    }
+
     fn get_text_width(&self, width: usize) -> usize {
         let width = self
             .key
             .as_ref()
             .map_or(width, |k| width.saturating_sub(k.chars().count() + 4));
-        self.icon
-            .as_ref()
-            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
+        let width = self.icon.as_ref().map_or(width, |_| width.saturating_sub(2));
+
+        if self.show_menu_icon && self.menu_icon.is_some() {
+            width.saturating_sub(2)
+        } else {
+            width
+        }
     }
 
     fn get_name_width(&self, width: usize) -> (usize, usize) {
@@ -148,9 +196,9 @@ impl ActionItem {
     }
 
     fn add_icon(&self, text: &mut String) {
-        if let Some(icon) = &self.icon {
+        if let Some(icon) = self.icon {
             text.push(' ');
-            text.push_str(icon);
+            text.push(icon);
         }
     }
 
@@ -159,6 +207,15 @@ impl ActionItem {
             text.push_str("  ␝❬␝");
             text.push_str(key);
             text.push_str("␝❭␝");
+        }
+    }
+
+    fn add_menu_icon(&self, text: &mut String) {
+        if self.show_menu_icon
+            && let Some(icon) = self.menu_icon
+        {
+            text.push(icon);
+            text.push(' ');
         }
     }
 }
@@ -206,7 +263,9 @@ impl Row for ActionItem {
         let text_width = self.get_text_width(width);
         let (name_width, invisible_chars) = self.get_name_width(text_width);
 
-        let mut text = String::with_capacity(text_width + invisible_chars + 2);
+        let mut text = String::with_capacity(text_width + invisible_chars + 4);
+        self.add_menu_icon(&mut text);
+
         text.push_str(truncate(&self.name, text_width + invisible_chars));
 
         if let Some(descr) = &self.description {

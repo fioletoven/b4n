@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::ResponseEvent;
 use b4n_tui::widgets::{ErrorHighlightMode, InputValidator, Select, ValidatorKind};
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
@@ -46,8 +46,8 @@ impl NamespaceBehaviour {
 }
 
 impl PickerBehaviour for NamespaceBehaviour {
-    fn prompt(&self) -> &'static str {
-        "namespace "
+    fn prompt(&self) -> Cow<'_, str> {
+        format!("namespace{}", self.app_data.borrow().config.symbols.prompt.right).into()
     }
 
     fn colors(&self) -> SelectColors {
@@ -114,9 +114,10 @@ impl PickerBehaviour for NamespaceBehaviour {
     fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
         let key_name = self.app_data.get_key_name(KeyCommand::NavigateComplete).to_ascii_uppercase();
         let context = &self.app_data.borrow().current.context;
+        let icon = self.app_data.borrow().config.symbols.user.ch;
         let mut items = PatternsList::from(self.app_data.borrow().history.namespace_history(context), Some(&key_name));
         for item in items.list.full_iter_mut() {
-            item.data.set_icon(Some(""));
+            item.data.set_icon(Some(icon));
         }
 
         for ns in &self.discovered {

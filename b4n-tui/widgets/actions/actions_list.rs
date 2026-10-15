@@ -1,11 +1,12 @@
 use b4n_config::keys::{KeyBindings, KeyCommand};
+use b4n_config::symbols::Symbols;
 use b4n_kube::{Port, PortProtocol};
 use b4n_list::{BasicFilterContext, Row, ScrollableList};
 use delegate::delegate;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::table::{Table, ViewType};
-use crate::widgets::ActionItem;
+use crate::widgets::{ActionItem, ActionItemKind};
 use crate::{ResponseEvent, Responsive, TuiEvent};
 
 /// UI actions list.
@@ -128,6 +129,17 @@ impl ActionsListBuilder {
         }
     }
 
+    /// Creates new [`ActionsListBuilder`] instance from the list of available symbols.
+    pub fn from_symbols() -> Self {
+        let symbols = Symbols::ALL.into_iter().enumerate().map(|(index, symbols)| {
+            ActionItem::new(symbols.as_str(), ActionItemKind::Default)
+                .with_icon(None)
+                .with_sort_id(index)
+                .with_response(ResponseEvent::ChangeSymbols(symbols))
+        });
+        Self::new(symbols.collect())
+    }
+
     /// Creates new [`ActionsListBuilder`] instance from the list of [`Port`]s.
     pub fn from_resource_ports(ports: &[Port]) -> Self {
         Self {
@@ -142,9 +154,13 @@ impl ActionsListBuilder {
 
     /// Builds the [`ActionsList`] instance.\
     /// **Note** that if `key_bindings` is provided all items in the list will have an additional key hint.
-    pub fn build(mut self, key_bindings: Option<&KeyBindings>) -> ActionsList {
+    pub fn build(mut self, key_bindings: Option<&KeyBindings>, symbols: Option<&Symbols>) -> ActionsList {
         if let Some(key_bindings) = key_bindings {
             self.update_key_bindings(key_bindings);
+        }
+
+        if let Some(symbols) = symbols {
+            self.update_symbols(symbols);
         }
 
         let has_ids = self.actions.iter().any(|a| a.id.is_some());
@@ -215,7 +231,7 @@ impl ActionsListBuilder {
     /// Adds custom action with response [`ResponseEvent::Action`].
     pub fn with_command(mut self, command: &str, description: &str, aliases: &[&str], action: &'static str) -> Self {
         self.actions.push(
-            ActionItem::new(command)
+            ActionItem::new(command, ActionItemKind::Action)
                 .with_description(description)
                 .with_aliases(aliases)
                 .with_response(ResponseEvent::Action(action)),
@@ -226,14 +242,14 @@ impl ActionsListBuilder {
 
     /// Adds actions relevant to resources view.
     pub fn with_resources_actions(self, is_deletable: bool) -> Self {
-        let builder = self.with_context().with_theme().with_quit();
+        let builder = self.with_context().with_theme().with_symbols().with_quit();
         if is_deletable { builder.with_delete() } else { builder }
     }
 
     /// Adds `quit` action.
     pub fn with_quit(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("quit")
+            ActionItem::new("quit", ActionItemKind::Action)
                 .with_description("exits application")
                 .with_aliases(["q", "exit"])
                 .with_response(ResponseEvent::ExitApplication),
@@ -245,7 +261,7 @@ impl ActionsListBuilder {
     /// Adds `back` action that closes the current view.
     pub fn with_back(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("back")
+            ActionItem::new("back", ActionItemKind::Action)
                 .with_description("closes current view")
                 .with_aliases(["cancel", "close"])
                 .with_response(ResponseEvent::Cancelled),
@@ -257,7 +273,7 @@ impl ActionsListBuilder {
     /// Adds `context` action.
     pub fn with_context(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("context")
+            ActionItem::new("context", ActionItemKind::Action)
                 .with_description("changes current Kubernetes context")
                 .with_aliases(["ctx", "change"])
                 .with_response(ResponseEvent::ListKubeContexts),
@@ -269,7 +285,7 @@ impl ActionsListBuilder {
     /// Adds `theme` action.
     pub fn with_theme(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("theme")
+            ActionItem::new("theme", ActionItemKind::Action)
                 .with_description("changes application theme")
                 .with_aliases(["change"])
                 .with_response(ResponseEvent::ListThemes),
@@ -278,10 +294,21 @@ impl ActionsListBuilder {
         self
     }
 
+    /// Adds `symbols` action.
+    pub fn with_symbols(self) -> Self {
+        self.with_action(
+            ActionItem::new("symbols", ActionItemKind::Action)
+                .with_description("changes configured TUI symbols")
+                .with_aliases(["change"])
+                .with_response(ResponseEvent::ListSymbols),
+            None,
+        )
+    }
+
     /// Adds `namespace` action.
     pub fn with_namespace(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("namespace")
+            ActionItem::new("namespace", ActionItemKind::Action)
                 .with_description("changes current namespace")
                 .with_aliases(["change"])
                 .with_response(ResponseEvent::ListNamespaces),
@@ -293,7 +320,7 @@ impl ActionsListBuilder {
     /// Adds `delete` action.
     pub fn with_delete(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("delete")
+            ActionItem::new("delete", ActionItemKind::Action)
                 .with_description("deletes selected resources")
                 .with_aliases(["del", "remove"])
                 .with_response(ResponseEvent::AskDeleteResources),
@@ -305,7 +332,7 @@ impl ActionsListBuilder {
     /// Adds `show port forwards` action.
     pub fn with_forwards(mut self) -> Self {
         self.actions.push(
-            ActionItem::new("show port forwards")
+            ActionItem::new("show port forwards", ActionItemKind::Action)
                 .with_description("shows active port forwards")
                 .with_aliases(["port", "pf", "forward"])
                 .with_response(ResponseEvent::ShowPortForwards),
@@ -339,6 +366,12 @@ impl ActionsListBuilder {
                     action.set_key(Some(keys.swap_remove(0)));
                 }
             }
+        }
+    }
+
+    fn update_symbols(&mut self, symbols: &Symbols) {
+        for action in &mut self.actions {
+            action.update_icon(symbols);
         }
     }
 }

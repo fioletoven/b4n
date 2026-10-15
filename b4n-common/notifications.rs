@@ -77,7 +77,7 @@ pub struct Notification {
 impl Notification {
     /// Creates new [`Notification`] instance.
     fn new(text: &str, kind: NotificationKind, duration: u16) -> Self {
-        let text = sanitize_and_split(text).join("󰌑");
+        let text = sanitize_and_split(text).join("⏎");
         Self { text, kind, duration }
     }
 }

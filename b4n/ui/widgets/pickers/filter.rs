@@ -6,7 +6,7 @@ use b4n_tui::{ResponseEvent, TuiEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::pickers::base::PickerBehaviour;
@@ -16,7 +16,6 @@ use crate::ui::widgets::{PatternsList, Picker};
 #[path = "./filter.tests.rs"]
 mod filter_tests;
 
-const FILTER_HINT: &str = " Use | for OR, & for AND, ! for NOT, and ( ) to group terms.";
 const FILTER_HISTORY_SIZE: usize = 20;
 
 pub type Filter = Picker<FilterBehaviour>;
@@ -81,8 +80,12 @@ impl FilterBehaviour {
 }
 
 impl PickerBehaviour for FilterBehaviour {
-    fn prompt(&self) -> &str {
-        if self.app_data.borrow().is_pinned { "󰐃 " } else { " " }
+    fn prompt(&self) -> Cow<'_, str> {
+        if self.app_data.borrow().is_pinned {
+            self.app_data.borrow().config.symbols.pin.right.into()
+        } else {
+            self.app_data.borrow().config.symbols.filter.right.into()
+        }
     }
 
     fn colors(&self) -> SelectColors {
@@ -190,7 +193,9 @@ impl PickerBehaviour for FilterBehaviour {
     }
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
-        frame.render_widget(Paragraph::new(FILTER_HINT).style(style), area);
+        let icon = self.app_data.borrow().config.symbols.hint.right;
+        let hint = format!("{icon}Use | for OR, & for AND, ! for NOT, and ( ) to group terms.");
+        frame.render_widget(Paragraph::new(hint).style(style), area);
     }
 
     fn pre_process_event(

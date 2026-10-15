@@ -1,3 +1,4 @@
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::ControlColors;
 use ratatui_core::layout::{Margin, Position, Rect};
 use ratatui_core::terminal::Frame;
@@ -14,13 +15,14 @@ pub struct CheckBox {
     is_hovered: bool,
     is_focused: bool,
     colors: ControlColors,
+    symbols: (char, char),
     area: Rect,
     width: u16,
 }
 
 impl CheckBox {
     /// Creates new [`CheckBox`] instance.
-    pub fn new(id: usize, caption: impl Into<String>, is_checked: bool, colors: ControlColors) -> Self {
+    pub fn new(id: usize, caption: impl Into<String>, is_checked: bool, colors: ControlColors, symbols: &Symbols) -> Self {
         let caption = caption.into();
         let width = u16::try_from(caption.chars().count()).unwrap_or_default() + 4;
 
@@ -31,6 +33,7 @@ impl CheckBox {
             is_hovered: false,
             is_focused: false,
             colors,
+            symbols: (symbols.checked.ch, symbols.unchecked.ch),
             area: Rect::default(),
             width,
         }
@@ -60,7 +63,8 @@ impl CheckBox {
     /// Draws [`CheckBox`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
-        let text = format!(" {} {} ", if self.is_checked { '󰄵' } else { '' }, self.caption);
+        let icon = if self.is_checked { self.symbols.0 } else { self.symbols.1 };
+        let text = format!(" {} {} ", icon, self.caption);
         let line = Line::styled(text, self.colors.get(self.is_hovered, self.is_focused));
         frame.render_widget(Paragraph::new(line), area);
         self.area = area;

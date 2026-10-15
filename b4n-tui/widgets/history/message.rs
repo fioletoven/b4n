@@ -21,7 +21,7 @@ impl MessageItem {
             uid: format!("_{id}_"),
             group: "notification",
             message: notification.text.clone(),
-            raw_message: notification.text.replace('󰌑', "\n"),
+            raw_message: notification.text.replace('⏎', "\n"),
             time,
             is_error: notification.kind == NotificationKind::Error,
         }

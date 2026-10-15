@@ -65,7 +65,11 @@ impl ShellView {
     ) -> Self {
         let runtime = worker.borrow().runtime_handle().clone();
         let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        header.set_title(if is_attach { " attach" } else { " shell" });
+        if app_data.has_nerd_font() {
+            header.set_title(if is_attach { " attach" } else { " shell" });
+        } else {
+            header.set_title(if is_attach { "attach" } else { "shell" });
+        }
         header.set_data(
             pod.namespace.clone(),
             PODS.into(),
@@ -117,38 +121,46 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
-        let detach = if self.is_attach { "󰕍 back" } else { " detach shell" };
         let mut builder = ActionsListBuilder::default()
-            .with_menu_action(ActionItem::menu(2, "󰆒 paste", "paste"))
-            .with_menu_action(ActionItem::menu(5, " download files", "download"))
-            .with_menu_action(ActionItem::menu(5, " upload file", "upload"))
-            .with_menu_action(ActionItem::menu(100, detach, "detach"));
+            .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
+            .with_menu_action(ActionItem::menu(5, '', "download files", "download"))
+            .with_menu_action(ActionItem::menu(5, '', "upload file", "upload"));
+
+        if self.is_attach {
+            builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach"));
+        } else {
+            builder.add_menu_action(ActionItem::menu(100, '', "detach shell", "detach"));
+        }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
         let is_selected = self.selection.sorted().is_some();
 
         if !self.is_mouse_enabled {
             let copy = if is_selected { "selection" } else { "all" };
-            builder.add_menu_action(ActionItem::menu(1, &format!("󰆏 copy ␝{copy}␝"), "copy"));
+            builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         }
 
         if self.is_attach && self.bridge.is_application_mode().is_none() {
-            let mode = if self.is_app_mode { " normal" } else { " app." };
-            builder.add_menu_action(ActionItem::menu(3, &format!("{mode} cursor key mode"), "app_mode"));
+            if self.is_app_mode {
+                builder.add_menu_action(ActionItem::menu(3, '', "normal cursor key mode", "app_mode"));
+            } else {
+                builder.add_menu_action(ActionItem::menu(3, '', "app. cursor key mode", "app_mode"));
+            }
         }
 
         if is_mouse_allowed {
             if self.is_mouse_enabled {
-                builder.add_menu_action(ActionItem::menu(4, "󰍾 release mouse", "mouse_off"));
+                builder.add_menu_action(ActionItem::menu(4, '󰍾', "release mouse", "mouse_off"));
             } else {
-                builder.add_menu_action(ActionItem::menu(4, "󰍽 capture mouse", "mouse_on"));
+                builder.add_menu_action(ActionItem::menu(4, '󰍽', "capture mouse", "mouse_on"));
             }
         }
 
-        let actions = builder.build(None);
+        let actions = builder.build(None, None);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
-        self.command_palette = CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu();
+        self.command_palette =
+            CommandPalette::new(Rc::clone(&self.app_data), actions, width).to_mouse_menu(self.app_data.has_nerd_font());
         self.command_palette.show_at((x.saturating_sub(3), y).into());
 
         ResponseEvent::Handled
@@ -337,7 +349,9 @@ impl ShellView {
     fn enable_mouse(&mut self, is_enabled: bool) -> ResponseEvent {
         self.is_mouse_enabled = is_enabled;
         if is_enabled {
-            self.footer_tx.show_hint(" Double right-click to open mouse menu");
+            let icon = self.app_data.borrow().config.symbols.hint.right;
+            self.footer_tx
+                .show_hint(format!("{icon}Double right-click to open mouse menu"));
         } else {
             set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
         }
@@ -579,14 +593,15 @@ impl Drop for ShellView {
 
 fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool, is_alt_mode: bool) {
     let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let icon = app_data.borrow().config.symbols.hint.right;
     if is_alt_mode {
         let action = if is_attach { "close attach view" } else { "detach shell" };
         let transfer_to = app_data.get_key_name(KeyCommand::TransferTo).to_ascii_uppercase();
         let transfer_from = app_data.get_key_name(KeyCommand::TransferFrom).to_ascii_uppercase();
         footer_tx.show_hint(format!(
-            " Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
+            "{icon}Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
         ));
     } else {
-        footer_tx.show_hint(format!(" Double press ␝{key}␝ to activate escape mode"));
+        footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
 }

@@ -8,9 +8,7 @@ use ratatui::layout::{Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
-use crate::core::{SharedAppData, SharedAppDataExt};
-
-const DEFAULT_PROMPT: &str = " ";
+use crate::core::{AppData, SharedAppData, SharedAppDataExt};
 
 /// Command Palette widget for TUI.
 #[derive(Default)]
@@ -30,9 +28,7 @@ pub struct CommandPalette {
 impl CommandPalette {
     /// Creates new [`CommandPalette`] instance.
     pub fn new(app_data: SharedAppData, actions: ActionsList, width: u16) -> Self {
-        let colors = app_data.borrow().theme.colors.command_palette.clone();
-        let is_mouse_enabled = app_data.borrow().is_mouse_enabled;
-        let step = Step::new(actions, colors, is_mouse_enabled, app_data.borrow().get_clipboard());
+        let step = Step::new(&app_data.borrow(), actions);
         Self {
             app_data,
             steps: vec![step],
@@ -74,8 +70,9 @@ impl CommandPalette {
     /// Sets prompt for the last added step of the command palette.
     pub fn with_prompt(mut self, prompt: &str) -> Self {
         let index = self.steps.len().saturating_sub(1);
-        self.steps[index].select.set_prompt(format!("{prompt}{DEFAULT_PROMPT}"));
-        self.steps[index].prompt = Some(format!("{prompt}{DEFAULT_PROMPT}"));
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
+        self.steps[index].select.set_prompt(format!("{prompt}{prompt_end}"));
+        self.steps[index].prompt = Some(format!("{prompt}{prompt_end}"));
         self
     }
 
@@ -109,13 +106,17 @@ impl CommandPalette {
     }
 
     /// Sets this command palette to behave as mouse menu.
-    pub fn to_mouse_menu(mut self) -> Self {
+    pub fn to_mouse_menu(mut self, show_icons: bool) -> Self {
         let index = self.steps.len().saturating_sub(1);
         self.steps[index].select.disable_filter(true);
         self.steps[index]
             .select
             .set_colors(self.app_data.borrow().theme.colors.mouse_menu.clone());
         self.is_mouse_menu = true;
+        for item in self.steps[index].select.items.list.iter_mut() {
+            item.data.show_menu_icon(show_icons);
+        }
+
         self
     }
 
@@ -258,11 +259,12 @@ impl CommandPalette {
 
         let is_highlighted = self.select().is_accept_button_highlighted();
 
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
         let prompt = format!(
-            "{0}{1}{DEFAULT_PROMPT}{2}",
+            "{0}{1}{prompt_end}{2}",
             self.build_prev_prompt(),
             self.select().value(),
-            self.steps[self.index + 1].prompt.as_deref().unwrap_or(DEFAULT_PROMPT)
+            self.steps[self.index + 1].prompt.as_deref().unwrap_or(prompt_end)
         );
 
         self.index += 1;
@@ -286,10 +288,10 @@ impl CommandPalette {
 
     fn build_prev_prompt(&self) -> String {
         let mut result = String::new();
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
         for i in 0..self.index {
             result.push_str(self.steps[i].select.value());
-            result.push('');
-            result.push(' ');
+            result.push_str(prompt_end);
         }
 
         result
@@ -428,7 +430,7 @@ impl StepBuilder {
 
     /// Adds custom prompt to the [`Step`].
     pub fn with_prompt(mut self, prompt: &str) -> Self {
-        self.prompt = Some(format!("{prompt}{DEFAULT_PROMPT}"));
+        self.prompt = Some(prompt.to_owned());
         self
     }
 
@@ -458,11 +460,14 @@ impl StepBuilder {
 
     /// Builds [`Step`] instance.
     pub fn build(self, app_data: &SharedAppData) -> Step {
+        let prompt_end = app_data.borrow().config.symbols.prompt.right;
+        let prompt = self.prompt.map(|label| format!("{label}{prompt_end}"));
+        let caption = format!(" {} ", app_data.borrow().config.symbols.accept.raw);
         let list = self.actions.unwrap_or_default();
         let mut select = Select::new(list, self.colors, false, true)
-            .with_prompt(DEFAULT_PROMPT)
+            .with_prompt(prompt_end)
             .with_required(self.required)
-            .with_accept_button(app_data.borrow().is_mouse_enabled)
+            .with_accept_button(caption, app_data.borrow().is_mouse_enabled)
             .with_clipboard(self.clipboard);
         select.set_error_mode(ErrorHighlightMode::Value);
         if let Some(initial_value) = self.initial_value {
@@ -471,7 +476,7 @@ impl StepBuilder {
 
         Step {
             select,
-            prompt: self.prompt,
+            prompt,
             validators: self.validators,
             copy_previous: self.copy_previous,
             required: self.required,
@@ -490,14 +495,16 @@ pub struct Step {
 
 impl Step {
     /// Creates new [`Step`] instance.
-    fn new(list: ActionsList, colors: SelectColors, accept_button: bool, clipboard: Option<SharedClipboard>) -> Self {
+    fn new(app_data: &AppData, list: ActionsList) -> Self {
+        let colors = app_data.theme.colors.command_palette.clone();
+        let caption = format!(" {} ", app_data.config.symbols.accept.raw);
         Self {
             select: Select::new(list, colors, false, true)
-                .with_prompt(DEFAULT_PROMPT)
+                .with_prompt(app_data.config.symbols.prompt.right)
                 .with_required(true)
                 .with_error_mode(ErrorHighlightMode::Value)
-                .with_accept_button(accept_button)
-                .with_clipboard(clipboard),
+                .with_accept_button(caption, app_data.is_mouse_enabled)
+                .with_clipboard(app_data.get_clipboard()),
             prompt: None,
             validators: Vec::new(),
             copy_previous: false,

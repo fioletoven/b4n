@@ -1,6 +1,5 @@
-use std::cmp::min;
-
 use b4n_common::DelayedTrueTracker;
+use b4n_config::symbols::Symbols;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
 use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType, utils::center};
@@ -9,6 +8,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Widget};
+use std::cmp::min;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
 
@@ -29,6 +29,7 @@ pub struct ListViewer<T: Table> {
 impl<T: Table> ListViewer<T> {
     /// Creates new [`ListViewer`] instance.
     pub fn new(app_data: SharedAppData, list: T, view: ViewType) -> Self {
+        let use_plain_symbols = app_data.use_plain_symbols();
         ListViewer {
             table: list,
             view,
@@ -38,7 +39,7 @@ impl<T: Table> ListViewer<T> {
             is_focused: true,
             has_api_error: DelayedTrueTracker::default(),
             is_disconnected: DelayedTrueTracker::default(),
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
             show_border: true,
         }
     }
@@ -110,7 +111,11 @@ impl<T: Table> ListViewer<T> {
                 self.render_error(frame, " waiting for the Kubernetes API…", true);
             }
         } else if self.has_api_error.value() {
-            self.render_error(frame, " cannot fetch or update requested resources…", false);
+            let error = format!(
+                "{} cannot fetch or update requested resources…",
+                self.app_data.borrow().config.symbols.error.ch
+            );
+            self.render_error(frame, &error, false);
         } else {
             let theme = &self.app_data.borrow().theme;
             let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
@@ -137,6 +142,7 @@ impl<T: Table> ListViewer<T> {
         let mut header = HeaderWidget {
             header: self.table.get_header(self.view, usize::from(self.area.width)),
             offset,
+            symbols: &self.app_data.borrow().config.symbols,
             colors,
             background: theme.colors.text.bg,
             view: self.view,
@@ -247,6 +253,7 @@ impl<T: Table> Responsive for ListViewer<T> {
 struct HeaderWidget<'a> {
     header: &'a str,
     offset: usize,
+    symbols: &'a Symbols,
     colors: &'a TextColors,
     background: Color,
     view: ViewType,
@@ -264,13 +271,14 @@ impl Widget for &mut HeaderWidget<'_> {
         let y = area.top();
         let max_x = min((area.left() + area.width).saturating_sub(1), buf.area.width.saturating_sub(1));
 
-        if self.show_border {
-            buf[(x - 1, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
-            buf[(max_x, y)].set_char('').set_fg(self.colors.bg).set_bg(self.background);
+        let (left, right) = if self.show_border {
+            (self.symbols.left_end.ch, self.symbols.right_end.ch)
         } else {
-            buf[(x - 1, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
-            buf[(max_x, y)].set_char(' ').set_fg(self.colors.bg).set_bg(self.background);
-        }
+            (' ', ' ')
+        };
+
+        buf[(x - 1, y)].set_char(left).set_fg(self.colors.bg).set_bg(self.background);
+        buf[(max_x, y)].set_char(right).set_fg(self.colors.bg).set_bg(self.background);
 
         let mut column_no = if self.view == ViewType::Full { 0 } else { 1 };
         let mut in_column = false;

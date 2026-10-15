@@ -6,6 +6,7 @@ use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table}
 use crossterm::event::KeyModifiers;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::Style;
+use std::borrow::Cow;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::widgets::{PatternItem, PatternsList};
@@ -13,7 +14,7 @@ use crate::ui::widgets::{PatternItem, PatternsList};
 /// Defines the varying behaviour between different pickers.
 pub trait PickerBehaviour {
     /// Gets prompt shown in the input.
-    fn prompt(&self) -> &str;
+    fn prompt(&self) -> Cow<'_, str>;
 
     /// Gets colors to use in the picker.
     fn colors(&self) -> SelectColors;
@@ -139,12 +140,13 @@ pub struct Picker<B: PickerBehaviour> {
 impl<B: PickerBehaviour> Picker<B> {
     /// Creates new [`Picker`] instance.
     pub fn new_picker(app_data: SharedAppData, worker: Option<SharedBgWorker>, width: u16, behaviour: B) -> Self {
+        let caption = format!(" {} ", app_data.borrow().config.symbols.accept.raw);
         let mut select = Select::new(PatternsList::default(), behaviour.colors(), false, true)
             .with_prompt(behaviour.prompt())
             .with_required(true)
             .with_highlight_exact(behaviour.highlight_exact())
             .with_filter_delimiters(behaviour.filter_delimiters())
-            .with_accept_button(true)
+            .with_accept_button(caption, true)
             .with_clipboard(app_data.borrow().get_clipboard());
 
         if let Some(accents) = behaviour.accent_characters() {
@@ -237,6 +239,7 @@ impl<B: PickerBehaviour> Picker<B> {
         let area = center_horizontal(area, width, self.patterns.get_screen_height());
 
         self.behaviour.on_draw(&mut self.patterns, area);
+        self.patterns.set_prompt(self.behaviour.prompt());
 
         let colors = self.patterns.colors();
         utils::clear_area(frame, area, colors.items.normal.bg);

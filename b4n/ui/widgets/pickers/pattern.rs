@@ -9,7 +9,7 @@ pub struct PatternItem {
     value: String,
     lowercase_value: String,
     sort_value: Option<String>,
-    icon: Option<&'static str>,
+    icon: Option<char>,
     is_fixed: bool,
 }
 
@@ -36,12 +36,12 @@ impl PatternItem {
     }
 
     /// Returns pattern item icon.
-    pub fn icon(&self) -> Option<&str> {
+    pub fn icon(&self) -> Option<char> {
         self.icon
     }
 
     /// Sets new icon value.
-    pub fn set_icon(&mut self, icon: Option<&'static str>) {
+    pub fn set_icon(&mut self, icon: Option<char>) {
         self.icon = icon;
     }
 
@@ -51,9 +51,7 @@ impl PatternItem {
     }
 
     fn get_text_width(&self, width: usize) -> usize {
-        self.icon
-            .as_ref()
-            .map_or(width, |i| width.saturating_sub(i.chars().count() + 1))
+        self.icon.as_ref().map_or(width, |_| width.saturating_sub(2))
     }
 
     fn get_value_width(&self) -> usize {
@@ -61,9 +59,9 @@ impl PatternItem {
     }
 
     fn add_icon(&self, text: &mut String) {
-        if let Some(icon) = &self.icon {
+        if let Some(icon) = self.icon {
             text.push(' ');
-            text.push_str(icon);
+            text.push(icon);
         }
     }
 }

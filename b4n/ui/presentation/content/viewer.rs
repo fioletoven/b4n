@@ -43,6 +43,7 @@ impl<T: Content> ContentViewer<T> {
         let header = ContentHeader::new(Rc::clone(&app_data), true);
         let edit = EditContext::new(Rc::clone(&app_data), app_data.borrow().theme.colors.cursor);
         let select = SelectContext::new(Rc::clone(&app_data));
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         Self {
             header,
@@ -57,7 +58,7 @@ impl<T: Content> ContentViewer<T> {
             page_start: ContentPosition::default(),
             page_area: area,
             creation_time: Instant::now(),
-            spinner: Spinner::default(),
+            spinner: Spinner::new(use_plain_symbols),
         }
     }
 
@@ -162,7 +163,7 @@ impl<T: Content> ContentViewer<T> {
                 self.page_area.height,
                 content,
             );
-            self.header.set_edit('', "[INS]  ");
+            self.header.set_edit(self.app_data.borrow().config.symbols.edit.ch, "[INS]  ");
             if self.hash.is_none()
                 && let Some(content) = &self.content
             {
@@ -393,13 +394,15 @@ impl<T: Content> ContentViewer<T> {
 
     /// Gets footer icon text for the current search state.
     pub fn get_footer_text(&self) -> Option<String> {
+        let icon = self.app_data.borrow().config.symbols.search.right;
         if let Some(count) = self.matches_count() {
             if let Some(current) = self.current_match_index() {
-                Some(format!(" {current}:{count}"))
+                Some(format!("{icon}{current}:{count}"))
             } else if count == 0 {
-                Some(format!(" {count}"))
+                Some(format!("{icon}{count}"))
             } else {
-                Some(format!(" :{count}"))
+                let all = self.app_data.borrow().config.symbols.all.raw;
+                Some(format!("{icon}{all}:{count}"))
             }
         } else {
             None
@@ -487,6 +490,7 @@ impl<T: Content> ContentViewer<T> {
                 x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(1),
                 x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(1),
 
+                x if x.kind == MouseEventKind::LeftDrag => (),
                 _ => return ResponseEvent::NotHandled,
             },
             TuiEvent::Command(_) => return ResponseEvent::NotHandled,

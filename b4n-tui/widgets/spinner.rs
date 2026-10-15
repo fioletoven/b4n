@@ -6,18 +6,22 @@ pub struct Spinner {
     ticks: usize,
 }
 
-impl Default for Spinner {
-    fn default() -> Self {
+impl Spinner {
+    /// Creates new [`Spinner`] instance.
+    pub fn new(use_plain_symbols: bool) -> Self {
+        let frames = if use_plain_symbols {
+            Box::new(['╵', '╰', '╶', '╭', '╷', '╮', '╴', '╯'])
+        } else {
+            Box::new(['⡇', '⠏', '⠛', '⠹', '⢸', '⣰', '⣤', '⣆'])
+        };
         Self {
-            frames: Box::new(['⡇', '⠏', '⠛', '⠹', '⢸', '⣰', '⣤', '⣆']),
+            frames,
             speed: 4,
             frame: 0,
             ticks: 0,
         }
     }
-}
 
-impl Spinner {
     /// Advances spinner one tick and returns character for the current frame.
     pub fn tick(&mut self) -> char {
         self.advance_frame();
