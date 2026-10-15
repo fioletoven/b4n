@@ -111,7 +111,11 @@ impl<T: Table> ListViewer<T> {
                 self.render_error(frame, " waiting for the Kubernetes API…", true);
             }
         } else if self.has_api_error.value() {
-            self.render_error(frame, " cannot fetch or update requested resources…", false);
+            let error = format!(
+                "{} cannot fetch or update requested resources…",
+                self.app_data.borrow().config.symbols.error.ch
+            );
+            self.render_error(frame, &error, false);
         } else {
             let theme = &self.app_data.borrow().theme;
             let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));

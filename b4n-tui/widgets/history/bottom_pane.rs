@@ -46,7 +46,10 @@ impl BottomPane {
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, symbols: &Symbols) {
         let hint_lines = if let Some(text) = self.history.items.list.get_highlighted_item() {
             let width = area.width.saturating_sub(4);
-            let text = textwrap::wrap(&text.data.raw_message, Options::new(width.into()).initial_indent(" "));
+            let text = textwrap::wrap(
+                &text.data.raw_message,
+                Options::new(width.into()).initial_indent(symbols.content.right),
+            );
             text.into_iter().map(|i| Line::from(i.into_owned())).collect::<Vec<Line>>()
         } else {
             Vec::default()

@@ -124,7 +124,7 @@ fn get_transfer_dialog_textboxes(
         symbols: &Symbols,
     ) -> TextBox {
         let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone(), symbols)
-            .with_button(format!(" {} ", symbols.dir2.ch), "select_file")
+            .with_button(format!(" {} ", symbols.dir_rev.ch), "select_file")
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::Required);
         setup_transfer_dialog_textbox(&mut textbox, !is_download, is_first);

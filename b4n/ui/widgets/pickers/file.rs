@@ -133,11 +133,11 @@ impl FileBehaviour {
                         continue;
                     }
 
-                    let mut item = PatternItem::fixed(entry.name.clone());
-                    if entry.is_dir {
-                        item.set_icon(Some(if entry.name == BACK_NAME { back_icon } else { dir_icon }));
-                        item.set_sort_value(Some(format!("...-{}", entry.name)));
-                    }
+                    let item = if entry.is_dir {
+                        directory_item(entry.name.clone(), dir_icon, back_icon)
+                    } else {
+                        PatternItem::fixed(entry.name.clone())
+                    };
 
                     patterns.items.add_or_update(item);
 
@@ -336,9 +336,7 @@ impl PickerBehaviour for FileBehaviour {
                     patterns.reset();
 
                     if self.current_path.parent().is_some() {
-                        let mut item = PatternItem::fixed(BACK_NAME.to_owned());
-                        item.set_icon(Some(back_icon));
-                        item.set_sort_value(Some("   -..".to_string()));
+                        let item = directory_item(BACK_NAME.to_owned(), dir_icon, back_icon);
                         patterns.items.add_or_update(item);
                         patterns.items.highlight_item_by_name(BACK_NAME);
                     }
@@ -373,6 +371,15 @@ impl PickerBehaviour for FileBehaviour {
 
         ResponseEvent::NotHandled
     }
+}
+
+fn directory_item(name: String, dir_icon: char, back_icon: char) -> PatternItem {
+    let is_back = name == BACK_NAME;
+    let sort_value = if is_back { String::new() } else { format!("...-{name}") };
+    let mut item = PatternItem::fixed(name);
+    item.set_icon(Some(if is_back { back_icon } else { dir_icon }));
+    item.set_sort_value(Some(sort_value));
+    item
 }
 
 fn normalize(path: &str) -> PathBuf {

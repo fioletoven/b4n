@@ -14,17 +14,21 @@ define_symbols_set! {
     hint: '', '☼', '☼';
     prompt: '', '❭', '›';
     separator: '', '❭', '›';
+    content: '', '≡', '≡';
     filter: '', '▽', '▼';
     pin: '󰐃', '▼', '●';
     pod: '', '▤';
     container: '', '▢';
+    modified: '', '*', '*';
+    impersonate: '󰗹', '☺', '☺';
     dir: '', '⬓', '▫';
-    dir2: '', '⬓', '▪';
+    dir_rev: '', '⬓', '▪';
     select: '', '⬒', '▴';
     user: '', '☻', '☻';
     action: '';
     plugin: '';
     extension: '';
+    input: '';
     structure: '', '≈', '≈';
     bound: '', '≡', '≡';
     unbound: '', '≠', '≠';
@@ -41,7 +45,6 @@ define_symbols_set! {
     unchecked: '', '□', '□';
     opened: '', '▾', '▾';
     closed: '', '▸', '▸';
-    input: '';
 }
 
 /// A single symbol representation.

@@ -122,11 +122,11 @@ fn get_context_display(app_data: &AppData) -> String {
 
     let mut has_custom = false;
     if app_data.client_info.is_custom_cluster || app_data.client_info.is_custom_user {
-        result.push('');
+        result.push(app_data.config.symbols.modified.ch);
         has_custom = true;
     }
     if app_data.client_info.is_impersonated {
-        result.push('󰗹');
+        result.push(app_data.config.symbols.impersonate.ch);
         has_custom = true;
     }
     if has_custom {
