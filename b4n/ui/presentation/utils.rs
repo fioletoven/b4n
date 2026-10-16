@@ -115,8 +115,13 @@ fn get_context_color(app_data: &AppData) -> TextColors {
 }
 
 fn get_context_display(app_data: &AppData) -> String {
-    let mut result = String::with_capacity(app_data.current.context.len() + 5);
+    let mut result = String::with_capacity(app_data.current.context.len() + 7);
     result.push(' ');
+
+    if app_data.read_only {
+        result.push_str(app_data.config.symbols.lock.right);
+    }
+
     result.push_str(&app_data.current.context);
     result.push(' ');
 

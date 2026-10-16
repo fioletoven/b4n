@@ -14,6 +14,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
+use crate::ui::views::common::update_read_only_icon;
 use crate::ui::views::resources::table::ResourcesTable;
 use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
 use crate::ui::views::{View, common, transfer};
@@ -44,6 +45,8 @@ impl ResourcesView {
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
+
+        update_read_only_icon(&footer_tx, &app_data.borrow());
 
         Self {
             table,
@@ -172,8 +175,8 @@ impl ResourcesView {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
-        {
+        let can_delete = !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable;
+        if can_delete && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = dialogs::new_delete_dialog(&self.app_data, self.last_mouse_click.take());
             self.modal.show();
         }
@@ -285,6 +288,11 @@ impl ResourcesView {
             let response = self.modal.process_event(event);
             return match response {
                 ResponseEvent::Action(action) => match action {
+                    "read_write" => {
+                        self.app_data.borrow_mut().read_only = false;
+                        update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
+                        Some(ResponseEvent::Handled)
+                    },
                     "delete" => Some(ResponseEvent::DeleteResources(
                         self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
                         self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
@@ -370,6 +378,7 @@ impl ResourcesView {
                     self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
                 },
                 "pin_filter" => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
+                "ro_toggle" => self.process_event(&TuiEvent::Command(KeyCommand::ReadOnlyToggle)),
                 "create" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
@@ -415,6 +424,17 @@ impl ResourcesView {
         response
     }
 
+    fn process_disconnected_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+        {
+            self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
+    }
+
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected() {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build(
@@ -442,7 +462,7 @@ impl ResourcesView {
             return;
         }
 
-        let actions = menus::build_mouse_menu_actions(&self.table);
+        let actions = menus::build_mouse_menu_actions(&self.table, self.app_data.borrow().read_only);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
         self.command_palette =
@@ -646,14 +666,7 @@ impl View for ResourcesView {
         }
 
         if !self.app_data.borrow().is_connected() {
-            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
-            {
-                self.show_command_palette();
-                return ResponseEvent::Handled;
-            }
-
-            return ResponseEvent::NotHandled;
+            return self.process_disconnected_event(event);
         }
 
         let is_highlighted = self.table.list.table.is_anything_highlighted();
@@ -662,11 +675,16 @@ impl View for ResourcesView {
             .app_data
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
+            if plugin.confirm && self.app_data.borrow().read_only {
+                return ResponseEvent::Handled;
+            }
+
             if plugin.confirm || plugin.inputs {
                 self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
+
             let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
             return ResponseEvent::RunPlugin(plugin.id, context);
         }
@@ -679,6 +697,17 @@ impl View for ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ReadOnlyToggle) {
+            if self.app_data.borrow().read_only {
+                self.modal = dialogs::new_read_only_dialog(&self.app_data);
+                self.modal.show();
+            } else {
+                self.app_data.borrow_mut().read_only = true;
+                update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
+            }
             return ResponseEvent::Handled;
         }
 

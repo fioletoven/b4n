@@ -21,6 +21,17 @@ pub enum KeyCommandError {
     UnknownCommand,
 }
 
+/// List of all harmful commands that should be ignored in read-only mode.
+pub const HARMFUL_COMMANDS: [KeyCommand; 7] = [
+    KeyCommand::ContainerAttach,
+    KeyCommand::ContainerInject,
+    KeyCommand::ShellOpen,
+    KeyCommand::TransferFrom,
+    KeyCommand::TransferTo,
+    KeyCommand::YamlCreate,
+    KeyCommand::YamlEdit,
+];
+
 define_key_commands! {
     bindings = KeyBindings;
 
@@ -71,6 +82,7 @@ define_key_commands! {
         PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
         PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PreviousLogsOpen => "previous-logs.open" @ "P",
+        ReadOnlyToggle => "read-only.toggle" @ "Shift+Ctrl+R",
         SearchOpen => "search.open" @ "/", "Shift+/",
         SearchReset => "search.reset" @ "Esc",
         SelectorLeft => "selector.left" @ "Left",

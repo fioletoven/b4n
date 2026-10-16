@@ -206,7 +206,7 @@ inputs:              # list of inputs to show in the modal dialog before plugin 
     value: text      # initial value for the input
     options: []      # array of possible options (used only in `select` and `checkbox` inputs)
     required: false  # requires user to provide a value (used only in `textbox` input)
-confirm: false       # show run confirmation dialog
+confirm: false       # harmful plugin - show run confirmation dialog, hide in read-only mode
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)

@@ -139,7 +139,7 @@ impl<T: Content> ContentViewer<T> {
 
     /// Enables edit mode for the content viewer.
     pub fn enable_edit_mode(&mut self, is_new: bool) -> bool {
-        if self.edit.is_enabled {
+        if self.edit.is_enabled || self.app_data.borrow().read_only {
             return false;
         }
 

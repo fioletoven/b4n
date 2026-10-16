@@ -1,6 +1,6 @@
 use arboard::Clipboard;
 use b4n_common::NotificationSink;
-use b4n_config::keys::{KeyBindings, KeyCombination, KeyCommand};
+use b4n_config::keys::{HARMFUL_COMMANDS, KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::symbols::Symbols;
 use b4n_config::{Config, History, themes::Theme};
 use b4n_config::{PluginInput, PluginRef, Plugins};
@@ -133,6 +133,9 @@ pub struct AppData {
     /// Application configuration.
     pub config: Config,
 
+    /// Indicates if the application is running in read-only mode.
+    pub read_only: bool,
+
     /// UI key bindings.
     pub key_bindings: KeyBindings,
     disabled_commands: HashSet<KeyCommand>,
@@ -180,11 +183,19 @@ impl AppData {
         self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
     }
 
+    /// Returns `true` if specified command is disabled.\
+    /// **Note** that it also takes into account read-only mode and harmful commands.
+    pub fn is_command_disabled(&self, command: KeyCommand) -> bool {
+        self.disabled_commands.contains(&command) || (self.read_only && HARMFUL_COMMANDS.contains(&command))
+    }
+
     /// Creates new [`AppData`] instance.
-    pub fn new(config: Config, history: History, theme: Theme) -> Self {
+    pub fn new(config: Config, history: History, theme: Theme, read_only: Option<bool>) -> Self {
+        let read_only = read_only.unwrap_or(config.read_only);
         let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
         Self {
             config,
+            read_only,
             key_bindings,
             history,
             theme,
@@ -236,7 +247,7 @@ pub trait SharedAppDataExt {
     /// the [`KeyBindings`] stored in [`SharedAppData`].
     fn has_key_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool;
 
-    /// Like [`has_key_binding`] but ignores the SHIFT modifier when matching.
+    /// Like `has_key_binding` but ignores the SHIFT modifier when matching.
     fn has_key_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool;
 
     /// Returns `true` if app can use `NerdFont` symbols.
@@ -278,22 +289,20 @@ impl SharedAppDataExt for SharedAppData {
     fn has_binding(&self, event: &TuiEvent, command: KeyCommand) -> bool {
         match event {
             TuiEvent::Key(key) => self.has_key_binding(key, command),
-            TuiEvent::Command(cmd) => command == *cmd && !self.borrow().disabled_commands.contains(&command),
+            TuiEvent::Command(cmd) => command == *cmd && !self.borrow().is_command_disabled(command),
             TuiEvent::Mouse(_) => false,
         }
     }
 
     fn has_key_binding(&self, key: &KeyCombination, command: KeyCommand) -> bool {
         let data = self.borrow();
-        !data.disabled_keys.contains(key)
-            && !data.disabled_commands.contains(&command)
-            && data.key_bindings.has_binding(key, command)
+        !data.disabled_keys.contains(key) && !data.is_command_disabled(command) && data.key_bindings.has_binding(key, command)
     }
 
     fn has_key_binding_ignore_shift(&self, key: &KeyCombination, command: KeyCommand) -> bool {
         let data = self.borrow();
         !data.disabled_keys.contains(key)
-            && !data.disabled_commands.contains(&command)
+            && !data.is_command_disabled(command)
             && data.key_bindings.has_binding_ignore_shift(key, command)
     }
 
