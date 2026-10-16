@@ -74,7 +74,7 @@ pub fn build_create_resource_actions(table: &ResourcesTable) -> ActionsList {
 }
 
 /// Builds actions for mouse menu.
-pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
+pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> ActionsList {
     let is_selected = table.list.table.is_anything_selected();
     let highlighted_name = table.list.table.get_highlighted_item_name();
     let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
@@ -99,7 +99,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "back"));
     }
 
-    if table.list.table.is_anything_selected() && table.list.table.data.is_deletable {
+    if !is_read_only && table.list.table.data.is_deletable && table.list.table.is_anything_selected() {
         let action = ActionItem::menu(14, '', "delete ␝selected␝", "").with_response(ResponseEvent::AskDeleteResources);
         builder.add_menu_action(action);
     }
@@ -119,7 +119,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
                 .with_menu_action(ActionItem::menu(3, '', "logs", "show_logs"))
                 .with_menu_action(ActionItem::menu(4, '', "logs ␝previous␝", "show_plogs"));
 
-            if table.is_resource_running() {
+            if !is_read_only && table.is_resource_running() {
                 builder = builder
                     .with_menu_action(ActionItem::menu(6, '', "attach", "attach"))
                     .with_menu_action(ActionItem::menu(7, '', "shell", "open_shell"))
@@ -138,7 +138,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
             }
         }
 
-        if table.list.table.data.is_editable {
+        if !is_read_only && table.list.table.data.is_editable {
             builder.add_menu_action(ActionItem::menu(12, '', "edit", "edit_yaml"));
         }
 
@@ -151,7 +151,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
         }
     }
 
-    if !is_containers && !is_events && table.list.table.data.is_creatable {
+    if !is_read_only && !is_containers && !is_events && table.list.table.data.is_creatable {
         builder.add_menu_action(ActionItem::menu(13, '󰐕', "create new", "create"));
     }
 
@@ -160,6 +160,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable) -> ActionsList {
 
 /// Builds actions for highlighted resource.
 pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable) -> ActionsList {
+    let is_read_only = app_data.borrow().read_only;
     let is_selected = table.list.table.is_anything_selected();
     let is_highlighted = table.list.table.is_anything_highlighted();
     let is_containers = table.kind_plural() == CONTAINERS;
@@ -168,7 +169,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     let is_deletable = is_selected && table.list.table.data.is_deletable;
 
     let mut builder = ActionsListBuilder::from_kinds(app_data.borrow().kinds.as_deref())
-        .with_resources_actions(!is_containers && is_deletable)
+        .with_resources_actions(is_deletable && !is_read_only && !is_containers)
         .with_forwards()
         .with_filter_action("filter")
         .with_pin_filter_action("pin_filter")
@@ -176,7 +177,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
             app_data
                 .borrow()
                 .plugins
-                .to_actions(table.get_kind().as_str(), is_highlighted, is_selected),
+                .to_actions(table.get_kind().as_str(), is_highlighted, is_selected, is_read_only),
         );
 
     if table.kind_plural() != NAMESPACES {
@@ -212,7 +213,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
             );
         }
 
-        if table.list.table.data.is_creatable {
+        if !is_read_only && table.list.table.data.is_creatable {
             builder.add_action(
                 ActionItem::action("create", "create")
                     .with_description("creates new Kubernetes resource")
@@ -230,13 +231,13 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     }
 
     if is_highlighted {
-        builder = add_resource_actions(builder, table, is_containers);
-        if is_pods && table.is_resource_running() {
+        builder = add_resource_actions(builder, table, is_containers, is_read_only);
+        if !is_read_only && is_pods && table.is_resource_running() {
             builder = add_ephemeral_container_actions(builder);
             builder = add_file_transfer_actions(builder);
         }
         if is_containers || is_pods {
-            builder = add_container_actions(builder);
+            builder = add_container_actions(builder, is_read_only);
         }
     }
 
@@ -245,7 +246,12 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         .build(Some(&app_data.borrow().key_bindings), Some(&app_data.borrow().config.symbols))
 }
 
-fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable, is_containers: bool) -> ActionsListBuilder {
+fn add_resource_actions(
+    mut builder: ActionsListBuilder,
+    table: &ResourcesTable,
+    is_containers: bool,
+    is_read_only: bool,
+) -> ActionsListBuilder {
     if table.kind_plural() == SECRETS {
         builder.add_action(
             ActionItem::action("decode", "decode_yaml").with_description("shows decoded YAML for highlighted secret"),
@@ -253,7 +259,7 @@ fn add_resource_actions(mut builder: ActionsListBuilder, table: &ResourcesTable,
         );
     }
 
-    if table.list.table.data.is_editable {
+    if !is_read_only && table.list.table.data.is_editable {
         builder.add_action(
             ActionItem::action("edit YAML", "edit_yaml")
                 .with_description("shows YAML and switches to edit mode")
@@ -304,7 +310,18 @@ fn add_file_transfer_actions(builder: ActionsListBuilder) -> ActionsListBuilder 
         )
 }
 
-fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
+fn add_container_actions(mut builder: ActionsListBuilder, is_read_only: bool) -> ActionsListBuilder {
+    if !is_read_only {
+        builder.add_action(
+            ActionItem::action("attach", "attach").with_description("attaches to container's main process"),
+            Some(KeyCommand::ContainerAttach),
+        );
+        builder.add_action(
+            ActionItem::action("shell", "open_shell").with_description("opens container shell"),
+            Some(KeyCommand::ShellOpen),
+        );
+    }
+
     builder
         .with_action(
             ActionItem::action("show logs", "show_logs")
@@ -317,14 +334,6 @@ fn add_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
                 .with_description("shows previous container logs")
                 .with_aliases(["previous"]),
             Some(KeyCommand::PreviousLogsOpen),
-        )
-        .with_action(
-            ActionItem::action("attach", "attach").with_description("attaches to container's main process"),
-            Some(KeyCommand::ContainerAttach),
-        )
-        .with_action(
-            ActionItem::action("shell", "open_shell").with_description("opens container shell"),
-            Some(KeyCommand::ShellOpen),
         )
         .with_action(
             ActionItem::action("forward port", "port_forward")

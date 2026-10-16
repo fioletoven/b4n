@@ -175,8 +175,8 @@ impl ResourcesView {
 
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        if self.table.list.table.is_anything_selected() && !self.table.has_containers() && self.table.list.table.data.is_deletable
-        {
+        let can_delete = !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable;
+        if can_delete && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = dialogs::new_delete_dialog(&self.app_data, self.last_mouse_click.take());
             self.modal.show();
         }
@@ -451,7 +451,7 @@ impl ResourcesView {
             return;
         }
 
-        let actions = menus::build_mouse_menu_actions(&self.table);
+        let actions = menus::build_mouse_menu_actions(&self.table, self.app_data.borrow().read_only);
         let width = u16::try_from(actions.max_item_len() + 4).unwrap_or(u16::MAX).max(22);
 
         self.command_palette =
@@ -671,11 +671,16 @@ impl View for ResourcesView {
             .app_data
             .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
         {
+            if plugin.confirm && self.app_data.borrow().read_only {
+                return ResponseEvent::Handled;
+            }
+
             if plugin.confirm || plugin.inputs {
                 self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
                 self.modal.show();
                 return ResponseEvent::Handled;
             }
+
             let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
             return ResponseEvent::RunPlugin(plugin.id, context);
         }

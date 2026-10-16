@@ -168,7 +168,7 @@ impl YamlView {
                 ActionItem::action("search", "search").with_description("searches content using query"),
                 Some(KeyCommand::SearchOpen),
             );
-        if self.yaml.content().is_some_and(Content::is_editable) {
+        if !self.app_data.borrow().read_only && self.yaml.content().is_some_and(Content::is_editable) {
             builder.add_action(
                 ActionItem::action("edit", "edit")
                     .with_description("switches to edit mode")
@@ -220,7 +220,7 @@ impl YamlView {
                 .with_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"))
                 .with_menu_action(ActionItem::menu(2, '', "save to file", "save"))
                 .with_menu_action(ActionItem::menu(3, '', "search", "search"));
-            if self.yaml.content().is_some_and(Content::is_editable) {
+            if !self.app_data.borrow().read_only && self.yaml.content().is_some_and(Content::is_editable) {
                 builder.add_menu_action(ActionItem::menu(5, '', "edit", "edit"));
             }
             if self.can_encode_decode() {
