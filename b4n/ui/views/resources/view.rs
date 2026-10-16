@@ -424,6 +424,17 @@ impl ResourcesView {
         response
     }
 
+    fn process_disconnected_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+        {
+            self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
+    }
+
     fn show_command_palette(&mut self) {
         if !self.app_data.borrow().is_connected() {
             let actions = ActionsListBuilder::default().with_resources_actions(false).build(
@@ -655,14 +666,7 @@ impl View for ResourcesView {
         }
 
         if !self.app_data.borrow().is_connected() {
-            if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-                || event.is_in(MouseEventKind::RightClick, self.table.list.area)
-            {
-                self.show_command_palette();
-                return ResponseEvent::Handled;
-            }
-
-            return ResponseEvent::NotHandled;
+            return self.process_disconnected_event(event);
         }
 
         let is_highlighted = self.table.list.table.is_anything_highlighted();

@@ -98,7 +98,7 @@ fn application_loop(app: &mut App) -> Result<(), anyhow::Error> {
 
     loop {
         let frame_start = Instant::now();
-        app.begin_frame(frame_start, FRAME_DURATION - RENDER_DURATION);
+        app.begin_frame(frame_start, FRAME_DURATION.saturating_sub(RENDER_DURATION));
         if app.process_events()? == ExecutionFlow::Stop {
             break;
         }
