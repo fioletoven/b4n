@@ -32,6 +32,7 @@ define_symbols_set! {
     structure: '', '≈', '≈';
     bound: '', '≡', '≡';
     unbound: '', '≠', '≠';
+    lock: '', '', '⊘';
     mouse: '󰍽', '⬉', '⬉';
     theme: '', 'ᵀ', 'ᵀ';
     download: '󰶡', '↓', '↓';

@@ -66,7 +66,9 @@ fn run_application(args: &cli::Args) -> Result<()> {
     let (config, config_error) = rt.block_on(Config::load_or_create());
     let (theme, theme_error) = rt.block_on(config.load_theme());
 
-    let mut app = App::new(rt.handle().clone(), config, history, theme, args.into())?;
+    let read_only = args.read_only.then_some(true).or(args.read_write.then_some(false));
+    let app_data = core::AppData::new(config, history, theme, read_only);
+    let mut app = App::new(rt.handle().clone(), app_data, args.into())?;
     app.start(context.name, kind, namespace)?;
 
     if let Some(error) = config_error

@@ -10,6 +10,20 @@ use crate::core::{SharedAppData, SharedAppDataExt};
 use crate::ui::views::common;
 use crate::ui::views::resources::ResourcesTable;
 
+/// Creates new read-only mode disable confirmation dialog.
+pub fn new_read_only_dialog(app_data: &SharedAppData) -> Dialog {
+    let data = app_data.borrow();
+    let colors = &data.theme.colors.modal;
+    Dialog::new(
+        "Are you sure you want to disable read-only mode?".to_owned(),
+        vec![
+            Button::new("Disable", ResponseEvent::Action("read_write"), colors.btn_delete.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.text)
+}
+
 /// Creates new resource delete confirmation dialog.
 pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;

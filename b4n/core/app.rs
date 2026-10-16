@@ -52,11 +52,11 @@ pub struct App {
 
 impl App {
     /// Creates new [`App`] instance.
-    pub fn new(runtime: Handle, config: Config, history: History, theme: Theme, options: ClientOptions) -> Result<Self> {
-        let is_mouse_enabled = config.mouse;
-        let theme_path = config.theme_path();
-        let syntax_data = SyntaxData::new(&theme);
-        let data = Rc::new(RefCell::new(AppData::new(config, history, theme)));
+    pub fn new(runtime: Handle, data: AppData, options: ClientOptions) -> Result<Self> {
+        let is_mouse_enabled = data.config.mouse;
+        let theme_path = data.config.theme_path();
+        let syntax_data = SyntaxData::new(&data.theme);
+        let data = Rc::new(RefCell::new(data));
         let footer = Footer::default();
         let worker = Rc::new(RefCell::new(BgWorker::new(
             runtime.clone(),
@@ -518,6 +518,7 @@ impl App {
         if self.data.borrow().config.symbols != symbols {
             self.data.borrow_mut().config.symbols = symbols;
             self.views_manager.set_message_history_hint();
+            self.views_manager.update_read_only_footer_icon();
             self.update_mouse_state();
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());

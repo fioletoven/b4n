@@ -133,6 +133,9 @@ pub struct AppData {
     /// Application configuration.
     pub config: Config,
 
+    /// Indicates if the application is running in read-only mode.
+    pub read_only: bool,
+
     /// UI key bindings.
     pub key_bindings: KeyBindings,
     disabled_commands: HashSet<KeyCommand>,
@@ -181,10 +184,12 @@ impl AppData {
     }
 
     /// Creates new [`AppData`] instance.
-    pub fn new(config: Config, history: History, theme: Theme) -> Self {
+    pub fn new(config: Config, history: History, theme: Theme, read_only: Option<bool>) -> Self {
+        let read_only = read_only.unwrap_or(config.read_only);
         let key_bindings = KeyBindings::default_with(config.key_bindings.clone());
         Self {
             config,
+            read_only,
             key_bindings,
             history,
             theme,

@@ -21,7 +21,9 @@ use std::rc::Rc;
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
-use crate::ui::views::{CmdView, DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView};
+use crate::ui::views::{
+    CmdView, DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView, update_read_only_icon,
+};
 use crate::ui::widgets::{Position, SideSelect};
 
 pub struct ViewsManager {
@@ -717,6 +719,11 @@ impl ViewsManager {
         let icon = self.app_data.borrow().config.symbols.hint.right;
         let hint = format!("{icon}Select message, then press ␝{copy_key}␝ to copy to clipboard  ");
         self.footer.set_message_history_hint(hint);
+    }
+
+    /// Updates the read-only icon in the footer based on the current application data.
+    pub fn update_read_only_footer_icon(&self) {
+        update_read_only_icon(self.footer(), &self.app_data.borrow());
     }
 
     fn copy_footer_message(&self) {

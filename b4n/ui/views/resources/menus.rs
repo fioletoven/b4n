@@ -196,6 +196,14 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         Some(KeyCommand::ContentCopy),
     );
 
+    let action = if app_data.borrow().read_only { "disables" } else { "enables" };
+    builder.add_action(
+        ActionItem::action("read-only mode", "ro_toggle")
+            .with_description(&format!("{action} read-only mode"))
+            .with_aliases(["readonly"]),
+        Some(KeyCommand::ReadOnlyToggle),
+    );
+
     if !is_containers && !is_events {
         if is_highlighted {
             builder.add_action(

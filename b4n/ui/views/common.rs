@@ -1,4 +1,4 @@
-use b4n_common::NotificationSink;
+use b4n_common::{IconKind, NotificationSink};
 use b4n_kube::{ContainerType, ResourceTag};
 use b4n_tasks::commands::CommandResult;
 use b4n_tui::{ResponseEvent, TuiEvent};
@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 use tui_term::vt100::Screen;
 
-use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::core::{AppData, SharedAppData, SharedAppDataExt};
 use crate::ui::presentation::ScreenSelection;
 
 /// TUI view with pages and widgets.
@@ -160,6 +160,12 @@ pub fn get_path_for_file_picker(path: &str, is_download: bool) -> PathBuf {
             default_path()
         }
     }
+}
+
+/// Updates the read-only icon in the footer based on the application's read-only state.
+pub fn update_read_only_icon(sink: &NotificationSink, app_data: &AppData) {
+    let read_only_icon = app_data.read_only.then_some(app_data.config.symbols.lock.ch);
+    sink.set_icon("060_read_only", read_only_icon, IconKind::Success);
 }
 
 /// Allowed time between two key presses that will still activate the escape sequence mode.

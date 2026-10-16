@@ -14,6 +14,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
+use crate::ui::views::common::update_read_only_icon;
 use crate::ui::views::resources::table::ResourcesTable;
 use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
 use crate::ui::views::{View, common, transfer};
@@ -44,6 +45,8 @@ impl ResourcesView {
         let filter = Filter::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let namespace_picker = NamespaceSelector::new(Rc::clone(&app_data), Some(Rc::clone(&worker)), 65);
         let file_picker = FileSelector::new(Rc::clone(&app_data), Rc::clone(&worker), 65, PathBuf::from("."));
+
+        update_read_only_icon(&footer_tx, &app_data.borrow());
 
         Self {
             table,
@@ -285,6 +288,11 @@ impl ResourcesView {
             let response = self.modal.process_event(event);
             return match response {
                 ResponseEvent::Action(action) => match action {
+                    "read_write" => {
+                        self.app_data.borrow_mut().read_only = false;
+                        update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
+                        Some(ResponseEvent::Handled)
+                    },
                     "delete" => Some(ResponseEvent::DeleteResources(
                         self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
                         self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
@@ -370,6 +378,7 @@ impl ResourcesView {
                     self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
                 },
                 "pin_filter" => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
+                "ro_toggle" => self.process_event(&TuiEvent::Command(KeyCommand::ReadOnlyToggle)),
                 "create" => {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
@@ -679,6 +688,17 @@ impl View for ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::ReadOnlyToggle) {
+            if self.app_data.borrow().read_only {
+                self.modal = dialogs::new_read_only_dialog(&self.app_data);
+                self.modal.show();
+            } else {
+                self.app_data.borrow_mut().read_only = true;
+                update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
+            }
             return ResponseEvent::Handled;
         }
 

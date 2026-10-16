@@ -81,6 +81,9 @@ pub struct Config {
     #[serde(default)]
     pub logs: Logs,
 
+    #[serde(default)]
+    pub read_only: bool,
+
     #[serde(default = "default_mouse")]
     pub mouse: bool,
 
@@ -143,6 +146,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             logs: Logs::default(),
+            read_only: false,
             mouse: default_mouse(),
             terminal: Terminal::default(),
             symbols: Symbols::default(),

@@ -41,6 +41,14 @@ pub struct Args {
     #[arg(long, requires = "as_user")]
     pub as_group: Vec<String>,
 
+    /// Run the application in read-only mode.
+    #[arg(long, alias = "readonly", alias = "ro", conflicts_with = "read_write")]
+    pub read_only: bool,
+
+    /// Run the application in read-write mode.
+    #[arg(long, alias = "readwrite", alias = "rw", conflicts_with = "read_only")]
+    pub read_write: bool,
+
     /// Path to a client certificate file for TLS authentication.
     #[arg(long, requires = "client_key")]
     pub client_cert: Option<String>,
