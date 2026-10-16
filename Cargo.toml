@@ -24,7 +24,7 @@ b4n-tasks = { path = "b4n-tasks" }
 b4n-tui = { path = "b4n-tui" }
 ansi-to-tui = { version = "8.0" }
 anyhow = { version = "1.0" }
-arboard = { version = "3.6", default-features = false }
+arboard = { version = "3.7", default-features = false }
 base16ct = { version = "1.0" }
 base64 = { version = "0.23" }
 clap = { version = "4.6", features = ["derive", "env"] }
