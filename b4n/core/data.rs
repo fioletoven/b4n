@@ -173,22 +173,6 @@ pub struct AppData {
 }
 
 impl AppData {
-    /// Starts a shared budget for cooperative UI work.
-    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
-        self.frame_deadline = Some(start + work_budget);
-    }
-
-    /// Returns `true` if there is a budget for more work in this frame.
-    pub fn has_frame_budget(&self) -> bool {
-        self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
-    }
-
-    /// Returns `true` if specified command is disabled.\
-    /// **Note** that it also takes into account read-only mode and harmful commands.
-    pub fn is_command_disabled(&self, command: KeyCommand) -> bool {
-        self.disabled_commands.contains(&command) || (self.read_only && HARMFUL_COMMANDS.contains(&command))
-    }
-
     /// Creates new [`AppData`] instance.
     pub fn new(config: Config, history: History, theme: Theme, read_only: Option<bool>) -> Self {
         let read_only = read_only.unwrap_or(config.read_only);
@@ -203,6 +187,37 @@ impl AppData {
             state: ConnectionState::Connecting,
             ..Default::default()
         }
+    }
+
+    /// Updates `read_only` value from the context configuration.
+    pub fn update_read_only_for_context(&mut self, read_only: Option<bool>) {
+        let resolved = read_only.or_else(|| {
+            self.config
+                .contexts
+                .as_ref()
+                .and_then(|contexts| contexts.get(&self.current.context))
+                .and_then(|context| context.read_only())
+        });
+
+        if let Some(read_only) = resolved {
+            self.read_only = read_only;
+        }
+    }
+
+    /// Starts a shared budget for cooperative UI work.
+    pub fn begin_frame(&mut self, start: Instant, work_budget: Duration) {
+        self.frame_deadline = Some(start + work_budget);
+    }
+
+    /// Returns `true` if there is a budget for more work in this frame.
+    pub fn has_frame_budget(&self) -> bool {
+        self.frame_deadline.is_none_or(|deadline| Instant::now() < deadline)
+    }
+
+    /// Returns `true` if specified command is disabled.\
+    /// **Note** that it also takes into account read-only mode and harmful commands.
+    pub fn is_command_disabled(&self, command: KeyCommand) -> bool {
+        self.disabled_commands.contains(&command) || (self.read_only && HARMFUL_COMMANDS.contains(&command))
     }
 
     /// Returns resource's `kind` and `namespace` from the history data.\

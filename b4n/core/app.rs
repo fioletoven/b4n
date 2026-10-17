@@ -83,11 +83,12 @@ impl App {
     }
 
     /// Starts app with initial data.
-    pub fn start(&mut self, context: String, kind: Kind, namespace: Namespace) -> Result<()> {
+    pub fn start(&mut self, context: String, kind: Kind, namespace: Namespace, read_only: Option<bool>) -> Result<()> {
         self.client_manager
             .request_new_client(context.clone(), kind, namespace.clone());
         self.views_manager
             .process_context_change(context, namespace, String::default(), Scope::Cluster);
+        self.data.borrow_mut().update_read_only_for_context(read_only);
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
@@ -609,6 +610,7 @@ impl App {
         self.views_manager.reset();
         self.views_manager
             .process_context_change(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
+        self.data.borrow_mut().update_read_only_for_context(None);
 
         self.client_manager.request_new_client(context, kind, namespace);
     }

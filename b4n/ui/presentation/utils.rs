@@ -111,7 +111,7 @@ fn get_context_color(app_data: &AppData) -> TextColors {
         .contexts
         .as_ref()
         .and_then(|contexts| contexts.get(&app_data.current.context))
-        .map_or(app_data.theme.colors.header.context, |f| *f)
+        .map_or(app_data.theme.colors.header.context, |entry| entry.colors())
 }
 
 fn get_context_display(app_data: &AppData) -> String {

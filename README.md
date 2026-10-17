@@ -206,7 +206,7 @@ inputs:              # list of inputs to show in the modal dialog before plugin 
     value: text      # initial value for the input
     options: []      # array of possible options (used only in `select` and `checkbox` inputs)
     required: false  # requires user to provide a value (used only in `textbox` input)
-confirm: false       # if true - show run confirmation dialog and hide in read-only mode
+confirm: false       # if true - show run confirmation dialog or disable plugin in read-only mode
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
@@ -261,7 +261,9 @@ debug_images:
 - nicolaka/netshoot
 contexts:
   test-cluster: '#43464f:#8aad81'
-  production: '#d8d8d8:#e1140a'
+  production:
+    colors: '#d8d8d8:#e1140a'
+    read_only: true
 aliases:
   daemonsets: ds,dms
   namespace: nn

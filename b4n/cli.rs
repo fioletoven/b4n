@@ -109,6 +109,11 @@ impl Args {
             default
         }
     }
+
+    /// Returns specified `read-only` value.
+    pub fn read_only(&self) -> Option<bool> {
+        self.read_only.then_some(true).or(self.read_write.then_some(false))
+    }
 }
 
 impl From<&Args> for ClientOptions {
