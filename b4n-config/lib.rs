@@ -1,4 +1,4 @@
-pub use self::config::{APP_NAME, APP_VERSION, Config, ConfigError, DEFAULT_THEME_NAME};
+pub use self::config::{APP_NAME, APP_VERSION, Config, ConfigError, ContextConfig, ContextEntry, DEFAULT_THEME_NAME};
 pub use self::history::{History, HistoryItem};
 pub use self::plugins::{
     Plugin, PluginError, PluginInput, PluginInputType, PluginOutputType, PluginRef, Plugins, PluginsWatcher,

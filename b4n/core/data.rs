@@ -2,8 +2,7 @@ use arboard::Clipboard;
 use b4n_common::NotificationSink;
 use b4n_config::keys::{HARMFUL_COMMANDS, KeyBindings, KeyCombination, KeyCommand};
 use b4n_config::symbols::Symbols;
-use b4n_config::{Config, History, themes::Theme};
-use b4n_config::{PluginInput, PluginRef, Plugins};
+use b4n_config::{Config, ContextEntry, History, PluginInput, PluginRef, Plugins, themes::Theme};
 use b4n_kube::{CONTAINERS, InitData, Kind, Namespace, ResourceRef};
 use b4n_tasks::commands::KubernetesClientInfo;
 use b4n_tui::widgets::SharedClipboard;
@@ -196,7 +195,7 @@ impl AppData {
                 .contexts
                 .as_ref()
                 .and_then(|contexts| contexts.get(&self.current.context))
-                .and_then(|context| context.read_only())
+                .and_then(ContextEntry::read_only)
         });
 
         if let Some(read_only) = resolved {
