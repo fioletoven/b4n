@@ -4,7 +4,8 @@
 
 ### Features
 
-- allow to select symbols set used in TUI: `NerdFont`, `Powerline` and `Plain`
+- allow to select symbol sets used in TUI: `NerdFont`, `Powerline` and `Plain`
+- add read-only mode to the configuration (can be toggled with `Shift+Ctrl+R`)
 
 ### Bug Fixes
 

@@ -502,10 +502,7 @@ impl App {
 
     /// Changes application theme.
     fn process_theme_change(&mut self, theme: String) {
-        if self.data.borrow().config.theme != theme {
-            self.data.borrow_mut().config.theme = theme;
-            let theme_path = self.data.borrow().config.theme_path();
-            let _ = self.theme_watcher.change_file(theme_path);
+        if self.apply_theme(theme) {
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
             let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
@@ -515,16 +512,54 @@ impl App {
 
     /// Changes application symbols configuration.
     fn process_symbols_change(&mut self, symbols: Symbols) {
-        if self.data.borrow().config.symbols != symbols {
-            self.data.borrow_mut().config.symbols = symbols;
-            self.views_manager.set_message_history_hint();
-            self.views_manager.update_read_only_footer_icon();
-            self.update_mouse_state();
+        if self.apply_symbols(symbols) {
             self.config_watcher.skip_next();
             self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
             let msg = format!("Symbols changed to '{}'", self.data.borrow().config.symbols.as_str());
             self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
         }
+    }
+
+    /// Changes application symbols and theme configuration.
+    fn process_symbols_and_theme_change(&mut self, symbols: Symbols, theme: String) {
+        let symbols_changed = self.apply_symbols(symbols);
+        let theme_changed = self.apply_theme(theme);
+
+        if symbols_changed || theme_changed {
+            self.config_watcher.skip_next();
+            self.worker.borrow_mut().save_config(self.data.borrow().config.clone());
+            if symbols_changed {
+                let msg = format!("Symbols changed to '{}'", self.data.borrow().config.symbols.as_str());
+                self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+            }
+            if theme_changed {
+                let msg = format!("Theme changed to '{}'", self.data.borrow().config.theme);
+                self.views_manager.footer().show_info(msg, DEFAULT_MESSAGE_DURATION);
+            }
+        }
+    }
+
+    fn apply_theme(&mut self, theme: String) -> bool {
+        if self.data.borrow().config.theme != theme {
+            self.data.borrow_mut().config.theme = theme;
+            let theme_path = self.data.borrow().config.theme_path();
+            let _ = self.theme_watcher.change_file(theme_path);
+            return true;
+        }
+
+        false
+    }
+
+    fn apply_symbols(&mut self, symbols: Symbols) -> bool {
+        if self.data.borrow().config.symbols != symbols {
+            self.data.borrow_mut().config.symbols = symbols;
+            self.views_manager.set_message_history_hint();
+            self.views_manager.update_read_only_footer_icon();
+            self.update_mouse_state();
+            return true;
+        }
+
+        false
     }
 
     /// Performs all necessary actions after copying missing resources from the bundled assets.
@@ -534,8 +569,10 @@ impl App {
                 self.views_manager
                     .footer()
                     .show_info("Bundled assets copied successfully", DEFAULT_MESSAGE_DURATION);
-                if let InstallationResult { theme: Some(theme) } = result {
-                    self.process_theme_change(theme);
+                if let Some(theme) = result.theme {
+                    self.process_symbols_and_theme_change(result.symbols, theme);
+                } else {
+                    self.process_symbols_change(result.symbols);
                 }
             },
             Err(error) => self

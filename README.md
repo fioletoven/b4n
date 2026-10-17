@@ -206,7 +206,7 @@ inputs:              # list of inputs to show in the modal dialog before plugin 
     value: text      # initial value for the input
     options: []      # array of possible options (used only in `select` and `checkbox` inputs)
     required: false  # requires user to provide a value (used only in `textbox` input)
-confirm: false       # harmful plugin - show run confirmation dialog, hide in read-only mode
+confirm: false       # if true - show run confirmation dialog and hide in read-only mode
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
@@ -248,10 +248,12 @@ logs:
   lines: 800
   timestamps: true
   format: true
+read_only: false
 mouse: true
 terminal:
   system_cursor: false
   scrollback_lines: 1000
+symbols: nerdfont
 theme: light
 debug_images:
 - busybox
@@ -276,9 +278,11 @@ key_bindings:
 - `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
 - `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
 - `logs.format` - Whether formatting structured logs is enabled by default. You can still toggle formatting while viewing logs.
+- `read_only` - If true no destructive actions can be selected from the app UI.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
 - `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
+- `symbols` - Symbols used in the app UI, possible options: `nerdfont`, `powerline` and `plain`.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `debug_images` - List of container images that are displayed during ephemeral container injection.
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.

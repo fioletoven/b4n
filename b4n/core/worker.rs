@@ -552,8 +552,8 @@ impl BgWorker {
     }
 
     /// Copies missing resources to the `themes` and `plugins` directories from the bundled assets.
-    pub fn install_assets(&mut self, prefer_dark_theme: bool, prefer_light_theme: bool) {
-        let command = InstallMissingResourcesCommand::new(prefer_dark_theme, prefer_light_theme);
+    pub fn install_assets(&mut self, font_symbols_idx: usize, preferred_theme_idx: usize) {
+        let command = InstallMissingResourcesCommand::new(font_symbols_idx.into(), preferred_theme_idx.into());
         self.executor.run_task(Command::InstallMissingResources(command));
     }
 }

@@ -1,4 +1,4 @@
-use b4n_config::Config;
+use b4n_config::{Config, symbols::Symbols};
 
 use crate::commands::CommandResult;
 
@@ -17,22 +17,41 @@ pub enum InstallationError {
 
 /// Represents success installation result that contains theme name to switch to.
 pub struct InstallationResult {
+    pub symbols: Symbols,
     pub theme: Option<String>,
+}
+
+/// Represents selected by user theme preference.
+#[derive(PartialEq)]
+pub enum PreferredTheme {
+    Default,
+    Dark,
+    Light,
+}
+
+impl From<usize> for PreferredTheme {
+    fn from(value: usize) -> Self {
+        match value {
+            1 => PreferredTheme::Dark,
+            2 => PreferredTheme::Light,
+            _ => PreferredTheme::Default,
+        }
+    }
 }
 
 /// Command that installs missing resource directories (themes, plugins) from the bundled assets
 /// next to the executable.
 pub struct InstallMissingResourcesCommand {
-    prefer_dark_theme: bool,
-    prefer_light_theme: bool,
+    font_symbols: Symbols,
+    preferred_theme: PreferredTheme,
 }
 
 impl InstallMissingResourcesCommand {
     /// Creates new [`InstallMissingResourcesCommand`] instance.
-    pub fn new(prefer_dark_theme: bool, prefer_light_theme: bool) -> Self {
+    pub fn new(font_symbols: Symbols, preferred_theme: PreferredTheme) -> Self {
         Self {
-            prefer_dark_theme,
-            prefer_light_theme,
+            font_symbols,
+            preferred_theme,
         }
     }
 
@@ -40,6 +59,7 @@ impl InstallMissingResourcesCommand {
     pub async fn execute(&self) -> Option<CommandResult> {
         let result = match self.install_resources().await {
             Ok(theme) => Ok(InstallationResult {
+                symbols: self.font_symbols.clone(),
                 theme: theme.map(String::from),
             }),
             Err(error) => Err(error),
@@ -62,11 +82,11 @@ impl InstallMissingResourcesCommand {
     fn resolve_theme(&self) -> Option<&'static str> {
         let themes_dir = Config::themes_dir();
 
-        if self.prefer_dark_theme && matches!(themes_dir.join("dark-fixed.yaml").try_exists(), Ok(true)) {
+        if self.preferred_theme == PreferredTheme::Dark && matches!(themes_dir.join("dark-fixed.yaml").try_exists(), Ok(true)) {
             return Some("dark-fixed");
         }
 
-        if self.prefer_light_theme && matches!(themes_dir.join("light-fixed.yaml").try_exists(), Ok(true)) {
+        if self.preferred_theme == PreferredTheme::Light && matches!(themes_dir.join("light-fixed.yaml").try_exists(), Ok(true)) {
             return Some("light-fixed");
         }
 

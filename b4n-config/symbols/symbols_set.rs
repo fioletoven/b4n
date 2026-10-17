@@ -104,3 +104,13 @@ impl std::ops::Deref for Symbols {
         }
     }
 }
+
+impl From<usize> for Symbols {
+    fn from(value: usize) -> Self {
+        match value {
+            1 => Symbols::Powerline,
+            2 => Symbols::NerdFont,
+            _ => Symbols::Plain,
+        }
+    }
+}

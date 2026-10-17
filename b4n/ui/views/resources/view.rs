@@ -594,13 +594,15 @@ impl ResourcesView {
 
     fn install_assets(&self, install: bool) -> ResponseEvent {
         if install {
-            let selected = self
-                .modal
-                .selector(0)
+            let symbols_selector = self.modal.selector(0);
+            let symbols_idx = symbols_selector
                 .map(|s| s.selected_index().unwrap_or_default())
                 .unwrap_or_default();
-
-            self.worker.borrow_mut().install_assets(selected == 1, selected == 2);
+            let theme_selector = self.modal.selector(1);
+            let theme_idx = theme_selector
+                .map(|s| s.selected_index().unwrap_or_default())
+                .unwrap_or_default();
+            self.worker.borrow_mut().install_assets(symbols_idx, theme_idx);
         } else {
             self.app_data.borrow_mut().history.ignore_missing_resources = true;
             self.worker.borrow_mut().save_history(self.app_data.borrow().history.clone());
