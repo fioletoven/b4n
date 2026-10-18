@@ -94,15 +94,20 @@ impl LogsView {
             container,
         );
 
+        let mut resource = options.resource;
+        if resource.container.is_none() && !options.containers.is_empty() {
+            resource.container = options.containers[0].container.clone();
+        }
+
         let container = (options.containers.len() == 1).then(|| options.containers[0].clone());
         let requested_log_lines = app_data.borrow().config.logs.lines;
         let include_containers = options.containers.len() > 1;
         let mut observers = Vec::with_capacity(options.containers.len());
-        for pod in options.containers {
+        for container in options.containers {
             let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
             let colors = app_data.borrow().theme.colors.syntax.logs.clone();
             let options = LogsObserverOptions::new(requested_log_lines, include_containers, options.previous, colors);
-            observer.start(client, pod, options);
+            observer.start(client, container, options);
             observers.push(observer);
         }
 
@@ -121,7 +126,7 @@ impl LogsView {
             command_palette: CommandPalette::default(),
             footer,
             previous: options.previous,
-            resource: options.resource,
+            resource,
             container,
             requested_log_lines,
             bound_to_bottom: true,
@@ -220,7 +225,7 @@ impl LogsView {
                 if self.logs.has_selection() {
                     "Selection copied to clipboard"
                 } else {
-                    "Container logs copied to clipboard"
+                    "Logs copied to clipboard"
                 }
             });
         }
@@ -519,7 +524,9 @@ impl View for LogsView {
                 }
 
                 let content = self.logs.content_mut().unwrap();
-                while let Some(line) = observer.try_next() {
+                while self.app_data.has_frame_budget()
+                    && let Some(line) = observer.try_next()
+                {
                     content.add_log_line(*line);
                 }
 
@@ -534,7 +541,9 @@ impl View for LogsView {
             && self.logs.has_content()
         {
             needs_update = true;
-            while let Some(line) = observer.try_next() {
+            while self.app_data.has_frame_budget()
+                && let Some(line) = observer.try_next()
+            {
                 let current = self.logs.page_position().y;
                 let added_line = self.logs.content_mut().and_then(|c| c.add_log_line(*line));
                 if let Some(line) = added_line

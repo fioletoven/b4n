@@ -89,6 +89,7 @@ impl App {
         self.views_manager
             .process_context_change(context, namespace, String::default(), Scope::Cluster);
         self.data.borrow_mut().update_read_only_for_context(read_only);
+        self.views_manager.update_read_only_footer_icon();
         self.config_watcher.start()?;
         self.history_watcher.start()?;
         self.theme_watcher.start()?;
@@ -611,6 +612,7 @@ impl App {
         self.views_manager
             .process_context_change(context.clone(), namespace.clone(), String::default(), Scope::Cluster);
         self.data.borrow_mut().update_read_only_for_context(None);
+        self.views_manager.update_read_only_footer_icon();
 
         self.client_manager.request_new_client(context, kind, namespace);
     }

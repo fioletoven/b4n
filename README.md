@@ -19,7 +19,39 @@
 
 ## Prerequisites
 
-The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols, is required for proper display of the user interface in the terminal.
+As of version 1.2.0, a font with Nerd Font symbols is no longer required. However, for the best possible user experience, installing one is still recommended.  
+This can be the [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols.
+
+Make sure to configure `b4n` according to what your terminal supports, either via the `symbols` command palette action, or directly in the configuration file ([see `config.yaml`](#configyaml)):
+
+```yaml
+symbols: nerdfont # use 'plain' or 'powerline' if terminal does not support Nerd Fonts
+```
+
+## Installation
+
+### Manual
+
+1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest).
+2. Extract the archive and run the binary.
+3. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:
+    ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
+    > you can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`)
+4. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`.
+
+### Homebrew
+
+`b4n` is available via Homebrew on both macOS and Linux:
+
+```bash
+brew install b4n
+```
+
+To upgrade to the latest version:
+
+```bash
+brew upgrade b4n
+```
 
 ## Building
 
@@ -304,7 +336,7 @@ You can also delete history entries from the UI by highlighting one and pressing
 
 ![b4n pods](assets/screenshots/b4n_048-0.png?raw=true "b4n showing all pods")
 ![b4n pods light](assets/screenshots/b4n_048-1.png?raw=true "b4n showing all pods (light theme)")
-![b4n describe](assets/screenshots/b4n_048-2.png?raw=true "describe resource")
+![b4n formatted logs](assets/screenshots/b4n_120-0.png?raw=true "b4n showing formatted logs")
 
 ## License
 
