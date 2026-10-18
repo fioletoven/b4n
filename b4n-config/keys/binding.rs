@@ -82,7 +82,7 @@ define_key_commands! {
         PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
         PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PreviousLogsOpen => "previous-logs.open" @ "P",
-        ReadOnlyToggle => "read-only.toggle" @ "Shift+Ctrl+R",
+        ReadOnlyToggle => "read-only.toggle" @ "Shift+Alt+R",
         SearchOpen => "search.open" @ "/", "Shift+/",
         SearchReset => "search.reset" @ "Esc",
         SelectorLeft => "selector.left" @ "Left",

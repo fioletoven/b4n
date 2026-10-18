@@ -79,7 +79,8 @@ pub fn new_missing_resources_dialog(app_data: &SharedAppData, position: Option<P
     )
     .with_colors(colors.text)
     .with_selectors(vec![
-        Selector::new(0, "Preferred theme:", &["default", "dark", "light"], &colors.selector, sym).with_selected(1),
+        Selector::new(0, "Font symbols:", &["plain", "powerline", "nerdfont"], &colors.selector, sym).with_selected(2),
+        Selector::new(1, "Preferred theme:", &["default", "dark", "light"], &colors.selector, sym).with_selected(1),
     ])
     .with_backdrop_cancels(false)
     .with_highlighted_position(position)

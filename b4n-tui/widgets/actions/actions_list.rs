@@ -341,6 +341,36 @@ impl ActionsListBuilder {
         self
     }
 
+    /// Adds `show logs` action.
+    pub fn with_logs(mut self, description: &str) -> Self {
+        self.actions.push(
+            ActionItem::action("show logs", "show_logs")
+                .with_description(description)
+                .with_aliases(["logs"]),
+        );
+        self.commands.push(Some(KeyCommand::LogsOpen));
+        self
+    }
+
+    /// Adds `show YAML` action.
+    pub fn with_yaml(mut self, description: &str) -> Self {
+        self.actions.push(
+            ActionItem::action("show YAML", "show_yaml")
+                .with_description(description)
+                .with_aliases(["yaml", "yml", "view"]),
+        );
+        self.commands.push(Some(KeyCommand::YamlOpen));
+        self
+    }
+
+    /// Adds `describe` action.
+    pub fn with_describe(mut self, description: &str) -> Self {
+        self.actions
+            .push(ActionItem::action("describe", "describe").with_description(description));
+        self.commands.push(Some(KeyCommand::DescribeOpen));
+        self
+    }
+
     /// Adds custom action.
     pub fn add_action(&mut self, action: ActionItem, command: Option<KeyCommand>) {
         self.actions.push(action);

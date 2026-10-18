@@ -75,6 +75,41 @@ impl Default for Terminal {
     }
 }
 
+/// Kubernetes context additional configuration.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum ContextEntry {
+    Color(TextColors),
+    Detailed(ContextConfig),
+}
+
+/// Configuration for the detailed context entry.
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct ContextConfig {
+    pub colors: TextColors,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_only: Option<bool>,
+}
+
+impl ContextEntry {
+    /// Returns `TextColors` for the context entry.
+    pub fn colors(&self) -> TextColors {
+        match self {
+            ContextEntry::Color(colors) => *colors,
+            ContextEntry::Detailed(cfg) => cfg.colors,
+        }
+    }
+
+    /// Returns read-only value for the context entry.
+    pub fn read_only(&self) -> Option<bool> {
+        match self {
+            ContextEntry::Color(_) => None,
+            ContextEntry::Detailed(cfg) => cfg.read_only,
+        }
+    }
+}
+
 /// Application configuration.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -100,7 +135,7 @@ pub struct Config {
     pub debug_images: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub contexts: Option<HashMap<String, TextColors>>,
+    pub contexts: Option<HashMap<String, ContextEntry>>,
 
     #[serde(default = "default_aliases")]
     #[serde(serialize_with = "sorted_map")]
@@ -203,7 +238,7 @@ impl Config {
         CONFIG_PATH.get().expect("init_dirs was not called")
     }
 
-    /// Retruns path to the data directory.
+    /// Returns path to the data directory.
     pub fn data_dir() -> &'static Path {
         DATA_DIR.get().expect("init_dirs was not called")
     }

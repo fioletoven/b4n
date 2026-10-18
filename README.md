@@ -19,7 +19,39 @@
 
 ## Prerequisites
 
-The [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols, is required for proper display of the user interface in the terminal.
+As of version 1.2.0, a font with Nerd Font symbols is no longer required. However, for the best possible user experience, installing one is still recommended.  
+This can be the [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols.
+
+Make sure to configure `b4n` according to what your terminal supports, either via the `symbols` command palette action, or directly in the configuration file ([see `config.yaml`](#configyaml)):
+
+```yaml
+symbols: nerdfont # use 'plain' or 'powerline' if terminal does not support Nerd Fonts
+```
+
+## Installation
+
+### Manual
+
+1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest).
+2. Extract the archive and run the binary.
+3. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
+    ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
+    > you can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`)
+4. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`.
+
+### Homebrew
+
+`b4n` is available via Homebrew on both macOS and Linux:
+
+```bash
+brew install b4n
+```
+
+To upgrade to the latest version:
+
+```bash
+brew upgrade b4n
+```
 
 ## Building
 
@@ -53,42 +85,43 @@ The resulting binary will be available at `./target/release/b4n`.
 
 ## Default Key Bindings
 
-| Action                                     | Command         | Comments                                                    |
-|:-------------------------------------------|:----------------|:------------------------------------------------------------|
-| Attach to the container's main process     | `a`             | Works only in containers and pods view                      |
-| Attach to the container's shell            | `s`             | Works only in containers and pods view                      |
-| Copy YAML / logs / resources to clipboard  | `c`             | Works only in YAML, logs and resources views                |
-| Create new resource                        | `n`             |                                                             |
-| Decode highlighted secret                  | `x`             |                                                             |
-| Delete selected resources                  | `CTRL` + `d`    | Displays a confirmation dialog                              |
-| Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
-| Forward container's port                   | `f`             | Works only in containers and pods view                      |
-| Go back to namespace view; clear filter    | `ESC`           | Also clears input in the filter widget                      |
-| Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation dialog     |
-| Navigate to the involved object            | `i`             | Works only for `events` kind                                |
-| Open / enter edit mode                     | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
-| Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |
-| Pin active filter across resources         | `CTRL` + `p`    | Also works in the filter dialog                             |
-| Quit the application                       | `CTRL` + `c`    | No confirmation dialog                                      |
-| Reverse selection                          | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
-| Save YAML / logs to a file                 | `s`             |                                                             |
-| Select all resources                       | `CTRL` + `a`    | Then press `CTRL` + ` ` to deselect all                     |
-| Select resource                            | ` `             | (`SPACE`)                                                   |
-| Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
-| Show / hide formatted logs                 | `f`             | Works only in logs view                                     |
-| Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |
-| Show command palette                       | `:`, `>`        | For example, entering `:q`↲ quits the application           |
-| Show describe for the highlighted resource | `d`             |                                                             |
-| Show events for the highlighted resource   | `e`             |                                                             |
-| Show filter / search input                 | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
-| Show footer messages history pane          | `h`             | Also works with left mouse button click on the footer       |
-| Show logs for the pod or container         | `l`             | Press `p` to display previous logs                          |
-| Show namespaces selector                   | `←`             | To select `all` rapidly press `←` again                     |
-| Show resources selector                    | `→`             | To select `pods` rapidly press `→` again                    |
-| Show YAML for the highlighted resource     | `y`             |                                                             |
-| Sort column                                | `ALT` + `[0-9]` | Also works with `ALT` + `[underlined letter]`               |
-| Transfer file from the pod's container     | `CTRL` + `t`    | Allows downloading a single file or a directory             |
-| Transfer file to the pod's container       | `t`             | Allows uploading only a single file                         |
+| Action                                     | Command               | Comments                                                    |
+|:-------------------------------------------|:----------------------|:------------------------------------------------------------|
+| Attach to the container's main process     | `a`                   | Works only in containers and pods view                      |
+| Attach to the container's shell            | `s`                   | Works only in containers and pods view                      |
+| Copy YAML / logs / resources to clipboard  | `c`                   | Works only in YAML, logs and resources views                |
+| Create new resource                        | `n`                   |                                                             |
+| Decode highlighted secret                  | `x`                   |                                                             |
+| Delete selected resources                  | `CTRL` + `d`          | Displays a confirmation dialog                              |
+| Enable / disable mouse support             | `CTRL` + `n`          | Not available inside a shell session                        |
+| Forward container's port                   | `f`                   | Works only in containers and pods view                      |
+| Go back to namespace view; clear filter    | `ESC`                 | Also clears input in the filter widget                      |
+| Inject ephemeral container                 | `CTRL` + `i`          | Works only in pods view, displays a confirmation dialog     |
+| Navigate to the involved object            | `i`                   | Works only for `events` kind                                |
+| Open / enter edit mode                     | `i`                   | Press `ESC` to exit, then `ESC` for save dialog             |
+| Open right mouse button menu               | `m`                   | Navigate using `↑` or `↓`                                   |
+| Pin active filter across resources         | `CTRL` + `p`          | Also works in the filter dialog                             |
+| Quit the application                       | `CTRL` + `c`          | No confirmation dialog                                      |
+| Reverse selection                          | `CTRL` + ` `          | (`CTRL` + `SPACE`)                                          |
+| Save YAML / logs to a file                 | `s`                   |                                                             |
+| Select all resources                       | `CTRL` + `a`          | Then press `CTRL` + ` ` to deselect all                     |
+| Select resource                            | ` `                   | (`SPACE`)                                                   |
+| Show / hide formatted logs                 | `f`                   | Works only in logs view                                     |
+| Show / hide log timestamps                 | `t`                   | Works only in logs view                                     |
+| Show / hide port forwards                  | `CTRL` + `f`          | Displays all active port forwarding rules                   |
+| Show command palette                       | `:`, `>`              | For example, entering `:q`↲ quits the application           |
+| Show describe for the highlighted resource | `d`                   |                                                             |
+| Show events for the highlighted resource   | `e`                   |                                                             |
+| Show filter / search input                 | `/`                   | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show footer messages history pane          | `h`                   | Also works with left mouse button click on the footer       |
+| Show logs for the pod or container         | `l`                   | Press `p` to display previous logs                          |
+| Show namespaces selector                   | `←`                   | To select `all` rapidly press `←` again                     |
+| Show resources selector                    | `→`                   | To select `pods` rapidly press `→` again                    |
+| Show YAML for the highlighted resource     | `y`                   |                                                             |
+| Sort column                                | `ALT` + `[0-9]`       | Also works with `ALT` + `[underlined letter]`               |
+| Toggle read-only mode                      | `ALT` + `SHIFT` + `r` |                                                             |
+| Transfer file from the pod's container     | `CTRL` + `t`          | Allows downloading a single file or a directory             |
+| Transfer file to the pod's container       | `t`                   | Allows uploading only a single file                         |
 
 ## Advanced Filtering
 
@@ -206,7 +239,7 @@ inputs:              # list of inputs to show in the modal dialog before plugin 
     value: text      # initial value for the input
     options: []      # array of possible options (used only in `select` and `checkbox` inputs)
     required: false  # requires user to provide a value (used only in `textbox` input)
-confirm: false       # harmful plugin - show run confirmation dialog, hide in read-only mode
+confirm: false       # if true - show run confirmation dialog or disable plugin in read-only mode
 interactive: true    # run the command as an interactive terminal application; otherwise run it in the background
 keep_output: false   # do not close terminal on command exit
 keep_error: true     # do not close terminal if command exited with error (if keep_output: false)
@@ -248,10 +281,12 @@ logs:
   lines: 800
   timestamps: true
   format: true
+read_only: false
 mouse: true
 terminal:
   system_cursor: false
   scrollback_lines: 1000
+symbols: nerdfont
 theme: light
 debug_images:
 - busybox
@@ -259,7 +294,9 @@ debug_images:
 - nicolaka/netshoot
 contexts:
   test-cluster: '#43464f:#8aad81'
-  production: '#d8d8d8:#e1140a'
+  production:
+    colors: '#d8d8d8:#e1140a'
+    read_only: true
 aliases:
   daemonsets: ds,dms
   namespace: nn
@@ -276,9 +313,11 @@ key_bindings:
 - `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
 - `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
 - `logs.format` - Whether formatting structured logs is enabled by default. You can still toggle formatting while viewing logs.
+- `read_only` - If true no destructive actions can be selected from the app UI.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
 - `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
+- `symbols` - Symbols used in the app UI, possible options: `nerdfont`, `powerline` and `plain`.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).
 - `debug_images` - List of container images that are displayed during ephemeral container injection.
 - `contexts` - _(Optional)_ A map of context names to their corresponding colors. Useful for highlighting important Kubernetes clusters with distinct header colors.
@@ -298,7 +337,7 @@ You can also delete history entries from the UI by highlighting one and pressing
 
 ![b4n pods](assets/screenshots/b4n_048-0.png?raw=true "b4n showing all pods")
 ![b4n pods light](assets/screenshots/b4n_048-1.png?raw=true "b4n showing all pods (light theme)")
-![b4n describe](assets/screenshots/b4n_048-2.png?raw=true "describe resource")
+![b4n formatted logs](assets/screenshots/b4n_120-0.png?raw=true "b4n showing formatted logs")
 
 ## License
 

@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
-use b4n_kube::{ContainerRef, ContainerType, PODS};
+use b4n_kube::{ContainerRef, ContainerType, PODS, ResourceRef};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::KeyCode;
@@ -34,6 +34,13 @@ pub enum LogsViewError {
     ObserverError(#[from] LogsObserverError),
 }
 
+/// Logs view options.
+pub struct LogsViewOptions {
+    pub resource: ResourceRef,
+    pub containers: Vec<ContainerRef>,
+    pub previous: bool,
+}
+
 /// Logs view.
 pub struct LogsView {
     logs: ContentViewer<LogsContent>,
@@ -46,6 +53,7 @@ pub struct LogsView {
     modal: Dialog,
     command_palette: CommandPalette,
     footer: NotificationSink,
+    resource: ResourceRef,
     container: Option<ContainerRef>,
     previous: bool,
     requested_log_lines: Option<i64>,
@@ -60,41 +68,46 @@ impl LogsView {
         app_data: SharedAppData,
         worker: SharedBgWorker,
         client: &KubernetesClient,
-        containers: Vec<ContainerRef>,
-        previous: bool,
+        options: LogsViewOptions,
         footer: NotificationSink,
         workspace: Rect,
     ) -> Result<Self, LogsViewError> {
-        if containers.is_empty() {
+        if options.containers.is_empty() {
             return Err(LogsViewError::NoContainersToObserve);
         }
 
         let select = app_data.borrow().theme.colors.syntax.logs.select;
         let search = app_data.borrow().theme.colors.syntax.logs.search;
         let area = ContentViewer::<LogsContent>::get_content_area(workspace);
-        let regular = containers
+        let regular = options
+            .containers
             .iter()
             .filter(|c| c.kind == ContainerType::Regular)
             .collect::<Vec<_>>();
         let container = (regular.len() == 1).then(|| regular[0].container.clone()).flatten();
         let logs = ContentViewer::new(Rc::clone(&app_data), select, search, area).with_header(
-            if previous { "previous logs" } else { "logs" },
+            if options.previous { "previous logs" } else { "logs" },
             app_data.borrow().config.symbols.bound.ch,
-            containers[0].namespace.clone(),
+            options.containers[0].namespace.clone(),
             PODS.into(),
-            Some(containers[0].name.clone()),
+            Some(options.containers[0].name.clone()),
             container,
         );
 
-        let container = (containers.len() == 1).then(|| containers[0].clone());
+        let mut resource = options.resource;
+        if resource.container.is_none() && !options.containers.is_empty() {
+            resource.container.clone_from(&options.containers[0].container);
+        }
+
+        let container = (options.containers.len() == 1).then(|| options.containers[0].clone());
         let requested_log_lines = app_data.borrow().config.logs.lines;
-        let include_containers = containers.len() > 1;
-        let mut observers = Vec::with_capacity(containers.len());
-        for pod in containers {
+        let include_containers = options.containers.len() > 1;
+        let mut observers = Vec::with_capacity(options.containers.len());
+        for container in options.containers {
             let mut observer = LogsObserver::new(worker.borrow().runtime_handle().clone());
             let colors = app_data.borrow().theme.colors.syntax.logs.clone();
-            let options = LogsObserverOptions::new(requested_log_lines, include_containers, previous, colors);
-            observer.start(client, pod, options);
+            let options = LogsObserverOptions::new(requested_log_lines, include_containers, options.previous, colors);
+            observer.start(client, container, options);
             observers.push(observer);
         }
 
@@ -112,7 +125,8 @@ impl LogsView {
             modal: Dialog::default(),
             command_palette: CommandPalette::default(),
             footer,
-            previous,
+            previous: options.previous,
+            resource,
             container,
             requested_log_lines,
             bound_to_bottom: true,
@@ -125,6 +139,8 @@ impl LogsView {
         let mut builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
+            .with_yaml("shows YAML for current resource")
+            .with_describe("describes current resource")
             .with_action(
                 ActionItem::action("timestamps", "timestamps").with_description("toggles timestamp display"),
                 Some(KeyCommand::LogsTimestamps),
@@ -209,7 +225,7 @@ impl LogsView {
                 if self.logs.has_selection() {
                     "Selection copied to clipboard"
                 } else {
-                    "Container logs copied to clipboard"
+                    "Logs copied to clipboard"
                 }
             });
         }
@@ -294,6 +310,10 @@ impl LogsView {
         let response = self.command_palette.process_event(event);
         if response == ResponseEvent::Cancelled {
             self.clear_search();
+        } else if response.is_action("show_yaml") {
+            return self.process_event(&TuiEvent::Command(KeyCommand::YamlOpen));
+        } else if response.is_action("describe") {
+            return self.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen));
         } else if response.is_action("palette") {
             self.last_mouse_click = event.position();
             return self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen));
@@ -380,6 +400,14 @@ impl LogsView {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateBack) {
             return Some(ResponseEvent::Cancelled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::YamlOpen) {
+            return Some(ResponseEvent::ViewYaml(self.resource.clone(), false, false));
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::DescribeOpen) {
+            return Some(ResponseEvent::Describe(self.resource.clone()));
         }
 
         if self.app_data.has_binding(event, KeyCommand::LogsFormat) {
@@ -496,7 +524,9 @@ impl View for LogsView {
                 }
 
                 let content = self.logs.content_mut().unwrap();
-                while let Some(line) = observer.try_next() {
+                while self.app_data.has_frame_budget()
+                    && let Some(line) = observer.try_next()
+                {
                     content.add_log_line(*line);
                 }
 
@@ -511,7 +541,9 @@ impl View for LogsView {
             && self.logs.has_content()
         {
             needs_update = true;
-            while let Some(line) = observer.try_next() {
+            while self.app_data.has_frame_budget()
+                && let Some(line) = observer.try_next()
+            {
                 let current = self.logs.page_position().y;
                 let added_line = self.logs.content_mut().and_then(|c| c.add_log_line(*line));
                 if let Some(line) = added_line

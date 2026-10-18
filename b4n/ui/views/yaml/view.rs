@@ -168,6 +168,7 @@ impl YamlView {
                 ActionItem::action("search", "search").with_description("searches content using query"),
                 Some(KeyCommand::SearchOpen),
             );
+
         if !self.app_data.borrow().read_only && self.yaml.content().is_some_and(Content::is_editable) {
             builder.add_action(
                 ActionItem::action("edit", "edit")
@@ -176,6 +177,7 @@ impl YamlView {
                 Some(KeyCommand::YamlEdit),
             );
         }
+
         if self.can_encode_decode() {
             let action = if self.is_decoded { "encode" } else { "decode" };
             builder.add_action(
@@ -183,11 +185,13 @@ impl YamlView {
                 Some(KeyCommand::YamlDecode),
             );
         }
+
         if !self.is_new && !self.yaml.is_modified() {
-            builder.add_action(
-                ActionItem::action("describe", "describe").with_description("describes current resource"),
-                Some(KeyCommand::DescribeOpen),
-            );
+            if self.resource.kind.is_pods() {
+                builder = builder.with_logs("shows logs for current resource");
+            }
+
+            builder = builder.with_describe("describes current resource");
         }
 
         let actions = builder.build(
@@ -364,6 +368,10 @@ impl YamlView {
             return ResponseEvent::Describe(self.resource.clone());
         }
 
+        if self.app_data.has_binding(event, KeyCommand::LogsOpen) && !self.is_new && !self.yaml.is_modified() {
+            return ResponseEvent::ViewLogs(self.resource.clone(), None);
+        }
+
         if self.app_data.has_binding(event, KeyCommand::YamlDecode) && self.yaml.header.kind.as_str() == SECRETS {
             self.toggle_yaml_decode();
             return ResponseEvent::Handled;
@@ -424,6 +432,8 @@ impl YamlView {
             return self.show_search(event.position());
         } else if response.is_action("describe") {
             return self.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen));
+        } else if response.is_action("show_logs") {
+            return self.process_event(&TuiEvent::Command(KeyCommand::LogsOpen));
         } else if response.is_action("edit") && self.enable_edit_mode() {
             return ResponseEvent::Handled;
         }

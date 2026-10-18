@@ -1,10 +1,12 @@
 # Change Log
 
-## WIP
+## 1.2.0 - 2026-10-18
 
 ### Features
 
-- allow to select symbols set used in TUI: `NerdFont`, `Powerline` and `Plain`
+- allow to select symbol sets used in TUI: `NerdFont`, `Powerline` or `Plain`
+- add read-only mode to the configuration (can be toggled with `Alt+Shift+R`)
+- allow direct switching between YAML, logs and describe views
 
 ### Bug Fixes
 

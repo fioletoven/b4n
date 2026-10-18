@@ -237,7 +237,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
             builder = add_file_transfer_actions(builder);
         }
         if is_containers || is_pods {
-            builder = add_container_actions(builder, is_read_only);
+            builder = add_container_actions(builder, is_pods, is_read_only);
         }
     }
 
@@ -269,16 +269,11 @@ fn add_resource_actions(
     }
 
     builder
-        .with_action(
-            ActionItem::action("show YAML", "show_yaml")
-                .with_description(if is_containers {
-                    "shows YAML for container's resource"
-                } else {
-                    "shows YAML for highlighted resource"
-                })
-                .with_aliases(["yaml", "yml", "view"]),
-            Some(KeyCommand::YamlOpen),
-        )
+        .with_yaml(if is_containers {
+            "shows YAML for container's resource"
+        } else {
+            "shows YAML for highlighted resource"
+        })
         .with_action(
             ActionItem::action("describe", "describe").with_description("describes highlighted resource"),
             Some(KeyCommand::DescribeOpen),
@@ -310,7 +305,7 @@ fn add_file_transfer_actions(builder: ActionsListBuilder) -> ActionsListBuilder 
         )
 }
 
-fn add_container_actions(mut builder: ActionsListBuilder, is_read_only: bool) -> ActionsListBuilder {
+fn add_container_actions(mut builder: ActionsListBuilder, is_pods: bool, is_read_only: bool) -> ActionsListBuilder {
     if !is_read_only {
         builder.add_action(
             ActionItem::action("attach", "attach").with_description("attaches to container's main process"),
@@ -323,15 +318,14 @@ fn add_container_actions(mut builder: ActionsListBuilder, is_read_only: bool) ->
     }
 
     builder
-        .with_action(
-            ActionItem::action("show logs", "show_logs")
-                .with_description("shows container logs")
-                .with_aliases(["logs"]),
-            Some(KeyCommand::LogsOpen),
-        )
+        .with_logs(if is_pods { "shows pod logs" } else { "shows container logs" })
         .with_action(
             ActionItem::action("show previous logs", "show_plogs")
-                .with_description("shows previous container logs")
+                .with_description(if is_pods {
+                    "shows previous pod logs"
+                } else {
+                    "shows previous container logs"
+                })
                 .with_aliases(["previous"]),
             Some(KeyCommand::PreviousLogsOpen),
         )
