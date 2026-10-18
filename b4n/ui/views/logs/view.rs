@@ -96,7 +96,7 @@ impl LogsView {
 
         let mut resource = options.resource;
         if resource.container.is_none() && !options.containers.is_empty() {
-            resource.container = options.containers[0].container.clone();
+            resource.container.clone_from(&options.containers[0].container);
         }
 
         let container = (options.containers.len() == 1).then(|| options.containers[0].clone());

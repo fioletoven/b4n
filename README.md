@@ -34,7 +34,7 @@ symbols: nerdfont # use 'plain' or 'powerline' if terminal does not support Nerd
 
 1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest).
 2. Extract the archive and run the binary.
-3. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:
+3. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
     ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
     > you can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`)
 4. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`.
@@ -85,42 +85,43 @@ The resulting binary will be available at `./target/release/b4n`.
 
 ## Default Key Bindings
 
-| Action                                     | Command         | Comments                                                    |
-|:-------------------------------------------|:----------------|:------------------------------------------------------------|
-| Attach to the container's main process     | `a`             | Works only in containers and pods view                      |
-| Attach to the container's shell            | `s`             | Works only in containers and pods view                      |
-| Copy YAML / logs / resources to clipboard  | `c`             | Works only in YAML, logs and resources views                |
-| Create new resource                        | `n`             |                                                             |
-| Decode highlighted secret                  | `x`             |                                                             |
-| Delete selected resources                  | `CTRL` + `d`    | Displays a confirmation dialog                              |
-| Enable / disable mouse support             | `CTRL` + `n`    | Not available inside a shell session                        |
-| Forward container's port                   | `f`             | Works only in containers and pods view                      |
-| Go back to namespace view; clear filter    | `ESC`           | Also clears input in the filter widget                      |
-| Inject ephemeral container                 | `CTRL` + `i`    | Works only in pods view, displays a confirmation dialog     |
-| Navigate to the involved object            | `i`             | Works only for `events` kind                                |
-| Open / enter edit mode                     | `i`             | Press `ESC` to exit, then `ESC` for save dialog             |
-| Open right mouse button menu               | `m`             | Navigate using `↑` or `↓`                                   |
-| Pin active filter across resources         | `CTRL` + `p`    | Also works in the filter dialog                             |
-| Quit the application                       | `CTRL` + `c`    | No confirmation dialog                                      |
-| Reverse selection                          | `CTRL` + ` `    | (`CTRL` + `SPACE`)                                          |
-| Save YAML / logs to a file                 | `s`             |                                                             |
-| Select all resources                       | `CTRL` + `a`    | Then press `CTRL` + ` ` to deselect all                     |
-| Select resource                            | ` `             | (`SPACE`)                                                   |
-| Show / hide log timestamps                 | `t`             | Works only in logs view                                     |
-| Show / hide formatted logs                 | `f`             | Works only in logs view                                     |
-| Show / hide port forwards                  | `CTRL` + `f`    | Displays all active port forwarding rules                   |
-| Show command palette                       | `:`, `>`        | For example, entering `:q`↲ quits the application           |
-| Show describe for the highlighted resource | `d`             |                                                             |
-| Show events for the highlighted resource   | `e`             |                                                             |
-| Show filter / search input                 | `/`             | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
-| Show footer messages history pane          | `h`             | Also works with left mouse button click on the footer       |
-| Show logs for the pod or container         | `l`             | Press `p` to display previous logs                          |
-| Show namespaces selector                   | `←`             | To select `all` rapidly press `←` again                     |
-| Show resources selector                    | `→`             | To select `pods` rapidly press `→` again                    |
-| Show YAML for the highlighted resource     | `y`             |                                                             |
-| Sort column                                | `ALT` + `[0-9]` | Also works with `ALT` + `[underlined letter]`               |
-| Transfer file from the pod's container     | `CTRL` + `t`    | Allows downloading a single file or a directory             |
-| Transfer file to the pod's container       | `t`             | Allows uploading only a single file                         |
+| Action                                     | Command               | Comments                                                    |
+|:-------------------------------------------|:----------------------|:------------------------------------------------------------|
+| Attach to the container's main process     | `a`                   | Works only in containers and pods view                      |
+| Attach to the container's shell            | `s`                   | Works only in containers and pods view                      |
+| Copy YAML / logs / resources to clipboard  | `c`                   | Works only in YAML, logs and resources views                |
+| Create new resource                        | `n`                   |                                                             |
+| Decode highlighted secret                  | `x`                   |                                                             |
+| Delete selected resources                  | `CTRL` + `d`          | Displays a confirmation dialog                              |
+| Enable / disable mouse support             | `CTRL` + `n`          | Not available inside a shell session                        |
+| Forward container's port                   | `f`                   | Works only in containers and pods view                      |
+| Go back to namespace view; clear filter    | `ESC`                 | Also clears input in the filter widget                      |
+| Inject ephemeral container                 | `CTRL` + `i`          | Works only in pods view, displays a confirmation dialog     |
+| Navigate to the involved object            | `i`                   | Works only for `events` kind                                |
+| Open / enter edit mode                     | `i`                   | Press `ESC` to exit, then `ESC` for save dialog             |
+| Open right mouse button menu               | `m`                   | Navigate using `↑` or `↓`                                   |
+| Pin active filter across resources         | `CTRL` + `p`          | Also works in the filter dialog                             |
+| Quit the application                       | `CTRL` + `c`          | No confirmation dialog                                      |
+| Reverse selection                          | `CTRL` + ` `          | (`CTRL` + `SPACE`)                                          |
+| Save YAML / logs to a file                 | `s`                   |                                                             |
+| Select all resources                       | `CTRL` + `a`          | Then press `CTRL` + ` ` to deselect all                     |
+| Select resource                            | ` `                   | (`SPACE`)                                                   |
+| Show / hide formatted logs                 | `f`                   | Works only in logs view                                     |
+| Show / hide log timestamps                 | `t`                   | Works only in logs view                                     |
+| Show / hide port forwards                  | `CTRL` + `f`          | Displays all active port forwarding rules                   |
+| Show command palette                       | `:`, `>`              | For example, entering `:q`↲ quits the application           |
+| Show describe for the highlighted resource | `d`                   |                                                             |
+| Show events for the highlighted resource   | `e`                   |                                                             |
+| Show filter / search input                 | `/`                   | Filter operators: and `&`, or `\|`, negation `!`, `(`, `)`  |
+| Show footer messages history pane          | `h`                   | Also works with left mouse button click on the footer       |
+| Show logs for the pod or container         | `l`                   | Press `p` to display previous logs                          |
+| Show namespaces selector                   | `←`                   | To select `all` rapidly press `←` again                     |
+| Show resources selector                    | `→`                   | To select `pods` rapidly press `→` again                    |
+| Show YAML for the highlighted resource     | `y`                   |                                                             |
+| Sort column                                | `ALT` + `[0-9]`       | Also works with `ALT` + `[underlined letter]`               |
+| Toggle read-only mode                      | `ALT` + `SHIFT` + `r` |                                                             |
+| Transfer file from the pod's container     | `CTRL` + `t`          | Allows downloading a single file or a directory             |
+| Transfer file to the pod's container       | `t`                   | Allows uploading only a single file                         |
 
 ## Advanced Filtering
 

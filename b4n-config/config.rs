@@ -238,7 +238,7 @@ impl Config {
         CONFIG_PATH.get().expect("init_dirs was not called")
     }
 
-    /// Retruns path to the data directory.
+    /// Returns path to the data directory.
     pub fn data_dir() -> &'static Path {
         DATA_DIR.get().expect("init_dirs was not called")
     }
