@@ -22,7 +22,8 @@ use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{
-    CmdView, DescribeView, ForwardsView, LogsView, ResourcesView, ShellView, View, YamlView, update_read_only_icon,
+    CmdView, DescribeView, ForwardsView, LogsView, LogsViewOptions, ResourcesView, ShellView, View, YamlView,
+    update_read_only_icon,
 };
 use crate::ui::widgets::{Position, SideSelect};
 
@@ -466,13 +467,13 @@ impl ViewsManager {
     }
 
     /// Shows logs for the specified container or multiple containers if `containers` are provided.
-    pub fn show_logs(&mut self, resource: &ResourceRef, containers: Option<Vec<ResourceTag>>, previous: bool) {
+    pub fn show_logs(&mut self, resource: ResourceRef, containers: Option<Vec<ResourceTag>>, previous: bool) {
         let worker = self.worker.borrow();
         let Some(client) = worker.kubernetes_client() else {
             return;
         };
 
-        let pods = match containers {
+        let containers = match containers {
             Some(containers) if !containers.is_empty() => containers
                 .into_iter()
                 .map(|container| {
@@ -494,8 +495,11 @@ impl ViewsManager {
             Rc::clone(&self.app_data),
             Rc::clone(&self.worker),
             client,
-            pods,
-            previous,
+            LogsViewOptions {
+                resource,
+                containers,
+                previous,
+            },
             self.footer.get_transmitter(),
             self.workspace,
         );

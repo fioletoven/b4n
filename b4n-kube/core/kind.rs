@@ -1,4 +1,4 @@
-use crate::is_builtin_api_group;
+use crate::{PODS, is_builtin_api_group};
 
 use super::{CONTAINERS, NAMESPACES};
 
@@ -43,6 +43,11 @@ impl Kind {
     /// Returns `true` if kind represents namespaces.
     pub fn is_namespaces(&self) -> bool {
         self.name == NAMESPACES
+    }
+
+    /// Returns `true` if kind represents pods.
+    pub fn is_pods(&self) -> bool {
+        self.name == PODS
     }
 
     /// Returns `true` if kind represents containers.

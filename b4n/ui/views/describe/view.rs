@@ -97,20 +97,20 @@ impl DescribeView {
             "table"
         };
 
-        let builder = ActionsListBuilder::default()
+        let mut builder = ActionsListBuilder::default()
             .with_back()
             .with_quit()
+            .with_yaml("shows YAML for current resource")
             .with_action(
                 ActionItem::action("copy", "copy").with_description(&format!("copies {copy} to clipboard")),
                 Some(KeyCommand::ContentCopy),
             )
-            .with_action(
-                ActionItem::action("show YAML", "yaml")
-                    .with_description("shows YAML for current resource")
-                    .with_aliases(["yaml", "yml"]),
-                Some(KeyCommand::YamlOpen),
-            )
             .with_aliases(&self.app_data.borrow().config.aliases);
+
+        if self.resource.kind.is_pods() {
+            builder = builder.with_logs("shows logs for current resource");
+        }
+
         let actions = builder.build(
             Some(&self.app_data.borrow().key_bindings),
             Some(&self.app_data.borrow().config.symbols),
@@ -152,7 +152,8 @@ impl DescribeView {
                 self.last_mouse_click = event.position();
                 self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
             },
-            ResponseEvent::Action("yaml") => self.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
+            ResponseEvent::Action("show_yaml") => self.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
+            ResponseEvent::Action("show_logs") => self.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
             ResponseEvent::Action("copy") => self.copy_to_clipboard(),
             response_event => response_event,
         }
@@ -231,6 +232,10 @@ impl View for DescribeView {
 
         if self.app_data.has_binding(event, KeyCommand::YamlOpen) {
             return ResponseEvent::ViewYaml(self.resource.clone(), false, false);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::LogsOpen) && self.resource.kind.is_pods() {
+            return ResponseEvent::ViewLogs(self.resource.clone(), None);
         }
 
         if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen) {
