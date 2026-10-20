@@ -32,12 +32,16 @@ symbols: nerdfont # use 'plain' or 'powerline' if terminal does not support Nerd
 
 ### Manual
 
-1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest).
-2. Extract the archive and run the binary.
-3. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
+1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest),
+1. Extract the archive and run the binary,
+1. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
     ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
-    > you can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`)
-4. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`.
+    > You can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`),
+1. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`,
+1. You can delete the archive (and the extracted folder if the `b4n` binary was moved).
+
+> Note: If the copy assets prompt is not showing, you can always copy the `themes` and `plugins` directories by hand to the place pointed out
+> by the `b4n --show-dirs` command.
 
 ### Homebrew
 
@@ -55,7 +59,7 @@ brew upgrade b4n
 
 ## Building
 
-To build `b4n` ensure you have a recent Rust toolchain installed (1.95+). Clone the repository and navigate into the project directory:
+To build `b4n`, ensure you have a recent Rust toolchain installed (1.95+). Clone the repository and navigate into the project directory:
 
 ```bash
 git clone https://github.com/fioletoven/b4n.git
@@ -167,7 +171,7 @@ In edit mode, the following shortcuts are available:
 
 ## File Transfer
 
-Feature requires a `tar` executable on the container where files are uploaded to or downloaded from.
+This feature requires a `tar` executable on the container where files are uploaded to or downloaded from.
 
 If `Overwrite files` is unchecked before the transfer, a check will be executed on the remote container that requires the presence of `sh` and `test` commands (if the container does not have these commands, as a workaround the checkbox can be checked, but be aware that files may be overwritten).
 
@@ -269,7 +273,7 @@ The plugins folder is not created automatically. Example plugins are available i
 
 ### themes/
 
-This folder stores TUI themes. It is not created automatically. Place theme files here to make them available in the application - either by copying themes from the `assets/themes` folder or by creating your own.
+This folder stores TUI themes. It is not created automatically. Place theme files here to make them available in the application, either by copying themes from the `assets/themes` folder or by creating your own.
 
 ### config.yaml
 
@@ -313,9 +317,9 @@ key_bindings:
 - `logs.lines` - Number of log lines to retrieve from the Kubernetes API for the selected container.
 - `logs.timestamps` - Whether timestamps are enabled by default for logs. You can still toggle this while viewing logs.
 - `logs.format` - Whether formatting structured logs is enabled by default. You can still toggle formatting while viewing logs.
-- `read_only` - If true no destructive actions can be selected from the app UI.
+- `read_only` - If true, no destructive actions can be selected from the app UI.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
-- `terminal.system_cursor` - If true all terminal views will stop drawing its own cursor and start using the system one.
+- `terminal.system_cursor` - If true, all terminal views will stop drawing their own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
 - `symbols` - Symbols used in the app UI, possible options: `nerdfont`, `powerline` and `plain`.
 - `theme` - The name of the currently selected theme. This should match a file in the `themes` directory (without the `.yaml` extension).

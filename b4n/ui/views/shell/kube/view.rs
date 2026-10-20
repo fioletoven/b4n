@@ -124,7 +124,7 @@ impl ShellView {
         let mut builder = ActionsListBuilder::default()
             .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
             .with_menu_action(ActionItem::menu(5, '', "download files", "download"))
-            .with_menu_action(ActionItem::menu(5, '', "upload file", "upload"));
+            .with_menu_action(ActionItem::menu(5, '', "upload files", "upload"));
 
         if self.is_attach {
             builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach"));
@@ -306,7 +306,7 @@ impl ShellView {
         let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
         let current_path = common::get_path_for_file_picker(current_path, is_download);
 
-        self.file_picker.set_dir_picker(is_download);
+        self.file_picker.set_transfer_picker(is_download);
         self.file_picker.set_current_path(current_path);
         self.file_picker.reset();
         self.file_picker.show();

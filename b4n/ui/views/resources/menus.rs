@@ -129,7 +129,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
                     builder = builder
                         .with_menu_action(ActionItem::menu(10, '', "inject container", "inject"))
                         .with_menu_action(ActionItem::menu(11, '', "download files", "download"))
-                        .with_menu_action(ActionItem::menu(11, '', "upload file", "upload"));
+                        .with_menu_action(ActionItem::menu(11, '', "upload files", "upload"));
                 }
             }
 
@@ -293,13 +293,13 @@ fn add_file_transfer_actions(builder: ActionsListBuilder) -> ActionsListBuilder 
     builder
         .with_action(
             ActionItem::action("download file", "download")
-                .with_description("downloads file from container")
+                .with_description("downloads files from container")
                 .with_aliases(["file", "transfer"]),
             Some(KeyCommand::TransferFrom),
         )
         .with_action(
             ActionItem::action("upload file", "upload")
-                .with_description("uploads file to container")
+                .with_description("uploads files to container")
                 .with_aliases(["file", "transfer"]),
             Some(KeyCommand::TransferTo),
         )

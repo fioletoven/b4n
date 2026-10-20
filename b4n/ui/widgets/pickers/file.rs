@@ -59,10 +59,11 @@ impl FileSelector {
         behaviour.loading = true;
     }
 
-    /// Sets if this file picker is used to select a directory instead of a file.
-    pub fn set_dir_picker(&mut self, is_dir_picker: bool) {
-        self.behaviour_mut().pick_dir = is_dir_picker;
-        self.allow_empty(is_dir_picker);
+    /// Allows selecting files or directories for uploads, and only directories for downloads.
+    pub fn set_transfer_picker(&mut self, is_download: bool) {
+        self.behaviour_mut().pick_dir = true;
+        self.behaviour_mut().directories_only = is_download;
+        self.allow_empty(true);
     }
 }
 
@@ -76,6 +77,7 @@ pub struct FileBehaviour {
     loading: bool,
     spinner: Spinner,
     pick_dir: bool,
+    directories_only: bool,
 }
 
 impl FileBehaviour {
@@ -92,6 +94,7 @@ impl FileBehaviour {
             loading: true,
             spinner: Spinner::new(use_plain_symbols),
             pick_dir,
+            directories_only: pick_dir,
         }
     }
 
@@ -129,7 +132,7 @@ impl FileBehaviour {
                 DirListResult::Entry(entry) => {
                     self.current_exists = true;
 
-                    if self.pick_dir && !entry.is_dir {
+                    if self.directories_only && !entry.is_dir {
                         continue;
                     }
 

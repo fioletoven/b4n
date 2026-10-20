@@ -51,6 +51,7 @@ pub enum TransferFileError {
 /// Result from the file transfer command.
 pub struct TransferFileResult {
     pub is_download: bool,
+    pub is_directory: bool,
     pub pod: String,
     pub container: String,
     pub file: String,
@@ -114,13 +115,10 @@ async fn download_file(
     text_id: &str,
     icon: char,
 ) -> Result<TransferFileResult, TransferFileError> {
-    if !context.overwrite_files && tokio::fs::try_exists(&context.to).await? {
-        return Err(TransferFileError::DestinationExists(context.to.clone()));
-    }
-
     let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
     let source = Path::new(&remote_from);
     let (dir, file) = split_path(source)?;
+    validate_download_destination(Path::new(&context.to), file, context.overwrite_files).await?;
 
     let attach_params = build_attach_params(&context.container).stderr(true);
     let mut attached = pods
@@ -155,6 +153,7 @@ async fn download_file(
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
 
+    let is_directory = is_directory_in_archive(&tar_data)?;
     runtime
         .spawn_blocking({
             let _destination = context.to.clone();
@@ -164,6 +163,7 @@ async fn download_file(
 
     Ok(TransferFileResult {
         is_download: true,
+        is_directory,
         pod: resource.name,
         container: context.container,
         file: file.to_owned(),
@@ -197,6 +197,7 @@ async fn upload_file(
         })
         .await??;
 
+    let is_directory = is_directory_in_archive(&tar_buffer)?;
     let attach_params = build_attach_params(&context.container).stdin(true).stderr(true);
     let mut attached = pods
         .exec(&resource.name, ["tar", "xf", "-", "-C", &remote_to], &attach_params)
@@ -207,15 +208,18 @@ async fn upload_file(
     let stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
     let stderr_task = runtime.spawn(read_to_string(stderr));
 
-    let mut transferred = 0;
-    for chunk in tar_buffer.chunks(CHUNK_SIZE) {
-        stdin.write_all(chunk).await?;
-        transferred += chunk.len();
+    let upload_result = async {
+        let mut transferred = 0;
+        for chunk in tar_buffer.chunks(CHUNK_SIZE) {
+            stdin.write_all(chunk).await?;
+            transferred += chunk.len();
 
-        sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
+            sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
+        }
+
+        stdin.shutdown().await
     }
-
-    stdin.shutdown().await?;
+    .await;
     drop(stdin);
 
     check_stderr(stderr_task).await?;
@@ -226,20 +230,51 @@ async fn upload_file(
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
 
+    upload_result?;
+
     Ok(TransferFileResult {
         is_download: false,
+        is_directory,
         pod: resource.name,
         container: context.container,
         file: file_name,
     })
 }
 
+fn is_directory_in_archive(data: &[u8]) -> Result<bool, TransferFileError> {
+    let mut archive = tar::Archive::new(data);
+    Ok(archive
+        .entries()?
+        .next()
+        .transpose()?
+        .is_some_and(|entry| entry.header().entry_type().is_dir()))
+}
+
+async fn validate_download_destination(destination: &Path, file: &str, overwrite: bool) -> Result<(), TransferFileError> {
+    match tokio::fs::metadata(destination).await {
+        Ok(metadata) if !metadata.is_dir() => return Err(TransferFileError::InvalidPath(destination.to_path_buf())),
+        Ok(_) => {},
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {},
+        Err(err) => return Err(err.into()),
+    }
+
+    let target = destination.join(file);
+    if !overwrite && tokio::fs::try_exists(&target).await? {
+        return Err(TransferFileError::DestinationExists(target.to_string_lossy().into_owned()));
+    }
+
+    Ok(())
+}
+
 fn build_tar_blocking(path: String, name: String) -> Result<Vec<u8>, TransferFileError> {
     let mut buffer = Vec::new();
-    let mut file = std::fs::File::open(path)?;
 
     let mut builder = tar::Builder::new(&mut buffer);
-    builder.append_file(name, &mut file)?;
+    if std::fs::metadata(&path)?.is_dir() {
+        builder.append_dir_all(name, path)?;
+    } else {
+        builder.append_file(name, &mut std::fs::File::open(path)?)?;
+    }
     builder.finish()?;
     drop(builder);
 
