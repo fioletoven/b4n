@@ -700,7 +700,8 @@ impl ViewsManager {
         match result {
             Ok(result) => {
                 let msg = format!(
-                    "File '{}' successfully transferred {} the '{}' container, '{}' pod",
+                    "{} '{}' successfully transferred {} the '{}' container, '{}' pod",
+                    if result.is_directory { "Directory" } else { "File" },
                     result.file,
                     if result.is_download { "from" } else { "to" },
                     result.container,

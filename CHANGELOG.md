@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- allow to upload directories in file transfer dialog
+
 ## 1.2.0 - 2026-10-18
 
 ### Features
