@@ -207,15 +207,18 @@ async fn upload_file(
     let stderr = attached.stderr().ok_or(TransferFileError::MissingStderr)?;
     let stderr_task = runtime.spawn(read_to_string(stderr));
 
-    let mut transferred = 0;
-    for chunk in tar_buffer.chunks(CHUNK_SIZE) {
-        stdin.write_all(chunk).await?;
-        transferred += chunk.len();
+    let upload_result = async {
+        let mut transferred = 0;
+        for chunk in tar_buffer.chunks(CHUNK_SIZE) {
+            stdin.write_all(chunk).await?;
+            transferred += chunk.len();
 
-        sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
+            sink.set_text(text_id, Some(format_size(icon, transferred)), IconKind::Default);
+        }
+
+        stdin.shutdown().await
     }
-
-    stdin.shutdown().await?;
+    .await;
     drop(stdin);
 
     check_stderr(stderr_task).await?;
@@ -225,6 +228,8 @@ async fn upload_file(
         .join()
         .await
         .map_err(|err| TransferFileError::RemoteProcessError(err.to_string()))?;
+
+    upload_result?;
 
     Ok(TransferFileResult {
         is_download: false,
@@ -236,10 +241,13 @@ async fn upload_file(
 
 fn build_tar_blocking(path: String, name: String) -> Result<Vec<u8>, TransferFileError> {
     let mut buffer = Vec::new();
-    let mut file = std::fs::File::open(path)?;
 
     let mut builder = tar::Builder::new(&mut buffer);
-    builder.append_file(name, &mut file)?;
+    if std::fs::metadata(&path)?.is_dir() {
+        builder.append_dir_all(name, path)?;
+    } else {
+        builder.append_file(name, &mut std::fs::File::open(path)?)?;
+    }
     builder.finish()?;
     drop(builder);
 

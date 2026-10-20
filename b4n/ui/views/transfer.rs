@@ -106,7 +106,7 @@ fn get_transfer_dialog_title(is_download: bool) -> String {
     if is_download {
         "Download files from the specified container:".to_owned()
     } else {
-        "Upload file to the specified container:".to_owned()
+        "Upload files to the specified container:".to_owned()
     }
 }
 
