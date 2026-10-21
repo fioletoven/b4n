@@ -101,7 +101,7 @@ tracing = { workspace = true }
 tui-term = { workspace = true }
 
 [dev-dependencies]
-rstest = { version = "0.27" }
+rstest = { version = "0.28" }
 
 [build-dependencies]
 syntect = { workspace = true }
