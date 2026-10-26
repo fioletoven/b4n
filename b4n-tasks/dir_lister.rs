@@ -252,6 +252,7 @@ async fn list_remote_entries(
     let mut reader = BufReader::new(stdout);
 
     let current_dir = read_fragment(&mut reader).await?.ok_or("incomplete remote record")?;
+    let current_dir = if current_dir == "//" { "/".to_string() } else { current_dir };
     if !current_dir.starts_with('/') {
         return Err("remote directory is not an absolute POSIX path".into());
     }
