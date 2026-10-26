@@ -148,16 +148,14 @@ pub fn get_path_for_file_picker(path: &str) -> PathBuf {
 
     if path.trim().is_empty() {
         default_path()
+    } else if path.ends_with('/') || path.ends_with('\\') {
+        PathBuf::from(path)
+    } else if let Some(path) = PathBuf::from(path).parent()
+        && !path.as_os_str().is_empty()
+    {
+        PathBuf::from(path)
     } else {
-        if path.ends_with("/") || path.ends_with("\\") {
-            PathBuf::from(path)
-        } else if let Some(path) = PathBuf::from(path).parent()
-            && !path.as_os_str().is_empty()
-        {
-            PathBuf::from(path)
-        } else {
-            default_path()
-        }
+        default_path()
     }
 }
 

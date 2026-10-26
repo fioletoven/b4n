@@ -172,7 +172,7 @@ impl FileBehaviour {
                     self.has_error = false;
                     if patterns.value_prefix().is_empty() {
                         self.current_exists = true;
-                        self.current_path = path.clone();
+                        self.current_path.clone_from(&path);
                         self.lister.set_current_path(path);
                     }
                 },
