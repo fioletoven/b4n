@@ -1,10 +1,12 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
+use b4n_kube::ContainerRef;
 use b4n_list::Row;
-use b4n_tasks::dir_lister::{DirListResult, DirLister};
+use b4n_tasks::dir_lister::{DirListResult, DirLister, RemoteContext};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ErrorHighlightMode, Select, Spinner};
 use b4n_tui::{ResponseEvent, TuiEvent};
+use kube::{Api, Client};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Paragraph;
@@ -19,6 +21,7 @@ use crate::ui::widgets::{PatternItem, PatternsList, Picker, PickerBehaviour};
 const BACK_NAME: &str = "..";
 const FILE_SELECT_HINT: &str = "Select or type a file path:";
 const DIR_SELECT_HINT: &str = "Select or type a directory path:";
+const ALL_SELECT_HINT: &str = "Select or type a file or directory path:";
 
 pub type FileSelector = Picker<FileBehaviour>;
 
@@ -34,12 +37,18 @@ impl FileSelector {
     pub fn selected_path(&self) -> (PathBuf, bool) {
         if let Some(path) = &self.behaviour().selected_path {
             (
-                self.behaviour().current_path.join(normalize(path)),
+                self.behaviour().join_path(path),
                 self.behaviour().current_exists && self.behaviour().selected_exists,
             )
         } else {
             (self.behaviour().current_path.clone(), self.behaviour().current_exists)
         }
+    }
+
+    /// Returns whether the selected path is a directory.\
+    /// **Note** that nonexistent typed paths return false.
+    pub fn is_selected_dir(&self) -> bool {
+        self.behaviour().selected_is_dir
     }
 
     /// Gets the current directory path.
@@ -59,11 +68,28 @@ impl FileSelector {
         behaviour.loading = true;
     }
 
-    /// Allows selecting files or directories for uploads, and only directories for downloads.
-    pub fn set_transfer_picker(&mut self, is_download: bool) {
-        self.behaviour_mut().pick_dir = true;
-        self.behaviour_mut().directories_only = is_download;
+    /// Allows selecting files and directories or directories only.
+    pub fn set_dir_selection(&mut self, is_allowed: bool, directories_only: bool) {
+        self.behaviour_mut().pick_dir = is_allowed;
+        self.behaviour_mut().directories_only = is_allowed && directories_only;
         self.allow_empty(true);
+    }
+
+    /// Returns `true` if file picker lists remote directory.
+    pub fn is_remote(&self) -> bool {
+        self.behaviour().lister.is_remote()
+    }
+
+    /// Sets file picker to list remote directory.
+    pub fn set_remote(&mut self, remote: Option<(Client, ContainerRef)>) {
+        let behaviour = self.behaviour_mut();
+        if let Some((client, resource)) = remote {
+            let client = Api::namespaced(client, resource.namespace.as_str());
+            let context = RemoteContext::new(client, resource.name, resource.container);
+            behaviour.lister.set_remote(Some(context));
+        } else {
+            behaviour.lister.set_remote(None);
+        }
     }
 }
 
@@ -74,10 +100,12 @@ pub struct FileBehaviour {
     current_exists: bool,
     selected_path: Option<String>,
     selected_exists: bool,
+    selected_is_dir: bool,
     loading: bool,
     spinner: Spinner,
     pick_dir: bool,
     directories_only: bool,
+    has_error: bool,
 }
 
 impl FileBehaviour {
@@ -91,10 +119,12 @@ impl FileBehaviour {
             current_exists: false,
             selected_path: None,
             selected_exists: false,
+            selected_is_dir: true,
             loading: true,
             spinner: Spinner::new(use_plain_symbols),
             pick_dir,
             directories_only: pick_dir,
+            has_error: false,
         }
     }
 
@@ -113,6 +143,14 @@ impl FileBehaviour {
         }
     }
 
+    fn join_path(&self, value: &str) -> PathBuf {
+        if self.lister.is_remote() {
+            PathBuf::from(remote_join(&self.current_path.to_string_lossy(), value))
+        } else {
+            self.current_path.join(normalize(value))
+        }
+    }
+
     fn process_dir_results(&mut self, patterns: &mut Select<PatternsList>) {
         let dir_icon = self.app_data.borrow().config.symbols.dir.ch;
         let back_icon = self.app_data.borrow().config.symbols.back.ch;
@@ -124,9 +162,18 @@ impl FileBehaviour {
             match result {
                 DirListResult::Init => {
                     self.loading = true;
+                    self.has_error = false;
                     patterns.items.clear();
                     if !patterns.value().is_empty() {
                         patterns.items.set_filter(Some(patterns.value().into()));
+                    }
+                },
+                DirListResult::Resolved(path) => {
+                    self.has_error = false;
+                    if patterns.value_prefix().is_empty() {
+                        self.current_exists = true;
+                        self.current_path.clone_from(&path);
+                        self.lister.set_current_path(path);
                     }
                 },
                 DirListResult::Entry(entry) => {
@@ -155,6 +202,7 @@ impl FileBehaviour {
                     self.current_exists = true;
                 },
                 DirListResult::Error(_) => {
+                    self.has_error = true;
                     self.loading = false;
                     self.current_exists = false;
                 },
@@ -170,13 +218,12 @@ impl FileBehaviour {
         let value = patterns.value_prefix();
         let dir = if value.is_empty() {
             self.current_path.clone()
-        } else if Path::new(value).is_absolute() {
-            PathBuf::from(value)
         } else {
-            self.current_path.join(value)
+            self.join_path(value)
         };
 
         if self.lister.list_dir(dir, value.is_empty()) {
+            self.loading = true;
             patterns.items.clear();
             if patterns.value().is_empty() {
                 patterns.items.set_filter(None);
@@ -186,6 +233,20 @@ impl FileBehaviour {
 }
 
 impl PickerBehaviour for FileBehaviour {
+    #[cfg(windows)]
+    fn prompt(&self) -> Cow<'_, str> {
+        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
+        let prompt = format!("{}{}", self.current_path.display(), prompt_end);
+        if !self.lister.is_remote()
+            && let Some(stripped) = prompt.strip_prefix(r"\\?\")
+        {
+            stripped.to_owned().into()
+        } else {
+            prompt.into()
+        }
+    }
+
+    #[cfg(not(windows))]
     fn prompt(&self) -> Cow<'_, str> {
         let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
         format!("{}{}", self.current_path.display(), prompt_end).into()
@@ -197,7 +258,7 @@ impl PickerBehaviour for FileBehaviour {
 
     #[cfg(windows)]
     fn accent_characters(&self) -> Option<&str> {
-        Some("/\\")
+        Some(if self.lister.is_remote() { "/" } else { "/\\" })
     }
 
     #[cfg(not(windows))]
@@ -207,7 +268,7 @@ impl PickerBehaviour for FileBehaviour {
 
     #[cfg(windows)]
     fn filter_delimiters(&self) -> Vec<char> {
-        vec!['\\', '/']
+        if self.lister.is_remote() { vec!['/'] } else { vec!['\\', '/'] }
     }
 
     #[cfg(not(windows))]
@@ -242,6 +303,13 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn validate(&mut self, value: &str) -> Option<usize> {
+        if self.lister.is_remote() {
+            return if remote_validate(value, self.pick_dir) {
+                None
+            } else {
+                Some(0)
+            };
+        }
         if validate_path(value, self.pick_dir) { None } else { Some(0) }
     }
 
@@ -257,10 +325,12 @@ impl PickerBehaviour for FileBehaviour {
         if let Some(highlighted) = highlighted {
             self.selected_path = Some(combine_values(prefix, highlighted));
             self.selected_exists = true;
+            self.selected_is_dir = false;
             ResponseEvent::Accepted
         } else if value.is_empty() {
             self.selected_path = None;
             self.selected_exists = self.pick_dir;
+            self.selected_is_dir = true;
             if self.pick_dir {
                 ResponseEvent::Accepted
             } else {
@@ -269,11 +339,16 @@ impl PickerBehaviour for FileBehaviour {
         } else {
             self.selected_path = Some(combine_values(prefix, value));
             self.selected_exists = false;
+            self.selected_is_dir = false;
             ResponseEvent::Accepted
         }
     }
 
     fn on_show(&mut self, patterns: &mut Select<PatternsList>) -> bool {
+        self.current_exists = false;
+        self.selected_path = None;
+        self.selected_exists = false;
+        self.selected_is_dir = true;
         self.lister.reset();
         self.lister.list_dir(self.current_path.clone(), true);
         patterns.items = PatternsList::default();
@@ -292,6 +367,7 @@ impl PickerBehaviour for FileBehaviour {
 
     fn on_close(&mut self, patterns: &mut Select<PatternsList>, is_cancel: bool) -> bool {
         if is_cancel {
+            self.lister.reset();
             return true;
         }
 
@@ -305,9 +381,13 @@ impl PickerBehaviour for FileBehaviour {
         if let Some(item) = patterns.items.get_highlighted() {
             if item.icon().is_some_and(|i| i == dir_icon || i == back_icon) {
                 if item.name() == BACK_NAME {
-                    self.navigate_up();
+                    if patterns.value_prefix().is_empty() {
+                        self.navigate_up();
+                    } else {
+                        self.navigate_to_dir(self.join_path(&combine_values(patterns.value_prefix(), BACK_NAME)));
+                    }
                 } else {
-                    self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())).join(item.value()));
+                    self.navigate_to_dir(self.join_path(&combine_values(patterns.value_prefix(), item.value())));
                 }
 
                 patterns.set_prompt(self.prompt());
@@ -318,7 +398,7 @@ impl PickerBehaviour for FileBehaviour {
             }
         } else {
             if patterns.value() == BACK_NAME {
-                self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix()).join(BACK_NAME)));
+                self.navigate_to_dir(self.join_path(&combine_values(patterns.value_prefix(), BACK_NAME)));
 
                 patterns.set_prompt(self.prompt());
                 patterns.items.clear();
@@ -333,7 +413,7 @@ impl PickerBehaviour for FileBehaviour {
                 }
 
                 if !patterns.value_prefix().is_empty() && !patterns.items.is_empty() {
-                    self.navigate_to_dir(self.current_path.join(normalize(patterns.value_prefix())));
+                    self.navigate_to_dir(self.join_path(patterns.value_prefix()));
 
                     patterns.set_prompt(self.prompt());
                     patterns.reset();
@@ -361,9 +441,18 @@ impl PickerBehaviour for FileBehaviour {
     }
 
     fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
-        let hint = if self.pick_dir { DIR_SELECT_HINT } else { FILE_SELECT_HINT };
-        let icon = self.app_data.borrow().config.symbols.hint.ch;
-        let line = format!("{} {}", if self.loading { self.spinner.tick() } else { icon }, hint);
+        let line = if self.has_error {
+            let icon = self.app_data.borrow().config.symbols.error.ch;
+            format!("{icon} Error while traversing the directory.")
+        } else {
+            let hint = match (self.pick_dir, self.directories_only) {
+                (true, true) => DIR_SELECT_HINT,
+                (true, false) => ALL_SELECT_HINT,
+                (false, _) => FILE_SELECT_HINT,
+            };
+            let icon = self.app_data.borrow().config.symbols.hint.ch;
+            format!("{} {hint}", if self.loading { self.spinner.tick() } else { icon })
+        };
         frame.render_widget(Paragraph::new(line).style(style), area);
     }
 
@@ -387,6 +476,20 @@ fn directory_item(name: String, dir_icon: char, back_icon: char) -> PatternItem 
 
 fn normalize(path: &str) -> PathBuf {
     Path::new(path).components().collect()
+}
+
+fn remote_join(base: &str, value: &str) -> String {
+    if value.starts_with('/') || value == "~" || value.starts_with("~/") {
+        value.to_owned()
+    } else if value.is_empty() {
+        base.to_owned()
+    } else {
+        format!("{}/{value}", base.trim_end_matches('/'))
+    }
+}
+
+fn remote_validate(value: &str, allow_empty: bool) -> bool {
+    (allow_empty || !value.is_empty()) && !value.contains('\0') && value.split('/').all(|part| part.len() <= 255)
 }
 
 fn combine_values(prefix: &str, highlighted: &str) -> String {

@@ -116,8 +116,7 @@ async fn download_file(
     icon: char,
 ) -> Result<TransferFileResult, TransferFileError> {
     let remote_from = resolve_remote_tilde(&pods, &resource, &context.container, context.from).await?;
-    let source = Path::new(&remote_from);
-    let (dir, file) = split_path(source)?;
+    let (dir, file) = split_remote_path(&remote_from)?;
     validate_download_destination(Path::new(&context.to), file, context.overwrite_files).await?;
 
     let attach_params = build_attach_params(&context.container).stderr(true);
@@ -346,18 +345,19 @@ async fn check_process_status(attached: &mut kube::api::AttachedProcess) -> Resu
     Ok(())
 }
 
-fn split_path(path: &Path) -> Result<(&str, &str), TransferFileError> {
-    let dir = path
-        .parent()
-        .and_then(|p| p.to_str())
-        .ok_or_else(|| TransferFileError::InvalidPath(path.to_path_buf()))?;
+fn split_remote_path(path: &str) -> Result<(&str, &str), TransferFileError> {
+    if path.is_empty() || path.contains('\0') {
+        return Err(TransferFileError::InvalidPath(PathBuf::from(path)));
+    }
 
-    let file_name = path
-        .file_name()
-        .and_then(|f| f.to_str())
-        .ok_or_else(|| TransferFileError::InvalidPath(path.to_path_buf()))?;
+    let trimmed = path.trim_end_matches('/');
+    if trimmed.is_empty() {
+        return Ok(("/", "."));
+    }
 
-    Ok((dir, file_name))
+    Ok(trimmed
+        .rsplit_once('/')
+        .map_or((".", trimmed), |(dir, name)| (if dir.is_empty() { "/" } else { dir }, name)))
 }
 
 async fn read_to_string(mut reader: impl AsyncRead + Unpin) -> Result<String, std::io::Error> {

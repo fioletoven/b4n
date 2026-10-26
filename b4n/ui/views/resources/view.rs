@@ -3,7 +3,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
-use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog, TextBox};
+use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, ScopeData, ToSelectData, TuiEvent};
 use delegate::delegate;
 use kube::{config::NamedContext, discovery::Scope};
@@ -17,7 +17,7 @@ use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
 use crate::ui::views::common::update_read_only_icon;
 use crate::ui::views::resources::table::ResourcesTable;
 use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
-use crate::ui::views::{View, common, transfer};
+use crate::ui::views::{View, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
@@ -299,8 +299,8 @@ impl ResourcesView {
                         self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
                     )),
                     "stop_port_forwards" => Some(self.stop_port_forwards()),
-                    "select_file" => {
-                        self.show_file_picker();
+                    "select_file" | "select_remote_file" => {
+                        self.show_file_picker(action == "select_remote_file");
                         Some(ResponseEvent::Handled)
                     },
                     "transfer_file" => {
@@ -487,13 +487,26 @@ impl ResourcesView {
         self.command_palette.show();
     }
 
-    fn show_file_picker(&mut self) {
+    fn show_file_picker(&mut self, remote: bool) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
-        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
-        let current_path = common::get_path_for_file_picker(current_path, is_download);
-
-        self.file_picker.set_transfer_picker(is_download);
+        let source = if remote {
+            if let Some(resource) = self.table.get_resource_ref(false)
+                && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
+                && let Some(client) = self.worker.borrow().kubernetes_client()
+            {
+                let mut resource: b4n_kube::ContainerRef = resource.into();
+                resource.container = Some(context.container);
+                Some((client.get_client(), resource))
+            } else {
+                return;
+            }
+        } else {
+            None
+        };
+        let current_path = transfer::get_path_for_file_picker(&self.modal, remote);
         self.file_picker.set_current_path(current_path);
+        self.file_picker.set_remote(source);
+        self.file_picker.set_dir_selection(true, is_download != remote);
         self.file_picker.reset();
         self.file_picker.show();
     }

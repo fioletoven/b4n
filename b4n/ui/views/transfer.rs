@@ -5,6 +5,7 @@ use b4n_kube::files::TransferContext;
 use b4n_tui::ResponseEvent;
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox, ValidatorKind};
 use ratatui::layout::Position;
+use std::path::PathBuf;
 
 use crate::core::SharedAppData;
 use crate::ui::views::common;
@@ -58,11 +59,11 @@ pub fn new_transfer_dialog(
             controls.controls_mut().swap(2, 3);
 
             if let Some(textbox) = controls.controls_mut()[2].as_textbox_mut() {
-                setup_transfer_dialog_textbox(textbox, is_download, true);
+                update_textbox_caption(textbox, true);
             }
 
             if let Some(textbox) = controls.controls_mut()[3].as_textbox_mut() {
-                setup_transfer_dialog_textbox(textbox, !is_download, false);
+                update_textbox_caption(textbox, false);
             }
         }
     })
@@ -85,20 +86,44 @@ pub fn get_transfer_dialog_context(dialog: &Dialog) -> Option<TransferContext> {
 
 /// Updates transfer dialog textboxes with the selected path from a file picker.
 pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelector) {
-    let (path, exists) = file_picker.selected_path();
     let is_download = dialog.checkbox(0).is_some_and(|cb| cb.is_checked);
-    if is_download || exists {
-        if let Some(textbox) = dialog.textbox_mut(0)
-            && let Ok(path) = path.clone().into_os_string().into_string()
+    let is_dir = is_download != file_picker.is_remote() || file_picker.is_selected_dir();
+    let (path, exists) = file_picker.selected_path();
+
+    if file_picker.is_remote() {
+        if let Some(textbox) = dialog.textbox_mut(1)
+            && let Ok(mut path) = path.into_os_string().into_string()
         {
+            if is_dir && !path.ends_with('/') {
+                path.push('/');
+            }
+
             textbox.set_value(path);
         }
 
-        if let Some(textbox) = dialog.textbox_mut(1)
-            && textbox.value().is_empty()
-        {
-            textbox.set_value("~/");
+        return;
+    }
+
+    if (is_download || exists)
+        && let Some(textbox) = dialog.textbox_mut(0)
+        && let Ok(path) = path.clone().into_os_string().into_string()
+    {
+        let mut path = path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned();
+        if is_dir && !path.ends_with(std::path::is_separator) {
+            path.push(std::path::MAIN_SEPARATOR);
         }
+
+        textbox.set_value(path);
+    }
+}
+
+/// Returns the path for the file picker based on the dialog's textbox value and whether it's remote.
+pub fn get_path_for_file_picker(dialog: &Dialog, remote: bool) -> PathBuf {
+    let path = dialog.textbox(usize::from(remote)).map(TextBox::value).unwrap_or_default();
+    if remote {
+        common::get_remote_path_for_file_picker(path)
+    } else {
+        common::get_path_for_file_picker(path)
     }
 }
 
@@ -124,10 +149,13 @@ fn get_transfer_dialog_textboxes(
         symbols: &Symbols,
     ) -> TextBox {
         let mut textbox = TextBox::new(usize::from(is_download), "", 40, colors.clone(), symbols)
-            .with_button(format!(" {} ", symbols.dir_rev.ch), "select_file")
+            .with_button(
+                format!(" {} ", symbols.dir_rev.ch),
+                if is_download { "select_remote_file" } else { "select_file" },
+            )
             .with_clipboard(app_data.borrow().get_clipboard())
             .with_validator(ValidatorKind::Required);
-        setup_transfer_dialog_textbox(&mut textbox, !is_download, is_first);
+        update_textbox_caption(&mut textbox, is_first);
         if is_download {
             textbox.set_value("~/");
         }
@@ -141,7 +169,6 @@ fn get_transfer_dialog_textboxes(
     ]
 }
 
-fn setup_transfer_dialog_textbox(textbox: &mut TextBox, has_button: bool, is_first: bool) {
-    textbox.show_button(has_button);
+fn update_textbox_caption(textbox: &mut TextBox, is_first: bool) {
     textbox.set_caption(if is_first { "From:     " } else { "To (dir): " });
 }

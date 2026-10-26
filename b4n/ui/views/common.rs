@@ -140,26 +140,37 @@ pub fn get_target_containers_from_resource_tags(tags: &[ResourceTag]) -> Vec<Str
     containers.into_iter().map(|(_, name)| name).collect()
 }
 
-/// Tries to guess selected path for the file picker basing on the `is_download` flag.
-pub fn get_path_for_file_picker(path: &str, is_download: bool) -> PathBuf {
+/// Tries to guess selected path for the file picker.
+pub fn get_path_for_file_picker(path: &str) -> PathBuf {
     fn default_path() -> PathBuf {
         std::env::current_dir().unwrap_or(PathBuf::from("."))
     }
 
     if path.trim().is_empty() {
         default_path()
+    } else if path.ends_with('/') || path.ends_with('\\') {
+        PathBuf::from(path)
+    } else if let Some(path) = PathBuf::from(path).parent()
+        && !path.as_os_str().is_empty()
+    {
+        PathBuf::from(path)
     } else {
-        let path = PathBuf::from(path);
-        if is_download {
-            path
-        } else if let Some(path) = path.parent()
-            && !path.as_os_str().is_empty()
-        {
-            PathBuf::from(path)
-        } else {
-            default_path()
-        }
+        default_path()
     }
+}
+
+/// Tries to guess selected path for the remote file picker.
+pub fn get_remote_path_for_file_picker(path: &str) -> PathBuf {
+    let value = if path.is_empty() {
+        "."
+    } else if path.ends_with('/') || path == "~" {
+        path
+    } else {
+        path.rsplit_once('/')
+            .map_or(".", |(parent, _)| if parent.is_empty() { "/" } else { parent })
+    };
+
+    PathBuf::from(value)
 }
 
 /// Updates the read-only icon in the footer based on the application's read-only state.
