@@ -1,7 +1,7 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ContainerRef, PODS, ResourceTag};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, TextBox};
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
@@ -18,7 +18,7 @@ use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::views::shell::kube::bridge::ShellBridge;
 use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt};
-use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, common, get_layout_with_header, transfer};
+use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, get_layout_with_header, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector};
 use crate::ui::{presentation::ContentHeader, views::View};
 
@@ -301,13 +301,23 @@ impl ShellView {
         ResponseEvent::Handled
     }
 
-    fn show_file_picker(&mut self) {
+    fn show_file_picker(&mut self, remote: bool) {
         let is_download = self.modal.checkbox(0).is_some_and(|cb| cb.is_checked);
-        let current_path = self.modal.textbox(0).map(TextBox::value).unwrap_or_default();
-        let current_path = common::get_path_for_file_picker(current_path, is_download);
-
-        self.file_picker.set_transfer_picker(is_download);
+        let source = if remote {
+            if let Some(context) = transfer::get_transfer_dialog_context(&self.modal) {
+                let mut resource = self.pod.clone();
+                resource.container = Some(context.container);
+                Some((self.client.clone(), resource))
+            } else {
+                return;
+            }
+        } else {
+            None
+        };
+        let current_path = transfer::get_path_for_file_picker(&self.modal, remote);
         self.file_picker.set_current_path(current_path);
+        self.file_picker.set_remote(source);
+        self.file_picker.set_dir_selection(true, is_download != remote);
         self.file_picker.reset();
         self.file_picker.show();
     }
@@ -392,8 +402,8 @@ impl ShellView {
                         }
                         ResponseEvent::Handled
                     },
-                    "select_file" => {
-                        self.show_file_picker();
+                    "select_file" | "select_remote_file" => {
+                        self.show_file_picker(action == "select_remote_file");
                         ResponseEvent::Handled
                     },
                     "transfer_file" => {
