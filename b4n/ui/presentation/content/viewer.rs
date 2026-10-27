@@ -1,5 +1,7 @@
 use b4n_config::keys::KeyCommand;
+use b4n_config::themes::TextColors;
 use b4n_kube::{Kind, Namespace};
+use b4n_tui::utils;
 use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, widgets::Spinner};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
@@ -520,23 +522,24 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
-        let area = area.inner(Margin::new(1, 0));
-        self.page_area = area;
+        let page_area = area.inner(Margin::new(1, 0));
+        self.page_area = page_area;
         self.update_page_start();
 
-        frame.render_widget(Paragraph::new(self.get_page_lines()), area);
+        frame.render_widget(Paragraph::new(self.get_page_lines()), page_area);
         if let Some(content) = &self.content {
             let widget = ContentSelectWidget::new(&self.select, content, &self.page_start, self.select_color);
-            frame.render_widget(widget, area);
+            frame.render_widget(widget, page_area);
+            self.draw_scrollbar(frame, area, content);
         }
 
         if self.search.matches.is_some() {
             let widget = SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset);
-            frame.render_widget(widget, area);
+            frame.render_widget(widget, page_area);
         }
 
         if self.edit.is_enabled {
-            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), area);
+            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), page_area);
         }
     }
 
@@ -548,6 +551,17 @@ impl<T: Content> ContentViewer<T> {
             .style(&colors.text);
         let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
         frame.render_widget(line, area);
+    }
+
+    fn draw_scrollbar(&self, frame: &mut ratatui::Frame<'_>, area: Rect, content: &T) {
+        let has_scrollbar = area.width > 0 && area.height > 0 && content.len() > usize::from(area.height);
+        if has_scrollbar {
+            let colors = &self.app_data.borrow().theme.colors.list;
+            let symbols = &self.app_data.borrow().config.symbols;
+            let area = Rect::new(area.right() - 1, area.y, 1, area.height);
+            let colors = TextColors::bg(colors.header.dimmed.bg, colors.line.ready.normal.bg);
+            utils::draw_scrollbar(frame, area, &colors, symbols, content.len(), self.page_start.y);
+        }
     }
 
     /// Returns max vertical start of the page.
