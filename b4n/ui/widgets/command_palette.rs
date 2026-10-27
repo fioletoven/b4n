@@ -182,7 +182,8 @@ impl CommandPalette {
             }
         }
 
-        self.select_mut().draw(frame, area.inner(Margin::new(1, 0)));
+        let symbols = self.app_data.borrow().config.symbols.clone();
+        self.select_mut().draw(frame, area, &symbols);
     }
 
     fn get_area_to_draw(&self, area: Rect) -> Rect {

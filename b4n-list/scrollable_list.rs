@@ -292,6 +292,11 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
         self.page_height
     }
 
+    /// Returns the index of the first item on the current page.
+    pub fn page_start(&self) -> usize {
+        self.page_start
+    }
+
     /// Sets page start and height.
     pub fn set_page(&mut self, page_start: usize, page_height: u16) {
         let len = self.items.len();

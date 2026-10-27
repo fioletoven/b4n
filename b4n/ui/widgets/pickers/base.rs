@@ -251,7 +251,7 @@ impl<B: PickerBehaviour> Picker<B> {
                 .draw_header(frame, header_area.inner(Margin::new(1, 0)), (&header_style).into());
         }
 
-        self.patterns.draw(frame, area.inner(Margin::new(1, 0)));
+        self.patterns.draw(frame, area, &self.app_data.borrow().config.symbols);
     }
 
     /// Highlights picker item by name.

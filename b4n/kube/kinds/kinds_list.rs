@@ -88,6 +88,7 @@ impl Table for KindsList {
             fn get_selected_items(&self) -> HashMap<&str, Vec<&str>>;
             fn is_anything_selected(&self) -> bool;
             fn set_page(&mut self, page_start: usize, page_height: u16);
+            fn page_start(&self) -> usize;
             fn update_page(&mut self, new_height: u16);
         }
     }

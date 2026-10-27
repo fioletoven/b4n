@@ -2,7 +2,7 @@ use b4n_config::keys::KeyCommand;
 use b4n_tui::widgets::Select;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -153,7 +153,7 @@ impl<T: Table> SideSelect<T> {
             layout[0],
         );
 
-        self.select.draw(frame, layout[1].inner(Margin::new(1, 0)));
+        self.select.draw(frame, layout[1], &self.app_data.borrow().config.symbols);
     }
 
     pub fn draw_hovering(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect) {

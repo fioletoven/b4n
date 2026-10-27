@@ -25,7 +25,7 @@ pub struct Selector {
     is_selecting: bool,
     selected: String,
     colors: ControlColors,
-    symbols: (char, char),
+    symbols: Symbols,
     area: Rect,
     width: u16,
 }
@@ -71,7 +71,7 @@ impl Selector {
             is_selecting: false,
             selected,
             colors: colors.caption.clone(),
-            symbols: (symbols.opened.ch, symbols.closed.ch),
+            symbols: symbols.clone(),
             area: Rect::default(),
             width: u16::try_from(caption_width + options_width).unwrap_or_default() + 5,
         }
@@ -138,7 +138,11 @@ impl Selector {
     /// Draws [`Selector`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let area = area.inner(Margin::new(5, 0));
-        let icon = if self.is_opened() { self.symbols.0 } else { self.symbols.1 };
+        let icon = if self.is_opened() {
+            self.symbols.opened.ch
+        } else {
+            self.symbols.closed.ch
+        };
         let text = format!(" {} {} {} ", icon, self.caption, self.selected);
         let line = Line::styled(text, self.colors.get(self.is_hovered, self.is_focused));
 
@@ -154,7 +158,7 @@ impl Selector {
             let area = self.get_options_area();
             frame.render_widget(Clear, area);
             frame.render_widget(Block::new().style(&self.options.colors().items.normal), area);
-            self.options.draw(frame, area.inner(Margin::new(1, 0)));
+            self.options.draw(frame, area, &self.symbols);
         }
     }
 
