@@ -1,15 +1,13 @@
 use b4n_config::symbols::Symbols;
-use b4n_config::themes::SelectColors;
+use b4n_config::themes::{SelectColors, TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
 use ratatui_core::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
-use ratatui_core::style::Style;
 use ratatui_core::terminal::Frame;
-use ratatui_widgets::scrollbar::{Scrollbar, ScrollbarOrientation, ScrollbarState};
 use std::rc::Rc;
 
-use crate::MouseEventKind;
 use crate::widgets::{ErrorHighlightMode, Input, ListWidget, SharedClipboard};
+use crate::{MouseEventKind, utils};
 use crate::{ResponseEvent, Responsive, TuiEvent, table::Table};
 
 const MAX_ITEMS_ON_SCREEN: u16 = 25;
@@ -19,7 +17,6 @@ const MAX_ITEMS_ON_SCREEN: u16 = 25;
 pub struct Select<T: Table> {
     pub items: T,
     items_area: Rect,
-    scrollbar_area: Rect,
     area: Rect,
     colors: SelectColors,
     filter: Input,
@@ -46,7 +43,6 @@ impl<T: Table> Select<T> {
         Select {
             items: list,
             items_area: Rect::default(),
-            scrollbar_area: Rect::default(),
             area: Rect::default(),
             colors,
             filter,
@@ -286,22 +282,10 @@ impl<T: Table> Select<T> {
             .collect::<Vec<_>>();
         frame.render_widget(&mut ListWidget { list }, self.items_area);
 
-        self.scrollbar_area = Rect::default();
         if self.has_scrollbar() {
-            self.scrollbar_area = Rect::new(outer_area.right() - 1, self.items_area.y, 1, self.items_area.height);
-            let style = Style::default()
-                .fg(self.colors.items.normal.bg)
-                .bg(self.colors.items.accent.bg);
-            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(None)
-                .end_symbol(None)
-                .track_symbol(None)
-                .thumb_symbol(symbols.scrollbar.raw)
-                .thumb_style(style);
-            let mut state = ScrollbarState::new(self.items.len() - usize::from(self.items_area.height) + 1)
-                .position(self.items.page_start())
-                .viewport_content_length(usize::from(self.items_area.height));
-            frame.render_stateful_widget(scrollbar, self.scrollbar_area, &mut state);
+            let area = Rect::new(outer_area.right() - 1, self.items_area.y, 1, self.items_area.height);
+            let colors = TextColors::bg(self.colors.items.accent.bg, self.colors.items.normal.bg);
+            utils::draw_scrollbar(frame, area, &colors, symbols, self.items.len(), self.items.page_start());
         }
 
         if draw_filter {

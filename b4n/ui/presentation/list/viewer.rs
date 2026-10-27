@@ -1,6 +1,7 @@
 use b4n_common::DelayedTrueTracker;
 use b4n_config::symbols::Symbols;
 use b4n_config::{keys::KeyCommand, themes::TextColors};
+use b4n_tui::utils;
 use b4n_tui::widgets::Spinner;
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table, table::ViewType, utils::center};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -120,6 +121,7 @@ impl<T: Table> ListViewer<T> {
             let theme = &self.app_data.borrow().theme;
             let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
             frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
+            self.draw_scrollbar(frame, layout[1]);
         }
     }
 
@@ -152,6 +154,17 @@ impl<T: Table> ListViewer<T> {
         };
 
         frame.render_widget(&mut header, area);
+    }
+
+    fn draw_scrollbar(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        let has_scrollbar = area.width > 0 && area.height > 0 && self.table.len() > usize::from(area.height);
+        if has_scrollbar {
+            let colors = &self.app_data.borrow().theme.colors.list;
+            let symbols = &self.app_data.borrow().config.symbols;
+            let area = Rect::new(area.right() - 1, area.y, 1, area.height);
+            let colors = TextColors::bg(colors.header.dimmed.bg, colors.line.ready.normal.bg);
+            utils::draw_scrollbar(frame, area, &colors, symbols, self.table.len(), self.table.page_start());
+        }
     }
 
     fn render_error(&mut self, frame: &mut ratatui::Frame<'_>, error: &str, has_spinner: bool) {
