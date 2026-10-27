@@ -326,6 +326,8 @@ pub struct SelectColors {
     pub header: Option<TextColors>,
     pub filter: FilterColors,
     pub items: LineColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
 }
 
 impl Default for SelectColors {
@@ -343,6 +345,7 @@ impl Default for SelectColors {
                 normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                 accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
             },
+            scrollbar: None,
         }
     }
 }
@@ -452,6 +455,8 @@ impl Default for ParsedLogsSyntaxColors {
 pub struct ThemeColors {
     pub text: TextColors,
     pub cursor: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
     pub header: HeaderColors,
     pub footer: FooterColors,
     pub filter: SelectColors,
@@ -478,6 +483,7 @@ impl Default for Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
                 cursor: TextColors::bg(Color::DarkGray, Color::Gray),
+                scrollbar: None,
                 header: HeaderColors::default(),
                 footer: FooterColors::default(),
                 filter: SelectColors::default(),
@@ -493,6 +499,7 @@ impl Default for Theme {
                         normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                         accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
                     },
+                    scrollbar: None,
                 },
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors::default(),

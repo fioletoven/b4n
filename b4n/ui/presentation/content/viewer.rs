@@ -556,10 +556,11 @@ impl<T: Content> ContentViewer<T> {
     fn draw_scrollbar(&self, frame: &mut ratatui::Frame<'_>, area: Rect, content: &T) {
         let has_scrollbar = area.width > 0 && area.height > 0 && content.len() > usize::from(area.height);
         if has_scrollbar {
-            let colors = &self.app_data.borrow().theme.colors.list;
-            let symbols = &self.app_data.borrow().config.symbols;
             let area = Rect::new(area.right() - 1, area.y, 1, area.height);
-            let colors = TextColors::bg(colors.header.dimmed.bg, colors.line.ready.normal.bg);
+            let symbols = &self.app_data.borrow().config.symbols;
+            let theme = &self.app_data.borrow().theme.colors;
+            let default = TextColors::bg(theme.list.header.dimmed.bg, theme.list.line.ready.normal.bg);
+            let colors = theme.scrollbar.unwrap_or(default);
             utils::draw_scrollbar(frame, area, &colors, symbols, content.len(), self.page_start.y);
         }
     }

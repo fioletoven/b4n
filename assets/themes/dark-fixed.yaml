@@ -40,6 +40,7 @@ filter: &filter
   items:
     normal: fg_dark:yellow:bg_black
     accent: fg_dark:yellow:bg_dark
+  scrollbar: bg_dark:bg_black
 yaml: &yaml
   normal: text:no_bg
   property: green:no_bg
@@ -73,6 +74,7 @@ logs: &logs
 colors:
   text: text_light:no_bg
   cursor: fg_light:bg_light
+  scrollbar: bg_black:no_bg
   header:
     text: fg_dark:yellow:bg_dark
     context: white:#CA4E1F

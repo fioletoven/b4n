@@ -284,7 +284,8 @@ impl<T: Table> Select<T> {
 
         if self.has_scrollbar() {
             let area = Rect::new(outer_area.right() - 1, self.items_area.y, 1, self.items_area.height);
-            let colors = TextColors::bg(self.colors.items.accent.bg, self.colors.items.normal.bg);
+            let default = TextColors::bg(self.colors.items.accent.bg, self.colors.items.normal.bg);
+            let colors = self.colors.scrollbar.unwrap_or(default);
             utils::draw_scrollbar(frame, area, &colors, symbols, self.items.len(), self.items.page_start());
         }
 
