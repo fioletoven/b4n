@@ -310,17 +310,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
     pub fn update_page(&mut self, new_height: u16) {
         self.page_height = new_height;
         let height = usize::from(self.page_height);
-        let highlighted = self.highlighted.unwrap_or(0);
 
-        if height == 0 {
-            self.page_start = highlighted;
+        if let Some(highlighted) = self.highlighted {
+            if height == 0 {
+                self.page_start = highlighted;
+                return;
+            }
+
+            if self.page_start > highlighted {
+                self.page_start = highlighted;
+            } else if highlighted >= self.page_start + height {
+                self.page_start = highlighted - height + 1;
+            }
+        } else if height == 0 {
             return;
-        }
-
-        if self.page_start > highlighted {
-            self.page_start = highlighted;
-        } else if highlighted >= self.page_start + height {
-            self.page_start = highlighted - height + 1;
         }
 
         let len = self.items.len();

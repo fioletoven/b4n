@@ -11,6 +11,7 @@
 ### Bug Fixes
 
 - update rustls-webpki and webpki-root-certs to reject distrusted eMudhra intermediate CA certificates
+- fix scrollable list resets on mouse leave if allow_no_selection is true
 
 ## 1.2.0 - 2026-10-18
 
