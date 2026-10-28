@@ -74,7 +74,7 @@ logs: &logs
 colors:
   text: text_light:no_bg
   cursor: fg_light:bg_light
-  scrollbar: bg_black:no_bg
+  scrollbar: bg_dark:no_bg
   header:
     text: fg_dark:yellow:bg_dark
     context: white:#CA4E1F
@@ -100,6 +100,7 @@ colors:
       error:
         normal: red:bg_black
         accent: text_dark:red
+      scrollbar: bg_dark:bg_black
   filter: *filter
   search: *filter
   command_palette: *filter

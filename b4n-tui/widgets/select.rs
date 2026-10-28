@@ -260,12 +260,11 @@ impl<T: Table> Select<T> {
 
     /// Draws [`Select`] on the provided frame area.
     pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, symbols: &Symbols) {
-        let outer_area = area;
         let area = area.inner(Margin::new(1, 0));
         let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
 
-        self.area = outer_area;
+        self.area = area;
         if draw_filter {
             self.filter_area = layout[0];
             self.items_area = layout[1];
@@ -283,7 +282,7 @@ impl<T: Table> Select<T> {
         frame.render_widget(&mut ListWidget { list }, self.items_area);
 
         if self.has_scrollbar() {
-            let area = Rect::new(outer_area.right() - 1, self.items_area.y, 1, self.items_area.height);
+            let area = Rect::new(area.right(), self.items_area.y, 1, self.items_area.height);
             let default = TextColors::bg(self.colors.items.accent.bg, self.colors.items.normal.bg);
             let colors = self.colors.scrollbar.unwrap_or(default);
             utils::draw_scrollbar(frame, area, &colors, symbols, self.items.len(), self.items.page_start());

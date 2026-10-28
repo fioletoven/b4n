@@ -75,6 +75,8 @@ pub struct FooterDetailsColors {
     pub hint: TextColors,
     pub info: LineColors,
     pub error: LineColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
 }
 
 impl Default for FooterDetailsColors {
@@ -90,6 +92,7 @@ impl Default for FooterDetailsColors {
                 normal: TextColors::bg(Color::LightRed, Color::DarkGray),
                 accent: TextColors::bg(Color::Black, Color::LightRed),
             },
+            scrollbar: None,
         }
     }
 }

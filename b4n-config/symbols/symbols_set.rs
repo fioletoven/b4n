@@ -14,7 +14,7 @@ define_symbols_set! {
     hint: '', '☼', '☼';
     prompt: '', '❭', '›';
     separator: '', '❭', '›';
-    scrollbar: '▐', '▐', '▐';
+    scrollbar: '┃', '┃', '┃';
     content: '', '≡', '≡';
     filter: '', '▽', '▼';
     pin: '󰐃', '▼', '●';

@@ -17,7 +17,7 @@ use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::ui::presentation::ScreenSelection;
 use crate::ui::views::shell::keys::{encode_key, encode_mouse};
 use crate::ui::views::shell::kube::bridge::ShellBridge;
-use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt};
+use crate::ui::views::shell::terminal::{CursorShapeTracker, FrameExt, RectExt, draw_scrollbar};
 use crate::ui::views::{ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, get_layout_with_header, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector};
 use crate::ui::{presentation::ContentHeader, views::View};
@@ -569,16 +569,18 @@ impl View for ShellView {
                 self.size = layout[1].to_terminal_size();
             }
 
-            if let Ok(parser) = self.parser.read() {
-                let screen = parser.screen();
+            if let Ok(mut parser) = self.parser.write() {
+                let screen = parser.screen_mut();
                 let cursor = Cursor::default().visibility(self.own_cursor && has_focus && !self.hide_cursor());
-                let pseudo_term = PseudoTerminal::new(screen).cursor(cursor);
+                let pseudo_term = PseudoTerminal::new(&*screen).cursor(cursor);
 
                 frame.render_widget(pseudo_term, layout[1]);
 
                 if !self.own_cursor && has_focus && !self.hide_cursor() && !screen.hide_cursor() {
                     frame.set_cursor_screen_position(screen, layout[1]);
                 }
+
+                draw_scrollbar(frame, layout[1], &self.app_data, screen);
             }
 
             if !self.is_mouse_enabled {

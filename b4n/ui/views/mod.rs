@@ -1,5 +1,6 @@
 pub use self::common::{
-    ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, View, get_layout_with_header, update_read_only_icon,
+    ESCAPE_SEQUENCE_TIMEOUT, EscapeSequenceTracker, ScreenExt, View, draw_scrollbar, get_layout_with_header,
+    update_read_only_icon,
 };
 pub use self::describe::DescribeView;
 pub use self::forwards::{ForwardsView, PortForwardItem, PortForwardsList};

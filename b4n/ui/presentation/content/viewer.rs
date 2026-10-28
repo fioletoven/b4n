@@ -1,7 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_config::themes::TextColors;
 use b4n_kube::{Kind, Namespace};
-use b4n_tui::utils;
 use b4n_tui::{MouseEventKind, ResponseEvent, TuiEvent, utils::center, widgets::Spinner};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
@@ -17,7 +15,7 @@ use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
 use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
 use crate::ui::presentation::{Content, MatchPosition};
-use crate::ui::views::get_layout_with_header;
+use crate::ui::views::{draw_scrollbar, get_layout_with_header};
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
@@ -530,7 +528,7 @@ impl<T: Content> ContentViewer<T> {
         if let Some(content) = &self.content {
             let widget = ContentSelectWidget::new(&self.select, content, &self.page_start, self.select_color);
             frame.render_widget(widget, page_area);
-            self.draw_scrollbar(frame, area, content);
+            draw_scrollbar(frame, area, &self.app_data, content.len(), self.page_start.y);
         }
 
         if self.search.matches.is_some() {
@@ -551,18 +549,6 @@ impl<T: Content> ContentViewer<T> {
             .style(&colors.text);
         let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
         frame.render_widget(line, area);
-    }
-
-    fn draw_scrollbar(&self, frame: &mut ratatui::Frame<'_>, area: Rect, content: &T) {
-        let has_scrollbar = area.width > 0 && area.height > 0 && content.len() > usize::from(area.height);
-        if has_scrollbar {
-            let area = Rect::new(area.right() - 1, area.y, 1, area.height);
-            let symbols = &self.app_data.borrow().config.symbols;
-            let theme = &self.app_data.borrow().theme.colors;
-            let default = TextColors::bg(theme.list.header.dimmed.bg, theme.list.line.ready.normal.bg);
-            let colors = theme.scrollbar.unwrap_or(default);
-            utils::draw_scrollbar(frame, area, &colors, symbols, content.len(), self.page_start.y);
-        }
     }
 
     /// Returns max vertical start of the page.

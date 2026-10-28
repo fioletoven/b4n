@@ -103,6 +103,7 @@ colors:
       error:
         normal: light_red:bg_dark
         accent: text_dark:light_red
+      scrollbar: bg_light:bg_dark
   filter: *filter
   search: *filter
   command_palette: *filter

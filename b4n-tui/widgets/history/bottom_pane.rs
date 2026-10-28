@@ -1,6 +1,6 @@
 use b4n_config::keys::KeyCombination;
 use b4n_config::symbols::Symbols;
-use b4n_config::themes::Theme;
+use b4n_config::themes::{TextColors, Theme};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui_core::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui_core::style::{Color, Style, Stylize};
@@ -13,9 +13,10 @@ use ratatui_widgets::clear::Clear;
 use ratatui_widgets::paragraph::Paragraph;
 use textwrap::Options;
 
+use crate::table::Table;
 use crate::widgets::history::MessageItem;
 use crate::widgets::{List, history::MessagesList};
-use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
+use crate::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, utils};
 
 /// Footer bottom history pane.
 pub struct BottomPane {
@@ -87,6 +88,21 @@ impl BottomPane {
         frame.render_widget(block, layout[2]);
 
         self.history.draw(frame, inner_area, theme);
+        self.draw_scrollbar(frame, inner_area, theme, symbols);
+    }
+
+    fn draw_scrollbar(&self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, symbols: &Symbols) {
+        let len = self.history.items.len();
+
+        if area.width > 0 && area.height > 0 && len > usize::from(area.height) {
+            let area = Rect::new(area.right(), area.y, 1, area.height);
+            let start = self.history.items.page_start();
+
+            let default = TextColors::bg(theme.colors.footer.details.hint.bg, theme.colors.footer.details.text.bg);
+            let colors = theme.colors.footer.details.scrollbar.unwrap_or(default);
+
+            utils::draw_scrollbar(frame, area, &colors, symbols, len, start);
+        }
     }
 }
 

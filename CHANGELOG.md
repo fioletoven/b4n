@@ -4,6 +4,7 @@
 
 ### Features
 
+- add scrollbars to all views where content exceeds the viewport
 - add remote file picker to file transfer dialog
 - allow to upload directories in file transfer dialog
 
