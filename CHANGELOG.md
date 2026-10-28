@@ -7,6 +7,10 @@
 - add remote file picker to file transfer dialog
 - allow to upload directories in file transfer dialog
 
+### Bug Fixes
+
+- update rustls-webpki and webpki-root-certs to reject distrusted eMudhra intermediate CA certificates
+
 ## 1.2.0 - 2026-10-18
 
 ### Features
