@@ -4,8 +4,7 @@ use b4n_tui::utils::{self, center_horizontal, get_proportional_width};
 use b4n_tui::widgets::{ErrorHighlightMode, Select};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent, table::Table};
 use crossterm::event::KeyModifiers;
-use ratatui::layout::{Margin, Rect};
-use ratatui::style::Style;
+use ratatui::layout::Rect;
 use std::borrow::Cow;
 
 use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
@@ -103,7 +102,7 @@ pub trait PickerBehaviour {
     }
 
     /// Draws the header area.
-    fn draw_header(&mut self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _style: Style) {}
+    fn draw_header(&mut self, _frame: &mut ratatui::Frame<'_>, _area: Rect, _colors: &SelectColors) {}
 
     /// Additional events processing logic that is executed before filter input events.
     fn pre_process_event(
@@ -245,10 +244,7 @@ impl<B: PickerBehaviour> Picker<B> {
         utils::clear_area(frame, area, colors.items.normal.bg);
         if area.top() > 0 && self.behaviour.has_header() {
             let header_area = Rect::new(area.x, area.y.saturating_sub(1), area.width, 1);
-            let header_style = colors.header.unwrap_or_default();
-            utils::clear_area(frame, header_area, header_style.bg);
-            self.behaviour
-                .draw_header(frame, header_area.inner(Margin::new(1, 0)), (&header_style).into());
+            self.behaviour.draw_header(frame, header_area, colors);
         }
 
         self.patterns.draw(frame, area, &self.app_data.borrow().config.symbols);

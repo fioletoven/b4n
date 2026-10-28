@@ -31,6 +31,7 @@ palette:
 # style anchors
 filter: &filter
   header: text_dark:#AEB1C0
+  error: fg_dark:light_red
   filter:
     prompt: blue:bg_black
     input: '#A3B8E1:yellow:bg_black'

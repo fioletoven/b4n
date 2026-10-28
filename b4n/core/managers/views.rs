@@ -97,11 +97,15 @@ impl ViewsManager {
             self.resources.update_error_state(worker.resources.has_api_error());
         }
 
-        while let Some(update_result) = { self.worker.borrow_mut().namespaces.try_next() } {
+        while self.app_data.has_frame_budget()
+            && let Some(update_result) = { self.worker.borrow_mut().namespaces.try_next() }
+        {
             self.ns_selector.select.items.update(*update_result);
         }
 
-        while let Some(update_result) = { self.worker.borrow_mut().resources.try_next() } {
+        while self.app_data.has_frame_budget()
+            && let Some(update_result) = { self.worker.borrow_mut().resources.try_next() }
+        {
             self.resources.update_resources_list(*update_result);
         }
 

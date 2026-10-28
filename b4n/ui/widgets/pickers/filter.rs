@@ -2,9 +2,8 @@ use b4n_common::expr::{ParserError, validate};
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_tui::widgets::Select;
-use b4n_tui::{ResponseEvent, TuiEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Style;
+use b4n_tui::{ResponseEvent, TuiEvent, utils};
+use ratatui::layout::{Margin, Rect};
 use ratatui::widgets::Paragraph;
 use std::{borrow::Cow, rc::Rc};
 
@@ -192,10 +191,12 @@ impl PickerBehaviour for FilterBehaviour {
         true
     }
 
-    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, colors: &SelectColors) {
         let icon = self.app_data.borrow().config.symbols.hint.right;
         let hint = format!("{icon}Use | for OR, & for AND, ! for NOT, and ( ) to group terms.");
-        frame.render_widget(Paragraph::new(hint).style(style), area);
+        let style = colors.header.unwrap_or_default();
+        utils::clear_area(frame, area, style.bg);
+        frame.render_widget(Paragraph::new(hint).style(&style), area.inner(Margin::new(1, 0)));
     }
 
     fn pre_process_event(

@@ -28,6 +28,7 @@ palette:
 # style anchors
 filter: &filter
   header: fg_light:bg_light
+  error: fg_dark:light_red
   filter:
     prompt: light_blue:bg_dark
     input: light_cyan:light_yellow:bg_dark

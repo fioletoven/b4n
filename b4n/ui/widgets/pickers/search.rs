@@ -1,9 +1,9 @@
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
+use b4n_tui::utils;
 use b4n_tui::widgets::Select;
 use b4n_tui::{ResponseEvent, table::Table};
-use ratatui::layout::{Position, Rect};
-use ratatui::style::Style;
+use ratatui::layout::{Margin, Position, Rect};
 use ratatui::widgets::Paragraph;
 use std::{borrow::Cow, rc::Rc};
 
@@ -134,13 +134,17 @@ impl PickerBehaviour for SearchBehaviour {
         }
     }
 
-    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, colors: &SelectColors) {
+        let style = colors.header.unwrap_or_default();
+        utils::clear_area(frame, area, style.bg);
+        let area = area.inner(Margin::new(1, 0));
+
         if let Some(matches) = self.matches {
             let icon = self.app_data.borrow().config.symbols.hint.right;
             let text = format!("{icon}Total matches: {matches}");
-            frame.render_widget(Paragraph::new(text).style(style), area);
+            frame.render_widget(Paragraph::new(text).style(&style), area);
         } else {
-            frame.render_widget(Paragraph::new(self.hint.as_str()).style(style), area);
+            frame.render_widget(Paragraph::new(self.hint.as_str()).style(&style), area);
         }
     }
 }

@@ -327,6 +327,8 @@ impl Default for ModalColors {
 pub struct SelectColors {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<TextColors>,
     pub filter: FilterColors,
     pub items: LineColors,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -337,6 +339,7 @@ impl Default for SelectColors {
     fn default() -> Self {
         Self {
             header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+            error: Some(TextColors::bg(Color::Red, Color::Gray)),
             filter: FilterColors {
                 input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
                 cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
@@ -494,6 +497,7 @@ impl Default for Theme {
                 command_palette: SelectColors::default(),
                 side_select: SelectColors {
                     header: None,
+                    error: None,
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         ..Default::default()
