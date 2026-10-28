@@ -248,10 +248,15 @@ pub fn draw_scrollbar(frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppDat
         return;
     }
 
-    let area = Rect::new(area.right() - 1, area.y, 1, area.height);
     let app_data = app_data.borrow();
+    if !app_data.config.scrollbars {
+        return;
+    }
+
+    let area = Rect::new(area.right() - 1, area.y, 1, area.height);
     let theme = &app_data.theme.colors;
     let default = TextColors::bg(theme.list.header.dimmed.bg, theme.list.line.ready.normal.bg);
     let colors = theme.scrollbar.unwrap_or(default);
+
     b4n_tui::utils::draw_scrollbar(frame, area, &colors, &app_data.config.symbols, len, start);
 }

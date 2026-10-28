@@ -287,6 +287,7 @@ logs:
   format: true
 read_only: false
 mouse: true
+scrollbars: true
 terminal:
   system_cursor: false
   scrollback_lines: 1000
@@ -319,6 +320,7 @@ key_bindings:
 - `logs.format` - Whether formatting structured logs is enabled by default. You can still toggle formatting while viewing logs.
 - `read_only` - If true, no destructive actions can be selected from the app UI.
 - `mouse` - Whether mouse support is enabled when the application starts. You can also toggle it while the app is running.
+- `scrollbars` - Whether scrollbars are drawn (default: `true`). Set to `false` to hide all scrollbars except those in selects and the bottom history pane.
 - `terminal.system_cursor` - If true, all terminal views will stop drawing their own cursor and start using the system one.
 - `terminal.scrollback_lines` - A configurable maximum size limit of the terminal scrollback buffer.
 - `symbols` - Symbols used in the app UI, possible options: `nerdfont`, `powerline` and `plain`.

@@ -122,6 +122,9 @@ pub struct Config {
     #[serde(default = "default_mouse")]
     pub mouse: bool,
 
+    #[serde(default = "default_scrollbars")]
+    pub scrollbars: bool,
+
     #[serde(default)]
     pub terminal: Terminal,
 
@@ -145,6 +148,10 @@ pub struct Config {
 }
 
 fn default_mouse() -> bool {
+    true
+}
+
+fn default_scrollbars() -> bool {
     true
 }
 
@@ -183,6 +190,7 @@ impl Default for Config {
             logs: Logs::default(),
             read_only: false,
             mouse: default_mouse(),
+            scrollbars: default_scrollbars(),
             terminal: Terminal::default(),
             symbols: Symbols::default(),
             theme: default_theme_name(),
