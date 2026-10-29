@@ -125,7 +125,7 @@ The resulting binary will be available at `./target/release/b4n`.
 | Sort column                                | `ALT` + `[0-9]`       | Also works with `ALT` + `[underlined letter]`               |
 | Toggle read-only mode                      | `ALT` + `SHIFT` + `r` |                                                             |
 | Transfer file from the pod's container     | `CTRL` + `t`          | Allows downloading a single file or a directory             |
-| Transfer file to the pod's container       | `t`                   | Allows uploading only a single file                         |
+| Transfer file to the pod's container       | `t`                   | Allows uploading a single file or a directory               |
 
 ## Advanced Filtering
 
@@ -176,8 +176,6 @@ This feature requires a `tar` executable on the container where files are upload
 If `Overwrite files` is unchecked before the transfer, a check will be executed on the remote container that requires the presence of `sh` and `test` commands (if the container does not have these commands, as a workaround the checkbox can be checked, but be aware that files may be overwritten).
 
 If the destination path (`To (dir):` textbox) contains `~`, there will be an attempt to resolve it to the home directory (this requires `sh` and `echo` commands to be present on the container). To bypass this, simply provide the full path without `~`.
-
-> Note: Currently, the upload feature supports only uploading a single file.
 
 ## Configuration Files
 
