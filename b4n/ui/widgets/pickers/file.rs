@@ -1,3 +1,4 @@
+use b4n_common::PathExt;
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_kube::ContainerRef;
@@ -5,10 +6,9 @@ use b4n_list::Row;
 use b4n_tasks::dir_lister::{DirListResult, DirLister, RemoteContext};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ErrorHighlightMode, Select, Spinner};
-use b4n_tui::{ResponseEvent, TuiEvent};
+use b4n_tui::{ResponseEvent, TuiEvent, utils};
 use kube::{Api, Client};
-use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::layout::{Margin, Rect};
 use ratatui::widgets::Paragraph;
 use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
@@ -233,23 +233,13 @@ impl FileBehaviour {
 }
 
 impl PickerBehaviour for FileBehaviour {
-    #[cfg(windows)]
     fn prompt(&self) -> Cow<'_, str> {
         let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
-        let prompt = format!("{}{}", self.current_path.display(), prompt_end);
-        if !self.lister.is_remote()
-            && let Some(stripped) = prompt.strip_prefix(r"\\?\")
-        {
-            stripped.to_owned().into()
+        if self.lister.is_remote() {
+            format!("{}{}", self.current_path.display(), prompt_end).into()
         } else {
-            prompt.into()
+            format!("{}{}", self.current_path.display_clean(), prompt_end).into()
         }
-    }
-
-    #[cfg(not(windows))]
-    fn prompt(&self) -> Cow<'_, str> {
-        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
-        format!("{}{}", self.current_path.display(), prompt_end).into()
     }
 
     fn colors(&self) -> SelectColors {
@@ -440,10 +430,11 @@ impl PickerBehaviour for FileBehaviour {
         true
     }
 
-    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, style: Style) {
-        let line = if self.has_error {
+    fn draw_header(&mut self, frame: &mut ratatui::Frame<'_>, area: Rect, colors: &SelectColors) {
+        let (line, style) = if self.has_error {
             let icon = self.app_data.borrow().config.symbols.error.ch;
-            format!("{icon} Error while traversing the directory.")
+            let style = colors.error.unwrap_or(colors.header.unwrap_or_default());
+            (format!("{icon} Error while traversing the directory."), style)
         } else {
             let hint = match (self.pick_dir, self.directories_only) {
                 (true, true) => DIR_SELECT_HINT,
@@ -451,9 +442,13 @@ impl PickerBehaviour for FileBehaviour {
                 (false, _) => FILE_SELECT_HINT,
             };
             let icon = self.app_data.borrow().config.symbols.hint.ch;
-            format!("{} {hint}", if self.loading { self.spinner.tick() } else { icon })
+            let line = format!("{} {hint}", if self.loading { self.spinner.tick() } else { icon });
+            let style = colors.header.unwrap_or_default();
+            (line, style)
         };
-        frame.render_widget(Paragraph::new(line).style(style), area);
+
+        utils::clear_area(frame, area, style.bg);
+        frame.render_widget(Paragraph::new(line).style(&style), area.inner(Margin::new(1, 0)));
     }
 
     fn post_process_event(&mut self, event: &TuiEvent, patterns: &mut Select<PatternsList>, _: &SharedAppData) -> ResponseEvent {

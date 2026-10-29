@@ -11,6 +11,7 @@ use ratatui::widgets::{Block, Paragraph, Widget};
 use std::cmp::min;
 
 use crate::core::{SharedAppData, SharedAppDataExt};
+use crate::ui::views::draw_scrollbar;
 
 /// List viewer.
 pub struct ListViewer<T: Table> {
@@ -120,6 +121,7 @@ impl<T: Table> ListViewer<T> {
             let theme = &self.app_data.borrow().theme;
             let list = self.table.get_paged_items(theme, self.view, usize::from(self.area.width));
             frame.render_widget(Paragraph::new(get_items(&list)).style(&theme.colors.text), self.area);
+            draw_scrollbar(frame, layout[1], &self.app_data, self.table.len(), self.table.page_start());
         }
     }
 

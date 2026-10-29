@@ -1,12 +1,13 @@
-use b4n_config::themes::SelectColors;
+use b4n_config::symbols::Symbols;
+use b4n_config::themes::{SelectColors, TextColors};
 use crossterm::event::{KeyCode, KeyModifiers};
 use delegate::delegate;
-use ratatui_core::layout::{Constraint, Direction, Layout, Position, Rect};
+use ratatui_core::layout::{Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui_core::terminal::Frame;
 use std::rc::Rc;
 
-use crate::MouseEventKind;
 use crate::widgets::{ErrorHighlightMode, Input, ListWidget, SharedClipboard};
+use crate::{MouseEventKind, utils};
 use crate::{ResponseEvent, Responsive, TuiEvent, table::Table};
 
 const MAX_ITEMS_ON_SCREEN: u16 = 25;
@@ -208,6 +209,11 @@ impl<T: Table> Select<T> {
         self.update_items_filter();
     }
 
+    /// Returns `true` if select has visible scrollbar.
+    pub fn has_scrollbar(&self) -> bool {
+        self.items_area.width > 0 && self.items_area.height > 0 && self.items.len() > usize::from(self.items_area.height)
+    }
+
     /// Returns `true` if last processed key event highlighted element on the list.
     pub fn has_last_key_highlighted(&self) -> bool {
         self.last_key_highlighted
@@ -253,7 +259,8 @@ impl<T: Table> Select<T> {
     }
 
     /// Draws [`Select`] on the provided frame area.
-    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame<'_>, area: Rect, symbols: &Symbols) {
+        let area = area.inner(Margin::new(1, 0));
         let draw_filter = self.is_filter_visible();
         let layout = get_layout(area, draw_filter);
 
@@ -273,6 +280,13 @@ impl<T: Table> Select<T> {
             .map(|(s, is_hl)| (s, self.colors.items.get(is_hl)))
             .collect::<Vec<_>>();
         frame.render_widget(&mut ListWidget { list }, self.items_area);
+
+        if self.has_scrollbar() {
+            let area = Rect::new(area.right(), self.items_area.y, 1, self.items_area.height);
+            let default = TextColors::bg(self.colors.items.accent.bg, self.colors.items.normal.bg);
+            let colors = self.colors.scrollbar.unwrap_or(default);
+            utils::draw_scrollbar(frame, area, &colors, symbols, self.items.len(), self.items.page_start());
+        }
 
         if draw_filter {
             self.filter.draw(frame, layout[0]);

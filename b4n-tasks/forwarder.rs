@@ -409,9 +409,29 @@ async fn forward_connection(
     }?;
 
     drop(upstream_conn);
-    match forwarder.join().await {
+    forward_result(forwarder.join().await)
+}
+
+fn forward_result<E: Error + 'static>(result: Result<(), E>) -> Result<(), PortForwardError> {
+    match result {
         Ok(()) => Ok(()),
         Err(error) if matches!(error.source(), Some(e) if format!("{e:?}") == "Protocol(SendAfterClosing)") => Ok(()),
+        Err(error) if is_websocket_timeout(&error) => Ok(()),
         Err(error) => Err(PortForwardError::PortforwardError(error.to_string())),
     }
+}
+
+fn is_websocket_timeout(error: &(dyn Error + 'static)) -> bool {
+    let message = error.to_string();
+    if !message.starts_with("failed to receive a WebSocket message: ")
+        && !message.starts_with("failed to send a WebSocket message: ")
+    {
+        return false;
+    }
+
+    error
+        .source()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<std::io::Error>())
+        .is_some_and(|error| error.kind() == std::io::ErrorKind::TimedOut)
 }

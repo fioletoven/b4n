@@ -20,6 +20,7 @@ use crate::ui::presentation::{ContentPosition, ListViewer, StyledLine};
 use crate::ui::views::describe::builder::TextSectionBuilder;
 use crate::ui::views::describe::data::{self, SectionData};
 use crate::ui::views::describe::utils::{ValueKind, header, none};
+use crate::ui::views::draw_scrollbar;
 use crate::ui::widgets::table::BasicTable;
 
 /// Describe resource content.
@@ -160,6 +161,7 @@ impl DescribeContent {
 
         if self.has_data {
             self.draw_content(frame, area);
+            draw_scrollbar(frame, area, &self.app_data, self.max_height, self.page_start.y);
         } else if self.creation_time.elapsed().as_millis() > 200 {
             self.draw_empty(frame, area);
         }

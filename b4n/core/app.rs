@@ -188,13 +188,6 @@ impl App {
             _ => (),
         }
 
-        self.process_commands_results();
-        self.process_connection_events();
-        self.views_manager.update_lists();
-        if self.views_manager.process_ticks() == ResponseEvent::ExitApplication {
-            return Ok(ExecutionFlow::Stop);
-        }
-
         while self.data.has_frame_budget()
             && let Ok(event) = self.tui.event_rx.try_recv()
         {
@@ -206,6 +199,14 @@ impl App {
                 },
                 Err(error) => self.show_error(error.to_string()),
             }
+        }
+
+        self.process_commands_results();
+        self.process_connection_events();
+
+        self.views_manager.update_lists();
+        if self.views_manager.process_ticks() == ResponseEvent::ExitApplication {
+            return Ok(ExecutionFlow::Stop);
         }
 
         Ok(ExecutionFlow::Continue)

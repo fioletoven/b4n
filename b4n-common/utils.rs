@@ -1,9 +1,34 @@
 use sha1::{Digest, Sha1};
+use std::path::Path;
 use uuid::Uuid;
 
 #[cfg(test)]
 #[path = "./utils.tests.rs"]
 mod utils_tests;
+
+/// Extensions for displaying file system paths.
+pub trait PathExt {
+    /// Displays a path without the Windows verbatim prefix, leaving other platforms unchanged.
+    fn display_clean(&self) -> impl std::fmt::Display + '_;
+}
+
+impl PathExt for Path {
+    #[cfg(windows)]
+    fn display_clean(&self) -> impl std::fmt::Display + '_ {
+        let path = self.to_string_lossy();
+        if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
+            format!(r"\\{path}")
+        } else {
+            path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned()
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[inline]
+    fn display_clean(&self) -> impl std::fmt::Display + '_ {
+        self.display()
+    }
+}
 
 pub const INVISIBLE_CHARACTERS: [char; 6] = [
     '\u{200B}', // zero-width space

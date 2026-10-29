@@ -1,4 +1,5 @@
 use anyhow::Result;
+use b4n_config::symbols::Symbols;
 use b4n_config::themes::TextColors;
 use crossterm::ExecutableCommand;
 use crossterm::cursor::SetCursorStyle;
@@ -9,6 +10,7 @@ use ratatui_core::terminal::Frame;
 use ratatui_core::text::{Line, Span};
 use ratatui_widgets::block::Block;
 use ratatui_widgets::clear::Clear;
+use ratatui_widgets::scrollbar::{Scrollbar, ScrollbarOrientation, ScrollbarState};
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
 
@@ -46,6 +48,21 @@ pub fn clear_area(frame: &mut Frame<'_>, area: Rect, color: Color) {
 
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
+}
+
+/// Draws scrollbar on the provided area.
+pub fn draw_scrollbar(frame: &mut Frame<'_>, area: Rect, colors: &TextColors, symbols: &Symbols, len: usize, start: usize) {
+    let height = usize::from(area.height);
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(None)
+        .end_symbol(None)
+        .track_symbol(None)
+        .thumb_symbol(symbols.scrollbar.raw)
+        .thumb_style(colors);
+    let mut state = ScrollbarState::new((len + 1).saturating_sub(height))
+        .position(start)
+        .viewport_content_length(height);
+    frame.render_stateful_widget(scrollbar, area, &mut state);
 }
 
 /// Recalculates width for a bigger terminal screen (`> 140`).

@@ -75,6 +75,8 @@ pub struct FooterDetailsColors {
     pub hint: TextColors,
     pub info: LineColors,
     pub error: LineColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
 }
 
 impl Default for FooterDetailsColors {
@@ -90,6 +92,7 @@ impl Default for FooterDetailsColors {
                 normal: TextColors::bg(Color::LightRed, Color::DarkGray),
                 accent: TextColors::bg(Color::Black, Color::LightRed),
             },
+            scrollbar: None,
         }
     }
 }
@@ -324,14 +327,19 @@ impl Default for ModalColors {
 pub struct SelectColors {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<TextColors>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<TextColors>,
     pub filter: FilterColors,
     pub items: LineColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
 }
 
 impl Default for SelectColors {
     fn default() -> Self {
         Self {
             header: Some(TextColors::bg(Color::DarkGray, Color::Gray)),
+            error: Some(TextColors::bg(Color::Red, Color::Gray)),
             filter: FilterColors {
                 input: TextColors::dim(Color::LightCyan, Color::LightYellow, Color::DarkGray),
                 cursor: Some(TextColors::bg(Color::Reset, Color::Gray)),
@@ -343,6 +351,7 @@ impl Default for SelectColors {
                 normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                 accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
             },
+            scrollbar: None,
         }
     }
 }
@@ -452,6 +461,8 @@ impl Default for ParsedLogsSyntaxColors {
 pub struct ThemeColors {
     pub text: TextColors,
     pub cursor: TextColors,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scrollbar: Option<TextColors>,
     pub header: HeaderColors,
     pub footer: FooterColors,
     pub filter: SelectColors,
@@ -478,6 +489,7 @@ impl Default for Theme {
             colors: ThemeColors {
                 text: TextColors::bg(Color::DarkGray, Color::Reset),
                 cursor: TextColors::bg(Color::DarkGray, Color::Gray),
+                scrollbar: None,
                 header: HeaderColors::default(),
                 footer: FooterColors::default(),
                 filter: SelectColors::default(),
@@ -485,6 +497,7 @@ impl Default for Theme {
                 command_palette: SelectColors::default(),
                 side_select: SelectColors {
                     header: None,
+                    error: None,
                     filter: FilterColors {
                         input: TextColors::bg(Color::LightBlue, Color::DarkGray),
                         ..Default::default()
@@ -493,6 +506,7 @@ impl Default for Theme {
                         normal: TextColors::dim(Color::Gray, Color::Yellow, Color::DarkGray),
                         accent: TextColors::dim(Color::DarkGray, Color::Blue, Color::Gray),
                     },
+                    scrollbar: None,
                 },
                 mouse_menu: SelectColors::default(),
                 modal: ModalColors::default(),

@@ -15,7 +15,7 @@ use crate::ui::presentation::content::header::ContentHeader;
 use crate::ui::presentation::content::search::{ContentPosition, SearchData, SearchResultsWidget, get_search_wrapped_message};
 use crate::ui::presentation::content::select::{ContentSelectWidget, SelectContext, Selection};
 use crate::ui::presentation::{Content, MatchPosition};
-use crate::ui::views::get_layout_with_header;
+use crate::ui::views::{draw_scrollbar, get_layout_with_header};
 
 /// Content viewer with header.
 pub struct ContentViewer<T: Content> {
@@ -520,23 +520,24 @@ impl<T: Content> ContentViewer<T> {
     }
 
     fn draw_content(&mut self, frame: &mut Frame<'_>, area: Rect, highlight_offset: Option<Position>) {
-        let area = area.inner(Margin::new(1, 0));
-        self.page_area = area;
+        let page_area = area.inner(Margin::new(1, 0));
+        self.page_area = page_area;
         self.update_page_start();
 
-        frame.render_widget(Paragraph::new(self.get_page_lines()), area);
+        frame.render_widget(Paragraph::new(self.get_page_lines()), page_area);
         if let Some(content) = &self.content {
             let widget = ContentSelectWidget::new(&self.select, content, &self.page_start, self.select_color);
-            frame.render_widget(widget, area);
+            frame.render_widget(widget, page_area);
+            draw_scrollbar(frame, area, &self.app_data, content.len(), self.page_start.y);
         }
 
         if self.search.matches.is_some() {
             let widget = SearchResultsWidget::new(self.page_start, &self.search, self.search_color).with_offset(highlight_offset);
-            frame.render_widget(widget, area);
+            frame.render_widget(widget, page_area);
         }
 
         if self.edit.is_enabled {
-            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), area);
+            frame.render_widget(ContentEditWidget::new(&self.edit, &self.page_start), page_area);
         }
     }
 

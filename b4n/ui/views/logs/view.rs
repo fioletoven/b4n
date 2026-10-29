@@ -1,4 +1,4 @@
-use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, PathExt};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, ContainerType, PODS, ResourceRef};
@@ -253,7 +253,10 @@ impl LogsView {
     fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
         Dialog::new(
-            format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
+            format!(
+                "The file already exists, do you want to replace it?\n\n{}",
+                path.display_clean()
+            ),
             vec![
                 Button::new(
                     "Overwrite",

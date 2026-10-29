@@ -31,6 +31,7 @@ palette:
 # style anchors
 filter: &filter
   header: text_dark:#AEB1C0
+  error: fg_dark:light_red
   filter:
     prompt: blue:bg_black
     input: '#A3B8E1:yellow:bg_black'
@@ -40,6 +41,7 @@ filter: &filter
   items:
     normal: fg_dark:yellow:bg_black
     accent: fg_dark:yellow:bg_dark
+  scrollbar: bg_dark:bg_black
 yaml: &yaml
   normal: text:no_bg
   property: green:no_bg
@@ -73,6 +75,7 @@ logs: &logs
 colors:
   text: text_light:no_bg
   cursor: fg_light:bg_light
+  scrollbar: bg_dark:no_bg
   header:
     text: fg_dark:yellow:bg_dark
     context: white:#CA4E1F
@@ -98,6 +101,7 @@ colors:
       error:
         normal: red:bg_black
         accent: text_dark:red
+      scrollbar: bg_dark:bg_black
   filter: *filter
   search: *filter
   command_palette: *filter

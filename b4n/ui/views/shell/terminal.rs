@@ -9,7 +9,26 @@ use std::sync::{Arc, RwLock};
 use tui_term::vt100::{self, Screen};
 use tui_term::widget::CursorShape;
 
+use crate::core::SharedAppData;
+
 const ESC: u8 = 0x1B;
+
+/// Draws a themed scrollbar for the terminal view.
+pub fn draw_scrollbar(frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppData, screen: &mut Screen) {
+    if area.width == 0 || area.height == 0 || screen.alternate_screen() {
+        return;
+    }
+
+    let offset = screen.scrollback();
+    screen.set_scrollback(usize::MAX);
+    let history = screen.scrollback();
+    screen.set_scrollback(offset);
+
+    let len = history + usize::from(area.height);
+    let start = history.saturating_sub(offset);
+
+    crate::ui::views::draw_scrollbar(frame, area, app_data, len, start);
+}
 
 /// Responds to terminal queries embedded in raw process output.
 pub fn handle_terminal_queries(data: &[u8], parser: &Arc<RwLock<vt100::Parser>>, state: &mut TerminalState) -> Vec<u8> {

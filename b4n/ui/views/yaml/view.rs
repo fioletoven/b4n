@@ -1,4 +1,4 @@
-use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, sanitize_and_split};
+use b4n_common::{DEFAULT_MESSAGE_DURATION, IconKind, NotificationSink, PathExt, sanitize_and_split};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::utils::deserialize_kind;
 use b4n_kube::{ResourceRef, SECRETS};
@@ -550,7 +550,10 @@ impl YamlView {
     fn new_file_exists_dialog(&mut self, path: &Path) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors;
         Dialog::new(
-            format!("The file already exists:\n\n{}\n\nDo you want to replace it?", path.display()),
+            format!(
+                "The file already exists, do you want to replace it?\n\n{}",
+                path.display_clean()
+            ),
             vec![
                 Button::new(
                     "Overwrite",

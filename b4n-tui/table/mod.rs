@@ -109,6 +109,9 @@ pub trait Table: crate::Responsive {
     /// Sets page start and height.
     fn set_page(&mut self, page_start: usize, page_height: u16);
 
+    /// Returns the index of the first item on the current page.
+    fn page_start(&self) -> usize;
+
     /// Updates page start for the current page size and highlighted list item.
     fn update_page(&mut self, new_height: u16);
 

@@ -1,4 +1,5 @@
 use b4n_common::{IconKind, NotificationSink};
+use b4n_config::themes::TextColors;
 use b4n_kube::{ContainerType, ResourceTag};
 use b4n_tasks::commands::CommandResult;
 use b4n_tui::{ResponseEvent, TuiEvent};
@@ -239,4 +240,23 @@ impl EscapeSequenceTracker {
         self.is_active = false;
         was_active
     }
+}
+
+/// Draws a themed scrollbar at the right edge when content exceeds the viewport.
+pub fn draw_scrollbar(frame: &mut Frame<'_>, area: Rect, app_data: &SharedAppData, len: usize, start: usize) {
+    if area.width == 0 || area.height == 0 || len <= usize::from(area.height) {
+        return;
+    }
+
+    let app_data = app_data.borrow();
+    if !app_data.config.scrollbars {
+        return;
+    }
+
+    let area = Rect::new(area.right() - 1, area.y, 1, area.height);
+    let theme = &app_data.theme.colors;
+    let default = TextColors::bg(theme.list.header.dimmed.bg, theme.list.line.ready.normal.bg);
+    let colors = theme.scrollbar.unwrap_or(default);
+
+    b4n_tui::utils::draw_scrollbar(frame, area, &colors, &app_data.config.symbols, len, start);
 }
