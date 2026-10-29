@@ -571,9 +571,10 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
             return;
         }
 
-        if self.highlighted.is_none() && rows_to_move > 0 {
-            self.items[0].is_active = true;
-            self.highlighted = Some(0);
+        if self.highlighted.is_none() {
+            let index = self.page_start.min(self.items.len() - 1);
+            self.items[index].is_active = true;
+            self.highlighted = Some(index);
             return;
         }
 

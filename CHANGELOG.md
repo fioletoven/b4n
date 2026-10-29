@@ -12,6 +12,7 @@
 
 - update rustls-webpki and webpki-root-certs to reject distrusted eMudhra intermediate CA certificates
 - fix scrollable list resets on mouse leave if allow_no_selection is true
+- do not count websocket timeout as error in port forwards view
 
 ## 1.2.0 - 2026-10-18
 
