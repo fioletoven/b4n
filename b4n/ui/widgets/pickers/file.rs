@@ -1,3 +1,4 @@
+use b4n_common::PathExt;
 use b4n_config::keys::KeyCommand;
 use b4n_config::themes::SelectColors;
 use b4n_kube::ContainerRef;
@@ -232,23 +233,13 @@ impl FileBehaviour {
 }
 
 impl PickerBehaviour for FileBehaviour {
-    #[cfg(windows)]
     fn prompt(&self) -> Cow<'_, str> {
         let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
-        let prompt = format!("{}{}", self.current_path.display(), prompt_end);
-        if !self.lister.is_remote()
-            && let Some(stripped) = prompt.strip_prefix(r"\\?\")
-        {
-            stripped.to_owned().into()
+        if self.lister.is_remote() {
+            format!("{}{}", self.current_path.display(), prompt_end).into()
         } else {
-            prompt.into()
+            format!("{}{}", self.current_path.display_clean(), prompt_end).into()
         }
-    }
-
-    #[cfg(not(windows))]
-    fn prompt(&self) -> Cow<'_, str> {
-        let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
-        format!("{}{}", self.current_path.display(), prompt_end).into()
     }
 
     fn colors(&self) -> SelectColors {

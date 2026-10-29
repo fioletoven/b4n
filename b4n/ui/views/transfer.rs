@@ -1,3 +1,4 @@
+use b4n_common::PathExt;
 use b4n_config::symbols::Symbols;
 use b4n_config::themes::TextBoxModalColors;
 use b4n_kube::ResourceTag;
@@ -5,7 +6,7 @@ use b4n_kube::files::TransferContext;
 use b4n_tui::ResponseEvent;
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox, ValidatorKind};
 use ratatui::layout::Position;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::core::SharedAppData;
 use crate::ui::views::common;
@@ -108,7 +109,7 @@ pub fn update_transfer_dialog_paths(dialog: &mut Dialog, file_picker: &FileSelec
         && let Some(textbox) = dialog.textbox_mut(0)
         && let Ok(path) = path.clone().into_os_string().into_string()
     {
-        let mut path = path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned();
+        let mut path = Path::new(&path).display_clean().to_string();
         if is_dir && !path.ends_with(std::path::is_separator) {
             path.push(std::path::MAIN_SEPARATOR);
         }

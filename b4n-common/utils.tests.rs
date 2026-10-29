@@ -58,3 +58,49 @@ fn sanitize_and_split_test() {
     assert_eq!(vec!["test1", "test2"], sanitize_and_split("test1\ntest2"));
     assert_eq!(vec!["test1", "test2"], sanitize_and_split("test1\r\ntest2"));
 }
+
+#[test]
+fn display_clean_test() {
+    for path in [
+        "",
+        ".",
+        "logs/output.txt",
+        r"C:\logs\output.txt",
+        r"\\server\share\output.txt",
+    ] {
+        assert_eq!(
+            Path::new(path).display().to_string(),
+            Path::new(path).display_clean().to_string()
+        );
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn display_clean_windows_test() {
+    use std::os::windows::ffi::OsStringExt;
+
+    assert_eq!(
+        r"C:\logs\output.txt",
+        Path::new(r"\\?\C:\logs\output.txt").display_clean().to_string()
+    );
+    assert_eq!(
+        r"\\server\share\output.txt",
+        Path::new(r"\\?\UNC\server\share\output.txt").display_clean().to_string()
+    );
+    assert_eq!(
+        "C:\\logs\\\u{fffd}.txt",
+        Path::new(&std::ffi::OsString::from_wide(&[
+            92, 92, 63, 92, 67, 58, 92, 108, 111, 103, 115, 92, 0xD800, 46, 116, 120, 116,
+        ]))
+        .display_clean()
+        .to_string()
+    );
+}
+
+#[cfg(not(windows))]
+#[test]
+fn display_clean_unix_test() {
+    let path = Path::new(r"\\?\C:\logs\output.txt");
+    assert_eq!(path.display().to_string(), path.display_clean().to_string());
+}

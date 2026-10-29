@@ -5,14 +5,14 @@
 ### Features
 
 - add scrollbars to all views where content exceeds the viewport
-- add remote file picker to file transfer dialog
-- allow to upload directories in file transfer dialog
+- add remote file picker to the file transfer dialog
+- allow uploading directories in the file transfer dialog
 
 ### Bug Fixes
 
-- update rustls-webpki and webpki-root-certs to reject distrusted eMudhra intermediate CA certificates
-- fix scrollable list resets on mouse leave if allow_no_selection is true
-- do not count websocket timeout as error in port forwards view
+- update `rustls-webpki` and `webpki-root-certs` to reject distrusted eMudhra intermediate CA certificates
+- fix scrollable list resetting on mouse leave when `allow_no_selection` is true
+- do not count WebSocket timeouts as errors in the port forwards view
 
 ## 1.2.0 - 2026-10-18
 
