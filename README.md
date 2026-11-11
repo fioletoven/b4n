@@ -19,7 +19,7 @@
 
 ## Prerequisites
 
-As of version 1.2.0, a font with Nerd Font symbols is no longer required. However, for the best possible user experience, installing one is still recommended.  
+As of version `1.2.0`, a font with Nerd Font symbols is no longer required. However, for the best possible user experience, installing one is still recommended.  
 This can be the [Cascadia Code font](https://github.com/microsoft/cascadia-code), or any other font with [Nerd Font](https://www.nerdfonts.com/font-downloads) symbols.
 
 Make sure to configure `b4n` according to what your terminal supports, either via the `symbols` command palette action, or directly in the configuration file ([see `config.yaml`](#configyaml)):
@@ -29,19 +29,6 @@ symbols: nerdfont # use 'plain' or 'powerline' if terminal does not support Nerd
 ```
 
 ## Installation
-
-### Manual
-
-1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest),
-1. Extract the archive and run the binary,
-1. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
-    ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
-    > You can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`),
-1. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`,
-1. You can delete the archive (and the extracted folder if the `b4n` binary was moved).
-
-> Note: If the copy assets prompt is not showing, you can always copy the `themes` and `plugins` directories by hand to the place pointed out
-> by the `b4n --show-dirs` command.
 
 ### Homebrew
 
@@ -56,6 +43,35 @@ To upgrade to the latest version:
 ```bash
 brew upgrade b4n
 ```
+
+### WinGet
+
+On Windows, you can install `b4n` using the [Windows Package Manager](https://learn.microsoft.com/windows/package-manager/winget/):
+
+```powershell
+winget install b4n
+```
+
+To upgrade to the latest version:
+
+```powershell
+winget upgrade b4n
+```
+
+> Note: After installing with Homebrew or WinGet, remember to choose the appropriate symbol set on the first run if your terminal does not support Nerd Font symbols (see [Manual installation](#manual)).
+
+### Manual
+
+1. Download the latest release from the [releases page](https://github.com/fioletoven/b4n/releases/latest),
+1. Extract the archive and run the binary,
+1. On first launch, `b4n` will prompt you to copy the `themes` and `plugins` directories to the application's data directory:  
+    ![b4n first run](assets/first_run.png?raw=true "b4n asking question about assets")  
+    > You can also choose the symbol set supported by your terminal (`plain`, `powerline` or `nerdfont`) and the theme mode (`dark` or `light`),
+1. Add the `b4n` binary to your `PATH`, or move it to a directory already included in `PATH`,
+1. You can delete the archive (and the extracted folder if the `b4n` binary was moved).
+
+> Note: If the copy assets prompt is not showing, you can always copy the `themes` and `plugins` directories by hand to the place pointed out
+> by the `b4n --show-dirs` command.
 
 ## Building
 
