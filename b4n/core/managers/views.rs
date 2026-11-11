@@ -22,7 +22,7 @@ use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{
-    CmdView, DescribeView, ForwardsView, LogsView, LogsViewOptions, ResourcesView, ShellView, View, YamlView,
+    CmdView, DescribeView, ForwardsView, LogsView, LogsViewOptions, ResourcesView, ShellMode, ShellView, View, YamlView,
     update_read_only_icon,
 };
 use crate::ui::widgets::{Position, SideSelect};
@@ -588,12 +588,13 @@ impl ViewsManager {
     pub fn open_shell(&mut self, resource: ResourceRef, is_attach: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client().map(KubernetesClient::get_client) {
             self.footer().hide_hint();
+            let mode = if is_attach { ShellMode::Attach } else { ShellMode::Shell };
             let view = ShellView::new(
                 Rc::clone(&self.app_data),
                 Rc::clone(&self.worker),
                 client,
                 resource.into(),
-                is_attach,
+                mode,
                 self.footer.get_transmitter(),
                 self.workspace,
             );

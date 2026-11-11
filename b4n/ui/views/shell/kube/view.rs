@@ -1,6 +1,6 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ContainerRef, PODS, ResourceTag};
+use b4n_kube::{ContainerRef, NODES, PODS, ResourceTag};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -10,6 +10,7 @@ use ratatui::{Frame, layout::Rect};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+use tokio::runtime::Handle;
 use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
@@ -25,6 +26,14 @@ use crate::ui::{presentation::ContentHeader, views::View};
 const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
 const SCROLLBACK_LEN: usize = 1_000;
+
+/// Mode of the shell view.
+#[derive(Clone, Copy, PartialEq)]
+pub enum ShellMode {
+    Shell,
+    Attach,
+    Node,
+}
 
 /// Pod's shell view.
 pub struct ShellView {
@@ -59,36 +68,23 @@ impl ShellView {
         worker: SharedBgWorker,
         client: Client,
         pod: ContainerRef,
-        is_attach: bool,
+        mode: ShellMode,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
+        let header = Self::create_header(&app_data, &pod, mode);
         let runtime = worker.borrow().runtime_handle().clone();
-        let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        if app_data.has_nerd_font() {
-            header.set_title(if is_attach { " attach" } else { " shell" });
-        } else {
-            header.set_title(if is_attach { "attach" } else { "shell" });
-        }
-        header.set_data(
-            pod.namespace.clone(),
-            PODS.into(),
-            Some(pod.name.clone()),
-            pod.container.clone(),
-        );
-
         let area = get_layout_with_header(workspace)[1];
-        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let scrollback = app_data.borrow().config.terminal.scrollback_lines.unwrap_or(SCROLLBACK_LEN);
-        let mut bridge = ShellBridge::new(runtime, area, scrollback, is_attach);
-        bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        let bridge = Self::create_bridge(runtime, &client, &pod, mode, area, scrollback);
         let parser = bridge.get_parser();
+        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
         let file_picker = FileSelector::new(Rc::clone(&app_data), worker, 65, PathBuf::from("."));
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx, is_attach, false);
+        set_hint(&app_data, &footer_tx, mode == ShellMode::Attach, false);
 
         Self {
             app_data,
@@ -107,13 +103,53 @@ impl ShellView {
             area,
             alt_mode: EscapeSequenceTracker::new(ESCAPE_SEQUENCE_TIMEOUT),
             clipboard_text: None,
-            is_attach,
+            is_attach: mode == ShellMode::Attach,
             is_app_mode: false,
             is_mouse_enabled: false,
             own_cursor,
             cursor_shape: CursorShapeTracker::new(!own_cursor),
             footer_tx,
         }
+    }
+
+    fn create_header(app_data: &SharedAppData, pod: &ContainerRef, mode: ShellMode) -> ContentHeader {
+        let is_attach = mode == ShellMode::Attach;
+
+        let mut header = ContentHeader::new(Rc::clone(app_data), false);
+        if app_data.has_nerd_font() {
+            header.set_title(if is_attach { " attach" } else { " shell" });
+        } else {
+            header.set_title(if is_attach { "attach" } else { "shell" });
+        }
+
+        if mode == ShellMode::Node {
+            header.set_data(pod.namespace.clone(), NODES.into(), Some(pod.name.clone()), None);
+        } else {
+            header.set_data(
+                pod.namespace.clone(),
+                PODS.into(),
+                Some(pod.name.clone()),
+                pod.container.clone(),
+            );
+        }
+
+        header
+    }
+
+    fn create_bridge(
+        runtime: Handle,
+        client: &Client,
+        pod: &ContainerRef,
+        mode: ShellMode,
+        area: Rect,
+        scrollback: usize,
+    ) -> ShellBridge {
+        let mut bridge = ShellBridge::new(runtime, area, scrollback, mode == ShellMode::Attach);
+        if mode != ShellMode::Node {
+            bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        }
+
+        bridge
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {

@@ -120,6 +120,7 @@ pub enum ResponseEvent {
     InjectContainer(ResourceRef, EphemeralContainer),
     AttachContainer(ResourceRef),
     OpenShell(ResourceRef),
+    OpenNodeShell(String),
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
 
