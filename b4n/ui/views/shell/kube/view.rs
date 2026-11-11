@@ -199,10 +199,10 @@ impl ShellView {
                 .with_menu_action(ActionItem::menu(5, '', "upload files", "upload"));
         }
 
-        if self.is_attach() {
-            builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach"));
-        } else {
-            builder.add_menu_action(ActionItem::menu(100, '', "detach shell", "detach"));
+        match self.mode {
+            ShellMode::Shell => builder.add_menu_action(ActionItem::menu(100, '', "detach shell", "detach")),
+            ShellMode::Attach => builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach")),
+            ShellMode::Node => builder.add_menu_action(ActionItem::menu(100, '', "close node shell", "detach")),
         }
 
         let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach());
@@ -316,23 +316,19 @@ impl ShellView {
 
     /// Creates new insert multiline clipboard text dialog.
     fn new_insert_clipboard_text_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = &self.app_data.borrow().theme.colors.modal;
         Dialog::new(
             "You are about to paste text that contains multiple lines. If you paste this text \
              into the terminal, it may result in the unexpected execution of commands.\n\
              Do you wish to continue?"
                 .to_owned(),
             vec![
-                Button::new(
-                    "Paste Anyway",
-                    ResponseEvent::Action("paste"),
-                    colors.modal.btn_accent.clone(),
-                ),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
+                Button::new("Paste Anyway", ResponseEvent::Action("paste"), colors.btn_accent.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.btn_cancel.clone()),
             ],
         )
         .with_width(65)
-        .with_colors(colors.modal.text)
+        .with_colors(colors.text)
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
@@ -348,18 +344,18 @@ impl ShellView {
 
     /// Creates new close dialog.
     fn new_close_dialog(&mut self) -> Dialog {
-        let colors = &self.app_data.borrow().theme.colors;
+        let colors = &self.app_data.borrow().theme.colors.modal;
         Dialog::new(
             "You are about to close the shell view without terminating the running shell process. \
              It will keep running in the background until you stop it manually. Type 'exit' to close it gracefully."
                 .to_owned(),
             vec![
-                Button::new("Close Anyway", ResponseEvent::Cancelled, colors.modal.btn_delete.clone()),
-                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.modal.btn_cancel.clone()),
+                Button::new("Close Anyway", ResponseEvent::Action("detach"), colors.btn_delete.clone()),
+                Button::new("Cancel", ResponseEvent::Action("cancel"), colors.btn_cancel.clone()),
             ],
         )
         .with_width(65)
-        .with_colors(colors.modal.text)
+        .with_colors(colors.text)
         .with_highlighted_position(self.last_mouse_click.take())
     }
 
@@ -486,9 +482,9 @@ impl ShellView {
                             ResponseEvent::Handled
                         }
                     },
+                    "detach" => ResponseEvent::Cancelled,
                     _ => ResponseEvent::Handled,
                 },
-                ResponseEvent::Cancelled => ResponseEvent::Cancelled,
                 _ => ResponseEvent::Handled,
             });
         }
