@@ -260,11 +260,11 @@ impl ShellView {
                     self.ask_transfer_file(false)
                 },
                 "detach" => {
-                    if self.mode != ShellMode::Shell {
-                        ResponseEvent::Cancelled
-                    } else {
+                    if self.mode == ShellMode::Shell {
                         self.last_mouse_click = event.position();
                         self.ask_close_shell_forcibly()
+                    } else {
+                        ResponseEvent::Cancelled
                     }
                 },
                 _ => response,
@@ -645,10 +645,10 @@ impl View for ShellView {
         if self.alt_mode.consume_active() {
             self.update_hint();
             if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
-                return if self.mode != ShellMode::Shell {
-                    ResponseEvent::Cancelled
-                } else {
+                return if self.mode == ShellMode::Shell {
                     self.ask_close_shell_forcibly()
+                } else {
+                    ResponseEvent::Cancelled
                 };
             }
 
