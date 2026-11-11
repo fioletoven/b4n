@@ -275,6 +275,7 @@ impl App {
             ResponseEvent::Describe(resource) => self.views_manager.describe(resource),
             ResponseEvent::AttachContainer(container) => self.views_manager.open_shell(container, true),
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
+            ResponseEvent::OpenNodeShell(node) => self.views_manager.open_node_shell(node),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
             ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),
@@ -309,6 +310,10 @@ impl App {
                 CommandResult::ResourcePortsList(list) => self.views_manager.show_ports_list(&list),
                 CommandResult::RunPluginOutput(result) => self.views_manager.show_plugin_output(&command.id, result),
                 CommandResult::InjectedContainer(result) => self.views_manager.show_inject_result(result),
+                CommandResult::CreatedNodeShell(result) => {
+                    self.views_manager
+                        .show_node_shell_result(&command.id, CommandResult::CreatedNodeShell(result));
+                },
                 CommandResult::TransferFile(result) => self.views_manager.show_transfer_file_result(result),
             }
         }

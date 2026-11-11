@@ -22,7 +22,7 @@ use crate::core::{SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::resources::{ResourceItem, build_cache_key};
 use crate::kube::{kinds::KindsList, resources::ResourcesList};
 use crate::ui::views::{
-    CmdView, DescribeView, ForwardsView, LogsView, LogsViewOptions, ResourcesView, ShellView, View, YamlView,
+    CmdView, DescribeView, ForwardsView, LogsView, LogsViewOptions, ResourcesView, ShellMode, ShellView, View, YamlView,
     update_read_only_icon,
 };
 use crate::ui::widgets::{Position, SideSelect};
@@ -588,16 +588,52 @@ impl ViewsManager {
     pub fn open_shell(&mut self, resource: ResourceRef, is_attach: bool) {
         if let Some(client) = self.worker.borrow().kubernetes_client().map(KubernetesClient::get_client) {
             self.footer().hide_hint();
+            let mode = if is_attach { ShellMode::Attach } else { ShellMode::Shell };
             let view = ShellView::new(
                 Rc::clone(&self.app_data),
                 Rc::clone(&self.worker),
                 client,
                 resource.into(),
-                is_attach,
+                mode,
                 self.footer.get_transmitter(),
                 self.workspace,
             );
             self.view = Some(Box::new(view));
+        }
+    }
+
+    /// Creates a node shell pod and opens view that will run shell proces when pod will be ready.
+    pub fn open_node_shell(&mut self, node: String) {
+        if self.app_data.borrow().read_only {
+            return;
+        }
+
+        let client = self.worker.borrow().kubernetes_client().map(KubernetesClient::get_client);
+        let Some(client) = client else { return };
+        let namespace = self.app_data.borrow().current.get_namespace();
+        let namespace = if namespace.is_all() { "default".into() } else { namespace };
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        let command_id = self.worker.borrow_mut().create_node_shell(
+            node.clone(),
+            namespace.clone(),
+            self.app_data.borrow().config.node_image.clone(),
+            cancellation.clone(),
+        );
+
+        if let Some(command_id) = command_id {
+            self.footer().hide_hint();
+            self.view = Some(Box::new(
+                ShellView::new(
+                    Rc::clone(&self.app_data),
+                    Rc::clone(&self.worker),
+                    client,
+                    ContainerRef::from(ResourceRef::container(node, namespace, "shell".to_owned())),
+                    ShellMode::Node,
+                    self.footer.get_transmitter(),
+                    self.workspace,
+                )
+                .wait_for_pod(command_id, cancellation),
+            ));
         }
     }
 
@@ -696,6 +732,15 @@ impl ViewsManager {
                 tracing::warn!("{}", msg);
                 self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
+        }
+    }
+
+    /// Starts shell process for newly created node shell pod.
+    pub fn show_node_shell_result(&mut self, command_id: &str, result: CommandResult) {
+        if let Some(view) = &mut self.view
+            && view.command_id_match(command_id)
+        {
+            view.process_command_result(result);
         }
     }
 

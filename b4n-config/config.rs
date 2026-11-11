@@ -17,6 +17,7 @@ use crate::{ConfigWatcher, Persistable, keys::KeyBindings, utils::sorted_map};
 pub const APP_NAME: &str = "b4n";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_THEME_NAME: &str = "default";
+pub const DEFAULT_NODE_IMAGE: &str = "alpine:3.24";
 
 static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
 static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
@@ -137,6 +138,9 @@ pub struct Config {
     #[serde(default = "default_images_list")]
     pub debug_images: Vec<String>,
 
+    #[serde(default = "default_node_image")]
+    pub node_image: String,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contexts: Option<HashMap<String, ContextEntry>>,
 
@@ -161,6 +165,10 @@ fn default_theme_name() -> String {
 
 fn default_images_list() -> Vec<String> {
     vec!["busybox".to_string(), "alpine".to_string(), "nicolaka/netshoot".to_string()]
+}
+
+fn default_node_image() -> String {
+    DEFAULT_NODE_IMAGE.to_owned()
 }
 
 fn default_aliases() -> HashMap<String, String> {
@@ -195,6 +203,7 @@ impl Default for Config {
             symbols: Symbols::default(),
             theme: default_theme_name(),
             debug_images: default_images_list(),
+            node_image: default_node_image(),
             contexts: None,
             key_bindings: Some(KeyBindings::default()),
             aliases: default_aliases(),

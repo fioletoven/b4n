@@ -114,6 +114,7 @@ pub async fn run_command(command: Command) -> Option<CommandResult> {
         Command::SetYaml(command) => command.execute().await,
         Command::RunPlugin(command) => command.execute().await,
         Command::InjectContainer(command) => command.execute().await,
+        Command::CreateNodeShell(command) => command.execute().await,
         Command::TransferFile(command) => command.execute().await,
     }
 }

@@ -1,15 +1,20 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ContainerRef, PODS, ResourceTag};
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
+use b4n_kube::{ContainerRef, NODES, PODS, ResourceTag};
+use b4n_tasks::commands::CommandResult;
+use b4n_tui::utils::center;
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, Spinner};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
-use ratatui::layout::Position;
+use ratatui::layout::{Constraint, Position};
+use ratatui::text::{Line, Span};
 use ratatui::{Frame, layout::Rect};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+use tokio::runtime::Handle;
+use tokio_util::sync::CancellationToken;
 use tui_term::widget::Cursor;
 use tui_term::{vt100, widget::PseudoTerminal};
 
@@ -26,6 +31,14 @@ const DEFAULT_SHELL: &str = "bash";
 const FALLBACK_SHELL: &str = "sh";
 const SCROLLBACK_LEN: usize = 1_000;
 
+/// Mode of the shell view.
+#[derive(Clone, Copy, PartialEq)]
+pub enum ShellMode {
+    Shell,
+    Attach,
+    Node,
+}
+
 /// Pod's shell view.
 pub struct ShellView {
     app_data: SharedAppData,
@@ -35,6 +48,9 @@ pub struct ShellView {
     size: TerminalSize,
     client: Client,
     pod: ContainerRef,
+    command_id: Option<String>,
+    command_failed: bool,
+    cancellation: Option<CancellationToken>,
     scrollback_rows: usize,
     last_mouse_click: Option<Position>,
     modal: Dialog,
@@ -44,11 +60,12 @@ pub struct ShellView {
     area: Rect,
     alt_mode: EscapeSequenceTracker,
     clipboard_text: Option<String>,
-    is_attach: bool,
+    mode: ShellMode,
     is_app_mode: bool,
     is_mouse_enabled: bool,
     own_cursor: bool,
     cursor_shape: CursorShapeTracker,
+    spinner: Spinner,
     footer_tx: NotificationSink,
 }
 
@@ -59,38 +76,25 @@ impl ShellView {
         worker: SharedBgWorker,
         client: Client,
         pod: ContainerRef,
-        is_attach: bool,
+        mode: ShellMode,
         footer_tx: NotificationSink,
         workspace: Rect,
     ) -> Self {
+        let header = Self::create_header(&app_data, &pod, mode);
         let runtime = worker.borrow().runtime_handle().clone();
-        let mut header = ContentHeader::new(Rc::clone(&app_data), false);
-        if app_data.has_nerd_font() {
-            header.set_title(if is_attach { " attach" } else { " shell" });
-        } else {
-            header.set_title(if is_attach { "attach" } else { "shell" });
-        }
-        header.set_data(
-            pod.namespace.clone(),
-            PODS.into(),
-            Some(pod.name.clone()),
-            pod.container.clone(),
-        );
-
         let area = get_layout_with_header(workspace)[1];
-        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let scrollback = app_data.borrow().config.terminal.scrollback_lines.unwrap_or(SCROLLBACK_LEN);
-        let mut bridge = ShellBridge::new(runtime, area, scrollback, is_attach);
-        bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        let bridge = Self::create_bridge(runtime, &client, &pod, mode, area, scrollback);
         let parser = bridge.get_parser();
+        let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
         let file_picker = FileSelector::new(Rc::clone(&app_data), worker, 65, PathBuf::from("."));
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx, is_attach, false);
 
-        Self {
+        let result = Self {
             app_data,
             header,
             bridge,
@@ -98,6 +102,9 @@ impl ShellView {
             size: area.to_terminal_size(),
             client,
             pod,
+            command_id: None,
+            command_failed: false,
+            cancellation: None,
             scrollback_rows: 0,
             last_mouse_click: None,
             modal: Dialog::default(),
@@ -107,13 +114,77 @@ impl ShellView {
             area,
             alt_mode: EscapeSequenceTracker::new(ESCAPE_SEQUENCE_TIMEOUT),
             clipboard_text: None,
-            is_attach,
+            mode,
             is_app_mode: false,
             is_mouse_enabled: false,
             own_cursor,
             cursor_shape: CursorShapeTracker::new(!own_cursor),
+            spinner: Spinner::new(use_plain_symbols),
             footer_tx,
+        };
+
+        if mode == ShellMode::Node {
+            result.set_pending_hint();
+        } else {
+            result.update_hint();
         }
+
+        result
+    }
+
+    /// Marks shell view as waiting for a task.
+    /// - `command_id` is a task id that is creating the pod
+    /// - `cancellation` is a token that should be cancelled to delete that pod
+    pub fn wait_for_pod(mut self, command_id: String, cancellation: CancellationToken) -> Self {
+        self.command_id = Some(command_id);
+        self.command_failed = false;
+        self.cancellation = Some(cancellation);
+        self
+    }
+
+    #[inline]
+    fn is_attach(&self) -> bool {
+        self.mode == ShellMode::Attach
+    }
+
+    fn create_header(app_data: &SharedAppData, pod: &ContainerRef, mode: ShellMode) -> ContentHeader {
+        let is_attach = mode == ShellMode::Attach;
+
+        let mut header = ContentHeader::new(Rc::clone(app_data), false);
+        if app_data.has_nerd_font() {
+            header.set_title(if is_attach { " attach" } else { " shell" });
+        } else {
+            header.set_title(if is_attach { "attach" } else { "shell" });
+        }
+
+        if mode == ShellMode::Node {
+            header.set_data(pod.namespace.clone(), NODES.into(), Some(pod.name.clone()), None);
+        } else {
+            header.set_data(
+                pod.namespace.clone(),
+                PODS.into(),
+                Some(pod.name.clone()),
+                pod.container.clone(),
+            );
+        }
+
+        header
+    }
+
+    fn create_bridge(
+        runtime: Handle,
+        client: &Client,
+        pod: &ContainerRef,
+        mode: ShellMode,
+        area: Rect,
+        scrollback: usize,
+    ) -> ShellBridge {
+        let mut bridge = ShellBridge::new(runtime, area, scrollback, mode == ShellMode::Attach);
+        if mode != ShellMode::Node {
+            bridge.start(client.clone(), pod.clone(), DEFAULT_SHELL, area.to_terminal_size());
+        }
+
+        bridge
     }
 
     fn show_mouse_menu(&mut self, x: u16, y: u16) -> ResponseEvent {
@@ -121,18 +192,20 @@ impl ShellView {
             return ResponseEvent::Handled;
         }
 
-        let mut builder = ActionsListBuilder::default()
-            .with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"))
-            .with_menu_action(ActionItem::menu(5, '', "download files", "download"))
-            .with_menu_action(ActionItem::menu(5, '', "upload files", "upload"));
+        let mut builder = ActionsListBuilder::default().with_menu_action(ActionItem::menu(2, '󰆒', "paste", "paste"));
+        if self.mode != ShellMode::Node {
+            builder = builder
+                .with_menu_action(ActionItem::menu(5, '', "download files", "download"))
+                .with_menu_action(ActionItem::menu(5, '', "upload files", "upload"));
+        }
 
-        if self.is_attach {
+        if self.is_attach() {
             builder.add_menu_action(ActionItem::menu(100, '󰕍', "back", "detach"));
         } else {
             builder.add_menu_action(ActionItem::menu(100, '', "detach shell", "detach"));
         }
 
-        let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach);
+        let is_mouse_allowed = self.bridge.is_mouse_enabled().unwrap_or(self.is_attach());
         let is_selected = self.selection.sorted().is_some();
 
         if !self.is_mouse_enabled {
@@ -140,7 +213,7 @@ impl ShellView {
             builder.add_menu_action(ActionItem::menu(1, '󰆏', format!("copy ␝{copy}␝"), "copy"));
         }
 
-        if self.is_attach && self.bridge.is_application_mode().is_none() {
+        if self.is_attach() && self.bridge.is_application_mode().is_none() {
             if self.is_app_mode {
                 builder.add_menu_action(ActionItem::menu(3, '', "normal cursor key mode", "app_mode"));
             } else {
@@ -187,11 +260,11 @@ impl ShellView {
                     self.ask_transfer_file(false)
                 },
                 "detach" => {
-                    if self.is_attach {
-                        ResponseEvent::Cancelled
-                    } else {
+                    if self.mode == ShellMode::Shell {
                         self.last_mouse_click = event.position();
                         self.ask_close_shell_forcibly()
+                    } else {
+                        ResponseEvent::Cancelled
                     }
                 },
                 _ => response,
@@ -363,7 +436,7 @@ impl ShellView {
             self.footer_tx
                 .show_hint(format!("{icon}Double right-click to open mouse menu"));
         } else {
-            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            self.update_hint();
         }
 
         ResponseEvent::Handled
@@ -415,6 +488,7 @@ impl ShellView {
                     },
                     _ => ResponseEvent::Handled,
                 },
+                ResponseEvent::Cancelled => ResponseEvent::Cancelled,
                 _ => ResponseEvent::Handled,
             });
         }
@@ -450,20 +524,94 @@ impl ShellView {
 
         ResponseEvent::Handled
     }
+
+    fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let line = Line::default()
+            .spans([
+                Span::raw(self.spinner.tick().to_string()),
+                " waiting for node shell pod to become ready…".into(),
+            ])
+            .style(&colors.text);
+        let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+        frame.render_widget(line, area);
+    }
+
+    fn update_hint(&self) {
+        let key = self.app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+        let icon = self.app_data.borrow().config.symbols.hint.right;
+        if self.alt_mode.is_active() {
+            if self.mode == ShellMode::Node {
+                self.footer_tx
+                    .show_hint(format!("{icon}Escape mode: press ␝{key}␝ to close node shell"));
+            } else {
+                let is_attach = self.mode == ShellMode::Attach;
+                let action = if is_attach { "close attach view" } else { "detach shell" };
+                let transfer_to = self.app_data.get_key_name(KeyCommand::TransferTo).to_ascii_uppercase();
+                let transfer_from = self.app_data.get_key_name(KeyCommand::TransferFrom).to_ascii_uppercase();
+                self.footer_tx.show_hint(format!(
+                    "{icon}Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
+                ));
+            }
+        } else {
+            self.footer_tx
+                .show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
+        }
+    }
+
+    fn set_pending_hint(&self) {
+        let key = self.app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+        let icon = self.app_data.borrow().config.symbols.hint.right;
+        self.footer_tx
+            .show_hint(format!("{icon}Press ␝{key}␝ to cancel node shell creation"));
+    }
 }
 
 impl View for ShellView {
+    fn command_id(&self) -> Option<&str> {
+        self.command_id.as_deref()
+    }
+
+    fn process_command_result(&mut self, result: CommandResult) {
+        if let CommandResult::CreatedNodeShell(result) = result {
+            match result {
+                Ok(pod) => {
+                    let command = [
+                        "nsenter", "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid", "--", "sh",
+                    ];
+                    self.pod = pod;
+                    self.bridge.start_command(
+                        self.client.clone(),
+                        self.pod.clone(),
+                        command.into_iter().map(str::to_owned).collect(),
+                        self.area.to_terminal_size(),
+                    );
+                },
+                Err(error) => {
+                    self.footer_tx.show_error(error.to_string(), DEFAULT_ERROR_DURATION);
+                    self.command_failed = true;
+                },
+            }
+
+            self.update_hint();
+        }
+    }
+
     fn process_tick(&mut self) -> ResponseEvent {
+        if self.command_failed {
+            return ResponseEvent::Cancelled;
+        }
+
         self.cursor_shape.sync_shape(self.bridge.cursor_shape());
 
         if self.bridge.is_finished() {
             // we try to fall back to 'sh' if ShellBridge has an error and was initially started as 'bash'
-            if !self.is_attach && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
+            if !self.is_attach() && self.bridge.has_error() && self.bridge.shell().is_some_and(|s| s == DEFAULT_SHELL) {
                 let size = self.area.to_terminal_size();
                 self.bridge.start(self.client.clone(), self.pod.clone(), FALLBACK_SHELL, size);
             } else {
                 if self.bridge.has_error() {
-                    let kind = if self.is_attach { "main" } else { "shell" };
+                    let kind = if self.is_attach() { "main" } else { "shell" };
                     self.footer_tx.show_error(
                         format!("Unable to attach to the {kind} process of the selected container"),
                         DEFAULT_ERROR_DURATION,
@@ -483,7 +631,10 @@ impl View for ShellView {
     }
 
     fn process_disconnection(&mut self) {
-        // pass
+        if let Some(cancellation) = &self.cancellation {
+            cancellation.cancel();
+            self.command_failed = true;
+        }
     }
 
     fn process_event(&mut self, event: &TuiEvent) -> ResponseEvent {
@@ -492,30 +643,36 @@ impl View for ShellView {
         }
 
         if self.alt_mode.consume_active() {
-            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            self.update_hint();
             if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
-                return if self.is_attach {
-                    ResponseEvent::Cancelled
-                } else {
+                return if self.mode == ShellMode::Shell {
                     self.ask_close_shell_forcibly()
+                } else {
+                    ResponseEvent::Cancelled
                 };
             }
 
-            if self.app_data.has_binding(event, KeyCommand::TransferTo) {
-                return self.ask_transfer_file(false);
-            }
+            if self.mode != ShellMode::Node {
+                if self.app_data.has_binding(event, KeyCommand::TransferTo) {
+                    return self.ask_transfer_file(false);
+                }
 
-            if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
-                return self.ask_transfer_file(true);
+                if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
+                    return self.ask_transfer_file(true);
+                }
             }
         }
 
         if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
+            if !self.bridge.is_running() {
+                return ResponseEvent::Cancelled;
+            }
+
             if let Some(prev_event) = self.alt_mode.record_event(event) {
                 return self.process_shell_event(&prev_event);
             }
 
-            set_hint(&self.app_data, &self.footer_tx, self.is_attach, self.alt_mode.is_active());
+            self.update_hint();
             return ResponseEvent::Handled;
         }
 
@@ -586,6 +743,8 @@ impl View for ShellView {
             if !self.is_mouse_enabled {
                 frame.render_widget(&self.selection, layout[1]);
             }
+        } else if self.mode == ShellMode::Node {
+            self.draw_empty(frame, layout[1]);
         }
 
         self.command_palette.draw(frame, frame.area());
@@ -596,24 +755,13 @@ impl View for ShellView {
 
 impl Drop for ShellView {
     fn drop(&mut self) {
+        if let Some(cancellation) = &self.cancellation {
+            cancellation.cancel();
+        }
+
         self.bridge.stop();
         self.app_data.disable_command(KeyCommand::ApplicationExit, false);
         self.app_data.disable_command(KeyCommand::MouseSupportToggle, false);
         self.footer_tx.hide_hint();
-    }
-}
-
-fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: bool, is_alt_mode: bool) {
-    let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
-    let icon = app_data.borrow().config.symbols.hint.right;
-    if is_alt_mode {
-        let action = if is_attach { "close attach view" } else { "detach shell" };
-        let transfer_to = app_data.get_key_name(KeyCommand::TransferTo).to_ascii_uppercase();
-        let transfer_from = app_data.get_key_name(KeyCommand::TransferFrom).to_ascii_uppercase();
-        footer_tx.show_hint(format!(
-            "{icon}Escape mode: press ␝{key}␝ to {action}, ␝{transfer_to}␝ or ␝{transfer_from}␝ for file transfer"
-        ));
-    } else {
-        footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
 }

@@ -11,10 +11,10 @@ use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
-    Command, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig, GetNewResourceYamlCommand,
-    GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand, ListResourcePortsCommand, RunPluginCommand,
-    SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand,
-    SetResourceYamlOptions, TransferFileCommand,
+    Command, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig,
+    GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand,
+    ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand,
+    SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions, TransferFileCommand,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -22,6 +22,7 @@ use b4n_tui::EphemeralContainer;
 use kube::discovery::{Scope, verbs};
 use std::{cell::RefCell, collections::HashMap, net::SocketAddr, path::PathBuf, rc::Rc};
 use tokio::{runtime::Handle, sync::mpsc::UnboundedSender};
+use tokio_util::sync::CancellationToken;
 
 use crate::core::ConnectionState;
 use crate::kube::kinds::{KindItem, KindsList};
@@ -533,6 +534,19 @@ impl BgWorker {
         };
         let command = InjectContainerCommand::new(name.to_owned(), resource.namespace.clone(), client.get_client(), config);
         Some(self.executor.run_task(Command::InjectContainer(Box::new(command))))
+    }
+
+    /// Creates shell pod for the specified node.
+    pub fn create_node_shell(
+        &mut self,
+        node: String,
+        namespace: Namespace,
+        image: String,
+        cancellation: CancellationToken,
+    ) -> Option<String> {
+        let client = self.client.as_ref()?.get_client();
+        let command = CreateNodeShellCommand::new(client, node, namespace, image, cancellation);
+        Some(self.executor.run_task(Command::CreateNodeShell(Box::new(command))))
     }
 
     /// Transfers file from/to a pod's container in the background task.
