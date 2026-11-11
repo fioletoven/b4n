@@ -2,6 +2,10 @@
 
 ## WIP
 
+### Features
+
+- add shell option in nodes view
+
 ### Bug Fixes
 
 - detach shell action in escape mode was not working

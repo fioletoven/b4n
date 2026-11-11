@@ -2,12 +2,13 @@ use b4n_common::{DEFAULT_ERROR_DURATION, NotificationSink};
 use b4n_config::keys::KeyCommand;
 use b4n_kube::{ContainerRef, NODES, PODS, ResourceTag};
 use b4n_tasks::commands::CommandResult;
-use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
+use b4n_tui::utils::center;
+use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog, Spinner};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use kube::{Client, api::TerminalSize};
-use ratatui::layout::Position;
-use ratatui::widgets::Paragraph;
+use ratatui::layout::{Constraint, Position};
+use ratatui::text::{Line, Span};
 use ratatui::{Frame, layout::Rect};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -64,6 +65,7 @@ pub struct ShellView {
     is_mouse_enabled: bool,
     own_cursor: bool,
     cursor_shape: CursorShapeTracker,
+    spinner: Spinner,
     footer_tx: NotificationSink,
 }
 
@@ -87,6 +89,7 @@ impl ShellView {
         let selection = ScreenSelection::default().with_color(app_data.borrow().theme.colors.shell.select);
         let own_cursor = app_data.borrow().config.terminal.system_cursor.is_none_or(|c| !c);
         let file_picker = FileSelector::new(Rc::clone(&app_data), worker, 65, PathBuf::from("."));
+        let use_plain_symbols = app_data.use_plain_symbols();
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
@@ -116,6 +119,7 @@ impl ShellView {
             is_mouse_enabled: false,
             own_cursor,
             cursor_shape: CursorShapeTracker::new(!own_cursor),
+            spinner: Spinner::new(use_plain_symbols),
             footer_tx,
         };
 
@@ -521,6 +525,18 @@ impl ShellView {
         ResponseEvent::Handled
     }
 
+    fn draw_empty(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let colors = &self.app_data.borrow().theme.colors;
+        let line = Line::default()
+            .spans([
+                Span::raw(self.spinner.tick().to_string()),
+                " waiting for node shell pod to become ready…".into(),
+            ])
+            .style(&colors.text);
+        let area = center(area, Constraint::Length(line.width() as u16), Constraint::Length(4));
+        frame.render_widget(line, area);
+    }
+
     fn update_hint(&self) {
         let key = self.app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
         let icon = self.app_data.borrow().config.symbols.hint.right;
@@ -728,7 +744,7 @@ impl View for ShellView {
                 frame.render_widget(&self.selection, layout[1]);
             }
         } else if self.mode == ShellMode::Node {
-            frame.render_widget(Paragraph::new("Waiting for node shell pod to become ready…"), layout[1]);
+            self.draw_empty(frame, layout[1]);
         }
 
         self.command_palette.draw(frame, frame.area());

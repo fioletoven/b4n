@@ -616,7 +616,7 @@ impl ViewsManager {
         let command_id = self.worker.borrow_mut().create_node_shell(
             node.clone(),
             namespace.clone(),
-            "alpine:3.24".to_owned(),
+            self.app_data.borrow().config.node_image.clone(),
             cancellation.clone(),
         );
 
