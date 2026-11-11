@@ -1,8 +1,9 @@
 use b4n_config::{Config, History};
-use b4n_kube::{Port, ResourceRef};
+use b4n_kube::{ContainerRef, Port, ResourceRef};
 use kube::config::NamedContext;
 use std::path::PathBuf;
 
+pub use self::create_node_shell::{CreateNodeShellCommand, CreateNodeShellError};
 pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions};
 pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
@@ -21,6 +22,7 @@ pub use self::set_new_yaml::{SetNewResourceYamlCommand, SetNewResourceYamlError,
 pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResourceYamlError, SetResourceYamlOptions};
 pub use self::transfer_file::{TransferFileCommand, TransferFileError, TransferFileResult};
 
+mod create_node_shell;
 mod delete_resources;
 mod get_new_yaml;
 mod get_yaml;
@@ -54,6 +56,7 @@ pub enum Command {
     SetYaml(Box<SetResourceYamlCommand>),
     RunPlugin(Box<RunPluginCommand>),
     InjectContainer(Box<InjectContainerCommand>),
+    CreateNodeShell(Box<CreateNodeShellCommand>),
     TransferFile(Box<TransferFileCommand>),
 }
 
@@ -77,5 +80,6 @@ pub enum CommandResult {
     SetResourceYaml(Result<String, SetResourceYamlError>),
     RunPluginOutput(Result<RunPluginOutput, RunPluginError>),
     InjectedContainer(Result<ResourceRef, InjectContainerError>),
+    CreatedNodeShell(Result<ContainerRef, CreateNodeShellError>),
     TransferFile(Result<TransferFileResult, TransferFileError>),
 }

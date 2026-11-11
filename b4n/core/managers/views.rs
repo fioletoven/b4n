@@ -602,6 +602,11 @@ impl ViewsManager {
         }
     }
 
+    /// Creates a node shell pod and opens view that will run shell proces when pod will be ready.
+    pub fn open_node_shell(&mut self, node: String) {
+        // TODO
+    }
+
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         self.resources.show_ports_list(list);
@@ -697,6 +702,15 @@ impl ViewsManager {
                 tracing::warn!("{}", msg);
                 self.footer().show_error(msg, DEFAULT_ERROR_DURATION);
             },
+        }
+    }
+
+    /// Starts shell process for newly created node shell pod.
+    pub fn show_node_shell_result(&mut self, command_id: &str, result: CommandResult) {
+        if let Some(view) = &mut self.view
+            && view.command_id_match(command_id)
+        {
+            view.process_command_result(result);
         }
     }
 

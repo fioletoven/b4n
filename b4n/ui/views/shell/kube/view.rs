@@ -84,7 +84,12 @@ impl ShellView {
 
         app_data.disable_command(KeyCommand::ApplicationExit, true);
         app_data.disable_command(KeyCommand::MouseSupportToggle, true);
-        set_hint(&app_data, &footer_tx, mode == ShellMode::Attach, false);
+
+        if mode == ShellMode::Node {
+            set_pending_hint(&app_data, &footer_tx);
+        } else {
+            set_hint(&app_data, &footer_tx, mode == ShellMode::Attach, false);
+        }
 
         Self {
             app_data,
@@ -652,4 +657,10 @@ fn set_hint(app_data: &SharedAppData, footer_tx: &NotificationSink, is_attach: b
     } else {
         footer_tx.show_hint(format!("{icon}Double press ␝{key}␝ to activate escape mode"));
     }
+}
+
+fn set_pending_hint(app_data: &SharedAppData, footer_tx: &NotificationSink) {
+    let key = app_data.get_key_name(KeyCommand::ShellEscape).to_ascii_uppercase();
+    let icon = app_data.borrow().config.symbols.hint.right;
+    footer_tx.show_hint(format!("{icon}Press ␝{key}␝ to cancel node shell creation"));
 }
