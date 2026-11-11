@@ -604,7 +604,37 @@ impl ViewsManager {
 
     /// Creates a node shell pod and opens view that will run shell proces when pod will be ready.
     pub fn open_node_shell(&mut self, node: String) {
-        // TODO
+        if self.app_data.borrow().read_only {
+            return;
+        }
+
+        let client = self.worker.borrow().kubernetes_client().map(KubernetesClient::get_client);
+        let Some(client) = client else { return };
+        let namespace = self.app_data.borrow().current.get_namespace();
+        let namespace = if namespace.is_all() { "default".into() } else { namespace };
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        let command_id = self.worker.borrow_mut().create_node_shell(
+            node.clone(),
+            namespace.clone(),
+            "alpine:3.24".to_owned(),
+            cancellation.clone(),
+        );
+
+        if let Some(command_id) = command_id {
+            self.footer().hide_hint();
+            self.view = Some(Box::new(
+                ShellView::new(
+                    Rc::clone(&self.app_data),
+                    Rc::clone(&self.worker),
+                    client,
+                    ContainerRef::from(ResourceRef::container(node, namespace, "shell".to_owned())),
+                    ShellMode::Node,
+                    self.footer.get_transmitter(),
+                    self.workspace,
+                )
+                .wait_for_pod(command_id, cancellation),
+            ));
+        }
     }
 
     /// Displays a list of available forward ports for a container to choose from.

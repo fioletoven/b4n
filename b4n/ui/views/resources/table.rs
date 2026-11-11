@@ -432,6 +432,13 @@ impl ResourcesTable {
                 return self.process_view_yaml(resource, true, true);
             }
 
+            if self.kind_plural() == NODES
+                && !self.app_data.borrow().read_only
+                && self.app_data.has_binding(event, KeyCommand::ShellOpen)
+            {
+                return ResponseEvent::OpenNodeShell(resource.name.clone());
+            }
+
             if is_container || self.kind_plural() == PODS {
                 let is_multiple = !is_container && resource.data.as_ref().is_some_and(|d| d.tags.len() > 1);
                 if self.app_data.has_binding(event, KeyCommand::LogsOpen) {

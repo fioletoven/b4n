@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Bug Fixes
+
+- detach shell action in escape mode was not working
+
 ## 1.3.0 - 2026-10-29
 
 ### Features

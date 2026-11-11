@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, PODS, Port, ResourceRef, SECRETS, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, NODES, PODS, Port, ResourceRef, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionItemKind, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
@@ -114,6 +114,10 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
             builder.add_menu_action(ActionItem::menu(2, '', "YAML ␝decoded␝", "decode_yaml"));
         }
 
+        if table.kind_plural() == NODES && !is_read_only {
+            builder.add_menu_action(ActionItem::menu(7, '', "shell", "open_shell"));
+        }
+
         if is_containers || is_pods {
             builder = builder
                 .with_menu_action(ActionItem::menu(3, '', "logs", "show_logs"))
@@ -197,7 +201,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         Some(KeyCommand::ContentCopy),
     );
 
-    let action = if app_data.borrow().read_only { "disables" } else { "enables" };
+    let action = if is_read_only { "disables" } else { "enables" };
     builder.add_action(
         ActionItem::action("read-only mode", "ro_toggle")
             .with_description(&format!("{action} read-only mode"))
@@ -232,12 +236,21 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers, is_read_only);
+
         if !is_read_only && is_pods && table.is_resource_running() {
             builder = add_ephemeral_container_actions(builder);
             builder = add_file_transfer_actions(builder);
         }
+
         if is_containers || is_pods {
             builder = add_container_actions(builder, is_pods, is_read_only);
+        }
+
+        if table.kind_plural() == NODES && !is_read_only {
+            builder.add_action(
+                ActionItem::action("shell", "open_shell").with_description("opens privileged node shell"),
+                Some(KeyCommand::ShellOpen),
+            );
         }
     }
 

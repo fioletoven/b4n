@@ -50,6 +50,13 @@ impl ShellBridge {
     /// Starts new shell process.\
     /// **Note** that it stops the old task if it is running.
     pub fn start(&mut self, client: Client, pod: ContainerRef, shell: impl Into<String>, size: TerminalSize) {
+        let shell = shell.into();
+        self.start_command(client, pod, vec![shell], size);
+    }
+
+    /// Starts new process with the specified command.\
+    /// **Note** that it stops the old task if it is running.
+    pub fn start_command(&mut self, client: Client, pod: ContainerRef, command: Vec<String>, size: TerminalSize) {
         self.stop();
 
         let cancellation_token = CancellationToken::new();
@@ -62,8 +69,7 @@ impl ShellBridge {
         let (size_tx, _size_rx) = mpsc::unbounded_channel();
         self.size_tx = Some(size_tx);
 
-        let _shell = shell.into();
-        self.shell = Some(_shell.clone());
+        self.shell = command.first().cloned();
 
         self.state.set_error(false);
         self.state.set_size(size.width, size.height);
@@ -80,7 +86,7 @@ impl ShellBridge {
             let attach_result = if _is_attach {
                 api.attach(&pod.name, &attach_params).await
             } else {
-                api.exec(&pod.name, vec![_shell], &attach_params).await
+                api.exec(&pod.name, command, &attach_params).await
             };
 
             let mut attached = match attach_result {
