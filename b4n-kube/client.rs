@@ -329,7 +329,7 @@ async fn get_client_for_context(kubeconfig: Kubeconfig, context: &str, options: 
     config.auth_info.impersonate_groups = options.as_groups;
     config.auth_info.client_certificate = options.client_cert;
     config.auth_info.client_key = options.client_key;
-    config.accept_invalid_certs = options.allow_insecure;
+    config.accept_invalid_certs |= options.allow_insecure;
     config.root_cert_file = options.certificate_authority.as_ref().map(PathBuf::from);
 
     let fixed_url = config.cluster_url.to_string().replace("0.0.0.0", "127.0.0.1");
