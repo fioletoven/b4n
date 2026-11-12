@@ -9,6 +9,7 @@
 ### Bug Fixes
 
 - detach shell action in escape mode was not working
+- respect kubeconfig `insecure-skip-tls-verify` setting when `--insecure` is not provided
 
 ## 1.3.0 - 2026-10-29
 

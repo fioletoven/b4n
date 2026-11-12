@@ -121,7 +121,7 @@ impl KubernetesClientManager {
                 },
                 Err(err) => {
                     self.set_request_as_faulty();
-                    let msg = format!("Requested client error: {err}");
+                    let msg = format!("Requested client error: {:#}", anyhow::Error::new(err));
                     warn!("{}", msg);
                     self.footer_tx.show_error(msg, DEFAULT_ERROR_DURATION);
                     None
