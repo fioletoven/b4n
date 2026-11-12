@@ -59,6 +59,7 @@ pub enum Command {
     RunPlugin(Box<RunPluginCommand>),
     InjectContainer(Box<InjectContainerCommand>),
     CreateNodeShell(Box<CreateNodeShellCommand>),
+    CordonNode(Box<CordonNodeCommand>),
     TransferFile(Box<TransferFileCommand>),
 }
 

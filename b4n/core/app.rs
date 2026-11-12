@@ -276,6 +276,7 @@ impl App {
             ResponseEvent::AttachContainer(container) => self.views_manager.open_shell(container, true),
             ResponseEvent::OpenShell(container) => self.views_manager.open_shell(container, false),
             ResponseEvent::OpenNodeShell(node) => self.views_manager.open_node_shell(node),
+            ResponseEvent::CordonNode(node, cordon) => self.views_manager.cordon_node(node, cordon),
             ResponseEvent::ShowPortForwards => self.views_manager.show_port_forwards(),
             ResponseEvent::PortForward(resource, to, from, address) => self.port_forward(resource, to, from, &address),
             ResponseEvent::RunPlugin(id, context) => self.views_manager.run_plugin(&id, context),

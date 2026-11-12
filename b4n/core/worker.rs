@@ -11,7 +11,7 @@ use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
 use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
 use b4n_tasks::commands::{
-    Command, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig,
+    Command, CordonNodeCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig,
     GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand,
     ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand,
     SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions, TransferFileCommand,
@@ -547,6 +547,14 @@ impl BgWorker {
         let client = self.client.as_ref()?.get_client();
         let command = CreateNodeShellCommand::new(client, node, namespace, image, cancellation);
         Some(self.executor.run_task(Command::CreateNodeShell(Box::new(command))))
+    }
+
+    /// Sends a node cordon or uncordon command to the background executor.
+    pub fn set_node_unschedulable(&mut self, name: String, unschedulable: bool) {
+        if let Some(client) = &self.client {
+            let command = CordonNodeCommand::new(client.get_client(), name, unschedulable, self.footer_tx.clone());
+            self.executor.run_task(Command::CordonNode(Box::new(command)));
+        }
     }
 
     /// Transfers file from/to a pod's container in the background task.
