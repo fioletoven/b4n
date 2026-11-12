@@ -4,11 +4,11 @@
 
 ### Features
 
-- add shell option in nodes view
+- add shell, cordon and uncordon actions in nodes view
 
 ### Bug Fixes
 
-- detach shell action in escape mode was not working
+- fix `detach shell` action in escape mode
 - respect kubeconfig `insecure-skip-tls-verify` setting when `--insecure` is not provided
 
 ## 1.3.0 - 2026-10-29

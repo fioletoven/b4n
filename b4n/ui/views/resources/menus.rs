@@ -247,10 +247,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         }
 
         if table.kind_plural() == NODES && !is_read_only {
-            builder.add_action(
-                ActionItem::action("shell", "open_shell").with_description("opens privileged node shell"),
-                Some(KeyCommand::ShellOpen),
-            );
+            builder = add_node_actions(builder);
         }
     }
 
@@ -290,6 +287,22 @@ fn add_resource_actions(
         .with_action(
             ActionItem::action("describe", "describe").with_description("describes highlighted resource"),
             Some(KeyCommand::DescribeOpen),
+        )
+}
+
+fn add_node_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
+    builder
+        .with_action(
+            ActionItem::action("shell", "open_shell").with_description("opens privileged node shell"),
+            Some(KeyCommand::ShellOpen),
+        )
+        .with_action(
+            ActionItem::action("cordon", "cordon").with_description("prevents new pods from scheduling"),
+            Some(KeyCommand::NodeCordon),
+        )
+        .with_action(
+            ActionItem::action("uncordon", "uncordon").with_description("allows new pods to schedule"),
+            Some(KeyCommand::NodeUncordon),
         )
 }
 

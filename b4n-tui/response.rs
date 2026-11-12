@@ -121,6 +121,7 @@ pub enum ResponseEvent {
     AttachContainer(ResourceRef),
     OpenShell(ResourceRef),
     OpenNodeShell(String),
+    CordonNode(String, bool),
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
 

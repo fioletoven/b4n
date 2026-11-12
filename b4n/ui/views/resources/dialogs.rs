@@ -50,6 +50,27 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
     .with_highlighted_position(position)
 }
 
+/// Creates a confirmation dialog for changing node scheduling.
+pub fn new_cordon_dialog(app_data: &SharedAppData, position: Option<Position>, name: String, cordon: bool) -> Dialog {
+    let colors = &app_data.borrow().theme.colors.modal;
+    let action = if cordon { "Cordon" } else { "Uncordon" };
+    let effect = if cordon {
+        "New pods will not be scheduled on this node. Existing pods will continue running."
+    } else {
+        "This node will be available for scheduling new pods again."
+    };
+
+    Dialog::new(
+        format!("{action} node '{name}'?\n{effect}"),
+        vec![
+            Button::new(action, ResponseEvent::CordonNode(name, cordon), colors.btn_accent.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.text)
+    .with_highlighted_position(position)
+}
+
 /// Creates new stop port forwarding rules dialog.
 pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<Position>, resource: &str) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;

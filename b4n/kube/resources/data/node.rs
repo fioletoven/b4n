@@ -22,6 +22,11 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let ready = status::from_conditions(object.data["status"]["conditions"].as_array());
     let is_ready = ready.is_some_and(|r| r == "Ready");
     let is_terminating = object.metadata.deletion_timestamp.is_some();
+    let scheduling_status = if object.data["spec"]["unschedulable"].as_bool() == Some(true) {
+        Some(ready.map_or_else(|| "SchedulingDisabled".to_owned(), |r| format!("{r},SchedulingDisabled")))
+    } else {
+        ready.map(String::from)
+    };
 
     let mut values = vec![
         Cell::integer(taints, 3),
@@ -29,7 +34,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         version.into(),
         Cell::integer(pods, 6),
         Cell::integer(containers, 6),
-        ready.into(),
+        scheduling_status.into(),
     ];
 
     if statistics.has_metrics {

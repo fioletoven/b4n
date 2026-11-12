@@ -637,6 +637,13 @@ impl ViewsManager {
         }
     }
 
+    /// Cordons or uncordons specified node.
+    pub fn cordon_node(&self, node: String, unschedulable: bool) {
+        if !self.app_data.borrow().read_only {
+            self.worker.borrow_mut().set_node_unschedulable(node, unschedulable);
+        }
+    }
+
     /// Displays a list of available forward ports for a container to choose from.
     pub fn show_ports_list(&mut self, list: &[Port]) {
         self.resources.show_ports_list(list);
