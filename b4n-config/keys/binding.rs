@@ -78,6 +78,8 @@ define_key_commands! {
         NavigateNext => "navigate.next" @ "Tab",
         NavigateSelect => "navigate.select" @ "Space",
         NavigateSelectAll => "navigate.select-all" @ "Ctrl+A",
+        NodeCordon => "node.cordon" @ "Shift+Alt+C",
+        NodeUncordon => "node.uncordon" @ "Shift+Alt+U",
         PortForwardsCreate => "port-forwards.create" @ "F",
         PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
         PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",

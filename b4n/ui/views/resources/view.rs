@@ -201,6 +201,15 @@ impl ResourcesView {
         }
     }
 
+    /// Shows changing node scheduling dialog.
+    fn ask_node_scheduling(&mut self, unschedulable: bool, position: Option<Position>) {
+        let can_cordon = !self.app_data.borrow().read_only && self.table.kind_plural() == NODES;
+        if can_cordon && let Some(name) = self.table.list.table.get_highlighted_item_name().map(String::from) {
+            self.modal = dialogs::new_cordon_dialog(&self.app_data, position, name, unschedulable);
+            self.modal.show();
+        }
+    }
+
     /// Shows transfer file dialog.
     pub fn ask_transfer_file(&mut self, is_download: bool) {
         if self.table.is_resource_running()
@@ -328,6 +337,8 @@ impl ResourcesView {
                     let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
                     Some(ResponseEvent::RunPlugin(plugin.id, context))
                 },
+
+                ResponseEvent::CordonNode(_, _) => Some(response),
                 _ => Some(ResponseEvent::Handled),
             };
         }
@@ -405,6 +416,10 @@ impl ResourcesView {
                 },
                 "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
+                "cordon" | "uncordon" => {
+                    self.ask_node_scheduling(action == "cordon", event.position());
+                    ResponseEvent::Handled
+                },
                 "port_forward" => {
                     self.last_mouse_click = event.position();
                     self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
@@ -645,6 +660,39 @@ impl ResourcesView {
 
         ResponseEvent::Handled
     }
+
+    fn process_pod_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
+            self.ask_inject_container();
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::TransferTo) {
+            self.ask_transfer_file(false);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
+            self.ask_transfer_file(true);
+            return Some(ResponseEvent::Handled);
+        }
+
+        None
+    }
+
+    fn process_node_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.app_data.has_binding(event, KeyCommand::NodeCordon) {
+            self.ask_node_scheduling(true, None);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NodeUncordon) {
+            self.ask_node_scheduling(false, None);
+            return Some(ResponseEvent::Handled);
+        }
+
+        None
+    }
 }
 
 impl View for ResourcesView {
@@ -772,20 +820,17 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if is_highlighted && self.kind_plural() == PODS {
-            if self.app_data.has_binding(event, KeyCommand::ContainerInject) {
-                self.ask_inject_container();
-                return ResponseEvent::Handled;
+        if is_highlighted {
+            if self.kind_plural() == PODS
+                && let Some(response) = self.process_pod_event(event)
+            {
+                return response;
             }
 
-            if self.app_data.has_binding(event, KeyCommand::TransferTo) {
-                self.ask_transfer_file(false);
-                return ResponseEvent::Handled;
-            }
-
-            if self.app_data.has_binding(event, KeyCommand::TransferFrom) {
-                self.ask_transfer_file(true);
-                return ResponseEvent::Handled;
+            if self.kind_plural() == NODES
+                && let Some(response) = self.process_node_event(event)
+            {
+                return response;
             }
         }
 
