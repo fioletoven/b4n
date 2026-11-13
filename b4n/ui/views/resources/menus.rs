@@ -234,6 +234,13 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         );
     }
 
+    if is_pods && !is_read_only && table.list.table.data.is_deletable {
+        builder.add_action(
+            ActionItem::action("sanitize", "sanitize").with_description("deletes all succeeded and failed pods"),
+            Some(KeyCommand::SanitizePods),
+        );
+    }
+
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers, is_read_only);
 

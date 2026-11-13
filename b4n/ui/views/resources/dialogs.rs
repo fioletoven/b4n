@@ -50,6 +50,30 @@ pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -
     .with_highlighted_position(position)
 }
 
+/// Creates a confirmation dialog for the pods to sanitize.
+pub fn new_sanitize_dialog(app_data: &SharedAppData, position: Option<Position>, namespace: &str) -> Dialog {
+    let data = app_data.borrow();
+    let colors = &data.theme.colors.modal;
+    let sym = &data.config.symbols;
+    Dialog::new(
+        format!(
+            "Delete all succeeded and failed pods matching the active filter in '{namespace}'?\n\
+             Type 'Yes Please!' to proceed.",
+        ),
+        vec![
+            Button::new("Sanitize", ResponseEvent::SanitizePods, colors.btn_delete.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.text)
+    .with_textboxes(vec![
+        TextBox::new(0, "Confirm:", 40, colors.textbox.clone(), sym)
+            .with_clipboard(data.get_clipboard())
+            .with_validator(ValidatorKind::StringOneOf(vec!["yes please!".to_owned()])),
+    ])
+    .with_highlighted_position(position)
+}
+
 /// Creates a confirmation dialog for changing node scheduling.
 pub fn new_cordon_dialog(app_data: &SharedAppData, position: Option<Position>, name: String, cordon: bool) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;

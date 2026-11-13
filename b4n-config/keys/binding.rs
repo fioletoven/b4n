@@ -22,11 +22,12 @@ pub enum KeyCommandError {
 }
 
 /// List of all harmful commands that should be ignored in read-only mode.
-pub const HARMFUL_COMMANDS: [KeyCommand; 9] = [
+pub const HARMFUL_COMMANDS: [KeyCommand; 10] = [
     KeyCommand::ContainerAttach,
     KeyCommand::ContainerInject,
     KeyCommand::NodeCordon,
     KeyCommand::NodeUncordon,
+    KeyCommand::SanitizePods,
     KeyCommand::ShellOpen,
     KeyCommand::TransferFrom,
     KeyCommand::TransferTo,
@@ -87,6 +88,7 @@ define_key_commands! {
         PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PreviousLogsOpen => "previous-logs.open" @ "P",
         ReadOnlyToggle => "read-only.toggle" @ "Shift+Alt+R",
+        SanitizePods => "pods.sanitize" @ "Shift+Alt+Z",
         SearchOpen => "search.open" @ "/", "Shift+/",
         SearchReset => "search.reset" @ "Esc",
         SelectorLeft => "selector.left" @ "Left",
