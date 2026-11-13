@@ -173,10 +173,14 @@ impl ResourcesView {
         }
     }
 
+    /// Returns `true` if resources in the view can be deleted.
+    pub fn is_deletable(&self) -> bool {
+        !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable
+    }
+
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        let can_delete = !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable;
-        if can_delete && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
+        if self.is_deletable() && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = dialogs::new_delete_dialog(&self.app_data, self.last_mouse_click.take());
             self.modal.show();
         }

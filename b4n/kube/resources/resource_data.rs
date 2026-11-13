@@ -9,6 +9,7 @@ pub struct ResourceData {
     pub is_completed: bool,
     pub is_ready: bool,
     pub is_terminating: bool,
+    pub is_sanitizable: bool,
     pub extra_values: Box<[Cell]>,
     pub tags: Box<[ResourceTag]>,
 }

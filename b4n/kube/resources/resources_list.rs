@@ -183,6 +183,21 @@ impl ResourcesList {
             .collect::<Vec<_>>()
     }
 
+    /// Returns `true` if there are any sanitizable pods on the list.
+    pub fn has_sanitizable_resources(&self) -> bool {
+        self.table.list.iter().any(|i| i.data.is_sanitizable())
+    }
+
+    /// Gets sanitizable pods.
+    pub fn get_sanitizable_resources(&self) -> Vec<&ResourceItem> {
+        self.table
+            .list
+            .iter()
+            .filter(|i| i.data.is_sanitizable())
+            .map(|i| &i.data)
+            .collect::<Vec<_>>()
+    }
+
     /// Returns resources as formatted strings.\
     /// **Note** that this is the same format as for drawing on the terminal.
     pub fn get_items_as_text(&mut self, view: ViewType, selected: bool) -> Vec<String> {

@@ -110,6 +110,7 @@ pub enum ResponseEvent {
 
     AskDeleteResources,
     DeleteResources(PropagationPolicy, bool, bool),
+    SanitizePods,
 
     NewYaml(ResourceRef, bool),
     ViewYaml(ResourceRef, bool, bool),

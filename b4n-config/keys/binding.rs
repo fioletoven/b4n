@@ -22,9 +22,11 @@ pub enum KeyCommandError {
 }
 
 /// List of all harmful commands that should be ignored in read-only mode.
-pub const HARMFUL_COMMANDS: [KeyCommand; 7] = [
+pub const HARMFUL_COMMANDS: [KeyCommand; 9] = [
     KeyCommand::ContainerAttach,
     KeyCommand::ContainerInject,
+    KeyCommand::NodeCordon,
+    KeyCommand::NodeUncordon,
     KeyCommand::ShellOpen,
     KeyCommand::TransferFrom,
     KeyCommand::TransferTo,
