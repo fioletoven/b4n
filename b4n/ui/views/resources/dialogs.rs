@@ -14,6 +14,7 @@ use crate::ui::views::resources::ResourcesTable;
 pub fn new_read_only_dialog(app_data: &SharedAppData) -> Dialog {
     let data = app_data.borrow();
     let colors = &data.theme.colors.modal;
+
     Dialog::new(
         "Are you sure you want to disable read-only mode?".to_owned(),
         vec![
@@ -28,6 +29,7 @@ pub fn new_read_only_dialog(app_data: &SharedAppData) -> Dialog {
 pub fn new_delete_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;
     let sym = &app_data.borrow().config.symbols;
+
     Dialog::new(
         "Are you sure you want to delete the selected resources?".to_owned(),
         vec![
@@ -55,6 +57,7 @@ pub fn new_sanitize_dialog(app_data: &SharedAppData, position: Option<Position>,
     let data = app_data.borrow();
     let colors = &data.theme.colors.modal;
     let sym = &data.config.symbols;
+
     Dialog::new(
         format!("Delete all succeeded and failed pods matching the active filter in '{namespace}'?"),
         vec![
@@ -92,9 +95,40 @@ pub fn new_cordon_dialog(app_data: &SharedAppData, position: Option<Position>, n
     .with_highlighted_position(position)
 }
 
+/// Creates a node drain confirmation dialog with safety options.
+pub fn new_drain_node_dialog(app_data: &SharedAppData, name: &str, position: Option<Position>) -> Dialog {
+    let data = app_data.borrow();
+    let colors = &data.theme.colors.modal;
+    let sym = &data.config.symbols;
+
+    Dialog::new(
+        format!("Drain node '{name}'?"),
+        vec![
+            Button::new("Drain", ResponseEvent::Action("drain"), colors.btn_delete.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.text)
+    .with_textboxes(vec![
+        TextBox::new(0, "Grace period (secs):", 30, colors.textbox.clone(), sym)
+            .with_validator(ValidatorKind::Number(0, u32::MAX as usize)),
+        TextBox::new(1, "Timeout (secs):     ", 30, colors.textbox.clone(), sym)
+            .with_value("5")
+            .with_validator(ValidatorKind::Number(0, u32::MAX as usize)),
+    ])
+    .with_checkboxes(vec![
+        CheckBox::new(0, "Ignore DaemonSets", false, colors.checkbox.clone(), sym),
+        CheckBox::new(1, "Delete EmptyDir data", false, colors.checkbox.clone(), sym),
+        CheckBox::new(2, "Force", false, colors.checkbox.clone(), sym),
+        CheckBox::new(3, "Disable eviction", false, colors.checkbox.clone(), sym),
+    ])
+    .with_highlighted_position(position)
+}
+
 /// Creates new stop port forwarding rules dialog.
 pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<Position>, resource: &str) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;
+
     Dialog::new(
         format!("Are you sure you want to stop all port forwarding rules for '{resource}'?"),
         vec![
@@ -110,6 +144,7 @@ pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<
 pub fn new_missing_resources_dialog(app_data: &SharedAppData, position: Option<Position>) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;
     let sym = &app_data.borrow().config.symbols;
+
     Dialog::new(
         "The 'themes' and 'plugins' directories are missing from your data folder. \
          Would you like to initialize them with the default assets?"

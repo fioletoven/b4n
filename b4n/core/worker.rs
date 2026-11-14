@@ -9,7 +9,9 @@ use b4n_kube::files::TransferContext;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::stats::BgStatistics;
 use b4n_kube::utils::{get_plural, get_resource};
-use b4n_kube::{BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, Kind, NAMESPACES, Namespace, PODS, ResourceRef};
+use b4n_kube::{
+    BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, DrainOptions, Kind, NAMESPACES, Namespace, PODS, ResourceRef,
+};
 use b4n_tasks::commands::{
     Command, CordonNodeCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig,
     GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand,
@@ -555,6 +557,11 @@ impl BgWorker {
             let command = CordonNodeCommand::new(client.get_client(), name, unschedulable, self.footer_tx.clone());
             self.executor.run_task(Command::CordonNode(Box::new(command)));
         }
+    }
+
+    /// Sends a drain node command to the background executor.
+    pub fn drain_node(&mut self, node: String, options: DrainOptions) {
+        // TODO!
     }
 
     /// Transfers file from/to a pod's container in the background task.

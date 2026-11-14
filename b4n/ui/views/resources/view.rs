@@ -186,6 +186,16 @@ impl ResourcesView {
         }
     }
 
+    fn ask_drain_node(&mut self, position: Option<Position>) {
+        if !self.app_data.borrow().read_only
+            && self.table.kind_plural() == NODES
+            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+        {
+            self.modal = dialogs::new_drain_node_dialog(&self.app_data, name, position);
+            self.modal.show();
+        }
+    }
+
     fn ask_sanitize_pods(&mut self, position: Option<Position>) {
         if !self.app_data.borrow().read_only && self.table.kind_plural() == PODS && self.is_deletable() {
             let namespace = &self.table.list.table.data.resource.namespace;
@@ -430,6 +440,10 @@ impl ResourcesView {
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "cordon" | "uncordon" => {
                     self.ask_node_scheduling(action == "cordon", event.position());
+                    ResponseEvent::Handled
+                },
+                "drain" => {
+                    self.ask_drain_node(event.position());
                     ResponseEvent::Handled
                 },
                 "sanitize" => {

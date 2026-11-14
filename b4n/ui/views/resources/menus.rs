@@ -302,7 +302,12 @@ fn add_resource_actions(
         )
 }
 
-fn add_node_actions(builder: ActionsListBuilder, is_unschedulable: bool) -> ActionsListBuilder {
+fn add_node_actions(mut builder: ActionsListBuilder, is_unschedulable: bool) -> ActionsListBuilder {
+    builder.add_action(
+        ActionItem::action("drain", "drain").with_description("cordons and drains highlighted node"),
+        None,
+    );
+
     if is_unschedulable {
         builder.with_action(
             ActionItem::action("uncordon", "uncordon").with_description("allows new pods to schedule"),

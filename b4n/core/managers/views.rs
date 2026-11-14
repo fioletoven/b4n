@@ -4,7 +4,8 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
-    ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
+    ALL_NAMESPACES, ContainerRef, DrainOptions, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter,
+    ResourceTag,
 };
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, InjectContainerError,
@@ -672,6 +673,13 @@ impl ViewsManager {
     pub fn cordon_node(&self, node: String, unschedulable: bool) {
         if !self.app_data.borrow().read_only {
             self.worker.borrow_mut().set_node_unschedulable(node, unschedulable);
+        }
+    }
+
+    /// Drains specified node.
+    pub fn drain_node(&self, node: String, options: DrainOptions) {
+        if !self.app_data.borrow().read_only {
+            self.worker.borrow_mut().drain_node(node, options);
         }
     }
 
