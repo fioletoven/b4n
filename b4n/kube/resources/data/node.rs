@@ -10,6 +10,7 @@ use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem};
 use crate::ui::widgets::table::Cell;
 
 const COLUMNS_NO_WITH_STATS: usize = 10;
+const UNSHEDULABLE_ICON: &str = "⊘";
 
 /// Returns [`ResourceData`] for the `nodes` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -22,10 +23,11 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let ready = status::from_conditions(object.data["status"]["conditions"].as_array());
     let is_ready = ready.is_some_and(|r| r == "Ready");
     let is_terminating = object.metadata.deletion_timestamp.is_some();
-    let scheduling_status = if object.data["spec"]["unschedulable"].as_bool() == Some(true) {
-        Some(ready.map_or_else(|| "SchedulingDisabled".to_owned(), |r| format!("{r},SchedulingDisabled")))
-    } else {
+    let is_schedulable = object.data["spec"]["unschedulable"].as_bool() != Some(true);
+    let scheduling_status = if is_schedulable {
         ready.map(String::from)
+    } else {
+        Some(ready.map_or_else(|| UNSHEDULABLE_ICON.to_owned(), |r| format!("{r} {UNSHEDULABLE_ICON}")))
     };
 
     let mut values = vec![
@@ -47,16 +49,20 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         values.push(Cell::number(mem_usage, 7));
     }
 
-    let tags = Box::new([
+    let mut tags = vec![
         ResourceTag::CpuStatistics(status["allocatable"]["cpu"].as_str().map(String::from).unwrap_or_default()),
         ResourceTag::MemoryStatistics(status["allocatable"]["memory"].as_str().map(String::from).unwrap_or_default()),
-    ]);
+    ];
+
+    if !is_schedulable {
+        tags.push(ResourceTag::Unschedulable);
+    }
 
     ResourceData {
         extra_values: values.into_boxed_slice(),
         is_ready: !is_terminating && is_ready,
         is_terminating,
-        tags,
+        tags: tags.into_boxed_slice(),
         ..Default::default()
     }
 }
