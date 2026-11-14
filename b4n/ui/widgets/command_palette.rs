@@ -290,8 +290,8 @@ impl CommandPalette {
     fn build_prev_prompt(&self) -> String {
         let mut result = String::new();
         let prompt_end = self.app_data.borrow().config.symbols.prompt.right;
-        for i in 0..self.index {
-            result.push_str(self.steps[i].select.value());
+        for step in self.steps.iter().take(self.index) {
+            result.push_str(step.select.value());
             result.push_str(prompt_end);
         }
 

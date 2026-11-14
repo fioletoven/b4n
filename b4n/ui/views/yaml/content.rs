@@ -295,8 +295,7 @@ impl Content for YamlContent {
                 let end_line = end.y.min(self.plain.len().saturating_sub(1));
 
                 let mut result = String::new();
-                for i in start_line..=end_line {
-                    let line = &self.plain[i];
+                for (i, line) in self.plain.iter().enumerate().take(end_line + 1).skip(start_line) {
                     if i == start_line && i == end_line {
                         result.push_str(substring(line, start.x, (end.x + 1).saturating_sub(start.x)));
                         if line.chars().count() < end.x + 1 {
