@@ -445,6 +445,37 @@ impl ViewsManager {
             .show_info("Selected resources marked for deletion", 3_000);
     }
 
+    /// Sanitizes all suitable pods.
+    pub fn sanitize_pods(&mut self) {
+        let data = self.app_data.borrow();
+        if !data.read_only && data.is_connected() && self.resources.kind_plural() == PODS && self.resources.is_deletable() {
+            let pods = self.resources.table.list.table.get_sanitizable_resources();
+
+            let mut grouped: HashMap<&str, Vec<(String, String)>> = HashMap::new();
+            for pod in pods {
+                if let Some(namespace) = &pod.namespace {
+                    grouped
+                        .entry(namespace)
+                        .or_default()
+                        .push((pod.name.clone(), pod.uid.clone()));
+                }
+            }
+
+            for (namespace, resources) in grouped {
+                self.worker.borrow_mut().delete_resources(
+                    resources,
+                    namespace.into(),
+                    &self.resources.get_kind(),
+                    DeleteResourcesOptions {
+                        propagation_policy: PropagationPolicy::default(),
+                        terminate_immediately: false,
+                        detach_finalizers: false,
+                    },
+                );
+            }
+        }
+    }
+
     /// Displays modal dialog for copying initial resources.
     pub fn show_missing_resources_dialog(&mut self) {
         self.resources.ask_copy_missing_resources();

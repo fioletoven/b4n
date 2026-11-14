@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, NODES, PODS, Port, ResourceRef, SECRETS, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, NODES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionItemKind, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
@@ -114,8 +114,13 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
             builder.add_menu_action(ActionItem::menu(2, '', "YAML ␝decoded␝", "decode_yaml"));
         }
 
-        if table.kind_plural() == NODES && !is_read_only {
-            builder.add_menu_action(ActionItem::menu(7, '', "shell", "open_shell"));
+        if !is_read_only && table.kind_plural() == NODES {
+            if table.has_resource_tag(&ResourceTag::Unschedulable) {
+                builder.add_menu_action(ActionItem::menu(17, '󰝦', "uncordon", "uncordon"));
+            } else {
+                builder.add_menu_action(ActionItem::menu(7, '', "shell", "open_shell"));
+                builder.add_menu_action(ActionItem::menu(17, '󰜺', "cordon", "cordon"));
+            }
         }
 
         if is_containers || is_pods {
@@ -234,6 +239,13 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         );
     }
 
+    if is_pods && !is_read_only && table.list.table.data.is_deletable {
+        builder.add_action(
+            ActionItem::action("sanitize", "sanitize").with_description("deletes all succeeded and failed pods"),
+            Some(KeyCommand::SanitizePods),
+        );
+    }
+
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers, is_read_only);
 
@@ -247,7 +259,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
         }
 
         if table.kind_plural() == NODES && !is_read_only {
-            builder = add_node_actions(builder);
+            builder = add_node_actions(builder, table.has_resource_tag(&ResourceTag::Unschedulable));
         }
     }
 
@@ -290,20 +302,23 @@ fn add_resource_actions(
         )
 }
 
-fn add_node_actions(builder: ActionsListBuilder) -> ActionsListBuilder {
-    builder
-        .with_action(
-            ActionItem::action("shell", "open_shell").with_description("opens privileged node shell"),
-            Some(KeyCommand::ShellOpen),
-        )
-        .with_action(
-            ActionItem::action("cordon", "cordon").with_description("prevents new pods from scheduling"),
-            Some(KeyCommand::NodeCordon),
-        )
-        .with_action(
+fn add_node_actions(builder: ActionsListBuilder, is_unschedulable: bool) -> ActionsListBuilder {
+    if is_unschedulable {
+        builder.with_action(
             ActionItem::action("uncordon", "uncordon").with_description("allows new pods to schedule"),
             Some(KeyCommand::NodeUncordon),
         )
+    } else {
+        builder
+            .with_action(
+                ActionItem::action("shell", "open_shell").with_description("opens privileged node shell"),
+                Some(KeyCommand::ShellOpen),
+            )
+            .with_action(
+                ActionItem::action("cordon", "cordon").with_description("prevents new pods from scheduling"),
+                Some(KeyCommand::NodeCordon),
+            )
+    }
 }
 
 fn add_ephemeral_container_actions(builder: ActionsListBuilder) -> ActionsListBuilder {

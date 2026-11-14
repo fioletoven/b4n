@@ -173,11 +173,23 @@ impl ResourcesView {
         }
     }
 
+    /// Returns `true` if resources in the view can be deleted.
+    pub fn is_deletable(&self) -> bool {
+        !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable
+    }
+
     /// Shows delete resources dialog if anything is selected.
     pub fn ask_delete_resources(&mut self) {
-        let can_delete = !self.app_data.borrow().read_only && self.table.list.table.data.is_deletable;
-        if can_delete && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
+        if self.is_deletable() && self.table.list.table.is_anything_selected() && !self.table.has_containers() {
             self.modal = dialogs::new_delete_dialog(&self.app_data, self.last_mouse_click.take());
+            self.modal.show();
+        }
+    }
+
+    fn ask_sanitize_pods(&mut self, position: Option<Position>) {
+        if !self.app_data.borrow().read_only && self.table.kind_plural() == PODS && self.is_deletable() {
+            let namespace = &self.table.list.table.data.resource.namespace;
+            self.modal = dialogs::new_sanitize_dialog(&self.app_data, position, namespace.as_str());
             self.modal.show();
         }
     }
@@ -338,7 +350,7 @@ impl ResourcesView {
                     Some(ResponseEvent::RunPlugin(plugin.id, context))
                 },
 
-                ResponseEvent::CordonNode(_, _) => Some(response),
+                ResponseEvent::CordonNode(_, _) | ResponseEvent::SanitizePods => Some(response),
                 _ => Some(ResponseEvent::Handled),
             };
         }
@@ -418,6 +430,10 @@ impl ResourcesView {
                 "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
                 "cordon" | "uncordon" => {
                     self.ask_node_scheduling(action == "cordon", event.position());
+                    ResponseEvent::Handled
+                },
+                "sanitize" => {
+                    self.ask_sanitize_pods(event.position());
                     ResponseEvent::Handled
                 },
                 "port_forward" => {
@@ -760,6 +776,11 @@ impl View for ResourcesView {
 
         if self.app_data.has_binding(event, KeyCommand::NavigateDelete) {
             self.ask_delete_resources();
+            return ResponseEvent::Handled;
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::SanitizePods) {
+            self.ask_sanitize_pods(event.position());
             return ResponseEvent::Handled;
         }
 

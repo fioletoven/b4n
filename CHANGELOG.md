@@ -5,6 +5,7 @@
 ### Features
 
 - add shell, cordon and uncordon actions in nodes view
+- add sanitize action in pods view
 
 ### Bug Fixes
 

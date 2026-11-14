@@ -203,6 +203,14 @@ impl ResourcesTable {
             .is_some_and(ResourceItem::is_running)
     }
 
+    /// Returns `true` if currently highlighted resource has specified tag.
+    pub fn has_resource_tag(&self, tag: &ResourceTag) -> bool {
+        self.list
+            .table
+            .get_highlighted_resource()
+            .is_some_and(|r| r.data.as_ref().is_some_and(|d| d.tags.contains(tag)))
+    }
+
     /// Returns tags for currently highlighted item.
     pub fn get_resource_tags(&self) -> Vec<ResourceTag> {
         self.list
@@ -434,6 +442,7 @@ impl ResourcesTable {
 
             if self.kind_plural() == NODES
                 && !self.app_data.borrow().read_only
+                && !self.has_resource_tag(&ResourceTag::Unschedulable)
                 && self.app_data.has_binding(event, KeyCommand::ShellOpen)
             {
                 return ResponseEvent::OpenNodeShell(resource.name.clone());

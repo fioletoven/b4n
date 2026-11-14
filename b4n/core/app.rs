@@ -268,6 +268,7 @@ impl App {
             ResponseEvent::ChangeSymbols(symbols) => self.process_symbols_change(symbols),
             ResponseEvent::AskDeleteResources => self.views_manager.ask_delete_resources(),
             ResponseEvent::DeleteResources(policy, force, detach) => self.views_manager.delete_resources(policy, force, detach),
+            ResponseEvent::SanitizePods => self.views_manager.sanitize_pods(),
             ResponseEvent::NewYaml(resource, is_full) => self.request_yaml_template(resource, is_full),
             ResponseEvent::ViewYaml(resource, decode, edit) => self.request_yaml(resource, decode, edit),
             ResponseEvent::ViewLogs(resource, containers) => self.views_manager.show_logs(resource, containers, false),

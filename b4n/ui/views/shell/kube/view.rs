@@ -260,11 +260,11 @@ impl ShellView {
                     self.ask_transfer_file(false)
                 },
                 "detach" => {
-                    if self.mode == ShellMode::Shell {
+                    if self.is_attach() {
+                        ResponseEvent::Cancelled
+                    } else {
                         self.last_mouse_click = event.position();
                         self.ask_close_shell_forcibly()
-                    } else {
-                        ResponseEvent::Cancelled
                     }
                 },
                 _ => response,
@@ -342,13 +342,19 @@ impl ShellView {
         ResponseEvent::Handled
     }
 
-    /// Creates new close dialog.
+    /// Creates new close shell dialog.
     fn new_close_dialog(&mut self) -> Dialog {
         let colors = &self.app_data.borrow().theme.colors.modal;
-        Dialog::new(
+        let msg = if self.mode == ShellMode::Node {
+            "You are about to close the node shell view. \
+             This will terminate the temporary pod that provides privileged access to the node."
+        } else {
             "You are about to close the shell view without terminating the running shell process. \
-             It will keep running in the background until you stop it manually. Type 'exit' to close it gracefully."
-                .to_owned(),
+             The process will keep running in the background until you stop it manually.\n\n\
+             To close it gracefully, type 'exit' in the shell."
+        };
+        Dialog::new(
+            msg.to_owned(),
             vec![
                 Button::new("Close Anyway", ResponseEvent::Action("detach"), colors.btn_delete.clone()),
                 Button::new("Cancel", ResponseEvent::Action("cancel"), colors.btn_cancel.clone()),
@@ -641,10 +647,10 @@ impl View for ShellView {
         if self.alt_mode.consume_active() {
             self.update_hint();
             if self.app_data.has_binding(event, KeyCommand::ShellEscape) {
-                return if self.mode == ShellMode::Shell {
-                    self.ask_close_shell_forcibly()
-                } else {
+                return if self.is_attach() {
                     ResponseEvent::Cancelled
+                } else {
+                    self.ask_close_shell_forcibly()
                 };
             }
 

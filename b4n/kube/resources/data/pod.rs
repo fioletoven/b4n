@@ -26,6 +26,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let node = spec["nodeName"].as_str();
     let is_completed = if let Some(ph) = &phase { *ph == "Succeeded" } else { false };
     let is_terminating = object.metadata.deletion_timestamp.is_some();
+    let is_sanitizable = matches!(status["phase"].as_str(), Some("Succeeded" | "Failed")) && !is_terminating;
 
     let (ready_str, is_ready) = if let Some(ready) = ready {
         (Some(ready.0), ready.1)
@@ -68,6 +69,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
         is_completed,
         is_ready: !is_terminating && is_ready,
         is_terminating,
+        is_sanitizable,
         tags: get_container_tags(object),
     }
 }

@@ -242,4 +242,5 @@ pub enum ResourceTag {
     CpuStatistics(String),
     MemoryStatistics(String),
     Scope(Scope),
+    Unschedulable,
 }

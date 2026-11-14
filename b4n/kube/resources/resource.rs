@@ -230,6 +230,11 @@ impl ResourceItem {
             .is_some_and(|d| d.is_ready && !d.is_completed && !d.is_terminating)
     }
 
+    /// Returns `true` if resource is a sanitizable pod.
+    pub fn is_sanitizable(&self) -> bool {
+        self.data.as_ref().is_some_and(|d| d.is_sanitizable)
+    }
+
     fn get_extra_values(&self) -> Option<&[Cell]> {
         self.data.as_ref().map(|data| &*data.extra_values)
     }
