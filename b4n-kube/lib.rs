@@ -7,6 +7,7 @@ pub use self::core::{
     ResourceRefFilter, ResourceTag, is_builtin_api_group,
 };
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
+pub use self::pod_wait::wait_for_deletion;
 pub use self::watcher::{BgObserver, BgObserverError, BgObserverState, InitData, ObserverResult};
 pub use kube::discovery::Scope;
 
@@ -20,4 +21,5 @@ pub mod utils;
 
 mod core;
 mod discovery;
+mod pod_wait;
 mod watcher;

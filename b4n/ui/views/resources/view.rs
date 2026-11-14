@@ -14,10 +14,8 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
-use crate::ui::views::common::update_read_only_icon;
-use crate::ui::views::resources::table::ResourcesTable;
-use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
-use crate::ui::views::{View, transfer};
+use crate::ui::views::resources::{NextRefreshActions, dialogs, dialogs::build_drain_node_options, menus, table::ResourcesTable};
+use crate::ui::views::{View, common::update_read_only_icon, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
@@ -334,6 +332,7 @@ impl ResourcesView {
                         self.show_file_picker(action == "select_remote_file");
                         Some(ResponseEvent::Handled)
                     },
+                    "drain" => Some(self.drain_highlighted_node()),
                     "transfer_file" => {
                         if let Some(resource) = self.table.get_resource_ref(false)
                             && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
@@ -648,6 +647,16 @@ impl ResourcesView {
             .table
             .table
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
+    }
+
+    fn drain_highlighted_node(&self) -> ResponseEvent {
+        if let Some(options) = build_drain_node_options(&self.modal)
+            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+        {
+            ResponseEvent::DrainNode(name.to_owned(), options)
+        } else {
+            ResponseEvent::Handled
+        }
     }
 
     fn install_assets(&self, install: bool) -> ResponseEvent {

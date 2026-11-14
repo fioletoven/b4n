@@ -1,6 +1,6 @@
 use b4n_config::{PluginInputType, PluginRef};
 use b4n_kube::plugins::PluginContext;
-use b4n_kube::{ResourceRef, ResourceTag};
+use b4n_kube::{DrainOptions, ResourceRef, ResourceTag};
 use b4n_tui::widgets::{Button, CheckBox, Dialog, Selector, TextBox, ValidatorKind};
 use b4n_tui::{EphemeralContainer, ResponseEvent};
 use ratatui::layout::Position;
@@ -333,4 +333,27 @@ pub fn build_inject_container_response(modal: &Dialog, resource: ResourceRef) ->
             .map(String::from),
     };
     ResponseEvent::InjectContainer(resource, container)
+}
+
+/// Returns new [`DrainOptions`] object built from the properties set in the modal dialog.
+pub fn build_drain_node_options(modal: &Dialog) -> Option<DrainOptions> {
+    let grace = modal
+        .textbox(0)
+        .map(|t| t.value())
+        .filter(|v| !v.is_empty())
+        .map(str::parse::<u32>)
+        .transpose();
+    let timeout = modal.textbox(1).map(|t| t.value()).unwrap_or("").parse::<u32>();
+
+    match (grace, timeout) {
+        (Ok(grace_period_seconds), Ok(timeout_seconds)) => Some(DrainOptions {
+            grace_period_seconds,
+            timeout_seconds,
+            ignore_daemonsets: modal.checkbox(0).is_some_and(|c| c.is_checked),
+            delete_empty_dir_data: modal.checkbox(1).is_some_and(|c| c.is_checked),
+            force: modal.checkbox(2).is_some_and(|c| c.is_checked),
+            disable_eviction: modal.checkbox(3).is_some_and(|c| c.is_checked),
+        }),
+        _ => None,
+    }
 }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub use self::cordon_node::CordonNodeCommand;
 pub use self::create_node_shell::{CreateNodeShellCommand, CreateNodeShellError};
 pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions};
+pub use self::drain_node::DrainNodeCommand;
 pub use self::get_new_yaml::{GetNewResourceYamlCommand, GetNewResourceYamlError, GetNewResourceYamlResult};
 pub use self::get_yaml::{GetResourceYamlCommand, ResourceYamlError, ResourceYamlResult};
 pub use self::inject_container::{EphemeralContainerConfig, InjectContainerCommand, InjectContainerError, SecurityProfile};
@@ -26,6 +27,7 @@ pub use self::transfer_file::{TransferFileCommand, TransferFileError, TransferFi
 mod cordon_node;
 mod create_node_shell;
 mod delete_resources;
+mod drain_node;
 mod get_new_yaml;
 mod get_yaml;
 mod inject_container;
@@ -60,6 +62,7 @@ pub enum Command {
     InjectContainer(Box<InjectContainerCommand>),
     CreateNodeShell(Box<CreateNodeShellCommand>),
     CordonNode(Box<CordonNodeCommand>),
+    DrainNode(Box<DrainNodeCommand>),
     TransferFile(Box<TransferFileCommand>),
 }
 

@@ -13,10 +13,10 @@ use b4n_kube::{
     BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, DrainOptions, Kind, NAMESPACES, Namespace, PODS, ResourceRef,
 };
 use b4n_tasks::commands::{
-    Command, CordonNodeCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, EphemeralContainerConfig,
-    GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand, InstallMissingResourcesCommand,
-    ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand, SetNewResourceYamlCommand,
-    SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions, TransferFileCommand,
+    Command, CordonNodeCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, DrainNodeCommand,
+    EphemeralContainerConfig, GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand,
+    InstallMissingResourcesCommand, ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand,
+    SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions, TransferFileCommand,
 };
 use b4n_tasks::{BgExecutor, TaskResult};
 use b4n_tasks::{BgHighlighter, HighlightRequest, PortForwarder};
@@ -560,8 +560,11 @@ impl BgWorker {
     }
 
     /// Sends a drain node command to the background executor.
-    pub fn drain_node(&mut self, node: String, options: DrainOptions) {
-        // TODO!
+    pub fn drain_node(&mut self, name: String, options: DrainOptions) {
+        if let Some(client) = &self.client {
+            let command = DrainNodeCommand::new(client.get_client(), name, options, self.footer_tx.clone());
+            self.executor.run_task(Command::DrainNode(Box::new(command)));
+        }
     }
 
     /// Transfers file from/to a pod's container in the background task.
