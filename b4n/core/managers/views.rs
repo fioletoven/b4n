@@ -449,7 +449,7 @@ impl ViewsManager {
     /// Sanitizes all suitable pods.
     pub fn sanitize_pods(&mut self) {
         let data = self.app_data.borrow();
-        if !data.read_only && data.is_connected() && self.resources.kind_plural() == PODS && self.resources.is_deletable() {
+        if !data.read_only && data.is_connected() && self.resources.table.is_pods() && self.resources.is_deletable() {
             let pods = self.resources.table.list.table.get_sanitizable_resources();
 
             let mut grouped: HashMap<&str, Vec<(String, String)>> = HashMap::new();

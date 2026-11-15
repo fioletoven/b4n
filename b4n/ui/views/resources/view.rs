@@ -1,6 +1,6 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
+use b4n_kube::{CONTAINERS, EVENTS, Kind, Namespace, ObserverResult, Port, ResourceRef};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
@@ -144,10 +144,10 @@ impl ResourcesView {
             return;
         }
 
-        if self.table.kind_plural() == PODS {
+        if self.table.is_pods() {
             pod::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
-        } else if self.table.kind_plural() == NODES {
+        } else if self.table.is_nodes() {
             node::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
         }
@@ -186,7 +186,7 @@ impl ResourcesView {
 
     fn ask_drain_node(&mut self, position: Option<Position>) {
         if !self.app_data.borrow().read_only
-            && self.table.kind_plural() == NODES
+            && self.table.is_nodes()
             && let Some(name) = self.table.list.table.get_highlighted_item_name()
         {
             self.modal = dialogs::new_drain_node_dialog(&self.app_data, name, position);
@@ -195,7 +195,7 @@ impl ResourcesView {
     }
 
     fn ask_sanitize_pods(&mut self, position: Option<Position>) {
-        if !self.app_data.borrow().read_only && self.table.kind_plural() == PODS && self.is_deletable() {
+        if !self.app_data.borrow().read_only && self.table.is_pods() && self.is_deletable() {
             let namespace = &self.table.list.table.data.resource.namespace;
             self.modal = dialogs::new_sanitize_dialog(&self.app_data, position, namespace.as_str());
             self.modal.show();
@@ -223,7 +223,7 @@ impl ResourcesView {
 
     /// Shows changing node scheduling dialog.
     fn ask_node_scheduling(&mut self, unschedulable: bool, position: Option<Position>) {
-        let can_cordon = !self.app_data.borrow().read_only && self.table.kind_plural() == NODES;
+        let can_cordon = !self.app_data.borrow().read_only && self.table.is_nodes();
         if can_cordon && let Some(name) = self.table.list.table.get_highlighted_item_name().map(String::from) {
             self.modal = dialogs::new_cordon_dialog(&self.app_data, position, name, unschedulable);
             self.modal.show();
@@ -679,7 +679,7 @@ impl ResourcesView {
     }
 
     fn update_port_forwards(&mut self) {
-        if self.table.kind_plural() == PODS {
+        if self.table.is_pods() {
             let namespace = &self.table.list.table.data.resource.namespace;
             let worker = &mut self.worker.borrow_mut();
             let new_list = worker.get_port_forward_refs(namespace);
@@ -870,13 +870,13 @@ impl View for ResourcesView {
         }
 
         if is_highlighted {
-            if self.kind_plural() == PODS
+            if self.table.is_pods()
                 && let Some(response) = self.process_pod_event(event)
             {
                 return response;
             }
 
-            if self.kind_plural() == NODES
+            if self.table.is_nodes()
                 && let Some(response) = self.process_node_event(event)
             {
                 return response;

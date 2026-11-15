@@ -1,5 +1,5 @@
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, NODES, PODS, Port, ResourceRef, ResourceTag, SECRETS, Scope};
+use b4n_kube::{ALL_NAMESPACES, CONTAINERS, EVENTS, NAMESPACES, Port, ResourceRef, ResourceTag, SECRETS, Scope};
 use b4n_tui::table::Table;
 use b4n_tui::widgets::{ActionItem, ActionItemKind, ActionsList, ActionsListBuilder, ValidatorKind};
 use b4n_tui::{PluginsExt, ResponseEvent};
@@ -78,8 +78,8 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
     let is_selected = table.list.table.is_anything_selected();
     let highlighted_name = table.list.table.get_highlighted_item_name();
     let is_highlighted = highlighted_name.is_some_and(|n| n != ALL_NAMESPACES);
+    let is_pods = table.is_pods();
     let is_containers = table.kind_plural() == CONTAINERS;
-    let is_pods = table.kind_plural() == PODS;
     let is_events = table.kind_plural() == EVENTS;
 
     let copy = if is_selected { "selected" } else { "all" };
@@ -114,7 +114,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
             builder.add_menu_action(ActionItem::menu(2, '', "YAML ␝decoded␝", "decode_yaml"));
         }
 
-        if !is_read_only && table.kind_plural() == NODES {
+        if !is_read_only && table.is_nodes() {
             builder.add_menu_action(ActionItem::menu(18, '󰮓', "drain", "drain"));
             if table.has_resource_tag(&ResourceTag::Unschedulable) {
                 builder.add_menu_action(ActionItem::menu(17, '󰝦', "uncordon", "uncordon"));
@@ -173,8 +173,8 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     let is_read_only = app_data.borrow().read_only;
     let is_selected = table.list.table.is_anything_selected();
     let is_highlighted = table.list.table.is_anything_highlighted();
+    let is_pods = table.is_pods();
     let is_containers = table.kind_plural() == CONTAINERS;
-    let is_pods = table.kind_plural() == PODS;
     let is_events = table.kind_plural() == EVENTS;
     let is_deletable = is_selected && table.list.table.data.is_deletable;
 
@@ -259,7 +259,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
             builder = add_container_actions(builder, is_pods, is_read_only);
         }
 
-        if table.kind_plural() == NODES && !is_read_only {
+        if !is_read_only && table.is_nodes() {
             builder = add_node_actions(builder, table.has_resource_tag(&ResourceTag::Unschedulable));
         }
     }
