@@ -115,6 +115,7 @@ pub fn build_mouse_menu_actions(table: &ResourcesTable, is_read_only: bool) -> A
         }
 
         if !is_read_only && table.kind_plural() == NODES {
+            builder.add_menu_action(ActionItem::menu(18, '󰮓', "drain", "drain"));
             if table.has_resource_tag(&ResourceTag::Unschedulable) {
                 builder.add_menu_action(ActionItem::menu(17, '󰝦', "uncordon", "uncordon"));
             } else {
@@ -242,7 +243,7 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     if is_pods && !is_read_only && table.list.table.data.is_deletable {
         builder.add_action(
             ActionItem::action("sanitize", "sanitize").with_description("deletes all succeeded and failed pods"),
-            Some(KeyCommand::SanitizePods),
+            Some(KeyCommand::PodsSanitize),
         );
     }
 
@@ -305,7 +306,7 @@ fn add_resource_actions(
 fn add_node_actions(mut builder: ActionsListBuilder, is_unschedulable: bool) -> ActionsListBuilder {
     builder.add_action(
         ActionItem::action("drain", "drain").with_description("cordons and drains highlighted node"),
-        None,
+        Some(KeyCommand::NodeDrain),
     );
 
     if is_unschedulable {

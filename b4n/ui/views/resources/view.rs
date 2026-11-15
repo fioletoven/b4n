@@ -730,6 +730,11 @@ impl ResourcesView {
             return Some(ResponseEvent::Handled);
         }
 
+        if self.app_data.has_binding(event, KeyCommand::NodeDrain) {
+            self.ask_drain_node(None);
+            return Some(ResponseEvent::Handled);
+        }
+
         None
     }
 }
@@ -802,7 +807,7 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::SanitizePods) {
+        if self.app_data.has_binding(event, KeyCommand::PodsSanitize) {
             self.ask_sanitize_pods(event.position());
             return ResponseEvent::Handled;
         }
