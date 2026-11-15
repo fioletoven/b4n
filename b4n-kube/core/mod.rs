@@ -13,12 +13,14 @@ pub const CRDS: &str = "customresourcedefinitions";
 pub const PVC: &str = "persistentvolumeclaims";
 pub const PV: &str = "persistentvolumes";
 
+pub use self::drain_options::DrainOptions;
 pub use self::kind::{CORE_VERSION, Kind};
 pub use self::namespace::{ALL_NAMESPACES, NAMESPACES, Namespace};
 pub use self::ports::{Port, PortProtocol};
 pub use self::propagation_policy::PropagationPolicy;
 pub use self::resource_ref::{ContainerRef, ContainerType, ResourceRef, ResourceRefFilter, ResourceTag};
 
+mod drain_options;
 mod kind;
 mod namespace;
 mod ports;

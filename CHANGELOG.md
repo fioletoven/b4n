@@ -1,16 +1,17 @@
 # Change Log
 
-## WIP
+## 1.4.0 - 2026-11-15
 
 ### Features
 
-- add shell, cordon and uncordon actions in nodes view
-- add sanitize action in pods view
+- add shell, cordon, uncordon and drain actions to nodes view
+- add sanitize action to pods view
 
 ### Bug Fixes
 
 - fix `detach shell` action in escape mode
 - respect kubeconfig `insecure-skip-tls-verify` setting when `--insecure` is not provided
+- fix statistics update (pods, containers count) in node view
 
 ## 1.3.0 - 2026-10-29
 

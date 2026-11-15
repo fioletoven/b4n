@@ -195,6 +195,16 @@ impl ResourcesTable {
         }
     }
 
+    /// Returns `true` if this resources table shows nodes.
+    pub fn is_nodes(&self) -> bool {
+        self.kind_plural() == NODES && self.group().is_empty()
+    }
+
+    /// Returns `true` if this resources table shows pods.
+    pub fn is_pods(&self) -> bool {
+        self.kind_plural() == PODS && self.group().is_empty()
+    }
+
     /// Returns `true` if currently highlighted resource is in running state.
     pub fn is_resource_running(&self) -> bool {
         self.list
@@ -440,7 +450,7 @@ impl ResourcesTable {
                 return self.process_view_yaml(resource, true, true);
             }
 
-            if self.kind_plural() == NODES
+            if self.is_nodes()
                 && !self.app_data.borrow().read_only
                 && !self.has_resource_tag(&ResourceTag::Unschedulable)
                 && self.app_data.has_binding(event, KeyCommand::ShellOpen)
@@ -448,7 +458,7 @@ impl ResourcesTable {
                 return ResponseEvent::OpenNodeShell(resource.name.clone());
             }
 
-            if is_container || self.kind_plural() == PODS {
+            if is_container || self.is_pods() {
                 let is_multiple = !is_container && resource.data.as_ref().is_some_and(|d| d.tags.len() > 1);
                 if self.app_data.has_binding(event, KeyCommand::LogsOpen) {
                     return self.process_view_logs(resource, !is_multiple, false);

@@ -1,6 +1,6 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{CONTAINERS, EVENTS, Kind, NODES, Namespace, ObserverResult, PODS, Port, ResourceRef};
+use b4n_kube::{CONTAINERS, EVENTS, Kind, Namespace, ObserverResult, Port, ResourceRef, ResourceTag};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
@@ -14,10 +14,8 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 use crate::core::{PreviousData, SharedAppData, SharedAppDataExt, SharedBgWorker};
 use crate::kube::extensions::ActionsListBuilderExt;
 use crate::kube::resources::{ResourceItem, ResourcesList, node, pod};
-use crate::ui::views::common::update_read_only_icon;
-use crate::ui::views::resources::table::ResourcesTable;
-use crate::ui::views::resources::{NextRefreshActions, dialogs, menus};
-use crate::ui::views::{View, transfer};
+use crate::ui::views::resources::{NextRefreshActions, dialogs, dialogs::build_drain_node_options, menus, table::ResourcesTable};
+use crate::ui::views::{View, common::update_read_only_icon, transfer};
 use crate::ui::widgets::{CommandPalette, FileSelector, Filter, NamespaceSelector};
 
 /// Resources view (main view) for `b4n`.
@@ -146,10 +144,10 @@ impl ResourcesView {
             return;
         }
 
-        if self.table.kind_plural() == PODS {
+        if self.table.is_pods() {
             pod::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
-        } else if self.table.kind_plural() == NODES {
+        } else if self.table.is_nodes() {
             node::update_statistics(self.table.list.table.table.list.full_iter_mut(), &stats);
             self.table.list.table.resort();
         }
@@ -186,8 +184,18 @@ impl ResourcesView {
         }
     }
 
+    fn ask_drain_node(&mut self, position: Option<Position>) {
+        if !self.app_data.borrow().read_only
+            && self.table.is_nodes()
+            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+        {
+            self.modal = dialogs::new_drain_node_dialog(&self.app_data, name, position);
+            self.modal.show();
+        }
+    }
+
     fn ask_sanitize_pods(&mut self, position: Option<Position>) {
-        if !self.app_data.borrow().read_only && self.table.kind_plural() == PODS && self.is_deletable() {
+        if !self.app_data.borrow().read_only && self.table.is_pods() && self.is_deletable() {
             let namespace = &self.table.list.table.data.resource.namespace;
             self.modal = dialogs::new_sanitize_dialog(&self.app_data, position, namespace.as_str());
             self.modal.show();
@@ -215,7 +223,7 @@ impl ResourcesView {
 
     /// Shows changing node scheduling dialog.
     fn ask_node_scheduling(&mut self, unschedulable: bool, position: Option<Position>) {
-        let can_cordon = !self.app_data.borrow().read_only && self.table.kind_plural() == NODES;
+        let can_cordon = !self.app_data.borrow().read_only && self.table.is_nodes();
         if can_cordon && let Some(name) = self.table.list.table.get_highlighted_item_name().map(String::from) {
             self.modal = dialogs::new_cordon_dialog(&self.app_data, position, name, unschedulable);
             self.modal.show();
@@ -281,189 +289,6 @@ impl ResourcesView {
                 .with_highlighted_position(self.last_mouse_click.take());
             self.command_palette.show();
         }
-    }
-
-    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
-        if self.file_picker.is_visible {
-            if self.modal.is_visible && self.file_picker.process_event(event) == ResponseEvent::Accepted {
-                transfer::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
-            }
-
-            return Some(ResponseEvent::Handled);
-        }
-
-        if self.command_palette.is_visible {
-            let result = self.process_command_palette_event(event);
-            if self.modal.is_visible && result.is_action("image_selected") {
-                if let Some(textbox) = self.modal.textbox_mut(1) {
-                    textbox.set_value(self.command_palette.selected());
-                }
-                return Some(ResponseEvent::Handled);
-            }
-            if result != ResponseEvent::NotHandled {
-                return Some(result);
-            }
-        }
-
-        if self.modal.is_visible {
-            let response = self.modal.process_event(event);
-            return match response {
-                ResponseEvent::Action(action) => match action {
-                    "read_write" => {
-                        self.app_data.borrow_mut().read_only = false;
-                        update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
-                        Some(ResponseEvent::Handled)
-                    },
-                    "delete" => Some(ResponseEvent::DeleteResources(
-                        self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
-                        self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
-                        self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
-                    )),
-                    "stop_port_forwards" => Some(self.stop_port_forwards()),
-                    "select_file" | "select_remote_file" => {
-                        self.show_file_picker(action == "select_remote_file");
-                        Some(ResponseEvent::Handled)
-                    },
-                    "transfer_file" => {
-                        if let Some(resource) = self.table.get_resource_ref(false)
-                            && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
-                        {
-                            Some(ResponseEvent::TransferFile(resource.into(), context))
-                        } else {
-                            Some(ResponseEvent::Handled)
-                        }
-                    },
-                    "select_image" => {
-                        self.show_image_select_palette();
-                        Some(ResponseEvent::Handled)
-                    },
-                    "inject" => Some(self.table.get_resource_ref(false).map_or(ResponseEvent::Handled, |resource| {
-                        dialogs::build_inject_container_response(&self.modal, resource)
-                    })),
-                    "install_assets" => Some(self.install_assets(true)),
-                    "install_cancel" => Some(self.install_assets(false)),
-                    _ => Some(ResponseEvent::Handled),
-                },
-
-                ResponseEvent::PluginAction(plugin) => {
-                    let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
-                    Some(ResponseEvent::RunPlugin(plugin.id, context))
-                },
-
-                ResponseEvent::CordonNode(_, _) | ResponseEvent::SanitizePods => Some(response),
-                _ => Some(ResponseEvent::Handled),
-            };
-        }
-
-        if self.filter.is_visible {
-            let result = self.filter.process_event(event);
-            if self.filter.is_valid() {
-                self.table.set_filter(self.filter.value());
-                self.filter.update_pinned_filter();
-            }
-
-            return Some(result);
-        }
-
-        if self.namespace_picker.is_visible {
-            return Some(self.namespace_picker.process_event(event));
-        }
-
-        None
-    }
-
-    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        let response = self.command_palette.process_event(event);
-        if response == ResponseEvent::AskDeleteResources {
-            self.last_mouse_click = event.position();
-        } else if let ResponseEvent::PluginAction(plugin) = response {
-            if plugin.confirm | plugin.inputs {
-                self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
-                self.modal.show();
-                return ResponseEvent::Handled;
-            }
-            let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
-            return ResponseEvent::RunPlugin(plugin.id, context);
-        } else if let ResponseEvent::Action(action) = response {
-            return match action {
-                "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
-                "copy" => self.process_event(&TuiEvent::Command(KeyCommand::ContentCopy)),
-                "copy_name" => {
-                    self.copy_name_to_clipboard();
-                    ResponseEvent::Handled
-                },
-                "palette" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
-                },
-                "filter" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
-                },
-                "pin_filter" => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
-                "ro_toggle" => self.process_event(&TuiEvent::Command(KeyCommand::ReadOnlyToggle)),
-                "create" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
-                },
-                "show_events" => self.table.process_event(&TuiEvent::Command(KeyCommand::EventsShow)),
-                "show_involved" => self.table.process_event(&TuiEvent::Command(KeyCommand::InvolvedObjectShow)),
-                "show_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
-                "edit_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlEdit)),
-                "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
-                "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
-                "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
-                "describe" => self.table.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen)),
-                "inject" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::ContainerInject))
-                },
-                "download" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::TransferFrom))
-                },
-                "upload" => {
-                    self.last_mouse_click = event.position();
-                    self.process_event(&TuiEvent::Command(KeyCommand::TransferTo))
-                },
-                "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
-                "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
-                "cordon" | "uncordon" => {
-                    self.ask_node_scheduling(action == "cordon", event.position());
-                    ResponseEvent::Handled
-                },
-                "sanitize" => {
-                    self.ask_sanitize_pods(event.position());
-                    ResponseEvent::Handled
-                },
-                "port_forward" => {
-                    self.last_mouse_click = event.position();
-                    self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
-                },
-                "ask_stop_port_forwards" => {
-                    self.last_mouse_click = event.position();
-                    self.ask_stop_port_forwards();
-                    ResponseEvent::Handled
-                },
-                "new_clone" => self.create_new_resource(true, false),
-                "new_full" => self.create_new_resource(false, true),
-                "new_minimal" => self.create_new_resource(false, false),
-                _ => response,
-            };
-        }
-
-        response
-    }
-
-    fn process_disconnected_event(&mut self, event: &TuiEvent) -> ResponseEvent {
-        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
-            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
-        {
-            self.show_command_palette();
-            return ResponseEvent::Handled;
-        }
-
-        ResponseEvent::NotHandled
     }
 
     fn show_command_palette(&mut self) {
@@ -636,6 +461,16 @@ impl ResourcesView {
             .get_mouse_menu_position(line_no, resource_name, self.table.list.area)
     }
 
+    fn drain_highlighted_node(&self) -> ResponseEvent {
+        if let Some(options) = build_drain_node_options(&self.modal)
+            && let Some(name) = self.table.list.table.get_highlighted_item_name()
+        {
+            ResponseEvent::DrainNode(name.to_owned(), options)
+        } else {
+            ResponseEvent::Handled
+        }
+    }
+
     fn install_assets(&self, install: bool) -> ResponseEvent {
         if install {
             let symbols_selector = self.modal.selector(0);
@@ -656,7 +491,7 @@ impl ResourcesView {
     }
 
     fn update_port_forwards(&mut self) {
-        if self.table.kind_plural() == PODS {
+        if self.table.is_pods() {
             let namespace = &self.table.list.table.data.resource.namespace;
             let worker = &mut self.worker.borrow_mut();
             let new_list = worker.get_port_forward_refs(namespace);
@@ -675,6 +510,215 @@ impl ResourcesView {
         }
 
         ResponseEvent::Handled
+    }
+
+    fn process_widget_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        if self.file_picker.is_visible {
+            if self.modal.is_visible && self.file_picker.process_event(event) == ResponseEvent::Accepted {
+                transfer::update_transfer_dialog_paths(&mut self.modal, &self.file_picker);
+            }
+
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.command_palette.is_visible {
+            let result = self.process_command_palette_event(event);
+            if self.modal.is_visible && result.is_action("image_selected") {
+                if let Some(textbox) = self.modal.textbox_mut(1) {
+                    textbox.set_value(self.command_palette.selected());
+                }
+                return Some(ResponseEvent::Handled);
+            }
+            if result != ResponseEvent::NotHandled {
+                return Some(result);
+            }
+        }
+
+        if self.modal.is_visible {
+            let response = self.modal.process_event(event);
+            return match response {
+                ResponseEvent::Action(action) => match action {
+                    "read_write" => {
+                        self.app_data.borrow_mut().read_only = false;
+                        update_read_only_icon(&self.footer_tx, &self.app_data.borrow());
+                        Some(ResponseEvent::Handled)
+                    },
+                    "delete" => Some(ResponseEvent::DeleteResources(
+                        self.modal.selector(0).map(|s| s.selected().into()).unwrap_or_default(), // policy
+                        self.modal.checkbox(0).is_some_and(|i| i.is_checked),                    // terminate immediately
+                        self.modal.checkbox(1).is_some_and(|i| i.is_checked),                    // detach finalizers
+                    )),
+                    "stop_port_forwards" => Some(self.stop_port_forwards()),
+                    "select_file" | "select_remote_file" => {
+                        self.show_file_picker(action == "select_remote_file");
+                        Some(ResponseEvent::Handled)
+                    },
+                    "drain" => Some(self.drain_highlighted_node()),
+                    "transfer_file" => {
+                        if let Some(resource) = self.table.get_resource_ref(false)
+                            && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
+                        {
+                            Some(ResponseEvent::TransferFile(resource.into(), context))
+                        } else {
+                            Some(ResponseEvent::Handled)
+                        }
+                    },
+                    "select_image" => {
+                        self.show_image_select_palette();
+                        Some(ResponseEvent::Handled)
+                    },
+                    "inject" => Some(self.table.get_resource_ref(false).map_or(ResponseEvent::Handled, |resource| {
+                        dialogs::build_inject_container_response(&self.modal, resource)
+                    })),
+                    "install_assets" => Some(self.install_assets(true)),
+                    "install_cancel" => Some(self.install_assets(false)),
+                    _ => Some(ResponseEvent::Handled),
+                },
+
+                ResponseEvent::PluginAction(plugin) => {
+                    let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+                    Some(ResponseEvent::RunPlugin(plugin.id, context))
+                },
+
+                ResponseEvent::CordonNode(_, _) | ResponseEvent::SanitizePods => Some(response),
+                _ => Some(ResponseEvent::Handled),
+            };
+        }
+
+        if self.filter.is_visible {
+            let result = self.filter.process_event(event);
+            if self.filter.is_valid() {
+                self.table.set_filter(self.filter.value());
+                self.filter.update_pinned_filter();
+            }
+
+            return Some(result);
+        }
+
+        if self.namespace_picker.is_visible {
+            return Some(self.namespace_picker.process_event(event));
+        }
+
+        None
+    }
+
+    fn process_command_palette_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        let response = self.command_palette.process_event(event);
+        if response == ResponseEvent::AskDeleteResources {
+            self.last_mouse_click = event.position();
+        } else if let ResponseEvent::PluginAction(plugin) = response {
+            if plugin.confirm | plugin.inputs {
+                self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
+                self.modal.show();
+                return ResponseEvent::Handled;
+            }
+            let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+            return ResponseEvent::RunPlugin(plugin.id, context);
+        } else if let ResponseEvent::Action(action) = response {
+            return match action {
+                "back" => self.process_event(&TuiEvent::Command(KeyCommand::NavigateBack)),
+                "copy" => self.process_event(&TuiEvent::Command(KeyCommand::ContentCopy)),
+                "copy_name" => {
+                    self.copy_name_to_clipboard();
+                    ResponseEvent::Handled
+                },
+                "palette" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::CommandPaletteOpen))
+                },
+                "filter" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::FilterOpen))
+                },
+                "pin_filter" => self.process_event(&TuiEvent::Command(KeyCommand::FilterPin)),
+                "ro_toggle" => self.process_event(&TuiEvent::Command(KeyCommand::ReadOnlyToggle)),
+                "create" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
+                },
+                "show_events" => self.table.process_event(&TuiEvent::Command(KeyCommand::EventsShow)),
+                "show_involved" => self.table.process_event(&TuiEvent::Command(KeyCommand::InvolvedObjectShow)),
+                "show_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
+                "edit_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlEdit)),
+                "decode_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlDecode)),
+                "show_logs" => self.table.process_event(&TuiEvent::Command(KeyCommand::LogsOpen)),
+                "show_plogs" => self.table.process_event(&TuiEvent::Command(KeyCommand::PreviousLogsOpen)),
+                "describe" => self.table.process_event(&TuiEvent::Command(KeyCommand::DescribeOpen)),
+                "inject" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::ContainerInject))
+                },
+                "download" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::TransferFrom))
+                },
+                "upload" => {
+                    self.last_mouse_click = event.position();
+                    self.process_event(&TuiEvent::Command(KeyCommand::TransferTo))
+                },
+                "attach" => self.table.process_event(&TuiEvent::Command(KeyCommand::ContainerAttach)),
+                "open_shell" => self.table.process_event(&TuiEvent::Command(KeyCommand::ShellOpen)),
+                "cordon" | "uncordon" => {
+                    self.ask_node_scheduling(action == "cordon", event.position());
+                    ResponseEvent::Handled
+                },
+                "drain" => {
+                    self.ask_drain_node(event.position());
+                    ResponseEvent::Handled
+                },
+                "sanitize" => {
+                    self.ask_sanitize_pods(event.position());
+                    ResponseEvent::Handled
+                },
+                "port_forward" => {
+                    self.last_mouse_click = event.position();
+                    self.table.process_event(&TuiEvent::Command(KeyCommand::PortForwardsCreate))
+                },
+                "ask_stop_port_forwards" => {
+                    self.last_mouse_click = event.position();
+                    self.ask_stop_port_forwards();
+                    ResponseEvent::Handled
+                },
+                "new_clone" => self.create_new_resource(true, false),
+                "new_full" => self.create_new_resource(false, true),
+                "new_minimal" => self.create_new_resource(false, false),
+                _ => response,
+            };
+        }
+
+        response
+    }
+
+    fn process_disconnected_event(&mut self, event: &TuiEvent) -> ResponseEvent {
+        if self.app_data.has_binding(event, KeyCommand::CommandPaletteOpen)
+            || event.is_in(MouseEventKind::RightClick, self.table.list.area)
+        {
+            self.show_command_palette();
+            return ResponseEvent::Handled;
+        }
+
+        ResponseEvent::NotHandled
+    }
+
+    fn process_plugin_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
+        let is_highlighted = self.table.list.table.is_anything_highlighted();
+        let is_selected = self.table.list.table.is_anything_selected();
+        let plugin = self
+            .app_data
+            .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)?;
+
+        if plugin.confirm && self.app_data.borrow().read_only {
+            return Some(ResponseEvent::Handled);
+        }
+
+        if plugin.confirm || plugin.inputs {
+            self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
+            self.modal.show();
+            return Some(ResponseEvent::Handled);
+        }
+
+        let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
+        Some(ResponseEvent::RunPlugin(plugin.id, context))
     }
 
     fn process_pod_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
@@ -697,13 +741,20 @@ impl ResourcesView {
     }
 
     fn process_node_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
-        if self.app_data.has_binding(event, KeyCommand::NodeCordon) {
+        let is_unschedulable = self.table.has_resource_tag(&ResourceTag::Unschedulable);
+
+        if !is_unschedulable && self.app_data.has_binding(event, KeyCommand::NodeCordon) {
             self.ask_node_scheduling(true, None);
             return Some(ResponseEvent::Handled);
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NodeUncordon) {
+        if is_unschedulable && self.app_data.has_binding(event, KeyCommand::NodeUncordon) {
             self.ask_node_scheduling(false, None);
+            return Some(ResponseEvent::Handled);
+        }
+
+        if self.app_data.has_binding(event, KeyCommand::NodeDrain) {
+            self.ask_drain_node(None);
             return Some(ResponseEvent::Handled);
         }
 
@@ -748,24 +799,8 @@ impl View for ResourcesView {
             return self.process_disconnected_event(event);
         }
 
-        let is_highlighted = self.table.list.table.is_anything_highlighted();
-        let is_selected = self.table.list.table.is_anything_selected();
-        if let Some(plugin) = self
-            .app_data
-            .get_plugin_binding(event, self.table.get_kind().as_str(), is_highlighted, is_selected)
-        {
-            if plugin.confirm && self.app_data.borrow().read_only {
-                return ResponseEvent::Handled;
-            }
-
-            if plugin.confirm || plugin.inputs {
-                self.modal = dialogs::new_run_plugin_dialog(&self.app_data, self.last_mouse_click.take(), plugin);
-                self.modal.show();
-                return ResponseEvent::Handled;
-            }
-
-            let context = dialogs::build_plugin_context(&self.app_data, &self.table, &self.modal, &plugin);
-            return ResponseEvent::RunPlugin(plugin.id, context);
+        if let Some(result) = self.process_plugin_event(event) {
+            return result;
         }
 
         if self.app_data.has_binding(event, KeyCommand::ContentCopy) {
@@ -779,7 +814,7 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if self.app_data.has_binding(event, KeyCommand::SanitizePods) {
+        if self.app_data.has_binding(event, KeyCommand::PodsSanitize) {
             self.ask_sanitize_pods(event.position());
             return ResponseEvent::Handled;
         }
@@ -841,14 +876,14 @@ impl View for ResourcesView {
             return ResponseEvent::Handled;
         }
 
-        if is_highlighted {
-            if self.kind_plural() == PODS
+        if self.table.list.table.is_anything_highlighted() {
+            if self.table.is_pods()
                 && let Some(response) = self.process_pod_event(event)
             {
                 return response;
             }
 
-            if self.kind_plural() == NODES
+            if self.table.is_nodes()
                 && let Some(response) = self.process_node_event(event)
             {
                 return response;

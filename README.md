@@ -100,6 +100,8 @@ The resulting binary will be available at `./target/release/b4n`.
 - Enable port forwarding for the highlighted container.
 - Inject an ephemeral container into the highlighted pod.
 - Transfer files to and from containers (requires `tar` executable on the container).
+- Cordon, uncordon and drain nodes.
+- Sanitize completed and failed pods (matching the active filter).
 - Run external binaries configured in a simple plugin system.
 - Support mouse interactions in all views.
 
@@ -110,9 +112,11 @@ The resulting binary will be available at `./target/release/b4n`.
 | Attach to the container's main process     | `a`                   | Works only in containers and pods view                      |
 | Attach to the container's shell            | `s`                   | Works only in containers and pods view                      |
 | Copy YAML / logs / resources to clipboard  | `c`                   | Works only in YAML, logs and resources views                |
+| Cordon node                                | `ALT` + `SHIFT` + `c` | Displays a confirmation dialog                              |
 | Create new resource                        | `n`                   |                                                             |
 | Decode highlighted secret                  | `x`                   |                                                             |
 | Delete selected resources                  | `CTRL` + `d`          | Displays a confirmation dialog                              |
+| Drain node                                 | `ALT` + `SHIFT` + `z` | Displays a confirmation dialog                              |
 | Enable / disable mouse support             | `CTRL` + `n`          | Not available inside a shell session                        |
 | Forward container's port                   | `f`                   | Works only in containers and pods view                      |
 | Go back to namespace view; clear filter    | `ESC`                 | Also clears input in the filter widget                      |
@@ -123,6 +127,7 @@ The resulting binary will be available at `./target/release/b4n`.
 | Pin active filter across resources         | `CTRL` + `p`          | Also works in the filter dialog                             |
 | Quit the application                       | `CTRL` + `c`          | No confirmation dialog                                      |
 | Reverse selection                          | `CTRL` + ` `          | (`CTRL` + `SPACE`)                                          |
+| Sanitize completed / failed pods           | `ALT` + `SHIFT` + `s` | Works in pods view, displays a confirmation dialog          |  
 | Save YAML / logs to a file                 | `s`                   |                                                             |
 | Select all resources                       | `CTRL` + `a`          | Then press `CTRL` + ` ` to deselect all                     |
 | Select resource                            | ` `                   | (`SPACE`)                                                   |
@@ -142,6 +147,7 @@ The resulting binary will be available at `./target/release/b4n`.
 | Toggle read-only mode                      | `ALT` + `SHIFT` + `r` |                                                             |
 | Transfer file from the pod's container     | `CTRL` + `t`          | Allows downloading a single file or a directory             |
 | Transfer file to the pod's container       | `t`                   | Allows uploading a single file or a directory               |
+| Uncordon node                              | `ALT` + `SHIFT` + `u` | Displays a confirmation dialog                              |
 
 ## Advanced Filtering
 

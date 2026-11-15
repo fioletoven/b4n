@@ -3,10 +3,11 @@ pub use self::core::{
     REPLICA_SETS, SECRETS, SERVICES, STATEFUL_SETS,
 };
 pub use self::core::{
-    ContainerRef, ContainerType, Kind, Namespace, Port, PortProtocol, PropagationPolicy, ResourceRef, ResourceRefFilter,
-    ResourceTag, is_builtin_api_group,
+    ContainerRef, ContainerType, DrainOptions, Kind, Namespace, Port, PortProtocol, PropagationPolicy, ResourceRef,
+    ResourceRefFilter, ResourceTag, is_builtin_api_group,
 };
 pub use self::discovery::{BgDiscovery, DiscoveryList, convert_to_vector};
+pub use self::pod_wait::wait_for_deletion;
 pub use self::watcher::{BgObserver, BgObserverError, BgObserverState, InitData, ObserverResult};
 pub use kube::discovery::Scope;
 
@@ -20,4 +21,5 @@ pub mod utils;
 
 mod core;
 mod discovery;
+mod pod_wait;
 mod watcher;

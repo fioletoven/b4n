@@ -5,7 +5,7 @@ use kube::{Api, Client};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::CommandResult;
+use crate::commands::CommandResult;
 
 const CONTAINER_NAME: &str = "shell";
 const READY_TIMEOUT: Duration = Duration::from_secs(120);

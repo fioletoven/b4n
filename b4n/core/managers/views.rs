@@ -4,7 +4,8 @@ use b4n_config::keys::KeyCommand;
 use b4n_kube::client::KubernetesClient;
 use b4n_kube::plugins::PluginContext;
 use b4n_kube::{
-    ALL_NAMESPACES, ContainerRef, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag,
+    ALL_NAMESPACES, ContainerRef, DrainOptions, Namespace, PODS, Port, PropagationPolicy, ResourceRef, ResourceRefFilter,
+    ResourceTag,
 };
 use b4n_tasks::commands::{
     CommandResult, DeleteResourcesOptions, GetNewResourceYamlError, GetNewResourceYamlResult, InjectContainerError,
@@ -448,7 +449,7 @@ impl ViewsManager {
     /// Sanitizes all suitable pods.
     pub fn sanitize_pods(&mut self) {
         let data = self.app_data.borrow();
-        if !data.read_only && data.is_connected() && self.resources.kind_plural() == PODS && self.resources.is_deletable() {
+        if !data.read_only && data.is_connected() && self.resources.table.is_pods() && self.resources.is_deletable() {
             let pods = self.resources.table.list.table.get_sanitizable_resources();
 
             let mut grouped: HashMap<&str, Vec<(String, String)>> = HashMap::new();
@@ -672,6 +673,13 @@ impl ViewsManager {
     pub fn cordon_node(&self, node: String, unschedulable: bool) {
         if !self.app_data.borrow().read_only {
             self.worker.borrow_mut().set_node_unschedulable(node, unschedulable);
+        }
+    }
+
+    /// Drains specified node.
+    pub fn drain_node(&self, node: String, options: DrainOptions) {
+        if !self.app_data.borrow().read_only {
+            self.worker.borrow_mut().drain_node(node, options);
         }
     }
 

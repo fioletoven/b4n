@@ -18,9 +18,9 @@ impl CordonNodeCommand {
     /// Creates new [`CordonNodeCommand`] instance.
     pub fn new(client: Client, name: String, cordon: bool, sink: NotificationSink) -> Self {
         Self {
+            client,
             name,
             cordon,
-            client,
             sink,
         }
     }
@@ -37,11 +37,8 @@ impl CordonNodeCommand {
             return None;
         }
 
-        let api: Api<Node> = Api::all(self.client);
-        let patch = json!({ "spec": { "unschedulable": self.cordon } });
-
-        match api.patch(&self.name, &PatchParams::default(), &Patch::Merge(&patch)).await {
-            Ok(_) => {
+        match cordon_node(self.client, &self.name, self.cordon).await {
+            Ok(()) => {
                 let message = format!("Node '{}' {action}ed", self.name);
                 tracing::info!("{}", message);
                 self.sink.show_info(message, DEFAULT_MESSAGE_DURATION);
@@ -55,4 +52,14 @@ impl CordonNodeCommand {
 
         None
     }
+}
+
+/// Sets unschedulable property in node's spec to the specified value.
+pub async fn cordon_node(client: Client, name: &str, cordon: bool) -> Result<(), kube::Error> {
+    let api: Api<Node> = Api::all(client);
+    let patch = json!({ "spec": { "unschedulable": cordon } });
+
+    api.patch(name, &PatchParams::default(), &Patch::Merge(&patch)).await?;
+
+    Ok(())
 }

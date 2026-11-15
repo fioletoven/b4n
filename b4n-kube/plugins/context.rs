@@ -42,7 +42,7 @@ impl PluginContext {
         result
     }
 
-    fn try_resolve_placeholder<'a>(&'a self, s: &str, row_index: Option<usize>) -> Option<(Cow<'a, str>, usize)> {
+    fn try_resolve_placeholder(&self, s: &str, row_index: Option<usize>) -> Option<(Cow<'_, str>, usize)> {
         type PlaceholderResolver = (&'static str, fn(&PluginContext) -> &str);
         let simple: &[PlaceholderResolver] = &[
             ("$KUBECONFIG", |ctx: &PluginContext| ctx.kubeconfig.as_str()),
@@ -82,7 +82,7 @@ impl PluginContext {
         None
     }
 
-    fn resolve_col<'a>(&'a self, col_name: &str, row_index: Option<usize>) -> Cow<'a, str> {
+    fn resolve_col(&self, col_name: &str, row_index: Option<usize>) -> Cow<'_, str> {
         let Some(col_index) = self.columns.iter().position(|c| c.eq_ignore_ascii_case(col_name)) else {
             return Cow::Borrowed("");
         };
@@ -105,7 +105,7 @@ impl PluginContext {
         }
     }
 
-    fn resolve_res<'a>(&'a self, field_name: &str, row_index: Option<usize>) -> Cow<'a, str> {
+    fn resolve_res(&self, field_name: &str, row_index: Option<usize>) -> Cow<'_, str> {
         let extract: fn(&ResourceRef) -> Option<&str> = match field_name.to_ascii_uppercase().as_str() {
             "NAME" => |r| r.name.as_deref(),
             "NAMESPACE" => |r| r.namespace.as_option(),

@@ -22,12 +22,13 @@ pub enum KeyCommandError {
 }
 
 /// List of all harmful commands that should be ignored in read-only mode.
-pub const HARMFUL_COMMANDS: [KeyCommand; 10] = [
+pub const HARMFUL_COMMANDS: [KeyCommand; 11] = [
     KeyCommand::ContainerAttach,
     KeyCommand::ContainerInject,
     KeyCommand::NodeCordon,
+    KeyCommand::NodeDrain,
     KeyCommand::NodeUncordon,
-    KeyCommand::SanitizePods,
+    KeyCommand::PodsSanitize,
     KeyCommand::ShellOpen,
     KeyCommand::TransferFrom,
     KeyCommand::TransferTo,
@@ -45,9 +46,9 @@ define_key_commands! {
         CommandPaletteOpen => "command-palette.open" @ ":", ">", "Shift+:", "Shift+>",
         CommandPaletteReset => "command-palette.close" @ "Esc",
         ContainerAttach => "container.attach" @ "A",
+        ContainerInject => "container.inject" @ "Ctrl+I",
         ContentCopy => "content.copy" @ "C",
         ContentSave => "content.save" @ "S",
-        ContainerInject => "container.inject" @ "Ctrl+I",
         DescribeOpen => "describe.open" @ "D",
         EditCopy => "edit.copy" @ "Ctrl+C",
         EditCut => "edit.cut" @ "Ctrl+X",
@@ -82,13 +83,14 @@ define_key_commands! {
         NavigateSelect => "navigate.select" @ "Space",
         NavigateSelectAll => "navigate.select-all" @ "Ctrl+A",
         NodeCordon => "node.cordon" @ "Shift+Alt+C",
+        NodeDrain => "node.drain" @ "Shift+Alt+Z",
         NodeUncordon => "node.uncordon" @ "Shift+Alt+U",
+        PodsSanitize => "pods.sanitize" @ "Shift+Alt+S",
+        PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PortForwardsCreate => "port-forwards.create" @ "F",
         PortForwardsOpen => "port-forwards.open" @ "Ctrl+F",
-        PortForwardsCleanup => "port-forwards.cleanup" @ "Ctrl+R",
         PreviousLogsOpen => "previous-logs.open" @ "P",
         ReadOnlyToggle => "read-only.toggle" @ "Shift+Alt+R",
-        SanitizePods => "pods.sanitize" @ "Shift+Alt+Z",
         SearchOpen => "search.open" @ "/", "Shift+/",
         SearchReset => "search.reset" @ "Esc",
         SelectorLeft => "selector.left" @ "Left",

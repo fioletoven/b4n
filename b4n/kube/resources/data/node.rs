@@ -10,7 +10,13 @@ use crate::kube::resources::{ResourceData, ResourceFilterContext, ResourceItem};
 use crate::ui::widgets::table::Cell;
 
 const COLUMNS_NO_WITH_STATS: usize = 10;
-const UNSHEDULABLE_ICON: &str = "⊘";
+const POD_COUNT_IDX: usize = 3;
+const CONTAINER_COUNT_IDX: usize = 4;
+const CPU_IDX: usize = 6;
+const MEM_IDX: usize = 7;
+const CPU_PERCENT_IDX: usize = 8;
+const MEM_PERCENT_IDX: usize = 9;
+const UNSCHEDULABLE_ICON: &str = "⊘";
 
 /// Returns [`ResourceData`] for the `nodes` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -27,7 +33,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let scheduling_status = if is_schedulable {
         ready.map(String::from)
     } else {
-        Some(ready.map_or_else(|| UNSHEDULABLE_ICON.to_owned(), |r| format!("{r} {UNSHEDULABLE_ICON}")))
+        Some(ready.map_or_else(|| UNSCHEDULABLE_ICON.to_owned(), |r| format!("{r} {UNSCHEDULABLE_ICON}")))
     };
 
     let mut values = vec![
@@ -102,23 +108,26 @@ pub fn update_statistics<'a>(
     items: impl Iterator<Item = &'a mut Item<ResourceItem, ResourceFilterContext>>,
     statistics: &Statistics,
 ) {
-    if !statistics.has_metrics {
-        return;
-    }
-
     for item in items {
         let name = &item.data.name;
-        if let Some(data) = &mut item.data.data
-            && data.tags.len() == 2
-            && data.extra_values.len() == COLUMNS_NO_WITH_STATS
-        {
+        let Some(data) = &mut item.data.data else { continue };
+
+        if data.extra_values.len() > CONTAINER_COUNT_IDX {
+            let pods = i64::try_from(statistics.pods_count(name)).ok();
+            let containers = i64::try_from(statistics.containers_count(name)).ok();
+            data.extra_values[POD_COUNT_IDX] = Cell::integer(pods, 6);
+            data.extra_values[CONTAINER_COUNT_IDX] = Cell::integer(containers, 6);
+        }
+
+        if statistics.has_metrics && data.tags.len() == 2 && data.extra_values.len() == COLUMNS_NO_WITH_STATS {
             let cpu_usage = get_cpu_usage(statistics, name, get_as_option(&data.tags[0]));
             let mem_usage = get_mem_usage(statistics, name, get_as_option(&data.tags[1]));
+            let metrics = statistics.node(name).and_then(|n| n.metrics);
 
-            data.extra_values[6] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.cpu).into();
-            data.extra_values[7] = statistics.node(name).and_then(|n| n.metrics).map(|m| m.memory).into();
-            data.extra_values[8] = Cell::number(cpu_usage, 7);
-            data.extra_values[9] = Cell::number(mem_usage, 7);
+            data.extra_values[CPU_IDX] = metrics.map(|m| m.cpu).into();
+            data.extra_values[MEM_IDX] = metrics.map(|m| m.memory).into();
+            data.extra_values[CPU_PERCENT_IDX] = Cell::number(cpu_usage, 7);
+            data.extra_values[MEM_PERCENT_IDX] = Cell::number(mem_usage, 7);
         }
     }
 }

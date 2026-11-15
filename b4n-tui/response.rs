@@ -2,7 +2,7 @@ use b4n_config::PluginRef;
 use b4n_config::symbols::Symbols;
 use b4n_kube::files::TransferContext;
 use b4n_kube::plugins::PluginContext;
-use b4n_kube::{ContainerRef, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
+use b4n_kube::{ContainerRef, DrainOptions, PropagationPolicy, ResourceRef, ResourceRefFilter, ResourceTag, Scope};
 
 use crate::TuiEvent;
 
@@ -123,6 +123,7 @@ pub enum ResponseEvent {
     OpenShell(ResourceRef),
     OpenNodeShell(String),
     CordonNode(String, bool),
+    DrainNode(String, DrainOptions),
     ShowPortForwards,
     PortForward(ResourceRef, u16, u16, String),
 

@@ -449,7 +449,7 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Returns `true` if anything is highlighted.
     pub fn is_anything_highlighted(&self) -> bool {
-        self.get_highlighted_item().is_some()
+        self.highlighted.is_some_and(|h| h < self.items.len())
     }
 
     /// Recovers and returns the highlighted item index from the `is_active` property.
