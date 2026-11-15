@@ -4,8 +4,8 @@
 
 ### Features
 
-- add shell, cordon, uncordon and drain actions in nodes view
-- add sanitize action in pods view
+- add shell, cordon, uncordon and drain actions to nodes view
+- add sanitize action to pods view
 
 ### Bug Fixes
 

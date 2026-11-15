@@ -118,7 +118,7 @@ pub fn new_drain_node_dialog(app_data: &SharedAppData, name: &str, position: Opt
     ])
     .with_checkboxes(vec![
         CheckBox::new(0, "Ignore DaemonSets", false, colors.checkbox.clone(), sym),
-        CheckBox::new(1, "Delete EmptyDir data", false, colors.checkbox.clone(), sym),
+        CheckBox::new(1, "Delete emptyDir data", false, colors.checkbox.clone(), sym),
         CheckBox::new(2, "Force", false, colors.checkbox.clone(), sym),
         CheckBox::new(3, "Disable eviction", false, colors.checkbox.clone(), sym),
     ])

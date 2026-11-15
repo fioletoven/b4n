@@ -1,6 +1,6 @@
 use b4n_common::NotificationSink;
 use b4n_config::keys::KeyCommand;
-use b4n_kube::{CONTAINERS, EVENTS, Kind, Namespace, ObserverResult, Port, ResourceRef};
+use b4n_kube::{CONTAINERS, EVENTS, Kind, Namespace, ObserverResult, Port, ResourceRef, ResourceTag};
 use b4n_list::Row;
 use b4n_tui::table::{Table, ViewType};
 use b4n_tui::widgets::{ActionsList, ActionsListBuilder, Dialog};
@@ -741,12 +741,14 @@ impl ResourcesView {
     }
 
     fn process_node_event(&mut self, event: &TuiEvent) -> Option<ResponseEvent> {
-        if self.app_data.has_binding(event, KeyCommand::NodeCordon) {
+        let is_unschedulable = self.table.has_resource_tag(&ResourceTag::Unschedulable);
+
+        if !is_unschedulable && self.app_data.has_binding(event, KeyCommand::NodeCordon) {
             self.ask_node_scheduling(true, None);
             return Some(ResponseEvent::Handled);
         }
 
-        if self.app_data.has_binding(event, KeyCommand::NodeUncordon) {
+        if is_unschedulable && self.app_data.has_binding(event, KeyCommand::NodeUncordon) {
             self.ask_node_scheduling(false, None);
             return Some(ResponseEvent::Handled);
         }
