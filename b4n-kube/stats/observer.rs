@@ -325,32 +325,29 @@ impl BgStatistics {
     }
 
     fn recalculate_statistics(&mut self) {
-        let mut new_stats = self
-            .pod_data
-            .values()
-            .map(|pod| {
-                (
-                    pod.node_name.clone(),
+        let mut new_stats: HashMap<String, NodeStats> = HashMap::new();
+
+        if self.has_metrics {
+            for (name, metrics) in &self.node_data {
+                new_stats.insert(
+                    name.clone(),
                     NodeStats {
-                        metrics: None,
+                        metrics: *metrics,
                         pods: Vec::new(),
                     },
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        for pod in self.pod_data.values() {
-            if let Some(node) = new_stats.get_mut(&pod.node_name) {
-                node.pods.push(PodStats::from(pod, self.has_metrics));
+                );
             }
         }
 
-        if self.has_metrics {
-            for (name, node) in &mut new_stats {
-                if let Some(&metrics) = self.node_data.get(name) {
-                    node.metrics = metrics;
-                }
-            }
+        for pod in self.pod_data.values() {
+            new_stats
+                .entry(pod.node_name.clone())
+                .or_insert_with(|| NodeStats {
+                    metrics: None,
+                    pods: Vec::new(),
+                })
+                .pods
+                .push(PodStats::from(pod, self.has_metrics));
         }
 
         self.replace_stats(new_stats);
@@ -408,6 +405,7 @@ impl BgStatistics {
             .entry(name)
             .and_modify(|metrics| *metrics = Metrics::try_from(&resource.data).ok())
             .or_insert_with(|| Metrics::try_from(&resource.data).ok());
+        self.is_dirty = true;
     }
 }
 
