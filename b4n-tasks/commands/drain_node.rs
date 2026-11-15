@@ -91,7 +91,7 @@ impl DrainNodeCommand {
                 Err(error) => errors.push(error),
             }
         }
-        into_result(errors)?;
+        into_result(&errors)?;
 
         let total = targets.len();
         self.show_progress(0, total);
@@ -114,7 +114,7 @@ impl DrainNodeCommand {
                 errors.push(error);
             }
         }
-        into_result(errors)
+        into_result(&errors)
     }
 
     async fn should_drain_pod(&self, pod: &Pod) -> Result<bool, String> {
@@ -186,7 +186,7 @@ impl DrainNodeCommand {
     }
 }
 
-fn into_result(errors: Vec<String>) -> Result<(), String> {
+fn into_result(errors: &[String]) -> Result<(), String> {
     if errors.is_empty() { Ok(()) } else { Err(errors.join("; ")) }
 }
 

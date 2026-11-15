@@ -18,9 +18,9 @@ impl CordonNodeCommand {
     /// Creates new [`CordonNodeCommand`] instance.
     pub fn new(client: Client, name: String, cordon: bool, sink: NotificationSink) -> Self {
         Self {
+            client,
             name,
             cordon,
-            client,
             sink,
         }
     }
@@ -38,7 +38,7 @@ impl CordonNodeCommand {
         }
 
         match cordon_node(self.client, &self.name, self.cordon).await {
-            Ok(_) => {
+            Ok(()) => {
                 let message = format!("Node '{}' {action}ed", self.name);
                 tracing::info!("{}", message);
                 self.sink.show_info(message, DEFAULT_MESSAGE_DURATION);

@@ -339,11 +339,11 @@ pub fn build_inject_container_response(modal: &Dialog, resource: ResourceRef) ->
 pub fn build_drain_node_options(modal: &Dialog) -> Option<DrainOptions> {
     let grace = modal
         .textbox(0)
-        .map(|t| t.value())
+        .map(TextBox::value)
         .filter(|v| !v.is_empty())
         .map(str::parse::<u32>)
         .transpose();
-    let timeout = modal.textbox(1).map(|t| t.value()).unwrap_or("").parse::<u32>();
+    let timeout = modal.textbox(1).map_or("", TextBox::value).parse::<u32>();
 
     match (grace, timeout) {
         (Ok(grace_period_seconds), Ok(timeout_seconds)) => Some(DrainOptions {

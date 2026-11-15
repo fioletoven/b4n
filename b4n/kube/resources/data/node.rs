@@ -16,7 +16,7 @@ const CPU_IDX: usize = 6;
 const MEM_IDX: usize = 7;
 const CPU_PERCENT_IDX: usize = 8;
 const MEM_PERCENT_IDX: usize = 9;
-const UNSHEDULABLE_ICON: &str = "⊘";
+const UNSCHEDULABLE_ICON: &str = "⊘";
 
 /// Returns [`ResourceData`] for the `nodes` kubernetes resource.
 pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
@@ -33,7 +33,7 @@ pub fn data(object: &DynamicObject, statistics: &Statistics) -> ResourceData {
     let scheduling_status = if is_schedulable {
         ready.map(String::from)
     } else {
-        Some(ready.map_or_else(|| UNSHEDULABLE_ICON.to_owned(), |r| format!("{r} {UNSHEDULABLE_ICON}")))
+        Some(ready.map_or_else(|| UNSCHEDULABLE_ICON.to_owned(), |r| format!("{r} {UNSCHEDULABLE_ICON}")))
     };
 
     let mut values = vec![
