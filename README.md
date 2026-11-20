@@ -58,7 +58,22 @@ To upgrade to the latest version:
 winget upgrade b4n
 ```
 
-> Note: After installing with Homebrew or WinGet, remember to choose the appropriate symbol set on the first run if your terminal does not support Nerd Font symbols (see [Manual installation](#manual)).
+### Scoop
+
+On Windows, you can also install `b4n` using [Scoop](https://scoop.sh). It is available in the `extras` bucket:
+
+```powershell
+scoop bucket add extras
+scoop install b4n
+```
+
+To upgrade to the latest version:
+
+```powershell
+scoop update b4n
+```
+
+> Note: After installing with Homebrew, WinGet or Scoop, remember to choose the appropriate symbol set on the first run if your terminal does not support Nerd Font symbols (see [Manual installation](#manual)).
 
 ### Manual
 
