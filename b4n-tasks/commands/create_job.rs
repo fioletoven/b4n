@@ -1,8 +1,10 @@
 use b4n_common::{DEFAULT_ERROR_DURATION, DEFAULT_MESSAGE_DURATION, NotificationSink};
 use b4n_kube::ResourceRef;
 use k8s_openapi::api::batch::v1::{CronJob, Job};
-use kube::api::{ObjectMeta, PostParams};
+use k8s_openapi::serde_json::{Value, json};
+use kube::api::{ApiResource, DynamicObject, ObjectMeta, PostParams};
 use kube::{Api, Client, Resource};
+use std::collections::BTreeMap;
 
 use crate::commands::CommandResult;
 
@@ -47,7 +49,7 @@ impl CreateJobCommand {
     }
 }
 
-async fn create_job(client: Client, resource: &ResourceRef) -> Result<Job, String> {
+async fn create_job(client: Client, resource: &ResourceRef) -> Result<DynamicObject, String> {
     let name = resource
         .name
         .as_deref()
@@ -55,38 +57,55 @@ async fn create_job(client: Client, resource: &ResourceRef) -> Result<Job, Strin
         .ok_or("CronJob name is not provided")?;
     let namespace = resource.namespace.as_option().ok_or("CronJob namespace is not provided")?;
 
-    let cronjobs: Api<CronJob> = Api::namespaced(client, namespace);
+    let cronjob_ar = ApiResource::erase::<CronJob>(&());
+    let cronjobs: Api<DynamicObject> = Api::namespaced_with(client, namespace, &cronjob_ar);
     let cronjob = cronjobs.get(name).await.map_err(|error| error.to_string())?;
 
-    let jobs: Api<Job> = Api::namespaced(cronjobs.into_client(), namespace);
+    let job_ar = ApiResource::erase::<Job>(&());
+    let jobs: Api<DynamicObject> = Api::namespaced_with(cronjobs.into_client(), namespace, &job_ar);
 
-    jobs.create(&PostParams::default(), &(build_job(cronjob, name)?))
+    jobs.create(&PostParams::default(), &(build_job(&cronjob, &cronjob_ar, &job_ar, name)?))
         .await
         .map_err(|error| error.to_string())
 }
 
-fn build_job(cronjob: CronJob, name: &str) -> Result<Job, &'static str> {
-    let owner = cronjob.controller_owner_ref(&()).map(|mut owner| {
+fn build_job(
+    cronjob: &DynamicObject,
+    cronjob_ar: &ApiResource,
+    job_ar: &ApiResource,
+    name: &str,
+) -> Result<DynamicObject, &'static str> {
+    let template = &cronjob.data["spec"]["jobTemplate"];
+    let spec = template.get("spec").cloned().ok_or("CronJob has no Job template spec")?;
+
+    let labels = get_map(template, "labels");
+    let mut annotations = get_map(template, "annotations");
+    annotations.insert("cronjob.kubernetes.io/instantiate".to_owned(), "manual".to_owned());
+
+    let owner = cronjob.controller_owner_ref(cronjob_ar).map(|mut owner| {
         owner.block_owner_deletion = None;
         owner
     });
-    let template = cronjob.spec.job_template;
 
-    let spec = template.spec.ok_or("CronJob has no Job template spec")?;
-    let metadata = template.metadata.unwrap_or_default();
-
-    let mut annotations = metadata.annotations.unwrap_or_default();
-    annotations.insert("cronjob.kubernetes.io/instantiate".to_owned(), "manual".to_owned());
-
-    Ok(Job {
-        metadata: ObjectMeta {
-            generate_name: Some(format!("{name}-")),
-            labels: metadata.labels,
-            annotations: Some(annotations),
-            owner_references: owner.map(|owner| vec![owner]),
-            ..Default::default()
-        },
-        spec: Some(spec),
+    let mut job = DynamicObject::new("", job_ar);
+    job.metadata = ObjectMeta {
+        generate_name: Some(format!("{name}-")),
+        labels: (!labels.is_empty()).then_some(labels),
+        annotations: Some(annotations),
+        owner_references: owner.map(|owner| vec![owner]),
         ..Default::default()
-    })
+    };
+    job.data = json!({ "spec": spec });
+
+    Ok(job)
+}
+
+fn get_map(template: &Value, key: &str) -> BTreeMap<String, String> {
+    let Some(map) = template["metadata"][key].as_object() else {
+        return BTreeMap::new();
+    };
+
+    map.iter()
+        .filter_map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_owned())))
+        .collect()
 }
