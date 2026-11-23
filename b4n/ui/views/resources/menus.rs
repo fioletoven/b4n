@@ -252,10 +252,10 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
 
         if !is_read_only && table.is_cron_jobs() {
             builder.add_action(
-                ActionItem::action("run job", "create_job")
+                ActionItem::action("trigger", "create_job")
                     .with_description("creates a Job from highlighted resource")
-                    .with_aliases(["trigger"]),
-                None,
+                    .with_aliases(["run"]),
+                Some(KeyCommand::CronJobTrigger),
             );
         }
 

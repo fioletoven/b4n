@@ -22,9 +22,10 @@ pub enum KeyCommandError {
 }
 
 /// List of all harmful commands that should be ignored in read-only mode.
-pub const HARMFUL_COMMANDS: [KeyCommand; 11] = [
+pub const HARMFUL_COMMANDS: [KeyCommand; 12] = [
     KeyCommand::ContainerAttach,
     KeyCommand::ContainerInject,
+    KeyCommand::CronJobTrigger,
     KeyCommand::NodeCordon,
     KeyCommand::NodeDrain,
     KeyCommand::NodeUncordon,
@@ -49,6 +50,7 @@ define_key_commands! {
         ContainerInject => "container.inject" @ "Ctrl+I",
         ContentCopy => "content.copy" @ "C",
         ContentSave => "content.save" @ "S",
+        CronJobTrigger => "cronjob.trigger" @ "T",
         DescribeOpen => "describe.open" @ "D",
         EditCopy => "edit.copy" @ "Ctrl+C",
         EditCut => "edit.cut" @ "Ctrl+X",

@@ -636,15 +636,7 @@ impl ResourcesView {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
                 },
-                "create_job" => {
-                    if !self.app_data.borrow().read_only
-                        && self.table.is_cron_jobs()
-                        && let Some(resource) = self.table.get_resource_ref(false)
-                    {
-                        self.worker.borrow_mut().create_job(resource);
-                    }
-                    ResponseEvent::Handled
-                },
+                "create_job" => self.process_event(&TuiEvent::Command(KeyCommand::CronJobTrigger)),
                 "show_events" => self.table.process_event(&TuiEvent::Command(KeyCommand::EventsShow)),
                 "show_involved" => self.table.process_event(&TuiEvent::Command(KeyCommand::InvolvedObjectShow)),
                 "show_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
@@ -896,6 +888,14 @@ impl View for ResourcesView {
                 && let Some(response) = self.process_node_event(event)
             {
                 return response;
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::CronJobTrigger)
+                && self.table.is_cron_jobs()
+                && let Some(resource) = self.table.get_resource_ref(false)
+            {
+                self.worker.borrow_mut().create_job(resource);
+                return ResponseEvent::Handled;
             }
         }
 
