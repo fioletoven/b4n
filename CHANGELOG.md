@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- add `trigger` command palette action for the highlighted resource to cronjobs view
+
 ## 1.4.0 - 2026-11-15
 
 ### Features

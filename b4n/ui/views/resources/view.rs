@@ -202,6 +202,16 @@ impl ResourcesView {
         }
     }
 
+    fn ask_trigger_cronjob(&mut self, position: Option<Position>) {
+        if !self.app_data.borrow().read_only
+            && self.table.is_cron_jobs()
+            && let Some(resource) = self.table.list.table.get_highlighted_item_name()
+        {
+            self.modal = dialogs::new_trigger_cronjob_dialog(&self.app_data, position, resource);
+            self.modal.show();
+        }
+    }
+
     /// Shows stop port forwarding rules dialog if anything is selected.
     pub fn ask_stop_port_forwards(&mut self) {
         if let Some(resource) = self.table.list.table.get_highlighted_item_name().map(String::from) {
@@ -554,6 +564,12 @@ impl ResourcesView {
                         Some(ResponseEvent::Handled)
                     },
                     "drain" => Some(self.drain_highlighted_node()),
+                    "create_job" => {
+                        if let Some(resource) = self.table.get_resource_ref(false) {
+                            self.worker.borrow_mut().create_job(resource);
+                        }
+                        Some(ResponseEvent::Handled)
+                    },
                     "transfer_file" => {
                         if let Some(resource) = self.table.get_resource_ref(false)
                             && let Some(context) = transfer::get_transfer_dialog_context(&self.modal)
@@ -636,6 +652,7 @@ impl ResourcesView {
                     self.last_mouse_click = event.position();
                     self.process_event(&TuiEvent::Command(KeyCommand::YamlCreate))
                 },
+                "create_job" => self.process_event(&TuiEvent::Command(KeyCommand::CronJobTrigger)),
                 "show_events" => self.table.process_event(&TuiEvent::Command(KeyCommand::EventsShow)),
                 "show_involved" => self.table.process_event(&TuiEvent::Command(KeyCommand::InvolvedObjectShow)),
                 "show_yaml" => self.table.process_event(&TuiEvent::Command(KeyCommand::YamlOpen)),
@@ -887,6 +904,11 @@ impl View for ResourcesView {
                 && let Some(response) = self.process_node_event(event)
             {
                 return response;
+            }
+
+            if self.app_data.has_binding(event, KeyCommand::CronJobTrigger) {
+                self.ask_trigger_cronjob(event.position());
+                return ResponseEvent::Handled;
             }
         }
 

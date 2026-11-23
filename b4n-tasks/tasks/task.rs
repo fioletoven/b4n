@@ -118,5 +118,6 @@ pub async fn run_command(command: Command) -> Option<CommandResult> {
         Command::CordonNode(command) => command.execute().await,
         Command::DrainNode(command) => command.execute().await,
         Command::TransferFile(command) => command.execute().await,
+        Command::CreateJob(command) => command.execute().await,
     }
 }

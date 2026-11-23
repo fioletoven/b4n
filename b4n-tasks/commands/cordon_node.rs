@@ -30,9 +30,9 @@ impl CordonNodeCommand {
         let action = if self.cordon { "cordon" } else { "uncordon" };
 
         if self.name.is_empty() {
-            let message = format!("Cannot {action} node: node name is not provided");
-            tracing::error!("{}", message);
-            self.sink.show_error(message, DEFAULT_ERROR_DURATION);
+            let msg = format!("Cannot {action} node: node name is not provided");
+            tracing::error!("{}", msg);
+            self.sink.show_error(msg, DEFAULT_ERROR_DURATION);
 
             return None;
         }
@@ -44,9 +44,9 @@ impl CordonNodeCommand {
                 self.sink.show_info(message, DEFAULT_MESSAGE_DURATION);
             },
             Err(error) => {
-                let message = format!("Cannot {action} node '{}': {error}", self.name);
-                tracing::error!("{}", message);
-                self.sink.show_error(message, DEFAULT_ERROR_DURATION);
+                let msg = format!("Cannot {action} node '{}': {error}", self.name);
+                tracing::error!("{}", msg);
+                self.sink.show_error(msg, DEFAULT_ERROR_DURATION);
             },
         }
 

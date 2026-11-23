@@ -39,14 +39,14 @@ impl DrainNodeCommand {
 
         match result {
             Ok(()) => {
-                let message = format!("Node '{}' drained", self.name);
-                tracing::info!("{message}");
-                self.sink.show_info(message, DEFAULT_MESSAGE_DURATION);
+                let msg = format!("Node '{}' drained", self.name);
+                tracing::info!("{}", msg);
+                self.sink.show_info(msg, DEFAULT_MESSAGE_DURATION);
             },
             Err(error) => {
-                let message = format!("Cannot drain node '{}': {error}", self.name);
-                tracing::error!("{message}");
-                self.sink.show_error(message, DEFAULT_ERROR_DURATION);
+                let msg = format!("Cannot drain node '{}': {error}", self.name);
+                tracing::error!("{}", msg);
+                self.sink.show_error(msg, DEFAULT_ERROR_DURATION);
             },
         }
 
@@ -58,9 +58,9 @@ impl DrainNodeCommand {
             return Err("node name is not provided".into());
         }
 
-        let message = format!("Draining node '{}'", self.name);
-        tracing::info!("{message}");
-        self.sink.show_info(message, DEFAULT_MESSAGE_DURATION);
+        let msg = format!("Draining node '{}'", self.name);
+        tracing::info!("{}", msg);
+        self.sink.show_info(msg, DEFAULT_MESSAGE_DURATION);
 
         match self.options.timeout_seconds {
             0 => self.drain().await,
@@ -231,9 +231,9 @@ async fn drain_pod(client: Client, pod: Pod, options: DrainOptions, sink: Notifi
         .await
         .map_err(|error| format!("cannot wait for {id} to terminate: {error}"))?;
 
-    let message = format!("Drained pod {id}");
-    tracing::info!("{message}");
-    sink.show_info(message, DEFAULT_MESSAGE_DURATION);
+    let msg = format!("Drained pod {id}");
+    tracing::info!("{}", msg);
+    sink.show_info(msg, DEFAULT_MESSAGE_DURATION);
 
     Ok(())
 }

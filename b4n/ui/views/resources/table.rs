@@ -205,6 +205,11 @@ impl ResourcesTable {
         self.kind_plural() == PODS && self.group().is_empty()
     }
 
+    /// Returns `true` if this resources table shows `CronJobs`.
+    pub fn is_cron_jobs(&self) -> bool {
+        self.kind_plural() == "cronjobs" && self.group() == "batch"
+    }
+
     /// Returns `true` if currently highlighted resource is in running state.
     pub fn is_resource_running(&self) -> bool {
         self.list

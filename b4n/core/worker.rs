@@ -13,8 +13,8 @@ use b4n_kube::{
     BgDiscovery, BgObserverError, CRDS, ContainerRef, DiscoveryList, DrainOptions, Kind, NAMESPACES, Namespace, PODS, ResourceRef,
 };
 use b4n_tasks::commands::{
-    Command, CordonNodeCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions, DrainNodeCommand,
-    EphemeralContainerConfig, GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand,
+    Command, CordonNodeCommand, CreateJobCommand, CreateNodeShellCommand, DeleteResourcesCommand, DeleteResourcesOptions,
+    DrainNodeCommand, EphemeralContainerConfig, GetNewResourceYamlCommand, GetResourceYamlCommand, InjectContainerCommand,
     InstallMissingResourcesCommand, ListResourcePortsCommand, RunPluginCommand, SaveConfigurationCommand, SaveContentCommand,
     SetNewResourceYamlCommand, SetNewResourceYamlOptions, SetResourceYamlCommand, SetResourceYamlOptions, TransferFileCommand,
 };
@@ -580,6 +580,14 @@ impl BgWorker {
                 symbols,
             );
             self.executor.run_task(Command::TransferFile(Box::new(command)));
+        }
+    }
+
+    /// Sends a command to create a `Job` (and run it once) from a `CronJob` to the background executor.
+    pub fn create_job(&mut self, resource: ResourceRef) {
+        if let Some(client) = &self.client {
+            let command = CreateJobCommand::new(client.get_client(), resource, self.footer_tx.clone());
+            self.executor.run_task(Command::CreateJob(Box::new(command)));
         }
     }
 

@@ -250,6 +250,15 @@ pub fn build_resources_actions(app_data: &SharedAppData, table: &ResourcesTable)
     if is_highlighted {
         builder = add_resource_actions(builder, table, is_containers, is_read_only);
 
+        if !is_read_only && table.is_cron_jobs() {
+            builder.add_action(
+                ActionItem::action("trigger", "create_job")
+                    .with_description("creates a Job from highlighted resource")
+                    .with_aliases(["run"]),
+                Some(KeyCommand::CronJobTrigger),
+            );
+        }
+
         if !is_read_only && is_pods && table.is_resource_running() {
             builder = add_ephemeral_container_actions(builder);
             builder = add_file_transfer_actions(builder);
