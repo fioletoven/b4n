@@ -1,5 +1,11 @@
 # Change Log
 
+## WIP
+
+### Features
+
+- add `create job` command palette action the highlighted CronJob
+
 ## 1.4.0 - 2026-11-15
 
 ### Features

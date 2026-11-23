@@ -239,10 +239,7 @@ pub struct FilterableListIterator<'a, T, Fc> {
 
 enum IterInner<'a, T> {
     All(Iter<'a, T>),
-    Filtered {
-        items: &'a [T],
-        indices: Iter<'a, usize>,
-    },
+    Filtered { items: &'a [T], indices: Iter<'a, usize> },
 }
 
 impl<'a, T: Filterable<Fc>, Fc: FilterContext> Iterator for FilterableListIterator<'a, T, Fc> {

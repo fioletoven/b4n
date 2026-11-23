@@ -4,6 +4,7 @@ use kube::config::NamedContext;
 use std::path::PathBuf;
 
 pub use self::cordon_node::CordonNodeCommand;
+pub use self::create_job::CreateJobCommand;
 pub use self::create_node_shell::{CreateNodeShellCommand, CreateNodeShellError};
 pub use self::delete_resources::{DeleteResourcesCommand, DeleteResourcesOptions};
 pub use self::drain_node::DrainNodeCommand;
@@ -25,6 +26,7 @@ pub use self::set_yaml::{SetResourceYamlAction, SetResourceYamlCommand, SetResou
 pub use self::transfer_file::{TransferFileCommand, TransferFileError, TransferFileResult};
 
 mod cordon_node;
+mod create_job;
 mod create_node_shell;
 mod delete_resources;
 mod drain_node;
@@ -64,6 +66,7 @@ pub enum Command {
     CordonNode(Box<CordonNodeCommand>),
     DrainNode(Box<DrainNodeCommand>),
     TransferFile(Box<TransferFileCommand>),
+    CreateJob(Box<CreateJobCommand>),
 }
 
 impl Command {
