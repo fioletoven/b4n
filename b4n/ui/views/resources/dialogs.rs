@@ -125,6 +125,21 @@ pub fn new_drain_node_dialog(app_data: &SharedAppData, name: &str, position: Opt
     .with_highlighted_position(position)
 }
 
+/// Creates a dialog asking the user whether to create a job from the highlighted cronjob.
+pub fn new_trigger_cronjob_dialog(app_data: &SharedAppData, position: Option<Position>, resource: &str) -> Dialog {
+    let colors = &app_data.borrow().theme.colors.modal;
+
+    Dialog::new(
+        format!("Create one-off Job from '{resource}'?"),
+        vec![
+            Button::new("Create", ResponseEvent::Action("create_job"), colors.btn_accent.clone()),
+            Button::new("Cancel", ResponseEvent::Cancelled, colors.btn_cancel.clone()),
+        ],
+    )
+    .with_colors(colors.text)
+    .with_highlighted_position(position)
+}
+
 /// Creates new stop port forwarding rules dialog.
 pub fn new_stop_port_forwards_dialog(app_data: &SharedAppData, position: Option<Position>, resource: &str) -> Dialog {
     let colors = &app_data.borrow().theme.colors.modal;

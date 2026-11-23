@@ -583,7 +583,7 @@ impl BgWorker {
         }
     }
 
-    /// Sends a command to create a Job (and run it once) from a CronJob to the background executor.
+    /// Sends a command to create a `Job` (and run it once) from a `CronJob` to the background executor.
     pub fn create_job(&mut self, resource: ResourceRef) {
         if let Some(client) = &self.client {
             let command = CreateJobCommand::new(client.get_client(), resource, self.footer_tx.clone());

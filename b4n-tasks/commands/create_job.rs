@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use crate::commands::CommandResult;
 
-/// Command that creates a Job from a CronJob's template.
+/// Command that creates a `Job` from a `CronJobs` template.
 pub struct CreateJobCommand {
     client: Client,
     resource: ResourceRef,
@@ -21,12 +21,12 @@ impl CreateJobCommand {
         Self { client, resource, sink }
     }
 
-    /// Creates a Job from a CronJob's template.
+    /// Creates a `Job` from a `CronJobs` template.
     pub async fn execute(self) -> Option<CommandResult> {
         match create_job(self.client, &self.resource).await {
             Ok(job) => {
                 let msg = format!(
-                    "Job '{}' created from CronJob '{}' in namespace '{}'",
+                    "Job '{}' created from '{}' in namespace '{}'",
                     job.metadata.name.as_deref().unwrap_or_default(),
                     self.resource.name.as_deref().unwrap_or_default(),
                     self.resource.namespace.as_str()

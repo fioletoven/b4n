@@ -205,7 +205,7 @@ impl ResourcesTable {
         self.kind_plural() == PODS && self.group().is_empty()
     }
 
-    /// Returns `true` if this resources table shows CronJobs.
+    /// Returns `true` if this resources table shows `CronJobs`.
     pub fn is_cron_jobs(&self) -> bool {
         self.kind_plural() == "cronjobs" && self.group() == "batch"
     }
