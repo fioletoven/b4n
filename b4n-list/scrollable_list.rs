@@ -273,17 +273,20 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> ScrollableList<T, Fc> {
 
     /// Process mouse `ScrollUp` event.
     pub fn process_scroll_up(&mut self) {
-        if self.page_start > 0 {
-            self.move_highlighted(-1);
-            self.page_start = self.page_start.saturating_sub(1);
+        let step = self.page_start.min(3);
+        if step > 0 {
+            self.move_highlighted(-(step as i32));
+            self.page_start -= step;
         }
     }
 
     /// Process mouse `ScrollDown` event.
     pub fn process_scroll_down(&mut self) {
-        if self.page_start < self.items.len().saturating_sub(usize::from(self.page_height)) {
-            self.move_highlighted(1);
-            self.page_start = self.page_start.saturating_add(1);
+        let max_start = self.items.len().saturating_sub(usize::from(self.page_height));
+        let step = max_start.saturating_sub(self.page_start).min(3);
+        if step > 0 {
+            self.move_highlighted(step as i32);
+            self.page_start += step;
         }
     }
 

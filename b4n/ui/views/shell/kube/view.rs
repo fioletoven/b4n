@@ -699,8 +699,8 @@ impl View for ShellView {
             }
 
             return match mouse.kind {
-                MouseEventKind::ScrollUp => self.set_scrollback(1, true),
-                MouseEventKind::ScrollDown => self.set_scrollback(1, false),
+                MouseEventKind::ScrollUp => self.set_scrollback(3, true),
+                MouseEventKind::ScrollDown => self.set_scrollback(3, false),
                 MouseEventKind::RightClick => self.show_mouse_menu(mouse.column, mouse.row),
                 _ => ResponseEvent::NotHandled,
             };
