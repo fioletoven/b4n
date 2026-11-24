@@ -292,12 +292,12 @@ impl<T: Row + Filterable<Fc>, Fc: FilterContext> TabularList<T, Fc> {
         if mouse.kind == MouseEventKind::ScrollLeft
             || (mouse.kind == MouseEventKind::ScrollUp && mouse.modifiers == KeyModifiers::CONTROL)
         {
-            self.set_offset(self.offset.saturating_sub(1));
+            self.set_offset(self.offset.saturating_sub(3));
             return ResponseEvent::Handled;
         } else if mouse.kind == MouseEventKind::ScrollRight
             || (mouse.kind == MouseEventKind::ScrollDown && mouse.modifiers == KeyModifiers::CONTROL)
         {
-            self.set_offset(self.offset + 1);
+            self.set_offset(self.offset + 3);
             return ResponseEvent::Handled;
         }
 

@@ -407,15 +407,15 @@ impl DescribeContent {
             TuiEvent::Mouse(mouse) => match mouse {
                 // horizontal scroll
                 x if x.kind == MouseEventKind::ScrollUp && x.modifiers == KeyModifiers::CONTROL => {
-                    self.page_start.sub_x(1);
+                    self.page_start.sub_x(3);
                 },
-                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.add_x(1),
-                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.sub_x(1),
-                x if x.kind == MouseEventKind::ScrollRight => self.page_start.add_x(1),
+                x if x.kind == MouseEventKind::ScrollDown && x.modifiers == KeyModifiers::CONTROL => self.page_start.add_x(3),
+                x if x.kind == MouseEventKind::ScrollLeft => self.page_start.sub_x(3),
+                x if x.kind == MouseEventKind::ScrollRight => self.page_start.add_x(3),
 
                 // vertical scroll
-                x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(1),
-                x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(1),
+                x if x.kind == MouseEventKind::ScrollUp => self.page_start.sub_y(3),
+                x if x.kind == MouseEventKind::ScrollDown => self.page_start.add_y(3),
 
                 _ => return ResponseEvent::NotHandled,
             },
