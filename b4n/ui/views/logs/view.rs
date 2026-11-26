@@ -4,7 +4,7 @@ use b4n_kube::client::KubernetesClient;
 use b4n_kube::{ContainerRef, ContainerType, PODS, ResourceRef};
 use b4n_tui::widgets::{ActionItem, ActionsListBuilder, Button, Dialog};
 use b4n_tui::{MouseEventKind, ResponseEvent, Responsive, TuiEvent};
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use k8s_openapi::jiff::{SignedDuration, Timestamp};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
@@ -449,8 +449,8 @@ impl LogsView {
     fn process_logs_event(&mut self, event: &TuiEvent) -> ResponseEvent {
         if self.logs.is_at_beginning()
             && self.observers.len() == 1
-            && (matches!(event, TuiEvent::Key(key) if key.code == KeyCode::Up)
-                || matches!(event, TuiEvent::Mouse(mouse) if mouse.kind == MouseEventKind::ScrollUp))
+            && (matches!(event, TuiEvent::Key(k) if k.code == KeyCode::Up)
+                || matches!(event, TuiEvent::Mouse(m) if m.kind == MouseEventKind::ScrollUp && m.modifiers == KeyModifiers::NONE))
         {
             self.fetch_previous_log_lines();
             return ResponseEvent::Handled;

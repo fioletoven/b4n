@@ -6,6 +6,10 @@
 
 - add `trigger` command palette action for the highlighted resource to cronjobs view
 
+### Bug Fixes
+
+- fix `Ctrl` and mouse `ScrollUp` behaviour
+
 ## 1.4.0 - 2026-11-15
 
 ### Features
